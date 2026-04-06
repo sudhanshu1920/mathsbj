@@ -182,16 +182,6 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
 
   // SQUARES / ROOTS / CUBES / CUBE ROOTS
   if (['squares', 'square-roots', 'cubes', 'cube-roots'].includes(activeTopic || '') && selectedRange) {
-    const getData = () => {
-      switch (activeTopic) {
-        case 'squares': return getSquares(selectedRange.from, selectedRange.to);
-        case 'square-roots': return getSquareRoots(selectedRange.from, selectedRange.to);
-        case 'cubes': return getCubes(selectedRange.from, selectedRange.to);
-        case 'cube-roots': return getCubeRoots(selectedRange.from, selectedRange.to);
-        default: return [];
-      }
-    };
-
     const allItems = rangeGroups.map((g) => {
       let data: any[];
       switch (activeTopic) {
