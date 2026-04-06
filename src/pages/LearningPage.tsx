@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Grid3x3, Square, SquareRoot, Box, Zap, Percent, ArrowLeft, Target } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target } from 'lucide-react';
 import TopicCard from '@/components/TopicCard';
 import SwipeContainer from '@/components/SwipeContainer';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getPercentages, getExtendedRangeGroups } from '@/lib/mathData';
