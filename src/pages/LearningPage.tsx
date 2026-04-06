@@ -108,7 +108,7 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
 
   // TABLES
   if (activeTopic === 'tables' && selectedNumber) {
-    const data = getTable(selectedNumber);
+    getTable(selectedNumber);
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => {
       const tableData = getTable(n);
