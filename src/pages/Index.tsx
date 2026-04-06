@@ -1,16 +1,46 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import BottomNav from '@/components/BottomNav';
+import LearningPage from '@/pages/LearningPage';
+import PracticePage from '@/pages/PracticePage';
+import ProgressPage from '@/pages/ProgressPage';
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+type Tab = 'learn' | 'practice' | 'progress';
+
+const Index = () => {
+  const [tab, setTab] = useState<Tab>('learn');
+  const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
+
+  const handleStartPractice = (topic: string) => {
+    setPracticeTopic(topic);
+    setTab('practice');
+  };
+
+  const handleTabChange = (newTab: Tab) => {
+    if (newTab !== 'practice') setPracticeTopic(undefined);
+    setTab(newTab);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background pb-20">
+      <div className="max-w-lg mx-auto px-4 pt-6">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab + (practiceTopic || '')}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {tab === 'learn' && <LearningPage onStartPractice={handleStartPractice} />}
+            {tab === 'practice' && <PracticePage initialTopic={practiceTopic} />}
+            {tab === 'progress' && <ProgressPage />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      <BottomNav active={tab} onChange={handleTabChange} />
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
