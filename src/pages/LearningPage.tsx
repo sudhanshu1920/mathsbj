@@ -145,7 +145,7 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
 
   // POWERS
   if (activeTopic === 'powers' && selectedNumber) {
-    const data = getPowers(selectedNumber);
+    getPowers(selectedNumber);
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => {
       const powerData = getPowers(n);
