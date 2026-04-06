@@ -14,7 +14,7 @@ interface LearningPageProps {
 const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
   { id: 'tables', title: 'Tables', icon: Grid3x3, gradient: 'gradient-primary' },
   { id: 'squares', title: 'Squares', icon: Square, gradient: 'bg-gradient-to-br from-emerald-500 to-teal-600' },
-  { id: 'square-roots', title: 'Square Roots', icon: SquareRoot, gradient: 'bg-gradient-to-br from-cyan-500 to-blue-600' },
+  { id: 'square-roots', title: 'Square Roots', icon: Radical, gradient: 'bg-gradient-to-br from-cyan-500 to-blue-600' },
   { id: 'cubes', title: 'Cubes', icon: Box, gradient: 'bg-gradient-to-br from-orange-500 to-red-500' },
   { id: 'cube-roots', title: 'Cube Roots', icon: Box, gradient: 'bg-gradient-to-br from-pink-500 to-rose-600' },
   { id: 'powers', title: 'Powers', icon: Zap, gradient: 'bg-gradient-to-br from-violet-500 to-purple-600' },
