@@ -3,12 +3,13 @@ import { motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target } from 'lucide-react';
 import TopicCard from '@/components/TopicCard';
 import SwipeContainer from '@/components/SwipeContainer';
+import StackedFraction from '@/components/StackedFraction';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getPercentages, getExtendedRangeGroups } from '@/lib/mathData';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage';
 
 interface LearningPageProps {
-  onStartPractice?: (topic: string) => void;
+  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }) => void;
 }
 
 const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
@@ -21,12 +22,31 @@ const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
   { id: 'percentage', title: 'Percentage', icon: Percent, gradient: 'bg-gradient-to-br from-amber-500 to-yellow-600' },
 ];
 
+function parseMixedPercentage(mixed: string): { whole: number; numerator: number; denominator: number } | null {
+  // e.g. "50%" or "33 1/3%" or "1/2%"
+  const m = mixed.match(/^(\d+)?\s*(?:(\d+)\/(\d+))?\s*%$/);
+  if (!m) return null;
+  const whole = m[1] ? parseInt(m[1]) : 0;
+  const num = m[2] ? parseInt(m[2]) : 0;
+  const den = m[3] ? parseInt(m[3]) : 1;
+  if (num === 0) return null; // pure whole number, no fraction needed
+  return { whole, numerator: num, denominator: den };
+}
+
 const LearningPage = ({ onStartPractice }: LearningPageProps) => {
   const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ from: number; to: number } | null>(null);
 
   const rangeGroups = getExtendedRangeGroups();
+
+  const handlePractice = (topicId: string) => {
+    if (!onStartPractice) return;
+    const ctx: { from?: number; to?: number; number?: number } = {};
+    if (selectedNumber) ctx.number = selectedNumber;
+    if (selectedRange) { ctx.from = selectedRange.from; ctx.to = selectedRange.to; }
+    onStartPractice(topicId, ctx);
+  };
 
   const renderHeader = (title: string, onBack: () => void, practiceTopicId?: string) => (
     <div className="flex items-center justify-between mb-4">
@@ -35,9 +55,9 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
         <span className="font-medium">Back</span>
       </button>
       <h2 className="font-display font-bold text-lg text-foreground">{title}</h2>
-      {practiceTopicId && onStartPractice ? (
+      {practiceTopicId ? (
         <button
-          onClick={() => onStartPractice(practiceTopicId)}
+          onClick={() => handlePractice(practiceTopicId)}
           className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
         >
           <Target size={14} />
@@ -108,7 +128,6 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
 
   // TABLES
   if (activeTopic === 'tables' && selectedNumber) {
-    getTable(selectedNumber);
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => {
       const tableData = getTable(n);
@@ -145,7 +164,6 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
 
   // POWERS
   if (activeTopic === 'powers' && selectedNumber) {
-    getPowers(selectedNumber);
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => {
       const powerData = getPowers(n);
@@ -244,19 +262,32 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
           <div className="text-center">Mixed</div>
         </div>
         <div className="space-y-2">
-          {data.map((row, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: i * 0.02 }}
-              className="bg-card border border-border rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm"
-            >
-              <span className="text-foreground font-medium">{row.fraction}</span>
-              <span className="text-primary font-bold">{row.decimal}</span>
-              <span className="text-accent font-bold">{row.mixed}</span>
-            </motion.div>
-          ))}
+          {data.map((row, i) => {
+            const parsed = parseMixedPercentage(row.mixed);
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.02 }}
+                className="bg-card border border-border rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center"
+              >
+                <span className="text-foreground font-medium">{row.fraction}</span>
+                <span className="text-primary font-bold">{row.decimal}</span>
+                <span className="flex justify-center">
+                  {parsed ? (
+                    <StackedFraction
+                      whole={parsed.whole}
+                      numerator={parsed.numerator}
+                      denominator={parsed.denominator}
+                    />
+                  ) : (
+                    <span className="text-primary font-bold">{row.mixed}</span>
+                  )}
+                </span>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     );
