@@ -10,14 +10,19 @@ type Tab = 'learn' | 'practice' | 'progress';
 const Index = () => {
   const [tab, setTab] = useState<Tab>('learn');
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
+  const [practiceContext, setPracticeContext] = useState<{ from?: number; to?: number; number?: number } | undefined>();
 
-  const handleStartPractice = (topic: string) => {
+  const handleStartPractice = (topic: string, context?: { from?: number; to?: number; number?: number }) => {
     setPracticeTopic(topic);
+    setPracticeContext(context);
     setTab('practice');
   };
 
   const handleTabChange = (newTab: Tab) => {
-    if (newTab !== 'practice') setPracticeTopic(undefined);
+    if (newTab !== 'practice') {
+      setPracticeTopic(undefined);
+      setPracticeContext(undefined);
+    }
     setTab(newTab);
   };
 
@@ -33,7 +38,7 @@ const Index = () => {
             transition={{ duration: 0.2 }}
           >
             {tab === 'learn' && <LearningPage onStartPractice={handleStartPractice} />}
-            {tab === 'practice' && <PracticePage initialTopic={practiceTopic} />}
+            {tab === 'practice' && <PracticePage initialTopic={practiceTopic} initialContext={practiceContext} />}
             {tab === 'progress' && <ProgressPage />}
           </motion.div>
         </AnimatePresence>
