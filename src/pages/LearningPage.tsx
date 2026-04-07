@@ -267,10 +267,12 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   // PERCENTAGE
   if (activeTopic === 'percentage') {
     return (
-      <div>
-        {renderHeader('Percentage', () => setActiveTopic(null), false)}
-        <PercentageLearning onStartPractice={onStartPractice} />
-      </div>
+      <SwipeBack onBack={() => setActiveTopic(null)}>
+        <div>
+          {renderHeader('Percentage', () => setActiveTopic(null), false)}
+          <PercentageLearning onStartPractice={onStartPractice} />
+        </div>
+      </SwipeBack>
     );
   }
 
