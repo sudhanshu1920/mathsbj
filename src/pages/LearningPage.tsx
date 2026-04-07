@@ -3,14 +3,18 @@ import { motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target } from 'lucide-react';
 import TopicCard from '@/components/TopicCard';
 import SwipeContainer from '@/components/SwipeContainer';
+import SwipeBack from '@/components/SwipeBack';
 import PercentageLearning from '@/components/PercentageLearning';
 import PracticeModeSelector from '@/components/PracticeModeSelector';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
+import type { LearningState } from '@/pages/Index';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage';
 
 interface LearningPageProps {
   onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input') => void;
+  learningState?: LearningState;
+  onLearningStateChange?: (state: LearningState) => void;
 }
 
 const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
@@ -23,11 +27,21 @@ const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
   { id: 'percentage', title: 'Percentage', icon: Percent, gradient: 'bg-gradient-to-br from-amber-500 to-yellow-600' },
 ];
 
-const LearningPage = ({ onStartPractice }: LearningPageProps) => {
-  const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
-  const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
-  const [selectedRange, setSelectedRange] = useState<{ from: number; to: number } | null>(null);
+const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
+  const activeTopic = (learningState?.activeTopic as Topic | null) ?? null;
+  const selectedNumber = learningState?.selectedNumber ?? null;
+  const selectedRange = learningState?.selectedRange ?? null;
   const [showPracticeMode, setShowPracticeMode] = useState(false);
+
+  const updateState = (partial: Partial<LearningState>) => {
+    if (onLearningStateChange && learningState) {
+      onLearningStateChange({ ...learningState, ...partial });
+    }
+  };
+
+  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null });
+  const setSelectedNumber = (n: number | null) => updateState({ selectedNumber: n });
+  const setSelectedRange = (r: { from: number; to: number } | null) => updateState({ selectedRange: r });
 
   const rangeGroups = getExtendedRangeGroups();
 
