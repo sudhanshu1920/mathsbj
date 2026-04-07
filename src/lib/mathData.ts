@@ -34,7 +34,13 @@ export const getCubes = (from: number, to: number) =>
 export const getCubeRoots = (from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, i) => {
     const n = from + i;
-    return { expression: `∛${n * n * n}`, answer: n, base: n * n * n };
+    const root = Math.cbrt(n);
+    const isPerfect = Math.abs(root - Math.round(root)) < 1e-9;
+    return {
+      expression: `∛${n}`,
+      answer: isPerfect ? Math.round(root) : parseFloat(root.toFixed(1)),
+      approximate: !isPerfect,
+    };
   });
 
 export const getPowers = (base: number, maxExp = 10) =>

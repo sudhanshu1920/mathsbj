@@ -248,20 +248,37 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
     );
   }
 
-  // TOPIC GRID
+  // TOPIC LIST
+  const topicSymbols: Record<Topic, string> = {
+    tables: '×',
+    squares: 'x²',
+    'square-roots': '√',
+    cubes: 'x³',
+    'cube-roots': '∛',
+    powers: '⚡',
+    percentage: '%',
+  };
+
   return (
     <div>
       <h1 className="font-display font-bold text-2xl mb-6 text-glow">Learning</h1>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="flex flex-col gap-3">
         {topics.map((t, i) => (
-          <TopicCard
+          <motion.button
             key={t.id}
-            title={t.title}
-            icon={t.icon}
-            gradient={t.gradient}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.05, duration: 0.3 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => setActiveTopic(t.id)}
-            delay={i}
-          />
+            className="flex items-center gap-4 w-full bg-card border border-border rounded-2xl px-5 py-4 hover:border-primary transition-colors"
+          >
+            <span className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-lg shrink-0">
+              {topicSymbols[t.id]}
+            </span>
+            <span className="font-display font-semibold text-foreground text-base flex-1 text-left">{t.title}</span>
+            <span className="text-muted-foreground">›</span>
+          </motion.button>
         ))}
       </div>
     </div>
