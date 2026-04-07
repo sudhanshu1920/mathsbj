@@ -153,11 +153,13 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     ));
 
     return (
-      <div>
-        {renderHeader(`Table of ${selectedNumber}`, () => setSelectedNumber(null))}
-        <SwipeContainer items={items} currentIndex={selectedNumber - 1} onIndexChange={(i) => setSelectedNumber(i + 1)} />
-        <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
-      </div>
+      <SwipeBack onBack={() => setSelectedNumber(null)}>
+        <div>
+          {renderHeader(`Table of ${selectedNumber}`, () => setSelectedNumber(null))}
+          <SwipeContainer items={items} currentIndex={selectedNumber - 1} onIndexChange={(i) => setSelectedNumber(i + 1)} />
+          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
+        </div>
+      </SwipeBack>
     );
   }
 
