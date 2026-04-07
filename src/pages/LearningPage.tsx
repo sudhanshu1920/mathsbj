@@ -198,11 +198,13 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
 
   if (activeTopic === 'powers') {
     return (
-      <div>
-        {renderHeader('Powers', () => setActiveTopic(null))}
-        <p className="text-muted-foreground text-sm mb-4 text-center">Select a number (1–200)</p>
-        {renderNumberGrid(200, setSelectedNumber)}
-      </div>
+      <SwipeBack onBack={() => setActiveTopic(null)}>
+        <div>
+          {renderHeader('Powers', () => setActiveTopic(null))}
+          <p className="text-muted-foreground text-sm mb-4 text-center">Select a number (1–200)</p>
+          {renderNumberGrid(200, setSelectedNumber)}
+        </div>
+      </SwipeBack>
     );
   }
 
