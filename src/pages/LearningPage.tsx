@@ -254,11 +254,13 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   if (['squares', 'square-roots', 'cubes', 'cube-roots'].includes(activeTopic || '')) {
     const topicTitle = activeTopic?.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || '';
     return (
-      <div>
-        {renderHeader(topicTitle, () => setActiveTopic(null))}
-        <p className="text-muted-foreground text-sm mb-4 text-center">Select a range</p>
-        {renderRangeGroups((from, to) => setSelectedRange({ from, to }))}
-      </div>
+      <SwipeBack onBack={() => setActiveTopic(null)}>
+        <div>
+          {renderHeader(topicTitle, () => setActiveTopic(null))}
+          <p className="text-muted-foreground text-sm mb-4 text-center">Select a range</p>
+          {renderRangeGroups((from, to) => setSelectedRange({ from, to }))}
+        </div>
+      </SwipeBack>
     );
   }
 
