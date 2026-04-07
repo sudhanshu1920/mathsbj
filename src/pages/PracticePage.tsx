@@ -81,31 +81,46 @@ function generateQuestions(config: PracticeConfig): Question[] {
       }
     }
   } else if (topic === 'percentage') {
-    for (let d = Math.max(2, from); d <= Math.min(50, to); d++) {
-      const val = (1 / d) * 100;
-      const decimalPct = val % 1 === 0 ? `${val}%` : `${val.toFixed(2)}%`;
-
-      // Fraction → Decimal %
-      questions.push({ text: `1/${d} = ? (decimal %)`, answer: decimalPct });
-
-      // Fraction → Mixed %
-      const whole = Math.floor(val);
-      const remNum = Math.round((val - whole) * d);
-      let mixedStr: string;
-      if (remNum === 0) {
-        mixedStr = `${whole}%`;
-      } else {
-        const g = gcd(remNum, d);
-        mixedStr = `${whole > 0 ? whole + ' ' : ''}${remNum / g}/${d / g}%`;
+    // If from === to, it's an expanded fraction practice (multiples of 1/d)
+    const isExpanded = from === to;
+    const denominators: number[] = [];
+    
+    if (isExpanded) {
+      denominators.push(from);
+    } else {
+      for (let d = Math.max(1, from); d <= Math.min(50, to); d++) {
+        denominators.push(d);
       }
-      questions.push({ text: `1/${d} = ? (mixed %)`, answer: mixedStr });
+    }
 
-      // % → Fraction
-      questions.push({ text: `${decimalPct} = ? (fraction)`, answer: `1/${d}` });
+    for (const d of denominators) {
+      const maxN = isExpanded ? 10 : 1;
+      for (let n = 1; n <= maxN; n++) {
+        const val = (n / d) * 100;
+        const decimalPct = val % 1 === 0 ? `${val}%` : `${val.toFixed(2)}%`;
 
-      // Mixed % → Fraction
-      if (mixedStr !== decimalPct) {
-        questions.push({ text: `${mixedStr} = ? (fraction)`, answer: `1/${d}` });
+        // Fraction → Decimal %
+        questions.push({ text: `${n}/${d} = ? (decimal %)`, answer: decimalPct });
+
+        // Fraction → Mixed %
+        const whole = Math.floor(val);
+        const remNum = Math.round((val - whole) * d);
+        let mixedStr: string;
+        if (remNum === 0) {
+          mixedStr = `${whole}%`;
+        } else {
+          const g = gcd(remNum, d);
+          mixedStr = `${whole > 0 ? whole + ' ' : ''}${remNum / g}/${d / g}%`;
+        }
+        questions.push({ text: `${n}/${d} = ? (mixed %)`, answer: mixedStr });
+
+        // % → Fraction
+        questions.push({ text: `${decimalPct} = ? (fraction)`, answer: `${n}/${d}` });
+
+        // Mixed % → Fraction
+        if (mixedStr !== decimalPct) {
+          questions.push({ text: `${mixedStr} = ? (fraction)`, answer: `${n}/${d}` });
+        }
       }
     }
   }

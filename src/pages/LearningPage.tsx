@@ -242,8 +242,8 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
   if (activeTopic === 'percentage') {
     return (
       <div>
-        {renderHeader('Percentage', () => setActiveTopic(null))}
-        <PercentageLearning />
+        {renderHeader('Percentage', () => setActiveTopic(null), false)}
+        <PercentageLearning onStartPractice={onStartPractice} />
       </div>
     );
   }
