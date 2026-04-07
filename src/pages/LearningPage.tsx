@@ -6,7 +6,6 @@ import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
 import PercentageLearning from '@/components/PercentageLearning';
 import PracticeModeSelector from '@/components/PracticeModeSelector';
-import ThemeToggle from '@/components/ThemeToggle';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
 
@@ -62,18 +61,17 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         <span className="font-medium">Back</span>
       </button>
       <h2 className="font-display font-bold text-lg text-foreground">{title}</h2>
-      <div className="flex items-center gap-2">
-        {showPractice && (
-          <button
-            onClick={() => setShowPracticeMode(true)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
-          >
-            <Target size={14} />
-            Practice
-          </button>
-        )}
-        <ThemeToggle />
-      </div>
+      {showPractice ? (
+        <button
+          onClick={() => setShowPracticeMode(true)}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
+        >
+          <Target size={14} />
+          Practice
+        </button>
+      ) : (
+        <div className="w-20" />
+      )}
     </div>
   );
 
@@ -149,6 +147,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => (
       <div key={n}>
+        <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">Table of {n}</h3>
         {renderDataCards(getTable(n))}
       </div>
     ));
@@ -158,6 +157,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         <div>
           {renderHeader(`Table of ${selectedNumber}`, () => setSelectedNumber(null))}
           <SwipeContainer items={items} currentIndex={selectedNumber - 1} onIndexChange={(i) => setSelectedNumber(i + 1)} />
+          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
         </div>
       </SwipeBack>
     );
@@ -180,6 +180,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => (
       <div key={n}>
+        <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">Powers of {n}</h3>
         {renderDataCards(getPowers(n))}
       </div>
     ));
@@ -189,6 +190,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         <div>
           {renderHeader(`Powers of ${selectedNumber}`, () => setSelectedNumber(null))}
           <SwipeContainer items={items} currentIndex={selectedNumber - 1} onIndexChange={(i) => setSelectedNumber(i + 1)} />
+          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
         </div>
       </SwipeBack>
     );
@@ -219,6 +221,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       }
       return (
         <div key={g.label}>
+          <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">{g.label}</h3>
           {renderDataCards(data)}
         </div>
       );
@@ -242,6 +245,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
               if (g) setSelectedRange({ from: g.from, to: g.to });
             }}
           />
+          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
         </div>
       </SwipeBack>
     );
