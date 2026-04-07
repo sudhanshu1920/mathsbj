@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Timer, CheckCircle2, XCircle } from 'lucide-react';
+import SwipeBack from '@/components/SwipeBack';
 import { saveResult } from '@/lib/progress';
 
 type PracticeMode = 'mcq' | 'input';
@@ -304,31 +305,33 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit }: Pra
   if (finished && config) {
     const accuracy = Math.round((score.correct / questions.length) * 100);
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
-          <div className="text-6xl mb-4">{accuracy >= 80 ? '🏆' : accuracy >= 50 ? '👍' : '💪'}</div>
-          <h2 className="font-display font-bold text-3xl text-foreground mb-2">
-            {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
-          </h2>
-          <p className="text-muted-foreground mb-6">Score: {accuracy}%</p>
-          <div className="flex gap-8 mb-8">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-success">{score.correct}</p>
-              <p className="text-xs text-muted-foreground">Correct</p>
+      <SwipeBack onBack={handleExit}>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
+            <div className="text-6xl mb-4">{accuracy >= 80 ? '🏆' : accuracy >= 50 ? '👍' : '💪'}</div>
+            <h2 className="font-display font-bold text-3xl text-foreground mb-2">
+              {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
+            </h2>
+            <p className="text-muted-foreground mb-6">Score: {accuracy}%</p>
+            <div className="flex gap-8 mb-8">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-success">{score.correct}</p>
+                <p className="text-xs text-muted-foreground">Correct</p>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-destructive">{score.wrong}</p>
+                <p className="text-xs text-muted-foreground">Wrong</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-destructive">{score.wrong}</p>
-              <p className="text-xs text-muted-foreground">Wrong</p>
+            <div className="flex gap-3">
+              <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold">Retry</button>
+              <button onClick={handleExit} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">
+                {onExit ? 'Back to Learning' : 'New Practice'}
+              </button>
             </div>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold">Retry</button>
-            <button onClick={handleExit} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">
-              {onExit ? 'Back to Learning' : 'New Practice'}
-            </button>
-          </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        </div>
+      </SwipeBack>
     );
   }
 
