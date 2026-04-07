@@ -242,7 +242,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
               if (g) setSelectedRange({ from: g.from, to: g.to });
             }}
           />
-          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
         </div>
       </SwipeBack>
     );
