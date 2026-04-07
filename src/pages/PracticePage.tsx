@@ -38,6 +38,10 @@ const TOPICS = [
 
 const COUNTS = [10, 20, 25, 50];
 
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
+
 function generateQuestions(config: PracticeConfig): Question[] {
   const questions: Question[] = [];
   const { topic, from, to } = config;
@@ -79,9 +83,30 @@ function generateQuestions(config: PracticeConfig): Question[] {
   } else if (topic === 'percentage') {
     for (let d = Math.max(2, from); d <= Math.min(50, to); d++) {
       const val = (1 / d) * 100;
-      const pct = val % 1 === 0 ? `${val}%` : `${val.toFixed(2)}%`;
-      questions.push({ text: `1/${d} = ?`, answer: pct });
-      questions.push({ text: `${pct} = ?`, answer: `1/${d}` });
+      const decimalPct = val % 1 === 0 ? `${val}%` : `${val.toFixed(2)}%`;
+
+      // Fraction → Decimal %
+      questions.push({ text: `1/${d} = ? (decimal %)`, answer: decimalPct });
+
+      // Fraction → Mixed %
+      const whole = Math.floor(val);
+      const remNum = Math.round((val - whole) * d);
+      let mixedStr: string;
+      if (remNum === 0) {
+        mixedStr = `${whole}%`;
+      } else {
+        const g = gcd(remNum, d);
+        mixedStr = `${whole > 0 ? whole + ' ' : ''}${remNum / g}/${d / g}%`;
+      }
+      questions.push({ text: `1/${d} = ? (mixed %)`, answer: mixedStr });
+
+      // % → Fraction
+      questions.push({ text: `${decimalPct} = ? (fraction)`, answer: `1/${d}` });
+
+      // Mixed % → Fraction
+      if (mixedStr !== decimalPct) {
+        questions.push({ text: `${mixedStr} = ? (fraction)`, answer: `1/${d}` });
+      }
     }
   }
 
@@ -106,7 +131,7 @@ function generateQuestions(config: PracticeConfig): Question[] {
           const d = Math.floor(Math.random() * 49) + 2;
           const val = (1 / d) * 100;
           const pct = val % 1 === 0 ? `${val}%` : `${val.toFixed(2)}%`;
-          const wrongAns = q.text.includes('/') ? pct : `1/${d}`;
+          const wrongAns = q.text.includes('fraction') ? `1/${d}` : pct;
           opts.add(wrongAns);
         }
       }
@@ -121,9 +146,11 @@ function generateQuestions(config: PracticeConfig): Question[] {
 interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
+  initialMode?: 'mcq' | 'input';
+  onExit?: () => void;
 }
 
-const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
+const PracticePage = ({ initialTopic, initialContext, initialMode, onExit }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -138,10 +165,10 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
 
   // Setup form state
   const [topic, setTopic] = useState(initialTopic || 'tables');
-  const [from, setFrom] = useState(1);
-  const [to, setTo] = useState(10);
+  const [from, setFrom] = useState(initialContext?.from || initialContext?.number || 1);
+  const [to, setTo] = useState(initialContext?.to || initialContext?.number || 10);
   const [count, setCount] = useState(10);
-  const [mode, setMode] = useState<PracticeMode>('mcq');
+  const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
   const [timerMode, setTimerMode] = useState<TimerMode>('per-question');
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [sequential, setSequential] = useState(false);
@@ -149,22 +176,21 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
   const [expTo, setExpTo] = useState(5);
 
   useEffect(() => {
-    if (initialTopic) {
-      setTopic(initialTopic);
+    if (initialTopic && initialMode) {
       const mappedTopic = initialTopic === 'square-roots' ? 'roots' : initialTopic;
       const cfg: PracticeConfig = {
         topic: mappedTopic,
         from: initialContext?.from || initialContext?.number || 1,
         to: initialContext?.to || initialContext?.number || (initialTopic === 'percentage' ? 50 : 10),
         count: 10,
-        mode: 'mcq',
+        mode: initialMode,
         timerMode: 'per-question',
         timerSeconds: 10,
         sequential: false,
       };
       startPractice(cfg);
     }
-  }, [initialTopic]);
+  }, [initialTopic, initialMode]);
 
   const startPractice = (cfg: PracticeConfig) => {
     const qs = generateQuestions(cfg);
@@ -184,7 +210,6 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
     }
   };
 
-  // Timer
   useEffect(() => {
     if (!config || finished) return;
     if (timerRef.current) clearInterval(timerRef.current);
@@ -199,18 +224,15 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
       });
     }, 1000);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [config, currentQ, finished]);
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
       if (!config || finished || feedback) return;
-
       const q = questions[currentQ];
       if (!q) return;
-      const isCorrect = answer !== null && String(answer) === String(q.answer);
+      const isCorrect = answer !== null && String(answer).trim() === String(q.answer).trim();
 
       setFeedback(isCorrect ? 'correct' : 'wrong');
       saveResult(config.topic, isCorrect);
@@ -230,16 +252,14 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
           if (timerRef.current) clearInterval(timerRef.current);
         } else {
           setCurrentQ(currentQ + 1);
-          if (config.timerMode === 'per-question') {
-            setTimeLeft(config.timerSeconds);
-          }
+          if (config.timerMode === 'per-question') setTimeLeft(config.timerSeconds);
         }
       }, 500);
     },
     [config, currentQ, questions, score, finished, feedback]
   );
 
-  // Auto-submit for input mode when answer is correct
+  // Auto-submit for input mode
   useEffect(() => {
     if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
     const q = questions[currentQ];
@@ -247,33 +267,30 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
 
     if (typeof q.answer === 'number') {
       const numVal = Number(inputValue);
-      if (!isNaN(numVal) && numVal === q.answer) {
-        handleAnswer(numVal);
-      }
+      if (!isNaN(numVal) && numVal === q.answer) handleAnswer(numVal);
     } else {
-      if (inputValue.trim() === String(q.answer)) {
-        handleAnswer(inputValue.trim());
-      }
+      if (inputValue.trim() === String(q.answer)) handleAnswer(inputValue.trim());
     }
   }, [inputValue, config, currentQ, questions, feedback, handleAnswer]);
 
-  // Focus input on new question
   useEffect(() => {
-    if (config?.mode === 'input' && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (config?.mode === 'input' && inputRef.current) inputRef.current.focus();
   }, [currentQ, config]);
 
-  // RESULTS SCREEN
+  const handleExit = () => {
+    if (onExit) {
+      onExit();
+    } else {
+      setConfig(null);
+    }
+  };
+
+  // RESULTS
   if (finished && config) {
     const accuracy = Math.round((score.correct / questions.length) * 100);
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-center"
-        >
+        <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
           <div className="text-6xl mb-4">{accuracy >= 80 ? '🏆' : accuracy >= 50 ? '👍' : '💪'}</div>
           <h2 className="font-display font-bold text-3xl text-foreground mb-2">
             {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
@@ -290,17 +307,9 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
             </div>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={() => startPractice(config)}
-              className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold"
-            >
-              Retry
-            </button>
-            <button
-              onClick={() => setConfig(null)}
-              className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold"
-            >
-              New Practice
+            <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold">Retry</button>
+            <button onClick={handleExit} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">
+              {onExit ? 'Back to Learning' : 'New Practice'}
             </button>
           </div>
         </motion.div>
@@ -317,7 +326,7 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setConfig(null)} className="text-primary flex items-center gap-1">
+          <button onClick={handleExit} className="text-primary flex items-center gap-1">
             <ArrowLeft size={18} />
             <span className="text-sm">Exit</span>
           </button>
@@ -325,28 +334,15 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
             <Timer size={14} />
             {timeLeft}s
           </div>
-          <span className="text-sm text-muted-foreground">
-            {currentQ + 1}/{questions.length}
-          </span>
+          <span className="text-sm text-muted-foreground">{currentQ + 1}/{questions.length}</span>
         </div>
 
-        {/* Progress bar */}
         <div className="h-1 bg-secondary rounded-full mb-8 overflow-hidden">
-          <motion.div
-            className="h-full gradient-primary rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }}
-          />
+          <motion.div className="h-full gradient-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }} />
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.div
-            key={currentQ}
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -30 }}
-            className="text-center mb-8"
-          >
+          <motion.div key={currentQ} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -30 }} className="text-center mb-8">
             <p className="font-display text-4xl font-bold text-foreground">
               {q.text}
               {q.superscript && <sup className="text-primary text-2xl">{q.superscript}</sup>}
@@ -354,30 +350,21 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
           </motion.div>
         </AnimatePresence>
 
-        {/* Feedback overlay */}
         <AnimatePresence>
           {feedback && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none"
-            >
+            <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none">
               {feedback === 'correct' ? (
                 <CheckCircle2 size={80} className="text-success" />
               ) : (
                 <div className="text-center">
                   <XCircle size={80} className="text-destructive mx-auto" />
-                  <p className="text-foreground mt-2 text-lg font-semibold">
-                    Answer: <span className="text-primary">{String(q.answer)}</span>
-                  </p>
+                  <p className="text-foreground mt-2 text-lg font-semibold">Answer: <span className="text-primary">{String(q.answer)}</span></p>
                 </div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* MCQ options */}
         {config.mode === 'mcq' && q.options && (
           <div className="grid grid-cols-2 gap-3">
             {q.options.map((opt, i) => {
@@ -391,11 +378,7 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
                 <motion.button
                   key={`${currentQ}-${i}`}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    if (feedback) return;
-                    setSelectedOption(i);
-                    handleAnswer(opt);
-                  }}
+                  onClick={() => { if (feedback) return; setSelectedOption(i); handleAnswer(opt); }}
                   className={`rounded-xl py-4 text-center font-display font-bold text-lg transition-colors ${optStyle}`}
                 >
                   {String(opt)}
@@ -405,7 +388,6 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
           </div>
         )}
 
-        {/* Input mode - no submit button, auto-submit on correct */}
         {config.mode === 'input' && (
           <div className="flex flex-col items-center gap-4">
             <input
@@ -433,7 +415,6 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
     <div>
       <h1 className="font-display font-bold text-2xl mb-6 text-glow">Practice</h1>
 
-      {/* Topic */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-2 block">Topic</label>
         <div className="grid grid-cols-3 gap-2">
@@ -442,9 +423,7 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
               key={t.id}
               onClick={() => setTopic(t.id)}
               className={`py-2.5 rounded-xl text-xs font-semibold transition-colors ${
-                topic === t.id
-                  ? 'gradient-primary text-primary-foreground'
-                  : 'bg-card border border-border text-foreground'
+                topic === t.id ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
               }`}
             >
               {t.label}
@@ -453,199 +432,95 @@ const PracticePage = ({ initialTopic, initialContext }: PracticePageProps) => {
         </div>
       </div>
 
-      {/* Range - Vertical layout */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-2 block">Number Range</label>
         <div className="space-y-3">
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">From</label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={from}
-              onChange={(e) => setFrom(Number(e.target.value))}
-              className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none"
-              placeholder="From"
-            />
+            <input type="number" inputMode="numeric" value={from} onChange={(e) => setFrom(Number(e.target.value))}
+              className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">To</label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={to}
-              onChange={(e) => setTo(Number(e.target.value))}
-              className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${
-                to < from ? 'border-destructive' : 'border-border'
-              }`}
-              placeholder="To"
-            />
-            {to < from && (
-              <p className="text-destructive text-xs mt-1">To must be ≥ From</p>
-            )}
+            <input type="number" inputMode="numeric" value={to} onChange={(e) => setTo(Number(e.target.value))}
+              className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${to < from ? 'border-destructive' : 'border-border'}`} />
+            {to < from && <p className="text-destructive text-xs mt-1">To must be ≥ From</p>}
           </div>
         </div>
       </div>
 
-      {/* Exponent range for powers - Vertical layout */}
       {topic === 'powers' && (
         <div className="mb-5">
           <label className="text-sm text-muted-foreground mb-2 block">Exponent Range</label>
           <div className="space-y-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Exponent From</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={expFrom}
-                onChange={(e) => setExpFrom(Number(e.target.value))}
-                className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none"
-                placeholder="From"
-              />
+              <input type="number" inputMode="numeric" value={expFrom} onChange={(e) => setExpFrom(Number(e.target.value))}
+                className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Exponent To</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={expTo}
-                onChange={(e) => setExpTo(Number(e.target.value))}
-                className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${
-                  expTo < expFrom ? 'border-destructive' : 'border-border'
-                }`}
-                placeholder="To"
-              />
-              {expTo < expFrom && (
-                <p className="text-destructive text-xs mt-1">To must be ≥ From</p>
-              )}
+              <input type="number" inputMode="numeric" value={expTo} onChange={(e) => setExpTo(Number(e.target.value))}
+                className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${expTo < expFrom ? 'border-destructive' : 'border-border'}`} />
+              {expTo < expFrom && <p className="text-destructive text-xs mt-1">To must be ≥ From</p>}
             </div>
           </div>
         </div>
       )}
 
-      {/* Count */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-2 block">Questions</label>
         <div className="flex gap-2">
           {COUNTS.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCount(c)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                count === c
-                  ? 'gradient-primary text-primary-foreground'
-                  : 'bg-card border border-border text-foreground'
-              }`}
-            >
+            <button key={c} onClick={() => setCount(c)}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${count === c ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
               {c}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Mode */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-2 block">Answer Mode</label>
         <div className="flex gap-2">
-          <button
-            onClick={() => setMode('mcq')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-              mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
-            }`}
-          >
-            MCQ
-          </button>
-          <button
-            onClick={() => setMode('input')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-              mode === 'input' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
-            }`}
-          >
-            Type Answer
-          </button>
+          <button onClick={() => setMode('mcq')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>MCQ</button>
+          <button onClick={() => setMode('input')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === 'input' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Type Answer</button>
         </div>
       </div>
 
-      {/* Order */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-2 block">Order</label>
         <div className="flex gap-2">
-          <button
-            onClick={() => setSequential(false)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-              !sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
-            }`}
-          >
-            Random
-          </button>
-          <button
-            onClick={() => setSequential(true)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-              sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
-            }`}
-          >
-            Sequential
-          </button>
+          <button onClick={() => setSequential(false)}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${!sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Random</button>
+          <button onClick={() => setSequential(true)}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Sequential</button>
         </div>
       </div>
 
-      {/* Timer */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-2 block">Timer</label>
         <div className="flex gap-2 mb-3">
-          <button
-            onClick={() => setTimerMode('per-question')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-              timerMode === 'per-question' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
-            }`}
-          >
-            Per Question
-          </button>
-          <button
-            onClick={() => setTimerMode('full-session')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-              timerMode === 'full-session' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
-            }`}
-          >
-            Full Session
-          </button>
+          <button onClick={() => setTimerMode('per-question')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${timerMode === 'per-question' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Per Question</button>
+          <button onClick={() => setTimerMode('full-session')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${timerMode === 'full-session' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Full Session</button>
         </div>
         <div className="flex gap-2">
           {[5, 10, 15, 30].map((s) => (
-            <button
-              key={s}
-              onClick={() => setTimerSeconds(s)}
-              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${
-                timerSeconds === s ? 'bg-accent text-accent-foreground' : 'bg-card border border-border text-foreground'
-              }`}
-            >
-              {s}s
-            </button>
+            <button key={s} onClick={() => setTimerSeconds(s)}
+              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${timerSeconds === s ? 'bg-accent text-accent-foreground' : 'bg-card border border-border text-foreground'}`}>{s}s</button>
           ))}
         </div>
       </div>
 
-      {/* Start */}
       <motion.button
         whileTap={{ scale: 0.97 }}
         disabled={!canStart}
-        onClick={() =>
-          startPractice({
-            topic,
-            from,
-            to,
-            count,
-            mode,
-            timerMode,
-            timerSeconds,
-            sequential,
-            exponentFrom: expFrom,
-            exponentTo: expTo,
-          })
-        }
-        className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-4 ${
-          canStart ? 'gradient-primary text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
-        }`}
+        onClick={() => startPractice({ topic, from, to, count, mode, timerMode, timerSeconds, sequential, exponentFrom: expFrom, exponentTo: expTo })}
+        className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-4 ${canStart ? 'gradient-primary text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
       >
         Start Practice
       </motion.button>
