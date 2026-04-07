@@ -16,7 +16,13 @@ export const getSquares = (from: number, to: number) =>
 export const getSquareRoots = (from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, i) => {
     const n = from + i;
-    return { expression: `√${n * n}`, answer: n, base: n * n };
+    const root = Math.sqrt(n);
+    const isPerfect = Number.isInteger(root);
+    return {
+      expression: `√${n}`,
+      answer: isPerfect ? root : parseFloat(root.toFixed(1)),
+      approximate: !isPerfect,
+    };
   });
 
 export const getCubes = (from: number, to: number) =>
