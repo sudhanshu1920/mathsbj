@@ -234,18 +234,20 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const topicTitle = activeTopic?.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || '';
 
     return (
-      <div>
-        {renderHeader(topicTitle, () => setSelectedRange(null))}
-        <SwipeContainer
-          items={allItems}
-          currentIndex={currentIdx >= 0 ? currentIdx : 0}
-          onIndexChange={(i) => {
-            const g = rangeGroups[i];
-            if (g) setSelectedRange({ from: g.from, to: g.to });
-          }}
-        />
-        <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
-      </div>
+      <SwipeBack onBack={() => setSelectedRange(null)}>
+        <div>
+          {renderHeader(topicTitle, () => setSelectedRange(null))}
+          <SwipeContainer
+            items={allItems}
+            currentIndex={currentIdx >= 0 ? currentIdx : 0}
+            onIndexChange={(i) => {
+              const g = rangeGroups[i];
+              if (g) setSelectedRange({ from: g.from, to: g.to });
+            }}
+          />
+          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
+        </div>
+      </SwipeBack>
     );
   }
 
