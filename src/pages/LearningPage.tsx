@@ -219,7 +219,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       }
       return (
         <div key={g.label}>
-          <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">{g.label}</h3>
           {renderDataCards(data)}
         </div>
       );
