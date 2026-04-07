@@ -81,31 +81,46 @@ function generateQuestions(config: PracticeConfig): Question[] {
       }
     }
   } else if (topic === 'percentage') {
-    for (let d = Math.max(2, from); d <= Math.min(50, to); d++) {
-      const val = (1 / d) * 100;
-      const decimalPct = val % 1 === 0 ? `${val}%` : `${val.toFixed(2)}%`;
-
-      // Fraction → Decimal %
-      questions.push({ text: `1/${d} = ? (decimal %)`, answer: decimalPct });
-
-      // Fraction → Mixed %
-      const whole = Math.floor(val);
-      const remNum = Math.round((val - whole) * d);
-      let mixedStr: string;
-      if (remNum === 0) {
-        mixedStr = `${whole}%`;
-      } else {
-        const g = gcd(remNum, d);
-        mixedStr = `${whole > 0 ? whole + ' ' : ''}${remNum / g}/${d / g}%`;
+    // If from === to, it's an expanded fraction practice (multiples of 1/d)
+    const isExpanded = from === to;
+    const denominators: number[] = [];
+    
+    if (isExpanded) {
+      denominators.push(from);
+    } else {
+      for (let d = Math.max(1, from); d <= Math.min(50, to); d++) {
+        denominators.push(d);
       }
-      questions.push({ text: `1/${d} = ? (mixed %)`, answer: mixedStr });
+    }
 
-      // % → Fraction
-      questions.push({ text: `${decimalPct} = ? (fraction)`, answer: `1/${d}` });
+    for (const d of denominators) {
+      const maxN = isExpanded ? 10 : 1;
+      for (let n = 1; n <= maxN; n++) {
+        const val = (n / d) * 100;
+        const decimalPct = val % 1 === 0 ? `${val}%` : `${val.toFixed(2)}%`;
 
-      // Mixed % → Fraction
-      if (mixedStr !== decimalPct) {
-        questions.push({ text: `${mixedStr} = ? (fraction)`, answer: `1/${d}` });
+        // Fraction → Decimal %
+        questions.push({ text: `${n}/${d} = ? (decimal %)`, answer: decimalPct });
+
+        // Fraction → Mixed %
+        const whole = Math.floor(val);
+        const remNum = Math.round((val - whole) * d);
+        let mixedStr: string;
+        if (remNum === 0) {
+          mixedStr = `${whole}%`;
+        } else {
+          const g = gcd(remNum, d);
+          mixedStr = `${whole > 0 ? whole + ' ' : ''}${remNum / g}/${d / g}%`;
+        }
+        questions.push({ text: `${n}/${d} = ? (mixed %)`, answer: mixedStr });
+
+        // % → Fraction
+        questions.push({ text: `${decimalPct} = ? (fraction)`, answer: `${n}/${d}` });
+
+        // Mixed % → Fraction
+        if (mixedStr !== decimalPct) {
+          questions.push({ text: `${mixedStr} = ? (fraction)`, answer: `${n}/${d}` });
+        }
       }
     }
   }
@@ -432,22 +447,47 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit }: Pra
         </div>
       </div>
 
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block">Number Range</label>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">From</label>
-            <input type="number" inputMode="numeric" value={from} onChange={(e) => setFrom(Number(e.target.value))}
-              className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none" />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">To</label>
-            <input type="number" inputMode="numeric" value={to} onChange={(e) => setTo(Number(e.target.value))}
-              className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${to < from ? 'border-destructive' : 'border-border'}`} />
-            {to < from && <p className="text-destructive text-xs mt-1">To must be ≥ From</p>}
+      {topic === 'percentage' ? (
+        <div className="mb-5">
+          <label className="text-sm text-muted-foreground mb-2 block">Fraction Range</label>
+          <div className="grid grid-cols-1 gap-2">
+            {[
+              { label: '1/1 – 1/10', f: 1, t: 10 },
+              { label: '1/11 – 1/20', f: 11, t: 20 },
+              { label: '1/21 – 1/30', f: 21, t: 30 },
+              { label: '1/31 – 1/40', f: 31, t: 40 },
+              { label: '1/41 – 1/50', f: 41, t: 50 },
+            ].map((g) => (
+              <button
+                key={g.label}
+                onClick={() => { setFrom(g.f); setTo(g.t); }}
+                className={`py-3 rounded-xl text-sm font-semibold transition-colors ${
+                  from === g.f && to === g.t ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
+                }`}
+              >
+                {g.label}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="mb-5">
+          <label className="text-sm text-muted-foreground mb-2 block">Number Range</label>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">From</label>
+              <input type="number" inputMode="numeric" value={from} onChange={(e) => setFrom(Number(e.target.value))}
+                className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">To</label>
+              <input type="number" inputMode="numeric" value={to} onChange={(e) => setTo(Number(e.target.value))}
+                className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${to < from ? 'border-destructive' : 'border-border'}`} />
+              {to < from && <p className="text-destructive text-xs mt-1">To must be ≥ From</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {topic === 'powers' && (
         <div className="mb-5">
