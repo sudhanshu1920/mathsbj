@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Timer, CheckCircle2, XCircle } from 'lucide-react';
+import SwipeBack from '@/components/SwipeBack';
 import { saveResult } from '@/lib/progress';
 
 type PracticeMode = 'mcq' | 'input';
