@@ -61,7 +61,7 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
     </div>
   );
 
-  const renderDataCards = (items: { expression: string; answer: number; exponent?: number }[]) => (
+  const renderDataCards = (items: { expression: string; answer: number; exponent?: number; approximate?: boolean }[]) => (
     <div className="space-y-2">
       {items.map((item, i) => (
         <motion.div
@@ -74,7 +74,7 @@ const LearningPage = ({ onStartPractice }: LearningPageProps) => {
           <span className="text-foreground text-base">
             {item.expression}
             {item.exponent !== undefined && <sup className="text-primary font-bold">{item.exponent}</sup>}
-            {' = '}
+            {item.approximate ? ' ≈ ' : ' = '}
             <span className="font-bold text-primary text-lg">{item.answer.toLocaleString()}</span>
           </span>
         </motion.div>
