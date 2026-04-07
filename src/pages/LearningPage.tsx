@@ -165,11 +165,13 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
 
   if (activeTopic === 'tables') {
     return (
-      <div>
-        {renderHeader('Tables', () => setActiveTopic(null))}
-        <p className="text-muted-foreground text-sm mb-4 text-center">Select a number (1–200)</p>
-        {renderNumberGrid(200, setSelectedNumber)}
-      </div>
+      <SwipeBack onBack={() => setActiveTopic(null)}>
+        <div>
+          {renderHeader('Tables', () => setActiveTopic(null))}
+          <p className="text-muted-foreground text-sm mb-4 text-center">Select a number (1–200)</p>
+          {renderNumberGrid(200, setSelectedNumber)}
+        </div>
+      </SwipeBack>
     );
   }
 
