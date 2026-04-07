@@ -447,22 +447,47 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit }: Pra
         </div>
       </div>
 
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block">Number Range</label>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">From</label>
-            <input type="number" inputMode="numeric" value={from} onChange={(e) => setFrom(Number(e.target.value))}
-              className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none" />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">To</label>
-            <input type="number" inputMode="numeric" value={to} onChange={(e) => setTo(Number(e.target.value))}
-              className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${to < from ? 'border-destructive' : 'border-border'}`} />
-            {to < from && <p className="text-destructive text-xs mt-1">To must be ≥ From</p>}
+      {topic === 'percentage' ? (
+        <div className="mb-5">
+          <label className="text-sm text-muted-foreground mb-2 block">Fraction Range</label>
+          <div className="grid grid-cols-1 gap-2">
+            {[
+              { label: '1/1 – 1/10', f: 1, t: 10 },
+              { label: '1/11 – 1/20', f: 11, t: 20 },
+              { label: '1/21 – 1/30', f: 21, t: 30 },
+              { label: '1/31 – 1/40', f: 31, t: 40 },
+              { label: '1/41 – 1/50', f: 41, t: 50 },
+            ].map((g) => (
+              <button
+                key={g.label}
+                onClick={() => { setFrom(g.f); setTo(g.t); }}
+                className={`py-3 rounded-xl text-sm font-semibold transition-colors ${
+                  from === g.f && to === g.t ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
+                }`}
+              >
+                {g.label}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="mb-5">
+          <label className="text-sm text-muted-foreground mb-2 block">Number Range</label>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">From</label>
+              <input type="number" inputMode="numeric" value={from} onChange={(e) => setFrom(Number(e.target.value))}
+                className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">To</label>
+              <input type="number" inputMode="numeric" value={to} onChange={(e) => setTo(Number(e.target.value))}
+                className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${to < from ? 'border-destructive' : 'border-border'}`} />
+              {to < from && <p className="text-destructive text-xs mt-1">To must be ≥ From</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {topic === 'powers' && (
         <div className="mb-5">
