@@ -276,7 +276,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       <SwipeBack onBack={() => updateState({ expandedDenominator: null })}>
         <div>
           {renderHeader(`Multiples of 1/${d}`, () => updateState({ expandedDenominator: null }))}
-          <PercentageExpanded denominator={d} />
+          <PercentageExpanded
+            denominator={d}
+            onDenominatorChange={(newD) => updateState({ expandedDenominator: newD })}
+          />
         </div>
       </SwipeBack>
     );
