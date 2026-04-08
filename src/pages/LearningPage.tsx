@@ -264,13 +264,37 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     );
   }
 
-  // PERCENTAGE
+  // PERCENTAGE - expanded denominator view
+  if (activeTopic === 'percentage' && learningState?.expandedDenominator) {
+    const d = learningState.expandedDenominator;
+    return (
+      <SwipeBack onBack={() => updateState({ expandedDenominator: null })}>
+        <div>
+          {renderHeader(`Multiples of 1/${d}`, () => updateState({ expandedDenominator: null }))}
+          <PercentageExpanded denominator={d} />
+        </div>
+      </SwipeBack>
+    );
+  }
+
+  // PERCENTAGE - group swipe view
   if (activeTopic === 'percentage') {
+    const groupIndex = learningState?.percentageGroup
+      ? PERCENTAGE_GROUPS.findIndex(g => g.from === learningState.percentageGroup!.from)
+      : 0;
+
     return (
       <SwipeBack onBack={() => setActiveTopic(null)}>
         <div>
-          {renderHeader('Percentage', () => setActiveTopic(null), false)}
-          <PercentageLearning onStartPractice={onStartPractice} />
+          {renderHeader('Percentage', () => setActiveTopic(null))}
+          <PercentageLearning
+            groupIndex={groupIndex >= 0 ? groupIndex : 0}
+            onGroupIndexChange={(i) => {
+              const g = PERCENTAGE_GROUPS[i];
+              if (g) updateState({ percentageGroup: { from: g.from, to: g.to } });
+            }}
+            onExpandFraction={(d) => updateState({ expandedDenominator: d })}
+          />
         </div>
       </SwipeBack>
     );
