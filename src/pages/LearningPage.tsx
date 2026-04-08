@@ -4,7 +4,7 @@ import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target } from '
 import TopicCard from '@/components/TopicCard';
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
-import PercentageLearning from '@/components/PercentageLearning';
+import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/components/PercentageLearning';
 import PracticeModeSelector from '@/components/PracticeModeSelector';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';

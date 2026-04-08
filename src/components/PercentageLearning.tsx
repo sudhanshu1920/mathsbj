@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Target } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ChevronRight } from 'lucide-react';
 import StackedFraction from './StackedFraction';
-import PracticeModeSelector from './PracticeModeSelector';
+import SwipeContainer from './SwipeContainer';
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
@@ -32,7 +31,7 @@ function buildRow(n: number, d: number): FractionRow {
   return { numerator: n, denominator: d, decimalPct, mixed, wholePct };
 }
 
-const GROUPS = [
+export const PERCENTAGE_GROUPS = [
   { label: '1/1 – 1/10', from: 1, to: 10 },
   { label: '1/11 – 1/20', from: 11, to: 20 },
   { label: '1/21 – 1/30', from: 21, to: 30 },
@@ -41,129 +40,26 @@ const GROUPS = [
 ];
 
 interface PercentageLearningProps {
-  onStartPractice?: (topic: string, context?: { from?: number; to?: number }, mode?: 'mcq' | 'input') => void;
+  groupIndex: number;
+  onGroupIndexChange: (index: number) => void;
+  onExpandFraction: (denominator: number) => void;
 }
 
-const PercentageLearning = ({ onStartPractice }: PercentageLearningProps) => {
-  const [selectedGroup, setSelectedGroup] = useState<typeof GROUPS[0] | null>(null);
-  const [expandedFraction, setExpandedFraction] = useState<number | null>(null);
-  const [showPracticeMode, setShowPracticeMode] = useState<'group' | 'expanded' | null>(null);
-
-  const handlePracticeSelect = (mode: 'mcq' | 'input') => {
-    if (!onStartPractice) return;
-    if (showPracticeMode === 'expanded' && expandedFraction && selectedGroup) {
-      // Practice only this fraction's multiples - encode as special range
-      onStartPractice('percentage', { from: expandedFraction, to: expandedFraction }, mode);
-    } else if (showPracticeMode === 'group' && selectedGroup) {
-      onStartPractice('percentage', { from: selectedGroup.from, to: selectedGroup.to }, mode);
-    }
-    setShowPracticeMode(null);
-  };
-
-  // Practice mode selector overlay
-  if (showPracticeMode) {
-    return (
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setShowPracticeMode(null)} className="flex items-center gap-2 text-primary">
-            <ArrowLeft size={20} />
-            <span className="font-medium">Back</span>
-          </button>
-          <h2 className="font-display font-bold text-lg text-foreground">Practice Mode</h2>
-          <div className="w-20" />
-        </div>
-        <PracticeModeSelector onSelect={handlePracticeSelect} />
-      </div>
-    );
-  }
-
-  // Expanded view: multiples of 1/d up to 10/d
-  if (selectedGroup && expandedFraction) {
-    const d = expandedFraction;
-    const rows = Array.from({ length: 10 }, (_, i) => buildRow(i + 1, d));
-
-    return (
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setExpandedFraction(null)} className="flex items-center gap-2 text-primary">
-            <ArrowLeft size={20} />
-            <span className="font-medium">Back</span>
-          </button>
-          <h2 className="font-display font-bold text-lg text-foreground">Multiples of 1/{d}</h2>
-          <button
-            onClick={() => setShowPracticeMode('expanded')}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
-          >
-            <Target size={14} />
-            Practice
-          </button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 mb-3 text-xs font-semibold text-muted-foreground">
-          <div className="text-center">Fraction</div>
-          <div className="text-center">Mixed %</div>
-          <div className="text-center">Decimal %</div>
-        </div>
-
-        <div className="space-y-2">
-          {rows.map((row, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.03 }}
-              className="bg-card border border-border rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center"
-            >
-              <span className="text-foreground font-medium">{row.numerator}/{row.denominator}</span>
-              <span className="flex justify-center">
-                {row.mixed ? (
-                  <StackedFraction
-                    whole={row.mixed.whole}
-                    numerator={row.mixed.numerator}
-                    denominator={row.mixed.denominator}
-                  />
-                ) : (
-                  <span className="text-primary font-bold">{row.wholePct}</span>
-                )}
-              </span>
-              <span className="text-foreground">{row.decimalPct}</span>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Group content: show all 1/from to 1/to
-  if (selectedGroup) {
+const PercentageLearning = ({ groupIndex, onGroupIndexChange, onExpandFraction }: PercentageLearningProps) => {
+  const groupItems = PERCENTAGE_GROUPS.map((group) => {
     const rows: FractionRow[] = [];
-    for (let d = selectedGroup.from; d <= selectedGroup.to; d++) {
+    for (let d = group.from; d <= group.to; d++) {
       rows.push(buildRow(1, d));
     }
 
     return (
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setSelectedGroup(null)} className="flex items-center gap-2 text-primary">
-            <ArrowLeft size={20} />
-            <span className="font-medium">Back</span>
-          </button>
-          <h2 className="font-display font-bold text-lg text-foreground">{selectedGroup.label}</h2>
-          <button
-            onClick={() => setShowPracticeMode('group')}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
-          >
-            <Target size={14} />
-            Practice
-          </button>
-        </div>
-
+      <div key={group.label}>
+        <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">{group.label}</h3>
         <div className="grid grid-cols-3 gap-2 mb-3 text-xs font-semibold text-muted-foreground">
           <div className="text-center">Fraction</div>
           <div className="text-center">Mixed %</div>
           <div className="text-center">Decimal %</div>
         </div>
-
         <div className="space-y-2">
           {rows.map((row, i) => (
             <motion.button
@@ -172,7 +68,7 @@ const PercentageLearning = ({ onStartPractice }: PercentageLearningProps) => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.03 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setExpandedFraction(row.denominator)}
+              onClick={() => onExpandFraction(row.denominator)}
               className="w-full bg-card border border-border rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center"
             >
               <span className="text-foreground font-medium flex items-center justify-center gap-1">
@@ -196,25 +92,54 @@ const PercentageLearning = ({ onStartPractice }: PercentageLearningProps) => {
         </div>
       </div>
     );
-  }
+  });
 
-  // Group selection
   return (
     <div>
-      <h3 className="font-display font-bold text-lg text-center mb-4 text-foreground">Select a Range</h3>
-      <div className="grid grid-cols-1 gap-3">
-        {GROUPS.map((g, i) => (
-          <motion.button
-            key={g.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setSelectedGroup(g)}
-            className="bg-card border border-border rounded-xl py-4 text-center font-display font-semibold text-foreground hover:border-primary transition-colors"
+      <SwipeContainer items={groupItems} currentIndex={groupIndex} onIndexChange={onGroupIndexChange} />
+      <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
+    </div>
+  );
+};
+
+export interface PercentageExpandedProps {
+  denominator: number;
+}
+
+export const PercentageExpanded = ({ denominator }: PercentageExpandedProps) => {
+  const d = denominator;
+  const rows = Array.from({ length: 10 }, (_, i) => buildRow(i + 1, d));
+
+  return (
+    <div>
+      <div className="grid grid-cols-3 gap-2 mb-3 text-xs font-semibold text-muted-foreground">
+        <div className="text-center">Fraction</div>
+        <div className="text-center">Mixed %</div>
+        <div className="text-center">Decimal %</div>
+      </div>
+      <div className="space-y-2">
+        {rows.map((row, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.03 }}
+            className="bg-card border border-border rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center"
           >
-            {g.label}
-          </motion.button>
+            <span className="text-foreground font-medium">{row.numerator}/{row.denominator}</span>
+            <span className="flex justify-center">
+              {row.mixed ? (
+                <StackedFraction
+                  whole={row.mixed.whole}
+                  numerator={row.mixed.numerator}
+                  denominator={row.mixed.denominator}
+                />
+              ) : (
+                <span className="text-primary font-bold">{row.wholePct}</span>
+              )}
+            </span>
+            <span className="text-foreground">{row.decimalPct}</span>
+          </motion.div>
         ))}
       </div>
     </div>
