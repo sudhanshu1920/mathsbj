@@ -321,7 +321,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
 
   return (
     <div>
-      <h1 className="font-display font-bold text-2xl mb-6 text-glow">Learning</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-display font-bold text-2xl text-glow">Learning</h1>
+        <ThemeToggle />
+      </div>
       <div className="flex flex-col gap-3">
         {topics.map((t, i) => (
           <motion.button
