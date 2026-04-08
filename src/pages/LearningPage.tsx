@@ -67,22 +67,22 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
 
   const renderHeader = (title: string, onBack: () => void, showPractice = true) => (
     <div className="flex items-center justify-between mb-4">
-      <button onClick={onBack} className="flex items-center gap-2 text-primary">
+      <button onClick={onBack} className="p-2 -ml-2 text-primary">
         <ArrowLeft size={20} />
-        <span className="font-medium">Back</span>
       </button>
       <h2 className="font-display font-bold text-lg text-foreground">{title}</h2>
-      {showPractice ? (
-        <button
-          onClick={() => setShowPracticeMode(true)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
-        >
-          <Target size={14} />
-          Practice
-        </button>
-      ) : (
-        <div className="w-20" />
-      )}
+      <div className="flex items-center gap-2">
+        {showPractice && (
+          <button
+            onClick={() => setShowPracticeMode(true)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
+          >
+            <Target size={14} />
+            Practice
+          </button>
+        )}
+        <ThemeToggle />
+      </div>
     </div>
   );
 
