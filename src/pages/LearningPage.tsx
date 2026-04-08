@@ -228,7 +228,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       }
       return (
         <div key={g.label}>
-          <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">{g.label}</h3>
           {renderDataCards(data)}
         </div>
       );
@@ -252,7 +251,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
               if (g) setSelectedRange({ from: g.from, to: g.to });
             }}
           />
-          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
         </div>
       </SwipeBack>
     );
