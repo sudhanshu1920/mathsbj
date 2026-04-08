@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target } from 'lucide-react';
-import TopicCard from '@/components/TopicCard';
+
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
-import PercentageLearning from '@/components/PercentageLearning';
+import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/components/PercentageLearning';
 import PracticeModeSelector from '@/components/PracticeModeSelector';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
@@ -50,6 +50,16 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const ctx: { from?: number; to?: number; number?: number } = {};
     if (selectedNumber) ctx.number = selectedNumber;
     if (selectedRange) { ctx.from = selectedRange.from; ctx.to = selectedRange.to; }
+    if (activeTopic === 'percentage') {
+      const { expandedDenominator, percentageGroup } = learningState || {};
+      if (expandedDenominator) {
+        ctx.from = expandedDenominator;
+        ctx.to = expandedDenominator;
+      } else if (percentageGroup) {
+        ctx.from = percentageGroup.from;
+        ctx.to = percentageGroup.to;
+      }
+    }
     onStartPractice(activeTopic, ctx, mode);
     setShowPracticeMode(false);
   };
@@ -264,13 +274,37 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     );
   }
 
-  // PERCENTAGE
+  // PERCENTAGE - expanded denominator view
+  if (activeTopic === 'percentage' && learningState?.expandedDenominator) {
+    const d = learningState.expandedDenominator;
+    return (
+      <SwipeBack onBack={() => updateState({ expandedDenominator: null })}>
+        <div>
+          {renderHeader(`Multiples of 1/${d}`, () => updateState({ expandedDenominator: null }))}
+          <PercentageExpanded denominator={d} />
+        </div>
+      </SwipeBack>
+    );
+  }
+
+  // PERCENTAGE - group swipe view
   if (activeTopic === 'percentage') {
+    const groupIndex = learningState?.percentageGroup
+      ? PERCENTAGE_GROUPS.findIndex(g => g.from === learningState.percentageGroup!.from)
+      : 0;
+
     return (
       <SwipeBack onBack={() => setActiveTopic(null)}>
         <div>
-          {renderHeader('Percentage', () => setActiveTopic(null), false)}
-          <PercentageLearning onStartPractice={onStartPractice} />
+          {renderHeader('Percentage', () => setActiveTopic(null))}
+          <PercentageLearning
+            groupIndex={groupIndex >= 0 ? groupIndex : 0}
+            onGroupIndexChange={(i) => {
+              const g = PERCENTAGE_GROUPS[i];
+              if (g) updateState({ percentageGroup: { from: g.from, to: g.to } });
+            }}
+            onExpandFraction={(d) => updateState({ expandedDenominator: d })}
+          />
         </div>
       </SwipeBack>
     );
