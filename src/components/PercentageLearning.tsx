@@ -54,7 +54,6 @@ const PercentageLearning = ({ groupIndex, onGroupIndexChange, onExpandFraction }
 
     return (
       <div key={group.label}>
-        <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">{group.label}</h3>
         <div className="grid grid-cols-3 gap-2 mb-3 text-xs font-semibold text-muted-foreground">
           <div className="text-center">Fraction</div>
           <div className="text-center">Mixed %</div>
@@ -95,54 +94,63 @@ const PercentageLearning = ({ groupIndex, onGroupIndexChange, onExpandFraction }
   });
 
   return (
-    <div>
-      <SwipeContainer items={groupItems} currentIndex={groupIndex} onIndexChange={onGroupIndexChange} />
-      <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
-    </div>
+    <SwipeContainer items={groupItems} currentIndex={groupIndex} onIndexChange={onGroupIndexChange} />
   );
 };
 
 export interface PercentageExpandedProps {
   denominator: number;
+  onDenominatorChange?: (denominator: number) => void;
 }
 
-export const PercentageExpanded = ({ denominator }: PercentageExpandedProps) => {
-  const d = denominator;
-  const rows = Array.from({ length: 10 }, (_, i) => buildRow(i + 1, d));
+export const PercentageExpanded = ({ denominator, onDenominatorChange }: PercentageExpandedProps) => {
+  // Build items for all denominators 1–50 for swipe navigation
+  const allDenominators = Array.from({ length: 50 }, (_, i) => i + 1);
+
+  const items = allDenominators.map((d) => {
+    const rows = Array.from({ length: 10 }, (_, i) => buildRow(i + 1, d));
+    return (
+      <div key={d}>
+        <div className="grid grid-cols-3 gap-2 mb-3 text-xs font-semibold text-muted-foreground">
+          <div className="text-center">Fraction</div>
+          <div className="text-center">Mixed %</div>
+          <div className="text-center">Decimal %</div>
+        </div>
+        <div className="space-y-2">
+          {rows.map((row, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.03 }}
+              className="bg-card border border-border rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center"
+            >
+              <span className="text-foreground font-medium">{row.numerator}/{row.denominator}</span>
+              <span className="flex justify-center">
+                {row.mixed ? (
+                  <StackedFraction
+                    whole={row.mixed.whole}
+                    numerator={row.mixed.numerator}
+                    denominator={row.mixed.denominator}
+                  />
+                ) : (
+                  <span className="text-primary font-bold">{row.wholePct}</span>
+                )}
+              </span>
+              <span className="text-foreground">{row.decimalPct}</span>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    );
+  });
 
   return (
-    <div>
-      <div className="grid grid-cols-3 gap-2 mb-3 text-xs font-semibold text-muted-foreground">
-        <div className="text-center">Fraction</div>
-        <div className="text-center">Mixed %</div>
-        <div className="text-center">Decimal %</div>
-      </div>
-      <div className="space-y-2">
-        {rows.map((row, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.03 }}
-            className="bg-card border border-border rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center"
-          >
-            <span className="text-foreground font-medium">{row.numerator}/{row.denominator}</span>
-            <span className="flex justify-center">
-              {row.mixed ? (
-                <StackedFraction
-                  whole={row.mixed.whole}
-                  numerator={row.mixed.numerator}
-                  denominator={row.mixed.denominator}
-                />
-              ) : (
-                <span className="text-primary font-bold">{row.wholePct}</span>
-              )}
-            </span>
-            <span className="text-foreground">{row.decimalPct}</span>
-          </motion.div>
-        ))}
-      </div>
-    </div>
+    <SwipeContainer
+      items={items}
+      currentIndex={denominator - 1}
+      onIndexChange={(i) => onDenominatorChange?.(i + 1)}
+    />
   );
 };
 

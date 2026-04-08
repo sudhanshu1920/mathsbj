@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target } from 'lucide-react';
+import ThemeToggle from '@/components/ThemeToggle';
 
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
@@ -66,22 +67,22 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
 
   const renderHeader = (title: string, onBack: () => void, showPractice = true) => (
     <div className="flex items-center justify-between mb-4">
-      <button onClick={onBack} className="flex items-center gap-2 text-primary">
+      <button onClick={onBack} className="p-2 -ml-2 text-primary">
         <ArrowLeft size={20} />
-        <span className="font-medium">Back</span>
       </button>
       <h2 className="font-display font-bold text-lg text-foreground">{title}</h2>
-      {showPractice ? (
-        <button
-          onClick={() => setShowPracticeMode(true)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
-        >
-          <Target size={14} />
-          Practice
-        </button>
-      ) : (
-        <div className="w-20" />
-      )}
+      <div className="flex items-center gap-2">
+        {showPractice && (
+          <button
+            onClick={() => setShowPracticeMode(true)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
+          >
+            <Target size={14} />
+            Practice
+          </button>
+        )}
+        <ThemeToggle />
+      </div>
     </div>
   );
 
@@ -157,7 +158,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => (
       <div key={n}>
-        <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">Table of {n}</h3>
         {renderDataCards(getTable(n))}
       </div>
     ));
@@ -167,7 +167,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         <div>
           {renderHeader(`Table of ${selectedNumber}`, () => setSelectedNumber(null))}
           <SwipeContainer items={items} currentIndex={selectedNumber - 1} onIndexChange={(i) => setSelectedNumber(i + 1)} />
-          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
         </div>
       </SwipeBack>
     );
@@ -190,7 +189,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => (
       <div key={n}>
-        <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">Powers of {n}</h3>
         {renderDataCards(getPowers(n))}
       </div>
     ));
@@ -200,7 +198,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         <div>
           {renderHeader(`Powers of ${selectedNumber}`, () => setSelectedNumber(null))}
           <SwipeContainer items={items} currentIndex={selectedNumber - 1} onIndexChange={(i) => setSelectedNumber(i + 1)} />
-          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
         </div>
       </SwipeBack>
     );
@@ -231,7 +228,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       }
       return (
         <div key={g.label}>
-          <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">{g.label}</h3>
           {renderDataCards(data)}
         </div>
       );
@@ -255,7 +251,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
               if (g) setSelectedRange({ from: g.from, to: g.to });
             }}
           />
-          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
         </div>
       </SwipeBack>
     );
@@ -281,7 +276,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       <SwipeBack onBack={() => updateState({ expandedDenominator: null })}>
         <div>
           {renderHeader(`Multiples of 1/${d}`, () => updateState({ expandedDenominator: null }))}
-          <PercentageExpanded denominator={d} />
+          <PercentageExpanded
+            denominator={d}
+            onDenominatorChange={(newD) => updateState({ expandedDenominator: newD })}
+          />
         </div>
       </SwipeBack>
     );
@@ -323,7 +321,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
 
   return (
     <div>
-      <h1 className="font-display font-bold text-2xl mb-6 text-glow">Learning</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-display font-bold text-2xl text-glow">Learning</h1>
+        <ThemeToggle />
+      </div>
       <div className="flex flex-col gap-3">
         {topics.map((t, i) => (
           <motion.button
