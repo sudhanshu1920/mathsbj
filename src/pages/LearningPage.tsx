@@ -50,6 +50,16 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const ctx: { from?: number; to?: number; number?: number } = {};
     if (selectedNumber) ctx.number = selectedNumber;
     if (selectedRange) { ctx.from = selectedRange.from; ctx.to = selectedRange.to; }
+    if (activeTopic === 'percentage') {
+      const { expandedDenominator, percentageGroup } = learningState || {};
+      if (expandedDenominator) {
+        ctx.from = expandedDenominator;
+        ctx.to = expandedDenominator;
+      } else if (percentageGroup) {
+        ctx.from = percentageGroup.from;
+        ctx.to = percentageGroup.to;
+      }
+    }
     onStartPractice(activeTopic, ctx, mode);
     setShowPracticeMode(false);
   };
