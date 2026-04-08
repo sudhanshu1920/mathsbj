@@ -158,7 +158,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => (
       <div key={n}>
-        <h3 className="font-display font-bold text-xl text-center mb-4 text-primary">Table of {n}</h3>
         {renderDataCards(getTable(n))}
       </div>
     ));
@@ -168,7 +167,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         <div>
           {renderHeader(`Table of ${selectedNumber}`, () => setSelectedNumber(null))}
           <SwipeContainer items={items} currentIndex={selectedNumber - 1} onIndexChange={(i) => setSelectedNumber(i + 1)} />
-          <p className="text-center text-muted-foreground text-xs mt-4">Swipe left/right to navigate</p>
         </div>
       </SwipeBack>
     );
