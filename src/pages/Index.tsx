@@ -175,9 +175,11 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="max-w-lg mx-auto px-4 pt-4">
-        <div className="flex justify-end mb-2">
-          <ThemeToggle />
-        </div>
+        {tab !== 'learn' && (
+          <div className="flex justify-end mb-2">
+            <ThemeToggle />
+          </div>
+        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={tab + (practiceTopic || '')}
