@@ -306,7 +306,7 @@ const RenderFraction = ({ n, d, size = 'lg' }: { n: number; d: number; size?: 's
         <span className="w-full h-px bg-foreground/40 my-0.5" />
         <span className={`text-foreground font-bold ${sizeClasses[size]}`}>{d}</span>
       </span>
-      <span className={`text-foreground font-bold ${sizeClasses[size]}`}= ?</span>
+      <span className={`text-foreground font-bold ${sizeClasses[size]}`}>{` = ?`}</span>
     </span>
   );
 };
