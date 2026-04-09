@@ -201,6 +201,7 @@ const Index = () => {
                 initialContext={practiceContext}
                 initialMode={practiceMode}
                 onExit={handlePracticeExit}
+                fromLearning={returnToLearn}
               />
             )}
             {tab === 'progress' && <ProgressPage />}

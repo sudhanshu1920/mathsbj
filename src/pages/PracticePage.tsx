@@ -316,9 +316,10 @@ interface PracticePageProps {
   initialContext?: { from?: number; to?: number; number?: number };
   initialMode?: 'mcq' | 'input';
   onExit?: () => void;
+  fromLearning?: boolean;
 }
 
-const PracticePage = ({ initialTopic, initialContext, initialMode, onExit }: PracticePageProps) => {
+const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromLearning }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -490,7 +491,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit }: Pra
             <div className="flex gap-3">
               <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold">Retry</button>
               <button onClick={handleExit} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">
-                {onExit ? 'Back to Learning' : 'New Practice'}
+                {onExit ? (fromLearning ? 'Back to Learning' : 'Back to Practice') : 'New Practice'}
               </button>
             </div>
           </motion.div>
