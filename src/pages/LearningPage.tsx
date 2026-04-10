@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target } from 'lucide-react';
+import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
 import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/components/PercentageLearning';
 import PracticeModeSelector from '@/components/PracticeModeSelector';
+import FormulasLearning from '@/components/FormulasLearning';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
 
-type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage';
+type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas';
 
 interface LearningPageProps {
   onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input') => void;
@@ -26,6 +27,7 @@ const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
   { id: 'cube-roots', title: 'Cube Roots', icon: Box, gradient: 'bg-gradient-to-br from-pink-500 to-rose-600' },
   { id: 'powers', title: 'Powers', icon: Zap, gradient: 'bg-gradient-to-br from-violet-500 to-purple-600' },
   { id: 'percentage', title: 'Percentage', icon: Percent, gradient: 'bg-gradient-to-br from-amber-500 to-yellow-600' },
+  { id: 'formulas', title: 'Formulas', icon: BookOpen, gradient: 'bg-gradient-to-br from-teal-500 to-emerald-600' },
 ];
 
 const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
