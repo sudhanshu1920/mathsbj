@@ -15,6 +15,7 @@ export interface LearningState {
   selectedRange: { from: number; to: number } | null;
   percentageGroup: { from: number; to: number } | null;
   expandedDenominator: number | null;
+  formulaCategoryIndex: number | null;
 }
 
 const INITIAL_LEARNING_STATE: LearningState = {
@@ -23,6 +24,7 @@ const INITIAL_LEARNING_STATE: LearningState = {
   selectedRange: null,
   percentageGroup: null,
   expandedDenominator: null,
+  formulaCategoryIndex: null,
 };
 
 // Compute a depth key representing how deep we are in navigation
