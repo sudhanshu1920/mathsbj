@@ -140,4 +140,15 @@
   .text-glow {
     text-shadow: 0 0 20px hsl(210 100% 56% / 0.4);
   }
+  .formula-text {
+    font-family: 'Times New Roman', 'Georgia', serif;
+    font-size: 1.1rem;
+    line-height: 1.8;
+  }
+  .formula-text i {
+    font-style: italic;
+  }
+  .formula-text sup, .formula-text sub {
+    font-size: 0.7em;
+  }
 }
