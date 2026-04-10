@@ -35,12 +35,16 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
     return 'practice-setup';
   }
   // learn tab
-  const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator } = learningState;
+  const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaCategoryIndex } = learningState;
   if (!activeTopic) return 'learn-home';
   if (activeTopic === 'percentage') {
     if (expandedDenominator) return `learn-percentage-expanded-${expandedDenominator}`;
     if (percentageGroup) return `learn-percentage-group`;
     return 'learn-percentage';
+  }
+  if (activeTopic === 'formulas') {
+    if (formulaCategoryIndex !== null) return `learn-formulas-${formulaCategoryIndex}`;
+    return 'learn-formulas';
   }
   if (selectedNumber) return `learn-${activeTopic}-${selectedNumber}`;
   if (selectedRange) return `learn-${activeTopic}-range`;
