@@ -1,5 +1,5 @@
-import { useState, useRef, ReactNode } from 'react';
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { useState, useRef, useCallback, ReactNode, TouchEvent } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface SwipeContainerProps {
   items: ReactNode[];
@@ -9,18 +9,58 @@ interface SwipeContainerProps {
 
 const SwipeContainer = ({ items, currentIndex, onIndexChange }: SwipeContainerProps) => {
   const [direction, setDirection] = useState(0);
-  const constraintsRef = useRef(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const axisLocked = useRef<'x' | 'y' | null>(null);
+  const swiping = useRef(false);
 
-  const handleDragEnd = (_: any, info: PanInfo) => {
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    const touch = e.touches[0];
+    touchStart.current = { x: touch.clientX, y: touch.clientY };
+    axisLocked.current = null;
+    swiping.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!touchStart.current) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStart.current.x;
+    const dy = touch.clientY - touchStart.current.y;
+
+    // Lock axis once movement exceeds threshold
+    if (!axisLocked.current && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      axisLocked.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    }
+
+    // If horizontal swipe detected, prevent vertical scroll
+    if (axisLocked.current === 'x') {
+      e.preventDefault();
+      swiping.current = true;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: TouchEvent) => {
+    if (!touchStart.current || axisLocked.current !== 'x') {
+      touchStart.current = null;
+      axisLocked.current = null;
+      return;
+    }
+
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - touchStart.current.x;
     const threshold = 50;
-    if (info.offset.x < -threshold && currentIndex < items.length - 1) {
+
+    if (dx < -threshold && currentIndex < items.length - 1) {
       setDirection(1);
       onIndexChange(currentIndex + 1);
-    } else if (info.offset.x > threshold && currentIndex > 0) {
+    } else if (dx > threshold && currentIndex > 0) {
       setDirection(-1);
       onIndexChange(currentIndex - 1);
     }
-  };
+
+    touchStart.current = null;
+    axisLocked.current = null;
+    swiping.current = false;
+  }, [currentIndex, items.length, onIndexChange]);
 
   const variants = {
     enter: (d: number) => ({ x: d > 0 ? 300 : -300, opacity: 0 }),
@@ -29,7 +69,13 @@ const SwipeContainer = ({ items, currentIndex, onIndexChange }: SwipeContainerPr
   };
 
   return (
-    <div ref={constraintsRef} className="overflow-hidden relative min-h-[200px]">
+    <div
+      className="overflow-hidden relative min-h-[200px] touch-pan-y"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{ touchAction: 'pan-y' }}
+    >
       <AnimatePresence custom={direction} mode="popLayout">
         <motion.div
           key={currentIndex}
@@ -39,10 +85,6 @@ const SwipeContainer = ({ items, currentIndex, onIndexChange }: SwipeContainerPr
           animate="center"
           exit="exit"
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.2}
-          onDragEnd={handleDragEnd}
           className="w-full"
         >
           {items[currentIndex]}
