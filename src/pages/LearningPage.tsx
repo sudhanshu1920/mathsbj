@@ -310,6 +310,22 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     );
   }
 
+  // FORMULAS
+  if (activeTopic === 'formulas') {
+    const catIdx = learningState?.formulaCategoryIndex ?? null;
+    return (
+      <SwipeBack onBack={() => catIdx !== null ? updateState({ formulaCategoryIndex: null }) : setActiveTopic(null)}>
+        <div>
+          {catIdx === null && renderHeader('Formulas', () => setActiveTopic(null), false)}
+          <FormulasLearning
+            selectedCategoryIndex={catIdx}
+            onCategorySelect={(i) => updateState({ formulaCategoryIndex: i })}
+          />
+        </div>
+      </SwipeBack>
+    );
+  }
+
   // TOPIC LIST
   const topicSymbols: Record<Topic, string> = {
     tables: '×',
@@ -319,6 +335,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     'cube-roots': '∛',
     powers: '⚡',
     percentage: '%',
+    formulas: 'f(x)',
   };
 
   return (
