@@ -140,15 +140,13 @@
   .text-glow {
     text-shadow: 0 0 20px hsl(210 100% 56% / 0.4);
   }
-  .formula-text {
-    font-family: 'Times New Roman', 'Georgia', serif;
-    font-size: 1.1rem;
-    line-height: 1.8;
+  .katex-formula .katex {
+    font-size: 1.05rem;
+    text-align: left;
+    color: hsl(var(--foreground));
   }
-  .formula-text i {
-    font-style: italic;
-  }
-  .formula-text sup, .formula-text sub {
-    font-size: 0.7em;
+  .katex-formula .katex .katex-html {
+    white-space: normal;
+    word-wrap: break-word;
   }
 }

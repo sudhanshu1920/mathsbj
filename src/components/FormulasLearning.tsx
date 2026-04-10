@@ -1,9 +1,28 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import ThemeToggle from '@/components/ThemeToggle';
 import SwipeBack from '@/components/SwipeBack';
 import SwipeContainer from '@/components/SwipeContainer';
 import { FORMULA_CATEGORIES } from '@/lib/formulaData';
+
+const KaTeXBlock = ({ latex }: { latex: string }) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      katex.render(latex, ref.current, {
+        displayMode: true,
+        throwOnError: false,
+        strict: false,
+      });
+    }
+  }, [latex]);
+
+  return <div ref={ref} className="katex-formula" />;
+};
 
 interface FormulasLearningProps {
   selectedCategoryIndex: number | null;
@@ -11,10 +30,9 @@ interface FormulasLearningProps {
 }
 
 const FormulasLearning = ({ selectedCategoryIndex, onCategorySelect }: FormulasLearningProps) => {
-  // Category detail view with swipe between categories
   if (selectedCategoryIndex !== null) {
     const category = FORMULA_CATEGORIES[selectedCategoryIndex];
-    
+
     const items = FORMULA_CATEGORIES.map((cat) => (
       <div key={cat.id} className="space-y-3">
         {cat.formulas.map((f, i) => (
@@ -23,12 +41,9 @@ const FormulasLearning = ({ selectedCategoryIndex, onCategorySelect }: FormulasL
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.03 }}
-            className="bg-card border border-border rounded-xl px-5 py-4"
+            className="bg-card border border-border rounded-xl px-4 py-3 overflow-x-auto"
           >
-            <span
-              className="text-foreground text-base leading-relaxed formula-text"
-              dangerouslySetInnerHTML={{ __html: f.html }}
-            />
+            <KaTeXBlock latex={f.latex} />
           </motion.div>
         ))}
       </div>
@@ -56,7 +71,6 @@ const FormulasLearning = ({ selectedCategoryIndex, onCategorySelect }: FormulasL
     );
   }
 
-  // Category list
   return (
     <div className="flex flex-col gap-3">
       {FORMULA_CATEGORIES.map((cat, i) => (
