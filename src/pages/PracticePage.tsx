@@ -403,13 +403,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   useEffect(() => {
     if (!config || finished) return;
+    // Don't run timer if disabled
+    if (config.timerSeconds >= 9999) return;
     if (timerRef.current) clearInterval(timerRef.current);
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           handleAnswer(null);
-          // For infinite mode or per-question, reset timer
           if (config.infinite || config.timerMode === 'per-question') return config.timerSeconds;
           return 0;
         }
