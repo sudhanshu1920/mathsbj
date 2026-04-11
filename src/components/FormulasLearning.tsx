@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -25,51 +25,124 @@ const KaTeXBlock = ({ latex }: { latex: string }) => {
   return <div ref={ref} className="katex-formula" />;
 };
 
-/** Renders a group of formulas for one shape/topic with diagram + variables + formulas */
-const FormulaGroup = ({ formulas, startIndex }: { formulas: FormulaItem[]; startIndex: number }) => {
-  // Find diagram from any formula in the group
-  const diagram = formulas.find((f) => f.diagram)?.diagram;
-  const variables = formulas.filter((f) => f.isVariable);
-  const formulaItems = formulas.filter((f) => !f.isVariable);
+/** A single shape group extracted from formula data */
+interface ShapeGroup {
+  label: string;
+  diagram?: string;
+  variables: FormulaItem[];
+  formulas: FormulaItem[];
+}
+
+/** Split formulas into shape groups by sectionLabel */
+function extractShapeGroups(formulas: FormulaItem[]): ShapeGroup[] {
+  const rawGroups: { label: string; items: FormulaItem[] }[] = [];
+  let current: { label: string; items: FormulaItem[] } | null = null;
+
+  for (const f of formulas) {
+    if (f.sectionLabel && (!current || f.sectionLabel !== current.label)) {
+      current = { label: f.sectionLabel, items: [] };
+      rawGroups.push(current);
+    }
+    if (!current) {
+      current = { label: '', items: [] };
+      rawGroups.push(current);
+    }
+    current.items.push(f);
+  }
+
+  // Merge consecutive variable + formula groups into shape groups
+  const shapes: ShapeGroup[] = [];
+  let pendingVars: FormulaItem[] = [];
+  let pendingLabel = '';
+  let pendingDiagram: string | undefined;
+
+  for (const group of rawGroups) {
+    const isVarGroup = group.label === 'Variables' || group.items.every((f) => f.isVariable);
+    const isFormulaGroup = group.label === 'Formulas' || group.items.every((f) => !f.isVariable);
+
+    if (isVarGroup && !isFormulaGroup) {
+      pendingVars = group.items;
+      pendingDiagram = group.items.find((f) => f.diagram)?.diagram;
+      continue;
+    }
+
+    // This is a shape-titled group or a formula group
+    const diagram = group.items.find((f) => f.diagram)?.diagram || pendingDiagram;
+    const variables = [...pendingVars, ...group.items.filter((f) => f.isVariable)];
+    const fItems = group.items.filter((f) => !f.isVariable);
+    const label = group.label && group.label !== 'Formulas' && group.label !== 'Variables'
+      ? group.label
+      : pendingLabel;
+
+    shapes.push({ label, diagram, variables, formulas: fItems });
+    pendingVars = [];
+    pendingLabel = '';
+    pendingDiagram = undefined;
+  }
+
+  // If only pending vars remain
+  if (pendingVars.length > 0) {
+    shapes.push({ label: pendingLabel, diagram: pendingDiagram, variables: pendingVars, formulas: [] });
+  }
+
+  return shapes;
+}
+
+/** Standardized shape card: Title → Diagram → Definitions → Formulas */
+const ShapeCard = ({ shape }: { shape: ShapeGroup }) => {
+  const [showDefs, setShowDefs] = useState(true);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: startIndex * 0.02 }}
-      className="bg-card border border-border rounded-xl overflow-hidden"
+      className="bg-card border border-border rounded-2xl overflow-hidden"
     >
       {/* Diagram */}
-      {diagram && (
-        <div className="flex justify-center pt-4 pb-2">
-          <ShapeDiagram type={diagram} className="w-28 h-28" />
+      {shape.diagram && (
+        <div className="flex justify-center pt-6 pb-2 bg-background/50">
+          <ShapeDiagram type={shape.diagram} className="w-36 h-36" />
         </div>
       )}
 
-      <div className="px-4 pb-4 pt-2 space-y-2">
-        {/* Variables */}
-        {variables.length > 0 && (
-          <div className="space-y-1">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Variables</span>
-            {variables.map((v, i) => (
-              <div key={i} className="text-sm">
-                <KaTeXBlock latex={v.latex} />
+      <div className="px-5 pb-5 pt-3 space-y-4">
+        {/* Definitions / Variables */}
+        {shape.variables.length > 0 && (
+          <div>
+            <button
+              onClick={() => setShowDefs(!showDefs)}
+              className="flex items-center gap-2 mb-2 w-full"
+            >
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Definitions
+              </span>
+              <span className="text-xs text-muted-foreground">{showDefs ? '▾' : '▸'}</span>
+            </button>
+            {showDefs && (
+              <div className="space-y-1 pl-1">
+                {shape.variables.map((v, i) => (
+                  <div key={i} className="text-sm">
+                    <KaTeXBlock latex={v.latex} />
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
 
         {/* Formulas */}
-        {formulaItems.length > 0 && (
-          <div className="space-y-1">
-            {variables.length > 0 && (
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Formulas</span>
-            )}
-            {formulaItems.map((f, i) => (
-              <div key={i} className="overflow-x-auto">
-                <KaTeXBlock latex={f.latex} />
-              </div>
-            ))}
+        {shape.formulas.length > 0 && (
+          <div>
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+              Formulas
+            </span>
+            <div className="space-y-2">
+              {shape.formulas.map((f, i) => (
+                <div key={i} className="overflow-x-auto">
+                  <KaTeXBlock latex={f.latex} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -83,63 +156,101 @@ interface FormulasLearningProps {
   onNavigate: (section: number | null, category: number | null) => void;
 }
 
-/** Split formulas into groups by sectionLabel */
-function groupFormulas(formulas: FormulaItem[]): { label: string; items: FormulaItem[] }[] {
-  const groups: { label: string; items: FormulaItem[] }[] = [];
-  let current: { label: string; items: FormulaItem[] } | null = null;
-
-  for (const f of formulas) {
-    if (f.sectionLabel && (!current || f.sectionLabel !== current.label)) {
-      current = { label: f.sectionLabel, items: [] };
-      groups.push(current);
-    }
-    if (!current) {
-      current = { label: '', items: [] };
-      groups.push(current);
-    }
-    current.items.push(f);
-  }
-
-  return groups;
-}
-
 const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasLearningProps) => {
-  // Level 3: Formula list with swipe between categories in a section
+  const [shapeIndex, setShapeIndex] = useState(0);
+
+  // Reset shape index when category changes
+  useEffect(() => {
+    setShapeIndex(0);
+  }, [categoryIndex]);
+
+  // Level 3: Formula detail view
   if (sectionIndex !== null && categoryIndex !== null) {
     const section = FORMULA_SECTIONS[sectionIndex];
     const category = section?.categories[categoryIndex];
     if (!section || !category) return null;
 
-    const items = section.categories.map((cat) => {
-      const groups = groupFormulas(cat.formulas);
-      const hasGroups = groups.some((g) => g.label);
+    // Check if this category has shape groups (geometry style)
+    const shapeGroups = extractShapeGroups(category.formulas);
+    const hasShapeGroups = shapeGroups.length > 1 || (shapeGroups.length === 1 && shapeGroups[0].diagram);
+
+    if (hasShapeGroups) {
+      // Geometry-style: one shape per swipeable page
+      const items = shapeGroups.map((shape, i) => (
+        <div key={i} className="space-y-3">
+          {/* Shape title */}
+          {shape.label && (
+            <h3 className="font-display font-bold text-base text-center text-foreground">
+              {shape.label.replace(/^[◼▬△●◆▶⬡⬠⬟⬢] ?/, '')}
+            </h3>
+          )}
+          <ShapeCard shape={shape} />
+        </div>
+      ));
+
+      // Pagination indicator
+      const currentShape = shapeGroups[shapeIndex] || shapeGroups[0];
+      const displayTitle = currentShape?.label?.replace(/^[◼▬△●◆▶⬡⬠⬟⬢] ?/, '') || category.title;
 
       return (
-        <div key={cat.id} className="space-y-4">
-          {hasGroups
-            ? groups.map((group, gi) => (
-                <div key={gi}>
-                  {group.label && (
-                    <h3 className="font-display font-bold text-sm text-primary mb-2">{group.label}</h3>
-                  )}
-                  <FormulaGroup formulas={group.items} startIndex={gi} />
-                </div>
-              ))
-            : cat.formulas.map((f, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="bg-card border border-border rounded-xl px-4 py-3 overflow-x-auto"
-                >
-                  {f.diagram && <ShapeDiagram type={f.diagram} className="mb-2" />}
-                  <KaTeXBlock latex={f.latex} />
-                </motion.div>
-              ))}
-        </div>
+        <SwipeBack onBack={() => onNavigate(sectionIndex, null)}>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <button onClick={() => onNavigate(sectionIndex, null)} className="p-2 -ml-2 text-primary">
+                <ArrowLeft size={20} />
+              </button>
+              <div className="text-center">
+                <h2 className="font-display font-bold text-lg text-foreground">
+                  {displayTitle}
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  {shapeIndex + 1} / {shapeGroups.length}
+                </span>
+              </div>
+              <ThemeToggle />
+            </div>
+
+            <SwipeContainer
+              items={items}
+              currentIndex={shapeIndex}
+              onIndexChange={setShapeIndex}
+            />
+
+            {/* Dot indicators */}
+            {shapeGroups.length > 1 && (
+              <div className="flex justify-center gap-1.5 mt-4">
+                {shapeGroups.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setShapeIndex(i)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      i === shapeIndex ? 'bg-primary w-4' : 'bg-muted-foreground/30'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </SwipeBack>
       );
-    });
+    }
+
+    // Non-geometry: swipe between categories (algebra, series)
+    const items = section.categories.map((cat) => (
+      <div key={cat.id} className="space-y-3">
+        {cat.formulas.map((f, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.03 }}
+            className="bg-card border border-border rounded-xl px-4 py-3 overflow-x-auto"
+          >
+            <KaTeXBlock latex={f.latex} />
+          </motion.div>
+        ))}
+      </div>
+    ));
 
     return (
       <SwipeBack onBack={() => onNavigate(sectionIndex, null)}>
@@ -206,7 +317,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
     );
   }
 
-  // Level 1: Main sections (Algebra, Geometry, Series)
+  // Level 1: Main sections
   return (
     <div className="flex flex-col gap-3">
       {FORMULA_SECTIONS.map((sec, i) => (
