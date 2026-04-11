@@ -6,7 +6,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
 import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/components/PercentageLearning';
-import PracticeModeSelector from '@/components/PracticeModeSelector';
+import PracticeModeSelector, { type PracticeSettings } from '@/components/PracticeModeSelector';
 import FormulasLearning from '@/components/FormulasLearning';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
@@ -14,7 +14,7 @@ import type { LearningState } from '@/pages/Index';
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas';
 
 interface LearningPageProps {
-  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input') => void;
+  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
 }
@@ -48,7 +48,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
 
   const rangeGroups = getExtendedRangeGroups();
 
-  const handlePracticeSelect = (mode: 'mcq' | 'input') => {
+  const handlePracticeSelect = (settings: PracticeSettings) => {
     if (!onStartPractice || !activeTopic) return;
     const ctx: { from?: number; to?: number; number?: number } = {};
     if (selectedNumber) ctx.number = selectedNumber;
@@ -63,7 +63,11 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         ctx.to = percentageGroup.to;
       }
     }
-    onStartPractice(activeTopic, ctx, mode);
+    onStartPractice(activeTopic, ctx, settings.mode, {
+      timerEnabled: settings.timerEnabled,
+      timerSeconds: settings.timerSeconds,
+      infinite: settings.infinite,
+    });
     setShowPracticeMode(false);
   };
 

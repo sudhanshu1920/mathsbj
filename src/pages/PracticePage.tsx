@@ -308,11 +308,12 @@ interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
   initialMode?: 'mcq' | 'input';
+  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean };
   onExit?: () => void;
   fromLearning?: boolean;
 }
 
-const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromLearning }: PracticePageProps) => {
+const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, fromLearning }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -350,15 +351,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
   useEffect(() => {
     if (initialTopic && initialMode) {
       const mappedTopic = initialTopic === 'square-roots' ? 'roots' : initialTopic;
+      const timerOn = initialExtras?.timerEnabled ?? false;
       const cfg: PracticeConfig = {
         topic: mappedTopic,
         from: initialContext?.from || initialContext?.number || 1,
         to: initialContext?.to || initialContext?.number || (initialTopic === 'percentage' ? 50 : 10),
         count: 10,
-        infinite: false,
+        infinite: initialExtras?.infinite ?? false,
         mode: initialMode,
         timerMode: 'per-question',
-        timerSeconds: 10,
+        timerSeconds: timerOn ? (initialExtras?.timerSeconds ?? 10) : 9999,
         sequential: false,
       };
       startPractice(cfg);
@@ -401,13 +403,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
 
   useEffect(() => {
     if (!config || finished) return;
+    // Don't run timer if disabled
+    if (config.timerSeconds >= 9999) return;
     if (timerRef.current) clearInterval(timerRef.current);
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           handleAnswer(null);
-          // For infinite mode or per-question, reset timer
           if (config.infinite || config.timerMode === 'per-question') return config.timerSeconds;
           return 0;
         }
@@ -609,7 +612,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
   if (config && questions.length > 0) {
     const q = questions[currentQ];
     if (!q) return null;
-    const isLowTime = timeLeft <= 3;
+    const isLowTime = timeLeft <= 3 && config.timerSeconds < 9999;
+    const isTimerHidden = config.timerSeconds >= 9999;
     const isPctQuestion = config.topic === 'percentage';
     const totalAttempts = score.correct + score.wrong;
 
@@ -692,10 +696,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
           <button onClick={handleExitRequest} className="text-primary flex items-center gap-1">
             <ArrowLeft size={18} />
           </button>
-          <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
-            <Timer size={14} />
-            {timeLeft}s
-          </div>
+          {!isTimerHidden && (
+            <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
+              <Timer size={14} />
+              {timeLeft}s
+            </div>
+          )}
           {config.infinite ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Q{currentQ + 1}</span>
