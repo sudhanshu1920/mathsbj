@@ -3,6 +3,10 @@ export interface FormulaItem {
   latex: string;
   /** Optional SVG diagram key for geometry */
   diagram?: string;
+  /** Whether this is a variable definition line */
+  isVariable?: boolean;
+  /** Section label (e.g. "Variables", "Formulas") */
+  sectionLabel?: string;
 }
 
 export interface FormulaCategory {
@@ -64,30 +68,243 @@ const rootsFormulas: FormulaItem[] = [
   { latex: '\\dfrac{1}{\\sqrt[n]{a}} = \\dfrac{\\sqrt[n]{a^{n-1}}}{a}' },
 ];
 
-// ─── GEOMETRY ───
+// ─── GEOMETRY 2D ───
 
-const mensuration2D: FormulaItem[] = [
-  { latex: '\\text{Square: } A = a^2, \\quad P = 4a', diagram: 'square' },
-  { latex: '\\text{Rectangle: } A = l \\times b, \\quad P = 2(l + b)', diagram: 'rectangle' },
-  { latex: '\\text{Triangle: } A = \\dfrac{1}{2} \\times b \\times h', diagram: 'triangle' },
-  { latex: '\\text{Right Triangle: } c = \\sqrt{a^2 + b^2}', diagram: 'right-triangle' },
-  { latex: '\\text{Circle: } A = \\pi r^2, \\quad C = 2\\pi r', diagram: 'circle' },
-  { latex: '\\text{Semicircle: } A = \\dfrac{\\pi r^2}{2}, \\quad P = \\pi r + 2r', diagram: 'semicircle' },
-  { latex: '\\text{Parallelogram: } A = b \\times h', diagram: 'parallelogram' },
-  { latex: '\\text{Trapezium: } A = \\dfrac{1}{2}(a + b) \\times h', diagram: 'trapezium' },
-  { latex: '\\text{Rhombus: } A = \\dfrac{d_1 \\times d_2}{2}', diagram: 'rhombus' },
-  { latex: '\\text{Equilateral Triangle: } A = \\dfrac{\\sqrt{3}}{4} a^2', diagram: 'equilateral-triangle' },
+const squareFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = a^2', sectionLabel: 'Formulas', diagram: 'square' },
+  { latex: 'P = 4a' },
+  { latex: 'd = a\\sqrt{2}' },
 ];
 
-const mensuration3D: FormulaItem[] = [
-  { latex: '\\text{Cube: } V = a^3, \\quad SA = 6a^2', diagram: 'cube' },
-  { latex: '\\text{Cuboid: } V = l \\times b \\times h, \\quad SA = 2(lb + bh + lh)', diagram: 'cuboid' },
-  { latex: '\\text{Sphere: } V = \\dfrac{4}{3}\\pi r^3, \\quad SA = 4\\pi r^2', diagram: 'sphere' },
-  { latex: '\\text{Hemisphere: } V = \\dfrac{2}{3}\\pi r^3, \\quad SA = 3\\pi r^2', diagram: 'hemisphere' },
-  { latex: '\\text{Cylinder: } V = \\pi r^2 h, \\quad SA = 2\\pi r(r + h)', diagram: 'cylinder' },
-  { latex: '\\text{Cone: } V = \\dfrac{1}{3}\\pi r^2 h, \\quad l = \\sqrt{r^2 + h^2}', diagram: 'cone' },
-  { latex: '\\text{Cone SA: } SA = \\pi r(r + l)', diagram: 'cone' },
-  { latex: '\\text{Frustum: } V = \\dfrac{\\pi h}{3}(R^2 + Rr + r^2)', diagram: 'frustum' },
+const rectangleFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Length},\\quad b = \\text{Width}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = ab', sectionLabel: 'Formulas', diagram: 'rectangle' },
+  { latex: 'P = 2(a + b)' },
+  { latex: 'd = \\sqrt{a^2 + b^2}' },
+];
+
+const triangleFormulas: FormulaItem[] = [
+  { latex: 'b = \\text{Base},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{1}{2} \\times b \\times h', sectionLabel: 'Formulas', diagram: 'triangle' },
+  { latex: 'P = a + b + c' },
+  { latex: 's = \\dfrac{a + b + c}{2} \\quad \\text{(semi-perimeter)}' },
+  { latex: 'A = \\sqrt{s(s-a)(s-b)(s-c)} \\quad \\text{(Heron\'s)}' },
+];
+
+const equilateralTriFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\dfrac{a\\sqrt{3}}{2}', sectionLabel: 'Formulas', diagram: 'equilateral-triangle' },
+  { latex: 'A = \\dfrac{a^2\\sqrt{3}}{4}' },
+  { latex: 'P = 3a' },
+];
+
+const isoscelesTriFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Base},\\quad b = \\text{Equal sides}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\sqrt{b^2 - \\dfrac{a^2}{4}}', sectionLabel: 'Formulas', diagram: 'isosceles-triangle' },
+  { latex: 'A = \\dfrac{a \\times h}{2}' },
+  { latex: 'P = a + 2b' },
+];
+
+const scaleneTriFormulas: FormulaItem[] = [
+  { latex: 'a, b, c = \\text{Sides}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 's = \\dfrac{a + b + c}{2}', sectionLabel: 'Formulas', diagram: 'scalene-triangle' },
+  { latex: 'A = \\sqrt{s(s-a)(s-b)(s-c)}' },
+  { latex: 'P = a + b + c' },
+];
+
+const rightTriFormulas: FormulaItem[] = [
+  { latex: 'a, b = \\text{Legs},\\quad c = \\text{Hypotenuse}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'c = \\sqrt{a^2 + b^2}', sectionLabel: 'Formulas', diagram: 'right-triangle' },
+  { latex: 'A = \\dfrac{1}{2}ab' },
+  { latex: 'P = a + b + c' },
+];
+
+const circleFormulas: FormulaItem[] = [
+  { latex: 'r = \\text{Radius},\\quad d = \\text{Diameter}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\pi r^2', sectionLabel: 'Formulas', diagram: 'circle' },
+  { latex: 'C = 2\\pi r = \\pi d' },
+  { latex: 'd = 2r' },
+];
+
+const semicircleFormulas: FormulaItem[] = [
+  { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{\\pi r^2}{2}', sectionLabel: 'Formulas', diagram: 'semicircle' },
+  { latex: 'P = \\pi r + 2r' },
+];
+
+const sectorFormulas: FormulaItem[] = [
+  { latex: 'r = \\text{Radius},\\quad \\theta = \\text{Angle (degrees)}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{\\theta}{360} \\times \\pi r^2', sectionLabel: 'Formulas', diagram: 'sector' },
+  { latex: 'l = \\dfrac{\\theta}{360} \\times 2\\pi r \\quad \\text{(arc length)}' },
+  { latex: 'P = 2r + l' },
+];
+
+const segmentFormulas: FormulaItem[] = [
+  { latex: 'r = \\text{Radius},\\quad \\theta = \\text{Central angle}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{r^2}{2}(\\theta - \\sin\\theta) \\quad \\text{(radians)}', sectionLabel: 'Formulas', diagram: 'segment' },
+  { latex: 'A = \\dfrac{\\pi r^2 \\theta}{360} - \\dfrac{r^2 \\sin\\theta}{2} \\quad \\text{(degrees)}' },
+];
+
+const parallelogramFormulas: FormulaItem[] = [
+  { latex: 'b = \\text{Base},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = b \\times h', sectionLabel: 'Formulas', diagram: 'parallelogram' },
+  { latex: 'P = 2(a + b)' },
+];
+
+const rhombusFormulas: FormulaItem[] = [
+  { latex: 'd_1, d_2 = \\text{Diagonals},\\quad a = \\text{Side}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{d_1 \\times d_2}{2}', sectionLabel: 'Formulas', diagram: 'rhombus' },
+  { latex: 'P = 4a' },
+  { latex: 'a = \\dfrac{1}{2}\\sqrt{d_1^2 + d_2^2}' },
+];
+
+const trapeziumFormulas: FormulaItem[] = [
+  { latex: 'a, b = \\text{Parallel sides},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{1}{2}(a + b) \\times h', sectionLabel: 'Formulas', diagram: 'trapezium' },
+  { latex: 'P = a + b + c + d' },
+];
+
+const kiteFormulas: FormulaItem[] = [
+  { latex: 'd_1, d_2 = \\text{Diagonals}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{d_1 \\times d_2}{2}', sectionLabel: 'Formulas', diagram: 'kite' },
+  { latex: 'P = 2(a + b)' },
+];
+
+const ellipseFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Semi-major},\\quad b = \\text{Semi-minor}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\pi ab', sectionLabel: 'Formulas', diagram: 'ellipse' },
+  { latex: 'P \\approx \\pi\\left[3(a+b) - \\sqrt{(3a+b)(a+3b)}\\right]' },
+];
+
+const polygonFormulas: FormulaItem[] = [
+  { latex: 'n = \\text{Number of sides},\\quad a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: '\\text{Interior angle sum} = (n-2) \\times 180°', sectionLabel: 'Formulas', diagram: 'polygon' },
+  { latex: '\\text{Each interior angle} = \\dfrac{(n-2) \\times 180°}{n}' },
+  { latex: '\\text{Each exterior angle} = \\dfrac{360°}{n}' },
+  { latex: 'A = \\dfrac{1}{2} \\times P \\times \\text{apothem}' },
+];
+
+const pentagonFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{a^2\\sqrt{25 + 10\\sqrt{5}}}{4}', sectionLabel: 'Formulas', diagram: 'pentagon' },
+  { latex: 'P = 5a' },
+  { latex: '\\text{Interior angle} = 108°' },
+];
+
+const hexagonFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{3\\sqrt{3}}{2} a^2', sectionLabel: 'Formulas', diagram: 'hexagon' },
+  { latex: 'P = 6a' },
+  { latex: '\\text{Interior angle} = 120°' },
+];
+
+const heptagonFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\dfrac{7a^2}{4}\\cot\\left(\\dfrac{\\pi}{7}\\right)', sectionLabel: 'Formulas', diagram: 'heptagon' },
+  { latex: 'P = 7a' },
+  { latex: '\\text{Interior angle} \\approx 128.57°' },
+];
+
+const octagonFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = 2(1 + \\sqrt{2})a^2', sectionLabel: 'Formulas', diagram: 'octagon' },
+  { latex: 'P = 8a' },
+  { latex: '\\text{Interior angle} = 135°' },
+];
+
+// ─── GEOMETRY 3D ───
+
+const cubeFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = a^3', sectionLabel: 'Formulas', diagram: 'cube' },
+  { latex: 'SA = 6a^2' },
+  { latex: 'd = a\\sqrt{3}' },
+];
+
+const cuboidFormulas: FormulaItem[] = [
+  { latex: 'l = \\text{Length},\\; b = \\text{Width},\\; h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = l \\times b \\times h', sectionLabel: 'Formulas', diagram: 'cuboid' },
+  { latex: 'SA = 2(lb + bh + lh)' },
+  { latex: 'd = \\sqrt{l^2 + b^2 + h^2}' },
+];
+
+const cylinderFormulas: FormulaItem[] = [
+  { latex: 'r = \\text{Radius},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\pi r^2 h', sectionLabel: 'Formulas', diagram: 'cylinder' },
+  { latex: 'CSA = 2\\pi r h' },
+  { latex: 'TSA = 2\\pi r(r + h)' },
+];
+
+const coneFormulas: FormulaItem[] = [
+  { latex: 'r = \\text{Radius},\\; h = \\text{Height},\\; l = \\text{Slant}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\dfrac{1}{3}\\pi r^2 h', sectionLabel: 'Formulas', diagram: 'cone' },
+  { latex: 'l = \\sqrt{r^2 + h^2}' },
+  { latex: 'CSA = \\pi r l' },
+  { latex: 'TSA = \\pi r(r + l)' },
+];
+
+const sphereFormulas: FormulaItem[] = [
+  { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\dfrac{4}{3}\\pi r^3', sectionLabel: 'Formulas', diagram: 'sphere' },
+  { latex: 'SA = 4\\pi r^2' },
+];
+
+const hemisphereFormulas: FormulaItem[] = [
+  { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\dfrac{2}{3}\\pi r^3', sectionLabel: 'Formulas', diagram: 'hemisphere' },
+  { latex: 'CSA = 2\\pi r^2' },
+  { latex: 'TSA = 3\\pi r^2' },
+];
+
+const prismFormulas: FormulaItem[] = [
+  { latex: 'B = \\text{Base area},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = B \\times h', sectionLabel: 'Formulas', diagram: 'prism' },
+  { latex: 'SA = 2B + P \\times h' },
+];
+
+const triangularPrismFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Base},\\; b = \\text{Height of \\triangle},\\; h = \\text{Length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\dfrac{1}{2}abh', sectionLabel: 'Formulas', diagram: 'triangular-prism' },
+  { latex: 'SA = ab + (a + c_1 + c_2) \\times h' },
+];
+
+const rectPrismFormulas: FormulaItem[] = [
+  { latex: 'l, b, h = \\text{Length, Width, Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = l \\times b \\times h', sectionLabel: 'Formulas', diagram: 'cuboid' },
+  { latex: 'SA = 2(lb + bh + lh)' },
+];
+
+const pyramidFormulas: FormulaItem[] = [
+  { latex: 'B = \\text{Base area},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\dfrac{1}{3} B \\times h', sectionLabel: 'Formulas', diagram: 'pyramid' },
+  { latex: 'SA = B + \\dfrac{1}{2} P \\times l' },
+];
+
+const squarePyramidFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Base side},\\; h = \\text{Height},\\; l = \\text{Slant}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\dfrac{1}{3} a^2 h', sectionLabel: 'Formulas', diagram: 'square-pyramid' },
+  { latex: 'l = \\sqrt{h^2 + \\dfrac{a^2}{4}}' },
+  { latex: 'SA = a^2 + 2al' },
+];
+
+const triangularPyramidFormulas: FormulaItem[] = [
+  { latex: 'a = \\text{Base side},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\dfrac{a^2 h\\sqrt{2}}{12} \\quad \\text{(regular)}', sectionLabel: 'Formulas', diagram: 'triangular-pyramid' },
+  { latex: 'SA = \\sqrt{3}\\, a^2 \\quad \\text{(regular tetrahedron)}' },
+];
+
+const frustumConeFormulas: FormulaItem[] = [
+  { latex: 'R = \\text{Base},\\; r = \\text{Top},\\; h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\dfrac{\\pi h}{3}(R^2 + r^2 + Rr)', sectionLabel: 'Formulas', diagram: 'frustum' },
+  { latex: 'l = \\sqrt{h^2 + (R - r)^2}' },
+  { latex: 'CSA = \\pi(R + r)l' },
+  { latex: 'TSA = \\pi\\left[R^2 + r^2 + (R + r)l\\right]' },
+];
+
+const frustumPyramidFormulas: FormulaItem[] = [
+  { latex: 'A_1 = \\text{Base},\\; A_2 = \\text{Top},\\; h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\dfrac{h}{3}\\left(A_1 + A_2 + \\sqrt{A_1 A_2}\\right)', sectionLabel: 'Formulas', diagram: 'frustum-pyramid' },
 ];
 
 // ─── SERIES ───
@@ -159,8 +376,103 @@ export const FORMULA_SECTIONS: FormulaSection[] = [
     title: 'Geometry',
     symbol: '△',
     categories: [
-      { id: '2d', title: '2D Mensuration', symbol: '□', formulas: mensuration2D },
-      { id: '3d', title: '3D Mensuration', symbol: '⬡', formulas: mensuration3D },
+      {
+        id: '2d-basic',
+        title: 'Basic Shapes',
+        symbol: '□',
+        formulas: [
+          ...squareFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '◼ Square' : f.sectionLabel })),
+          ...rectangleFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '▬ Rectangle' : f.sectionLabel })),
+          ...triangleFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '△ Triangle' : f.sectionLabel })),
+        ],
+      },
+      {
+        id: '2d-triangles',
+        title: 'Triangle Types',
+        symbol: '△',
+        formulas: [
+          ...equilateralTriFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Equilateral Triangle' : f.sectionLabel })),
+          ...isoscelesTriFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Isosceles Triangle' : f.sectionLabel })),
+          ...scaleneTriFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Scalene Triangle' : f.sectionLabel })),
+          ...rightTriFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Right-Angled Triangle' : f.sectionLabel })),
+        ],
+      },
+      {
+        id: '2d-circles',
+        title: 'Circular Shapes',
+        symbol: '◯',
+        formulas: [
+          ...circleFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '● Circle' : f.sectionLabel })),
+          ...semicircleFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '◗ Semicircle' : f.sectionLabel })),
+          ...sectorFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⌔ Sector' : f.sectionLabel })),
+          ...segmentFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⌓ Segment' : f.sectionLabel })),
+        ],
+      },
+      {
+        id: '2d-quads',
+        title: 'Quadrilaterals',
+        symbol: '◇',
+        formulas: [
+          ...parallelogramFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '▱ Parallelogram' : f.sectionLabel })),
+          ...rhombusFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '◆ Rhombus' : f.sectionLabel })),
+          ...trapeziumFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⏢ Trapezium' : f.sectionLabel })),
+          ...kiteFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⬧ Kite' : f.sectionLabel })),
+        ],
+      },
+      {
+        id: '2d-polygons',
+        title: 'Polygons',
+        symbol: '⬡',
+        formulas: [
+          ...polygonFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'General Polygon' : f.sectionLabel })),
+          ...pentagonFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⬠ Pentagon' : f.sectionLabel })),
+          ...hexagonFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⬡ Hexagon' : f.sectionLabel })),
+          ...heptagonFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⬡ Heptagon' : f.sectionLabel })),
+          ...octagonFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⯃ Octagon' : f.sectionLabel })),
+        ],
+      },
+      {
+        id: '3d-basic',
+        title: 'Basic Solids',
+        symbol: '⬜',
+        formulas: [
+          ...cubeFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⬜ Cube' : f.sectionLabel })),
+          ...cuboidFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '▭ Cuboid' : f.sectionLabel })),
+        ],
+      },
+      {
+        id: '3d-curved',
+        title: 'Curved Solids',
+        symbol: '⊙',
+        formulas: [
+          ...cylinderFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '⊙ Cylinder' : f.sectionLabel })),
+          ...coneFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '▲ Cone' : f.sectionLabel })),
+          ...sphereFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '● Sphere' : f.sectionLabel })),
+          ...hemisphereFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? '◗ Hemisphere' : f.sectionLabel })),
+        ],
+      },
+      {
+        id: '3d-prism-pyramid',
+        title: 'Prism & Pyramid',
+        symbol: '⏢',
+        formulas: [
+          ...prismFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Prism (General)' : f.sectionLabel })),
+          ...triangularPrismFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Triangular Prism' : f.sectionLabel })),
+          ...rectPrismFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Rectangular Prism' : f.sectionLabel })),
+          ...pyramidFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Pyramid (General)' : f.sectionLabel })),
+          ...squarePyramidFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Square Pyramid' : f.sectionLabel })),
+          ...triangularPyramidFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Triangular Pyramid' : f.sectionLabel })),
+        ],
+      },
+      {
+        id: '3d-advanced',
+        title: 'Advanced Solids',
+        symbol: '⏥',
+        formulas: [
+          ...frustumConeFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Frustum of Cone' : f.sectionLabel })),
+          ...frustumPyramidFormulas.map((f, i) => ({ ...f, sectionLabel: i === 0 ? 'Frustum of Pyramid' : f.sectionLabel })),
+        ],
+      },
     ],
   },
   {
