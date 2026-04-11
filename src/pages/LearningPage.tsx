@@ -42,7 +42,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     }
   };
 
-  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null });
+  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null, formulaSectionIndex: null, formulaCategoryIndex: null });
   const setSelectedNumber = (n: number | null) => updateState({ selectedNumber: n });
   const setSelectedRange = (r: { from: number; to: number } | null) => updateState({ selectedRange: r });
 
