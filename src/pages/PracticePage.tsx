@@ -308,11 +308,12 @@ interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
   initialMode?: 'mcq' | 'input';
+  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean };
   onExit?: () => void;
   fromLearning?: boolean;
 }
 
-const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromLearning }: PracticePageProps) => {
+const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, fromLearning }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -350,15 +351,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
   useEffect(() => {
     if (initialTopic && initialMode) {
       const mappedTopic = initialTopic === 'square-roots' ? 'roots' : initialTopic;
+      const timerOn = initialExtras?.timerEnabled ?? false;
       const cfg: PracticeConfig = {
         topic: mappedTopic,
         from: initialContext?.from || initialContext?.number || 1,
         to: initialContext?.to || initialContext?.number || (initialTopic === 'percentage' ? 50 : 10),
         count: 10,
-        infinite: false,
+        infinite: initialExtras?.infinite ?? false,
         mode: initialMode,
         timerMode: 'per-question',
-        timerSeconds: 10,
+        timerSeconds: timerOn ? (initialExtras?.timerSeconds ?? 10) : 9999,
         sequential: false,
       };
       startPractice(cfg);
