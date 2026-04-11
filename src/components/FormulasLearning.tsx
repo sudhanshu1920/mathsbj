@@ -7,7 +7,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import SwipeBack from '@/components/SwipeBack';
 import SwipeContainer from '@/components/SwipeContainer';
 import ShapeDiagram from '@/components/ShapeDiagram';
-import { FORMULA_SECTIONS, type FormulaSection, type FormulaCategory } from '@/lib/formulaData';
+import { FORMULA_SECTIONS, type FormulaItem } from '@/lib/formulaData';
 
 const KaTeXBlock = ({ latex }: { latex: string }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -25,10 +25,82 @@ const KaTeXBlock = ({ latex }: { latex: string }) => {
   return <div ref={ref} className="katex-formula" />;
 };
 
+/** Renders a group of formulas for one shape/topic with diagram + variables + formulas */
+const FormulaGroup = ({ formulas, startIndex }: { formulas: FormulaItem[]; startIndex: number }) => {
+  // Find diagram from any formula in the group
+  const diagram = formulas.find((f) => f.diagram)?.diagram;
+  const variables = formulas.filter((f) => f.isVariable);
+  const formulaItems = formulas.filter((f) => !f.isVariable);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: startIndex * 0.02 }}
+      className="bg-card border border-border rounded-xl overflow-hidden"
+    >
+      {/* Diagram */}
+      {diagram && (
+        <div className="flex justify-center pt-4 pb-2">
+          <ShapeDiagram type={diagram} className="w-28 h-28" />
+        </div>
+      )}
+
+      <div className="px-4 pb-4 pt-2 space-y-2">
+        {/* Variables */}
+        {variables.length > 0 && (
+          <div className="space-y-1">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Variables</span>
+            {variables.map((v, i) => (
+              <div key={i} className="text-sm">
+                <KaTeXBlock latex={v.latex} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Formulas */}
+        {formulaItems.length > 0 && (
+          <div className="space-y-1">
+            {variables.length > 0 && (
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Formulas</span>
+            )}
+            {formulaItems.map((f, i) => (
+              <div key={i} className="overflow-x-auto">
+                <KaTeXBlock latex={f.latex} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
 interface FormulasLearningProps {
   sectionIndex: number | null;
   categoryIndex: number | null;
   onNavigate: (section: number | null, category: number | null) => void;
+}
+
+/** Split formulas into groups by sectionLabel */
+function groupFormulas(formulas: FormulaItem[]): { label: string; items: FormulaItem[] }[] {
+  const groups: { label: string; items: FormulaItem[] }[] = [];
+  let current: { label: string; items: FormulaItem[] } | null = null;
+
+  for (const f of formulas) {
+    if (f.sectionLabel && (!current || f.sectionLabel !== current.label)) {
+      current = { label: f.sectionLabel, items: [] };
+      groups.push(current);
+    }
+    if (!current) {
+      current = { label: '', items: [] };
+      groups.push(current);
+    }
+    current.items.push(f);
+  }
+
+  return groups;
 }
 
 const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasLearningProps) => {
@@ -38,22 +110,36 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
     const category = section?.categories[categoryIndex];
     if (!section || !category) return null;
 
-    const items = section.categories.map((cat) => (
-      <div key={cat.id} className="space-y-3">
-        {cat.formulas.map((f, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.03 }}
-            className="bg-card border border-border rounded-xl px-4 py-3 overflow-x-auto"
-          >
-            {f.diagram && <ShapeDiagram type={f.diagram} className="mb-2" />}
-            <KaTeXBlock latex={f.latex} />
-          </motion.div>
-        ))}
-      </div>
-    ));
+    const items = section.categories.map((cat) => {
+      const groups = groupFormulas(cat.formulas);
+      const hasGroups = groups.some((g) => g.label);
+
+      return (
+        <div key={cat.id} className="space-y-4">
+          {hasGroups
+            ? groups.map((group, gi) => (
+                <div key={gi}>
+                  {group.label && (
+                    <h3 className="font-display font-bold text-sm text-primary mb-2">{group.label}</h3>
+                  )}
+                  <FormulaGroup formulas={group.items} startIndex={gi} />
+                </div>
+              ))
+            : cat.formulas.map((f, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="bg-card border border-border rounded-xl px-4 py-3 overflow-x-auto"
+                >
+                  {f.diagram && <ShapeDiagram type={f.diagram} className="mb-2" />}
+                  <KaTeXBlock latex={f.latex} />
+                </motion.div>
+              ))}
+        </div>
+      );
+    });
 
     return (
       <SwipeBack onBack={() => onNavigate(sectionIndex, null)}>
