@@ -15,6 +15,7 @@ export interface LearningState {
   selectedRange: { from: number; to: number } | null;
   percentageGroup: { from: number; to: number } | null;
   expandedDenominator: number | null;
+  formulaSectionIndex: number | null;
   formulaCategoryIndex: number | null;
 }
 
@@ -24,6 +25,7 @@ const INITIAL_LEARNING_STATE: LearningState = {
   selectedRange: null,
   percentageGroup: null,
   expandedDenominator: null,
+  formulaSectionIndex: null,
   formulaCategoryIndex: null,
 };
 
