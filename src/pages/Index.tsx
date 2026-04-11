@@ -56,6 +56,7 @@ const Index = () => {
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
   const [practiceContext, setPracticeContext] = useState<{ from?: number; to?: number; number?: number } | undefined>();
   const [practiceMode, setPracticeMode] = useState<'mcq' | 'input' | undefined>();
+  const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean } | undefined>();
   const [returnToLearn, setReturnToLearn] = useState(false);
   const [learningState, setLearningState] = useState<LearningState>(INITIAL_LEARNING_STATE);
   const lastBackPress = useRef(0);
@@ -147,10 +148,11 @@ const Index = () => {
     return () => window.removeEventListener('popstate', handlePopstate);
   }, [tab, learningState, returnToLearn]);
 
-  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input') => {
+  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => {
     setPracticeTopic(topic);
     setPracticeContext(context);
     setPracticeMode(mode);
+    setPracticeExtras(extras);
     setReturnToLearn(true);
     setTab('practice');
   }, []);
@@ -206,6 +208,7 @@ const Index = () => {
                 initialTopic={practiceTopic}
                 initialContext={practiceContext}
                 initialMode={practiceMode}
+                initialExtras={practiceExtras}
                 onExit={handlePracticeExit}
                 fromLearning={returnToLearn}
               />
