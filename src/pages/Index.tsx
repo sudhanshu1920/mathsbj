@@ -15,6 +15,7 @@ export interface LearningState {
   selectedRange: { from: number; to: number } | null;
   percentageGroup: { from: number; to: number } | null;
   expandedDenominator: number | null;
+  formulaSectionIndex: number | null;
   formulaCategoryIndex: number | null;
 }
 
@@ -24,6 +25,7 @@ const INITIAL_LEARNING_STATE: LearningState = {
   selectedRange: null,
   percentageGroup: null,
   expandedDenominator: null,
+  formulaSectionIndex: null,
   formulaCategoryIndex: null,
 };
 
@@ -35,7 +37,7 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
     return 'practice-setup';
   }
   // learn tab
-  const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaCategoryIndex } = learningState;
+  const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex } = learningState;
   if (!activeTopic) return 'learn-home';
   if (activeTopic === 'percentage') {
     if (expandedDenominator) return `learn-percentage-expanded-${expandedDenominator}`;
@@ -43,7 +45,8 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
     return 'learn-percentage';
   }
   if (activeTopic === 'formulas') {
-    if (formulaCategoryIndex !== null) return `learn-formulas-${formulaCategoryIndex}`;
+    if (formulaCategoryIndex !== null) return `learn-formulas-${formulaSectionIndex}-${formulaCategoryIndex}`;
+    if (formulaSectionIndex !== null) return `learn-formulas-section-${formulaSectionIndex}`;
     return 'learn-formulas';
   }
   if (selectedNumber) return `learn-${activeTopic}-${selectedNumber}`;

@@ -42,7 +42,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     }
   };
 
-  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null });
+  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null, formulaSectionIndex: null, formulaCategoryIndex: null });
   const setSelectedNumber = (n: number | null) => updateState({ selectedNumber: n });
   const setSelectedRange = (r: { from: number; to: number } | null) => updateState({ selectedRange: r });
 
@@ -316,14 +316,23 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
 
   // FORMULAS
   if (activeTopic === 'formulas') {
+    const secIdx = learningState?.formulaSectionIndex ?? null;
     const catIdx = learningState?.formulaCategoryIndex ?? null;
+
+    const handleBack = () => {
+      if (catIdx !== null) updateState({ formulaCategoryIndex: null });
+      else if (secIdx !== null) updateState({ formulaSectionIndex: null });
+      else setActiveTopic(null);
+    };
+
     return (
-      <SwipeBack onBack={() => catIdx !== null ? updateState({ formulaCategoryIndex: null }) : setActiveTopic(null)}>
+      <SwipeBack onBack={handleBack}>
         <div>
-          {catIdx === null && renderHeader('Formulas', () => setActiveTopic(null), false)}
+          {secIdx === null && renderHeader('Formulas', () => setActiveTopic(null), false)}
           <FormulasLearning
-            selectedCategoryIndex={catIdx}
-            onCategorySelect={(i) => updateState({ formulaCategoryIndex: i })}
+            sectionIndex={secIdx}
+            categoryIndex={catIdx}
+            onNavigate={(s, c) => updateState({ formulaSectionIndex: s, formulaCategoryIndex: c })}
           />
         </div>
       </SwipeBack>
