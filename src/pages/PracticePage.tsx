@@ -4,6 +4,16 @@ import { ArrowLeft, Timer, CheckCircle2, XCircle } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
 import StackedFraction from '@/components/StackedFraction';
 import { saveResult } from '@/lib/progress';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 
 type PracticeMode = 'mcq' | 'input';
 type TimerMode = 'per-question' | 'full-session';
@@ -13,13 +23,13 @@ interface PracticeConfig {
   from: number;
   to: number;
   count: number;
+  infinite: boolean;
   mode: PracticeMode;
   timerMode: TimerMode;
   timerSeconds: number;
   sequential: boolean;
   exponentFrom?: number;
   exponentTo?: number;
-  // For percentage custom fraction range
   pctNumFrom?: number;
   pctDenFrom?: number;
   pctNumTo?: number;
@@ -115,17 +125,10 @@ function generateQuestions(config: PracticeConfig): Question[] {
       }
     }
   } else if (topic === 'percentage') {
-    // Custom fraction range or preset range
     const pairs: { n: number; d: number }[] = [];
 
     if (config.pctNumFrom !== undefined && config.pctDenFrom !== undefined &&
         config.pctNumTo !== undefined && config.pctDenTo !== undefined) {
-      // Custom range: generate n/d pairs where n goes from pctNumFrom..pctNumTo and d from pctDenFrom..pctDenTo
-      // Actually generate all combos of numerator/denominator in range
-      const startVal = config.pctNumFrom / config.pctDenFrom;
-      const endVal = config.pctNumTo / config.pctDenTo;
-      // Generate fractions n/d where d is fixed as pctDenFrom for simplicity,
-      // or enumerate: same denominator, varying numerator
       if (config.pctDenFrom === config.pctDenTo) {
         const d = config.pctDenFrom;
         const nFrom = Math.min(config.pctNumFrom, config.pctNumTo);
@@ -134,7 +137,6 @@ function generateQuestions(config: PracticeConfig): Question[] {
           pairs.push({ n, d });
         }
       } else {
-        // Different denominators: enumerate all unit fractions in range
         for (let d = Math.min(config.pctDenFrom, config.pctDenTo); d <= Math.max(config.pctDenFrom, config.pctDenTo); d++) {
           if (d === 0) continue;
           pairs.push({ n: 1, d });
@@ -155,7 +157,6 @@ function generateQuestions(config: PracticeConfig): Question[] {
       const decPct = toDecimalPct(n, d);
       const mixed = toMixed(n, d);
 
-      // Type 1: Fraction → Decimal %
       questions.push({
         text: `fraction-to-decimal`,
         questionFraction: { n, d },
@@ -163,7 +164,6 @@ function generateQuestions(config: PracticeConfig): Question[] {
         answerType: 'decimal-pct',
       });
 
-      // Type 2: Fraction → Mixed %
       if (mixed) {
         questions.push({
           text: `fraction-to-mixed`,
@@ -174,14 +174,12 @@ function generateQuestions(config: PracticeConfig): Question[] {
         });
       }
 
-      // Type 3: Decimal % → Fraction
       questions.push({
         text: `${decPct} = ? (fraction)`,
         answer: `${n}/${d}`,
         answerType: 'fraction',
       });
 
-      // Type 4: Mixed % → Fraction
       if (mixed) {
         questions.push({
           text: `mixed-to-fraction`,
@@ -201,7 +199,8 @@ function generateQuestions(config: PracticeConfig): Question[] {
   }
 
   if (config.mode === 'mcq') {
-    return questions.slice(0, config.count).map((q) => {
+    const sliced = config.infinite ? questions : questions.slice(0, config.count);
+    return sliced.map((q) => {
       const correct = q.answer;
       const opts = new Set<string>();
       opts.add(String(correct));
@@ -233,10 +232,8 @@ function generateQuestions(config: PracticeConfig): Question[] {
 
       const shuffled = Array.from(opts).sort(() => Math.random() - 0.5);
 
-      // Build mixed data for options that are mixed percentages
       const optionsMixed: (MixedPct | null)[] = shuffled.map((opt) => {
         if (q.answerType === 'mixed-pct') {
-          // Parse "whole num/den%" format
           const match = opt.match(/^(\d+)\s+(\d+)\/(\d+)%$/);
           if (match) return { whole: Number(match[1]), numerator: Number(match[2]), denominator: Number(match[3]) };
           const match2 = opt.match(/^(\d+)\/(\d+)%$/);
@@ -249,27 +246,23 @@ function generateQuestions(config: PracticeConfig): Question[] {
     });
   }
 
-  return questions.slice(0, config.count);
+  return config.infinite ? questions : questions.slice(0, config.count);
 }
 
-// Normalize answer for comparison
 function normalizeAnswer(input: string, expected: string): boolean {
   const a = input.trim().replace(/\s+/g, ' ');
   const b = expected.trim().replace(/\s+/g, ' ');
   if (a === b) return true;
 
-  // Try numeric comparison (e.g., 16.67 vs 16.67%)
   const aNum = parseFloat(a.replace('%', ''));
   const bNum = parseFloat(b.replace('%', ''));
   if (!isNaN(aNum) && !isNaN(bNum) && Math.abs(aNum - bNum) < 0.01) return true;
 
-  // Accept "16 2/3" for "16 2/3%"
   if (a + '%' === b || a === b.replace('%', '')) return true;
 
   return false;
 }
 
-// Render stacked fraction component for question/option display
 const RenderMixed = ({ mixed, size = 'md' }: { mixed: MixedPct; size?: 'sm' | 'md' | 'lg' }) => {
   const sizeClasses = {
     sm: { whole: 'text-sm', frac: 'text-[10px]', pct: 'text-sm' },
@@ -329,7 +322,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
+  const elapsedRef = useRef<ReturnType<typeof setInterval>>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Setup form state
@@ -337,6 +333,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
   const [from, setFrom] = useState(initialContext?.from || initialContext?.number || 1);
   const [to, setTo] = useState(initialContext?.to || initialContext?.number || 10);
   const [count, setCount] = useState(10);
+  const [infinite, setInfinite] = useState(false);
   const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
   const [timerMode, setTimerMode] = useState<TimerMode>('per-question');
   const [timerSeconds, setTimerSeconds] = useState(10);
@@ -344,7 +341,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
   const [expFrom, setExpFrom] = useState(1);
   const [expTo, setExpTo] = useState(5);
 
-  // Custom fraction range for percentage
   const [pctNumFrom, setPctNumFrom] = useState(1);
   const [pctDenFrom, setPctDenFrom] = useState(2);
   const [pctNumTo, setPctNumTo] = useState(5);
@@ -359,6 +355,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
         from: initialContext?.from || initialContext?.number || 1,
         to: initialContext?.to || initialContext?.number || (initialTopic === 'percentage' ? 50 : 10),
         count: 10,
+        infinite: false,
         mode: initialMode,
         timerMode: 'per-question',
         timerSeconds: 10,
@@ -379,12 +376,28 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
     setFeedback(null);
     setInputValue('');
     setSelectedOption(null);
-    if (cfg.timerMode === 'per-question') {
+    setElapsedTime(0);
+    if (cfg.infinite) {
+      // For infinite mode, timer is per-question only
+      setTimeLeft(cfg.timerSeconds);
+    } else if (cfg.timerMode === 'per-question') {
       setTimeLeft(cfg.timerSeconds);
     } else {
       setTimeLeft(cfg.timerSeconds * qs.length);
     }
   };
+
+  // Elapsed time counter for infinite mode
+  useEffect(() => {
+    if (!config || finished || !config.infinite) {
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+      return;
+    }
+    elapsedRef.current = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+    return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
+  }, [config, finished]);
 
   useEffect(() => {
     if (!config || finished) return;
@@ -394,7 +407,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
       setTimeLeft((prev) => {
         if (prev <= 1) {
           handleAnswer(null);
-          return config.timerMode === 'per-question' ? config.timerSeconds : 0;
+          // For infinite mode or per-question, reset timer
+          if (config.infinite || config.timerMode === 'per-question') return config.timerSeconds;
+          return 0;
         }
         return prev - 1;
       });
@@ -402,6 +417,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [config, currentQ, finished]);
+
+  // Generate next question for infinite mode when we run out
+  const getNextQuestionForInfinite = useCallback(() => {
+    if (!config || !config.infinite) return;
+    if (currentQ + 1 >= questions.length) {
+      // Generate more questions
+      const moreQs = generateQuestions(config);
+      setQuestions(prev => [...prev, ...moreQs]);
+    }
+  }, [config, currentQ, questions.length]);
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
@@ -431,17 +456,31 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
         setFeedback(null);
         setInputValue('');
         setSelectedOption(null);
-        if (currentQ + 1 >= questions.length) {
+        if (!config.infinite && currentQ + 1 >= questions.length) {
           setFinished(true);
           if (timerRef.current) clearInterval(timerRef.current);
         } else {
+          // For infinite mode, ensure we have more questions
+          if (config.infinite && currentQ + 1 >= questions.length) {
+            const moreQs = generateQuestions(config);
+            setQuestions(prev => [...prev, ...moreQs]);
+          }
           setCurrentQ(currentQ + 1);
-          if (config.timerMode === 'per-question') setTimeLeft(config.timerSeconds);
+          if (config.infinite || config.timerMode === 'per-question') setTimeLeft(config.timerSeconds);
         }
       }, 600);
     },
     [config, currentQ, questions, score, finished, feedback]
   );
+
+  const handleSubmitInfinite = useCallback(() => {
+    if (!config?.infinite) return;
+    const totalAttempts = score.correct + score.wrong;
+    if (totalAttempts === 0) return;
+    setFinished(true);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (elapsedRef.current) clearInterval(elapsedRef.current);
+  }, [config, score]);
 
   // Auto-submit for input mode
   useEffect(() => {
@@ -461,16 +500,69 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
     if (config?.mode === 'input' && inputRef.current) inputRef.current.focus();
   }, [currentQ, config]);
 
-  const handleExit = () => {
-    if (onExit) onExit();
-    else setConfig(null);
+  // Back/exit handling with confirmation
+  const handleExitRequest = useCallback(() => {
+    if (config && !finished) {
+      setShowExitDialog(true);
+    } else {
+      handleExitConfirmed();
+    }
+  }, [config, finished]);
+
+  const handleExitConfirmed = useCallback(() => {
+    setShowExitDialog(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (elapsedRef.current) clearInterval(elapsedRef.current);
+    if (onExit) {
+      onExit();
+    } else {
+      setConfig(null);
+      setQuestions([]);
+      setCurrentQ(0);
+      setScore({ correct: 0, wrong: 0 });
+      setFinished(false);
+    }
+  }, [onExit]);
+
+  const handleBackToPractice = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (elapsedRef.current) clearInterval(elapsedRef.current);
+    setConfig(null);
+    setQuestions([]);
+    setCurrentQ(0);
+    setScore({ correct: 0, wrong: 0 });
+    setFinished(false);
+    setFeedback(null);
+    setInputValue('');
+    setSelectedOption(null);
+  }, []);
+
+  // Handle browser back during active practice
+  useEffect(() => {
+    if (!config || finished) return;
+    const handlePopstate = (e: PopStateEvent) => {
+      e.preventDefault();
+      window.history.pushState(null, '');
+      setShowExitDialog(true);
+    };
+    window.history.pushState(null, '');
+    window.addEventListener('popstate', handlePopstate);
+    return () => window.removeEventListener('popstate', handlePopstate);
+  }, [config, finished]);
+
+  // Format elapsed time
+  const formatTime = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   };
 
   // RESULTS
   if (finished && config) {
-    const accuracy = Math.round((score.correct / questions.length) * 100);
+    const totalAttempts = score.correct + score.wrong;
+    const accuracy = totalAttempts > 0 ? Math.round((score.correct / totalAttempts) * 100) : 0;
     return (
-      <SwipeBack onBack={handleExit}>
+      <SwipeBack onBack={handleBackToPractice}>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
             <div className="text-6xl mb-4">{accuracy >= 80 ? '🏆' : accuracy >= 50 ? '👍' : '💪'}</div>
@@ -478,7 +570,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
               {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
             </h2>
             <p className="text-muted-foreground mb-6">Score: {accuracy}%</p>
-            <div className="flex gap-8 mb-8">
+            <div className="flex gap-8 mb-4">
               <div className="text-center">
                 <p className="text-3xl font-bold text-success">{score.correct}</p>
                 <p className="text-xs text-muted-foreground">Correct</p>
@@ -487,12 +579,25 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
                 <p className="text-3xl font-bold text-destructive">{score.wrong}</p>
                 <p className="text-xs text-muted-foreground">Wrong</p>
               </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-foreground">{totalAttempts}</p>
+                <p className="text-xs text-muted-foreground">Attempted</p>
+              </div>
             </div>
+            {config.infinite && (
+              <p className="text-sm text-muted-foreground mb-4">Time: {formatTime(elapsedTime)}</p>
+            )}
             <div className="flex gap-3">
               <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold">Retry</button>
-              <button onClick={handleExit} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">
-                {onExit ? (fromLearning ? 'Back to Learning' : 'Back to Practice') : 'New Practice'}
-              </button>
+              {fromLearning ? (
+                <button onClick={() => onExit?.()} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">
+                  Back to Learning
+                </button>
+              ) : (
+                <button onClick={handleBackToPractice} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">
+                  Back to Practice
+                </button>
+              )}
             </div>
           </motion.div>
         </div>
@@ -506,8 +611,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
     if (!q) return null;
     const isLowTime = timeLeft <= 3;
     const isPctQuestion = config.topic === 'percentage';
+    const totalAttempts = score.correct + score.wrong;
 
-    // Render question text with stacked fractions
     const renderQuestionText = () => {
       if (isPctQuestion && q.questionFraction) {
         return (
@@ -537,7 +642,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
       );
     };
 
-    // Render answer type label
     const renderAnswerHint = () => {
       if (!isPctQuestion) return null;
       const hints: Record<string, string> = {
@@ -550,7 +654,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
       ) : null;
     };
 
-    // Render option content
     const renderOption = (opt: string | number, index: number) => {
       if (isPctQuestion && q.optionsMixed?.[index]) {
         return <RenderMixed mixed={q.optionsMixed[index]!} size="sm" />;
@@ -558,7 +661,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
       return <span>{String(opt)}</span>;
     };
 
-    // Render correct answer in feedback
     const renderCorrectAnswer = () => {
       if (isPctQuestion && q.mixedPctAnswer) {
         return <RenderMixed mixed={q.mixedPctAnswer} size="md" />;
@@ -568,21 +670,64 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
 
     return (
       <div>
+        {/* Exit confirmation dialog */}
+        <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+          <AlertDialogContent className="rounded-2xl max-w-[320px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Exit Practice?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to exit practice? Your progress will not be saved.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleExitConfirmed} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Exit
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <div className="flex items-center justify-between mb-4">
-          <button onClick={handleExit} className="text-primary flex items-center gap-1">
+          <button onClick={handleExitRequest} className="text-primary flex items-center gap-1">
             <ArrowLeft size={18} />
-            <span className="text-sm">Exit</span>
           </button>
           <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
             <Timer size={14} />
             {timeLeft}s
           </div>
-          <span className="text-sm text-muted-foreground">{currentQ + 1}/{questions.length}</span>
+          {config.infinite ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Q{currentQ + 1}</span>
+              <button
+                onClick={handleSubmitInfinite}
+                disabled={totalAttempts === 0}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+                  totalAttempts > 0
+                    ? 'gradient-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
+                }`}
+              >
+                Submit
+              </button>
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground">{currentQ + 1}/{questions.length}</span>
+          )}
         </div>
 
-        <div className="h-1 bg-secondary rounded-full mb-6 overflow-hidden">
-          <motion.div className="h-full gradient-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }} />
-        </div>
+        {!config.infinite && (
+          <div className="h-1 bg-secondary rounded-full mb-6 overflow-hidden">
+            <motion.div className="h-full gradient-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }} />
+          </div>
+        )}
+
+        {config.infinite && (
+          <div className="flex items-center justify-between mb-4 px-1">
+            <span className="text-xs text-muted-foreground">∞ Infinite Mode</span>
+            <span className="text-xs text-muted-foreground">{formatTime(elapsedTime)}</span>
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           <motion.div key={currentQ} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -30 }} className="text-center mb-4">
@@ -685,7 +830,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
         <div className="mb-5">
           <label className="text-sm text-muted-foreground mb-2 block">Fraction Range</label>
 
-          {/* Mode toggle */}
           <div className="flex gap-2 mb-3">
             <button
               onClick={() => setPctRangeMode('preset')}
@@ -723,9 +867,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Custom fraction input with stacked UI */}
               <div className="flex items-center gap-3 justify-center">
-                {/* From fraction */}
                 <div className="flex flex-col items-center">
                   <input
                     type="number"
@@ -748,7 +890,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
 
                 <span className="text-muted-foreground font-semibold text-sm">to</span>
 
-                {/* To fraction */}
                 <div className="flex flex-col items-center">
                   <input
                     type="number"
@@ -774,7 +915,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
                 <p className="text-destructive text-xs text-center">Denominator cannot be 0</p>
               )}
 
-              {/* Preview */}
               {pctCustomValid && (
                 <div className="bg-secondary/30 rounded-xl p-3 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Practice range</p>
@@ -828,12 +968,19 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
         <label className="text-sm text-muted-foreground mb-2 block">Questions</label>
         <div className="flex gap-2">
           {COUNTS.map((c) => (
-            <button key={c} onClick={() => setCount(c)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${count === c ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
+            <button key={c} onClick={() => { setCount(c); setInfinite(false); }}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${!infinite && count === c ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
               {c}
             </button>
           ))}
+          <button onClick={() => setInfinite(true)}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${infinite ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
+            ∞
+          </button>
         </div>
+        {infinite && (
+          <p className="text-xs text-muted-foreground mt-2 text-center">Infinite mode – tap Submit to finish</p>
+        )}
       </div>
 
       <div className="mb-5">
@@ -877,7 +1024,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, onExit, fromL
         disabled={!canStart}
         onClick={() => {
           const cfg: PracticeConfig = {
-            topic, from, to, count, mode, timerMode, timerSeconds, sequential,
+            topic, from, to, count, infinite, mode, timerMode, timerSeconds, sequential,
             exponentFrom: expFrom, exponentTo: expTo,
             ...(topic === 'percentage' && pctRangeMode === 'custom' ? {
               pctNumFrom, pctDenFrom, pctNumTo, pctDenTo,
