@@ -1,3 +1,10 @@
+export interface FormulaItem {
+  /** LaTeX string for rendering with KaTeX */
+  latex: string;
+  /** Optional SVG diagram key for geometry */
+  diagram?: string;
+}
+
 export interface FormulaCategory {
   id: string;
   title: string;
@@ -5,10 +12,14 @@ export interface FormulaCategory {
   formulas: FormulaItem[];
 }
 
-export interface FormulaItem {
-  /** LaTeX string for rendering with KaTeX */
-  latex: string;
+export interface FormulaSection {
+  id: string;
+  title: string;
+  symbol: string;
+  categories: FormulaCategory[];
 }
+
+// ─── ALGEBRA ───
 
 const powersFormulas: FormulaItem[] = [
   { latex: 'a^m \\cdot b^m = (ab)^m' },
@@ -52,6 +63,34 @@ const rootsFormulas: FormulaItem[] = [
   { latex: '\\sqrt[m]{\\sqrt[n]{a}} = \\sqrt[mn]{a}' },
   { latex: '\\dfrac{1}{\\sqrt[n]{a}} = \\dfrac{\\sqrt[n]{a^{n-1}}}{a}' },
 ];
+
+// ─── GEOMETRY ───
+
+const mensuration2D: FormulaItem[] = [
+  { latex: '\\text{Square: } A = a^2, \\quad P = 4a', diagram: 'square' },
+  { latex: '\\text{Rectangle: } A = l \\times b, \\quad P = 2(l + b)', diagram: 'rectangle' },
+  { latex: '\\text{Triangle: } A = \\dfrac{1}{2} \\times b \\times h', diagram: 'triangle' },
+  { latex: '\\text{Right Triangle: } c = \\sqrt{a^2 + b^2}', diagram: 'right-triangle' },
+  { latex: '\\text{Circle: } A = \\pi r^2, \\quad C = 2\\pi r', diagram: 'circle' },
+  { latex: '\\text{Semicircle: } A = \\dfrac{\\pi r^2}{2}, \\quad P = \\pi r + 2r', diagram: 'semicircle' },
+  { latex: '\\text{Parallelogram: } A = b \\times h', diagram: 'parallelogram' },
+  { latex: '\\text{Trapezium: } A = \\dfrac{1}{2}(a + b) \\times h', diagram: 'trapezium' },
+  { latex: '\\text{Rhombus: } A = \\dfrac{d_1 \\times d_2}{2}', diagram: 'rhombus' },
+  { latex: '\\text{Equilateral Triangle: } A = \\dfrac{\\sqrt{3}}{4} a^2', diagram: 'equilateral-triangle' },
+];
+
+const mensuration3D: FormulaItem[] = [
+  { latex: '\\text{Cube: } V = a^3, \\quad SA = 6a^2', diagram: 'cube' },
+  { latex: '\\text{Cuboid: } V = l \\times b \\times h, \\quad SA = 2(lb + bh + lh)', diagram: 'cuboid' },
+  { latex: '\\text{Sphere: } V = \\dfrac{4}{3}\\pi r^3, \\quad SA = 4\\pi r^2', diagram: 'sphere' },
+  { latex: '\\text{Hemisphere: } V = \\dfrac{2}{3}\\pi r^3, \\quad SA = 3\\pi r^2', diagram: 'hemisphere' },
+  { latex: '\\text{Cylinder: } V = \\pi r^2 h, \\quad SA = 2\\pi r(r + h)', diagram: 'cylinder' },
+  { latex: '\\text{Cone: } V = \\dfrac{1}{3}\\pi r^2 h, \\quad l = \\sqrt{r^2 + h^2}', diagram: 'cone' },
+  { latex: '\\text{Cone SA: } SA = \\pi r(r + l)', diagram: 'cone' },
+  { latex: '\\text{Frustum: } V = \\dfrac{\\pi h}{3}(R^2 + Rr + r^2)', diagram: 'frustum' },
+];
+
+// ─── SERIES ───
 
 const arithmeticSeries: FormulaItem[] = [
   { latex: 'a_1 = \\text{Initial term}' },
@@ -101,13 +140,41 @@ const binomialSeries: FormulaItem[] = [
   { latex: '\\dfrac{1}{\\sqrt{1 - x}} = 1 + \\dfrac{x}{2} + \\dfrac{1 \\cdot 3 \\cdot x^2}{2 \\cdot 4} + \\cdots, \\quad |x| \\leq 1' },
 ];
 
-export const FORMULA_CATEGORIES: FormulaCategory[] = [
-  { id: 'powers', title: 'Powers Formulas', symbol: 'aⁿ', formulas: powersFormulas },
-  { id: 'product', title: 'Product Formulas', symbol: '(a+b)²', formulas: productFormulas },
-  { id: 'factoring', title: 'Factoring Formulas', symbol: 'a²−b²', formulas: factoringFormulas },
-  { id: 'roots', title: 'Roots Formulas', symbol: '√', formulas: rootsFormulas },
-  { id: 'arithmetic', title: 'Arithmetic Series', symbol: 'Σ', formulas: arithmeticSeries },
-  { id: 'geometric', title: 'Geometric Series', symbol: '∞', formulas: geometricSeries },
-  { id: 'finite', title: 'Finite Series', symbol: 'n²', formulas: finiteSeries },
-  { id: 'binomial', title: 'Binomial Series', symbol: '(1+x)', formulas: binomialSeries },
+// ─── SECTIONS ───
+
+export const FORMULA_SECTIONS: FormulaSection[] = [
+  {
+    id: 'algebra',
+    title: 'Algebra',
+    symbol: 'x²',
+    categories: [
+      { id: 'powers', title: 'Powers Formulas', symbol: 'aⁿ', formulas: powersFormulas },
+      { id: 'product', title: 'Product Formulas', symbol: '(a+b)²', formulas: productFormulas },
+      { id: 'factoring', title: 'Factoring Formulas', symbol: 'a²−b²', formulas: factoringFormulas },
+      { id: 'roots', title: 'Roots Formulas', symbol: '√', formulas: rootsFormulas },
+    ],
+  },
+  {
+    id: 'geometry',
+    title: 'Geometry',
+    symbol: '△',
+    categories: [
+      { id: '2d', title: '2D Mensuration', symbol: '□', formulas: mensuration2D },
+      { id: '3d', title: '3D Mensuration', symbol: '⬡', formulas: mensuration3D },
+    ],
+  },
+  {
+    id: 'series',
+    title: 'Series',
+    symbol: 'Σ',
+    categories: [
+      { id: 'arithmetic', title: 'Arithmetic Series', symbol: 'Σ', formulas: arithmeticSeries },
+      { id: 'geometric', title: 'Geometric Series', symbol: '∞', formulas: geometricSeries },
+      { id: 'binomial', title: 'Binomial Series', symbol: '(1+x)', formulas: binomialSeries },
+      { id: 'finite', title: 'Finite Series', symbol: 'n²', formulas: finiteSeries },
+    ],
+  },
 ];
+
+// Flat list for backward compat
+export const FORMULA_CATEGORIES: FormulaCategory[] = FORMULA_SECTIONS.flatMap(s => s.categories);
