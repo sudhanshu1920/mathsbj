@@ -611,7 +611,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   if (config && questions.length > 0) {
     const q = questions[currentQ];
     if (!q) return null;
-    const isLowTime = timeLeft <= 3;
+    const isLowTime = timeLeft <= 3 && config.timerSeconds < 9999;
+    const isTimerHidden = config.timerSeconds >= 9999;
     const isPctQuestion = config.topic === 'percentage';
     const totalAttempts = score.correct + score.wrong;
 
@@ -694,10 +695,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           <button onClick={handleExitRequest} className="text-primary flex items-center gap-1">
             <ArrowLeft size={18} />
           </button>
-          <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
-            <Timer size={14} />
-            {timeLeft}s
-          </div>
+          {!isTimerHidden && (
+            <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
+              <Timer size={14} />
+              {timeLeft}s
+            </div>
+          )}
           {config.infinite ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Q{currentQ + 1}</span>
