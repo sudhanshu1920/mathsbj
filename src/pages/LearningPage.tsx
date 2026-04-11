@@ -6,7 +6,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
 import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/components/PercentageLearning';
-import PracticeModeSelector from '@/components/PracticeModeSelector';
+import PracticeModeSelector, { type PracticeSettings } from '@/components/PracticeModeSelector';
 import FormulasLearning from '@/components/FormulasLearning';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
