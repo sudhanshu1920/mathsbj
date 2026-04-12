@@ -72,20 +72,31 @@ const rootsFormulas: FormulaItem[] = [
 
 const squareFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'd = \\text{Diagonal}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = a^2', sectionLabel: 'Formulas', diagram: 'square' },
   { latex: 'P = 4a' },
   { latex: 'd = a\\sqrt{2}' },
 ];
 
 const rectangleFormulas: FormulaItem[] = [
-  { latex: 'a = \\text{Length},\\quad b = \\text{Width}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a = \\text{Length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'b = \\text{Width}', isVariable: true },
+  { latex: 'd = \\text{Diagonal}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = ab', sectionLabel: 'Formulas', diagram: 'rectangle' },
   { latex: 'P = 2(a + b)' },
   { latex: 'd = \\sqrt{a^2 + b^2}' },
 ];
 
 const triangleFormulas: FormulaItem[] = [
-  { latex: 'b = \\text{Base},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a, b, c = \\text{Sides}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 's = \\text{Semi-perimeter}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = \\dfrac{1}{2} \\times b \\times h', sectionLabel: 'Formulas', diagram: 'triangle' },
   { latex: 'P = a + b + c' },
   { latex: 's = \\dfrac{a + b + c}{2} \\quad \\text{(semi-perimeter)}' },
@@ -94,13 +105,20 @@ const triangleFormulas: FormulaItem[] = [
 
 const equilateralTriFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'h = \\dfrac{a\\sqrt{3}}{2}', sectionLabel: 'Formulas', diagram: 'equilateral-triangle' },
   { latex: 'A = \\dfrac{a^2\\sqrt{3}}{4}' },
   { latex: 'P = 3a' },
 ];
 
 const isoscelesTriFormulas: FormulaItem[] = [
-  { latex: 'a = \\text{Base},\\quad b = \\text{Equal sides}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a = \\text{Base}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'b = \\text{Equal sides}', isVariable: true },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'h = \\sqrt{b^2 - \\dfrac{a^2}{4}}', sectionLabel: 'Formulas', diagram: 'isosceles-triangle' },
   { latex: 'A = \\dfrac{a \\times h}{2}' },
   { latex: 'P = a + 2b' },
@@ -108,20 +126,29 @@ const isoscelesTriFormulas: FormulaItem[] = [
 
 const scaleneTriFormulas: FormulaItem[] = [
   { latex: 'a, b, c = \\text{Sides}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 's = \\text{Semi-perimeter}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 's = \\dfrac{a + b + c}{2}', sectionLabel: 'Formulas', diagram: 'scalene-triangle' },
   { latex: 'A = \\sqrt{s(s-a)(s-b)(s-c)}' },
   { latex: 'P = a + b + c' },
 ];
 
 const rightTriFormulas: FormulaItem[] = [
-  { latex: 'a, b = \\text{Legs},\\quad c = \\text{Hypotenuse}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a, b = \\text{Legs}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'c = \\text{Hypotenuse}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'c = \\sqrt{a^2 + b^2}', sectionLabel: 'Formulas', diagram: 'right-triangle' },
   { latex: 'A = \\dfrac{1}{2}ab' },
   { latex: 'P = a + b + c' },
 ];
 
 const circleFormulas: FormulaItem[] = [
-  { latex: 'r = \\text{Radius},\\quad d = \\text{Diameter}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'd = \\text{Diameter}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'C = \\text{Circumference}', isVariable: true },
   { latex: 'A = \\pi r^2', sectionLabel: 'Formulas', diagram: 'circle' },
   { latex: 'C = 2\\pi r = \\pi d' },
   { latex: 'd = 2r' },
@@ -129,56 +156,83 @@ const circleFormulas: FormulaItem[] = [
 
 const semicircleFormulas: FormulaItem[] = [
   { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = \\dfrac{\\pi r^2}{2}', sectionLabel: 'Formulas', diagram: 'semicircle' },
   { latex: 'P = \\pi r + 2r' },
 ];
 
 const sectorFormulas: FormulaItem[] = [
-  { latex: 'r = \\text{Radius},\\quad \\theta = \\text{Angle (degrees)}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: '\\theta = \\text{Angle (degrees)}', isVariable: true },
+  { latex: 'l = \\text{Arc length}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = \\dfrac{\\theta}{360} \\times \\pi r^2', sectionLabel: 'Formulas', diagram: 'sector' },
   { latex: 'l = \\dfrac{\\theta}{360} \\times 2\\pi r \\quad \\text{(arc length)}' },
   { latex: 'P = 2r + l' },
 ];
 
 const segmentFormulas: FormulaItem[] = [
-  { latex: 'r = \\text{Radius},\\quad \\theta = \\text{Central angle}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: '\\theta = \\text{Central angle}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
   { latex: 'A = \\dfrac{r^2}{2}(\\theta - \\sin\\theta) \\quad \\text{(radians)}', sectionLabel: 'Formulas', diagram: 'segment' },
   { latex: 'A = \\dfrac{\\pi r^2 \\theta}{360} - \\dfrac{r^2 \\sin\\theta}{2} \\quad \\text{(degrees)}' },
 ];
 
 const parallelogramFormulas: FormulaItem[] = [
-  { latex: 'b = \\text{Base},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a = \\text{Side}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'b = \\text{Base}', isVariable: true },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = b \\times h', sectionLabel: 'Formulas', diagram: 'parallelogram' },
   { latex: 'P = 2(a + b)' },
 ];
 
 const rhombusFormulas: FormulaItem[] = [
-  { latex: 'd_1, d_2 = \\text{Diagonals},\\quad a = \\text{Side}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a = \\text{Side}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'd_1, d_2 = \\text{Diagonals}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = \\dfrac{d_1 \\times d_2}{2}', sectionLabel: 'Formulas', diagram: 'rhombus' },
   { latex: 'P = 4a' },
   { latex: 'a = \\dfrac{1}{2}\\sqrt{d_1^2 + d_2^2}' },
 ];
 
 const trapeziumFormulas: FormulaItem[] = [
-  { latex: 'a, b = \\text{Parallel sides},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a, b = \\text{Parallel sides}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = \\dfrac{1}{2}(a + b) \\times h', sectionLabel: 'Formulas', diagram: 'trapezium' },
   { latex: 'P = a + b + c + d' },
 ];
 
 const kiteFormulas: FormulaItem[] = [
-  { latex: 'd_1, d_2 = \\text{Diagonals}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a, b = \\text{Pairs of sides}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'd_1, d_2 = \\text{Diagonals}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = \\dfrac{d_1 \\times d_2}{2}', sectionLabel: 'Formulas', diagram: 'kite' },
   { latex: 'P = 2(a + b)' },
 ];
 
 const ellipseFormulas: FormulaItem[] = [
-  { latex: 'a = \\text{Semi-major},\\quad b = \\text{Semi-minor}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a = \\text{Semi-major axis}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'b = \\text{Semi-minor axis}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter (approx.)}', isVariable: true },
   { latex: 'A = \\pi ab', sectionLabel: 'Formulas', diagram: 'ellipse' },
   { latex: 'P \\approx \\pi\\left[3(a+b) - \\sqrt{(3a+b)(a+3b)}\\right]' },
 ];
 
 const polygonFormulas: FormulaItem[] = [
-  { latex: 'n = \\text{Number of sides},\\quad a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'n = \\text{Number of sides}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a = \\text{Side length}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
+  { latex: 'A = \\text{Area}', isVariable: true },
   { latex: '\\text{Interior angle sum} = (n-2) \\times 180°', sectionLabel: 'Formulas', diagram: 'polygon' },
   { latex: '\\text{Each interior angle} = \\dfrac{(n-2) \\times 180°}{n}' },
   { latex: '\\text{Each exterior angle} = \\dfrac{360°}{n}' },
@@ -187,6 +241,8 @@ const polygonFormulas: FormulaItem[] = [
 
 const pentagonFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = \\dfrac{a^2\\sqrt{25 + 10\\sqrt{5}}}{4}', sectionLabel: 'Formulas', diagram: 'pentagon' },
   { latex: 'P = 5a' },
   { latex: '\\text{Interior angle} = 108°' },
@@ -194,6 +250,8 @@ const pentagonFormulas: FormulaItem[] = [
 
 const hexagonFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = \\dfrac{3\\sqrt{3}}{2} a^2', sectionLabel: 'Formulas', diagram: 'hexagon' },
   { latex: 'P = 6a' },
   { latex: '\\text{Interior angle} = 120°' },
@@ -201,6 +259,8 @@ const hexagonFormulas: FormulaItem[] = [
 
 const heptagonFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = \\dfrac{7a^2}{4}\\cot\\left(\\dfrac{\\pi}{7}\\right)', sectionLabel: 'Formulas', diagram: 'heptagon' },
   { latex: 'P = 7a' },
   { latex: '\\text{Interior angle} \\approx 128.57°' },
@@ -208,6 +268,8 @@ const heptagonFormulas: FormulaItem[] = [
 
 const octagonFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A = \\text{Area}', isVariable: true },
+  { latex: 'P = \\text{Perimeter}', isVariable: true },
   { latex: 'A = 2(1 + \\sqrt{2})a^2', sectionLabel: 'Formulas', diagram: 'octagon' },
   { latex: 'P = 8a' },
   { latex: '\\text{Interior angle} = 135°' },
@@ -217,27 +279,42 @@ const octagonFormulas: FormulaItem[] = [
 
 const cubeFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'd = \\text{Space diagonal}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = a^3', sectionLabel: 'Formulas', diagram: 'cube' },
   { latex: 'SA = 6a^2' },
   { latex: 'd = a\\sqrt{3}' },
 ];
 
 const cuboidFormulas: FormulaItem[] = [
-  { latex: 'l = \\text{Length},\\; b = \\text{Width},\\; h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'l = \\text{Length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'b = \\text{Width}', isVariable: true },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'd = \\text{Space diagonal}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = l \\times b \\times h', sectionLabel: 'Formulas', diagram: 'cuboid' },
   { latex: 'SA = 2(lb + bh + lh)' },
   { latex: 'd = \\sqrt{l^2 + b^2 + h^2}' },
 ];
 
 const cylinderFormulas: FormulaItem[] = [
-  { latex: 'r = \\text{Radius},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\pi r^2 h', sectionLabel: 'Formulas', diagram: 'cylinder' },
   { latex: 'CSA = 2\\pi r h' },
   { latex: 'TSA = 2\\pi r(r + h)' },
 ];
 
 const coneFormulas: FormulaItem[] = [
-  { latex: 'r = \\text{Radius},\\; h = \\text{Height},\\; l = \\text{Slant}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'l = \\text{Slant height}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{3}\\pi r^2 h', sectionLabel: 'Formulas', diagram: 'cone' },
   { latex: 'l = \\sqrt{r^2 + h^2}' },
   { latex: 'CSA = \\pi r l' },
@@ -246,56 +323,89 @@ const coneFormulas: FormulaItem[] = [
 
 const sphereFormulas: FormulaItem[] = [
   { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{4}{3}\\pi r^3', sectionLabel: 'Formulas', diagram: 'sphere' },
   { latex: 'SA = 4\\pi r^2' },
 ];
 
 const hemisphereFormulas: FormulaItem[] = [
   { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{2}{3}\\pi r^3', sectionLabel: 'Formulas', diagram: 'hemisphere' },
   { latex: 'CSA = 2\\pi r^2' },
   { latex: 'TSA = 3\\pi r^2' },
 ];
 
 const prismFormulas: FormulaItem[] = [
-  { latex: 'B = \\text{Base area},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'B = \\text{Base area}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'P = \\text{Base perimeter}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = B \\times h', sectionLabel: 'Formulas', diagram: 'prism' },
   { latex: 'SA = 2B + P \\times h' },
 ];
 
 const triangularPrismFormulas: FormulaItem[] = [
-  { latex: 'a = \\text{Base},\\; b = \\text{Height of \\triangle},\\; h = \\text{Length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a = \\text{Triangle base}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'b = \\text{Triangle height}', isVariable: true },
+  { latex: 'h = \\text{Prism length}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{2}abh', sectionLabel: 'Formulas', diagram: 'triangular-prism' },
   { latex: 'SA = ab + (a + c_1 + c_2) \\times h' },
 ];
 
 const rectPrismFormulas: FormulaItem[] = [
-  { latex: 'l, b, h = \\text{Length, Width, Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'l = \\text{Length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'b = \\text{Width}', isVariable: true },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = l \\times b \\times h', sectionLabel: 'Formulas', diagram: 'cuboid' },
   { latex: 'SA = 2(lb + bh + lh)' },
 ];
 
 const pyramidFormulas: FormulaItem[] = [
-  { latex: 'B = \\text{Base area},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'B = \\text{Base area}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'P = \\text{Base perimeter}', isVariable: true },
+  { latex: 'l = \\text{Slant height}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{3} B \\times h', sectionLabel: 'Formulas', diagram: 'pyramid' },
   { latex: 'SA = B + \\dfrac{1}{2} P \\times l' },
 ];
 
 const squarePyramidFormulas: FormulaItem[] = [
-  { latex: 'a = \\text{Base side},\\; h = \\text{Height},\\; l = \\text{Slant}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a = \\text{Base side}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'l = \\text{Slant height}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{3} a^2 h', sectionLabel: 'Formulas', diagram: 'square-pyramid' },
   { latex: 'l = \\sqrt{h^2 + \\dfrac{a^2}{4}}' },
   { latex: 'SA = a^2 + 2al' },
 ];
 
 const triangularPyramidFormulas: FormulaItem[] = [
-  { latex: 'a = \\text{Base side},\\quad h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'a = \\text{Base side}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{a^2 h\\sqrt{2}}{12} \\quad \\text{(regular)}', sectionLabel: 'Formulas', diagram: 'triangular-pyramid' },
   { latex: 'SA = \\sqrt{3}\\, a^2 \\quad \\text{(regular tetrahedron)}' },
 ];
 
 const frustumConeFormulas: FormulaItem[] = [
-  { latex: 'R = \\text{Base},\\; r = \\text{Top},\\; h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'R = \\text{Base radius}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'r = \\text{Top radius}', isVariable: true },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'l = \\text{Slant height}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
+  { latex: 'S = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{\\pi h}{3}(R^2 + r^2 + Rr)', sectionLabel: 'Formulas', diagram: 'frustum' },
   { latex: 'l = \\sqrt{h^2 + (R - r)^2}' },
   { latex: 'CSA = \\pi(R + r)l' },
@@ -303,7 +413,10 @@ const frustumConeFormulas: FormulaItem[] = [
 ];
 
 const frustumPyramidFormulas: FormulaItem[] = [
-  { latex: 'A_1 = \\text{Base},\\; A_2 = \\text{Top},\\; h = \\text{Height}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A_1 = \\text{Base area}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'A_2 = \\text{Top area}', isVariable: true },
+  { latex: 'h = \\text{Height}', isVariable: true },
+  { latex: 'V = \\text{Volume}', isVariable: true },
   { latex: 'V = \\dfrac{h}{3}\\left(A_1 + A_2 + \\sqrt{A_1 A_2}\\right)', sectionLabel: 'Formulas', diagram: 'frustum-pyramid' },
 ];
 
