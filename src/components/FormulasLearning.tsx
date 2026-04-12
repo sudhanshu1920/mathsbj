@@ -62,6 +62,7 @@ function extractShapeGroups(formulas: FormulaItem[]): ShapeGroup[] {
 
     if (isVarGroup && !isFormulaGroup) {
       pendingVars = group.items;
+      pendingLabel = group.label && group.label !== 'Variables' ? group.label : pendingLabel;
       pendingDiagram = group.items.find((f) => f.diagram)?.diagram;
       continue;
     }
