@@ -281,9 +281,11 @@ const cubeFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
   { latex: 'd = \\text{Space diagonal}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
   { latex: 'V = a^3', sectionLabel: 'Formulas', diagram: 'cube' },
   { latex: 'SA = 6a^2' },
+  { latex: 'LSA = 4a^2' },
   { latex: 'd = a\\sqrt{3}' },
 ];
 
@@ -293,9 +295,11 @@ const cuboidFormulas: FormulaItem[] = [
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'd = \\text{Space diagonal}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
   { latex: 'V = l \\times b \\times h', sectionLabel: 'Formulas', diagram: 'cuboid' },
   { latex: 'SA = 2(lb + bh + lh)' },
+  { latex: 'LSA = 2h(l + b)' },
   { latex: 'd = \\sqrt{l^2 + b^2 + h^2}' },
 ];
 
@@ -303,7 +307,8 @@ const cylinderFormulas: FormulaItem[] = [
   { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'CSA = \\text{Curved Surface Area}', isVariable: true },
+  { latex: 'TSA = \\text{Total Surface Area}', isVariable: true },
   { latex: 'V = \\pi r^2 h', sectionLabel: 'Formulas', diagram: 'cylinder' },
   { latex: 'CSA = 2\\pi r h' },
   { latex: 'TSA = 2\\pi r(r + h)' },
@@ -314,7 +319,8 @@ const coneFormulas: FormulaItem[] = [
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'l = \\text{Slant height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'CSA = \\text{Curved Surface Area}', isVariable: true },
+  { latex: 'TSA = \\text{Total Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{3}\\pi r^2 h', sectionLabel: 'Formulas', diagram: 'cone' },
   { latex: 'l = \\sqrt{r^2 + h^2}' },
   { latex: 'CSA = \\pi r l' },
@@ -324,7 +330,7 @@ const coneFormulas: FormulaItem[] = [
 const sphereFormulas: FormulaItem[] = [
   { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{4}{3}\\pi r^3', sectionLabel: 'Formulas', diagram: 'sphere' },
   { latex: 'SA = 4\\pi r^2' },
 ];
@@ -332,7 +338,8 @@ const sphereFormulas: FormulaItem[] = [
 const hemisphereFormulas: FormulaItem[] = [
   { latex: 'r = \\text{Radius}', isVariable: true, sectionLabel: 'Variables' },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'CSA = \\text{Curved Surface Area}', isVariable: true },
+  { latex: 'TSA = \\text{Total Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{2}{3}\\pi r^3', sectionLabel: 'Formulas', diagram: 'hemisphere' },
   { latex: 'CSA = 2\\pi r^2' },
   { latex: 'TSA = 3\\pi r^2' },
@@ -343,8 +350,10 @@ const prismFormulas: FormulaItem[] = [
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'P = \\text{Base perimeter}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
   { latex: 'V = B \\times h', sectionLabel: 'Formulas', diagram: 'prism' },
+  { latex: 'LSA = P \\times h' },
   { latex: 'SA = 2B + P \\times h' },
 ];
 
@@ -353,8 +362,10 @@ const triangularPrismFormulas: FormulaItem[] = [
   { latex: 'b = \\text{Triangle height}', isVariable: true },
   { latex: 'h = \\text{Prism length}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{2}abh', sectionLabel: 'Formulas', diagram: 'triangular-prism' },
+  { latex: 'LSA = (a + c_1 + c_2) \\times h' },
   { latex: 'SA = ab + (a + c_1 + c_2) \\times h' },
 ];
 
@@ -363,9 +374,11 @@ const rectPrismFormulas: FormulaItem[] = [
   { latex: 'b = \\text{Width}', isVariable: true },
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
   { latex: 'V = l \\times b \\times h', sectionLabel: 'Formulas', diagram: 'cuboid' },
   { latex: 'SA = 2(lb + bh + lh)' },
+  { latex: 'LSA = 2h(l + b)' },
 ];
 
 const pyramidFormulas: FormulaItem[] = [
@@ -374,8 +387,10 @@ const pyramidFormulas: FormulaItem[] = [
   { latex: 'P = \\text{Base perimeter}', isVariable: true },
   { latex: 'l = \\text{Slant height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{3} B \\times h', sectionLabel: 'Formulas', diagram: 'pyramid' },
+  { latex: 'LSA = \\dfrac{1}{2} P \\times l' },
   { latex: 'SA = B + \\dfrac{1}{2} P \\times l' },
 ];
 
@@ -384,9 +399,11 @@ const squarePyramidFormulas: FormulaItem[] = [
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'l = \\text{Slant height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{3} a^2 h', sectionLabel: 'Formulas', diagram: 'square-pyramid' },
   { latex: 'l = \\sqrt{h^2 + \\dfrac{a^2}{4}}' },
+  { latex: 'LSA = 2al' },
   { latex: 'SA = a^2 + 2al' },
 ];
 
@@ -394,7 +411,7 @@ const triangularPyramidFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Base side}', isVariable: true, sectionLabel: 'Variables' },
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{a^2 h\\sqrt{2}}{12} \\quad \\text{(regular)}', sectionLabel: 'Formulas', diagram: 'triangular-pyramid' },
   { latex: 'SA = \\sqrt{3}\\, a^2 \\quad \\text{(regular tetrahedron)}' },
 ];
@@ -405,7 +422,8 @@ const frustumConeFormulas: FormulaItem[] = [
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'l = \\text{Slant height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'CSA = \\text{Curved Surface Area}', isVariable: true },
+  { latex: 'TSA = \\text{Total Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{\\pi h}{3}(R^2 + r^2 + Rr)', sectionLabel: 'Formulas', diagram: 'frustum' },
   { latex: 'l = \\sqrt{h^2 + (R - r)^2}' },
   { latex: 'CSA = \\pi(R + r)l' },

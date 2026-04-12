@@ -106,7 +106,23 @@ const Index = () => {
       }
 
       // Learn tab - go back step by step
-      const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator } = learningState;
+      const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex } = learningState;
+
+      if (activeTopic === 'formulas') {
+        if (formulaCategoryIndex !== null) {
+          setLearningState(prev => ({ ...prev, formulaCategoryIndex: null }));
+          lastDepth.current = `learn-formulas-section-${formulaSectionIndex}`;
+          return;
+        }
+        if (formulaSectionIndex !== null) {
+          setLearningState(prev => ({ ...prev, formulaSectionIndex: null }));
+          lastDepth.current = 'learn-formulas';
+          return;
+        }
+        setLearningState(prev => ({ ...prev, activeTopic: null }));
+        lastDepth.current = 'learn-home';
+        return;
+      }
 
       if (activeTopic === 'percentage' && expandedDenominator) {
         setLearningState(prev => ({ ...prev, expandedDenominator: null }));
