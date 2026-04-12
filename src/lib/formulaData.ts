@@ -281,9 +281,11 @@ const cubeFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Side length}', isVariable: true, sectionLabel: 'Variables' },
   { latex: 'd = \\text{Space diagonal}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
   { latex: 'V = a^3', sectionLabel: 'Formulas', diagram: 'cube' },
   { latex: 'SA = 6a^2' },
+  { latex: 'LSA = 4a^2' },
   { latex: 'd = a\\sqrt{3}' },
 ];
 
@@ -293,9 +295,11 @@ const cuboidFormulas: FormulaItem[] = [
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'd = \\text{Space diagonal}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
   { latex: 'V = l \\times b \\times h', sectionLabel: 'Formulas', diagram: 'cuboid' },
   { latex: 'SA = 2(lb + bh + lh)' },
+  { latex: 'LSA = 2h(l + b)' },
   { latex: 'd = \\sqrt{l^2 + b^2 + h^2}' },
 ];
 
@@ -358,8 +362,10 @@ const triangularPrismFormulas: FormulaItem[] = [
   { latex: 'b = \\text{Triangle height}', isVariable: true },
   { latex: 'h = \\text{Prism length}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{2}abh', sectionLabel: 'Formulas', diagram: 'triangular-prism' },
+  { latex: 'LSA = (a + c_1 + c_2) \\times h' },
   { latex: 'SA = ab + (a + c_1 + c_2) \\times h' },
 ];
 
@@ -368,9 +374,11 @@ const rectPrismFormulas: FormulaItem[] = [
   { latex: 'b = \\text{Width}', isVariable: true },
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
   { latex: 'V = l \\times b \\times h', sectionLabel: 'Formulas', diagram: 'cuboid' },
   { latex: 'SA = 2(lb + bh + lh)' },
+  { latex: 'LSA = 2h(l + b)' },
 ];
 
 const pyramidFormulas: FormulaItem[] = [
@@ -391,9 +399,11 @@ const squarePyramidFormulas: FormulaItem[] = [
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'l = \\text{Slant height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'LSA = \\text{Lateral Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{1}{3} a^2 h', sectionLabel: 'Formulas', diagram: 'square-pyramid' },
   { latex: 'l = \\sqrt{h^2 + \\dfrac{a^2}{4}}' },
+  { latex: 'LSA = 2al' },
   { latex: 'SA = a^2 + 2al' },
 ];
 
@@ -401,7 +411,7 @@ const triangularPyramidFormulas: FormulaItem[] = [
   { latex: 'a = \\text{Base side}', isVariable: true, sectionLabel: 'Variables' },
   { latex: 'h = \\text{Height}', isVariable: true },
   { latex: 'V = \\text{Volume}', isVariable: true },
-  { latex: 'S = \\text{Surface Area}', isVariable: true },
+  { latex: 'SA = \\text{Surface Area}', isVariable: true },
   { latex: 'V = \\dfrac{a^2 h\\sqrt{2}}{12} \\quad \\text{(regular)}', sectionLabel: 'Formulas', diagram: 'triangular-pyramid' },
   { latex: 'SA = \\sqrt{3}\\, a^2 \\quad \\text{(regular tetrahedron)}' },
 ];
