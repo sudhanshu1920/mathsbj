@@ -202,7 +202,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
               </button>
               <div className="text-center">
                 <h2 className="font-display font-bold text-lg text-foreground">
-                  {displayTitle}
+                  {category.title}
                 </h2>
                 <span className="text-xs text-muted-foreground">
                   {shapeIndex + 1} / {shapeGroups.length}
