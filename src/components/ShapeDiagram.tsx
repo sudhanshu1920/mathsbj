@@ -118,6 +118,7 @@ const diagrams: Record<string, JSX.Element> = {
       <line x1="50" y1="15" x2="50" y2="85" stroke={strokeColor} strokeWidth="1.5" strokeDasharray={dashStyle} />
       <text x="70" y="98" textAnchor="middle" fontSize="12" fill={labelColor} fontStyle="italic">b</text>
       <text x="55" y="55" fontSize="12" fill={labelColor} fontStyle="italic">h</text>
+      <text x="2" y="55" fontSize="12" fill={labelColor} fontStyle="italic">a</text>
     </svg>
   ),
   trapezium: (
@@ -261,6 +262,7 @@ const diagrams: Record<string, JSX.Element> = {
       <text x="64" y="70" fontSize="12" fill={labelColor} fontStyle="italic">h</text>
       <text x="80" y="118" fontSize="12" fill={labelColor} fontStyle="italic">R</text>
       <text x="64" y="20" fontSize="11" fill={labelColor} fontStyle="italic">r</text>
+      <text x="24" y="65" fontSize="11" fill={labelColor} fontStyle="italic">l</text>
     </svg>
   ),
   prism: (
