@@ -1,6 +1,6 @@
 const Watermark = () => (
   <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none select-none">
-    <div className="text-center opacity-[0.025] text-foreground tracking-[0.25em]">
+    <div className="text-center opacity-[0.015] text-foreground tracking-[0.25em]">
       <p className="text-6xl sm:text-7xl md:text-8xl font-display font-bold leading-tight">Sudhanshu</p>
       <p className="text-6xl sm:text-7xl md:text-8xl font-display font-bold leading-tight">Jumade</p>
     </div>
