@@ -484,11 +484,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, [config, finished]);
 
   const handleExitConfirmed = useCallback(() => {
-    setShowExitDialog(false);
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
-    if (onExit) onExit();
-    else { setConfig(null); setQuestions([]); setCurrentQ(0); setScore({ correct: 0, wrong: 0 }); setFinished(false); }
+    setShowExitDialog(false);
+    // Use setTimeout to ensure dialog closes before navigation
+    setTimeout(() => {
+      if (onExit) onExit();
+      else { setConfig(null); setQuestions([]); setCurrentQ(0); setScore({ correct: 0, wrong: 0 }); setFinished(false); }
+    }, 50);
   }, [onExit]);
 
   const handleBackToPractice = useCallback(() => {
