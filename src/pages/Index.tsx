@@ -186,6 +186,22 @@ const Index = () => {
     setTab(newTab);
   };
 
+  const handleDoubleTap = useCallback((targetTab: Tab) => {
+    if (targetTab === 'learn') {
+      setLearningState(INITIAL_LEARNING_STATE);
+      setTab('learn');
+    } else if (targetTab === 'practice') {
+      setPracticeTopic(undefined);
+      setPracticeContext(undefined);
+      setPracticeMode(undefined);
+      setPracticeExtras(undefined);
+      setReturnToLearn(false);
+      setTab('practice');
+    } else if (targetTab === 'progress') {
+      setTab('progress');
+    }
+  }, []);
+
   const handlePracticeExit = useCallback(() => {
     if (returnToLearn) {
       setReturnToLearn(false);
