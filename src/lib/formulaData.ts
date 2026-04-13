@@ -81,14 +81,14 @@ const squareFormulas: FormulaItem[] = [
 ];
 
 const rectangleFormulas: FormulaItem[] = [
-  { latex: 'a = \\text{Length}', isVariable: true, sectionLabel: 'Variables' },
-  { latex: 'b = \\text{Width}', isVariable: true },
+  { latex: 'l = \\text{Length}', isVariable: true, sectionLabel: 'Variables' },
+  { latex: 'b = \\text{Breadth}', isVariable: true },
   { latex: 'd = \\text{Diagonal}', isVariable: true },
   { latex: 'A = \\text{Area}', isVariable: true },
   { latex: 'P = \\text{Perimeter}', isVariable: true },
-  { latex: 'A = ab', sectionLabel: 'Formulas', diagram: 'rectangle' },
-  { latex: 'P = 2(a + b)' },
-  { latex: 'd = \\sqrt{a^2 + b^2}' },
+  { latex: 'A = l \\times b', sectionLabel: 'Formulas', diagram: 'rectangle' },
+  { latex: 'P = 2(l + b)' },
+  { latex: 'd = \\sqrt{l^2 + b^2}' },
 ];
 
 const triangleFormulas: FormulaItem[] = [

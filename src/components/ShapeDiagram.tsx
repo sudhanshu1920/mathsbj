@@ -23,7 +23,7 @@ const diagrams: Record<string, JSX.Element> = {
   rectangle: (
     <svg viewBox="0 0 140 100" className="w-full h-full">
       <rect x="15" y="15" width="110" height="70" fill={fillColor} stroke={strokeColor} strokeWidth="2" />
-      <text x="70" y="95" textAnchor="middle" fontSize="12" fill={labelColor} fontStyle="italic">a</text>
+      <text x="70" y="95" textAnchor="middle" fontSize="12" fill={labelColor} fontStyle="italic">l</text>
       <text x="5" y="55" textAnchor="middle" fontSize="12" fill={labelColor} fontStyle="italic">b</text>
       <line x1="15" y1="15" x2="125" y2="85" stroke={strokeColor} strokeWidth="1" strokeDasharray={dashStyle} />
       <text x="78" y="45" fontSize="11" fill={labelColor} fontStyle="italic">d</text>
