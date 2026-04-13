@@ -101,7 +101,7 @@ const ShapeCard = ({ shape }: { shape: ShapeGroup }) => {
     >
       {/* Diagram */}
       {shape.diagram && (
-        <div className="flex justify-center pt-6 pb-2 bg-background/50">
+        <div className="flex justify-center pt-6 pb-2 bg-background">
           <ShapeDiagram type={shape.diagram} className="w-36 h-36" />
         </div>
       )}
