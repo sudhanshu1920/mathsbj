@@ -606,7 +606,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     return (
       <div>
-        <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+        <AlertDialog open={showExitDialog} onOpenChange={(open) => { if (!open) setShowExitDialog(false); }}>
           <AlertDialogContent className="rounded-2xl max-w-[320px]">
             <AlertDialogHeader>
               <AlertDialogTitle>Exit Practice?</AlertDialogTitle>
@@ -614,7 +614,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleExitConfirmed} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">Exit</AlertDialogAction>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleExitConfirmed();
+                }}
+                className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Exit
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
