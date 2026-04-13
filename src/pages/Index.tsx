@@ -203,7 +203,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background pb-20 relative">
       <Watermark />
-      <div className="max-w-lg mx-auto px-4 pt-4">
+      <div className="max-w-lg mx-auto px-4 pt-4 relative z-10">
         {tab !== 'learn' && (
           <div className="flex justify-end mb-2">
             <ThemeToggle />
