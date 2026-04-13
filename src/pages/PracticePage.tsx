@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Timer, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
-import StackedFraction from '@/components/StackedFraction';
+import { Switch } from '@/components/ui/switch';
 import { saveResult } from '@/lib/progress';
 import {
   AlertDialog,
@@ -16,24 +16,27 @@ import {
 } from '@/components/ui/alert-dialog';
 
 type PracticeMode = 'mcq' | 'input';
-type TimerMode = 'per-question' | 'full-session';
 
-interface PracticeConfig {
-  topic: string;
+interface TopicRange {
   from: number;
   to: number;
-  count: number;
-  infinite: boolean;
-  mode: PracticeMode;
-  timerMode: TimerMode;
-  timerSeconds: number;
-  sequential: boolean;
   exponentFrom?: number;
   exponentTo?: number;
+  pctRangeMode?: 'preset' | 'custom';
   pctNumFrom?: number;
   pctDenFrom?: number;
   pctNumTo?: number;
   pctDenTo?: number;
+}
+
+interface PracticeConfig {
+  topics: { id: string; label: string; range: TopicRange }[];
+  count: number;
+  infinite: boolean;
+  mode: PracticeMode;
+  timerEnabled: boolean;
+  timerSeconds: number;
+  sequential: boolean;
 }
 
 type AnswerType = 'decimal-pct' | 'mixed-pct' | 'fraction';
@@ -54,16 +57,17 @@ interface Question {
   optionsMixed?: (MixedPct | null)[];
   questionMixed?: MixedPct;
   questionFraction?: { n: number; d: number };
+  topicLabel?: string;
 }
 
 const TOPICS = [
-  { id: 'tables', label: 'Tables' },
-  { id: 'squares', label: 'Squares' },
-  { id: 'roots', label: 'Square Roots' },
-  { id: 'cubes', label: 'Cubes' },
-  { id: 'cube-roots', label: 'Cube Roots' },
-  { id: 'powers', label: 'Powers' },
-  { id: 'percentage', label: 'Percentage' },
+  { id: 'tables', label: 'Tables', icon: '✖️', defaultRange: { from: 1, to: 20 } },
+  { id: 'squares', label: 'Squares', icon: '²', defaultRange: { from: 1, to: 50 } },
+  { id: 'roots', label: 'Square Roots', icon: '√', defaultRange: { from: 1, to: 30 } },
+  { id: 'cubes', label: 'Cubes', icon: '³', defaultRange: { from: 1, to: 30 } },
+  { id: 'cube-roots', label: 'Cube Roots', icon: '∛', defaultRange: { from: 1, to: 20 } },
+  { id: 'powers', label: 'Powers', icon: 'xⁿ', defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
+  { id: 'percentage', label: 'Percentage', icon: '%', defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
 ];
 
 const COUNTS = [10, 20, 25, 50];
@@ -90,116 +94,94 @@ function mixedToString(m: MixedPct): string {
   return `${m.whole > 0 ? m.whole + ' ' : ''}${m.numerator}/${m.denominator}%`;
 }
 
-function generateQuestions(config: PracticeConfig): Question[] {
+function generateQuestionsForTopic(topicId: string, range: TopicRange, label: string): Question[] {
   const questions: Question[] = [];
-  const { topic, from, to } = config;
+  const { from, to } = range;
 
-  if (topic === 'tables') {
+  if (topicId === 'tables') {
     for (let n = from; n <= to; n++) {
       for (let m = 1; m <= 10; m++) {
-        questions.push({ text: `${n} × ${m} = ?`, answer: n * m });
+        questions.push({ text: `${n} × ${m} = ?`, answer: n * m, topicLabel: label });
       }
     }
-  } else if (topic === 'squares') {
+  } else if (topicId === 'squares') {
     for (let n = from; n <= to; n++) {
-      questions.push({ text: `${n}² = ?`, answer: n * n });
+      questions.push({ text: `${n}² = ?`, answer: n * n, topicLabel: label });
     }
-  } else if (topic === 'roots' || topic === 'square-roots') {
+  } else if (topicId === 'roots' || topicId === 'square-roots') {
     for (let n = from; n <= to; n++) {
-      questions.push({ text: `√${n * n} = ?`, answer: n });
+      questions.push({ text: `√${n * n} = ?`, answer: n, topicLabel: label });
     }
-  } else if (topic === 'cubes') {
+  } else if (topicId === 'cubes') {
     for (let n = from; n <= to; n++) {
-      questions.push({ text: `${n}³ = ?`, answer: n * n * n });
+      questions.push({ text: `${n}³ = ?`, answer: n * n * n, topicLabel: label });
     }
-  } else if (topic === 'cube-roots') {
+  } else if (topicId === 'cube-roots') {
     for (let n = from; n <= to; n++) {
-      questions.push({ text: `∛${n * n * n} = ?`, answer: n });
+      questions.push({ text: `∛${n * n * n} = ?`, answer: n, topicLabel: label });
     }
-  } else if (topic === 'powers') {
-    const expFrom = config.exponentFrom || 1;
-    const expTo = config.exponentTo || 10;
+  } else if (topicId === 'powers') {
+    const expFrom = range.exponentFrom || 1;
+    const expTo = range.exponentTo || 10;
     for (let n = from; n <= to; n++) {
       for (let e = expFrom; e <= expTo; e++) {
-        questions.push({ text: `${n}`, superscript: `${e}`, answer: Math.pow(n, e) });
+        questions.push({ text: `${n}`, superscript: `${e}`, answer: Math.pow(n, e), topicLabel: label });
       }
     }
-  } else if (topic === 'percentage') {
+  } else if (topicId === 'percentage') {
     const pairs: { n: number; d: number }[] = [];
-
-    if (config.pctNumFrom !== undefined && config.pctDenFrom !== undefined &&
-        config.pctNumTo !== undefined && config.pctDenTo !== undefined) {
-      if (config.pctDenFrom === config.pctDenTo) {
-        const d = config.pctDenFrom;
-        const nFrom = Math.min(config.pctNumFrom, config.pctNumTo);
-        const nTo = Math.max(config.pctNumFrom, config.pctNumTo);
-        for (let n = nFrom; n <= nTo; n++) {
+    if (range.pctRangeMode === 'custom' && range.pctNumFrom !== undefined && range.pctDenFrom !== undefined && range.pctNumTo !== undefined && range.pctDenTo !== undefined) {
+      if (range.pctDenFrom === range.pctDenTo) {
+        const d = range.pctDenFrom;
+        for (let n = Math.min(range.pctNumFrom, range.pctNumTo); n <= Math.max(range.pctNumFrom, range.pctNumTo); n++) {
           pairs.push({ n, d });
         }
       } else {
-        for (let d = Math.min(config.pctDenFrom, config.pctDenTo); d <= Math.max(config.pctDenFrom, config.pctDenTo); d++) {
+        for (let d = Math.min(range.pctDenFrom, range.pctDenTo); d <= Math.max(range.pctDenFrom, range.pctDenTo); d++) {
           if (d === 0) continue;
           pairs.push({ n: 1, d });
         }
       }
     } else {
-      const isExpanded = from === to;
-      if (isExpanded) {
-        for (let n = 1; n <= 10; n++) pairs.push({ n, d: from });
-      } else {
-        for (let d = Math.max(1, from); d <= Math.min(50, to); d++) {
-          pairs.push({ n: 1, d });
-        }
+      for (let d = Math.max(1, from); d <= Math.min(50, to); d++) {
+        pairs.push({ n: 1, d });
       }
     }
 
     for (const { n, d } of pairs) {
       const decPct = toDecimalPct(n, d);
       const mixed = toMixed(n, d);
-
-      questions.push({
-        text: `fraction-to-decimal`,
-        questionFraction: { n, d },
-        answer: decPct,
-        answerType: 'decimal-pct',
-      });
-
+      questions.push({ text: `fraction-to-decimal`, questionFraction: { n, d }, answer: decPct, answerType: 'decimal-pct', topicLabel: label });
       if (mixed) {
-        questions.push({
-          text: `fraction-to-mixed`,
-          questionFraction: { n, d },
-          answer: mixedToString(mixed),
-          answerType: 'mixed-pct',
-          mixedPctAnswer: mixed,
-        });
+        questions.push({ text: `fraction-to-mixed`, questionFraction: { n, d }, answer: mixedToString(mixed), answerType: 'mixed-pct', mixedPctAnswer: mixed, topicLabel: label });
       }
-
-      questions.push({
-        text: `${decPct} = ? (fraction)`,
-        answer: `${n}/${d}`,
-        answerType: 'fraction',
-      });
-
+      questions.push({ text: `${decPct} = ? (fraction)`, answer: `${n}/${d}`, answerType: 'fraction', topicLabel: label });
       if (mixed) {
-        questions.push({
-          text: `mixed-to-fraction`,
-          questionMixed: mixed,
-          answer: `${n}/${d}`,
-          answerType: 'fraction',
-        });
+        questions.push({ text: `mixed-to-fraction`, questionMixed: mixed, answer: `${n}/${d}`, answerType: 'fraction', topicLabel: label });
       }
     }
   }
 
+  return questions;
+}
+
+function generateQuestions(config: PracticeConfig): Question[] {
+  let allQuestions: Question[] = [];
+
+  for (const topic of config.topics) {
+    const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label);
+    allQuestions.push(...qs);
+  }
+
   if (!config.sequential) {
-    for (let i = questions.length - 1; i > 0; i--) {
+    for (let i = allQuestions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [questions[i], questions[j]] = [questions[j], questions[i]];
+      [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
     }
   }
 
   if (config.mode === 'mcq') {
-    const sliced = config.infinite ? questions : questions.slice(0, config.count);
+    const sliced = config.infinite ? allQuestions : allQuestions.slice(0, config.count);
     return sliced.map((q) => {
       const correct = q.answer;
       const opts = new Set<string>();
@@ -231,7 +213,6 @@ function generateQuestions(config: PracticeConfig): Question[] {
       }
 
       const shuffled = Array.from(opts).sort(() => Math.random() - 0.5);
-
       const optionsMixed: (MixedPct | null)[] = shuffled.map((opt) => {
         if (q.answerType === 'mixed-pct') {
           const match = opt.match(/^(\d+)\s+(\d+)\/(\d+)%$/);
@@ -242,24 +223,21 @@ function generateQuestions(config: PracticeConfig): Question[] {
         return null;
       });
 
-      return { ...q, options: shuffled.map(s => s), optionsMixed };
+      return { ...q, options: shuffled, optionsMixed };
     });
   }
 
-  return config.infinite ? questions : questions.slice(0, config.count);
+  return config.infinite ? allQuestions : allQuestions.slice(0, config.count);
 }
 
 function normalizeAnswer(input: string, expected: string): boolean {
   const a = input.trim().replace(/\s+/g, ' ');
   const b = expected.trim().replace(/\s+/g, ' ');
   if (a === b) return true;
-
   const aNum = parseFloat(a.replace('%', ''));
   const bNum = parseFloat(b.replace('%', ''));
   if (!isNaN(aNum) && !isNaN(bNum) && Math.abs(aNum - bNum) < 0.01) return true;
-
   if (a + '%' === b || a === b.replace('%', '')) return true;
-
   return false;
 }
 
@@ -270,12 +248,9 @@ const RenderMixed = ({ mixed, size = 'md' }: { mixed: MixedPct; size?: 'sm' | 'm
     lg: { whole: 'text-3xl', frac: 'text-sm', pct: 'text-3xl' },
   };
   const s = sizeClasses[size];
-
   return (
     <span className="inline-flex items-center gap-0.5">
-      {mixed.whole > 0 && (
-        <span className={`font-bold text-primary ${s.whole}`}>{mixed.whole}</span>
-      )}
+      {mixed.whole > 0 && <span className={`font-bold text-primary ${s.whole}`}>{mixed.whole}</span>}
       <span className={`inline-flex flex-col items-center leading-none ${s.frac} relative`} style={{ verticalAlign: 'middle' }}>
         <span className="text-primary font-semibold">{mixed.numerator}</span>
         <span className="w-full h-px bg-primary/60 my-0.5" />
@@ -287,11 +262,7 @@ const RenderMixed = ({ mixed, size = 'md' }: { mixed: MixedPct; size?: 'sm' | 'm
 };
 
 const RenderFraction = ({ n, d, size = 'lg' }: { n: number; d: number; size?: 'sm' | 'md' | 'lg' }) => {
-  const sizeClasses = {
-    sm: 'text-sm',
-    md: 'text-lg',
-    lg: 'text-3xl',
-  };
+  const sizeClasses = { sm: 'text-sm', md: 'text-lg', lg: 'text-3xl' };
   return (
     <span className="inline-flex items-center gap-1">
       <span className="inline-flex flex-col items-center leading-none relative" style={{ verticalAlign: 'middle' }}>
@@ -329,43 +300,70 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const elapsedRef = useRef<ReturnType<typeof setInterval>>();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Setup form state
-  const [topic, setTopic] = useState(initialTopic || 'tables');
-  const [from, setFrom] = useState(initialContext?.from || initialContext?.number || 1);
-  const [to, setTo] = useState(initialContext?.to || initialContext?.number || 10);
+  // Setup form state - multi-topic
+  const [selectedTopics, setSelectedTopics] = useState<Set<string>>(
+    initialTopic ? new Set([initialTopic === 'square-roots' ? 'roots' : initialTopic]) : new Set(['tables'])
+  );
+  const [topicRanges, setTopicRanges] = useState<Record<string, TopicRange>>(() => {
+    const defaults: Record<string, TopicRange> = {};
+    for (const t of TOPICS) {
+      defaults[t.id] = { ...t.defaultRange };
+    }
+    if (initialTopic && initialContext) {
+      const tid = initialTopic === 'square-roots' ? 'roots' : initialTopic;
+      defaults[tid] = {
+        ...defaults[tid],
+        from: initialContext.from || initialContext.number || defaults[tid].from,
+        to: initialContext.to || initialContext.number || defaults[tid].to,
+      };
+    }
+    return defaults;
+  });
+  const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
   const [count, setCount] = useState(10);
   const [infinite, setInfinite] = useState(false);
   const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
-  const [timerMode, setTimerMode] = useState<TimerMode>('per-question');
+  const [timerEnabled, setTimerEnabled] = useState(true);
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [sequential, setSequential] = useState(false);
-  const [expFrom, setExpFrom] = useState(1);
-  const [expTo, setExpTo] = useState(5);
-
-  const [pctNumFrom, setPctNumFrom] = useState(1);
-  const [pctDenFrom, setPctDenFrom] = useState(2);
-  const [pctNumTo, setPctNumTo] = useState(5);
-  const [pctDenTo, setPctDenTo] = useState(2);
-  const [pctRangeMode, setPctRangeMode] = useState<'preset' | 'custom'>('preset');
 
   useEffect(() => {
     if (initialTopic && initialMode) {
       const mappedTopic = initialTopic === 'square-roots' ? 'roots' : initialTopic;
+      const topicInfo = TOPICS.find(t => t.id === mappedTopic);
       const timerOn = initialExtras?.timerEnabled ?? false;
-      const cfg: PracticeConfig = {
-        topic: mappedTopic,
+      const range: TopicRange = {
         from: initialContext?.from || initialContext?.number || 1,
         to: initialContext?.to || initialContext?.number || (initialTopic === 'percentage' ? 50 : 10),
+      };
+      const cfg: PracticeConfig = {
+        topics: [{ id: mappedTopic, label: topicInfo?.label || mappedTopic, range }],
         count: 10,
         infinite: initialExtras?.infinite ?? false,
         mode: initialMode,
-        timerMode: 'per-question',
+        timerEnabled: timerOn,
         timerSeconds: timerOn ? (initialExtras?.timerSeconds ?? 10) : 9999,
         sequential: false,
       };
       startPractice(cfg);
     }
   }, [initialTopic, initialMode]);
+
+  const toggleTopic = (id: string) => {
+    setSelectedTopics(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const updateRange = (topicId: string, field: string, value: number | string) => {
+    setTopicRanges(prev => ({
+      ...prev,
+      [topicId]: { ...prev[topicId], [field]: value },
+    }));
+  };
 
   const startPractice = (cfg: PracticeConfig) => {
     const qs = generateQuestions(cfg);
@@ -379,40 +377,28 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setInputValue('');
     setSelectedOption(null);
     setElapsedTime(0);
-    if (cfg.infinite) {
-      // For infinite mode, timer is per-question only
-      setTimeLeft(cfg.timerSeconds);
-    } else if (cfg.timerMode === 'per-question') {
-      setTimeLeft(cfg.timerSeconds);
-    } else {
-      setTimeLeft(cfg.timerSeconds * qs.length);
-    }
+    setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
   };
 
-  // Elapsed time counter for infinite mode
   useEffect(() => {
     if (!config || finished || !config.infinite) {
       if (elapsedRef.current) clearInterval(elapsedRef.current);
       return;
     }
-    elapsedRef.current = setInterval(() => {
-      setElapsedTime(prev => prev + 1);
-    }, 1000);
+    elapsedRef.current = setInterval(() => setElapsedTime(prev => prev + 1), 1000);
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
   }, [config, finished]);
 
   useEffect(() => {
     if (!config || finished) return;
-    // Don't run timer if disabled
-    if (config.timerSeconds >= 9999) return;
+    if (!config.timerEnabled || config.timerSeconds >= 9999) return;
     if (timerRef.current) clearInterval(timerRef.current);
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           handleAnswer(null);
-          if (config.infinite || config.timerMode === 'per-question') return config.timerSeconds;
-          return 0;
+          return config.timerSeconds;
         }
         return prev - 1;
       });
@@ -420,16 +406,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [config, currentQ, finished]);
-
-  // Generate next question for infinite mode when we run out
-  const getNextQuestionForInfinite = useCallback(() => {
-    if (!config || !config.infinite) return;
-    if (currentQ + 1 >= questions.length) {
-      // Generate more questions
-      const moreQs = generateQuestions(config);
-      setQuestions(prev => [...prev, ...moreQs]);
-    }
-  }, [config, currentQ, questions.length]);
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
@@ -447,7 +423,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       }
 
       setFeedback(isCorrect ? 'correct' : 'wrong');
-      saveResult(config.topic, isCorrect);
+      // Save result for all topics
+      const topicId = config.topics.length === 1 ? config.topics[0].id : 'mixed';
+      saveResult(topicId, isCorrect);
 
       const newScore = {
         correct: score.correct + (isCorrect ? 1 : 0),
@@ -463,13 +441,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           setFinished(true);
           if (timerRef.current) clearInterval(timerRef.current);
         } else {
-          // For infinite mode, ensure we have more questions
           if (config.infinite && currentQ + 1 >= questions.length) {
             const moreQs = generateQuestions(config);
             setQuestions(prev => [...prev, ...moreQs]);
           }
           setCurrentQ(currentQ + 1);
-          if (config.infinite || config.timerMode === 'per-question') setTimeLeft(config.timerSeconds);
+          if (config.timerEnabled) setTimeLeft(config.timerSeconds);
         }
       }, 600);
     },
@@ -485,12 +462,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (elapsedRef.current) clearInterval(elapsedRef.current);
   }, [config, score]);
 
-  // Auto-submit for input mode
   useEffect(() => {
     if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
     const q = questions[currentQ];
     if (!q) return;
-
     if (typeof q.answer === 'number') {
       const numVal = Number(inputValue);
       if (!isNaN(numVal) && numVal === q.answer) handleAnswer(numVal);
@@ -503,57 +478,33 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (config?.mode === 'input' && inputRef.current) inputRef.current.focus();
   }, [currentQ, config]);
 
-  // Back/exit handling with confirmation
   const handleExitRequest = useCallback(() => {
-    if (config && !finished) {
-      setShowExitDialog(true);
-    } else {
-      handleExitConfirmed();
-    }
+    if (config && !finished) setShowExitDialog(true);
+    else handleExitConfirmed();
   }, [config, finished]);
 
   const handleExitConfirmed = useCallback(() => {
     setShowExitDialog(false);
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
-    if (onExit) {
-      onExit();
-    } else {
-      setConfig(null);
-      setQuestions([]);
-      setCurrentQ(0);
-      setScore({ correct: 0, wrong: 0 });
-      setFinished(false);
-    }
+    if (onExit) onExit();
+    else { setConfig(null); setQuestions([]); setCurrentQ(0); setScore({ correct: 0, wrong: 0 }); setFinished(false); }
   }, [onExit]);
 
   const handleBackToPractice = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
-    setConfig(null);
-    setQuestions([]);
-    setCurrentQ(0);
-    setScore({ correct: 0, wrong: 0 });
-    setFinished(false);
-    setFeedback(null);
-    setInputValue('');
-    setSelectedOption(null);
+    setConfig(null); setQuestions([]); setCurrentQ(0); setScore({ correct: 0, wrong: 0 }); setFinished(false); setFeedback(null); setInputValue(''); setSelectedOption(null);
   }, []);
 
-  // Handle browser back during active practice
   useEffect(() => {
     if (!config || finished) return;
-    const handlePopstate = (e: PopStateEvent) => {
-      e.preventDefault();
-      window.history.pushState(null, '');
-      setShowExitDialog(true);
-    };
+    const handlePopstate = (e: PopStateEvent) => { e.preventDefault(); window.history.pushState(null, ''); setShowExitDialog(true); };
     window.history.pushState(null, '');
     window.addEventListener('popstate', handlePopstate);
     return () => window.removeEventListener('popstate', handlePopstate);
   }, [config, finished]);
 
-  // Format elapsed time
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);
     const secs = s % 60;
@@ -572,7 +523,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             <h2 className="font-display font-bold text-3xl text-foreground mb-2">
               {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
             </h2>
-            <p className="text-muted-foreground mb-6">Score: {accuracy}%</p>
+            <p className="text-muted-foreground mb-2">Score: {accuracy}%</p>
+            {config.topics.length > 1 && (
+              <p className="text-xs text-muted-foreground mb-4">
+                Topics: {config.topics.map(t => t.label).join(', ')}
+              </p>
+            )}
             <div className="flex gap-8 mb-4">
               <div className="text-center">
                 <p className="text-3xl font-bold text-success">{score.correct}</p>
@@ -587,19 +543,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 <p className="text-xs text-muted-foreground">Attempted</p>
               </div>
             </div>
-            {config.infinite && (
-              <p className="text-sm text-muted-foreground mb-4">Time: {formatTime(elapsedTime)}</p>
-            )}
+            {config.infinite && <p className="text-sm text-muted-foreground mb-4">Time: {formatTime(elapsedTime)}</p>}
             <div className="flex gap-3">
               <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold">Retry</button>
               {fromLearning ? (
-                <button onClick={() => onExit?.()} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">
-                  Back to Learning
-                </button>
+                <button onClick={() => onExit?.()} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">Back to Learning</button>
               ) : (
-                <button onClick={handleBackToPractice} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">
-                  Back to Practice
-                </button>
+                <button onClick={handleBackToPractice} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">Back to Practice</button>
               )}
             </div>
           </motion.div>
@@ -612,31 +562,20 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   if (config && questions.length > 0) {
     const q = questions[currentQ];
     if (!q) return null;
-    const isLowTime = timeLeft <= 3 && config.timerSeconds < 9999;
-    const isTimerHidden = config.timerSeconds >= 9999;
-    const isPctQuestion = config.topic === 'percentage';
+    const isLowTime = timeLeft <= 3 && config.timerEnabled;
+    const isTimerHidden = !config.timerEnabled;
+    const isPctQuestion = q.answerType !== undefined;
     const totalAttempts = score.correct + score.wrong;
 
     const renderQuestionText = () => {
       if (isPctQuestion && q.questionFraction) {
-        return (
-          <div className="flex items-center justify-center gap-2">
-            <RenderFraction n={q.questionFraction.n} d={q.questionFraction.d} size="lg" />
-          </div>
-        );
+        return <div className="flex items-center justify-center gap-2"><RenderFraction n={q.questionFraction.n} d={q.questionFraction.d} size="lg" /></div>;
       }
       if (isPctQuestion && q.questionMixed) {
-        return (
-          <div className="flex flex-col items-center gap-2">
-            <RenderMixed mixed={q.questionMixed} size="lg" />
-            <span className="text-muted-foreground text-lg">= ? (fraction)</span>
-          </div>
-        );
+        return <div className="flex flex-col items-center gap-2"><RenderMixed mixed={q.questionMixed} size="lg" /><span className="text-muted-foreground text-lg">= ? (fraction)</span></div>;
       }
       if (isPctQuestion && q.text.includes('% = ?')) {
-        return (
-          <p className="font-display text-3xl font-bold text-foreground">{q.text}</p>
-        );
+        return <p className="font-display text-3xl font-bold text-foreground">{q.text}</p>;
       }
       return (
         <p className="font-display text-4xl font-bold text-foreground">
@@ -648,72 +587,47 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     const renderAnswerHint = () => {
       if (!isPctQuestion) return null;
-      const hints: Record<string, string> = {
-        'decimal-pct': 'Answer in decimal %',
-        'mixed-pct': 'Answer in mixed %',
-        'fraction': 'Answer as fraction',
-      };
-      return q.answerType ? (
-        <span className="text-xs text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">{hints[q.answerType]}</span>
-      ) : null;
+      const hints: Record<string, string> = { 'decimal-pct': 'Answer in decimal %', 'mixed-pct': 'Answer in mixed %', 'fraction': 'Answer as fraction' };
+      return q.answerType ? <span className="text-xs text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">{hints[q.answerType]}</span> : null;
     };
 
     const renderOption = (opt: string | number, index: number) => {
-      if (isPctQuestion && q.optionsMixed?.[index]) {
-        return <RenderMixed mixed={q.optionsMixed[index]!} size="sm" />;
-      }
+      if (isPctQuestion && q.optionsMixed?.[index]) return <RenderMixed mixed={q.optionsMixed[index]!} size="sm" />;
       return <span>{String(opt)}</span>;
     };
 
     const renderCorrectAnswer = () => {
-      if (isPctQuestion && q.mixedPctAnswer) {
-        return <RenderMixed mixed={q.mixedPctAnswer} size="md" />;
-      }
+      if (isPctQuestion && q.mixedPctAnswer) return <RenderMixed mixed={q.mixedPctAnswer} size="md" />;
       return <span className="text-primary">{String(q.answer)}</span>;
     };
 
     return (
       <div>
-        {/* Exit confirmation dialog */}
         <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
           <AlertDialogContent className="rounded-2xl max-w-[320px]">
             <AlertDialogHeader>
               <AlertDialogTitle>Exit Practice?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to exit practice? Your progress will not be saved.
-              </AlertDialogDescription>
+              <AlertDialogDescription>Your progress will not be saved.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleExitConfirmed} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Exit
-              </AlertDialogAction>
+              <AlertDialogAction onClick={handleExitConfirmed} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">Exit</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
         <div className="flex items-center justify-between mb-4">
-          <button onClick={handleExitRequest} className="text-primary flex items-center gap-1">
-            <ArrowLeft size={18} />
-          </button>
+          <button onClick={handleExitRequest} className="text-primary flex items-center gap-1"><ArrowLeft size={18} /></button>
           {!isTimerHidden && (
             <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
-              <Timer size={14} />
-              {timeLeft}s
+              <Timer size={14} />{timeLeft}s
             </div>
           )}
           {config.infinite ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Q{currentQ + 1}</span>
-              <button
-                onClick={handleSubmitInfinite}
-                disabled={totalAttempts === 0}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
-                  totalAttempts > 0
-                    ? 'gradient-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground cursor-not-allowed'
-                }`}
-              >
+              <button onClick={handleSubmitInfinite} disabled={totalAttempts === 0}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${totalAttempts > 0 ? 'gradient-primary text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}>
                 Submit
               </button>
             </div>
@@ -721,6 +635,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             <span className="text-sm text-muted-foreground">{currentQ + 1}/{questions.length}</span>
           )}
         </div>
+
+        {/* Topic label */}
+        {config.topics.length > 1 && q.topicLabel && (
+          <div className="text-center mb-2">
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary">{q.topicLabel}</span>
+          </div>
+        )}
 
         {!config.infinite && (
           <div className="h-1 bg-secondary rounded-full mb-6 overflow-hidden">
@@ -750,9 +671,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               ) : (
                 <div className="text-center">
                   <XCircle size={80} className="text-destructive mx-auto" />
-                  <p className="text-foreground mt-2 text-lg font-semibold flex items-center justify-center gap-2">
-                    Answer: {renderCorrectAnswer()}
-                  </p>
+                  <p className="text-foreground mt-2 text-lg font-semibold flex items-center justify-center gap-2">Answer: {renderCorrectAnswer()}</p>
                 </div>
               )}
             </motion.div>
@@ -769,12 +688,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   : 'bg-destructive/20 border-2 border-destructive text-destructive';
               }
               return (
-                <motion.button
-                  key={`${currentQ}-${i}`}
-                  whileTap={{ scale: 0.95 }}
+                <motion.button key={`${currentQ}-${i}`} whileTap={{ scale: 0.95 }}
                   onClick={() => { if (feedback) return; setSelectedOption(i); handleAnswer(opt); }}
-                  className={`rounded-2xl py-4 px-2 flex items-center justify-center font-display font-bold text-base transition-colors min-h-[60px] ${optStyle}`}
-                >
+                  className={`rounded-2xl py-4 px-2 flex items-center justify-center font-display font-bold text-base transition-colors min-h-[60px] ${optStyle}`}>
                   {renderOption(opt, i)}
                 </motion.button>
               );
@@ -784,194 +700,192 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'input' && (
           <div className="flex flex-col items-center gap-4 mt-4">
-            <input
-              ref={inputRef}
-              type="text"
-              inputMode={topic === 'percentage' ? 'text' : 'numeric'}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+            <input ref={inputRef} type="text" inputMode={isPctQuestion ? 'text' : 'numeric'}
+              value={inputValue} onChange={(e) => setInputValue(e.target.value)}
               placeholder={q.answerType === 'fraction' ? 'e.g. 1/3' : q.answerType === 'mixed-pct' ? 'e.g. 16 2/3' : 'Your answer'}
               autoFocus
-              className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
-            />
+              className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all" />
           </div>
         )}
       </div>
     );
   }
 
-  // SETUP SCREEN
-  const pctDenFromValid = pctDenFrom > 0;
-  const pctDenToValid = pctDenTo > 0;
-  const pctCustomValid = pctDenFromValid && pctDenToValid && pctNumFrom > 0 && pctNumTo > 0;
+  // ═══════════════════════════════════
+  // SETUP SCREEN - Game Style UI
+  // ═══════════════════════════════════
 
-  const fromValid = from > 0;
-  const toValid = to > 0 && to >= from;
-  const canStart = topic === 'percentage'
-    ? (pctRangeMode === 'preset' ? fromValid && toValid : pctCustomValid)
-    : (fromValid && toValid);
+  const canStart = selectedTopics.size > 0;
 
   return (
-    <div>
-      <h1 className="font-display font-bold text-2xl mb-6 text-glow">Practice</h1>
+    <div className="pb-4">
+      <h1 className="font-display font-bold text-2xl mb-6 text-glow">⚡ Practice Arena</h1>
 
+      {/* Topic Chips - Multi Select */}
       <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block">Topic</label>
-        <div className="grid grid-cols-3 gap-2">
-          {TOPICS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTopic(t.id)}
-              className={`py-2.5 rounded-xl text-xs font-semibold transition-colors ${
-                topic === t.id ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <label className="text-sm text-muted-foreground mb-3 block font-semibold">Select Topics</label>
+        <div className="flex flex-wrap gap-2">
+          {TOPICS.map((t) => {
+            const isSelected = selectedTopics.has(t.id);
+            return (
+              <motion.button
+                key={t.id}
+                whileTap={{ scale: 0.93 }}
+                onClick={() => toggleTopic(t.id)}
+                className={`px-4 py-2.5 rounded-2xl text-sm font-bold transition-all relative overflow-hidden ${
+                  isSelected
+                    ? 'gradient-primary text-primary-foreground shadow-lg shadow-primary/30'
+                    : 'bg-card border border-border text-foreground hover:border-primary/50'
+                }`}
+              >
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <span className="text-base">{t.icon}</span>
+                  {t.label}
+                </span>
+                {isSelected && (
+                  <motion.div layoutId="glow" className="absolute inset-0 bg-primary/10 rounded-2xl" initial={false} />
+                )}
+              </motion.button>
+            );
+          })}
         </div>
+        {selectedTopics.size === 0 && (
+          <p className="text-destructive text-xs mt-2">Select at least one topic</p>
+        )}
       </div>
 
-      {topic === 'percentage' ? (
-        <div className="mb-5">
-          <label className="text-sm text-muted-foreground mb-2 block">Fraction Range</label>
+      {/* Per-Topic Range Controls */}
+      {selectedTopics.size > 0 && (
+        <div className="mb-5 space-y-2">
+          <label className="text-sm text-muted-foreground mb-2 block font-semibold">Range per Topic</label>
+          {Array.from(selectedTopics).map((tid) => {
+            const topicInfo = TOPICS.find(t => t.id === tid)!;
+            const range = topicRanges[tid];
+            const isExpanded = expandedTopic === tid;
 
-          <div className="flex gap-2 mb-3">
-            <button
-              onClick={() => setPctRangeMode('preset')}
-              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${pctRangeMode === 'preset' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}
-            >
-              Preset
-            </button>
-            <button
-              onClick={() => setPctRangeMode('custom')}
-              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${pctRangeMode === 'custom' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}
-            >
-              Custom
-            </button>
-          </div>
-
-          {pctRangeMode === 'preset' ? (
-            <div className="grid grid-cols-1 gap-2">
-              {[
-                { label: '1/1 – 1/10', f: 1, t: 10 },
-                { label: '1/11 – 1/20', f: 11, t: 20 },
-                { label: '1/21 – 1/30', f: 21, t: 30 },
-                { label: '1/31 – 1/40', f: 31, t: 40 },
-                { label: '1/41 – 1/50', f: 41, t: 50 },
-              ].map((g) => (
+            return (
+              <div key={tid} className="bg-card border border-border rounded-2xl overflow-hidden">
                 <button
-                  key={g.label}
-                  onClick={() => { setFrom(g.f); setTo(g.t); }}
-                  className={`py-3 rounded-xl text-sm font-semibold transition-colors ${
-                    from === g.f && to === g.t ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
-                  }`}
+                  onClick={() => setExpandedTopic(isExpanded ? null : tid)}
+                  className="w-full flex items-center justify-between px-4 py-3"
                 >
-                  {g.label}
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{topicInfo.icon}</span>
+                    <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({range.from}–{range.to})
+                    </span>
+                  </div>
+                  {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
                 </button>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 justify-center">
-                <div className="flex flex-col items-center">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={pctNumFrom}
-                    onChange={(e) => setPctNumFrom(Math.max(0, Number(e.target.value)))}
-                    placeholder="Num"
-                    className="w-16 bg-card border border-border rounded-xl px-2 py-2 text-center text-lg font-bold text-foreground focus:border-primary outline-none"
-                  />
-                  <div className="w-16 h-px bg-foreground/40 my-1" />
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={pctDenFrom}
-                    onChange={(e) => setPctDenFrom(Math.max(0, Number(e.target.value)))}
-                    placeholder="Den"
-                    className={`w-16 bg-card border rounded-xl px-2 py-2 text-center text-lg font-bold text-foreground focus:border-primary outline-none ${pctDenFrom === 0 ? 'border-destructive' : 'border-border'}`}
-                  />
-                </div>
 
-                <span className="text-muted-foreground font-semibold text-sm">to</span>
-
-                <div className="flex flex-col items-center">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={pctNumTo}
-                    onChange={(e) => setPctNumTo(Math.max(0, Number(e.target.value)))}
-                    placeholder="Num"
-                    className="w-16 bg-card border border-border rounded-xl px-2 py-2 text-center text-lg font-bold text-foreground focus:border-primary outline-none"
-                  />
-                  <div className="w-16 h-px bg-foreground/40 my-1" />
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={pctDenTo}
-                    onChange={(e) => setPctDenTo(Math.max(0, Number(e.target.value)))}
-                    placeholder="Den"
-                    className={`w-16 bg-card border rounded-xl px-2 py-2 text-center text-lg font-bold text-foreground focus:border-primary outline-none ${pctDenTo === 0 ? 'border-destructive' : 'border-border'}`}
-                  />
-                </div>
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="border-t border-border"
+                    >
+                      <div className="p-4 space-y-3">
+                        {tid === 'percentage' ? (
+                          <>
+                            <div className="flex gap-2 mb-2">
+                              <button
+                                onClick={() => updateRange(tid, 'pctRangeMode', 'preset')}
+                                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${(range.pctRangeMode || 'preset') === 'preset' ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
+                              >Preset</button>
+                              <button
+                                onClick={() => updateRange(tid, 'pctRangeMode', 'custom')}
+                                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${range.pctRangeMode === 'custom' ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
+                              >Custom</button>
+                            </div>
+                            {(range.pctRangeMode || 'preset') === 'preset' ? (
+                              <div className="grid grid-cols-1 gap-1.5">
+                                {[
+                                  { label: '1/1 – 1/10', f: 1, t: 10 },
+                                  { label: '1/11 – 1/20', f: 11, t: 20 },
+                                  { label: '1/21 – 1/30', f: 21, t: 30 },
+                                  { label: '1/31 – 1/40', f: 31, t: 40 },
+                                  { label: '1/41 – 1/50', f: 41, t: 50 },
+                                ].map((g) => (
+                                  <button key={g.label}
+                                    onClick={() => { updateRange(tid, 'from', g.f); updateRange(tid, 'to', g.t); }}
+                                    className={`py-2 rounded-xl text-xs font-semibold transition-colors ${range.from === g.f && range.to === g.t ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
+                                  >{g.label}</button>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3 justify-center">
+                                <div className="flex flex-col items-center">
+                                  <input type="number" inputMode="numeric" value={range.pctNumFrom || 1}
+                                    onChange={(e) => updateRange(tid, 'pctNumFrom', Math.max(0, Number(e.target.value)))}
+                                    className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
+                                  <div className="w-14 h-px bg-foreground/40 my-0.5" />
+                                  <input type="number" inputMode="numeric" value={range.pctDenFrom || 2}
+                                    onChange={(e) => updateRange(tid, 'pctDenFrom', Math.max(1, Number(e.target.value)))}
+                                    className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
+                                </div>
+                                <span className="text-muted-foreground text-xs font-semibold">to</span>
+                                <div className="flex flex-col items-center">
+                                  <input type="number" inputMode="numeric" value={range.pctNumTo || 5}
+                                    onChange={(e) => updateRange(tid, 'pctNumTo', Math.max(0, Number(e.target.value)))}
+                                    className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
+                                  <div className="w-14 h-px bg-foreground/40 my-0.5" />
+                                  <input type="number" inputMode="numeric" value={range.pctDenTo || 2}
+                                    onChange={(e) => updateRange(tid, 'pctDenTo', Math.max(1, Number(e.target.value)))}
+                                    className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex gap-3">
+                              <div className="flex-1">
+                                <label className="text-xs text-muted-foreground mb-1 block">From</label>
+                                <input type="number" inputMode="numeric" value={range.from}
+                                  onChange={(e) => updateRange(tid, 'from', Number(e.target.value))}
+                                  className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-xs text-muted-foreground mb-1 block">To</label>
+                                <input type="number" inputMode="numeric" value={range.to}
+                                  onChange={(e) => updateRange(tid, 'to', Number(e.target.value))}
+                                  className={`w-full bg-secondary border rounded-xl px-3 py-2 text-center text-sm font-bold text-foreground focus:border-primary outline-none ${range.to < range.from ? 'border-destructive' : 'border-border'}`} />
+                              </div>
+                            </div>
+                            {tid === 'powers' && (
+                              <div className="flex gap-3 mt-2">
+                                <div className="flex-1">
+                                  <label className="text-xs text-muted-foreground mb-1 block">Exp From</label>
+                                  <input type="number" inputMode="numeric" value={range.exponentFrom || 1}
+                                    onChange={(e) => updateRange(tid, 'exponentFrom', Number(e.target.value))}
+                                    className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="text-xs text-muted-foreground mb-1 block">Exp To</label>
+                                  <input type="number" inputMode="numeric" value={range.exponentTo || 5}
+                                    onChange={(e) => updateRange(tid, 'exponentTo', Number(e.target.value))}
+                                    className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-
-              {(pctDenFrom === 0 || pctDenTo === 0) && (
-                <p className="text-destructive text-xs text-center">Denominator cannot be 0</p>
-              )}
-
-              {pctCustomValid && (
-                <div className="bg-secondary/30 rounded-xl p-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Practice range</p>
-                  <p className="text-foreground font-semibold text-sm">
-                    {pctNumFrom}/{pctDenFrom} → {pctNumTo}/{pctDenTo}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="mb-5">
-          <label className="text-sm text-muted-foreground mb-2 block">Number Range</label>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">From</label>
-              <input type="number" inputMode="numeric" value={from} onChange={(e) => setFrom(Number(e.target.value))}
-                className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">To</label>
-              <input type="number" inputMode="numeric" value={to} onChange={(e) => setTo(Number(e.target.value))}
-                className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${to < from ? 'border-destructive' : 'border-border'}`} />
-              {to < from && <p className="text-destructive text-xs mt-1">To must be ≥ From</p>}
-            </div>
-          </div>
+            );
+          })}
         </div>
       )}
 
-      {topic === 'powers' && (
-        <div className="mb-5">
-          <label className="text-sm text-muted-foreground mb-2 block">Exponent Range</label>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Exponent From</label>
-              <input type="number" inputMode="numeric" value={expFrom} onChange={(e) => setExpFrom(Number(e.target.value))}
-                className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Exponent To</label>
-              <input type="number" inputMode="numeric" value={expTo} onChange={(e) => setExpTo(Number(e.target.value))}
-                className={`w-full bg-card border rounded-2xl px-4 py-3 text-center font-display font-bold text-foreground focus:border-primary outline-none ${expTo < expFrom ? 'border-destructive' : 'border-border'}`} />
-              {expTo < expFrom && <p className="text-destructive text-xs mt-1">To must be ≥ From</p>}
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Questions Count */}
       <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block">Questions</label>
+        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Questions</label>
         <div className="flex gap-2">
           {COUNTS.map((c) => (
             <button key={c} onClick={() => { setCount(c); setInfinite(false); }}
@@ -984,13 +898,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             ∞
           </button>
         </div>
-        {infinite && (
-          <p className="text-xs text-muted-foreground mt-2 text-center">Infinite mode – tap Submit to finish</p>
-        )}
       </div>
 
+      {/* Answer Mode */}
       <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block">Answer Mode</label>
+        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Answer Mode</label>
         <div className="flex gap-2">
           <button onClick={() => setMode('mcq')}
             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>MCQ</button>
@@ -999,49 +911,71 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </div>
       </div>
 
+      {/* Timer Toggle */}
+      <div className="mb-5 bg-card border border-border rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Timer size={18} className="text-primary" />
+            <span className="font-semibold text-sm text-foreground">Timer</span>
+          </div>
+          <Switch checked={timerEnabled} onCheckedChange={setTimerEnabled} />
+        </div>
+        <AnimatePresence>
+          {timerEnabled && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+              <div className="flex gap-2 mt-2">
+                {[5, 10, 15, 30].map((s) => (
+                  <button key={s} onClick={() => setTimerSeconds(s)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${timerSeconds === s ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground'}`}>{s}s</button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Order */}
       <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block">Order</label>
+        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Order</label>
         <div className="flex gap-2">
           <button onClick={() => setSequential(false)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${!sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Random</button>
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${!sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>🔀 Random</button>
           <button onClick={() => setSequential(true)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Sequential</button>
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>📋 Sequential</button>
         </div>
       </div>
 
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block">Timer</label>
-        <div className="flex gap-2 mb-3">
-          <button onClick={() => setTimerMode('per-question')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${timerMode === 'per-question' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Per Question</button>
-          <button onClick={() => setTimerMode('full-session')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${timerMode === 'full-session' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Full Session</button>
-        </div>
-        <div className="flex gap-2">
-          {[5, 10, 15, 30].map((s) => (
-            <button key={s} onClick={() => setTimerSeconds(s)}
-              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${timerSeconds === s ? 'bg-accent text-accent-foreground' : 'bg-card border border-border text-foreground'}`}>{s}s</button>
-          ))}
-        </div>
-      </div>
-
+      {/* Start Button */}
       <motion.button
         whileTap={{ scale: 0.97 }}
         disabled={!canStart}
         onClick={() => {
+          const topics = Array.from(selectedTopics).map(tid => {
+            const info = TOPICS.find(t => t.id === tid)!;
+            return { id: tid, label: info.label, range: topicRanges[tid] };
+          });
           const cfg: PracticeConfig = {
-            topic, from, to, count, infinite, mode, timerMode, timerSeconds, sequential,
-            exponentFrom: expFrom, exponentTo: expTo,
-            ...(topic === 'percentage' && pctRangeMode === 'custom' ? {
-              pctNumFrom, pctDenFrom, pctNumTo, pctDenTo,
-            } : {}),
+            topics, count, infinite, mode,
+            timerEnabled,
+            timerSeconds: timerEnabled ? timerSeconds : 9999,
+            sequential,
           };
           startPractice(cfg);
         }}
-        className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-4 ${canStart ? 'gradient-primary text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
+        className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-2 transition-all ${
+          canStart
+            ? 'gradient-primary text-primary-foreground shadow-primary/30'
+            : 'bg-muted text-muted-foreground cursor-not-allowed'
+        }`}
       >
-        Start Practice
+        🎮 Start Practice
       </motion.button>
+
+      {selectedTopics.size > 1 && (
+        <p className="text-xs text-muted-foreground text-center mt-3">
+          Mixed mode: {selectedTopics.size} topics selected
+        </p>
+      )}
     </div>
   );
 };
