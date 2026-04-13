@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
+import Watermark from '@/components/Watermark';
 import LearningPage from '@/pages/LearningPage';
 import PracticePage from '@/pages/PracticePage';
 import ProgressPage from '@/pages/ProgressPage';
@@ -200,7 +201,8 @@ const Index = () => {
   }, [returnToLearn]);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 relative">
+      <Watermark />
       <div className="max-w-lg mx-auto px-4 pt-4">
         {tab !== 'learn' && (
           <div className="flex justify-end mb-2">
