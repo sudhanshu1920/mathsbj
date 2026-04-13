@@ -254,7 +254,7 @@ const Index = () => {
           </motion.div>
         </AnimatePresence>
       </div>
-      <BottomNav active={tab} onChange={handleTabChange} />
+      <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
     </div>
   );
 };
