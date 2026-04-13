@@ -724,7 +724,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       {/* Topic Chips - Multi Select */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-3 block font-semibold">Select Topics</label>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-3">
           {TOPICS.map((t) => {
             const isSelected = selectedTopics.has(t.id);
             return (
@@ -732,13 +732,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 key={t.id}
                 whileTap={{ scale: 0.93 }}
                 onClick={() => toggleTopic(t.id)}
-                className={`px-4 py-2.5 rounded-2xl text-sm font-bold transition-all relative overflow-hidden ${
+                className={`flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition-all relative overflow-hidden ${
                   isSelected
                     ? 'gradient-primary text-primary-foreground shadow-lg shadow-primary/30'
                     : 'bg-card border border-border text-foreground hover:border-primary/50'
                 }`}
               >
-                <span className="relative z-10 flex items-center gap-1.5">
+                <span className="relative z-10 flex items-center gap-2">
                   <span className="text-base">{t.icon}</span>
                   {t.label}
                 </span>
