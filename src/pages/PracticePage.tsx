@@ -621,7 +621,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             <AlertDialogFooter>
               <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={() => handleExitConfirmed()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleExitConfirmed();
+                }}
                 className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Exit
