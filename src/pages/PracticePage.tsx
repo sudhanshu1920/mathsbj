@@ -483,16 +483,22 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     else handleExitConfirmed();
   }, [config, finished]);
 
-  const handleExitConfirmed = useCallback(() => {
+  const handleExitConfirmed = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
     setShowExitDialog(false);
-    // Use setTimeout to ensure dialog closes before navigation
-    setTimeout(() => {
-      if (onExit) onExit();
-      else { setConfig(null); setQuestions([]); setCurrentQ(0); setScore({ correct: 0, wrong: 0 }); setFinished(false); }
-    }, 50);
-  }, [onExit]);
+    setConfig(null);
+    setQuestions([]);
+    setCurrentQ(0);
+    setScore({ correct: 0, wrong: 0 });
+    setFinished(false);
+    setFeedback(null);
+    setInputValue('');
+    setSelectedOption(null);
+    if (onExit) {
+      setTimeout(() => onExit(), 100);
+    }
+  };
 
   const handleBackToPractice = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -606,7 +612,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     return (
       <div>
-        <AlertDialog open={showExitDialog} onOpenChange={(open) => { if (!open) setShowExitDialog(false); }}>
+        <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
           <AlertDialogContent className="rounded-2xl max-w-[320px]">
             <AlertDialogHeader>
               <AlertDialogTitle>Exit Practice?</AlertDialogTitle>
@@ -615,10 +621,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             <AlertDialogFooter>
               <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleExitConfirmed();
-                }}
+                onClick={() => handleExitConfirmed()}
                 className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Exit
