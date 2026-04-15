@@ -94,37 +94,46 @@ function mixedToString(m: MixedPct): string {
   return `${m.whole > 0 ? m.whole + ' ' : ''}${m.numerator}/${m.denominator}%`;
 }
 
+// Helper to generate a range array that supports ascending, descending, and single value
+function rangeArray(from: number, to: number): number[] {
+  const step = from <= to ? 1 : -1;
+  const length = Math.abs(to - from) + 1;
+  return Array.from({ length }, (_, i) => from + i * step);
+}
+
 function generateQuestionsForTopic(topicId: string, range: TopicRange, label: string): Question[] {
   const questions: Question[] = [];
   const { from, to } = range;
+  const nums = rangeArray(from, to);
 
   if (topicId === 'tables') {
-    for (let n = from; n <= to; n++) {
+    for (const n of nums) {
       for (let m = 1; m <= 10; m++) {
         questions.push({ text: `${n} × ${m} = ?`, answer: n * m, topicLabel: label });
       }
     }
   } else if (topicId === 'squares') {
-    for (let n = from; n <= to; n++) {
+    for (const n of nums) {
       questions.push({ text: `${n}² = ?`, answer: n * n, topicLabel: label });
     }
   } else if (topicId === 'roots' || topicId === 'square-roots') {
-    for (let n = from; n <= to; n++) {
+    for (const n of nums) {
       questions.push({ text: `√${n * n} = ?`, answer: n, topicLabel: label });
     }
   } else if (topicId === 'cubes') {
-    for (let n = from; n <= to; n++) {
+    for (const n of nums) {
       questions.push({ text: `${n}³ = ?`, answer: n * n * n, topicLabel: label });
     }
   } else if (topicId === 'cube-roots') {
-    for (let n = from; n <= to; n++) {
+    for (const n of nums) {
       questions.push({ text: `∛${n * n * n} = ?`, answer: n, topicLabel: label });
     }
   } else if (topicId === 'powers') {
     const expFrom = range.exponentFrom || 1;
     const expTo = range.exponentTo || 10;
-    for (let n = from; n <= to; n++) {
-      for (let e = expFrom; e <= expTo; e++) {
+    const exps = rangeArray(expFrom, expTo);
+    for (const n of nums) {
+      for (const e of exps) {
         questions.push({ text: `${n}`, superscript: `${e}`, answer: Math.pow(n, e), topicLabel: label });
       }
     }
@@ -133,17 +142,22 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
     if (range.pctRangeMode === 'custom' && range.pctNumFrom !== undefined && range.pctDenFrom !== undefined && range.pctNumTo !== undefined && range.pctDenTo !== undefined) {
       if (range.pctDenFrom === range.pctDenTo) {
         const d = range.pctDenFrom;
-        for (let n = Math.min(range.pctNumFrom, range.pctNumTo); n <= Math.max(range.pctNumFrom, range.pctNumTo); n++) {
+        const pctNums = rangeArray(range.pctNumFrom, range.pctNumTo);
+        for (const n of pctNums) {
           pairs.push({ n, d });
         }
       } else {
-        for (let d = Math.min(range.pctDenFrom, range.pctDenTo); d <= Math.max(range.pctDenFrom, range.pctDenTo); d++) {
+        const dens = rangeArray(range.pctDenFrom, range.pctDenTo);
+        for (const d of dens) {
           if (d === 0) continue;
           pairs.push({ n: 1, d });
         }
       }
     } else {
-      for (let d = Math.max(1, from); d <= Math.min(50, to); d++) {
+      const lo = Math.max(1, Math.min(from, to));
+      const hi = Math.min(50, Math.max(from, to));
+      const dens = rangeArray(from <= to ? lo : hi, from <= to ? hi : lo);
+      for (const d of dens) {
         pairs.push({ n: 1, d });
       }
     }
