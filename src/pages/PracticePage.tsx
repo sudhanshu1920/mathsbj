@@ -493,14 +493,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (config?.mode === 'input' && inputRef.current) inputRef.current.focus();
   }, [currentQ, config]);
 
-  const handleExitRequest = useCallback(() => {
-    if (config && !finished) setShowExitDialog(true);
-    else handleExitConfirmed();
-  }, [config, finished]);
-
-  const handleExitConfirmed = () => {
+  const resetToPracticeHome = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
+    timerRef.current = undefined;
+    elapsedRef.current = undefined;
     setShowExitDialog(false);
     setConfig(null);
     setQuestions([]);
@@ -510,20 +507,34 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setFeedback(null);
     setInputValue('');
     setSelectedOption(null);
-    if (onExit) {
-      setTimeout(() => onExit(), 100);
+    setElapsedTime(0);
+    setTimeLeft(0);
+  }, []);
+
+  const handleExitConfirmed = useCallback(() => {
+    resetToPracticeHome();
+  }, [resetToPracticeHome]);
+
+  const handleExitRequest = useCallback(() => {
+    if (showExitDialog) return;
+    if (config && !finished) {
+      setShowExitDialog(true);
+      return;
     }
-  };
+    resetToPracticeHome();
+  }, [config, finished, resetToPracticeHome, showExitDialog]);
 
   const handleBackToPractice = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (elapsedRef.current) clearInterval(elapsedRef.current);
-    setConfig(null); setQuestions([]); setCurrentQ(0); setScore({ correct: 0, wrong: 0 }); setFinished(false); setFeedback(null); setInputValue(''); setSelectedOption(null);
-  }, []);
+    resetToPracticeHome();
+  }, [resetToPracticeHome]);
 
   useEffect(() => {
     if (!config || finished) return;
-    const handlePopstate = (e: PopStateEvent) => { e.preventDefault(); window.history.pushState(null, ''); setShowExitDialog(true); };
+    const handlePopstate = (e: PopStateEvent) => {
+      e.preventDefault();
+      window.history.pushState(null, '');
+      setShowExitDialog((prev) => prev || true);
+    };
     window.history.pushState(null, '');
     window.addEventListener('popstate', handlePopstate);
     return () => window.removeEventListener('popstate', handlePopstate);
