@@ -617,6 +617,15 @@ export const FORMULA_SECTIONS: FormulaSection[] = [
       { id: 'finite', title: 'Finite Series', symbol: 'n²', formulas: finiteSeries },
     ],
   },
+  {
+    id: 'trigonometry',
+    title: 'Trigonometry',
+    symbol: 'sin',
+    categories: [
+      // Special category — rendered by FormulasLearning as the TrigonometryLearning table
+      { id: 'trig-angles', title: 'Table of Angles', symbol: 'θ', formulas: [] },
+    ],
+  },
 ];
 
 // Flat list for backward compat
