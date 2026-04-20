@@ -15,6 +15,8 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
+import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect, TRIG_FUNCTIONS, TRIG_ANGLES } from '@/lib/trigData';
+
 type PracticeMode = 'mcq' | 'input';
 
 interface TopicRange {
@@ -39,7 +41,7 @@ interface PracticeConfig {
   sequential: boolean;
 }
 
-type AnswerType = 'decimal-pct' | 'mixed-pct' | 'fraction';
+type AnswerType = 'decimal-pct' | 'mixed-pct' | 'fraction' | 'trig';
 
 interface MixedPct {
   whole: number;
