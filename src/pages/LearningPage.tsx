@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Triangle } from 'lucide-react';
+import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 
 import SwipeContainer from '@/components/SwipeContainer';
@@ -8,11 +8,10 @@ import SwipeBack from '@/components/SwipeBack';
 import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/components/PercentageLearning';
 import PracticeModeSelector, { type PracticeSettings } from '@/components/PracticeModeSelector';
 import FormulasLearning from '@/components/FormulasLearning';
-import TrigonometryLearning from '@/components/TrigonometryLearning';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
 
-type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'trig';
+type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas';
 
 interface LearningPageProps {
   onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => void;
@@ -29,7 +28,6 @@ const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
   { id: 'powers', title: 'Powers', icon: Zap, gradient: 'bg-gradient-to-br from-violet-500 to-purple-600' },
   { id: 'percentage', title: 'Percentage', icon: Percent, gradient: 'bg-gradient-to-br from-amber-500 to-yellow-600' },
   { id: 'formulas', title: 'Formulas', icon: BookOpen, gradient: 'bg-gradient-to-br from-teal-500 to-emerald-600' },
-  { id: 'trig', title: 'Trigonometry', icon: Triangle, gradient: 'bg-gradient-to-br from-indigo-500 to-purple-600' },
 ];
 
 const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
@@ -341,18 +339,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     );
   }
 
-  // TRIGONOMETRY
-  if (activeTopic === 'trig') {
-    return (
-      <SwipeBack onBack={() => setActiveTopic(null)}>
-        <div>
-          {renderHeader('Table of Angles', () => setActiveTopic(null))}
-          <TrigonometryLearning />
-        </div>
-      </SwipeBack>
-    );
-  }
-
   // TOPIC LIST
   const topicSymbols: Record<Topic, string> = {
     tables: '×',
@@ -363,7 +349,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     powers: '⚡',
     percentage: '%',
     formulas: 'f(x)',
-    trig: '△',
   };
 
   return (

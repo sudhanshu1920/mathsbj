@@ -7,6 +7,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import SwipeBack from '@/components/SwipeBack';
 import SwipeContainer from '@/components/SwipeContainer';
 import ShapeDiagram from '@/components/ShapeDiagram';
+import TrigonometryLearning from '@/components/TrigonometryLearning';
 import { FORMULA_SECTIONS, type FormulaItem } from '@/lib/formulaData';
 
 const KaTeXBlock = ({ latex }: { latex: string }) => {
@@ -170,6 +171,26 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
     const section = FORMULA_SECTIONS[sectionIndex];
     const category = section?.categories[categoryIndex];
     if (!section || !category) return null;
+
+    // Special case: Trigonometry → Table of Angles renders the trig table component
+    if (category.id === 'trig-angles') {
+      return (
+        <SwipeBack onBack={() => onNavigate(sectionIndex, null)}>
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={() => onNavigate(sectionIndex, null)} className="p-2 -ml-2 text-primary">
+                <ArrowLeft size={20} />
+              </button>
+              <h2 className="font-display font-bold text-lg text-foreground">
+                {category.title}
+              </h2>
+              <ThemeToggle />
+            </div>
+            <TrigonometryLearning />
+          </div>
+        </SwipeBack>
+      );
+    }
 
     // Check if this category has shape groups (geometry style)
     const shapeGroups = extractShapeGroups(category.formulas);
