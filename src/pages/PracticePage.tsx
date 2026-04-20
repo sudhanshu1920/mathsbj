@@ -768,9 +768,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'input' && (
           <div className="flex flex-col items-center gap-4 mt-4">
-            <input ref={inputRef} type="text" inputMode={isPctQuestion ? 'text' : 'numeric'}
+            <input ref={inputRef} type="text" inputMode={isPctQuestion || q.answerType === 'trig' ? 'text' : 'numeric'}
               value={inputValue} onChange={(e) => setInputValue(e.target.value)}
-              placeholder={q.answerType === 'fraction' ? 'e.g. 1/3' : q.answerType === 'mixed-pct' ? 'e.g. 16 2/3' : 'Your answer'}
+              placeholder={q.answerType === 'fraction' ? 'e.g. 1/3' : q.answerType === 'mixed-pct' ? 'e.g. 16 2/3' : q.answerType === 'trig' ? 'e.g. 1/2, √3/2, ∞' : 'Your answer'}
               autoFocus
               className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all" />
           </div>
