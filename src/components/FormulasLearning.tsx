@@ -7,6 +7,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import SwipeBack from '@/components/SwipeBack';
 import SwipeContainer from '@/components/SwipeContainer';
 import ShapeDiagram from '@/components/ShapeDiagram';
+import TrigonometryLearning from '@/components/TrigonometryLearning';
 import { FORMULA_SECTIONS, type FormulaItem } from '@/lib/formulaData';
 
 const KaTeXBlock = ({ latex }: { latex: string }) => {
