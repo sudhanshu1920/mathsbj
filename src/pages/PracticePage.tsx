@@ -506,7 +506,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
     const q = questions[currentQ];
     if (!q) return;
-    if (typeof q.answer === 'number') {
+    if (q.answerType === 'trig') {
+      if (isTrigAnswerCorrect(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
+    } else if (typeof q.answer === 'number') {
       const numVal = Number(inputValue);
       if (!isNaN(numVal) && numVal === q.answer) handleAnswer(numVal);
     } else {
