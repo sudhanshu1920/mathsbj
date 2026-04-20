@@ -831,20 +831,22 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             const range = topicRanges[tid];
             const isExpanded = expandedTopic === tid;
 
+            const isTrig = tid === 'trig';
+
             return (
               <div key={tid} className="bg-card border border-border rounded-2xl overflow-hidden">
                 <button
-                  onClick={() => setExpandedTopic(isExpanded ? null : tid)}
+                  onClick={() => { if (!isTrig) setExpandedTopic(isExpanded ? null : tid); }}
                   className="w-full flex items-center justify-between px-4 py-3"
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-base">{topicInfo.icon}</span>
                     <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
                     <span className="text-xs text-muted-foreground">
-                      ({range.from}–{range.to})
+                      {isTrig ? '(Standard angles)' : `(${range.from}–${range.to})`}
                     </span>
                   </div>
-                  {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
+                  {!isTrig && (isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />)}
                 </button>
 
                 <AnimatePresence>
