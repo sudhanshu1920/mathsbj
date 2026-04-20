@@ -10,7 +10,7 @@ interface BottomNavProps {
 
 const tabs = [
   { id: 'learn' as const, label: 'Learning', icon: BookOpen },
-  { id: 'practice' as const, label: 'Practice', icon: Target },
+  { id: 'practice' as const, label: 'Quiz', icon: Target },
   { id: 'progress' as const, label: 'Progress', icon: BarChart3 },
 ];
 

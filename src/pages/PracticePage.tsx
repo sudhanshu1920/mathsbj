@@ -792,7 +792,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   return (
     <div className="pb-4">
-      <h1 className="font-display font-bold text-2xl mb-6 text-glow">⚡ Practice Arena</h1>
+      <h1 className="font-display font-bold text-2xl mb-6 text-glow">⚡ Quiz Arena</h1>
 
       {/* Topic Chips - Multi Select */}
       <div className="mb-5">
@@ -1043,7 +1043,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             : 'bg-muted text-muted-foreground cursor-not-allowed'
         }`}
       >
-        🎮 Start Practice
+        🎮 Start Quiz
       </motion.button>
 
       {selectedTopics.size > 1 && (

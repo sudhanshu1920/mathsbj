@@ -109,7 +109,7 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
         onClick={handleStart}
         className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-display font-bold text-lg shadow-lg"
       >
-        Start Practice
+        Start Quiz
       </motion.button>
     </motion.div>
   );
