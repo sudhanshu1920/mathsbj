@@ -453,7 +453,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
       let isCorrect = false;
       if (answer !== null) {
-        if (typeof q.answer === 'number') {
+        if (q.answerType === 'trig') {
+          isCorrect = isTrigAnswerCorrect(String(answer), String(q.answer));
+        } else if (typeof q.answer === 'number') {
           isCorrect = Number(answer) === q.answer;
         } else {
           isCorrect = normalizeAnswer(String(answer), String(q.answer));
