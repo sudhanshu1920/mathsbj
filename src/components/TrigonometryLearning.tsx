@@ -80,9 +80,6 @@ const TrigonometryLearning = () => {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground text-center px-3 py-2 border-t border-border">
-        Tap any cell to highlight • Swipe horizontally to view all angles
-      </p>
     </motion.div>
   );
 };
