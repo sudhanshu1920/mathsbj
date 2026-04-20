@@ -703,6 +703,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     };
 
     return (
+      <SwipeBack onBack={handleExitRequest}>
       <div>
         <AlertDialog open={showExitDialog} onOpenChange={(open) => { if (!open) setShowExitDialog(false); }}>
           <AlertDialogContent className="rounded-2xl max-w-[320px]">
