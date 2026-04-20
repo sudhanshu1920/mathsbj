@@ -15,6 +15,8 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
+import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect } from '@/lib/trigData';
+
 type PracticeMode = 'mcq' | 'input';
 
 interface TopicRange {
@@ -39,7 +41,7 @@ interface PracticeConfig {
   sequential: boolean;
 }
 
-type AnswerType = 'decimal-pct' | 'mixed-pct' | 'fraction';
+type AnswerType = 'decimal-pct' | 'mixed-pct' | 'fraction' | 'trig';
 
 interface MixedPct {
   whole: number;
@@ -68,6 +70,7 @@ const TOPICS = [
   { id: 'cube-roots', label: 'Cube Roots', icon: '∛', defaultRange: { from: 1, to: 20 } },
   { id: 'powers', label: 'Powers', icon: 'xⁿ', defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
   { id: 'percentage', label: 'Percentage', icon: '%', defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
+  { id: 'trig', label: 'Trigonometry', icon: '△', defaultRange: { from: 0, to: 90 } },
 ];
 
 const COUNTS = [10, 20, 25, 50];
@@ -138,6 +141,15 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
         questions.push({ text: `${n}`, superscript: `${e}`, answer: Math.pow(n, e), topicLabel: label });
       }
     }
+  } else if (topicId === 'trig') {
+    for (const tq of getAllTrigQuestions()) {
+      questions.push({
+        text: tq.text,
+        answer: tq.answer,
+        answerType: 'trig',
+        topicLabel: label,
+      });
+    }
   } else if (topicId === 'percentage') {
     const pairs: { n: number; d: number }[] = [];
     if (range.pctRangeMode === 'custom' && range.pctNumFrom !== undefined && range.pctDenFrom !== undefined && range.pctNumTo !== undefined && range.pctDenTo !== undefined) {
@@ -198,6 +210,17 @@ function generateQuestions(config: PracticeConfig): Question[] {
   if (config.mode === 'mcq') {
     const sliced = config.infinite ? allQuestions : allQuestions.slice(0, config.count);
     return sliced.map((q) => {
+      // Trig: build options from the standard trig value pool
+      if (q.answerType === 'trig') {
+        const opts = buildTrigOptions({
+          fn: 'sin',
+          angle: 0,
+          text: q.text,
+          answer: String(q.answer),
+        });
+        return { ...q, options: opts, optionsMixed: opts.map(() => null) };
+      }
+
       const correct = q.answer;
       const opts = new Set<string>();
       opts.add(String(correct));
@@ -430,7 +453,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
       let isCorrect = false;
       if (answer !== null) {
-        if (typeof q.answer === 'number') {
+        if (q.answerType === 'trig') {
+          isCorrect = isTrigAnswerCorrect(String(answer), String(q.answer));
+        } else if (typeof q.answer === 'number') {
           isCorrect = Number(answer) === q.answer;
         } else {
           isCorrect = normalizeAnswer(String(answer), String(q.answer));
@@ -481,7 +506,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
     const q = questions[currentQ];
     if (!q) return;
-    if (typeof q.answer === 'number') {
+    if (q.answerType === 'trig') {
+      if (isTrigAnswerCorrect(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
+    } else if (typeof q.answer === 'number') {
       const numVal = Number(inputValue);
       if (!isNaN(numVal) && numVal === q.answer) handleAnswer(numVal);
     } else {
@@ -622,7 +649,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     const renderAnswerHint = () => {
       if (!isPctQuestion) return null;
-      const hints: Record<string, string> = { 'decimal-pct': 'Answer in decimal %', 'mixed-pct': 'Answer in mixed %', 'fraction': 'Answer as fraction' };
+      const hints: Record<string, string> = {
+        'decimal-pct': 'Answer in decimal %',
+        'mixed-pct': 'Answer in mixed %',
+        'fraction': 'Answer as fraction',
+        'trig': 'Use √, /, or ∞',
+      };
       return q.answerType ? <span className="text-xs text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">{hints[q.answerType]}</span> : null;
     };
 
@@ -741,9 +773,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'input' && (
           <div className="flex flex-col items-center gap-4 mt-4">
-            <input ref={inputRef} type="text" inputMode={isPctQuestion ? 'text' : 'numeric'}
+            <input ref={inputRef} type="text" inputMode={isPctQuestion || q.answerType === 'trig' ? 'text' : 'numeric'}
               value={inputValue} onChange={(e) => setInputValue(e.target.value)}
-              placeholder={q.answerType === 'fraction' ? 'e.g. 1/3' : q.answerType === 'mixed-pct' ? 'e.g. 16 2/3' : 'Your answer'}
+              placeholder={q.answerType === 'fraction' ? 'e.g. 1/3' : q.answerType === 'mixed-pct' ? 'e.g. 16 2/3' : q.answerType === 'trig' ? 'e.g. 1/2, √3/2, ∞' : 'Your answer'}
               autoFocus
               className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all" />
           </div>
@@ -804,20 +836,22 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             const range = topicRanges[tid];
             const isExpanded = expandedTopic === tid;
 
+            const isTrig = tid === 'trig';
+
             return (
               <div key={tid} className="bg-card border border-border rounded-2xl overflow-hidden">
                 <button
-                  onClick={() => setExpandedTopic(isExpanded ? null : tid)}
+                  onClick={() => { if (!isTrig) setExpandedTopic(isExpanded ? null : tid); }}
                   className="w-full flex items-center justify-between px-4 py-3"
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-base">{topicInfo.icon}</span>
                     <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
                     <span className="text-xs text-muted-foreground">
-                      ({range.from}–{range.to})
+                      {isTrig ? '(Standard angles)' : `(${range.from}–${range.to})`}
                     </span>
                   </div>
-                  {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
+                  {!isTrig && (isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />)}
                 </button>
 
                 <AnimatePresence>
