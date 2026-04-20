@@ -15,7 +15,7 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
-import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect, TRIG_FUNCTIONS, TRIG_ANGLES } from '@/lib/trigData';
+import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect } from '@/lib/trigData';
 
 type PracticeMode = 'mcq' | 'input';
 
