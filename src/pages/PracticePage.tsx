@@ -210,6 +210,17 @@ function generateQuestions(config: PracticeConfig): Question[] {
   if (config.mode === 'mcq') {
     const sliced = config.infinite ? allQuestions : allQuestions.slice(0, config.count);
     return sliced.map((q) => {
+      // Trig: build options from the standard trig value pool
+      if (q.answerType === 'trig') {
+        const opts = buildTrigOptions({
+          fn: 'sin',
+          angle: 0,
+          text: q.text,
+          answer: String(q.answer),
+        });
+        return { ...q, options: opts, optionsMixed: opts.map(() => null) };
+      }
+
       const correct = q.answer;
       const opts = new Set<string>();
       opts.add(String(correct));
