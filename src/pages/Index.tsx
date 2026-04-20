@@ -83,9 +83,15 @@ const Index = () => {
     const handlePopstate = () => {
       isHandlingPopstate.current = true;
 
+      // If a practice session is active, let PracticePage handle the back press
+      // (it shows its own exit confirmation dialog and intercepts popstate).
+      if (tab === 'practice' && practiceMode) {
+        return;
+      }
+
       // Determine what to go back to
       if (tab === 'practice') {
-        // If in active practice, exit practice
+        // Practice setup screen — leave to learn (or wherever we came from)
         if (returnToLearn) {
           setReturnToLearn(false);
           setPracticeTopic(undefined);
@@ -167,7 +173,7 @@ const Index = () => {
 
     window.addEventListener('popstate', handlePopstate);
     return () => window.removeEventListener('popstate', handlePopstate);
-  }, [tab, learningState, returnToLearn]);
+  }, [tab, learningState, returnToLearn, practiceMode]);
 
   const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => {
     setPracticeTopic(topic);
