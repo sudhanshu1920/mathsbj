@@ -649,7 +649,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     const renderAnswerHint = () => {
       if (!isPctQuestion) return null;
-      const hints: Record<string, string> = { 'decimal-pct': 'Answer in decimal %', 'mixed-pct': 'Answer in mixed %', 'fraction': 'Answer as fraction' };
+      const hints: Record<string, string> = {
+        'decimal-pct': 'Answer in decimal %',
+        'mixed-pct': 'Answer in mixed %',
+        'fraction': 'Answer as fraction',
+        'trig': 'Use √, /, or ∞',
+      };
       return q.answerType ? <span className="text-xs text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">{hints[q.answerType]}</span> : null;
     };
 
