@@ -816,6 +816,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           </div>
         )}
       </div>
+      </SwipeBack>
     );
   }
 
