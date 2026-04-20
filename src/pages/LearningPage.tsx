@@ -341,6 +341,21 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     );
   }
 
+  // TRIGONOMETRY
+  if (activeTopic === 'trig') {
+    return (
+      <SwipeBack onBack={() => setActiveTopic(null)}>
+        <div>
+          {renderHeader('Trigonometry — Table of Angles', () => setActiveTopic(null))}
+          <p className="text-muted-foreground text-sm mb-4 text-center">
+            Standard angles: 0°, 30°, 45°, 60°, 90°
+          </p>
+          <TrigonometryLearning />
+        </div>
+      </SwipeBack>
+    );
+  }
+
   // TOPIC LIST
   const topicSymbols: Record<Topic, string> = {
     tables: '×',
@@ -351,6 +366,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     powers: '⚡',
     percentage: '%',
     formulas: 'f(x)',
+    trig: '△',
   };
 
   return (
