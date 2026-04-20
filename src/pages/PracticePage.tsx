@@ -141,6 +141,15 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
         questions.push({ text: `${n}`, superscript: `${e}`, answer: Math.pow(n, e), topicLabel: label });
       }
     }
+  } else if (topicId === 'trig') {
+    for (const tq of getAllTrigQuestions()) {
+      questions.push({
+        text: tq.text,
+        answer: tq.answer,
+        answerType: 'trig',
+        topicLabel: label,
+      });
+    }
   } else if (topicId === 'percentage') {
     const pairs: { n: number; d: number }[] = [];
     if (range.pctRangeMode === 'custom' && range.pctNumFrom !== undefined && range.pctDenFrom !== undefined && range.pctNumTo !== undefined && range.pctDenTo !== undefined) {
