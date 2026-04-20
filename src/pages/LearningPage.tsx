@@ -339,18 +339,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     );
   }
 
-  // TRIGONOMETRY
-  if (activeTopic === 'trig') {
-    return (
-      <SwipeBack onBack={() => setActiveTopic(null)}>
-        <div>
-          {renderHeader('Table of Angles', () => setActiveTopic(null))}
-          <TrigonometryLearning />
-        </div>
-      </SwipeBack>
-    );
-  }
-
   // TOPIC LIST
   const topicSymbols: Record<Topic, string> = {
     tables: '×',
@@ -361,7 +349,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     powers: '⚡',
     percentage: '%',
     formulas: 'f(x)',
-    trig: '△',
   };
 
   return (
