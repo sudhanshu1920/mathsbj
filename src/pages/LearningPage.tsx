@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
+import DesktopModeToggle from '@/components/DesktopModeToggle';
 
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
@@ -88,6 +89,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
           </button>
         )}
         <ThemeToggle />
+        <DesktopModeToggle />
       </div>
     </div>
   );
@@ -355,7 +357,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-display font-bold text-2xl text-glow">Learning</h1>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <DesktopModeToggle />
+        </div>
       </div>
       <div className="flex flex-col gap-4">
         {topics.map((t, i) => (
