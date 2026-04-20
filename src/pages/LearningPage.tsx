@@ -28,7 +28,6 @@ const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
   { id: 'powers', title: 'Powers', icon: Zap, gradient: 'bg-gradient-to-br from-violet-500 to-purple-600' },
   { id: 'percentage', title: 'Percentage', icon: Percent, gradient: 'bg-gradient-to-br from-amber-500 to-yellow-600' },
   { id: 'formulas', title: 'Formulas', icon: BookOpen, gradient: 'bg-gradient-to-br from-teal-500 to-emerald-600' },
-  { id: 'trig', title: 'Trigonometry', icon: Triangle, gradient: 'bg-gradient-to-br from-indigo-500 to-purple-600' },
 ];
 
 const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
