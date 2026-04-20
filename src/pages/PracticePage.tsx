@@ -653,7 +653,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         'decimal-pct': 'Answer in decimal %',
         'mixed-pct': 'Answer in mixed %',
         'fraction': 'Answer as fraction',
-        'trig': 'Use √, /, or ∞',
+        'trig': 'Use √, /, or "Not Defined"',
       };
       return q.answerType ? <span className="text-xs text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">{hints[q.answerType]}</span> : null;
     };
@@ -775,7 +775,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           <div className="flex flex-col items-center gap-4 mt-4">
             <input ref={inputRef} type="text" inputMode={isPctQuestion || q.answerType === 'trig' ? 'text' : 'numeric'}
               value={inputValue} onChange={(e) => setInputValue(e.target.value)}
-              placeholder={q.answerType === 'fraction' ? 'e.g. 1/3' : q.answerType === 'mixed-pct' ? 'e.g. 16 2/3' : q.answerType === 'trig' ? 'e.g. 1/2, √3/2, ∞' : 'Your answer'}
+              placeholder={q.answerType === 'fraction' ? 'e.g. 1/3' : q.answerType === 'mixed-pct' ? 'e.g. 16 2/3' : q.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Your answer'}
               autoFocus
               className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all" />
           </div>
