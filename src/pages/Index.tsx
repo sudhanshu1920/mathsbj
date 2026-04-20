@@ -173,7 +173,7 @@ const Index = () => {
 
     window.addEventListener('popstate', handlePopstate);
     return () => window.removeEventListener('popstate', handlePopstate);
-  }, [tab, learningState, returnToLearn]);
+  }, [tab, learningState, returnToLearn, practiceMode]);
 
   const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => {
     setPracticeTopic(topic);
