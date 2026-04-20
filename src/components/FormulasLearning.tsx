@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import ThemeToggle from '@/components/ThemeToggle';
+import DesktopModeToggle from '@/components/DesktopModeToggle';
 import SwipeBack from '@/components/SwipeBack';
 import SwipeContainer from '@/components/SwipeContainer';
 import ShapeDiagram from '@/components/ShapeDiagram';
@@ -184,7 +185,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
               <h2 className="font-display font-bold text-lg text-foreground">
                 {category.title}
               </h2>
-              <ThemeToggle />
+              <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
             </div>
             <TrigonometryLearning />
           </div>
@@ -229,7 +230,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
                   {shapeIndex + 1} / {shapeGroups.length}
                 </span>
               </div>
-              <ThemeToggle />
+              <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
             </div>
 
             <SwipeContainer
@@ -284,7 +285,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
             <h2 className="font-display font-bold text-lg text-foreground">
               {category.title}
             </h2>
-            <ThemeToggle />
+            <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
           </div>
           <SwipeContainer
             items={items}
@@ -311,7 +312,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
             <h2 className="font-display font-bold text-lg text-foreground">
               {section.title}
             </h2>
-            <ThemeToggle />
+            <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
           </div>
           <div className="flex flex-col gap-3">
             {section.categories.map((cat, i) => (

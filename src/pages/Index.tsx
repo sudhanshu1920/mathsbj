@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
+import DesktopModeToggle from '@/components/DesktopModeToggle';
 import Watermark from '@/components/Watermark';
 import LearningPage from '@/pages/LearningPage';
 import PracticePage from '@/pages/PracticePage';
@@ -221,8 +222,9 @@ const Index = () => {
       <Watermark />
       <div className="max-w-lg mx-auto px-4 pt-4 relative z-10">
         {tab !== 'learn' && (
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end gap-2 mb-2">
             <ThemeToggle />
+            <DesktopModeToggle />
           </div>
         )}
         <AnimatePresence mode="wait">

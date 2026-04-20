@@ -150,3 +150,34 @@
     word-wrap: break-word;
   }
 }
+
+/* ===== Desktop Mode ===== */
+/* Activated by toggling .desktop-mode on <html>. Widens the app container
+   and expands key grids to take advantage of larger viewports. */
+html.desktop-mode .max-w-lg {
+  max-width: 64rem; /* ~1024px */
+}
+
+@media (min-width: 768px) {
+  html.desktop-mode .grid.grid-cols-2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  html.desktop-mode .grid.grid-cols-5 {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  html.desktop-mode .grid.grid-cols-2 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  html.desktop-mode .grid.grid-cols-5 {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+}
+
+/* Smooth width transition when toggling */
+html.desktop-mode .max-w-lg,
+.max-w-lg {
+  transition: max-width 0.25s ease;
+}
