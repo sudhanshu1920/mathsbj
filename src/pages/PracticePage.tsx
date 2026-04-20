@@ -539,8 +539,19 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, []);
 
   const handleExitConfirmed = useCallback(() => {
-    resetToPracticeHome();
-  }, [resetToPracticeHome]);
+    // Stop timers + dispose session, then route appropriately
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (elapsedRef.current) clearInterval(elapsedRef.current);
+    timerRef.current = undefined;
+    elapsedRef.current = undefined;
+    setShowExitDialog(false);
+    if (fromLearning) {
+      // Return to the same Learning screen the user came from
+      onExit?.();
+    } else {
+      resetToPracticeHome();
+    }
+  }, [fromLearning, onExit, resetToPracticeHome]);
 
   const handleExitRequest = useCallback(() => {
     if (showExitDialog) return;
@@ -548,23 +559,46 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       setShowExitDialog(true);
       return;
     }
+    if (fromLearning) {
+      onExit?.();
+      return;
+    }
     resetToPracticeHome();
-  }, [config, finished, resetToPracticeHome, showExitDialog]);
+  }, [config, finished, resetToPracticeHome, showExitDialog, fromLearning, onExit]);
 
   const handleBackToPractice = useCallback(() => {
-    resetToPracticeHome();
-  }, [resetToPracticeHome]);
+    // Used from results screen swipe-back
+    if (fromLearning) {
+      onExit?.();
+    } else {
+      resetToPracticeHome();
+    }
+  }, [resetToPracticeHome, fromLearning, onExit]);
 
+  // Intercept system back / swipe-back while a practice session is active.
+  // We push an extra history entry so the first back-press lands here and
+  // shows the exit confirmation dialog instead of leaving the screen.
   useEffect(() => {
     if (!config || finished) return;
-    const handlePopstate = (e: PopStateEvent) => {
-      e.preventDefault();
-      window.history.pushState(null, '');
-      setShowExitDialog((prev) => prev || true);
+
+    let popped = false;
+    const handlePopstate = () => {
+      popped = true;
+      // Re-add the sentinel so subsequent back presses keep being intercepted
+      window.history.pushState({ practiceSentinel: true }, '');
+      setShowExitDialog(true);
     };
-    window.history.pushState(null, '');
+
+    window.history.pushState({ practiceSentinel: true }, '');
     window.addEventListener('popstate', handlePopstate);
-    return () => window.removeEventListener('popstate', handlePopstate);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopstate);
+      // Clean up the sentinel entry we added if user didn't back through it
+      if (!popped) {
+        window.history.back();
+      }
+    };
   }, [config, finished]);
 
   const formatTime = (s: number) => {
