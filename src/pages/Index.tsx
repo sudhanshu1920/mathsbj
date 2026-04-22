@@ -43,7 +43,7 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
   if (!activeTopic) return 'learn-home';
   if (activeTopic === 'percentage') {
     if (expandedDenominator) return `learn-percentage-expanded-${expandedDenominator}`;
-    if (percentageGroup) return `learn-percentage-group`;
+    if (percentageGroup) return `learn-percentage-group-${percentageGroup.from}`;
     return 'learn-percentage';
   }
   if (activeTopic === 'formulas') {
@@ -134,7 +134,7 @@ const Index = () => {
 
       if (activeTopic === 'percentage' && expandedDenominator) {
         setLearningState(prev => ({ ...prev, expandedDenominator: null }));
-        lastDepth.current = 'learn-percentage-group';
+        lastDepth.current = `learn-percentage-group-${percentageGroup?.from}`;
         return;
       }
       if (activeTopic === 'percentage' && percentageGroup) {

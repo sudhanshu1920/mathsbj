@@ -32,11 +32,11 @@ function buildRow(n: number, d: number): FractionRow {
 }
 
 export const PERCENTAGE_GROUPS = [
-  { label: '1/1 – 1/10', from: 1, to: 10 },
-  { label: '1/11 – 1/20', from: 11, to: 20 },
-  { label: '1/21 – 1/30', from: 21, to: 30 },
-  { label: '1/31 – 1/40', from: 31, to: 40 },
-  { label: '1/41 – 1/50', from: 41, to: 50 },
+  ...Array.from({ length: 20 }, (_, i) => ({
+    label: `${i * 10 + 1}–${(i + 1) * 10}`,
+    from: i * 10 + 1,
+    to: (i + 1) * 10,
+  })),
 ];
 
 interface PercentageLearningProps {
@@ -104,8 +104,8 @@ export interface PercentageExpandedProps {
 }
 
 export const PercentageExpanded = ({ denominator, onDenominatorChange }: PercentageExpandedProps) => {
-  // Build items for all denominators 1–50 for swipe navigation
-  const allDenominators = Array.from({ length: 50 }, (_, i) => i + 1);
+  // Build items for all denominators 1–200 for swipe navigation
+  const allDenominators = Array.from({ length: 200 }, (_, i) => i + 1);
 
   const items = allDenominators.map((d) => {
     const rows = Array.from({ length: 10 }, (_, i) => buildRow(i + 1, d));

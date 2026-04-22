@@ -168,7 +168,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       }
     } else {
       const lo = Math.max(1, Math.min(from, to));
-      const hi = Math.min(50, Math.max(from, to));
+      const hi = Math.min(200, Math.max(from, to));
       const dens = rangeArray(from <= to ? lo : hi, from <= to ? hi : lo);
       for (const d of dens) {
         pairs.push({ n: 1, d });
