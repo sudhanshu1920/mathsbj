@@ -294,15 +294,20 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   }
 
   // PERCENTAGE - group swipe view
-  if (activeTopic === 'percentage') {
+  if (activeTopic === 'percentage' && learningState?.percentageGroup) {
     const groupIndex = learningState?.percentageGroup
       ? PERCENTAGE_GROUPS.findIndex(g => g.from === learningState.percentageGroup!.from)
       : 0;
 
     return (
-      <SwipeBack onBack={() => setActiveTopic(null)}>
+      <SwipeBack onBack={() => updateState({ percentageGroup: null })}>
         <div>
-          {renderHeader('Percentage', () => setActiveTopic(null))}
+          {renderHeader(
+            learningState.percentageGroup
+              ? `1/${learningState.percentageGroup.from} – 1/${learningState.percentageGroup.to}`
+              : 'Percentage',
+            () => updateState({ percentageGroup: null })
+          )}
           <PercentageLearning
             groupIndex={groupIndex >= 0 ? groupIndex : 0}
             onGroupIndexChange={(i) => {
@@ -311,6 +316,33 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
             }}
             onExpandFraction={(d) => updateState({ expandedDenominator: d })}
           />
+        </div>
+      </SwipeBack>
+    );
+  }
+
+  // PERCENTAGE - group selection grid (entry)
+  if (activeTopic === 'percentage') {
+    return (
+      <SwipeBack onBack={() => setActiveTopic(null)}>
+        <div>
+          {renderHeader('Percentage', () => setActiveTopic(null))}
+          <p className="text-muted-foreground text-sm mb-4 text-center">Select a range</p>
+          <div className="grid grid-cols-2 gap-3">
+            {PERCENTAGE_GROUPS.map((g, i) => (
+              <motion.button
+                key={g.label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => updateState({ percentageGroup: { from: g.from, to: g.to } })}
+                className="bg-card border border-border rounded-xl py-4 text-center font-display font-semibold text-foreground hover:border-primary transition-colors"
+              >
+                {g.label}
+              </motion.button>
+            ))}
+          </div>
         </div>
       </SwipeBack>
     );
