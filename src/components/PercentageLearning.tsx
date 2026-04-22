@@ -104,8 +104,8 @@ export interface PercentageExpandedProps {
 }
 
 export const PercentageExpanded = ({ denominator, onDenominatorChange }: PercentageExpandedProps) => {
-  // Build items for all denominators 1–50 for swipe navigation
-  const allDenominators = Array.from({ length: 50 }, (_, i) => i + 1);
+  // Build items for all denominators 1–200 for swipe navigation
+  const allDenominators = Array.from({ length: 200 }, (_, i) => i + 1);
 
   const items = allDenominators.map((d) => {
     const rows = Array.from({ length: 10 }, (_, i) => buildRow(i + 1, d));
