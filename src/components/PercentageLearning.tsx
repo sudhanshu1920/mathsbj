@@ -108,7 +108,8 @@ export const PercentageExpanded = ({ denominator, onDenominatorChange }: Percent
   const allDenominators = Array.from({ length: 200 }, (_, i) => i + 1);
 
   const items = allDenominators.map((d) => {
-    const rows = Array.from({ length: 10 }, (_, i) => buildRow(i + 1, d));
+    const count = d <= 10 ? 10 : d;
+    const rows = Array.from({ length: count }, (_, i) => buildRow(i + 1, d));
     return (
       <div key={d}>
         <div className="grid grid-cols-3 gap-2 mb-3 text-xs font-semibold text-muted-foreground">
