@@ -161,10 +161,12 @@ interface FormulasLearningProps {
 
 const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasLearningProps) => {
   const [shapeIndex, setShapeIndex] = useState(0);
+  const [shapeListMode, setShapeListMode] = useState(true);
 
-  // Reset shape index when category changes
+  // Reset shape index + list mode when category changes
   useEffect(() => {
     setShapeIndex(0);
+    setShapeListMode(true);
   }, [categoryIndex]);
 
   // Level 3: Formula detail view
@@ -198,6 +200,58 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
     const hasShapeGroups = shapeGroups.length > 1 || (shapeGroups.length === 1 && shapeGroups[0].diagram);
 
     if (hasShapeGroups) {
+      const isGeometry = section.id === 'geometry';
+
+      // Geometry: show shape list first, then detail on click
+      if (isGeometry && shapeListMode) {
+        return (
+          <SwipeBack onBack={() => onNavigate(sectionIndex, null)}>
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <button onClick={() => onNavigate(sectionIndex, null)} className="p-2 -ml-2 text-primary">
+                  <ArrowLeft size={20} />
+                </button>
+                <h2 className="font-display font-bold text-lg text-foreground">
+                  {category.title}
+                </h2>
+                <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
+              </div>
+              <div className="flex flex-col gap-3">
+                {shapeGroups.map((shape, i) => {
+                  const name = shape.label?.replace(/^[◼▬△●◆▶⬡⬠⬟⬢◗⌔⌓▱⏢⬧] ?/, '') || `Shape ${i + 1}`;
+                  return (
+                    <motion.button
+                      key={i}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04, duration: 0.3 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => {
+                        setShapeIndex(i);
+                        setShapeListMode(false);
+                      }}
+                      className="flex items-center gap-4 w-full bg-card border border-border rounded-2xl px-4 py-3 hover:border-primary transition-colors"
+                    >
+                      <span className="w-14 h-14 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0">
+                        {shape.diagram ? (
+                          <ShapeDiagram type={shape.diagram} className="w-10 h-10" />
+                        ) : (
+                          <span className="font-bold text-lg">{i + 1}</span>
+                        )}
+                      </span>
+                      <span className="font-display font-semibold text-foreground text-base flex-1 text-left">
+                        {name}
+                      </span>
+                      <span className="text-muted-foreground">›</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+          </SwipeBack>
+        );
+      }
+
       // Geometry-style: one shape per swipeable page
       const items = shapeGroups.map((shape, i) => (
         <div key={i} className="space-y-3">
@@ -216,10 +270,10 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
       const displayTitle = currentShape?.label?.replace(/^[◼▬△●◆▶⬡⬠⬟⬢] ?/, '') || category.title;
 
       return (
-        <SwipeBack onBack={() => onNavigate(sectionIndex, null)}>
+        <SwipeBack onBack={() => isGeometry ? setShapeListMode(true) : onNavigate(sectionIndex, null)}>
           <div>
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => onNavigate(sectionIndex, null)} className="p-2 -ml-2 text-primary">
+              <button onClick={() => isGeometry ? setShapeListMode(true) : onNavigate(sectionIndex, null)} className="p-2 -ml-2 text-primary">
                 <ArrowLeft size={20} />
               </button>
               <div className="text-center">
