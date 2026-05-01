@@ -181,3 +181,34 @@ html.desktop-mode .max-w-lg,
 .max-w-lg {
   transition: max-width 0.25s ease;
 }
+
+/* ===== Dynamic font scaling =====
+   --font-scale is set on <html> by DesktopModeToggle. In desktop mode we
+   add an additional auto-bump based on viewport width, and apply a slightly
+   heavier weight for better readability on large screens. */
+html {
+  --font-scale: 1;
+  --desktop-auto-scale: 1;
+  font-size: calc(16px * var(--font-scale) * var(--desktop-auto-scale));
+}
+
+@media (min-width: 768px) {
+  html.desktop-mode { --desktop-auto-scale: 1.1; }
+}
+@media (min-width: 1024px) {
+  html.desktop-mode { --desktop-auto-scale: 1.18; }
+}
+@media (min-width: 1440px) {
+  html.desktop-mode { --desktop-auto-scale: 1.25; }
+}
+
+html.desktop-mode body {
+  font-weight: 500;
+  line-height: 1.6;
+}
+html.desktop-mode h1,
+html.desktop-mode h2,
+html.desktop-mode h3,
+html.desktop-mode h4 {
+  font-weight: 700;
+}
