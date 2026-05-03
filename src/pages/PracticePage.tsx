@@ -5,6 +5,7 @@ import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
 import { saveResult } from '@/lib/progress';
 import { addSeconds as addStreakSeconds } from '@/lib/streak';
+import { recordAnswer } from '@/lib/analytics';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -478,6 +479,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       // Save result for all topics
       const topicId = config.topics.length === 1 ? config.topics[0].id : 'mixed';
       saveResult(topicId, isCorrect);
+      recordAnswer(isCorrect);
 
       const newScore = {
         correct: score.correct + (isCorrect ? 1 : 0),
