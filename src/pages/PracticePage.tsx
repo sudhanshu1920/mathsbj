@@ -428,6 +428,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
   }, [config, finished]);
 
+  // Daily streak time tracking — ticks every second while a session is active
+  useEffect(() => {
+    if (!config || finished) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        addStreakSeconds(1);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [config, finished]);
+
   useEffect(() => {
     if (!config || finished) return;
     if (!config.timerEnabled || config.timerSeconds >= 9999) return;
