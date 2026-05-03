@@ -4,6 +4,7 @@ import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 
 import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
 import { saveResult } from '@/lib/progress';
+import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -425,6 +426,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     }
     elapsedRef.current = setInterval(() => setElapsedTime(prev => prev + 1), 1000);
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
+  }, [config, finished]);
+
+  // Daily streak time tracking — ticks every second while a session is active
+  useEffect(() => {
+    if (!config || finished) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        addStreakSeconds(1);
+      }
+    }, 1000);
+    return () => clearInterval(id);
   }, [config, finished]);
 
   useEffect(() => {
