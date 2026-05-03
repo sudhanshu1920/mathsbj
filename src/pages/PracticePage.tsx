@@ -4,6 +4,7 @@ import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 
 import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
 import { saveResult } from '@/lib/progress';
+import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import {
   AlertDialog,
   AlertDialogContent,
