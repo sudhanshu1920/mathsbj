@@ -14,6 +14,7 @@ import {
   DayStatus,
 } from '@/lib/streak';
 import { Switch } from '@/components/ui/switch';
+import ProgressAnalytics from '@/components/ProgressAnalytics';
 import {
   Dialog,
   DialogContent,
@@ -187,6 +188,9 @@ const ProgressPage = () => {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Day / Week / Month analytics */}
+      <ProgressAnalytics />
 
       {/* Calendar */}
       {streak.enabled && (
