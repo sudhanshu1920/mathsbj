@@ -44,9 +44,11 @@ export const saveResult = (topic: string, isCorrect: boolean) => {
   if (isCorrect) p.byTopic[topic].correct++;
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+  window.dispatchEvent(new CustomEvent('analytics-updated'));
   return p;
 };
 
 export const resetProgress = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultProgress));
+  window.dispatchEvent(new CustomEvent('analytics-updated'));
 };
