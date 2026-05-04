@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
+import UserMenu from '@/components/UserMenu';
 import Watermark from '@/components/Watermark';
 import LearningPage from '@/pages/LearningPage';
 import PracticePage from '@/pages/PracticePage';
@@ -231,6 +232,7 @@ const Index = () => {
           <div className="flex justify-end gap-2 mb-2">
             <ThemeToggle />
             <DesktopModeToggle />
+            <UserMenu />
           </div>
         )}
         <AnimatePresence mode="wait">
