@@ -1,0 +1,127 @@
+import { supabase } from '@/integrations/supabase/client';
+
+const KEYS = {
+  progress: 'math-app-progress',
+  analytics: 'math-app-analytics-v1',
+  streak: 'math-app-streak-v1',
+} as const;
+
+const META_KEY = 'math-app-sync-meta-v1';
+
+type Meta = { lastPushAt?: number; lastPulledAt?: string; userId?: string };
+
+const readJSON = (k: string) => {
+  try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; }
+};
+const writeJSON = (k: string, v: unknown) => {
+  try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* ignore */ }
+};
+
+const getMeta = (): Meta => readJSON(META_KEY) || {};
+const setMeta = (m: Meta) => writeJSON(META_KEY, m);
+
+const dispatchUpdated = () => {
+  window.dispatchEvent(new CustomEvent('analytics-updated'));
+  window.dispatchEvent(new CustomEvent('streak-updated'));
+};
+
+let pushTimer: number | undefined;
+let syncing = false;
+
+const setSyncing = (v: boolean) => {
+  syncing = v;
+  window.dispatchEvent(new CustomEvent('sync-state', { detail: { syncing: v } }));
+};
+export const isSyncing = () => syncing;
+
+export async function pullFromCloud(userId: string): Promise<void> {
+  if (!navigator.onLine) return;
+  setSyncing(true);
+  try {
+    const { data, error } = await supabase
+      .from('user_data')
+      .select('progress, analytics, streak, client_updated_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return;
+
+    const localMeta = getMeta();
+    const remoteTs = data.client_updated_at ? new Date(data.client_updated_at).getTime() : 0;
+    const localTs = localMeta.lastPushAt || 0;
+
+    // If switching users, always overwrite local with remote.
+    const switchedUser = localMeta.userId && localMeta.userId !== userId;
+
+    if (switchedUser || remoteTs >= localTs) {
+      if (data.progress && Object.keys(data.progress as object).length) writeJSON(KEYS.progress, data.progress);
+      if (data.analytics && Object.keys(data.analytics as object).length) writeJSON(KEYS.analytics, data.analytics);
+      if (data.streak && Object.keys(data.streak as object).length) writeJSON(KEYS.streak, data.streak);
+      setMeta({ ...localMeta, userId, lastPulledAt: new Date().toISOString(), lastPushAt: remoteTs });
+      dispatchUpdated();
+    } else {
+      setMeta({ ...localMeta, userId });
+    }
+  } catch (e) {
+    console.warn('[sync] pull failed', e);
+  } finally {
+    setSyncing(false);
+  }
+}
+
+export async function pushToCloud(userId: string): Promise<void> {
+  if (!navigator.onLine) return;
+  setSyncing(true);
+  try {
+    const payload = {
+      user_id: userId,
+      progress: readJSON(KEYS.progress) || {},
+      analytics: readJSON(KEYS.analytics) || {},
+      streak: readJSON(KEYS.streak) || {},
+      client_updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('user_data').upsert(payload, { onConflict: 'user_id' });
+    if (error) throw error;
+    setMeta({ ...getMeta(), userId, lastPushAt: Date.now() });
+  } catch (e) {
+    console.warn('[sync] push failed', e);
+  } finally {
+    setSyncing(false);
+  }
+}
+
+export function schedulePush(userId: string, delayMs = 1500) {
+  if (pushTimer) window.clearTimeout(pushTimer);
+  pushTimer = window.setTimeout(() => { void pushToCloud(userId); }, delayMs);
+}
+
+export function clearLocalUserData() {
+  localStorage.removeItem(KEYS.progress);
+  localStorage.removeItem(KEYS.analytics);
+  localStorage.removeItem(KEYS.streak);
+  localStorage.removeItem(META_KEY);
+  dispatchUpdated();
+}
+
+/** Initialize sync listeners for a signed-in user. Returns a cleanup fn. */
+export function startSync(userId: string): () => void {
+  void pullFromCloud(userId).then(() => { void pushToCloud(userId); });
+
+  const onLocalChange = () => schedulePush(userId);
+  const onOnline = () => { void pushToCloud(userId); };
+
+  window.addEventListener('analytics-updated', onLocalChange);
+  window.addEventListener('streak-updated', onLocalChange);
+  window.addEventListener('online', onOnline);
+
+  // Periodic safety push
+  const interval = window.setInterval(() => { if (navigator.onLine) void pushToCloud(userId); }, 60_000);
+
+  return () => {
+    window.removeEventListener('analytics-updated', onLocalChange);
+    window.removeEventListener('streak-updated', onLocalChange);
+    window.removeEventListener('online', onOnline);
+    window.clearInterval(interval);
+    if (pushTimer) window.clearTimeout(pushTimer);
+  };
+}
