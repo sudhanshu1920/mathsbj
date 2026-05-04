@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
+import UserMenu from '@/components/UserMenu';
 
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
@@ -90,6 +91,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         )}
         <ThemeToggle />
         <DesktopModeToggle />
+        <UserMenu />
       </div>
     </div>
   );
@@ -392,6 +394,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <DesktopModeToggle />
+          <UserMenu />
         </div>
       </div>
       <div className="flex flex-col gap-4">
