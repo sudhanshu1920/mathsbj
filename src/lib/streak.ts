@@ -43,8 +43,8 @@ const addDays = (dateStr: string, n: number): string => {
 };
 
 const defaults = (): StreakState => ({
-  enabled: false,
-  targetMinutes: 15,
+  enabled: true,
+  targetMinutes: 5,
   current: 0,
   best: 0,
   freezeUsedMonth: monthKey(today()),
@@ -57,7 +57,10 @@ export const getStreak = (): StreakState => {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaults();
-    return { ...defaults(), ...JSON.parse(raw) };
+    const merged = { ...defaults(), ...JSON.parse(raw) } as StreakState;
+    // Daily target is mandatory always-on now
+    merged.enabled = true;
+    return merged;
   } catch {
     return defaults();
   }
