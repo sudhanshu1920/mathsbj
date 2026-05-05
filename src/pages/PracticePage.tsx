@@ -477,10 +477,34 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       }
 
       setFeedback(isCorrect ? 'correct' : 'wrong');
+      markInteraction();
+      // Sound + vibration micro-feedback
+      try {
+        const settings = getSettings();
+        if (settings.vibration && 'vibrate' in navigator) {
+          navigator.vibrate(isCorrect ? 20 : [10, 40, 10]);
+        }
+        if (settings.sound) {
+          const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+          if (AC) {
+            const ctx = new AC();
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.frequency.value = isCorrect ? 880 : 220;
+            g.gain.value = 0.05;
+            o.start();
+            setTimeout(() => { o.stop(); ctx.close(); }, 90);
+          }
+        }
+      } catch {}
       // Save result for all topics
       const topicId = config.topics.length === 1 ? config.topics[0].id : 'mixed';
       saveResult(topicId, isCorrect);
-      recordAnswer(isCorrect);
+      // Streak bonus: +1 every 5 in a row correct
+      const newStreakCount = isCorrect ? score.correct + 1 : 0;
+      const bonus = isCorrect && newStreakCount > 0 && newStreakCount % 5 === 0 ? 1 : 0;
+      recordAnswer(isCorrect, bonus);
 
       const newScore = {
         correct: score.correct + (isCorrect ? 1 : 0),
