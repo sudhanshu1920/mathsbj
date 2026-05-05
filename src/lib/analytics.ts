@@ -12,8 +12,9 @@ export interface AnalyticsState {
   days: Record<string, DayAnalytics>;
 }
 
-const POINTS_CORRECT = 10;
-const POINTS_WRONG = 2;
+// Unified points: +1 per correct answer, small streak bonus
+const POINTS_CORRECT = 1;
+const POINTS_WRONG = 0;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 export const todayStr = (d = new Date()) =>
@@ -44,13 +45,13 @@ const save = (s: AnalyticsState) => {
   window.dispatchEvent(new CustomEvent('analytics-updated'));
 };
 
-export const recordAnswer = (isCorrect: boolean) => {
+export const recordAnswer = (isCorrect: boolean, streakBonus = 0) => {
   const s = getAnalytics();
   const now = new Date();
   const ds = todayStr(now);
   const day = s.days[ds] || emptyDay(ds);
   if (day.hours.length !== 24) day.hours = Array(24).fill(0);
-  const pts = isCorrect ? POINTS_CORRECT : POINTS_WRONG;
+  const pts = isCorrect ? POINTS_CORRECT + streakBonus : POINTS_WRONG;
   day.hours[now.getHours()] += pts;
   day.points += pts;
   day.questions += 1;

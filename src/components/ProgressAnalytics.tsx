@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Heart, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { getAnalytics, getDay, todayStr, AnalyticsState, DayAnalytics } from '@/lib/analytics';
 import { getStreak } from '@/lib/streak';
 
@@ -160,14 +160,7 @@ const ProgressAnalytics = () => {
           <ChevronRight size={20} />
         </button>
       </div>
-      <div className="flex items-center justify-center gap-1.5 mb-4 text-sm text-muted-foreground">
-        <Heart size={14} className="text-success" fill="currentColor" />
-        <span>
-          {tab === 'day' && `${dayData.points} pts`}
-          {tab === 'week' && `${weekTotal} pts`}
-          {tab === 'month' && `${monthTotal} pts`}
-        </span>
-      </div>
+      <div className="h-4 mb-3" />
 
       {/* Chart */}
       <AnimatePresence mode="wait">
@@ -186,7 +179,7 @@ const ProgressAnalytics = () => {
                   return (
                     <button
                       key={h}
-                      onClick={() => setTooltip(v > 0 ? `${h}:00 • ${v} pts` : null)}
+                      onClick={() => setTooltip(v > 0 ? `${h}:00 • ${v}` : null)}
                       className="flex-1 h-full flex items-end"
                     >
                       <motion.div
@@ -221,7 +214,7 @@ const ProgressAnalytics = () => {
                   return (
                     <button
                       key={i}
-                      onClick={() => setTooltip(`${date.toLocaleDateString(undefined, { weekday: 'short' })} • ${day.points} pts • ${day.questions} Q`)}
+                      onClick={() => setTooltip(`${date.toLocaleDateString(undefined, { weekday: 'short' })} • ${day.questions} Q`)}
                       className="flex-1 h-full flex items-end justify-center"
                     >
                       <motion.div
@@ -263,7 +256,7 @@ const ProgressAnalytics = () => {
                   return (
                     <button
                       key={i}
-                      onClick={() => setTooltip(active ? `${d.getDate()} • ${data.points} pts • ${data.questions} Q` : null)}
+                      onClick={() => setTooltip(active ? `${d.getDate()} • ${data.questions} Q` : null)}
                       className="aspect-square flex items-center justify-center relative"
                     >
                       {active ? (

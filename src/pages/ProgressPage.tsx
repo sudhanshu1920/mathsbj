@@ -1,17 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Target, XCircle, Flame, RotateCcw, Snowflake } from 'lucide-react';
-import { getProgress, resetProgress, ProgressData } from '@/lib/progress';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon } from 'lucide-react';
+import { getProgress, ProgressData } from '@/lib/progress';
 import {
-  evaluateStreak,
   getStreak,
-  setEnabled,
   setTarget,
-  dayStatus,
-  todayStr,
-  getMaxFreezePerMonth,
   StreakState,
-  DayStatus,
 } from '@/lib/streak';
 import { Switch } from '@/components/ui/switch';
 import ProgressAnalytics from '@/components/ProgressAnalytics';
@@ -21,65 +15,44 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { getSettings, setSound, setVibration, AppSettings } from '@/lib/settings';
 
 const ProgressPage = () => {
   const [data, setData] = useState<ProgressData>(getProgress());
-  const [streak, setStreak] = useState<StreakState>(() => evaluateStreak());
-  const [customMin, setCustomMin] = useState<string>('');
-  const [longPressDay, setLongPressDay] = useState<string | null>(null);
-  const [tappedDay, setTappedDay] = useState<{ date: string; secs: number } | null>(null);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout>>();
+  const [streak, setStreak] = useState<StreakState>(() => getStreak());
+  const [settings, setSettingsState] = useState<AppSettings>(() => getSettings());
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    setData(getProgress());
-    const refresh = () => setStreak(getStreak());
-    window.addEventListener('streak-updated', refresh);
-    return () => window.removeEventListener('streak-updated', refresh);
+    const refreshAll = () => {
+      setData(getProgress());
+      setStreak(getStreak());
+      setSettingsState(getSettings());
+    };
+    refreshAll();
+    window.addEventListener('streak-updated', refreshAll);
+    window.addEventListener('analytics-updated', refreshAll);
+    window.addEventListener('settings-updated', refreshAll);
+    return () => {
+      window.removeEventListener('streak-updated', refreshAll);
+      window.removeEventListener('analytics-updated', refreshAll);
+      window.removeEventListener('settings-updated', refreshAll);
+    };
   }, []);
 
   const presetMinutes = [5, 10, 15, 30, 60];
 
-  const handleToggle = (val: boolean) => {
-    setStreak(setEnabled(val));
-  };
   const handleSetTarget = (mins: number) => {
     setStreak(setTarget(mins));
   };
 
-  // Build last 35 days (5 weeks) calendar grid
-  const calendarDays = useMemo(() => {
-    const today = new Date();
-    const days: { date: string; status: DayStatus; dayNum: number }[] = [];
-    // start from Sunday of the week 4 weeks ago
-    const start = new Date(today);
-    start.setDate(today.getDate() - 27);
-    for (let i = 0; i < 28; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      days.push({ date: ds, status: dayStatus(streak, ds), dayNum: d.getDate() });
-    }
-    return days;
-  }, [streak]);
-
-  const todaySecs = streak.days[todayStr()]?.seconds || 0;
+  const todayKey = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+  const todaySecs = streak.days[todayKey]?.seconds || 0;
   const targetSecs = streak.targetMinutes * 60;
   const todayPct = Math.min(100, Math.round((todaySecs / targetSecs) * 100));
-
-  const startLongPress = (date: string) => {
-    longPressTimer.current = setTimeout(() => {
-      setLongPressDay(date);
-    }, 500);
-  };
-  const cancelLongPress = (date: string) => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    // tap fallback
-    if (longPressDay === null) {
-      const secs = streak.days[date]?.seconds || 0;
-      setTappedDay({ date, secs });
-      setTimeout(() => setTappedDay(null), 1800);
-    }
-  };
 
   const accuracy = data.totalAttempts > 0 ? Math.round((data.correct / data.totalAttempts) * 100) : 0;
 
@@ -101,17 +74,33 @@ const ProgressPage = () => {
 
   return (
     <div>
-      {/* Minimal streak hero */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-display font-bold text-2xl text-glow">Progress</h1>
-        <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border"
-        >
-          <Flame size={18} className={streak.current > 0 ? 'text-warning' : 'text-muted-foreground'} />
-          <span className="font-display font-bold text-lg text-foreground">{streak.current}</span>
-        </motion.div>
+        <div className="flex items-center gap-2">
+          <motion.div
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border"
+          >
+            <motion.span
+              animate={streak.current > 0 ? { scale: [1, 1.15, 1] } : {}}
+              transition={{ repeat: Infinity, duration: 1.6 }}
+              className="inline-flex"
+            >
+              <Flame size={18} className={streak.current > 0 ? 'text-warning' : 'text-muted-foreground'} />
+            </motion.span>
+            <span className="font-display font-bold text-lg text-foreground">{streak.current}</span>
+          </motion.div>
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setShowSettings(true)}
+            aria-label="Settings"
+            className="p-2 rounded-full bg-card border border-border text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <SettingsIcon size={18} />
+          </motion.button>
+        </div>
       </div>
 
       {/* Daily Target Card */}
@@ -121,159 +110,51 @@ const ProgressPage = () => {
         className="bg-card border border-border rounded-2xl p-4 mb-6"
       >
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">Daily Target</span>
-          </div>
-          <Switch checked={streak.enabled} onCheckedChange={handleToggle} />
+          <span className="font-semibold text-foreground">Daily Target</span>
+          <span className="text-sm text-muted-foreground">
+            {Math.floor(todaySecs / 60)}m / {streak.targetMinutes}m
+          </span>
         </div>
-
-        <AnimatePresence initial={false}>
-          {streak.enabled && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
+        <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-3">
+          <motion.div
+            className="h-full gradient-primary rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${todayPct}%` }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+          />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {presetMinutes.map((m) => (
+            <motion.button
+              key={m}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleSetTarget(m)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                streak.targetMinutes === m
+                  ? 'gradient-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground'
+              }`}
             >
-              <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-                <span>⏱ {streak.targetMinutes} min</span>
-                <span>{Math.floor(todaySecs / 60)}m / {streak.targetMinutes}m</span>
-              </div>
-              <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-3">
-                <motion.div
-                  className="h-full gradient-primary rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${todayPct}%` }}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {presetMinutes.map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => handleSetTarget(m)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                      streak.targetMinutes === m
-                        ? 'gradient-primary text-primary-foreground'
-                        : 'bg-secondary text-secondary-foreground'
-                    }`}
-                  >
-                    {m}m
-                  </button>
-                ))}
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="Custom"
-                    value={customMin}
-                    onChange={(e) => setCustomMin(e.target.value)}
-                    className="w-16 bg-secondary border border-border rounded-full px-3 py-1.5 text-center text-xs font-bold text-foreground focus:border-primary outline-none"
-                  />
-                  <button
-                    onClick={() => {
-                      const n = Number(customMin);
-                      if (n > 0) {
-                        handleSetTarget(n);
-                        setCustomMin('');
-                      }
-                    }}
-                    className="px-2 py-1.5 rounded-full text-xs font-bold bg-primary/10 text-primary"
-                  >
-                    Set
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {m}m
+            </motion.button>
+          ))}
+        </div>
       </motion.div>
 
       {/* Day / Week / Month analytics */}
       <ProgressAnalytics />
 
-      {/* Calendar */}
-      {streak.enabled && (
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display font-semibold text-base text-foreground">Last 4 weeks</h3>
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Snowflake size={12} className="text-primary" />
-              {streak.freezesUsed}/{getMaxFreezePerMonth()}
-            </span>
-          </div>
-          <div className="grid grid-cols-7 gap-1.5">
-            {calendarDays.map((d) => {
-              const base = 'aspect-square rounded-lg flex items-center justify-center text-[10px] font-bold transition-all';
-              const styles: Record<DayStatus, string> = {
-                completed: 'bg-success/20 text-success border border-success/40',
-                freeze: 'bg-primary/15 text-primary border border-primary/30',
-                partial: 'bg-warning/15 text-warning border border-warning/30',
-                missed: 'bg-secondary text-muted-foreground/50',
-                upcoming: 'bg-muted/30 text-muted-foreground/30',
-                today: 'bg-card border-2 border-primary text-foreground',
-              };
-              return (
-                <button
-                  key={d.date}
-                  onTouchStart={() => startLongPress(d.date)}
-                  onTouchEnd={() => cancelLongPress(d.date)}
-                  onMouseDown={() => startLongPress(d.date)}
-                  onMouseUp={() => cancelLongPress(d.date)}
-                  onMouseLeave={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
-                  className={`${base} ${styles[d.status]}`}
-                >
-                  {d.status === 'completed' ? '🟢' : d.status === 'freeze' ? '❄️' : d.dayNum}
-                </button>
-              );
-            })}
-          </div>
-
-          <AnimatePresence>
-            {tappedDay && (
-              <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="text-center text-xs text-muted-foreground mt-2"
-              >
-                {tappedDay.date} • {Math.floor(tappedDay.secs / 60)}m {tappedDay.secs % 60}s
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <Dialog open={!!longPressDay} onOpenChange={(o) => { if (!o) setLongPressDay(null); }}>
-            <DialogContent className="rounded-2xl max-w-[320px]">
-              <DialogHeader>
-                <DialogTitle>{longPressDay}</DialogTitle>
-              </DialogHeader>
-              {longPressDay && (() => {
-                const r = streak.days[longPressDay];
-                const status = dayStatus(streak, longPressDay);
-                const secs = r?.seconds || 0;
-                return (
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Status</span><span className="font-semibold capitalize">{status}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Time spent</span><span className="font-semibold">{Math.floor(secs / 60)}m {secs % 60}s</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Target</span><span className="font-semibold">{streak.targetMinutes}m</span></div>
-                  </div>
-                );
-              })()}
-            </DialogContent>
-          </Dialog>
-        </div>
-      )}
-
       {/* Accuracy ring */}
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 120, damping: 14 }}
         className="flex justify-center mb-8"
       >
         <div className="relative w-36 h-36">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
             <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" className="stroke-secondary" />
-            <circle
+            <motion.circle
               cx="50"
               cy="50"
               r="42"
@@ -281,8 +162,10 @@ const ProgressPage = () => {
               strokeWidth="8"
               strokeLinecap="round"
               className="stroke-primary"
-              strokeDasharray={`${accuracy * 2.64} 264`}
-              style={{ transition: 'stroke-dasharray 1s ease' }}
+              strokeDasharray="264"
+              initial={{ strokeDashoffset: 264 }}
+              animate={{ strokeDashoffset: 264 - accuracy * 2.64 }}
+              transition={{ duration: 1, ease: 'easeOut' }}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -299,6 +182,8 @@ const ProgressPage = () => {
             key={s.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             transition={{ delay: i * 0.1 }}
             className="bg-card border border-border rounded-2xl p-4 text-center"
           >
@@ -332,17 +217,43 @@ const ProgressPage = () => {
         </div>
       )}
 
-      {/* Reset */}
-      <button
-        onClick={() => {
-          resetProgress();
-          setData(getProgress());
-        }}
-        className="flex items-center gap-2 mx-auto text-muted-foreground hover:text-destructive transition-colors text-sm"
-      >
-        <RotateCcw size={14} />
-        Reset Progress
-      </button>
+      {/* Settings dialog */}
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="rounded-2xl max-w-[340px]">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground">Sound</span>
+              <Switch checked={settings.sound} onCheckedChange={(v) => setSettingsState(setSound(v))} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground">Vibration</span>
+              <Switch checked={settings.vibration} onCheckedChange={(v) => setSettingsState(setVibration(v))} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Daily Target</p>
+              <div className="flex flex-wrap gap-1.5">
+                {presetMinutes.map((m) => (
+                  <motion.button
+                    key={m}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleSetTarget(m)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                      streak.targetMinutes === m
+                        ? 'gradient-primary text-primary-foreground'
+                        : 'bg-secondary text-secondary-foreground'
+                    }`}
+                  >
+                    {m}m
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
