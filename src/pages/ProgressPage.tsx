@@ -139,10 +139,22 @@ const ProgressPage = () => {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-card border border-border rounded-2xl p-4 mb-6"
+        className="bg-card border border-border rounded-2xl p-4 mb-6 relative overflow-hidden"
       >
         <div className="flex items-center justify-between mb-3">
-          <span className="font-semibold text-foreground">Daily Target</span>
+          <span className="font-semibold text-foreground flex items-center gap-1.5">
+            Daily Target
+            {todayPct >= 100 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 14 }}
+                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-success text-background"
+              >
+                <Check size={12} strokeWidth={3} />
+              </motion.span>
+            )}
+          </span>
           <span className="text-sm text-muted-foreground">
             {Math.floor(todaySecs / 60)}m / {streak.targetMinutes}m
           </span>
@@ -171,6 +183,18 @@ const ProgressPage = () => {
             </motion.button>
           ))}
         </div>
+        <AnimatePresence>
+          {celebrate && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 pointer-events-none"
+            >
+              <Particles count={20} emoji="🎉" spread={140} duration={1.2} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Day / Week / Month analytics */}
