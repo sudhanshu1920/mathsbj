@@ -483,7 +483,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       try {
         const settings = getSettings();
         if (settings.vibration && 'vibrate' in navigator) {
-          navigator.vibrate(isCorrect ? 20 : [10, 40, 10]);
+          // light=correct, medium=wrong, pulse=streak milestone
+          const willMilestone = isCorrect && (score.correct + 1) % 5 === 0;
+          if (willMilestone) navigator.vibrate([15, 40, 15, 40, 25]);
+          else navigator.vibrate(isCorrect ? 18 : [12, 50, 12]);
         }
         if (settings.sound) {
           const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
