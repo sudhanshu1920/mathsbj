@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { saveResult } from '@/lib/progress';
 import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
+import { getSettings, isActive, markInteraction } from '@/lib/settings';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -433,7 +434,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   useEffect(() => {
     if (!config || finished) return;
     const id = setInterval(() => {
-      if (document.visibilityState === 'visible') {
+      if (isActive()) {
         addStreakSeconds(1);
       }
     }, 1000);
