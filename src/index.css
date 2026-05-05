@@ -212,3 +212,40 @@ html.desktop-mode h3,
 html.desktop-mode h4 {
   font-weight: 700;
 }
+
+/* ===== Game-like feedback animations ===== */
+@keyframes shake-x {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+@keyframes flash-success {
+  0% { box-shadow: 0 0 0 0 hsl(var(--success) / 0.0); }
+  40% { box-shadow: 0 0 32px 6px hsl(var(--success) / 0.55); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--success) / 0); }
+}
+@keyframes flash-destructive {
+  0% { box-shadow: 0 0 0 0 hsl(var(--destructive) / 0); }
+  40% { box-shadow: 0 0 28px 4px hsl(var(--destructive) / 0.5); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--destructive) / 0); }
+}
+@keyframes pulse-card {
+  0% { transform: scale(1); }
+  35% { transform: scale(0.96); }
+  70% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes ring-burst {
+  0% { transform: scale(0.3); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.anim-shake { animation: shake-x 0.35s ease-in-out; }
+.anim-flash-success { animation: flash-success 0.4s ease-out; }
+.anim-flash-destructive { animation: flash-destructive 0.35s ease-out; }
+.anim-pulse-card { animation: pulse-card 0.45s ease-out; }
+
+/* Idle dim */
+html.app-idle main { opacity: 0.85; transition: opacity 0.4s ease; }
+main { transition: opacity 0.4s ease; }
