@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon } from 'lucide-react';
+import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon, Check } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import Particles from '@/components/Particles';
+import { useRef } from 'react';
 import { getProgress, ProgressData } from '@/lib/progress';
 import {
   getStreak,
@@ -22,6 +25,8 @@ const ProgressPage = () => {
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
   const [settings, setSettingsState] = useState<AppSettings>(() => getSettings());
   const [showSettings, setShowSettings] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const completedRef = useRef(false);
 
   useEffect(() => {
     const refreshAll = () => {
@@ -53,6 +58,33 @@ const ProgressPage = () => {
   const todaySecs = streak.days[todayKey]?.seconds || 0;
   const targetSecs = streak.targetMinutes * 60;
   const todayPct = Math.min(100, Math.round((todaySecs / targetSecs) * 100));
+
+  useEffect(() => {
+    const reached = todaySecs >= targetSecs && targetSecs > 0;
+    if (reached && !completedRef.current) {
+      completedRef.current = true;
+      setCelebrate(true);
+      try {
+        if (settings.vibration && 'vibrate' in navigator) navigator.vibrate([20, 30, 20, 30, 40]);
+        if (settings.sound) {
+          const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+          if (AC) {
+            const ctx = new AC();
+            [660, 880, 1175].forEach((f, i) => {
+              const o = ctx.createOscillator(); const g = ctx.createGain();
+              o.connect(g); g.connect(ctx.destination);
+              o.frequency.value = f; g.gain.value = 0.04;
+              o.start(ctx.currentTime + i * 0.08);
+              o.stop(ctx.currentTime + i * 0.08 + 0.1);
+            });
+            setTimeout(() => ctx.close(), 600);
+          }
+        }
+      } catch {}
+      setTimeout(() => setCelebrate(false), 1500);
+    }
+    if (!reached) completedRef.current = false;
+  }, [todaySecs, targetSecs, settings.sound, settings.vibration]);
 
   const accuracy = data.totalAttempts > 0 ? Math.round((data.correct / data.totalAttempts) * 100) : 0;
 
