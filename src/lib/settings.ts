@@ -39,9 +39,18 @@ export const isActive = (): boolean =>
 
 if (typeof window !== 'undefined') {
   ['pointerdown', 'keydown', 'touchstart', 'mousemove', 'wheel'].forEach((ev) =>
-    window.addEventListener(ev, markInteraction, { passive: true })
+    window.addEventListener(ev, () => {
+      markInteraction();
+      document.documentElement.classList.remove('app-idle');
+    }, { passive: true })
   );
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') markInteraction();
   });
+  // Idle dim: add class after IDLE_MS of inactivity
+  setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    const idle = (Date.now() - lastInteraction) >= IDLE_MS;
+    document.documentElement.classList.toggle('app-idle', idle);
+  }, 5000);
 }

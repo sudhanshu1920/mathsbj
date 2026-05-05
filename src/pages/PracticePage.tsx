@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
+import Particles from '@/components/Particles';
 import { saveResult } from '@/lib/progress';
 import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
@@ -482,7 +483,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       try {
         const settings = getSettings();
         if (settings.vibration && 'vibrate' in navigator) {
-          navigator.vibrate(isCorrect ? 20 : [10, 40, 10]);
+          // light=correct, medium=wrong, pulse=streak milestone
+          const willMilestone = isCorrect && (score.correct + 1) % 5 === 0;
+          if (willMilestone) navigator.vibrate([15, 40, 15, 40, 25]);
+          else navigator.vibrate(isCorrect ? 18 : [12, 50, 12]);
         }
         if (settings.sound) {
           const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -804,7 +808,19 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         )}
 
         <AnimatePresence mode="wait">
-          <motion.div key={currentQ} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -30 }} className="text-center mb-4">
+          <motion.div
+            key={currentQ}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -30 }}
+            className={`text-center mb-4 rounded-2xl py-4 ${
+              feedback === 'correct'
+                ? 'anim-pulse-card anim-flash-success'
+                : feedback === 'wrong'
+                ? 'anim-shake anim-flash-destructive'
+                : ''
+            }`}
+          >
             {renderQuestionText()}
             <div className="mt-2">{renderAnswerHint()}</div>
           </motion.div>
@@ -814,7 +830,22 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           {feedback && (
             <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none">
               {feedback === 'correct' ? (
-                <CheckCircle2 size={80} className="text-success" />
+                <div className="relative">
+                  <motion.div
+                    initial={{ scale: 0.4, opacity: 0 }}
+                    animate={{ scale: [0.4, 1.25, 1], opacity: 1 }}
+                    transition={{ duration: 0.4, times: [0, 0.6, 1] }}
+                  >
+                    <CheckCircle2 size={80} className="text-success drop-shadow-[0_0_18px_hsl(var(--success)/0.6)]" />
+                  </motion.div>
+                  <Particles count={14} color="bg-success" spread={90} />
+                  {(score.correct + 1) % 5 === 0 && (
+                    <span
+                      className="absolute inset-0 rounded-full border-2 border-warning"
+                      style={{ animation: 'ring-burst 0.6s ease-out forwards' }}
+                    />
+                  )}
+                </div>
               ) : (
                 <div className="text-center">
                   <XCircle size={80} className="text-destructive mx-auto" />
