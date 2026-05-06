@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
 import Particles from '@/components/Particles';
@@ -8,6 +8,8 @@ import { saveResult } from '@/lib/progress';
 import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
 import { getSettings, isActive, markInteraction } from '@/lib/settings';
+import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
+import XPBar from '@/components/XPBar';
 import {
   AlertDialog,
   AlertDialogContent,
