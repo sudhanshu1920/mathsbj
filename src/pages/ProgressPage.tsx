@@ -12,6 +12,7 @@ import {
 } from '@/lib/streak';
 import { Switch } from '@/components/ui/switch';
 import ProgressAnalytics from '@/components/ProgressAnalytics';
+import XPBar from '@/components/XPBar';
 import {
   Dialog,
   DialogContent,
@@ -107,7 +108,7 @@ const ProgressPage = () => {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-3">
         <h1 className="font-display font-bold text-2xl text-glow">Progress</h1>
         <div className="flex items-center gap-2">
           <motion.div
@@ -133,6 +134,10 @@ const ProgressPage = () => {
             <SettingsIcon size={18} />
           </motion.button>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <XPBar />
       </div>
 
       {/* Daily Target Card */}

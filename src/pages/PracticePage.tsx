@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
 import Particles from '@/components/Particles';
@@ -8,6 +8,8 @@ import { saveResult } from '@/lib/progress';
 import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
 import { getSettings, isActive, markInteraction } from '@/lib/settings';
+import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
+import XPBar from '@/components/XPBar';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -338,6 +340,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [timeLeft, setTimeLeft] = useState(0);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [xpPop, setXpPop] = useState<{ id: number; amount: number; bonus: number } | null>(null);
+  const [levelUp, setLevelUp] = useState<number | null>(null);
+  const [sessionXP, setSessionXP] = useState(0);
+  const xpPopId = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const elapsedRef = useRef<ReturnType<typeof setInterval>>();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -419,6 +425,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setInputValue('');
     setSelectedOption(null);
     setElapsedTime(0);
+    setSessionXP(0);
     setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
   };
 
@@ -510,6 +517,37 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       const bonus = isCorrect && newStreakCount > 0 && newStreakCount % 5 === 0 ? 1 : 0;
       recordAnswer(isCorrect, bonus);
 
+      // XP system
+      if (isCorrect) {
+        const gain = awardCorrectXP(newStreakCount);
+        xpPopId.current += 1;
+        setXpPop({ id: xpPopId.current, amount: gain.total, bonus: gain.bonus });
+        setSessionXP((p) => p + gain.total);
+        if (gain.leveledUp) {
+          setLevelUp(gain.newLevel);
+          try {
+            const settings = getSettings();
+            if (settings.sound) {
+              const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+              if (AC) {
+                const ctx = new AC();
+                [523, 659, 784, 1047].forEach((f, i) => {
+                  const o = ctx.createOscillator(); const g = ctx.createGain();
+                  o.connect(g); g.connect(ctx.destination);
+                  o.frequency.value = f; g.gain.value = 0.05;
+                  o.start(ctx.currentTime + i * 0.07);
+                  o.stop(ctx.currentTime + i * 0.07 + 0.12);
+                });
+                setTimeout(() => ctx.close(), 700);
+              }
+            }
+            if (settings.vibration && 'vibrate' in navigator) navigator.vibrate([20, 30, 20, 30, 60]);
+          } catch {}
+          setTimeout(() => { setLevelUp(null); acknowledgeLevel(); }, 1400);
+        }
+        setTimeout(() => setXpPop((p) => (p && p.id === xpPopId.current ? null : p)), 700);
+      }
+
       const newScore = {
         correct: score.correct + (isCorrect ? 1 : 0),
         wrong: score.wrong + (isCorrect ? 0 : 1),
@@ -531,7 +569,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           setCurrentQ(currentQ + 1);
           if (config.timerEnabled) setTimeLeft(config.timerSeconds);
         }
-      }, 600);
+      }, isCorrect ? 350 : 700);
     },
     [config, currentQ, questions, score, finished, feedback]
   );
@@ -663,6 +701,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
             </h2>
             <p className="text-muted-foreground mb-2">Score: {accuracy}%</p>
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 16, delay: 0.15 }}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-base mb-3 shadow-lg shadow-primary/30"
+            >
+              <Zap size={16} className="text-warning" />
+              +{sessionXP} XP
+            </motion.div>
             {config.topics.length > 1 && (
               <p className="text-xs text-muted-foreground mb-4">
                 Topics: {config.topics.map(t => t.label).join(', ')}
@@ -769,6 +816,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         <div className="flex items-center justify-between mb-4">
           <button onClick={handleExitRequest} className="text-primary flex items-center gap-1"><ArrowLeft size={18} /></button>
+          <div className="flex-1 px-3 max-w-[180px]">
+            <XPBar />
+          </div>
           {!isTimerHidden && (
             <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
               <Timer size={14} />{timeLeft}s
@@ -856,6 +906,50 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           )}
         </AnimatePresence>
 
+        {/* Floating XP popup */}
+        <AnimatePresence>
+          {xpPop && (
+            <motion.div
+              key={xpPop.id}
+              initial={{ opacity: 0, y: 0, scale: 0.7 }}
+              animate={{ opacity: 1, y: -50, scale: 1 }}
+              exit={{ opacity: 0, y: -80 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+            >
+              <div className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-sm shadow-lg shadow-primary/40">
+                <Zap size={14} className="text-warning" />
+                +{xpPop.amount} XP
+                {xpPop.bonus > 0 && <span className="text-warning">🔥</span>}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Level up overlay */}
+        <AnimatePresence>
+          {levelUp !== null && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none bg-background/40 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.4, rotate: -8 }}
+                animate={{ scale: [0.4, 1.2, 1], rotate: 0 }}
+                transition={{ duration: 0.6, times: [0, 0.6, 1] }}
+                className="text-center"
+              >
+                <div className="text-7xl mb-2">🎉</div>
+                <div className="font-display font-bold text-3xl text-glow text-foreground">LEVEL {levelUp}</div>
+                <div className="text-sm text-muted-foreground mt-1">Level Up!</div>
+                <Particles count={24} emoji="✨" spread={160} duration={1.2} />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {config.mode === 'mcq' && q.options && (
           <div className="grid grid-cols-2 gap-3 mt-4">
             {q.options.map((opt, i) => {
@@ -898,7 +992,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   return (
     <div className="pb-4">
-      <h1 className="font-display font-bold text-2xl mb-6 text-glow">⚡ Quiz Arena</h1>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <h1 className="font-display font-bold text-2xl text-glow">⚡ Quiz Arena</h1>
+        <div className="flex-1 max-w-[180px]">
+          <XPBar />
+        </div>
+      </div>
 
       {/* Topic Chips - Multi Select */}
       <div className="mb-5">

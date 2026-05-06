@@ -4,6 +4,7 @@ const KEYS = {
   progress: 'math-app-progress',
   analytics: 'math-app-analytics-v1',
   streak: 'math-app-streak-v1',
+  xp: 'math-app-xp-v1',
 } as const;
 
 const META_KEY = 'math-app-sync-meta-v1';
@@ -23,6 +24,7 @@ const setMeta = (m: Meta) => writeJSON(META_KEY, m);
 const dispatchUpdated = () => {
   window.dispatchEvent(new CustomEvent('analytics-updated'));
   window.dispatchEvent(new CustomEvent('streak-updated'));
+  window.dispatchEvent(new CustomEvent('xp-updated'));
 };
 
 let pushTimer: number | undefined;
@@ -57,6 +59,8 @@ export async function pullFromCloud(userId: string): Promise<void> {
       if (data.progress && Object.keys(data.progress as object).length) writeJSON(KEYS.progress, data.progress);
       if (data.analytics && Object.keys(data.analytics as object).length) writeJSON(KEYS.analytics, data.analytics);
       if (data.streak && Object.keys(data.streak as object).length) writeJSON(KEYS.streak, data.streak);
+      const anyXP = (data as any).xp;
+      if (anyXP && Object.keys(anyXP as object).length) writeJSON(KEYS.xp, anyXP);
       setMeta({ ...localMeta, userId, lastPulledAt: new Date().toISOString(), lastPushAt: remoteTs });
       dispatchUpdated();
     } else {
@@ -78,9 +82,11 @@ export async function pushToCloud(userId: string): Promise<void> {
       progress: readJSON(KEYS.progress) || {},
       analytics: readJSON(KEYS.analytics) || {},
       streak: readJSON(KEYS.streak) || {},
+      xp: readJSON(KEYS.xp) || {},
       client_updated_at: new Date().toISOString(),
     };
-    const { error } = await supabase.from('user_data').upsert(payload, { onConflict: 'user_id' });
+    // xp column may not exist in remote schema — server-ignore unknown gracefully
+    const { error } = await supabase.from('user_data').upsert(payload as any, { onConflict: 'user_id' });
     if (error) throw error;
     setMeta({ ...getMeta(), userId, lastPushAt: Date.now() });
   } catch (e) {
@@ -112,6 +118,7 @@ export function startSync(userId: string): () => void {
 
   window.addEventListener('analytics-updated', onLocalChange);
   window.addEventListener('streak-updated', onLocalChange);
+  window.addEventListener('xp-updated', onLocalChange);
   window.addEventListener('online', onOnline);
 
   // Periodic safety push
@@ -120,6 +127,7 @@ export function startSync(userId: string): () => void {
   return () => {
     window.removeEventListener('analytics-updated', onLocalChange);
     window.removeEventListener('streak-updated', onLocalChange);
+    window.removeEventListener('xp-updated', onLocalChange);
     window.removeEventListener('online', onOnline);
     window.clearInterval(interval);
     if (pushTimer) window.clearTimeout(pushTimer);
