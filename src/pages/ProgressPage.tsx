@@ -1,16 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon, Check } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
-import Particles from '@/components/Particles';
-import { useRef } from 'react';
+import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon } from 'lucide-react';
 import { getProgress, ProgressData } from '@/lib/progress';
-import {
-  getStreak,
-  setTarget,
-  StreakState,
-} from '@/lib/streak';
-import { Switch } from '@/components/ui/switch';
+import { getStreak, StreakState } from '@/lib/streak';
 import ProgressAnalytics from '@/components/ProgressAnalytics';
 import XPBar from '@/components/XPBar';
 import {
@@ -19,73 +11,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getSettings, setSound, setVibration, AppSettings } from '@/lib/settings';
+import SettingsPanel from '@/components/SettingsPanel';
 
 const ProgressPage = () => {
   const [data, setData] = useState<ProgressData>(getProgress());
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
-  const [settings, setSettingsState] = useState<AppSettings>(() => getSettings());
   const [showSettings, setShowSettings] = useState(false);
-  const [celebrate, setCelebrate] = useState(false);
-  const completedRef = useRef(false);
 
   useEffect(() => {
     const refreshAll = () => {
       setData(getProgress());
       setStreak(getStreak());
-      setSettingsState(getSettings());
     };
     refreshAll();
     window.addEventListener('streak-updated', refreshAll);
     window.addEventListener('analytics-updated', refreshAll);
-    window.addEventListener('settings-updated', refreshAll);
     return () => {
       window.removeEventListener('streak-updated', refreshAll);
       window.removeEventListener('analytics-updated', refreshAll);
-      window.removeEventListener('settings-updated', refreshAll);
     };
   }, []);
-
-  const presetMinutes = [5, 10, 15, 30, 60];
-
-  const handleSetTarget = (mins: number) => {
-    setStreak(setTarget(mins));
-  };
-
-  const todayKey = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  })();
-  const todaySecs = streak.days[todayKey]?.seconds || 0;
-  const targetSecs = streak.targetMinutes * 60;
-  const todayPct = Math.min(100, Math.round((todaySecs / targetSecs) * 100));
-
-  useEffect(() => {
-    const reached = todaySecs >= targetSecs && targetSecs > 0;
-    if (reached && !completedRef.current) {
-      completedRef.current = true;
-      setCelebrate(true);
-      try {
-        if (settings.vibration && 'vibrate' in navigator) navigator.vibrate([20, 30, 20, 30, 40]);
-        if (settings.sound) {
-          const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
-          if (AC) {
-            const ctx = new AC();
-            [660, 880, 1175].forEach((f, i) => {
-              const o = ctx.createOscillator(); const g = ctx.createGain();
-              o.connect(g); g.connect(ctx.destination);
-              o.frequency.value = f; g.gain.value = 0.04;
-              o.start(ctx.currentTime + i * 0.08);
-              o.stop(ctx.currentTime + i * 0.08 + 0.1);
-            });
-            setTimeout(() => ctx.close(), 600);
-          }
-        }
-      } catch {}
-      setTimeout(() => setCelebrate(false), 1500);
-    }
-    if (!reached) completedRef.current = false;
-  }, [todaySecs, targetSecs, settings.sound, settings.vibration]);
 
   const accuracy = data.totalAttempts > 0 ? Math.round((data.correct / data.totalAttempts) * 100) : 0;
 
@@ -139,68 +84,6 @@ const ProgressPage = () => {
       <div className="mb-6">
         <XPBar />
       </div>
-
-      {/* Daily Target Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-card border border-border rounded-2xl p-4 mb-6 relative overflow-hidden"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <span className="font-semibold text-foreground flex items-center gap-1.5">
-            Daily Target
-            {todayPct >= 100 && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 14 }}
-                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-success text-background"
-              >
-                <Check size={12} strokeWidth={3} />
-              </motion.span>
-            )}
-          </span>
-          <span className="text-sm text-muted-foreground">
-            {Math.floor(todaySecs / 60)}m / {streak.targetMinutes}m
-          </span>
-        </div>
-        <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-3">
-          <motion.div
-            className="h-full gradient-primary rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${todayPct}%` }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-          />
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {presetMinutes.map((m) => (
-            <motion.button
-              key={m}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleSetTarget(m)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                streak.targetMinutes === m
-                  ? 'gradient-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground'
-              }`}
-            >
-              {m}m
-            </motion.button>
-          ))}
-        </div>
-        <AnimatePresence>
-          {celebrate && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 pointer-events-none"
-            >
-              <Particles count={20} emoji="🎉" spread={140} duration={1.2} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
 
       {/* Day / Week / Month analytics */}
       <ProgressAnalytics />
@@ -284,35 +167,7 @@ const ProgressPage = () => {
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">Sound</span>
-              <Switch checked={settings.sound} onCheckedChange={(v) => setSettingsState(setSound(v))} />
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">Vibration</span>
-              <Switch checked={settings.vibration} onCheckedChange={(v) => setSettingsState(setVibration(v))} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground mb-2">Daily Target</p>
-              <div className="flex flex-wrap gap-1.5">
-                {presetMinutes.map((m) => (
-                  <motion.button
-                    key={m}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleSetTarget(m)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                      streak.targetMinutes === m
-                        ? 'gradient-primary text-primary-foreground'
-                        : 'bg-secondary text-secondary-foreground'
-                    }`}
-                  >
-                    {m}m
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <SettingsPanel />
         </DialogContent>
       </Dialog>
     </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
 import Particles from '@/components/Particles';
@@ -69,7 +69,7 @@ interface Question {
 }
 
 const TOPICS = [
-  { id: 'tables', label: 'Tables', icon: '✖️', defaultRange: { from: 1, to: 20 } },
+  { id: 'tables', label: 'Tables', icon: '×', defaultRange: { from: 1, to: 20 } },
   { id: 'squares', label: 'Squares', icon: '²', defaultRange: { from: 1, to: 50 } },
   { id: 'roots', label: 'Square Roots', icon: '√', defaultRange: { from: 1, to: 30 } },
   { id: 'cubes', label: 'Cubes', icon: '³', defaultRange: { from: 1, to: 30 } },
@@ -696,7 +696,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       <SwipeBack onBack={handleBackToPractice}>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
-            <div className="text-6xl mb-4">{accuracy >= 80 ? '🏆' : accuracy >= 50 ? '👍' : '💪'}</div>
+            <div className="mb-4 flex justify-center">
+              {accuracy >= 80 ? (
+                <Trophy size={64} className="text-warning drop-shadow-[0_0_18px_hsl(var(--warning)/0.5)]" />
+              ) : accuracy >= 50 ? (
+                <ThumbsUp size={64} className="text-primary drop-shadow-[0_0_18px_hsl(var(--primary)/0.5)]" />
+              ) : (
+                <Dumbbell size={64} className="text-muted-foreground" />
+              )}
+            </div>
             <h2 className="font-display font-bold text-3xl text-foreground mb-2">
               {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
             </h2>
@@ -920,7 +928,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               <div className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-sm shadow-lg shadow-primary/40">
                 <Zap size={14} className="text-warning" />
                 +{xpPop.amount} XP
-                {xpPop.bonus > 0 && <span className="text-warning">🔥</span>}
+                {xpPop.bonus > 0 && <Flame size={12} className="text-warning" />}
               </div>
             </motion.div>
           )}
@@ -941,10 +949,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 transition={{ duration: 0.6, times: [0, 0.6, 1] }}
                 className="text-center"
               >
-                <div className="text-7xl mb-2">🎉</div>
+                <div className="mb-2 flex justify-center">
+                  <Sparkles size={64} className="text-warning drop-shadow-[0_0_22px_hsl(var(--warning)/0.6)]" />
+                </div>
                 <div className="font-display font-bold text-3xl text-glow text-foreground">LEVEL {levelUp}</div>
                 <div className="text-sm text-muted-foreground mt-1">Level Up!</div>
-                <Particles count={24} emoji="✨" spread={160} duration={1.2} />
+                <Particles count={24} color="bg-warning" spread={160} duration={1.2} />
               </motion.div>
             </motion.div>
           )}
@@ -993,7 +1003,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   return (
     <div className="pb-4">
       <div className="flex items-center justify-between gap-3 mb-6">
-        <h1 className="font-display font-bold text-2xl text-glow">⚡ Quiz Arena</h1>
+        <h1 className="font-display font-bold text-2xl text-glow flex items-center gap-2">
+          <Zap size={20} className="text-primary" /> Quiz Arena
+        </h1>
         <div className="flex-1 max-w-[180px]">
           <XPBar />
         </div>
@@ -1219,9 +1231,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         <label className="text-sm text-muted-foreground mb-2 block font-semibold">Order</label>
         <div className="flex gap-2">
           <button onClick={() => setSequential(false)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${!sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>🔀 Random</button>
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${!sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
+            <Shuffle size={14} /> Random
+          </button>
           <button onClick={() => setSequential(true)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>📋 Sequential</button>
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
+            <ListOrdered size={14} /> Sequential
+          </button>
         </div>
       </div>
 
@@ -1242,13 +1258,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           };
           startPractice(cfg);
         }}
-        className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-2 transition-all ${
+        className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-2 transition-all flex items-center justify-center gap-2 ${
           canStart
             ? 'gradient-primary text-primary-foreground shadow-primary/30'
             : 'bg-muted text-muted-foreground cursor-not-allowed'
         }`}
       >
-        🎮 Start Quiz
+        <Play size={18} fill="currentColor" /> Start Quiz
       </motion.button>
 
       {selectedTopics.size > 1 && (
