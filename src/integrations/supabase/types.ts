@@ -46,6 +46,7 @@ export type Database = {
           streak: Json
           updated_at: string
           user_id: string
+          xp: Json
         }
         Insert: {
           analytics?: Json
@@ -54,6 +55,7 @@ export type Database = {
           streak?: Json
           updated_at?: string
           user_id: string
+          xp?: Json
         }
         Update: {
           analytics?: Json
@@ -62,6 +64,7 @@ export type Database = {
           streak?: Json
           updated_at?: string
           user_id?: string
+          xp?: Json
         }
         Relationships: []
       }
