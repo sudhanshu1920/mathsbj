@@ -568,7 +568,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           setCurrentQ(currentQ + 1);
           if (config.timerEnabled) setTimeLeft(config.timerSeconds);
         }
-      }, 600);
+      }, isCorrect ? 350 : 700);
     },
     [config, currentQ, questions, score, finished, feedback]
   );
