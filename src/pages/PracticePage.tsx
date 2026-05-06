@@ -807,6 +807,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         <div className="flex items-center justify-between mb-4">
           <button onClick={handleExitRequest} className="text-primary flex items-center gap-1"><ArrowLeft size={18} /></button>
+          <div className="flex-1 px-3 max-w-[180px]">
+            <XPBar />
+          </div>
           {!isTimerHidden && (
             <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
               <Timer size={14} />{timeLeft}s
@@ -890,6 +893,50 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   <p className="text-foreground mt-2 text-lg font-semibold flex items-center justify-center gap-2">Answer: {renderCorrectAnswer()}</p>
                 </div>
               )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Floating XP popup */}
+        <AnimatePresence>
+          {xpPop && (
+            <motion.div
+              key={xpPop.id}
+              initial={{ opacity: 0, y: 0, scale: 0.7 }}
+              animate={{ opacity: 1, y: -50, scale: 1 }}
+              exit={{ opacity: 0, y: -80 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+            >
+              <div className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-sm shadow-lg shadow-primary/40">
+                <Zap size={14} className="text-warning" />
+                +{xpPop.amount} XP
+                {xpPop.bonus > 0 && <span className="text-warning">🔥</span>}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Level up overlay */}
+        <AnimatePresence>
+          {levelUp !== null && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none bg-background/40 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.4, rotate: -8 }}
+                animate={{ scale: [0.4, 1.2, 1], rotate: 0 }}
+                transition={{ duration: 0.6, times: [0, 0.6, 1] }}
+                className="text-center"
+              >
+                <div className="text-7xl mb-2">🎉</div>
+                <div className="font-display font-bold text-3xl text-glow text-foreground">LEVEL {levelUp}</div>
+                <div className="text-sm text-muted-foreground mt-1">Level Up!</div>
+                <Particles count={24} emoji="✨" spread={160} duration={1.2} />
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
