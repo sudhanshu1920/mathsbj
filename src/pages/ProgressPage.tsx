@@ -85,68 +85,6 @@ const ProgressPage = () => {
         <XPBar />
       </div>
 
-      {/* Daily Target Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-card border border-border rounded-2xl p-4 mb-6 relative overflow-hidden"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <span className="font-semibold text-foreground flex items-center gap-1.5">
-            Daily Target
-            {todayPct >= 100 && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 14 }}
-                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-success text-background"
-              >
-                <Check size={12} strokeWidth={3} />
-              </motion.span>
-            )}
-          </span>
-          <span className="text-sm text-muted-foreground">
-            {Math.floor(todaySecs / 60)}m / {streak.targetMinutes}m
-          </span>
-        </div>
-        <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-3">
-          <motion.div
-            className="h-full gradient-primary rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${todayPct}%` }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-          />
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {presetMinutes.map((m) => (
-            <motion.button
-              key={m}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleSetTarget(m)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                streak.targetMinutes === m
-                  ? 'gradient-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground'
-              }`}
-            >
-              {m}m
-            </motion.button>
-          ))}
-        </div>
-        <AnimatePresence>
-          {celebrate && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 pointer-events-none"
-            >
-              <Particles count={20} emoji="🎉" spread={140} duration={1.2} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
       {/* Day / Week / Month analytics */}
       <ProgressAnalytics />
 
