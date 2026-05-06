@@ -69,7 +69,7 @@ interface Question {
 }
 
 const TOPICS = [
-  { id: 'tables', label: 'Tables', icon: '✖️', defaultRange: { from: 1, to: 20 } },
+  { id: 'tables', label: 'Tables', icon: '×', defaultRange: { from: 1, to: 20 } },
   { id: 'squares', label: 'Squares', icon: '²', defaultRange: { from: 1, to: 50 } },
   { id: 'roots', label: 'Square Roots', icon: '√', defaultRange: { from: 1, to: 30 } },
   { id: 'cubes', label: 'Cubes', icon: '³', defaultRange: { from: 1, to: 30 } },
