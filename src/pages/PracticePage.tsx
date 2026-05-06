@@ -701,6 +701,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
             </h2>
             <p className="text-muted-foreground mb-2">Score: {accuracy}%</p>
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 16, delay: 0.15 }}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-base mb-3 shadow-lg shadow-primary/30"
+            >
+              <Zap size={16} className="text-warning" />
+              +{sessionXP} XP
+            </motion.div>
             {config.topics.length > 1 && (
               <p className="text-xs text-muted-foreground mb-4">
                 Topics: {config.topics.map(t => t.label).join(', ')}
