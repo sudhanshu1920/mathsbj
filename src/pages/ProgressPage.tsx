@@ -136,6 +136,10 @@ const ProgressPage = () => {
         </div>
       </div>
 
+      <div className="mb-6">
+        <XPBar />
+      </div>
+
       {/* Daily Target Card */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
