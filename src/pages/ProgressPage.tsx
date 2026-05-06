@@ -167,35 +167,7 @@ const ProgressPage = () => {
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">Sound</span>
-              <Switch checked={settings.sound} onCheckedChange={(v) => setSettingsState(setSound(v))} />
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">Vibration</span>
-              <Switch checked={settings.vibration} onCheckedChange={(v) => setSettingsState(setVibration(v))} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground mb-2">Daily Target</p>
-              <div className="flex flex-wrap gap-1.5">
-                {presetMinutes.map((m) => (
-                  <motion.button
-                    key={m}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleSetTarget(m)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                      streak.targetMinutes === m
-                        ? 'gradient-primary text-primary-foreground'
-                        : 'bg-secondary text-secondary-foreground'
-                    }`}
-                  >
-                    {m}m
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <SettingsPanel />
         </DialogContent>
       </Dialog>
     </div>
