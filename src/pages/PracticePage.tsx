@@ -992,7 +992,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   return (
     <div className="pb-4">
-      <h1 className="font-display font-bold text-2xl mb-6 text-glow">⚡ Quiz Arena</h1>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <h1 className="font-display font-bold text-2xl text-glow">⚡ Quiz Arena</h1>
+        <div className="flex-1 max-w-[180px]">
+          <XPBar />
+        </div>
+      </div>
 
       {/* Topic Chips - Multi Select */}
       <div className="mb-5">
