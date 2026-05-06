@@ -425,6 +425,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setInputValue('');
     setSelectedOption(null);
     setElapsedTime(0);
+    setSessionXP(0);
     setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
   };
 
