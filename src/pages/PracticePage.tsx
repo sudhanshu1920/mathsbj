@@ -516,6 +516,37 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       const bonus = isCorrect && newStreakCount > 0 && newStreakCount % 5 === 0 ? 1 : 0;
       recordAnswer(isCorrect, bonus);
 
+      // XP system
+      if (isCorrect) {
+        const gain = awardCorrectXP(newStreakCount);
+        xpPopId.current += 1;
+        setXpPop({ id: xpPopId.current, amount: gain.total, bonus: gain.bonus });
+        setSessionXP((p) => p + gain.total);
+        if (gain.leveledUp) {
+          setLevelUp(gain.newLevel);
+          try {
+            const settings = getSettings();
+            if (settings.sound) {
+              const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+              if (AC) {
+                const ctx = new AC();
+                [523, 659, 784, 1047].forEach((f, i) => {
+                  const o = ctx.createOscillator(); const g = ctx.createGain();
+                  o.connect(g); g.connect(ctx.destination);
+                  o.frequency.value = f; g.gain.value = 0.05;
+                  o.start(ctx.currentTime + i * 0.07);
+                  o.stop(ctx.currentTime + i * 0.07 + 0.12);
+                });
+                setTimeout(() => ctx.close(), 700);
+              }
+            }
+            if (settings.vibration && 'vibrate' in navigator) navigator.vibrate([20, 30, 20, 30, 60]);
+          } catch {}
+          setTimeout(() => { setLevelUp(null); acknowledgeLevel(); }, 1400);
+        }
+        setTimeout(() => setXpPop((p) => (p && p.id === xpPopId.current ? null : p)), 700);
+      }
+
       const newScore = {
         correct: score.correct + (isCorrect ? 1 : 0),
         wrong: score.wrong + (isCorrect ? 0 : 1),
