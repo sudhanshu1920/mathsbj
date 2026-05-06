@@ -380,7 +380,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     'square-roots': '√',
     cubes: 'x³',
     'cube-roots': '∛',
-    powers: '⚡',
+    powers: 'xⁿ',
     percentage: '%',
     formulas: 'f(x)',
   };
