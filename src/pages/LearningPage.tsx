@@ -392,7 +392,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <DesktopModeToggle />
-          <UserMenu />
         </div>
       </div>
       <div className="flex flex-col gap-4">
