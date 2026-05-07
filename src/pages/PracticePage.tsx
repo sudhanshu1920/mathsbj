@@ -9,6 +9,7 @@ import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
 import { getSettings, isActive, markInteraction } from '@/lib/settings';
 import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
+import { playClick, playSuccess, playWrong, playLevelUp, playStreak } from '@/lib/sound';
 import XPBar from '@/components/XPBar';
 import {
   AlertDialog,
@@ -495,18 +496,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           if (willMilestone) navigator.vibrate([15, 40, 15, 40, 25]);
           else navigator.vibrate(isCorrect ? 18 : [12, 50, 12]);
         }
-        if (settings.sound) {
-          const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
-          if (AC) {
-            const ctx = new AC();
-            const o = ctx.createOscillator();
-            const g = ctx.createGain();
-            o.connect(g); g.connect(ctx.destination);
-            o.frequency.value = isCorrect ? 880 : 220;
-            g.gain.value = 0.05;
-            o.start();
-            setTimeout(() => { o.stop(); ctx.close(); }, 90);
-          }
+        if (isCorrect) {
+          const willMilestone = (score.correct + 1) % 5 === 0;
+          if (willMilestone) playStreak(); else playSuccess();
+        } else {
+          playWrong();
         }
       } catch {}
       // Save result for all topics
@@ -526,21 +520,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         if (gain.leveledUp) {
           setLevelUp(gain.newLevel);
           try {
+            playLevelUp();
             const settings = getSettings();
-            if (settings.sound) {
-              const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
-              if (AC) {
-                const ctx = new AC();
-                [523, 659, 784, 1047].forEach((f, i) => {
-                  const o = ctx.createOscillator(); const g = ctx.createGain();
-                  o.connect(g); g.connect(ctx.destination);
-                  o.frequency.value = f; g.gain.value = 0.05;
-                  o.start(ctx.currentTime + i * 0.07);
-                  o.stop(ctx.currentTime + i * 0.07 + 0.12);
-                });
-                setTimeout(() => ctx.close(), 700);
-              }
-            }
             if (settings.vibration && 'vibrate' in navigator) navigator.vibrate([20, 30, 20, 30, 60]);
           } catch {}
           setTimeout(() => { setLevelUp(null); acknowledgeLevel(); }, 1400);
