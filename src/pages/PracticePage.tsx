@@ -808,6 +808,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           <div className="flex-1 px-3 max-w-[180px]">
             <XPBar />
           </div>
+          {score.correct >= 2 && (
+            <motion.div
+              key={`combo-${score.correct}`}
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-warning/20 to-accent/20 border border-warning/40 text-warning text-xs font-bold mr-1 shadow-[0_0_12px_hsl(var(--warning)/0.35)]"
+              aria-label="Combo"
+            >
+              <Flame size={12} /> x{score.correct}
+            </motion.div>
+          )}
           {!isTimerHidden && (
             <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
               <Timer size={14} />{timeLeft}s
@@ -900,16 +911,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           {xpPop && (
             <motion.div
               key={xpPop.id}
-              initial={{ opacity: 0, y: 0, scale: 0.7 }}
-              animate={{ opacity: 1, y: -50, scale: 1 }}
-              exit={{ opacity: 0, y: -80 }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
+              initial={{ opacity: 0, y: 10, scale: 0.6 }}
+              animate={{ opacity: 1, y: -70, scale: 1.1 }}
+              exit={{ opacity: 0, y: -110, scale: 0.9 }}
+              transition={{ duration: 0.7, ease: 'easeOut' }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
             >
-              <div className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-sm shadow-lg shadow-primary/40">
-                <Zap size={14} className="text-warning" />
+              <div className="flex items-center gap-1.5 px-4 py-2 rounded-full gradient-primary text-primary-foreground font-display font-extrabold text-base shadow-[0_0_24px_hsl(var(--primary)/0.7)]">
+                <Zap size={16} className="text-warning drop-shadow-[0_0_6px_hsl(var(--warning)/0.8)]" />
                 +{xpPop.amount} XP
-                {xpPop.bonus > 0 && <Flame size={12} className="text-warning" />}
+                {xpPop.bonus > 0 && <Flame size={14} className="text-warning" />}
               </div>
             </motion.div>
           )}
@@ -944,16 +955,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         {config.mode === 'mcq' && q.options && (
           <div className="grid grid-cols-2 gap-3 mt-4">
             {q.options.map((opt, i) => {
-              let optStyle = 'bg-card border border-border text-foreground hover:border-primary';
+              let optStyle = 'glass text-foreground hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
               if (feedback && selectedOption === i) {
                 optStyle = feedback === 'correct'
-                  ? 'bg-success/20 border-2 border-success text-success'
-                  : 'bg-destructive/20 border-2 border-destructive text-destructive';
+                  ? 'bg-success/20 border-2 border-success text-success shadow-[0_0_28px_hsl(var(--success)/0.55)]'
+                  : 'bg-destructive/20 border-2 border-destructive text-destructive shadow-[0_0_24px_hsl(var(--destructive)/0.5)]';
               }
               return (
-                <motion.button key={`${currentQ}-${i}`} whileTap={{ scale: 0.95 }}
+                <motion.button key={`${currentQ}-${i}`} whileTap={{ scale: 0.94 }} whileHover={{ y: -1 }}
                   onClick={() => { if (feedback) return; setSelectedOption(i); handleAnswer(opt); }}
-                  className={`rounded-2xl py-4 px-2 flex items-center justify-center font-display font-bold text-base transition-colors min-h-[60px] ${optStyle}`}>
+                  className={`rounded-2xl py-4 px-2 flex items-center justify-center font-display font-bold text-base transition-all min-h-[60px] ${optStyle}`}>
                   {renderOption(opt, i)}
                 </motion.button>
               );
