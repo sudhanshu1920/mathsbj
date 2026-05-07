@@ -388,28 +388,32 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display font-bold text-2xl text-glow">Learning</h1>
+        <div>
+          <h1 className="font-display font-bold text-2xl text-glow">Learning</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Master every concept · Level up</p>
+        </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <DesktopModeToggle />
         </div>
       </div>
-      <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3">
         {topics.map((t, i) => (
           <motion.button
             key={t.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.05, duration: 0.3 }}
-            whileTap={{ scale: 0.97 }}
+            initial={{ opacity: 0, y: 14, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: i * 0.04, duration: 0.28, ease: 'easeOut' }}
+            whileTap={{ scale: 0.96 }}
+            whileHover={{ y: -2 }}
             onClick={() => setActiveTopic(t.id)}
-            className="flex items-center gap-4 w-full bg-card border border-border rounded-2xl px-5 py-4 hover:border-primary transition-colors"
+            className="group relative overflow-hidden flex flex-col items-start gap-3 w-full glass rounded-2xl p-4 transition-all hover:border-primary/60 hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.4)]"
           >
-            <span className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-lg shrink-0">
+            <span className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 blur-2xl opacity-60 group-hover:opacity-100 transition-opacity" />
+            <span className="relative w-11 h-11 rounded-xl gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg shadow-[0_0_18px_hsl(var(--primary)/0.45)]">
               {topicSymbols[t.id]}
             </span>
-            <span className="font-display font-semibold text-foreground text-base flex-1 text-left">{t.title}</span>
-            <span className="text-muted-foreground">›</span>
+            <span className="relative font-display font-semibold text-foreground text-sm text-left leading-tight">{t.title}</span>
           </motion.button>
         ))}
       </div>

@@ -1,6 +1,7 @@
 import { BookOpen, Target, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRef, useCallback, useState } from 'react';
+import { playClick } from '@/lib/sound';
 
 interface BottomNavProps {
   active: 'learn' | 'practice' | 'progress';
@@ -24,6 +25,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
   const handleTap = useCallback((tabId: 'learn' | 'practice' | 'progress') => {
     const now = Date.now();
     const lastTap = lastTapTime.current[tabId] || 0;
+    playClick();
 
     if (tapTimers.current[tabId]) {
       clearTimeout(tapTimers.current[tabId]);
@@ -51,7 +53,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
   }, [onChange, onDoubleTap]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/60 safe-bottom shadow-[0_-8px_32px_-8px_hsl(var(--primary)/0.25)]">
       <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
@@ -65,7 +67,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
               {isActive && (
                 <motion.div
                   layoutId="nav-indicator"
-                  className="absolute -top-0.5 w-12 h-1 rounded-full gradient-primary"
+                  className="absolute -top-0.5 w-12 h-1 rounded-full gradient-primary shadow-[0_0_12px_hsl(var(--primary)/0.7)]"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
