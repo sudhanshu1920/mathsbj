@@ -59,7 +59,7 @@ const ProgressPage = () => {
           <motion.div
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full glass ${streak.current > 0 ? 'shadow-[0_0_18px_hsl(var(--warning)/0.45)] border-warning/40' : ''}`}
           >
             <motion.span
               animate={streak.current > 0 ? { scale: [1, 1.15, 1] } : {}}
@@ -72,9 +72,10 @@ const ProgressPage = () => {
           </motion.div>
           <motion.button
             whileTap={{ scale: 0.92 }}
+            whileHover={{ rotate: 35 }}
             onClick={() => setShowSettings(true)}
             aria-label="Settings"
-            className="p-2 rounded-full bg-card border border-border text-muted-foreground hover:text-foreground transition-colors"
+            className="p-2 rounded-full glass text-muted-foreground hover:text-primary transition-colors"
           >
             <SettingsIcon size={18} />
           </motion.button>
@@ -95,9 +96,16 @@ const ProgressPage = () => {
         transition={{ type: 'spring', stiffness: 120, damping: 14 }}
         className="flex justify-center mb-8"
       >
-        <div className="relative w-36 h-36">
-          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-            <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" className="stroke-secondary" />
+        <div className="relative w-40 h-40">
+          <div className="absolute inset-2 rounded-full bg-primary/10 blur-2xl" />
+          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 relative">
+            <defs>
+              <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="hsl(var(--primary))" />
+                <stop offset="100%" stopColor="hsl(var(--accent))" />
+              </linearGradient>
+            </defs>
+            <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" className="stroke-secondary/60" />
             <motion.circle
               cx="50"
               cy="50"
@@ -105,15 +113,16 @@ const ProgressPage = () => {
               fill="none"
               strokeWidth="8"
               strokeLinecap="round"
-              className="stroke-primary"
+              stroke="url(#ringGrad)"
+              style={{ filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.7))' }}
               strokeDasharray="264"
               initial={{ strokeDashoffset: 264 }}
               animate={{ strokeDashoffset: 264 - accuracy * 2.64 }}
-              transition={{ duration: 1, ease: 'easeOut' }}
+              transition={{ duration: 1.1, ease: 'easeOut' }}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="font-display font-bold text-3xl text-foreground">{accuracy}%</span>
+            <span className="font-display font-bold text-4xl text-foreground text-glow">{accuracy}%</span>
             <span className="text-xs text-muted-foreground">Accuracy</span>
           </div>
         </div>
@@ -129,7 +138,7 @@ const ProgressPage = () => {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-card border border-border rounded-2xl p-4 text-center"
+            className="glass rounded-2xl p-4 text-center hover:shadow-[0_0_20px_-6px_hsl(var(--primary)/0.4)] transition-shadow"
           >
             <s.icon size={20} className={`mx-auto mb-2 ${s.color}`} />
             <p className="font-display font-bold text-2xl text-foreground">{s.value}</p>
@@ -146,7 +155,12 @@ const ProgressPage = () => {
             {Object.entries(data.byTopic).map(([key, val]) => {
               const topicAcc = val.attempts > 0 ? Math.round((val.correct / val.attempts) * 100) : 0;
               return (
-                <div key={key} className="bg-card border border-border rounded-xl p-3 flex items-center justify-between">
+                <motion.div
+                  key={key}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="glass rounded-xl p-3 flex items-center justify-between"
+                >
                   <span className="font-medium text-foreground">{topicNames[key] || key}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-muted-foreground">{val.attempts} Q</span>
@@ -154,7 +168,7 @@ const ProgressPage = () => {
                       {topicAcc}%
                     </span>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
