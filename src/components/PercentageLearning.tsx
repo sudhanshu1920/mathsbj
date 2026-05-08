@@ -54,7 +54,7 @@ const PercentageLearning = ({ groupIndex, onGroupIndexChange, onExpandFraction }
 
     return (
       <div key={group.label}>
-        <div className="grid grid-cols-3 gap-2 mb-3 text-xs font-semibold text-muted-foreground">
+        <div className="grid grid-cols-3 gap-2 mb-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
           <div className="text-center">Fraction</div>
           <div className="text-center">Mixed %</div>
           <div className="text-center">Decimal %</div>
@@ -68,10 +68,16 @@ const PercentageLearning = ({ groupIndex, onGroupIndexChange, onExpandFraction }
               transition={{ delay: i * 0.03 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onExpandFraction(row.denominator)}
-              className="w-full bg-card border border-border rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center"
+              className="w-full glass rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center min-h-[58px] hover:border-primary/60 transition-colors"
             >
-              <span className="text-foreground font-medium flex items-center justify-center gap-1">
-                1/{row.denominator}
+              <span className="flex items-center justify-center gap-1">
+                <StackedFraction
+                  numerator={1}
+                  denominator={row.denominator}
+                  suffix=""
+                  size="md"
+                  color="foreground"
+                />
                 <ChevronRight size={12} className="text-muted-foreground" />
               </span>
               <span className="flex justify-center">
@@ -80,12 +86,13 @@ const PercentageLearning = ({ groupIndex, onGroupIndexChange, onExpandFraction }
                     whole={row.mixed.whole}
                     numerator={row.mixed.numerator}
                     denominator={row.mixed.denominator}
+                    size="md"
                   />
                 ) : (
                   <span className="text-primary font-bold">{row.wholePct}</span>
                 )}
               </span>
-              <span className="text-foreground">{row.decimalPct}</span>
+              <span className="text-foreground font-semibold tabular-nums">{row.decimalPct}</span>
             </motion.button>
           ))}
         </div>
@@ -108,11 +115,12 @@ export const PercentageExpanded = ({ denominator, onDenominatorChange }: Percent
   const allDenominators = Array.from({ length: 200 }, (_, i) => i + 1);
 
   const items = allDenominators.map((d) => {
-    const count = d <= 10 ? 10 : d;
+    // Always show 1/d through d/d (textbook style). For d=1 show single row.
+    const count = Math.max(1, d);
     const rows = Array.from({ length: count }, (_, i) => buildRow(i + 1, d));
     return (
       <div key={d}>
-        <div className="grid grid-cols-3 gap-2 mb-3 text-xs font-semibold text-muted-foreground">
+        <div className="grid grid-cols-3 gap-2 mb-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
           <div className="text-center">Fraction</div>
           <div className="text-center">Mixed %</div>
           <div className="text-center">Decimal %</div>
@@ -124,21 +132,30 @@ export const PercentageExpanded = ({ denominator, onDenominatorChange }: Percent
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.03 }}
-              className="bg-card border border-border rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center"
+              className="glass rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center min-h-[58px]"
             >
-              <span className="text-foreground font-medium">{row.numerator}/{row.denominator}</span>
+              <span className="flex justify-center">
+                <StackedFraction
+                  numerator={row.numerator}
+                  denominator={row.denominator}
+                  suffix=""
+                  size="md"
+                  color="foreground"
+                />
+              </span>
               <span className="flex justify-center">
                 {row.mixed ? (
                   <StackedFraction
                     whole={row.mixed.whole}
                     numerator={row.mixed.numerator}
                     denominator={row.mixed.denominator}
+                    size="md"
                   />
                 ) : (
                   <span className="text-primary font-bold">{row.wholePct}</span>
                 )}
               </span>
-              <span className="text-foreground">{row.decimalPct}</span>
+              <span className="text-foreground font-semibold tabular-nums">{row.decimalPct}</span>
             </motion.div>
           ))}
         </div>

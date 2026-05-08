@@ -11,6 +11,7 @@ import { getSettings, isActive, markInteraction } from '@/lib/settings';
 import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
 import { playClick, playSuccess, playWrong, playLevelUp, playStreak } from '@/lib/sound';
 import XPBar from '@/components/XPBar';
+import MathKeypad from '@/components/MathKeypad';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -176,9 +177,15 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
     } else {
       const lo = Math.max(1, Math.min(from, to));
       const hi = Math.min(200, Math.max(from, to));
-      const dens = rangeArray(from <= to ? lo : hi, from <= to ? hi : lo);
-      for (const d of dens) {
-        pairs.push({ n: 1, d });
+      if (lo === hi) {
+        // Single denominator selected from learning → practice n/d for n=1..d
+        const d = lo;
+        for (let n = 1; n <= d; n++) pairs.push({ n, d });
+      } else {
+        const dens = rangeArray(from <= to ? lo : hi, from <= to ? hi : lo);
+        for (const d of dens) {
+          pairs.push({ n: 1, d });
+        }
       }
     }
 
@@ -974,11 +981,37 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'input' && (
           <div className="flex flex-col items-center gap-4 mt-4">
-            <input ref={inputRef} type="text" inputMode={isPctQuestion || q.answerType === 'trig' ? 'text' : 'numeric'}
-              value={inputValue} onChange={(e) => setInputValue(e.target.value)}
-              placeholder={q.answerType === 'fraction' ? 'e.g. 1/3' : q.answerType === 'mixed-pct' ? 'e.g. 16 2/3' : q.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Your answer'}
-              autoFocus
-              className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all" />
+            {isPctQuestion && q.answerType !== 'trig' ? (
+              <>
+                <div
+                  className="w-full max-w-xs bg-card/60 border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground min-h-[64px] flex items-center justify-center"
+                  aria-live="polite"
+                >
+                  {inputValue || (
+                    <span className="text-muted-foreground text-base font-normal">
+                      {q.answerType === 'fraction'
+                        ? 'Type fraction e.g. 1/3'
+                        : q.answerType === 'mixed-pct'
+                          ? 'Type e.g. 16 2/3 %'
+                          : 'Type answer e.g. 16.67%'}
+                    </span>
+                  )}
+                </div>
+                <MathKeypad
+                  value={inputValue}
+                  onChange={setInputValue}
+                  onSubmit={() => handleAnswer(inputValue.trim())}
+                  variant={q.answerType === 'fraction' ? 'fraction' : q.answerType === 'mixed-pct' ? 'mixed' : 'full'}
+                  disabled={!!feedback}
+                />
+              </>
+            ) : (
+              <input ref={inputRef} type="text" inputMode={q.answerType === 'trig' ? 'text' : 'numeric'}
+                value={inputValue} onChange={(e) => setInputValue(e.target.value)}
+                placeholder={q.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Your answer'}
+                autoFocus
+                className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all" />
+            )}
           </div>
         )}
       </div>
