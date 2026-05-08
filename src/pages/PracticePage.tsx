@@ -176,9 +176,15 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
     } else {
       const lo = Math.max(1, Math.min(from, to));
       const hi = Math.min(200, Math.max(from, to));
-      const dens = rangeArray(from <= to ? lo : hi, from <= to ? hi : lo);
-      for (const d of dens) {
-        pairs.push({ n: 1, d });
+      if (lo === hi) {
+        // Single denominator selected from learning → practice n/d for n=1..d
+        const d = lo;
+        for (let n = 1; n <= d; n++) pairs.push({ n, d });
+      } else {
+        const dens = rangeArray(from <= to ? lo : hi, from <= to ? hi : lo);
+        for (const d of dens) {
+          pairs.push({ n: 1, d });
+        }
       }
     }
 
