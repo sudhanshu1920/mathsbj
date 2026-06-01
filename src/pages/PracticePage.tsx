@@ -178,9 +178,12 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       const lo = Math.max(1, Math.min(from, to));
       const hi = Math.min(200, Math.max(from, to));
       if (lo === hi) {
-        // Single denominator selected from learning → practice n/d for n=1..d
+        // Single denominator selected from learning:
+        //  d < 10  → 10 multiples (1/d .. 10/d)
+        //  d >= 10 → 1/d .. d/d
         const d = lo;
-        for (let n = 1; n <= d; n++) pairs.push({ n, d });
+        const max = d < 10 ? 10 : d;
+        for (let n = 1; n <= max; n++) pairs.push({ n, d });
       } else {
         const dens = rangeArray(from <= to ? lo : hi, from <= to ? hi : lo);
         for (const d of dens) {
@@ -282,50 +285,76 @@ function generateQuestions(config: PracticeConfig): Question[] {
   return config.infinite ? allQuestions : allQuestions.slice(0, config.count);
 }
 
-function normalizeAnswer(input: string, expected: string): boolean {
-  const a = input.trim().replace(/\s+/g, ' ');
-  const b = expected.trim().replace(/\s+/g, ' ');
-  if (a === b) return true;
-  const aNum = parseFloat(a.replace('%', ''));
-  const bNum = parseFloat(b.replace('%', ''));
-  if (!isNaN(aNum) && !isNaN(bNum) && Math.abs(aNum - bNum) < 0.01) return true;
-  if (a + '%' === b || a === b.replace('%', '')) return true;
-  return false;
+/**
+ * Parse a textbook-style number string into a numeric value.
+ * Supports: "33", "33.33", "33%", "1/3", "33 1/3", "33 1/3%", "33⅓".
+ * Returns null if it cannot be parsed.
+ */
+function parseMathValue(input: string): number | null {
+  if (!input) return null;
+  let s = input.trim().replace(/%/g, '').replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  // Expand vulgar unicode fractions to " a/b"
+  const vulgar: Record<string, string> = {
+    '½': ' 1/2', '⅓': ' 1/3', '⅔': ' 2/3', '¼': ' 1/4', '¾': ' 3/4',
+    '⅕': ' 1/5', '⅖': ' 2/5', '⅗': ' 3/5', '⅘': ' 4/5',
+    '⅙': ' 1/6', '⅚': ' 5/6', '⅐': ' 1/7',
+    '⅛': ' 1/8', '⅜': ' 3/8', '⅝': ' 5/8', '⅞': ' 7/8',
+    '⅑': ' 1/9', '⅒': ' 1/10',
+  };
+  for (const [k, r] of Object.entries(vulgar)) s = s.split(k).join(r);
+  s = s.replace(/\s+/g, ' ').trim();
+  let m: RegExpMatchArray | null;
+  if ((m = s.match(/^(-?\d+)\s+(\d+)\/(\d+)$/))) {
+    const d = Number(m[3]); if (d === 0) return null;
+    return Number(m[1]) + Number(m[2]) / d;
+  }
+  if ((m = s.match(/^(-?\d+)\/(\d+)$/))) {
+    const d = Number(m[2]); if (d === 0) return null;
+    return Number(m[1]) / d;
+  }
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
 }
 
-const RenderMixed = ({ mixed, size = 'md' }: { mixed: MixedPct; size?: 'sm' | 'md' | 'lg' }) => {
-  const sizeClasses = {
-    sm: { whole: 'text-sm', frac: 'text-[10px]', pct: 'text-sm' },
-    md: { whole: 'text-lg', frac: 'text-xs', pct: 'text-lg' },
-    lg: { whole: 'text-3xl', frac: 'text-sm', pct: 'text-3xl' },
-  };
-  const s = sizeClasses[size];
-  return (
-    <span className="inline-flex items-center gap-0.5">
-      {mixed.whole > 0 && <span className={`font-bold text-primary ${s.whole}`}>{mixed.whole}</span>}
-      <span className={`inline-flex flex-col items-center leading-none ${s.frac} relative`} style={{ verticalAlign: 'middle' }}>
-        <span className="text-primary font-semibold">{mixed.numerator}</span>
-        <span className="w-full h-px bg-primary/60 my-0.5" />
-        <span className="text-primary font-semibold">{mixed.denominator}</span>
-      </span>
-      <span className={`text-primary font-bold ${s.pct}`}>%</span>
-    </span>
-  );
-};
+function normalizeAnswer(input: string, expected: string): boolean {
+  const a = parseMathValue(input);
+  const b = parseMathValue(expected);
+  if (a === null || b === null) return false;
+  return Math.abs(a - b) < 0.01;
+}
 
-const RenderFraction = ({ n, d, size = 'lg' }: { n: number; d: number; size?: 'sm' | 'md' | 'lg' }) => {
-  const sizeClasses = { sm: 'text-sm', md: 'text-lg', lg: 'text-3xl' };
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className="inline-flex flex-col items-center leading-none relative" style={{ verticalAlign: 'middle' }}>
-        <span className={`text-foreground font-bold ${sizeClasses[size]}`}>{n}</span>
-        <span className="w-full h-px bg-foreground/40 my-0.5" />
-        <span className={`text-foreground font-bold ${sizeClasses[size]}`}>{d}</span>
-      </span>
-      <span className={`text-foreground font-bold ${sizeClasses[size]}`}>{` = ?`}</span>
-    </span>
-  );
-};
+/** True when the user input looks complete enough to evaluate. */
+function isLikelyComplete(input: string): boolean {
+  const s = input.trim();
+  if (!s) return false;
+  // Trailing operator/separator = still typing
+  if (/[\/.\s+]$/.test(s)) return false;
+  // "33 1" (mixed without /) or "1/" alone — incomplete
+  if (/^\d+\s+\d+$/.test(s)) return false;
+  if (/\/$/.test(s)) return false;
+  return true;
+}
+
+import StackedFraction from '@/components/StackedFraction';
+
+const RenderMixed = ({ mixed, size = 'md' }: { mixed: MixedPct; size?: 'sm' | 'md' | 'lg' }) => (
+  <StackedFraction
+    whole={mixed.whole}
+    numerator={mixed.numerator}
+    denominator={mixed.denominator}
+    suffix="%"
+    size={size}
+    color="primary"
+  />
+);
+
+const RenderFraction = ({ n, d, size = 'lg' }: { n: number; d: number; size?: 'sm' | 'md' | 'lg' }) => (
+  <span className="inline-flex items-center gap-2">
+    <StackedFraction numerator={n} denominator={d} suffix="" size={size} color="foreground" />
+    <span className={`text-foreground font-bold ${size === 'lg' ? 'text-3xl' : size === 'md' ? 'text-lg' : 'text-sm'}`}>= ?</span>
+  </span>
+);
 
 interface PracticePageProps {
   initialTopic?: string;
@@ -575,11 +604,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
     const q = questions[currentQ];
     if (!q) return;
+    // Avoid premature checking while user is still typing (e.g. "33", "1/").
+    if (!isLikelyComplete(inputValue)) return;
     if (q.answerType === 'trig') {
       if (isTrigAnswerCorrect(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
     } else if (typeof q.answer === 'number') {
-      const numVal = Number(inputValue);
-      if (!isNaN(numVal) && numVal === q.answer) handleAnswer(numVal);
+      const numVal = parseMathValue(inputValue);
+      if (numVal !== null && Math.abs(numVal - q.answer) < 1e-9) handleAnswer(numVal);
     } else {
       if (normalizeAnswer(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
     }
@@ -981,7 +1012,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'input' && (
           <div className="flex flex-col items-center gap-4 mt-4">
-            {isPctQuestion && q.answerType !== 'trig' ? (
+            {q.answerType !== 'trig' ? (
               <>
                 <div
                   className="w-full max-w-xs bg-card/60 border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground min-h-[64px] flex items-center justify-center"
@@ -993,7 +1024,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                         ? 'Type fraction e.g. 1/3'
                         : q.answerType === 'mixed-pct'
                           ? 'Type e.g. 16 2/3 %'
-                          : 'Type answer e.g. 16.67%'}
+                          : q.answerType === 'decimal-pct'
+                            ? 'Type answer e.g. 16.67%'
+                            : 'Type your answer'}
                     </span>
                   )}
                 </div>
@@ -1001,7 +1034,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   value={inputValue}
                   onChange={setInputValue}
                   onSubmit={() => handleAnswer(inputValue.trim())}
-                  variant={q.answerType === 'fraction' ? 'fraction' : q.answerType === 'mixed-pct' ? 'mixed' : 'full'}
+                  variant="full"
                   disabled={!!feedback}
                 />
               </>

@@ -115,8 +115,10 @@ export const PercentageExpanded = ({ denominator, onDenominatorChange }: Percent
   const allDenominators = Array.from({ length: 200 }, (_, i) => i + 1);
 
   const items = allDenominators.map((d) => {
-    // Always show 1/d through d/d (textbook style). For d=1 show single row.
-    const count = Math.max(1, d);
+    // Range rule:
+    //   d <  10 → show 10 multiples (1/d .. 10/d)
+    //   d >= 10 → show d rows (1/d .. d/d)
+    const count = d < 10 ? 10 : d;
     const rows = Array.from({ length: count }, (_, i) => buildRow(i + 1, d));
     return (
       <div key={d}>
