@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Delete, Check } from 'lucide-react';
+import { Delete, Check, Plus } from 'lucide-react';
 import { playClick } from '@/lib/sound';
 
 interface MathKeypadProps {
@@ -27,16 +27,17 @@ const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled }: M
       onSubmit();
       return;
     }
+    // The "+" key acts as a mixed-number separator: insert single space.
+    if (k === 'mix') {
+      const trimmed = value.replace(/\s+$/, '');
+      if (!trimmed || trimmed.endsWith(' ')) return;
+      onChange(trimmed + ' ');
+      return;
+    }
     onChange(value + k);
   };
 
-  // Layout rows; some keys can be hidden depending on variant
-  const showSlash = variant !== 'numeric' && variant !== 'decimal';
-  const showPct = variant !== 'numeric' && variant !== 'fraction';
-  const showDot = variant !== 'fraction';
-  const showSpace = variant === 'mixed' || variant === 'full';
-
-  type Key = { label: React.ReactNode; key: string; tone?: 'num' | 'op' | 'ok' | 'back' | 'mute' };
+  type Key = { label: React.ReactNode; key: string; tone?: 'num' | 'op' | 'ok' | 'back' | 'mute'; span?: number };
   const rows: Key[][] = [
     [
       { label: '1', key: '1', tone: 'num' },
@@ -54,26 +55,17 @@ const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled }: M
       { label: '9', key: '9', tone: 'num' },
     ],
     [
-      showPct
-        ? { label: '%', key: '%', tone: 'op' }
-        : showSpace
-          ? { label: '␣', key: ' ', tone: 'op' }
-          : { label: '·', key: '.', tone: 'op' },
+      { label: <Plus size={20} />, key: 'mix', tone: 'op' },
       { label: '0', key: '0', tone: 'num' },
-      showSlash
-        ? { label: '/', key: '/', tone: 'op' }
-        : showDot
-          ? { label: '.', key: '.', tone: 'op' }
-          : { label: '·', key: '.', tone: 'mute' },
+      { label: '/', key: '/', tone: 'op' },
     ],
     [
-      showDot && showPct && showSlash
-        ? { label: '.', key: '.', tone: 'op' }
-        : showSpace
-          ? { label: '␣', key: ' ', tone: 'op' }
-          : { label: '·', key: '.', tone: 'op' },
+      { label: '%', key: '%', tone: 'op' },
+      { label: '.', key: '.', tone: 'op' },
       { label: <Delete size={20} />, key: 'back', tone: 'back' },
-      { label: <Check size={20} />, key: 'ok', tone: 'ok' },
+    ],
+    [
+      { label: <span className="inline-flex items-center gap-2"><Check size={20} /> OK</span>, key: 'ok', tone: 'ok', span: 3 },
     ],
   ];
 
@@ -100,6 +92,7 @@ const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled }: M
           type="button"
           whileTap={{ scale: 0.92 }}
           onClick={() => press(k.key)}
+          style={k.span ? { gridColumn: `span ${k.span} / span ${k.span}` } : undefined}
           className={`h-12 rounded-2xl font-display font-bold text-xl flex items-center justify-center transition-all border ${toneClass(k.tone)}`}
         >
           {k.label}
