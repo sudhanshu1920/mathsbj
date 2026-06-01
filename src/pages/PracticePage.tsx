@@ -1012,7 +1012,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'input' && (
           <div className="flex flex-col items-center gap-4 mt-4">
-            {isPctQuestion && q.answerType !== 'trig' ? (
+            {q.answerType !== 'trig' ? (
               <>
                 <div
                   className="w-full max-w-xs bg-card/60 border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground min-h-[64px] flex items-center justify-center"
@@ -1024,7 +1024,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                         ? 'Type fraction e.g. 1/3'
                         : q.answerType === 'mixed-pct'
                           ? 'Type e.g. 16 2/3 %'
-                          : 'Type answer e.g. 16.67%'}
+                          : q.answerType === 'decimal-pct'
+                            ? 'Type answer e.g. 16.67%'
+                            : 'Type your answer'}
                     </span>
                   )}
                 </div>
@@ -1032,7 +1034,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   value={inputValue}
                   onChange={setInputValue}
                   onSubmit={() => handleAnswer(inputValue.trim())}
-                  variant={q.answerType === 'fraction' ? 'fraction' : q.answerType === 'mixed-pct' ? 'mixed' : 'full'}
+                  variant="full"
                   disabled={!!feedback}
                 />
               </>
