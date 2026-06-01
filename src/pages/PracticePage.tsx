@@ -333,39 +333,25 @@ function isLikelyComplete(input: string): boolean {
   return true;
 }
 
-const RenderMixed = ({ mixed, size = 'md' }: { mixed: MixedPct; size?: 'sm' | 'md' | 'lg' }) => {
-  const sizeClasses = {
-    sm: { whole: 'text-sm', frac: 'text-[10px]', pct: 'text-sm' },
-    md: { whole: 'text-lg', frac: 'text-xs', pct: 'text-lg' },
-    lg: { whole: 'text-3xl', frac: 'text-sm', pct: 'text-3xl' },
-  };
-  const s = sizeClasses[size];
-  return (
-    <span className="inline-flex items-center gap-0.5">
-      {mixed.whole > 0 && <span className={`font-bold text-primary ${s.whole}`}>{mixed.whole}</span>}
-      <span className={`inline-flex flex-col items-center leading-none ${s.frac} relative`} style={{ verticalAlign: 'middle' }}>
-        <span className="text-primary font-semibold">{mixed.numerator}</span>
-        <span className="w-full h-px bg-primary/60 my-0.5" />
-        <span className="text-primary font-semibold">{mixed.denominator}</span>
-      </span>
-      <span className={`text-primary font-bold ${s.pct}`}>%</span>
-    </span>
-  );
-};
+import StackedFraction from '@/components/StackedFraction';
 
-const RenderFraction = ({ n, d, size = 'lg' }: { n: number; d: number; size?: 'sm' | 'md' | 'lg' }) => {
-  const sizeClasses = { sm: 'text-sm', md: 'text-lg', lg: 'text-3xl' };
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className="inline-flex flex-col items-center leading-none relative" style={{ verticalAlign: 'middle' }}>
-        <span className={`text-foreground font-bold ${sizeClasses[size]}`}>{n}</span>
-        <span className="w-full h-px bg-foreground/40 my-0.5" />
-        <span className={`text-foreground font-bold ${sizeClasses[size]}`}>{d}</span>
-      </span>
-      <span className={`text-foreground font-bold ${sizeClasses[size]}`}>{` = ?`}</span>
-    </span>
-  );
-};
+const RenderMixed = ({ mixed, size = 'md' }: { mixed: MixedPct; size?: 'sm' | 'md' | 'lg' }) => (
+  <StackedFraction
+    whole={mixed.whole}
+    numerator={mixed.numerator}
+    denominator={mixed.denominator}
+    suffix="%"
+    size={size}
+    color="primary"
+  />
+);
+
+const RenderFraction = ({ n, d, size = 'lg' }: { n: number; d: number; size?: 'sm' | 'md' | 'lg' }) => (
+  <span className="inline-flex items-center gap-2">
+    <StackedFraction numerator={n} denominator={d} suffix="" size={size} color="foreground" />
+    <span className={`text-foreground font-bold ${size === 'lg' ? 'text-3xl' : size === 'md' ? 'text-lg' : 'text-sm'}`}>= ?</span>
+  </span>
+);
 
 interface PracticePageProps {
   initialTopic?: string;
