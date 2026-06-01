@@ -604,11 +604,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
     const q = questions[currentQ];
     if (!q) return;
+    // Avoid premature checking while user is still typing (e.g. "33", "1/").
+    if (!isLikelyComplete(inputValue)) return;
     if (q.answerType === 'trig') {
       if (isTrigAnswerCorrect(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
     } else if (typeof q.answer === 'number') {
-      const numVal = Number(inputValue);
-      if (!isNaN(numVal) && numVal === q.answer) handleAnswer(numVal);
+      const numVal = parseMathValue(inputValue);
+      if (numVal !== null && Math.abs(numVal - q.answer) < 1e-9) handleAnswer(numVal);
     } else {
       if (normalizeAnswer(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
     }
