@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, AppSettings } from '@/lib/settings';
 import { getStreak, setTarget, StreakState } from '@/lib/streak';
 import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
+import { THEMES, getThemeId, setThemeId, ThemeId } from '@/lib/theme';
 
 type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline';
 
@@ -19,6 +20,7 @@ const SettingsPanel = () => {
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
   const guest = !user && isGuest();
+  const [themeId, setThemeIdState] = useState<ThemeId>(() => getThemeId());
 
   useEffect(() => {
     const refresh = () => { setSettingsState(getSettings()); setStreak(getStreak()); };
@@ -161,6 +163,44 @@ const SettingsPanel = () => {
               {m}m
             </motion.button>
           ))}
+        </div>
+      </div>
+
+      {/* Theme picker */}
+      <div>
+        <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+          <Palette size={16} className="text-muted-foreground" /> Appearance
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {THEMES.map((t) => {
+            const active = themeId === t.id;
+            return (
+              <motion.button
+                key={t.id}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => { setThemeId(t.id); setThemeIdState(t.id); }}
+                className={`relative rounded-2xl p-3 border text-left transition-all ${
+                  active ? 'border-primary glow-primary' : 'border-border hover:border-primary/40'
+                }`}
+                style={{
+                  background: `linear-gradient(135deg, ${t.swatch[0]}22, ${t.swatch[1]}11)`,
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className="h-6 w-6 rounded-full shadow"
+                    style={{ background: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }}
+                  />
+                  <span className="text-sm font-semibold text-foreground">{t.emoji} {t.name}</span>
+                </div>
+                {active && (
+                  <span className="absolute top-2 right-2 text-primary">
+                    <Check size={14} />
+                  </span>
+                )}
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 
