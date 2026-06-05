@@ -31,6 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
 
       if (s?.user) {
+        // Signed in: leave guest mode if it was active
+        setGuest(false);
         // Defer to avoid deadlocks in the auth callback
         setTimeout(() => {
           cleanupRef.current = startSync(s.user.id);
