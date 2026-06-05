@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { Sparkles, UserPlus, LogIn, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { setGuest } from '@/lib/guest';
@@ -9,12 +8,7 @@ interface Props {
 }
 
 const WelcomePage = ({ onAuthRequested }: Props) => {
-  const navigate = useNavigate();
-
-  const continueAsGuest = () => {
-    setGuest(true);
-    navigate('/', { replace: true });
-  };
+  const continueAsGuest = () => setGuest(true);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative overflow-hidden">
