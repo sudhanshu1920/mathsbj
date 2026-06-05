@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { startSync, pushToCloud, clearLocalUserData } from '@/lib/sync';
+import { setGuest } from '@/lib/guest';
 
 interface AuthCtx {
   user: User | null;
@@ -30,6 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
 
       if (s?.user) {
+        // Signed in: leave guest mode if it was active
+        setGuest(false);
         // Defer to avoid deadlocks in the auth callback
         setTimeout(() => {
           cleanupRef.current = startSync(s.user.id);
@@ -58,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
     await supabase.auth.signOut();
     clearLocalUserData();
+    setGuest(false);
   };
 
   return <Ctx.Provider value={{ user, session, loading, signOut }}>{children}</Ctx.Provider>;

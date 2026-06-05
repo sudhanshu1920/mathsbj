@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, AppSettings } from '@/lib/settings';
 import { getStreak, setTarget, StreakState } from '@/lib/streak';
 import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
+import { isGuest, setGuest } from '@/lib/guest';
 
 type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline';
 
@@ -17,6 +18,7 @@ const SettingsPanel = () => {
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
+  const guest = !user && isGuest();
 
   useEffect(() => {
     const refresh = () => { setSettingsState(getSettings()); setStreak(getStreak()); };
@@ -98,6 +100,27 @@ const SettingsPanel = () => {
             className="p-2 rounded-full text-muted-foreground hover:text-destructive transition-colors"
           >
             <LogOut size={16} />
+          </motion.button>
+        </div>
+      )}
+
+      {/* Guest banner */}
+      {guest && (
+        <div className="bg-secondary/40 rounded-2xl p-3 flex items-center gap-3">
+          <div className="h-11 w-11 rounded-full bg-secondary text-foreground font-display font-bold flex items-center justify-center text-lg">
+            G
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">Guest</p>
+            <p className="text-xs text-muted-foreground truncate">Local only — sign in to back up</p>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setGuest(false)}
+            aria-label="Sign in"
+            className="p-2 rounded-full text-muted-foreground hover:text-primary transition-colors"
+          >
+            <LogIn size={16} />
           </motion.button>
         </div>
       )}

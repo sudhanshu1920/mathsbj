@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Mail, Lock, User as UserIcon, Loader2 } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, Loader2, ArrowLeft, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable';
+import { setGuest } from '@/lib/guest';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
@@ -14,13 +16,41 @@ const emailSchema = z.string().trim().email('Invalid email').max(255);
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters').max(100);
 const nameSchema = z.string().trim().min(1, 'Name required').max(60);
 
-const AuthPage = () => {
-  const [mode, setMode] = useState<Mode>('login');
+interface AuthPageProps {
+  initialMode?: Mode;
+  onBack?: () => void;
+}
+
+const AuthPage = ({ initialMode = 'login', onBack }: AuthPageProps = {}) => {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const googleSignIn = async () => {
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error(result.error.message || 'Google sign-in failed');
+        return;
+      }
+      if (result.redirected) return;
+      toast.success('Welcome!');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Google sign-in failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const continueAsGuest = () => {
+    setGuest(true);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +116,14 @@ const AuthPage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-sm"
       >
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+        )}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Math Master</h1>
           <p className="text-sm text-muted-foreground mt-2">
@@ -94,6 +132,28 @@ const AuthPage = () => {
             {mode === 'forgot' && "We'll email you a reset link."}
           </p>
         </div>
+
+        {mode !== 'forgot' && (
+          <div className="space-y-3 mb-5">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={googleSignIn}
+              disabled={busy}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#EA4335" d="M12 11v3.2h5.4c-.2 1.4-1.6 4.1-5.4 4.1-3.2 0-5.9-2.7-5.9-6s2.6-6 5.9-6c1.9 0 3.1.8 3.8 1.5L18.2 5C16.6 3.5 14.5 2.6 12 2.6 6.8 2.6 2.6 6.8 2.6 12s4.2 9.4 9.4 9.4c5.4 0 9-3.8 9-9.2 0-.6 0-1.1-.1-1.6H12z"/>
+              </svg>
+              Continue with Google
+            </Button>
+            <div className="relative flex items-center">
+              <div className="flex-1 h-px bg-border" />
+              <span className="px-3 text-xs uppercase tracking-wider text-muted-foreground">or</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+          </div>
+        )}
 
         <form onSubmit={submit} className="space-y-4">
           {mode === 'signup' && (
@@ -161,6 +221,16 @@ const AuthPage = () => {
           {mode === 'forgot' && (
             <button className="text-primary font-medium hover:underline" onClick={() => setMode('login')}>Back to sign in</button>
           )}
+        </div>
+
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={continueAsGuest}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"
+          >
+            <Zap className="h-3 w-3" /> Continue as Guest
+          </button>
         </div>
       </motion.div>
     </div>
