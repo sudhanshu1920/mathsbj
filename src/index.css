@@ -135,6 +135,8 @@
     --success: 156 80% 52%;
     --success-foreground: 226 49% 8%;
     --gradient-primary: linear-gradient(135deg, hsl(213 94% 68%), hsl(188 84% 62%));
+    --gradient-success: linear-gradient(135deg, hsl(188 84% 62%), hsl(156 80% 52%));
+    --gradient-warm: linear-gradient(135deg, hsl(213 94% 68%), hsl(188 84% 62%));
     --gradient-card: linear-gradient(145deg, hsl(225 42% 16% / 0.78), hsl(226 49% 9% / 0.58));
     --glow-primary: 0 0 22px hsl(188 84% 62% / 0.32);
     --glow-accent: 0 0 22px hsl(213 94% 68% / 0.28);
@@ -161,6 +163,8 @@
     --success: 46 65% 52%;
     --success-foreground: 0 0% 4%;
     --gradient-primary: linear-gradient(135deg, hsl(46 65% 52%), hsl(51 100% 50%));
+    --gradient-success: linear-gradient(135deg, hsl(46 65% 52%), hsl(51 100% 50%));
+    --gradient-warm: linear-gradient(135deg, hsl(42 44% 24%), hsl(46 65% 52%));
     --gradient-card: linear-gradient(145deg, hsl(42 18% 13%), hsl(0 0% 5%));
     --glow-primary: 0 0 24px hsl(46 65% 52% / 0.42);
     --glow-accent: 0 0 24px hsl(51 100% 50% / 0.30);
@@ -187,6 +191,8 @@
     --success: 186 100% 50%;
     --success-foreground: 229 63% 5%;
     --gradient-primary: linear-gradient(135deg, hsl(186 100% 50%), hsl(188 100% 42%));
+    --gradient-success: linear-gradient(135deg, hsl(186 100% 50%), hsl(158 100% 48%));
+    --gradient-warm: linear-gradient(135deg, hsl(188 100% 42%), hsl(186 100% 50%));
     --gradient-card: linear-gradient(145deg, hsl(229 54% 12%), hsl(229 63% 6%));
     --glow-primary: 0 0 30px hsl(186 100% 50% / 0.58);
     --glow-accent: 0 0 26px hsl(188 100% 42% / 0.48);

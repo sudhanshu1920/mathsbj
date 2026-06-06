@@ -115,7 +115,7 @@ const ProgressAnalytics = () => {
 
   return (
     <div
-      className="bg-card border border-border rounded-2xl p-4 mb-6 select-none"
+      className="glass border border-border rounded-2xl p-4 mb-6 select-none"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
