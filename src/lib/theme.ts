@@ -1,6 +1,8 @@
+import { useSyncExternalStore } from 'react';
+
 const KEY = 'math-app-theme-v1';
 
-export type ThemeId = 'neon-core' | 'golden-prime' | 'royal-obsidian' | 'emerald-elite' | 'crimson-velocity';
+export type ThemeId = 'glass-matte' | 'golden-prime' | 'neon-core';
 
 export interface ThemeMeta {
   id: ThemeId;
@@ -10,35 +12,73 @@ export interface ThemeMeta {
 }
 
 export const THEMES: ThemeMeta[] = [
-  { id: 'neon-core',        name: 'Neon Core',        tagline: 'Electric cyber dashboard', swatch: ['hsl(230 25% 7%)',  'hsl(188 100% 55%)', 'hsl(320 100% 60%)'] },
-  { id: 'golden-prime',     name: 'Golden Prime',     tagline: 'Matte black & gold',       swatch: ['hsl(40 8% 6%)',    'hsl(43 90% 58%)',   'hsl(35 80% 50%)']   },
-  { id: 'royal-obsidian',   name: 'Royal Obsidian',   tagline: 'Graphite & royal violet',  swatch: ['hsl(260 10% 8%)',  'hsl(270 90% 65%)',  'hsl(290 85% 60%)']  },
-  { id: 'emerald-elite',    name: 'Emerald Elite',    tagline: 'Charcoal & emerald',       swatch: ['hsl(170 12% 7%)',  'hsl(155 85% 50%)',  'hsl(175 75% 50%)']  },
-  { id: 'crimson-velocity', name: 'Crimson Velocity', tagline: 'Black & crimson power',    swatch: ['hsl(0 15% 6%)',    'hsl(0 90% 58%)',    'hsl(15 90% 55%)']   },
+  { id: 'glass-matte',  name: 'Glass Matte',  tagline: 'Premium blurred glass UI', swatch: ['hsl(226 49% 8%)', 'hsl(213 94% 68%)', 'hsl(188 84% 62%)'] },
+  { id: 'golden-prime', name: 'Golden Prime', tagline: 'Ultra luxury gold dashboard', swatch: ['hsl(0 0% 4%)', 'hsl(46 65% 52%)', 'hsl(51 100% 50%)'] },
+  { id: 'neon-core',    name: 'Neon Core',    tagline: 'Futuristic cyan gaming UI', swatch: ['hsl(229 63% 5%)', 'hsl(186 100% 50%)', 'hsl(188 100% 42%)'] },
 ];
 
-export const DEFAULT_THEME: ThemeId = 'neon-core';
+export const DEFAULT_THEME: ThemeId = 'glass-matte';
+
+const listeners = new Set<() => void>();
+
+const isThemeId = (value: string | null): value is ThemeId =>
+  !!value && THEMES.some((theme) => theme.id === value);
+
+const normalizeTheme = (value: string | null): ThemeId => {
+  if (isThemeId(value)) return value;
+  if (value === 'royal-obsidian' || value === 'emerald-elite' || value === 'crimson-velocity') return DEFAULT_THEME;
+  return DEFAULT_THEME;
+};
 
 export const getTheme = (): ThemeId => {
   try {
-    const v = localStorage.getItem(KEY) as ThemeId | null;
-    if (v && THEMES.find((t) => t.id === v)) return v;
+    return normalizeTheme(localStorage.getItem(KEY));
   } catch {}
   return DEFAULT_THEME;
 };
 
 export const applyTheme = (id: ThemeId) => {
   const root = document.documentElement;
-  THEMES.forEach((t) => root.classList.remove(`theme-${t.id}`));
+  Array.from(root.classList).forEach((className) => {
+    if (className.startsWith('theme-')) root.classList.remove(className);
+  });
+  root.classList.add('dark');
+  root.classList.remove('light');
   root.classList.add(`theme-${id}`);
+  root.dataset.theme = id;
+  root.style.colorScheme = 'dark';
+};
+
+const notifyListeners = () => {
+  listeners.forEach((listener) => listener());
+  window.dispatchEvent(new CustomEvent('theme-updated', { detail: getTheme() }));
 };
 
 export const setTheme = (id: ThemeId) => {
   try { localStorage.setItem(KEY, id); } catch {}
   applyTheme(id);
-  window.dispatchEvent(new CustomEvent('theme-updated', { detail: id }));
+  notifyListeners();
 };
 
 export const initTheme = () => {
-  applyTheme(getTheme());
+  const theme = getTheme();
+  try { localStorage.setItem(KEY, theme); } catch {}
+  applyTheme(theme);
 };
+
+export const subscribeTheme = (listener: () => void) => {
+  listeners.add(listener);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === KEY) {
+      applyTheme(getTheme());
+      listener();
+    }
+  };
+  window.addEventListener('storage', onStorage);
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener('storage', onStorage);
+  };
+};
+
+export const useTheme = () => useSyncExternalStore(subscribeTheme, getTheme, () => DEFAULT_THEME);
