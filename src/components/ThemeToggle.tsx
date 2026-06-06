@@ -1,25 +1,24 @@
-import { Moon, Sun } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Palette } from 'lucide-react';
+import { THEMES, setTheme, useTheme } from '@/lib/theme';
 
 const ThemeToggle = () => {
-  const [dark, setDark] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved ? saved === 'dark' : true;
-  });
+  const theme = useTheme();
+  const activeIndex = THEMES.findIndex((item) => item.id === theme);
+  const active = THEMES[Math.max(0, activeIndex)] ?? THEMES[0];
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-    document.documentElement.classList.toggle('light', !dark);
-    localStorage.setItem('theme', dark ? 'dark' : 'light');
-  }, [dark]);
+  const cycleTheme = () => {
+    const next = THEMES[(Math.max(0, activeIndex) + 1) % THEMES.length];
+    setTheme(next.id);
+  };
 
   return (
     <button
-      onClick={() => setDark(!dark)}
-      className="p-2 rounded-full bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
-      aria-label="Toggle theme"
+      onClick={cycleTheme}
+      className="p-2 rounded-full glass text-primary hover:text-primary-foreground hover:gradient-primary transition-all duration-300 glow-primary"
+      aria-label={`Current theme: ${active.name}. Switch theme`}
+      title={`Theme: ${active.name}`}
     >
-      {dark ? <Sun size={18} /> : <Moon size={18} />}
+      <Palette size={18} />
     </button>
   );
 };
