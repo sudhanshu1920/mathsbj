@@ -169,7 +169,7 @@ const SettingsPanel = () => {
       {/* Appearance — Themes */}
       <div>
         <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-          <Palette size={16} className="text-muted-foreground" /> Themes
+          <Palette size={16} className="text-muted-foreground" /> Appearance · Themes
         </p>
         <div className="grid grid-cols-1 gap-2">
           {THEMES.map((t) => {
