@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, AppSettings } from '@/lib/settings';
 import { getStreak, setTarget, StreakState } from '@/lib/streak';
 import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
+import { THEMES, getTheme, setTheme as setAppTheme, ThemeId } from '@/lib/theme';
 
 type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline';
 
@@ -18,19 +19,23 @@ const SettingsPanel = () => {
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
+  const [theme, setThemeState] = useState<ThemeId>(() => getTheme());
   const guest = !user && isGuest();
 
   useEffect(() => {
     const refresh = () => { setSettingsState(getSettings()); setStreak(getStreak()); };
+    const onTheme = () => setThemeState(getTheme());
     const onOn = () => setOnline(true);
     const onOff = () => setOnline(false);
     window.addEventListener('settings-updated', refresh);
     window.addEventListener('streak-updated', refresh);
+    window.addEventListener('theme-updated', onTheme);
     window.addEventListener('online', onOn);
     window.addEventListener('offline', onOff);
     return () => {
       window.removeEventListener('settings-updated', refresh);
       window.removeEventListener('streak-updated', refresh);
+      window.removeEventListener('theme-updated', onTheme);
       window.removeEventListener('online', onOn);
       window.removeEventListener('offline', onOff);
     };
@@ -161,6 +166,45 @@ const SettingsPanel = () => {
               {m}m
             </motion.button>
           ))}
+        </div>
+      </div>
+
+      {/* Appearance — Themes */}
+      <div>
+        <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+          <Palette size={16} className="text-muted-foreground" /> Appearance
+        </p>
+        <div className="grid grid-cols-1 gap-2">
+          {THEMES.map((t) => {
+            const selected = theme === t.id;
+            return (
+              <motion.button
+                key={t.id}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => { setAppTheme(t.id); setThemeState(t.id); }}
+                className={`flex items-center gap-3 rounded-2xl p-3 border text-left transition-all ${
+                  selected
+                    ? 'border-primary bg-primary/10 glow-primary'
+                    : 'border-border bg-card hover:border-primary/40'
+                }`}
+              >
+                <div className="flex -space-x-1.5">
+                  {t.swatch.map((c, i) => (
+                    <span
+                      key={i}
+                      className="h-7 w-7 rounded-full border-2 border-background"
+                      style={{ background: c }}
+                    />
+                  ))}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{t.name}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{t.tagline}</p>
+                </div>
+                {selected && <Check size={16} className="text-primary" />}
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 
