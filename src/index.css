@@ -111,6 +111,136 @@
     --sidebar-border: 220 13% 87%;
     --sidebar-ring: 190 95% 42%;
   }
+
+  /* ===== Premium Themes =====
+     Theme classes applied on <html> by src/lib/theme.ts. */
+  html.theme-neon-core {
+    --background: 230 25% 7%;
+    --card: 230 20% 12%;
+    --primary: 188 100% 55%;
+    --accent: 320 100% 60%;
+    --ring: 188 100% 55%;
+    --gradient-primary: linear-gradient(135deg, hsl(188 100% 55%), hsl(320 100% 60%));
+    --gradient-card: linear-gradient(145deg, hsl(230 22% 14%), hsl(230 25% 9%));
+    --glow-primary: 0 0 24px hsl(188 100% 55% / 0.45);
+    --glow-accent: 0 0 24px hsl(320 100% 60% / 0.45);
+  }
+
+  html.theme-golden-prime {
+    --background: 40 8% 6%;
+    --foreground: 45 30% 95%;
+    --card: 40 8% 11%;
+    --card-foreground: 45 30% 95%;
+    --popover: 40 8% 11%;
+    --popover-foreground: 45 30% 95%;
+    --primary: 43 90% 58%;
+    --primary-foreground: 40 20% 8%;
+    --secondary: 40 8% 16%;
+    --secondary-foreground: 45 20% 90%;
+    --muted: 40 6% 14%;
+    --muted-foreground: 40 10% 60%;
+    --accent: 35 80% 50%;
+    --accent-foreground: 40 20% 8%;
+    --border: 40 8% 20%;
+    --input: 40 8% 20%;
+    --ring: 43 90% 58%;
+    --gradient-primary: linear-gradient(135deg, hsl(43 90% 58%), hsl(35 80% 50%));
+    --gradient-card: linear-gradient(145deg, hsl(40 8% 13%), hsl(40 8% 8%));
+    --glow-primary: 0 0 24px hsl(43 90% 58% / 0.40);
+    --glow-accent: 0 0 24px hsl(35 80% 50% / 0.35);
+  }
+  html.theme-golden-prime body {
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, hsl(43 90% 58% / 0.10), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, hsl(35 80% 50% / 0.08), transparent 60%) !important;
+  }
+
+  html.theme-royal-obsidian {
+    --background: 260 10% 8%;
+    --foreground: 270 20% 95%;
+    --card: 260 12% 13%;
+    --card-foreground: 270 20% 95%;
+    --popover: 260 12% 13%;
+    --popover-foreground: 270 20% 95%;
+    --primary: 270 90% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 260 12% 18%;
+    --secondary-foreground: 270 15% 90%;
+    --muted: 260 10% 15%;
+    --muted-foreground: 270 10% 60%;
+    --accent: 290 85% 60%;
+    --accent-foreground: 0 0% 100%;
+    --border: 260 12% 22%;
+    --input: 260 12% 22%;
+    --ring: 270 90% 65%;
+    --gradient-primary: linear-gradient(135deg, hsl(270 90% 65%), hsl(290 85% 60%));
+    --gradient-card: linear-gradient(145deg, hsl(260 12% 15%), hsl(260 10% 9%));
+    --glow-primary: 0 0 24px hsl(270 90% 65% / 0.45);
+    --glow-accent: 0 0 24px hsl(290 85% 60% / 0.40);
+  }
+  html.theme-royal-obsidian body {
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, hsl(270 90% 65% / 0.12), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, hsl(290 85% 60% / 0.10), transparent 60%) !important;
+  }
+
+  html.theme-emerald-elite {
+    --background: 170 12% 7%;
+    --foreground: 160 20% 95%;
+    --card: 170 12% 12%;
+    --card-foreground: 160 20% 95%;
+    --popover: 170 12% 12%;
+    --popover-foreground: 160 20% 95%;
+    --primary: 155 85% 50%;
+    --primary-foreground: 170 20% 8%;
+    --secondary: 170 10% 17%;
+    --secondary-foreground: 160 15% 90%;
+    --muted: 170 10% 14%;
+    --muted-foreground: 160 10% 60%;
+    --accent: 175 75% 50%;
+    --accent-foreground: 170 20% 8%;
+    --border: 170 10% 20%;
+    --input: 170 10% 20%;
+    --ring: 155 85% 50%;
+    --gradient-primary: linear-gradient(135deg, hsl(155 85% 50%), hsl(175 75% 50%));
+    --gradient-card: linear-gradient(145deg, hsl(170 12% 14%), hsl(170 12% 8%));
+    --glow-primary: 0 0 24px hsl(155 85% 50% / 0.40);
+    --glow-accent: 0 0 24px hsl(175 75% 50% / 0.35);
+  }
+  html.theme-emerald-elite body {
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, hsl(155 85% 50% / 0.10), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, hsl(175 75% 50% / 0.08), transparent 60%) !important;
+  }
+
+  html.theme-crimson-velocity {
+    --background: 0 15% 6%;
+    --foreground: 0 10% 95%;
+    --card: 0 15% 11%;
+    --card-foreground: 0 10% 95%;
+    --popover: 0 15% 11%;
+    --popover-foreground: 0 10% 95%;
+    --primary: 0 90% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 12% 16%;
+    --secondary-foreground: 0 10% 90%;
+    --muted: 0 10% 14%;
+    --muted-foreground: 0 8% 60%;
+    --accent: 15 90% 55%;
+    --accent-foreground: 0 0% 100%;
+    --border: 0 12% 20%;
+    --input: 0 12% 20%;
+    --ring: 0 90% 58%;
+    --gradient-primary: linear-gradient(135deg, hsl(0 90% 58%), hsl(15 90% 55%));
+    --gradient-card: linear-gradient(145deg, hsl(0 15% 13%), hsl(0 15% 8%));
+    --glow-primary: 0 0 24px hsl(0 90% 58% / 0.45);
+    --glow-accent: 0 0 24px hsl(15 90% 55% / 0.40);
+  }
+  html.theme-crimson-velocity body {
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, hsl(0 90% 58% / 0.12), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, hsl(15 90% 55% / 0.10), transparent 60%) !important;
+  }
 }
 
 @layer base {
