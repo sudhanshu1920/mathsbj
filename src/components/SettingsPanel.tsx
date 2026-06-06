@@ -7,7 +7,7 @@ import { getSettings, setSound, setVibration, AppSettings } from '@/lib/settings
 import { getStreak, setTarget, StreakState } from '@/lib/streak';
 import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
-import { THEMES, getTheme, setTheme as setAppTheme, ThemeId } from '@/lib/theme';
+import { THEMES, setTheme as setAppTheme, useTheme } from '@/lib/theme';
 
 type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline';
 
@@ -19,23 +19,20 @@ const SettingsPanel = () => {
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
-  const [theme, setThemeState] = useState<ThemeId>(() => getTheme());
+  const theme = useTheme();
   const guest = !user && isGuest();
 
   useEffect(() => {
     const refresh = () => { setSettingsState(getSettings()); setStreak(getStreak()); };
-    const onTheme = () => setThemeState(getTheme());
     const onOn = () => setOnline(true);
     const onOff = () => setOnline(false);
     window.addEventListener('settings-updated', refresh);
     window.addEventListener('streak-updated', refresh);
-    window.addEventListener('theme-updated', onTheme);
     window.addEventListener('online', onOn);
     window.addEventListener('offline', onOff);
     return () => {
       window.removeEventListener('settings-updated', refresh);
       window.removeEventListener('streak-updated', refresh);
-      window.removeEventListener('theme-updated', onTheme);
       window.removeEventListener('online', onOn);
       window.removeEventListener('offline', onOff);
     };
@@ -94,7 +91,7 @@ const SettingsPanel = () => {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
             <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-              {online ? <Cloud size={11} className="text-emerald-500" /> : <CloudOff size={11} />}
+              {online ? <Cloud size={11} className="text-success" /> : <CloudOff size={11} />}
               {user.email}
             </p>
           </div>
@@ -172,7 +169,7 @@ const SettingsPanel = () => {
       {/* Appearance — Themes */}
       <div>
         <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-          <Palette size={16} className="text-muted-foreground" /> Appearance
+          <Palette size={16} className="text-muted-foreground" /> Appearance · Themes
         </p>
         <div className="grid grid-cols-1 gap-2">
           {THEMES.map((t) => {
@@ -181,12 +178,18 @@ const SettingsPanel = () => {
               <motion.button
                 key={t.id}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => { setAppTheme(t.id); setThemeState(t.id); }}
-                className={`flex items-center gap-3 rounded-2xl p-3 border text-left transition-all ${
+                onClick={() => setAppTheme(t.id)}
+                className={`relative overflow-hidden flex items-center gap-3 rounded-2xl p-3 border text-left transition-all duration-300 ${
                   selected
                     ? 'border-primary bg-primary/10 glow-primary'
-                    : 'border-border bg-card hover:border-primary/40'
+                    : 'border-border/70 bg-card hover:border-primary/40'
                 }`}
+                style={{
+                  background: selected
+                    ? `linear-gradient(135deg, ${t.swatch[1].replace(')', ' / 0.18)')}, ${t.swatch[2].replace(')', ' / 0.10)')})`
+                    : `linear-gradient(135deg, ${t.swatch[0].replace(')', ' / 0.72)')}, ${t.swatch[1].replace(')', ' / 0.08)')})`,
+                  boxShadow: selected ? `0 0 22px ${t.swatch[1].replace(')', ' / 0.32)')}` : undefined,
+                }}
               >
                 <div className="flex -space-x-1.5">
                   {t.swatch.map((c, i) => (

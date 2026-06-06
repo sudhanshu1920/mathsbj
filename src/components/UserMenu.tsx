@@ -41,7 +41,7 @@ const UserMenu = () => {
         <button className="relative h-9 w-9 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center hover:bg-primary/20 transition" aria-label="Account">
           {initial}
           <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-background flex items-center justify-center">
-            <StatusIcon className={`h-2.5 w-2.5 ${syncing ? 'animate-spin text-primary' : online ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+            <StatusIcon className={`h-2.5 w-2.5 ${syncing ? 'animate-spin text-primary' : online ? 'text-success' : 'text-muted-foreground'}`} />
           </span>
         </button>
       </DropdownMenuTrigger>
