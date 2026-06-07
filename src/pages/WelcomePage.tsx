@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { Sparkles, UserPlus, LogIn, Zap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { UserPlus, LogIn, Zap } from 'lucide-react';
 import { setGuest } from '@/lib/guest';
+import Mascot from '@/components/duo/Mascot';
+import ChunkyButton from '@/components/duo/ChunkyButton';
 
 interface Props {
   onAuthRequested: (mode: 'login' | 'signup') => void;
@@ -23,49 +24,30 @@ const WelcomePage = ({ onAuthRequested }: Props) => {
         transition={{ duration: 0.5 }}
         className="w-full max-w-sm relative z-10 text-center"
       >
-        <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-          className="mx-auto mb-6 h-20 w-20 rounded-3xl gradient-primary flex items-center justify-center shadow-[0_0_40px_-8px_hsl(var(--primary)/0.7)]"
-        >
-          <Sparkles className="h-10 w-10 text-primary-foreground" />
-        </motion.div>
+        <div className="mx-auto mb-4 flex justify-center">
+          <Mascot size={140} />
+        </div>
 
-        <h1 className="text-4xl font-display font-bold tracking-tight text-glow">Math Master</h1>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Premium math learning. Works fully offline.
+        <h1 className="font-display font-black text-4xl tracking-tight text-foreground">Math Quest</h1>
+        <p className="mt-3 text-sm text-muted-foreground font-display font-semibold">
+          Learn math the fun way. Works fully offline.
         </p>
 
-        <div className="mt-10 space-y-3">
-          <Button
-            onClick={continueAsGuest}
-            size="lg"
-            className="w-full gradient-primary text-primary-foreground font-semibold shadow-[0_0_24px_-8px_hsl(var(--primary)/0.8)]"
-          >
-            <Zap className="h-4 w-4" />
-            Continue as Guest
-          </Button>
+        <div className="mt-8 space-y-3">
+          <ChunkyButton onClick={continueAsGuest} size="lg" variant="primary" className="w-full">
+            <Zap className="h-5 w-5" /> Get Started
+          </ChunkyButton>
 
-          <Button
-            onClick={() => onAuthRequested('login')}
-            size="lg"
-            variant="outline"
-            className="w-full"
-          >
-            <LogIn className="h-4 w-4" />
-            Sign In
-          </Button>
+          <ChunkyButton onClick={() => onAuthRequested('login')} size="lg" variant="ghost" className="w-full">
+            <LogIn className="h-5 w-5" /> I Already Have an Account
+          </ChunkyButton>
 
-          <Button
+          <button
             onClick={() => onAuthRequested('signup')}
-            size="lg"
-            variant="ghost"
-            className="w-full text-muted-foreground hover:text-foreground"
+            className="w-full text-sm font-display font-bold text-muted-foreground hover:text-foreground pt-2"
           >
-            <UserPlus className="h-4 w-4" />
-            Create Account
-          </Button>
+            <UserPlus className="inline h-4 w-4 mr-1" /> Create Account
+          </button>
         </div>
 
         <p className="mt-8 text-xs text-muted-foreground/70">
