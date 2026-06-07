@@ -197,6 +197,123 @@
     --glow-primary: 0 0 30px hsl(186 100% 50% / 0.58);
     --glow-accent: 0 0 26px hsl(188 100% 42% / 0.48);
   }
+
+  html.theme-royal-obsidian {
+    --background: 260 40% 6%;
+    --foreground: 270 30% 96%;
+    --card: 260 36% 11%;
+    --card-foreground: 270 30% 96%;
+    --popover: 260 36% 10%;
+    --popover-foreground: 270 30% 96%;
+    --primary: 270 90% 70%;
+    --primary-foreground: 260 40% 6%;
+    --secondary: 260 32% 18%;
+    --secondary-foreground: 270 30% 92%;
+    --muted: 260 28% 14%;
+    --muted-foreground: 270 16% 68%;
+    --accent: 290 90% 65%;
+    --accent-foreground: 260 40% 6%;
+    --border: 270 32% 28%;
+    --input: 260 28% 20%;
+    --ring: 270 90% 70%;
+    --success: 156 80% 52%;
+    --success-foreground: 260 40% 6%;
+    --gradient-primary: linear-gradient(135deg, hsl(270 90% 70%), hsl(290 90% 65%));
+    --gradient-success: linear-gradient(135deg, hsl(270 90% 70%), hsl(180 80% 55%));
+    --gradient-warm: linear-gradient(135deg, hsl(290 90% 65%), hsl(330 90% 60%));
+    --gradient-card: linear-gradient(145deg, hsl(260 36% 13%), hsl(260 40% 7%));
+    --glow-primary: 0 0 26px hsl(270 90% 70% / 0.45);
+    --glow-accent: 0 0 24px hsl(290 90% 65% / 0.38);
+  }
+
+  html.theme-emerald-elite {
+    --background: 160 40% 6%;
+    --foreground: 150 30% 96%;
+    --card: 160 34% 11%;
+    --card-foreground: 150 30% 96%;
+    --popover: 160 34% 10%;
+    --popover-foreground: 150 30% 96%;
+    --primary: 152 80% 50%;
+    --primary-foreground: 160 40% 6%;
+    --secondary: 160 28% 18%;
+    --secondary-foreground: 150 30% 92%;
+    --muted: 160 24% 14%;
+    --muted-foreground: 150 16% 68%;
+    --accent: 170 85% 55%;
+    --accent-foreground: 160 40% 6%;
+    --border: 152 36% 28%;
+    --input: 160 24% 20%;
+    --ring: 152 80% 50%;
+    --success: 152 80% 50%;
+    --success-foreground: 160 40% 6%;
+    --gradient-primary: linear-gradient(135deg, hsl(152 80% 50%), hsl(170 85% 55%));
+    --gradient-success: linear-gradient(135deg, hsl(152 80% 50%), hsl(186 90% 52%));
+    --gradient-warm: linear-gradient(135deg, hsl(170 85% 55%), hsl(46 90% 58%));
+    --gradient-card: linear-gradient(145deg, hsl(160 34% 13%), hsl(160 40% 7%));
+    --glow-primary: 0 0 26px hsl(152 80% 50% / 0.42);
+    --glow-accent: 0 0 24px hsl(170 85% 55% / 0.38);
+  }
+
+  html.theme-crimson-velocity {
+    --background: 0 30% 6%;
+    --foreground: 10 30% 96%;
+    --card: 0 28% 11%;
+    --card-foreground: 10 30% 96%;
+    --popover: 0 28% 10%;
+    --popover-foreground: 10 30% 96%;
+    --primary: 0 90% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 24% 18%;
+    --secondary-foreground: 10 30% 92%;
+    --muted: 0 20% 14%;
+    --muted-foreground: 10 16% 68%;
+    --accent: 20 95% 58%;
+    --accent-foreground: 0 0% 100%;
+    --border: 0 38% 28%;
+    --input: 0 20% 20%;
+    --ring: 0 90% 60%;
+    --success: 145 80% 50%;
+    --success-foreground: 0 0% 100%;
+    --gradient-primary: linear-gradient(135deg, hsl(0 90% 60%), hsl(20 95% 58%));
+    --gradient-success: linear-gradient(135deg, hsl(145 80% 50%), hsl(170 80% 50%));
+    --gradient-warm: linear-gradient(135deg, hsl(20 95% 58%), hsl(40 95% 55%));
+    --gradient-card: linear-gradient(145deg, hsl(0 28% 13%), hsl(0 30% 7%));
+    --glow-primary: 0 0 26px hsl(0 90% 60% / 0.48);
+    --glow-accent: 0 0 24px hsl(20 95% 58% / 0.42);
+  }
+
+  /* ===== Light mode overrides =====
+     When html has both .light and a .theme-*, flip surfaces to light while
+     keeping the theme's primary/accent palette. */
+  html.light {
+    --background: 0 0% 98%;
+    --foreground: 230 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 25% 12%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 230 25% 20%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 10% 40%;
+    --border: 220 13% 86%;
+    --input: 220 13% 86%;
+    color-scheme: light;
+  }
+  html.light.theme-glass-matte    { --primary: 213 94% 52%; --accent: 188 84% 46%; --ring: 213 94% 52%; --primary-foreground: 0 0% 100%; --accent-foreground: 0 0% 100%; }
+  html.light.theme-golden-prime   { --primary: 42 80% 42%;  --accent: 38 90% 48%;  --ring: 42 80% 42%;  --primary-foreground: 0 0% 100%; --accent-foreground: 0 0% 100%; }
+  html.light.theme-neon-core      { --primary: 188 95% 38%; --accent: 196 90% 42%; --ring: 188 95% 38%; --primary-foreground: 0 0% 100%; --accent-foreground: 0 0% 100%; }
+  html.light.theme-royal-obsidian { --primary: 270 70% 52%; --accent: 290 75% 50%; --ring: 270 70% 52%; --primary-foreground: 0 0% 100%; --accent-foreground: 0 0% 100%; }
+  html.light.theme-emerald-elite  { --primary: 152 70% 36%; --accent: 170 70% 38%; --ring: 152 70% 36%; --primary-foreground: 0 0% 100%; --accent-foreground: 0 0% 100%; }
+  html.light.theme-crimson-velocity { --primary: 0 80% 50%; --accent: 20 85% 50%;  --ring: 0 80% 50%;   --primary-foreground: 0 0% 100%; --accent-foreground: 0 0% 100%; }
+  html.light {
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(170 70% 42%));
+    --gradient-warm: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--primary)));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 97%));
+    --glow-primary: 0 0 18px hsl(var(--primary) / 0.20);
+    --glow-accent: 0 0 18px hsl(var(--accent) / 0.20);
+  }
 }
 
 @layer base {
@@ -228,26 +345,47 @@
       radial-gradient(1000px 700px at 50% 120%, hsl(260 80% 50% / 0.08), transparent 60%);
     background-attachment: fixed;
   }
-  html.theme-glass-matte body {
+  html.light body {
+    background-image:
+      radial-gradient(900px 480px at 10% -10%, hsl(var(--primary) / 0.10), transparent 60%),
+      radial-gradient(800px 480px at 110% 10%, hsl(var(--accent) / 0.08), transparent 60%),
+      linear-gradient(180deg, hsl(0 0% 99%), hsl(220 16% 95%)) !important;
+  }
+  html.theme-glass-matte:not(.light) body {
     background-image:
       radial-gradient(1000px 520px at 12% -8%, hsl(213 94% 68% / 0.14), transparent 62%),
       radial-gradient(900px 520px at 105% 8%, hsl(188 84% 62% / 0.12), transparent 60%),
       linear-gradient(180deg, hsl(226 49% 8%), hsl(226 54% 5%)) !important;
   }
-  html.theme-golden-prime body {
+  html.theme-golden-prime:not(.light) body {
     background-image:
       radial-gradient(980px 520px at 10% -8%, hsl(46 65% 52% / 0.13), transparent 62%),
       radial-gradient(820px 480px at 108% 12%, hsl(51 100% 50% / 0.08), transparent 60%),
       linear-gradient(180deg, hsl(0 0% 4%), hsl(42 24% 3%)) !important;
   }
-  html.theme-neon-core body {
+  html.theme-neon-core:not(.light) body {
     background-image:
       radial-gradient(1100px 560px at 8% -10%, hsl(186 100% 50% / 0.18), transparent 60%),
       radial-gradient(920px 520px at 108% 8%, hsl(188 100% 42% / 0.14), transparent 60%),
       linear-gradient(180deg, hsl(229 63% 5%), hsl(229 78% 3%)) !important;
   }
-  .light body {
-    background-image: none;
+  html.theme-royal-obsidian:not(.light) body {
+    background-image:
+      radial-gradient(1000px 520px at 10% -10%, hsl(270 90% 70% / 0.18), transparent 60%),
+      radial-gradient(880px 500px at 108% 8%, hsl(290 90% 65% / 0.14), transparent 60%),
+      linear-gradient(180deg, hsl(260 40% 6%), hsl(260 50% 4%)) !important;
+  }
+  html.theme-emerald-elite:not(.light) body {
+    background-image:
+      radial-gradient(1000px 520px at 10% -10%, hsl(152 80% 50% / 0.16), transparent 60%),
+      radial-gradient(880px 500px at 108% 8%, hsl(170 85% 55% / 0.12), transparent 60%),
+      linear-gradient(180deg, hsl(160 40% 6%), hsl(160 50% 4%)) !important;
+  }
+  html.theme-crimson-velocity:not(.light) body {
+    background-image:
+      radial-gradient(1000px 520px at 10% -10%, hsl(0 90% 60% / 0.18), transparent 60%),
+      radial-gradient(880px 500px at 108% 8%, hsl(20 95% 58% / 0.14), transparent 60%),
+      linear-gradient(180deg, hsl(0 30% 6%), hsl(0 40% 4%)) !important;
   }
 }
 
