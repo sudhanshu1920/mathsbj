@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-const KEY = 'math-app-theme-v1';
+const KEY = 'math-app-theme-v2';
 const MODE_KEY = 'math-app-mode-v1';
 
 export type ThemeId =

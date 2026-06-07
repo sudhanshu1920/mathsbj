@@ -54,7 +54,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t-2 border-border safe-bottom shadow-[0_-6px_24px_-6px_hsl(var(--primary)/0.25)]">
-      <div className="flex justify-around items-center h-18 max-w-lg mx-auto py-2">
+      <div className="flex justify-around items-center h-[68px] max-w-lg mx-auto py-2">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
           const isBouncing = bouncingTab === tab.id;
