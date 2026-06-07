@@ -1,24 +1,18 @@
-import { Palette } from 'lucide-react';
-import { THEMES, setTheme, useTheme } from '@/lib/theme';
+import { Sun, Moon } from 'lucide-react';
+import { useMode, toggleMode } from '@/lib/theme';
 
 const ThemeToggle = () => {
-  const theme = useTheme();
-  const activeIndex = THEMES.findIndex((item) => item.id === theme);
-  const active = THEMES[Math.max(0, activeIndex)] ?? THEMES[0];
-
-  const cycleTheme = () => {
-    const next = THEMES[(Math.max(0, activeIndex) + 1) % THEMES.length];
-    setTheme(next.id);
-  };
+  const mode = useMode();
+  const isDark = mode === 'dark';
 
   return (
     <button
-      onClick={cycleTheme}
+      onClick={toggleMode}
       className="p-2 rounded-full glass text-primary hover:text-primary-foreground hover:gradient-primary transition-all duration-300 glow-primary"
-      aria-label={`Current theme: ${active.name}. Switch theme`}
-      title={`Theme: ${active.name}`}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Light mode' : 'Dark mode'}
     >
-      <Palette size={18} />
+      {isDark ? <Sun size={18} /> : <Moon size={18} />}
     </button>
   );
 };
