@@ -8,7 +8,7 @@ import Watermark from '@/components/Watermark';
 import LearningPage from '@/pages/LearningPage';
 import PracticePage from '@/pages/PracticePage';
 import ProgressPage from '@/pages/ProgressPage';
-import { useTheme } from '@/lib/theme';
+import { useTheme, useMode } from '@/lib/theme';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -59,6 +59,7 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
 
 const Index = () => {
   const currentTheme = useTheme();
+  const currentMode = useMode();
   const [tab, setTab] = useState<Tab>('learn');
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
   const [practiceContext, setPracticeContext] = useState<{ from?: number; to?: number; number?: number } | undefined>();
@@ -226,7 +227,7 @@ const Index = () => {
   }, [returnToLearn]);
 
   return (
-    <div data-current-theme={currentTheme} className="min-h-screen bg-background pb-20 relative transition-colors duration-300">
+    <div data-current-theme={currentTheme} data-current-mode={currentMode} className="min-h-screen bg-background pb-20 relative transition-colors duration-300">
       <Watermark />
       <div className="max-w-lg mx-auto px-4 pt-4 relative z-10">
         {tab !== 'learn' && (

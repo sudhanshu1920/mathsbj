@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette, Sun, Moon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, AppSettings } from '@/lib/settings';
 import { getStreak, setTarget, StreakState } from '@/lib/streak';
 import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
-import { THEMES, setTheme as setAppTheme, useTheme } from '@/lib/theme';
+import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
 
 type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline';
 
@@ -20,6 +20,7 @@ const SettingsPanel = () => {
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
   const theme = useTheme();
+  const mode = useMode();
   const guest = !user && isGuest();
 
   useEffect(() => {
@@ -171,6 +172,28 @@ const SettingsPanel = () => {
         <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
           <Palette size={16} className="text-muted-foreground" /> Appearance · Themes
         </p>
+        {/* Dark / Light mode */}
+        <div className="flex gap-2 mb-3">
+          {(['dark', 'light'] as const).map((m) => {
+            const active = mode === m;
+            const Icon = m === 'dark' ? Moon : Sun;
+            return (
+              <motion.button
+                key={m}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setMode(m)}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl px-3 py-2 border text-sm font-semibold transition-all ${
+                  active
+                    ? 'border-primary bg-primary/10 text-primary glow-primary'
+                    : 'border-border bg-card text-muted-foreground hover:border-primary/40'
+                }`}
+              >
+                <Icon size={15} />
+                {m === 'dark' ? 'Dark' : 'Light'}
+              </motion.button>
+            );
+          })}
+        </div>
         <div className="grid grid-cols-1 gap-2">
           {THEMES.map((t) => {
             const selected = theme === t.id;
