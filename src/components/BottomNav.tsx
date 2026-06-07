@@ -53,8 +53,8 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
   }, [onChange, onDoubleTap]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/60 safe-bottom shadow-[0_-8px_32px_-8px_hsl(var(--primary)/0.25)]">
-      <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t-2 border-border safe-bottom shadow-[0_-6px_24px_-6px_hsl(var(--primary)/0.25)]">
+      <div className="flex justify-around items-center h-18 max-w-lg mx-auto py-2">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
           const isBouncing = bouncingTab === tab.id;
@@ -64,24 +64,19 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
               onClick={() => handleTap(tab.id)}
               className="relative flex flex-col items-center justify-center gap-1 flex-1 h-full"
             >
-              {isActive && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute -top-0.5 w-12 h-1 rounded-full gradient-primary shadow-[0_0_12px_hsl(var(--primary)/0.7)]"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
-              )}
               <motion.div
-                animate={isBouncing ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+                animate={isBouncing ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                 transition={{ duration: 0.3 }}
+                className={`relative flex items-center justify-center w-14 h-10 rounded-2xl border-2 ${
+                  isActive
+                    ? 'bg-primary/15 border-primary text-primary shadow-chunky'
+                    : 'bg-transparent border-transparent text-muted-foreground'
+                }`}
               >
-                <tab.icon
-                  size={22}
-                  className={isActive ? 'text-primary' : 'text-muted-foreground'}
-                />
+                <tab.icon size={22} strokeWidth={2.5} />
               </motion.div>
               <span
-                className={`text-[10px] font-medium ${
+                className={`text-[10px] font-display font-extrabold uppercase tracking-wider ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}
               >
