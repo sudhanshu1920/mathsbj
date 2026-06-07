@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen } from 'lucide-react';
+import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
+import Mascot from '@/components/duo/Mascot';
+import StatPill from '@/components/duo/StatPill';
 
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
@@ -11,6 +13,8 @@ import PracticeModeSelector, { type PracticeSettings } from '@/components/Practi
 import FormulasLearning from '@/components/FormulasLearning';
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
+import { getStreak } from '@/lib/streak';
+import { getXP, levelFromXP } from '@/lib/xp';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas';
 
@@ -385,37 +389,101 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     formulas: 'f(x)',
   };
 
+  const cardTints: Record<Topic, { bg: string; shadow: string }> = {
+    tables:        { bg: 'bg-primary text-primary-foreground',     shadow: 'shadow-chunky' },
+    squares:       { bg: 'bg-accent text-accent-foreground',       shadow: 'shadow-chunky-accent' },
+    'square-roots':{ bg: 'bg-primary text-primary-foreground',     shadow: 'shadow-chunky' },
+    cubes:         { bg: 'bg-warning text-warning-foreground',     shadow: 'shadow-chunky-warm' },
+    'cube-roots':  { bg: 'bg-accent text-accent-foreground',       shadow: 'shadow-chunky-accent' },
+    powers:        { bg: 'bg-warning text-warning-foreground',     shadow: 'shadow-chunky-warm' },
+    percentage:    { bg: 'bg-destructive text-destructive-foreground', shadow: 'shadow-chunky-danger' },
+    formulas:      { bg: 'bg-primary text-primary-foreground',     shadow: 'shadow-chunky' },
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="font-display font-bold text-2xl text-glow">Learning</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Master every concept · Level up</p>
+      {/* Top stat bar — Duolingo style */}
+      <TopStatBar />
+
+      {/* Mascot welcome bubble */}
+      <div className="flex items-end gap-3 mb-5">
+        <Mascot size={72} />
+        <div className="relative flex-1 bg-card border-2 border-border rounded-2xl px-4 py-3 shadow-chunky">
+          <div
+            className="absolute -left-2 bottom-4 w-3 h-3 rotate-45 bg-card border-l-2 border-b-2 border-border"
+            aria-hidden
+          />
+          <p className="font-display font-extrabold text-foreground leading-tight">
+            Ready to level up?
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">Pick a topic and earn XP!</p>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-display font-extrabold text-lg uppercase tracking-wide text-foreground">Topics</h2>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <DesktopModeToggle />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        {topics.map((t, i) => (
-          <motion.button
-            key={t.id}
-            initial={{ opacity: 0, y: 14, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: i * 0.04, duration: 0.28, ease: 'easeOut' }}
-            whileTap={{ scale: 0.96 }}
-            whileHover={{ y: -2 }}
-            onClick={() => setActiveTopic(t.id)}
-            className="group relative overflow-hidden flex flex-col items-start gap-3 w-full glass rounded-2xl p-4 transition-all hover:border-primary/60 hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.4)]"
-          >
-            <span className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 blur-2xl opacity-60 group-hover:opacity-100 transition-opacity" />
-            <span className="relative w-11 h-11 rounded-xl gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg shadow-[0_0_18px_hsl(var(--primary)/0.45)]">
-              {topicSymbols[t.id]}
-            </span>
-            <span className="relative font-display font-semibold text-foreground text-sm text-left leading-tight">{t.title}</span>
-          </motion.button>
-        ))}
+
+      <div className="grid grid-cols-2 gap-4 pb-6">
+        {topics.map((t, i) => {
+          const tint = cardTints[t.id];
+          return (
+            <motion.button
+              key={t.id}
+              initial={{ opacity: 0, y: 14, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: i * 0.04, duration: 0.28, ease: 'easeOut' }}
+              onClick={() => setActiveTopic(t.id)}
+              className={`press-chunky relative overflow-hidden flex flex-col items-center justify-center gap-2 aspect-square w-full rounded-3xl border-b-0 ${tint.bg} ${tint.shadow}`}
+            >
+              <span className="font-display font-black text-3xl leading-none drop-shadow-[0_2px_0_rgba(0,0,0,0.15)]">
+                {topicSymbols[t.id]}
+              </span>
+              <span className="font-display font-extrabold text-sm uppercase tracking-wide text-center">
+                {t.title}
+              </span>
+            </motion.button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const TopStatBar = () => {
+  const [streak, setStreak] = useState(() => getStreak().current);
+  const [xp, setXp] = useState(() => getXP().xp);
+  const [hearts] = useState(5);
+
+  useEffect(() => {
+    const refresh = () => {
+      setStreak(getStreak().current);
+      setXp(getXP().xp);
+    };
+    window.addEventListener('streak-updated', refresh);
+    window.addEventListener('xp-updated', refresh);
+    return () => {
+      window.removeEventListener('streak-updated', refresh);
+      window.removeEventListener('xp-updated', refresh);
+    };
+  }, []);
+
+  return (
+    <div className="flex items-center justify-between gap-2 mb-5">
+      <div>
+        <h1 className="font-display font-black text-2xl text-foreground leading-none">Math Quest</h1>
+        <p className="text-[11px] text-muted-foreground font-display font-bold uppercase tracking-wider mt-0.5">
+          Level {levelFromXP(xp)}
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <StatPill icon={Flame} value={streak} color="warning" />
+        <StatPill icon={Zap} value={xp} color="primary" />
+        <StatPill icon={Heart} value={hearts} color="destructive" />
       </div>
     </div>
   );
