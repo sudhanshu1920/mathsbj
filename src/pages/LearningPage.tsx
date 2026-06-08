@@ -396,19 +396,17 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       {/* Top stat bar — Duolingo style */}
       <TopStatBar />
 
-      {/* Mascot welcome bubble */}
-      <div className="flex items-end gap-3 mb-5">
-        <Mascot size={72} />
-        <div className="relative flex-1 bg-card border-2 border-border rounded-2xl px-4 py-3 shadow-chunky">
-          <div
-            className="absolute -left-2 bottom-4 w-3 h-3 rotate-45 bg-card border-l-2 border-b-2 border-border"
-            aria-hidden
-          />
-          <p className="font-display font-extrabold text-foreground leading-tight">
-            Ready to level up?
+      {/* HUD welcome strip */}
+      <div className="glass-panel rounded-2xl px-4 py-3 mb-5 flex items-center justify-between">
+        <div>
+          <p className="font-display font-extrabold text-foreground leading-tight tracking-wide neon-text">
+            READY PLAYER
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">Pick a topic and earn XP!</p>
+          <p className="text-[11px] text-muted-foreground font-display font-bold uppercase tracking-wider mt-0.5">
+            Select a module to engage
+          </p>
         </div>
+        <span className="font-display font-black text-primary text-2xl neon-text">⌁</span>
       </div>
 
       <div className="flex items-center justify-between mb-3">
