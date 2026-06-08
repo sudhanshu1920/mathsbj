@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Nunito:wght@600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root,
@@ -168,31 +168,35 @@
   }
 
   html.theme-glass-matte {
-    --background: 226 49% 8%;
-    --foreground: 220 28% 96%;
-    --card: 225 42% 13%;
-    --card-foreground: 220 28% 96%;
-    --popover: 225 42% 12%;
-    --popover-foreground: 220 28% 96%;
-    --primary: 213 94% 68%;
-    --primary-foreground: 226 49% 8%;
-    --secondary: 224 38% 18%;
-    --secondary-foreground: 220 28% 92%;
-    --muted: 224 30% 16%;
-    --muted-foreground: 220 16% 66%;
-    --accent: 188 84% 62%;
-    --accent-foreground: 226 49% 8%;
-    --border: 220 32% 88%;
-    --input: 224 28% 25%;
-    --ring: 188 84% 62%;
-    --success: 156 80% 52%;
-    --success-foreground: 226 49% 8%;
-    --gradient-primary: linear-gradient(135deg, hsl(213 94% 68%), hsl(188 84% 62%));
-    --gradient-success: linear-gradient(135deg, hsl(188 84% 62%), hsl(156 80% 52%));
-    --gradient-warm: linear-gradient(135deg, hsl(213 94% 68%), hsl(188 84% 62%));
-    --gradient-card: linear-gradient(145deg, hsl(225 42% 16% / 0.78), hsl(226 49% 9% / 0.58));
-    --glow-primary: 0 0 22px hsl(188 84% 62% / 0.32);
-    --glow-accent: 0 0 22px hsl(213 94% 68% / 0.28);
+    --background: 225 50% 7%;
+    --foreground: 210 30% 96%;
+    --card: 225 35% 14%;
+    --card-foreground: 210 30% 96%;
+    --popover: 225 38% 12%;
+    --popover-foreground: 210 30% 96%;
+    --primary: 187 92% 53%;
+    --primary-foreground: 225 50% 7%;
+    --secondary: 258 50% 22%;
+    --secondary-foreground: 210 30% 95%;
+    --muted: 225 28% 16%;
+    --muted-foreground: 215 16% 68%;
+    --accent: 258 90% 73%;
+    --accent-foreground: 225 50% 7%;
+    --destructive: 0 86% 70%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 30% 86%;
+    --input: 225 30% 20%;
+    --ring: 187 92% 53%;
+    --success: 142 76% 58%;
+    --success-foreground: 225 50% 7%;
+    --warning: 41 96% 56%;
+    --warning-foreground: 225 50% 7%;
+    --gradient-primary: linear-gradient(135deg, hsl(187 92% 53%), hsl(258 90% 73%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 58%), hsl(187 92% 53%));
+    --gradient-warm: linear-gradient(135deg, hsl(41 96% 56%), hsl(0 86% 70%));
+    --gradient-card: linear-gradient(145deg, hsl(225 35% 16% / 0.65), hsl(225 50% 9% / 0.45));
+    --glow-primary: 0 0 0 1px hsl(187 92% 53% / 0.45), 0 0 24px hsl(187 92% 53% / 0.35);
+    --glow-accent: 0 0 0 1px hsl(258 90% 73% / 0.45), 0 0 24px hsl(258 90% 73% / 0.30);
   }
 
   html.theme-golden-prime {
