@@ -1,13 +1,12 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import Watermark from '@/components/Watermark';
 import LearningPage from '@/pages/LearningPage';
-import PracticePage from '@/pages/PracticePage';
-import ProgressPage from '@/pages/ProgressPage';
+const PracticePage = lazy(() => import('@/pages/PracticePage'));
+const ProgressPage = lazy(() => import('@/pages/ProgressPage'));
 import { useTheme, useMode } from '@/lib/theme';
 
 type Tab = 'learn' | 'practice' | 'progress';
@@ -227,7 +226,7 @@ const Index = () => {
   }, [returnToLearn]);
 
   return (
-    <div data-current-theme={currentTheme} data-current-mode={currentMode} className="min-h-screen bg-background pb-20 relative transition-colors duration-300">
+    <div data-current-theme={currentTheme} data-current-mode={currentMode} className="min-h-screen bg-background pb-20 relative">
       <Watermark />
       <div className="max-w-lg mx-auto px-4 pt-4 relative z-10">
         {tab !== 'learn' && (
@@ -236,22 +235,16 @@ const Index = () => {
             <DesktopModeToggle />
           </div>
         )}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab + (practiceTopic || '')}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {tab === 'learn' && (
-              <LearningPage
-                onStartPractice={handleStartPractice}
-                learningState={learningState}
-                onLearningStateChange={setLearningState}
-              />
-            )}
-            {tab === 'practice' && (
+        <div className={tab === 'learn' ? 'animate-fade-in' : 'hidden'}>
+          <LearningPage
+            onStartPractice={handleStartPractice}
+            learningState={learningState}
+            onLearningStateChange={setLearningState}
+          />
+        </div>
+        <Suspense fallback={null}>
+          {tab === 'practice' && (
+            <div className="animate-fade-in">
               <PracticePage
                 initialTopic={practiceTopic}
                 initialContext={practiceContext}
@@ -260,10 +253,14 @@ const Index = () => {
                 onExit={handlePracticeExit}
                 fromLearning={returnToLearn}
               />
-            )}
-            {tab === 'progress' && <ProgressPage />}
-          </motion.div>
-        </AnimatePresence>
+            </div>
+          )}
+          {tab === 'progress' && (
+            <div className="animate-fade-in">
+              <ProgressPage />
+            </div>
+          )}
+        </Suspense>
       </div>
       <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
     </div>
