@@ -53,7 +53,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
   }, [onChange, onDoubleTap]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t-2 border-border safe-bottom shadow-[0_-6px_24px_-6px_hsl(var(--primary)/0.25)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-b-0 border-x-0 safe-bottom shadow-[0_-12px_32px_-12px_hsl(var(--primary)/0.35)]">
       <div className="flex justify-around items-center h-[68px] max-w-lg mx-auto py-2">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
@@ -67,9 +67,9 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
               <motion.div
                 animate={isBouncing ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                 transition={{ duration: 0.3 }}
-                className={`relative flex items-center justify-center w-14 h-10 rounded-2xl border-2 ${
+                className={`relative flex items-center justify-center w-14 h-10 rounded-2xl border ${
                   isActive
-                    ? 'bg-primary/15 border-primary text-primary shadow-chunky'
+                    ? 'bg-primary/10 border-primary/60 text-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.45),0_0_18px_hsl(var(--primary)/0.45)]'
                     : 'bg-transparent border-transparent text-muted-foreground'
                 }`}
               >
@@ -77,7 +77,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
               </motion.div>
               <span
                 className={`text-[10px] font-display font-extrabold uppercase tracking-wider ${
-                  isActive ? 'text-primary' : 'text-muted-foreground'
+                  isActive ? 'text-primary neon-text' : 'text-muted-foreground'
                 }`}
               >
                 {tab.label}

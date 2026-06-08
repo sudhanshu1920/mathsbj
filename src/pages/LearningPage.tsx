@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
-import Mascot from '@/components/duo/Mascot';
 import StatPill from '@/components/duo/StatPill';
 
 import SwipeContainer from '@/components/SwipeContainer';
@@ -122,17 +121,13 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   const renderNumberGrid = (max: number, onSelect: (n: number) => void) => (
     <div className="grid grid-cols-5 gap-2">
       {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-        <motion.button
+        <button
           key={n}
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: n * 0.005 }}
-          whileTap={{ scale: 0.9 }}
           onClick={() => onSelect(n)}
-          className="bg-card border border-border rounded-xl py-3 text-center font-display font-semibold text-foreground hover:border-primary transition-colors"
+          className="glass-panel rounded-xl py-3 text-center font-display font-semibold text-foreground hover:border-primary/60 active:scale-95"
         >
           {n}
-        </motion.button>
+        </button>
       ))}
     </div>
   );
@@ -140,17 +135,13 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   const renderRangeGroups = (onSelect: (from: number, to: number) => void) => (
     <div className="grid grid-cols-2 gap-3">
       {rangeGroups.map((g, i) => (
-        <motion.button
+        <button
           key={g.label}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.04 }}
-          whileTap={{ scale: 0.95 }}
           onClick={() => onSelect(g.from, g.to)}
-          className="bg-card border border-border rounded-xl py-4 text-center font-display font-semibold text-foreground hover:border-primary transition-colors"
+          className="glass-panel rounded-xl py-4 text-center font-display font-semibold text-foreground hover:border-primary/60 active:scale-[0.97]"
         >
           {g.label}
-        </motion.button>
+        </button>
       ))}
     </div>
   );
@@ -389,15 +380,15 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     formulas: 'f(x)',
   };
 
-  const cardTints: Record<Topic, { bg: string; shadow: string }> = {
-    tables:        { bg: 'bg-primary text-primary-foreground',     shadow: 'shadow-chunky' },
-    squares:       { bg: 'bg-accent text-accent-foreground',       shadow: 'shadow-chunky-accent' },
-    'square-roots':{ bg: 'bg-primary text-primary-foreground',     shadow: 'shadow-chunky' },
-    cubes:         { bg: 'bg-warning text-warning-foreground',     shadow: 'shadow-chunky-warm' },
-    'cube-roots':  { bg: 'bg-accent text-accent-foreground',       shadow: 'shadow-chunky-accent' },
-    powers:        { bg: 'bg-warning text-warning-foreground',     shadow: 'shadow-chunky-warm' },
-    percentage:    { bg: 'bg-destructive text-destructive-foreground', shadow: 'shadow-chunky-danger' },
-    formulas:      { bg: 'bg-primary text-primary-foreground',     shadow: 'shadow-chunky' },
+  const cardTints: Record<Topic, { glow: string; text: string }> = {
+    tables:        { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)]',  text: 'text-primary' },
+    squares:       { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)]',     text: 'text-accent' },
+    'square-roots':{ glow: 'hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)]',  text: 'text-primary' },
+    cubes:         { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)]',  text: 'text-warning' },
+    'cube-roots':  { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)]',     text: 'text-accent' },
+    powers:        { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)]',  text: 'text-warning' },
+    percentage:    { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--destructive)/0.6),0_0_28px_hsl(var(--destructive)/0.30)]', text: 'text-destructive' },
+    formulas:      { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)]',     text: 'text-accent' },
   };
 
   return (
@@ -405,19 +396,17 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       {/* Top stat bar — Duolingo style */}
       <TopStatBar />
 
-      {/* Mascot welcome bubble */}
-      <div className="flex items-end gap-3 mb-5">
-        <Mascot size={72} />
-        <div className="relative flex-1 bg-card border-2 border-border rounded-2xl px-4 py-3 shadow-chunky">
-          <div
-            className="absolute -left-2 bottom-4 w-3 h-3 rotate-45 bg-card border-l-2 border-b-2 border-border"
-            aria-hidden
-          />
-          <p className="font-display font-extrabold text-foreground leading-tight">
-            Ready to level up?
+      {/* HUD welcome strip */}
+      <div className="glass-panel rounded-2xl px-4 py-3 mb-5 flex items-center justify-between">
+        <div>
+          <p className="font-display font-extrabold text-foreground leading-tight tracking-wide neon-text">
+            READY PLAYER
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">Pick a topic and earn XP!</p>
+          <p className="text-[11px] text-muted-foreground font-display font-bold uppercase tracking-wider mt-0.5">
+            Select a module to engage
+          </p>
         </div>
+        <span className="font-display font-black text-primary text-2xl neon-text">⌁</span>
       </div>
 
       <div className="flex items-center justify-between mb-3">
@@ -428,25 +417,22 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 pb-6">
-        {topics.map((t, i) => {
+      <div className="grid grid-cols-2 gap-4 pb-6 animate-fade-in">
+        {topics.map((t) => {
           const tint = cardTints[t.id];
           return (
-            <motion.button
+            <button
               key={t.id}
-              initial={{ opacity: 0, y: 14, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: i * 0.04, duration: 0.28, ease: 'easeOut' }}
               onClick={() => setActiveTopic(t.id)}
-              className={`press-chunky relative overflow-hidden flex flex-col items-center justify-center gap-2 aspect-square w-full rounded-3xl border-b-0 ${tint.bg} ${tint.shadow}`}
+              className={`glass-panel relative overflow-hidden flex flex-col items-center justify-center gap-2 aspect-square w-full rounded-3xl active:scale-[0.97] ${tint.glow} ${tint.text}`}
             >
-              <span className="font-display font-black text-3xl leading-none drop-shadow-[0_2px_0_rgba(0,0,0,0.15)]">
+              <span className="font-display font-black text-4xl leading-none neon-text">
                 {topicSymbols[t.id]}
               </span>
-              <span className="font-display font-extrabold text-sm uppercase tracking-wide text-center">
+              <span className="font-display font-extrabold text-sm uppercase tracking-wider text-center text-foreground">
                 {t.title}
               </span>
-            </motion.button>
+            </button>
           );
         })}
       </div>

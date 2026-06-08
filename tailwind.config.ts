@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Nunito', '"Space Grotesk"', 'system-ui', 'sans-serif'],
-        body: ['Nunito', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['Rajdhani', '"Space Grotesk"', 'Nunito', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'Nunito', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Nunito:wght@600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root,
@@ -168,31 +168,35 @@
   }
 
   html.theme-glass-matte {
-    --background: 226 49% 8%;
-    --foreground: 220 28% 96%;
-    --card: 225 42% 13%;
-    --card-foreground: 220 28% 96%;
-    --popover: 225 42% 12%;
-    --popover-foreground: 220 28% 96%;
-    --primary: 213 94% 68%;
-    --primary-foreground: 226 49% 8%;
-    --secondary: 224 38% 18%;
-    --secondary-foreground: 220 28% 92%;
-    --muted: 224 30% 16%;
-    --muted-foreground: 220 16% 66%;
-    --accent: 188 84% 62%;
-    --accent-foreground: 226 49% 8%;
-    --border: 220 32% 88%;
-    --input: 224 28% 25%;
-    --ring: 188 84% 62%;
-    --success: 156 80% 52%;
-    --success-foreground: 226 49% 8%;
-    --gradient-primary: linear-gradient(135deg, hsl(213 94% 68%), hsl(188 84% 62%));
-    --gradient-success: linear-gradient(135deg, hsl(188 84% 62%), hsl(156 80% 52%));
-    --gradient-warm: linear-gradient(135deg, hsl(213 94% 68%), hsl(188 84% 62%));
-    --gradient-card: linear-gradient(145deg, hsl(225 42% 16% / 0.78), hsl(226 49% 9% / 0.58));
-    --glow-primary: 0 0 22px hsl(188 84% 62% / 0.32);
-    --glow-accent: 0 0 22px hsl(213 94% 68% / 0.28);
+    --background: 225 50% 7%;
+    --foreground: 210 30% 96%;
+    --card: 225 35% 14%;
+    --card-foreground: 210 30% 96%;
+    --popover: 225 38% 12%;
+    --popover-foreground: 210 30% 96%;
+    --primary: 187 92% 53%;
+    --primary-foreground: 225 50% 7%;
+    --secondary: 258 50% 22%;
+    --secondary-foreground: 210 30% 95%;
+    --muted: 225 28% 16%;
+    --muted-foreground: 215 16% 68%;
+    --accent: 258 90% 73%;
+    --accent-foreground: 225 50% 7%;
+    --destructive: 0 86% 70%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 30% 86%;
+    --input: 225 30% 20%;
+    --ring: 187 92% 53%;
+    --success: 142 76% 58%;
+    --success-foreground: 225 50% 7%;
+    --warning: 41 96% 56%;
+    --warning-foreground: 225 50% 7%;
+    --gradient-primary: linear-gradient(135deg, hsl(187 92% 53%), hsl(258 90% 73%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 58%), hsl(187 92% 53%));
+    --gradient-warm: linear-gradient(135deg, hsl(41 96% 56%), hsl(0 86% 70%));
+    --gradient-card: linear-gradient(145deg, hsl(225 35% 16% / 0.65), hsl(225 50% 9% / 0.45));
+    --glow-primary: 0 0 0 1px hsl(187 92% 53% / 0.45), 0 0 24px hsl(187 92% 53% / 0.35);
+    --glow-accent: 0 0 0 1px hsl(258 90% 73% / 0.45), 0 0 24px hsl(258 90% 73% / 0.30);
   }
 
   html.theme-golden-prime {
@@ -383,11 +387,12 @@
   button,
   input,
   textarea,
-  [class*="bg-"],
-  [class*="border"],
-  [class*="text-"] {
-    transition-property: background-color, border-color, color, box-shadow, opacity, transform;
-    transition-duration: 300ms;
+  .bg-card,
+  .bg-popover,
+  .bg-secondary,
+  .border-border {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 200ms;
     transition-timing-function: ease;
   }
   /* Premium dark backdrop with subtle radial neon glows */
@@ -406,9 +411,13 @@
   }
   html.theme-glass-matte:not(.light) body {
     background-image:
-      radial-gradient(1000px 520px at 12% -8%, hsl(213 94% 68% / 0.14), transparent 62%),
-      radial-gradient(900px 520px at 105% 8%, hsl(188 84% 62% / 0.12), transparent 60%),
-      linear-gradient(180deg, hsl(226 49% 8%), hsl(226 54% 5%)) !important;
+      linear-gradient(hsl(187 92% 53% / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(187 92% 53% / 0.05) 1px, transparent 1px),
+      radial-gradient(1000px 520px at 12% -8%, hsl(187 92% 53% / 0.18), transparent 62%),
+      radial-gradient(900px 520px at 108% 12%, hsl(258 90% 73% / 0.16), transparent 60%),
+      linear-gradient(180deg, hsl(225 50% 7%), hsl(225 60% 4%)) !important;
+    background-size: 44px 44px, 44px 44px, auto, auto, auto;
+    background-attachment: fixed;
   }
   html.theme-golden-prime:not(.light) body {
     background-image:
@@ -468,6 +477,19 @@
     backdrop-filter: blur(14px) saturate(140%);
     -webkit-backdrop-filter: blur(14px) saturate(140%);
     border: 1px solid hsl(var(--border) / 0.6);
+  }
+  .glass-panel {
+    background: linear-gradient(145deg, hsl(var(--card) / 0.65), hsl(var(--card) / 0.35));
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid hsl(var(--border) / 0.12);
+  }
+  .glass-glow {
+    box-shadow: var(--glow-primary);
+    border-color: hsl(var(--primary) / 0.55) !important;
+  }
+  .neon-text {
+    text-shadow: 0 0 12px hsl(var(--primary) / 0.55), 0 0 2px hsl(var(--primary) / 0.8);
   }
   /* Duolingo-style chunky 3D button/card */
   .shadow-chunky        { box-shadow: var(--shadow-chunky, 0 5px 0 0 hsl(var(--border))); }

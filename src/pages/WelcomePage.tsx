@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
-import { UserPlus, LogIn, Zap } from 'lucide-react';
+import { UserPlus, LogIn, Zap, Gamepad2 } from 'lucide-react';
 import { setGuest } from '@/lib/guest';
-import Mascot from '@/components/duo/Mascot';
 import ChunkyButton from '@/components/duo/ChunkyButton';
 
 interface Props {
@@ -24,13 +23,15 @@ const WelcomePage = ({ onAuthRequested }: Props) => {
         transition={{ duration: 0.5 }}
         className="w-full max-w-sm relative z-10 text-center"
       >
-        <div className="mx-auto mb-4 flex justify-center">
-          <Mascot size={140} />
+        <div className="mx-auto mb-6 flex justify-center">
+          <div className="glass-panel rounded-3xl p-6 inline-flex items-center justify-center glass-glow">
+            <Gamepad2 className="h-16 w-16 text-primary neon-text" strokeWidth={1.5} />
+          </div>
         </div>
 
-        <h1 className="font-display font-black text-4xl tracking-tight text-foreground">Math Quest</h1>
-        <p className="mt-3 text-sm text-muted-foreground font-display font-semibold">
-          Learn math the fun way. Works fully offline.
+        <h1 className="font-display font-black text-5xl tracking-wide text-foreground uppercase neon-text">Math Quest</h1>
+        <p className="mt-3 text-sm text-muted-foreground font-display font-semibold uppercase tracking-wider">
+          Premium gaming HUD · works offline
         </p>
 
         <div className="mt-8 space-y-3">

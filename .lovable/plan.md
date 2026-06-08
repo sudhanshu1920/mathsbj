@@ -1,62 +1,89 @@
-# Duolingo-Style Redesign Plan
+# Premium Gaming Glass-Matte UI + Perf Fix
 
-A full visual overhaul of every screen in the app, inspired by Duolingo's friendly, gamified UI — using a purple-led palette, a custom math mascot, chunky 3D buttons/cards, and big rounded geometry. All existing functionality (learning, quiz, practice, progress, settings, auth, themes, offline) stays intact.
+## Direction
+Frosted-glass HUD with gaming energy: deep midnight base, translucent blurred panels, cyan + violet neon edges, subtle scanline/grain, no Duolingo chunky shadows, no mascot. All screens unified.
 
-## Look & Feel
+Palette (Glass Aurora + neon edge):
+- bg `#0B1020` · panel `rgba(20,28,48,0.55)` blur 18px
+- primary cyan `#22D3EE` · accent violet `#A78BFA` · success mint `#4ADE80` · warn amber `#FBBF24` · danger rose `#F87171`
+- borders: 1px `rgba(255,255,255,0.08)` + outer cyan glow on active
 
-- **Palette (locked):** Purple `#8B5CF6` primary, lavender `#A78BFA` secondary, green `#58CC02` for correct/success, amber `#FFC800` for streaks/XP, plus Duolingo's signature red `#FF4B4B` for wrong/lives.
-- **Typography:** Heavy display font (Nunito/DIN Round-style) for headings and big numbers, friendly rounded sans for body.
-- **Components:** Chunky cards with bottom shadow ("pressable 3D button" effect), 2xl rounded corners, thick borders, generous padding, playful micro-animations on press.
-- **Mascot:** A friendly math character (owl-like, holding a chalkboard / abacus). Appears on home, lesson intro, correct/wrong feedback, streak screens, and empty states with speech bubbles.
+Type: Rajdhani (display/numbers) + Inter (body).
 
-## Screens to Redesign
+## 1. Performance — fix slow page switching
+Causes found in code:
+- `AnimatePresence mode="wait"` remounts entire page on tab change
+- 200-item number grids stagger-animate every render
+- Global CSS transitions target `[class*="bg-"]`, `[class*="border"]`, `[class*="text-"]` — repaints thousands of nodes
+- Heavy radial gradients re-rasterized per repaint
 
-```text
-Welcome / Auth    → Mascot hero, big purple CTA, "Continue as guest" pill
-Home (Index)      → Top bar: streak 🔥 | XP 💎 | hearts ❤️
-                    Restyled topic grid: chunky 3D pressable cards, icon + title + progress ring
-                    Mascot bubble suggesting next lesson
-Learning          → Lesson card stack, chunky "CONTINUE" button, mascot reactions
-Quiz Mode         → Big question card, tappable answer pills, green flash on correct,
-                    red shake on wrong, mascot pop-in feedback, hearts deplete on wrong
-Practice          → Restyled math keypad (chunky keys), stacked fraction kept, combo counter
-Result Screens    → Big mascot, XP earned counter, streak ring, "LESSON COMPLETE!" banner
-Progress          → Stat tiles (streak, XP, accuracy, time), achievement badges row,
-                    weekly chart with purple/green theme
-Settings          → Same sections, restyled rows (chunky toggles, themed swatches)
-Bottom Nav        → Pill-shaped, big icons, active state with purple bubble + label
+Fixes:
+- Keep all tabs mounted; toggle via `hidden` class, one light fade only
+- Drop per-item motion stagger on number/topic/range grids (single wrap fade)
+- Narrow global transition selector to `body, button, .bg-card, .bg-popover`
+- `React.lazy` + `Suspense` for PracticePage and ProgressPage
+- Memoize topic/number grids; stable callbacks
+- Move backdrop gradients to a fixed pseudo-element, `will-change: auto`
+
+## 2. Glass-Matte gaming theme
+Make `glass-matte` the **default** (bump key to `math-app-theme-v3`). Rework tokens in `html.theme-glass-matte` (`src/index.css`):
+
+```
+--background: 225 50% 7%;
+--card: 225 35% 14%;            /* used at 55% alpha via .glass */
+--popover: 225 35% 12%;
+--primary: 187 92% 53%;         /* #22D3EE */
+--accent:  258 90% 73%;         /* #A78BFA */
+--success: 142 76% 58%;
+--warning: 41 96% 56%;
+--destructive: 0 86% 70%;
+--border: 220 30% 90% / .10;
+--ring: 187 92% 53%;
+--glow-primary: 0 0 0 1px hsl(187 92% 53%/.45), 0 0 24px hsl(187 92% 53%/.35);
+--glow-accent:  0 0 0 1px hsl(258 90% 73%/.45), 0 0 24px hsl(258 90% 73%/.30);
 ```
 
-## Technical Approach
+Add utilities:
+- `.glass-panel` — `background: linear-gradient(145deg, hsl(var(--card)/.65), hsl(var(--card)/.35)); backdrop-filter: blur(18px) saturate(140%); border:1px solid hsl(var(--border));`
+- `.glass-panel-active` — adds `box-shadow: var(--glow-primary)`
+- `.hud-bracket` — corner ticks via pseudo-elements
+- `.neon-text` — `text-shadow: 0 0 10px hsl(var(--primary)/.55)`
+- Body: dark base + faint 1px grid (`linear-gradient` 40px) + 2 soft radial cyan/violet glows fixed
 
-1. **Theme tokens (`src/index.css`)** — Add a new default `theme-duo-purple`:
-   - `--primary 262 83% 58%`, `--accent 142 76% 47%`, `--warning 45 100% 50%`, `--destructive 0 100% 65%`.
-   - New `--shadow-chunky` token (e.g. `0 4px 0 0 hsl(var(--primary) / 0.6)`) for the 3D button look.
-   - Add Nunito + Inter via Google Fonts; map `font-display` → Nunito, `font-body` → Inter in `tailwind.config.ts`.
-   - Make Duo Purple the default theme in `src/lib/theme.ts` (keep the other premium themes available in Settings).
-2. **New shared components** under `src/components/duo/`:
-   - `ChunkyCard.tsx` (3D-shadow card)
-   - `ChunkyButton.tsx` (pressable button with `active:translate-y-1` and shadow collapse)
-   - `Mascot.tsx` (SVG mascot, expression prop: `happy | thinking | sad | celebrating`)
-   - `MascotBubble.tsx` (mascot + speech bubble)
-   - `StatPill.tsx` (streak/XP/hearts pills for the top bar)
-   - `ProgressRing.tsx` (used on topic cards)
-3. **Mascot asset** — Generate a friendly purple owl-with-abacus SVG (kept inline so it themes via `currentColor` and works offline). 3–4 expression variants.
-4. **Refactor existing components** to use the new primitives without changing logic:
-   - `TopicCard.tsx`, `BottomNav.tsx`, `XPBar.tsx`, `MathKeypad.tsx`, `PracticeModeSelector.tsx`, `SettingsPanel.tsx`, `UserMenu.tsx`, `PercentageLearning.tsx`, `FormulasLearning.tsx`, `TrigonometryLearning.tsx`.
-   - Pages: `Index.tsx`, `LearningPage.tsx`, `PracticePage.tsx`, `ProgressPage.tsx`, `WelcomePage.tsx`, `AuthPage.tsx`.
-5. **Feedback animations** — Reuse existing keyframes (`anim-shake`, `anim-flash-success`, `anim-pulse-card`) and add a mascot bounce/`scale-in` on correct.
-6. **Bottom nav** — Convert to pill style, active item shows a filled purple bubble behind the icon with the label underneath.
-7. **Top status bar** — Add the streak/XP/hearts row to `Index.tsx` and key screens (reads from existing `streak.ts`, `xp.ts`, and a new in-memory `hearts` value persisted to localStorage).
+## 3. Component restyle (skin, no logic changes)
+- **BottomNav**: glass bar with top hairline gradient; active item = glass pill + cyan ring + neon icon; remove chunky shadow + motion bounce
+- **LearningPage**: HUD top bar (Level/XP/Streak as glass chips with neon counters); **remove mascot + speech bubble**; topic grid = glass tiles with neon symbol, hover/active = cyan glow, drop chunky shadow + per-item stagger
+- **Number grid (1–200)**: flat glass tiles, no motion stagger, cyan ring on hover/selected
+- **PracticePage**: glass quiz panel, cyan ring timer, violet lives pips; correct = cyan flash, wrong = rose flash
+- **ProgressPage**: glass cards, cyan/violet chart palette, HUD brackets on headers
+- **WelcomePage**: glass hero card, neon CTA, no mascot
+- **SettingsPanel**: Glass-Matte shown first with "Default" badge; other premium themes stay selectable
+- **Buttons**: default = glass + cyan glow, secondary = glass + violet, destructive = glass + rose. API unchanged
+- Delete `src/components/duo/Mascot.tsx` and its imports
 
-## What stays the same
+## Files to change
+```
+src/index.css                      tokens, .glass-panel utilities, narrow transitions, grid backdrop
+src/lib/theme.ts                   default → glass-matte, key v3
+tailwind.config.ts                 Rajdhani display, neon shadow tokens
+src/App.tsx                        lazy PracticePage/ProgressPage + Suspense
+src/pages/Index.tsx                tabs always mounted, single fade
+src/pages/LearningPage.tsx         remove mascot, HUD header, glass topic grid, no stagger
+src/pages/PracticePage.tsx         glass quiz panel + neon feedback
+src/pages/ProgressPage.tsx         glass cards + neon charts
+src/pages/WelcomePage.tsx          glass hero, no mascot
+src/components/BottomNav.tsx       glass HUD bar
+src/components/SettingsPanel.tsx   surface Glass-Matte as default
+src/components/TopicCard.tsx       glass variant
+src/components/XPBar.tsx           cyan glow fill
+src/components/duo/Mascot.tsx      delete
+```
 
-- All data, formulas, quiz logic, practice math, offline storage, auth, Supabase wiring.
-- The premium theme switcher — Duo Purple just becomes the new default; users can still pick Glass Matte, Golden Prime, Neon Core, etc.
-- Routes and component APIs (props unchanged where possible).
+## Out of scope
+Backend, math/quiz logic, auth, sounds, theme-switch mechanism (already works).
 
-## Out of scope (ask if you want them later)
-
-- Replacing the topic grid with a winding lesson path (you chose "keep grid, restyle").
-- Hearts/lives gating actual gameplay (visual only unless you want enforcement).
-- Sound pack changes.
+## Success criteria
+- Tab switch Learn ⇄ Quiz ⇄ Progress feels instant; no full remount
+- Number grid (200 items) opens without stagger lag
+- Every screen reads as one premium glass-matte gaming HUD — frosted panels, cyan/violet neon edges, no mascot, no chunky Duolingo shadows
+- Other themes still selectable and apply instantly
