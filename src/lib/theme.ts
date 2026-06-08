@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-const KEY = 'math-app-theme-v2';
+const KEY = 'math-app-theme-v3';
 const MODE_KEY = 'math-app-mode-v1';
 
 export type ThemeId =
@@ -22,8 +22,8 @@ export interface ThemeMeta {
 }
 
 export const THEMES: ThemeMeta[] = [
+  { id: 'glass-matte',  name: 'Glass Matte',  tagline: 'Premium gaming glass HUD · default', swatch: ['hsl(225 50% 7%)', 'hsl(187 92% 53%)', 'hsl(258 90% 73%)'] },
   { id: 'duo-purple',   name: 'Duo Purple',   tagline: 'Friendly gamified learning UI', swatch: ['hsl(265 60% 12%)', 'hsl(262 83% 62%)', 'hsl(142 70% 49%)'] },
-  { id: 'glass-matte',  name: 'Glass Matte',  tagline: 'Premium blurred glass UI', swatch: ['hsl(226 49% 8%)', 'hsl(213 94% 68%)', 'hsl(188 84% 62%)'] },
   { id: 'golden-prime', name: 'Golden Prime', tagline: 'Ultra luxury gold dashboard', swatch: ['hsl(0 0% 4%)', 'hsl(46 65% 52%)', 'hsl(51 100% 50%)'] },
   { id: 'neon-core',    name: 'Neon Core',    tagline: 'Futuristic cyan gaming UI', swatch: ['hsl(229 63% 5%)', 'hsl(186 100% 50%)', 'hsl(188 100% 42%)'] },
   { id: 'royal-obsidian',   name: 'Royal Obsidian',   tagline: 'Deep violet luxury suite',  swatch: ['hsl(260 40% 6%)', 'hsl(270 90% 70%)', 'hsl(290 90% 65%)'] },
@@ -31,7 +31,7 @@ export const THEMES: ThemeMeta[] = [
   { id: 'crimson-velocity', name: 'Crimson Velocity', tagline: 'Racing red high-energy UI',  swatch: ['hsl(0 30% 6%)',   'hsl(0 90% 60%)',   'hsl(20 95% 58%)'] },
 ];
 
-export const DEFAULT_THEME: ThemeId = 'duo-purple';
+export const DEFAULT_THEME: ThemeId = 'glass-matte';
 export const DEFAULT_MODE: ModeId = 'dark';
 
 const listeners = new Set<() => void>();
