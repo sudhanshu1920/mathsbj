@@ -380,15 +380,15 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     formulas: 'f(x)',
   };
 
-  const cardTints: Record<Topic, { bg: string; shadow: string }> = {
-    tables:        { bg: 'bg-primary text-primary-foreground',     shadow: 'shadow-chunky' },
-    squares:       { bg: 'bg-accent text-accent-foreground',       shadow: 'shadow-chunky-accent' },
-    'square-roots':{ bg: 'bg-primary text-primary-foreground',     shadow: 'shadow-chunky' },
-    cubes:         { bg: 'bg-warning text-warning-foreground',     shadow: 'shadow-chunky-warm' },
-    'cube-roots':  { bg: 'bg-accent text-accent-foreground',       shadow: 'shadow-chunky-accent' },
-    powers:        { bg: 'bg-warning text-warning-foreground',     shadow: 'shadow-chunky-warm' },
-    percentage:    { bg: 'bg-destructive text-destructive-foreground', shadow: 'shadow-chunky-danger' },
-    formulas:      { bg: 'bg-primary text-primary-foreground',     shadow: 'shadow-chunky' },
+  const cardTints: Record<Topic, { glow: string; text: string }> = {
+    tables:        { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)]',  text: 'text-primary' },
+    squares:       { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)]',     text: 'text-accent' },
+    'square-roots':{ glow: 'hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)]',  text: 'text-primary' },
+    cubes:         { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)]',  text: 'text-warning' },
+    'cube-roots':  { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)]',     text: 'text-accent' },
+    powers:        { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)]',  text: 'text-warning' },
+    percentage:    { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--destructive)/0.6),0_0_28px_hsl(var(--destructive)/0.30)]', text: 'text-destructive' },
+    formulas:      { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)]',     text: 'text-accent' },
   };
 
   return (
@@ -417,25 +417,22 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 pb-6">
-        {topics.map((t, i) => {
+      <div className="grid grid-cols-2 gap-4 pb-6 animate-fade-in">
+        {topics.map((t) => {
           const tint = cardTints[t.id];
           return (
-            <motion.button
+            <button
               key={t.id}
-              initial={{ opacity: 0, y: 14, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: i * 0.04, duration: 0.28, ease: 'easeOut' }}
               onClick={() => setActiveTopic(t.id)}
-              className={`press-chunky relative overflow-hidden flex flex-col items-center justify-center gap-2 aspect-square w-full rounded-3xl border-b-0 ${tint.bg} ${tint.shadow}`}
+              className={`glass-panel relative overflow-hidden flex flex-col items-center justify-center gap-2 aspect-square w-full rounded-3xl active:scale-[0.97] ${tint.glow} ${tint.text}`}
             >
-              <span className="font-display font-black text-3xl leading-none drop-shadow-[0_2px_0_rgba(0,0,0,0.15)]">
+              <span className="font-display font-black text-4xl leading-none neon-text">
                 {topicSymbols[t.id]}
               </span>
-              <span className="font-display font-extrabold text-sm uppercase tracking-wide text-center">
+              <span className="font-display font-extrabold text-sm uppercase tracking-wider text-center text-foreground">
                 {t.title}
               </span>
-            </motion.button>
+            </button>
           );
         })}
       </div>
