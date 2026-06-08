@@ -387,11 +387,12 @@
   button,
   input,
   textarea,
-  [class*="bg-"],
-  [class*="border"],
-  [class*="text-"] {
-    transition-property: background-color, border-color, color, box-shadow, opacity, transform;
-    transition-duration: 300ms;
+  .bg-card,
+  .bg-popover,
+  .bg-secondary,
+  .border-border {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 200ms;
     transition-timing-function: ease;
   }
   /* Premium dark backdrop with subtle radial neon glows */
@@ -410,9 +411,13 @@
   }
   html.theme-glass-matte:not(.light) body {
     background-image:
-      radial-gradient(1000px 520px at 12% -8%, hsl(213 94% 68% / 0.14), transparent 62%),
-      radial-gradient(900px 520px at 105% 8%, hsl(188 84% 62% / 0.12), transparent 60%),
-      linear-gradient(180deg, hsl(226 49% 8%), hsl(226 54% 5%)) !important;
+      linear-gradient(hsl(187 92% 53% / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(187 92% 53% / 0.05) 1px, transparent 1px),
+      radial-gradient(1000px 520px at 12% -8%, hsl(187 92% 53% / 0.18), transparent 62%),
+      radial-gradient(900px 520px at 108% 12%, hsl(258 90% 73% / 0.16), transparent 60%),
+      linear-gradient(180deg, hsl(225 50% 7%), hsl(225 60% 4%)) !important;
+    background-size: 44px 44px, 44px 44px, auto, auto, auto;
+    background-attachment: fixed;
   }
   html.theme-golden-prime:not(.light) body {
     background-image:
