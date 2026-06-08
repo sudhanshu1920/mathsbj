@@ -478,6 +478,19 @@
     -webkit-backdrop-filter: blur(14px) saturate(140%);
     border: 1px solid hsl(var(--border) / 0.6);
   }
+  .glass-panel {
+    background: linear-gradient(145deg, hsl(var(--card) / 0.65), hsl(var(--card) / 0.35));
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid hsl(var(--border) / 0.12);
+  }
+  .glass-glow {
+    box-shadow: var(--glow-primary);
+    border-color: hsl(var(--primary) / 0.55) !important;
+  }
+  .neon-text {
+    text-shadow: 0 0 12px hsl(var(--primary) / 0.55), 0 0 2px hsl(var(--primary) / 0.8);
+  }
   /* Duolingo-style chunky 3D button/card */
   .shadow-chunky        { box-shadow: var(--shadow-chunky, 0 5px 0 0 hsl(var(--border))); }
   .shadow-chunky-accent { box-shadow: var(--shadow-chunky-accent, 0 5px 0 0 hsl(var(--accent) / 0.5)); }
