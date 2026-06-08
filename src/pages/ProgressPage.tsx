@@ -96,9 +96,9 @@ const ProgressPage = () => {
         transition={{ type: 'spring', stiffness: 120, damping: 14 }}
         className="flex justify-center mb-8"
       >
-        <div className="relative w-40 h-40">
+        <div className="relative w-40 h-40 rounded-full overflow-visible">
           <div className="absolute inset-2 rounded-full bg-primary/10 blur-2xl" />
-          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 relative">
+          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 relative drop-shadow-none">
             <defs>
               <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stopColor="hsl(var(--primary))" />
