@@ -97,7 +97,7 @@ const ProgressPage = () => {
         className="flex justify-center mb-8"
       >
         <div className="relative w-40 h-40 rounded-full overflow-visible">
-          <div className="absolute inset-2 rounded-full bg-primary/10 blur-2xl" />
+          <div className="absolute inset-2 rounded-full bg-primary/10 blur-2xl" style={{borderRadius:'50%'}} />
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 relative drop-shadow-none">
             <defs>
               <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
