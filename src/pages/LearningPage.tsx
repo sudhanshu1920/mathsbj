@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
-import Mascot from '@/components/duo/Mascot';
 import StatPill from '@/components/duo/StatPill';
 
 import SwipeContainer from '@/components/SwipeContainer';
@@ -122,17 +121,13 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   const renderNumberGrid = (max: number, onSelect: (n: number) => void) => (
     <div className="grid grid-cols-5 gap-2">
       {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-        <motion.button
+        <button
           key={n}
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: n * 0.005 }}
-          whileTap={{ scale: 0.9 }}
           onClick={() => onSelect(n)}
-          className="bg-card border border-border rounded-xl py-3 text-center font-display font-semibold text-foreground hover:border-primary transition-colors"
+          className="glass-panel rounded-xl py-3 text-center font-display font-semibold text-foreground hover:border-primary/60 active:scale-95"
         >
           {n}
-        </motion.button>
+        </button>
       ))}
     </div>
   );
@@ -140,17 +135,13 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   const renderRangeGroups = (onSelect: (from: number, to: number) => void) => (
     <div className="grid grid-cols-2 gap-3">
       {rangeGroups.map((g, i) => (
-        <motion.button
+        <button
           key={g.label}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.04 }}
-          whileTap={{ scale: 0.95 }}
           onClick={() => onSelect(g.from, g.to)}
-          className="bg-card border border-border rounded-xl py-4 text-center font-display font-semibold text-foreground hover:border-primary transition-colors"
+          className="glass-panel rounded-xl py-4 text-center font-display font-semibold text-foreground hover:border-primary/60 active:scale-[0.97]"
         >
           {g.label}
-        </motion.button>
+        </button>
       ))}
     </div>
   );
