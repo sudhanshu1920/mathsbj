@@ -101,8 +101,8 @@ const ProgressPage = () => {
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 relative drop-shadow-none">
             <defs>
               <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="hsl(var(--primary))" />
-                <stop offset="100%" stopColor="hsl(var(--accent))" />
+                <stop offset="0%" stopColor="hsl(var(--ring-from, var(--primary)))" />
+                <stop offset="100%" stopColor="hsl(var(--ring-to, var(--accent)))" />
               </linearGradient>
             </defs>
             <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" className="stroke-secondary/60" />
