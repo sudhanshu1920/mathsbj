@@ -290,59 +290,30 @@
     transition-duration: 200ms;
     transition-timing-function: ease;
   }
-  /* Premium dark backdrop with subtle radial neon glows */
-  .dark body, :root body {
+  /* Generic dark backdrop using current theme tokens */
+  html.dark body {
     background-image:
-      radial-gradient(1200px 600px at 10% -10%, hsl(188 100% 55% / 0.10), transparent 60%),
-      radial-gradient(900px 500px at 110% 10%, hsl(320 100% 60% / 0.10), transparent 60%),
-      radial-gradient(1000px 700px at 50% 120%, hsl(260 80% 50% / 0.08), transparent 60%);
+      radial-gradient(1200px 600px at 10% -10%, hsl(var(--primary) / 0.12), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, hsl(var(--accent) / 0.10), transparent 60%),
+      radial-gradient(1000px 700px at 50% 120%, hsl(var(--primary) / 0.06), transparent 60%);
     background-attachment: fixed;
   }
   html.light body {
     background-image:
       radial-gradient(900px 480px at 10% -10%, hsl(var(--primary) / 0.10), transparent 60%),
       radial-gradient(800px 480px at 110% 10%, hsl(var(--accent) / 0.08), transparent 60%),
-      linear-gradient(180deg, hsl(0 0% 99%), hsl(220 16% 95%)) !important;
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--background))) !important;
   }
-  html.theme-glass-matte:not(.light) body {
+  /* Dark-Gaming gets an extra subtle grid */
+  html.theme-dark-gaming.dark body {
     background-image:
-      linear-gradient(hsl(187 92% 53% / 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(187 92% 53% / 0.05) 1px, transparent 1px),
-      radial-gradient(1000px 520px at 12% -8%, hsl(187 92% 53% / 0.18), transparent 62%),
-      radial-gradient(900px 520px at 108% 12%, hsl(258 90% 73% / 0.16), transparent 60%),
-      linear-gradient(180deg, hsl(225 50% 7%), hsl(225 60% 4%)) !important;
+      linear-gradient(hsl(var(--primary) / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.04) 1px, transparent 1px),
+      radial-gradient(1100px 560px at 10% -10%, hsl(var(--primary) / 0.18), transparent 60%),
+      radial-gradient(900px 520px at 108% 8%, hsl(var(--accent) / 0.14), transparent 60%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--background))) !important;
     background-size: 44px 44px, 44px 44px, auto, auto, auto;
     background-attachment: fixed;
-  }
-  html.theme-golden-prime:not(.light) body {
-    background-image:
-      radial-gradient(980px 520px at 10% -8%, hsl(46 65% 52% / 0.13), transparent 62%),
-      radial-gradient(820px 480px at 108% 12%, hsl(51 100% 50% / 0.08), transparent 60%),
-      linear-gradient(180deg, hsl(0 0% 4%), hsl(42 24% 3%)) !important;
-  }
-  html.theme-neon-core:not(.light) body {
-    background-image:
-      radial-gradient(1100px 560px at 8% -10%, hsl(186 100% 50% / 0.18), transparent 60%),
-      radial-gradient(920px 520px at 108% 8%, hsl(188 100% 42% / 0.14), transparent 60%),
-      linear-gradient(180deg, hsl(229 63% 5%), hsl(229 78% 3%)) !important;
-  }
-  html.theme-royal-obsidian:not(.light) body {
-    background-image:
-      radial-gradient(1000px 520px at 10% -10%, hsl(270 90% 70% / 0.18), transparent 60%),
-      radial-gradient(880px 500px at 108% 8%, hsl(290 90% 65% / 0.14), transparent 60%),
-      linear-gradient(180deg, hsl(260 40% 6%), hsl(260 50% 4%)) !important;
-  }
-  html.theme-emerald-elite:not(.light) body {
-    background-image:
-      radial-gradient(1000px 520px at 10% -10%, hsl(152 80% 50% / 0.16), transparent 60%),
-      radial-gradient(880px 500px at 108% 8%, hsl(170 85% 55% / 0.12), transparent 60%),
-      linear-gradient(180deg, hsl(160 40% 6%), hsl(160 50% 4%)) !important;
-  }
-  html.theme-crimson-velocity:not(.light) body {
-    background-image:
-      radial-gradient(1000px 520px at 10% -10%, hsl(0 90% 60% / 0.18), transparent 60%),
-      radial-gradient(880px 500px at 108% 8%, hsl(20 95% 58% / 0.14), transparent 60%),
-      linear-gradient(180deg, hsl(0 30% 6%), hsl(0 40% 4%)) !important;
   }
 }
 
