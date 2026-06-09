@@ -114,7 +114,6 @@ const ProgressPage = () => {
               strokeWidth="8"
               strokeLinecap="round"
               stroke="url(#ringGrad)"
-              style={{ filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.7))' }}
               strokeDasharray="264"
               initial={{ strokeDashoffset: 264 }}
               animate={{ strokeDashoffset: 264 - accuracy * 2.64 }}
