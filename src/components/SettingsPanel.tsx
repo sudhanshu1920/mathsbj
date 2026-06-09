@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette, Sun, Moon } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette, Sun, Moon, Crown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, AppSettings } from '@/lib/settings';
@@ -194,40 +194,48 @@ const SettingsPanel = () => {
             );
           })}
         </div>
-        <div className="grid grid-cols-1 gap-2">
+        <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 snap-x" style={{ scrollbarWidth: 'none' }}>
           {THEMES.map((t) => {
             const selected = theme === t.id;
             return (
               <motion.button
                 key={t.id}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => setAppTheme(t.id)}
-                className={`relative overflow-hidden flex items-center gap-3 rounded-2xl p-3 border text-left transition-all duration-300 ${
+                className={`relative shrink-0 snap-start w-[108px] rounded-2xl p-3 border text-left transition-all duration-200 ${
                   selected
-                    ? 'border-primary bg-primary/10 glow-primary'
+                    ? 'border-primary glow-primary'
                     : 'border-border/70 bg-card hover:border-primary/40'
                 }`}
-                style={{
-                  background: selected
-                    ? `linear-gradient(135deg, ${t.swatch[1].replace(')', ' / 0.18)')}, ${t.swatch[2].replace(')', ' / 0.10)')})`
-                    : `linear-gradient(135deg, ${t.swatch[0].replace(')', ' / 0.72)')}, ${t.swatch[1].replace(')', ' / 0.08)')})`,
-                  boxShadow: selected ? `0 0 22px ${t.swatch[1].replace(')', ' / 0.32)')}` : undefined,
-                }}
               >
-                <div className="flex -space-x-1.5">
+                {/* Color preview: 3 circular dots (bg / primary / accent) */}
+                <div className="flex -space-x-2 mb-2">
                   {t.swatch.map((c, i) => (
                     <span
                       key={i}
-                      className="h-7 w-7 rounded-full border-2 border-background"
+                      className="h-7 w-7 rounded-full border-2 border-background shadow-sm"
                       style={{ background: c }}
                     />
                   ))}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{t.name}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{t.tagline}</p>
-                </div>
-                {selected && <Check size={16} className="text-primary" />}
+                <p className="text-xs font-semibold text-foreground leading-tight">{t.name}</p>
+
+                {/* Premium badge */}
+                {t.premium && (
+                  <span
+                    className="absolute top-1.5 left-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold"
+                    style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
+                  >
+                    <Crown size={9} /> PRO
+                  </span>
+                )}
+
+                {/* Selected check */}
+                {selected && (
+                  <span className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                    <Check size={12} />
+                  </span>
+                )}
               </motion.button>
             );
           })}
