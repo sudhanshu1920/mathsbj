@@ -170,7 +170,7 @@ const SettingsPanel = () => {
       {/* Appearance — Themes */}
       <div>
         <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-          <Palette size={16} className="text-muted-foreground" /> Appearance · Themes
+          <Palette size={16} className="text-muted-foreground" /> Themes
         </p>
         {/* Dark / Light mode */}
         <div className="flex gap-2 mb-3">
