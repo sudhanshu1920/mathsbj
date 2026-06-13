@@ -1,13 +1,19 @@
 import { useSyncExternalStore } from 'react';
 
-const KEY = 'math-app-theme-v4';
+const KEY = 'math-app-theme-v5';
 const MODE_KEY = 'math-app-mode-v1';
 
 export type ThemeId =
   | 'dark-gaming'
   | 'light-minimal'
   | 'midnight-blue'
-  | 'golden-premium';
+  | 'golden-premium'
+  | 'cyber-purple'
+  | 'blood-fire'
+  | 'matrix-green'
+  | 'rose-sakura'
+  | 'arctic-ice'
+  | 'void-black';
 
 export type ModeId = 'dark' | 'light';
 
@@ -21,9 +27,15 @@ export interface ThemeMeta {
 
 export const THEMES: ThemeMeta[] = [
   { id: 'dark-gaming',    name: 'Dark Gaming',    tagline: 'Neon cyan + magenta', swatch: ['#0a0a0f', '#00d4ff', '#ff006e'] },
-  { id: 'light-minimal',  name: 'Light Minimal',  tagline: 'Soft & clean',         swatch: ['#f5f5f5', '#2563eb', '#7c3aed'] },
-  { id: 'midnight-blue',  name: 'Midnight Blue',  tagline: 'Indigo + cyan',        swatch: ['#0f172a', '#6366f1', '#06b6d4'] },
-  { id: 'golden-premium', name: 'Golden Premium', tagline: 'Luxury gold',          swatch: ['#0d0a00', '#f5c518', '#ff9500'], premium: true },
+  { id: 'light-minimal',  name: 'Light Minimal',  tagline: 'Soft & clean',        swatch: ['#f5f5f5', '#2563eb', '#7c3aed'] },
+  { id: 'midnight-blue',  name: 'Midnight Blue',  tagline: 'Indigo + cyan',       swatch: ['#0f172a', '#6366f1', '#06b6d4'] },
+  { id: 'golden-premium', name: 'Golden Premium', tagline: 'Luxury gold',         swatch: ['#0d0a00', '#f5c518', '#ff9500'], premium: true },
+  { id: 'cyber-purple',   name: 'Cyber Purple',   tagline: 'Neon violet + pink',  swatch: ['#0d0014', '#bf00ff', '#ff00aa'], premium: true },
+  { id: 'blood-fire',     name: 'Blood Fire',     tagline: 'Crimson + inferno',   swatch: ['#0f0000', '#ff1a1a', '#ff6600'], premium: true },
+  { id: 'matrix-green',   name: 'Matrix Green',   tagline: 'Hacker neon green',   swatch: ['#000a00', '#00ff41', '#00cc33'], premium: true },
+  { id: 'rose-sakura',    name: 'Rose Sakura',    tagline: 'Soft pink + blush',   swatch: ['#1a0010', '#ff4fa1', '#ff9ecb'] },
+  { id: 'arctic-ice',     name: 'Arctic Ice',     tagline: 'Glacier + frost',     swatch: ['#020e1a', '#00cfff', '#80ffee'] },
+  { id: 'void-black',     name: 'Void Black',     tagline: 'Pure dark + white',   swatch: ['#000000', '#ffffff', '#888888'], premium: true },
 ];
 
 export const DEFAULT_THEME: ThemeId = 'dark-gaming';
@@ -125,3 +137,4 @@ export const subscribeTheme = (listener: () => void) => {
 
 export const useTheme = () => useSyncExternalStore(subscribeTheme, getTheme, () => DEFAULT_THEME);
 export const useMode = () => useSyncExternalStore(subscribeTheme, getMode, () => DEFAULT_MODE);
+    
