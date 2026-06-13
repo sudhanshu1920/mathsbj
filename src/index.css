@@ -5,7 +5,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Nunito:wght@600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @layer base {
-  /* ===== Root defaults (Dark Gaming · dark variant) ===== */
   :root {
     --radius: 0.75rem;
     --destructive: 0 72% 51%;
@@ -14,7 +13,6 @@
     --warning-foreground: 0 0% 100%;
     --success: 145 90% 50%;
     --success-foreground: 0 0% 100%;
-
     --sidebar-background: var(--background);
     --sidebar-foreground: var(--foreground);
     --sidebar-primary: var(--primary);
@@ -23,13 +21,7 @@
     --sidebar-accent-foreground: var(--secondary-foreground);
     --sidebar-border: var(--border);
     --sidebar-ring: var(--ring);
-  }
-
-  /* ===== Themes (4) =====
-     Each theme defines both a dark variant and a light variant.
-     <html> always has either .dark or .light, plus one .theme-*. */
-
-  /* ----- 1. Dark Gaming (default) ----- */
+  }/* ----- 1. Dark Gaming ----- */
   html.theme-dark-gaming.dark, html.theme-dark-gaming:not(.light) {
     --background: 240 22% 5%;
     --foreground: 0 0% 100%;
@@ -261,9 +253,7 @@
   html.theme-golden-premium .glass,
   html.theme-golden-premium .glass-panel {
     border-color: hsl(var(--ring) / 0.30) !important;
-  }
-
-  /* ----- 5. Cyber Purple ----- */
+    }/* ----- 5. Cyber Purple ----- */
   html.theme-cyber-purple.dark, html.theme-cyber-purple:not(.light) {
     --background: 276 100% 4%;
     --foreground: 280 100% 97%;
@@ -401,9 +391,7 @@
   html.theme-blood-fire .glass,
   html.theme-blood-fire .glass-panel {
     border-color: hsl(0 100% 50% / 0.25) !important;
-  }
-
-  /* ----- 7. Matrix Green ----- */
+  }/* ----- 7. Matrix Green ----- */
   html.theme-matrix-green.dark, html.theme-matrix-green:not(.light) {
     --background: 120 100% 2%;
     --foreground: 120 100% 90%;
@@ -506,4 +494,148 @@
     --foreground: 340 50% 12%;
     --card: 0 0% 100%;
     --card-foreground: 340 50% 12%;
-    --
+    --popover: 0 0% 100%;
+    --popover-foreground: 340 50% 12%;
+    --primary: 340 85% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 40% 92%;
+    --secondary-foreground: 340 50% 16%;
+    --muted: 340 40% 95%;
+    --muted-foreground: 340 20% 42%;
+    --accent: 320 70% 52%;
+    --accent-foreground: 0 0% 100%;
+    --border: 340 30% 84%;
+    --input: 340 30% 84%;
+    --ring: 340 85% 52%;
+    --ring-from: 340 85% 52%;
+    --ring-to: 320 70% 52%;
+    --gradient-primary: linear-gradient(135deg, hsl(340 85% 52%), hsl(320 70% 52%));
+    --gradient-success: linear-gradient(135deg, hsl(150 70% 42%), hsl(340 85% 52%));
+    --gradient-warm: linear-gradient(135deg, hsl(320 70% 52%), hsl(340 85% 52%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(340 60% 98%));
+    --glow-primary: 0 0 18px hsl(340 85% 52% / 0.22);
+    --glow-accent: 0 0 18px hsl(320 70% 52% / 0.20);
+                      }/* ----- 9. Arctic Ice ----- */
+  html.theme-arctic-ice.dark, html.theme-arctic-ice:not(.light) {
+    --background: 200 80% 4%;
+    --foreground: 195 100% 95%;
+    --card: 200 60% 8%;
+    --card-foreground: 195 100% 95%;
+    --popover: 200 60% 8%;
+    --popover-foreground: 195 100% 95%;
+    --primary: 196 100% 50%;
+    --primary-foreground: 200 80% 4%;
+    --secondary: 200 50% 14%;
+    --secondary-foreground: 195 100% 95%;
+    --muted: 200 40% 12%;
+    --muted-foreground: 200 20% 65%;
+    --accent: 173 100% 55%;
+    --accent-foreground: 200 80% 4%;
+    --border: 196 70% 22%;
+    --input: 200 40% 16%;
+    --ring: 196 100% 50%;
+    --ring-from: 196 100% 50%;
+    --ring-to: 173 100% 55%;
+    --gradient-primary: linear-gradient(135deg, hsl(196 100% 50%), hsl(173 100% 55%));
+    --gradient-success: linear-gradient(135deg, hsl(196 100% 50%), hsl(220 100% 60%));
+    --gradient-warm: linear-gradient(135deg, hsl(173 100% 55%), hsl(196 100% 50%));
+    --gradient-card: linear-gradient(145deg, hsl(200 60% 10%), hsl(200 80% 4%));
+    --glow-primary: 0 0 30px hsl(196 100% 50% / 0.55);
+    --glow-accent: 0 0 26px hsl(173 100% 55% / 0.50);
+  }
+  html.theme-arctic-ice.light {
+    --background: 196 80% 96%;
+    --foreground: 200 80% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 200 80% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 80% 8%;
+    --primary: 196 90% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 196 50% 88%;
+    --secondary-foreground: 200 80% 12%;
+    --muted: 196 50% 92%;
+    --muted-foreground: 196 20% 42%;
+    --accent: 173 80% 36%;
+    --accent-foreground: 0 0% 100%;
+    --border: 196 40% 80%;
+    --input: 196 40% 80%;
+    --ring: 196 90% 38%;
+    --ring-from: 196 90% 38%;
+    --ring-to: 173 80% 36%;
+    --gradient-primary: linear-gradient(135deg, hsl(196 90% 38%), hsl(173 80% 36%));
+    --gradient-success: linear-gradient(135deg, hsl(145 70% 40%), hsl(196 90% 38%));
+    --gradient-warm: linear-gradient(135deg, hsl(173 80% 36%), hsl(196 90% 38%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(196 80% 97%));
+    --glow-primary: 0 0 18px hsl(196 90% 38% / 0.22);
+    --glow-accent: 0 0 18px hsl(173 80% 36% / 0.20);
+  }
+  html.theme-arctic-ice.dark body {
+    background-image:
+      radial-gradient(1200px 600px at 50% -20%, hsl(196 100% 50% / 0.18), transparent 60%),
+      radial-gradient(900px 500px at 100% 100%, hsl(173 100% 55% / 0.14), transparent 60%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--background))) !important;
+    background-attachment: fixed;
+  }
+
+  /* ----- 10. Void Black ----- */
+  html.theme-void-black.dark, html.theme-void-black:not(.light) {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 8%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 0 0% 75%;
+    --accent-foreground: 0 0% 0%;
+    --border: 0 0% 16%;
+    --input: 0 0% 14%;
+    --ring: 0 0% 100%;
+    --ring-from: 0 0% 100%;
+    --ring-to: 0 0% 65%;
+    --gradient-primary: linear-gradient(135deg, hsl(0 0% 100%), hsl(0 0% 65%));
+    --gradient-success: linear-gradient(135deg, hsl(0 0% 100%), hsl(0 0% 55%));
+    --gradient-warm: linear-gradient(135deg, hsl(0 0% 65%), hsl(0 0% 100%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 6%), hsl(0 0% 0%));
+    --glow-primary: 0 0 24px hsl(0 0% 100% / 0.35);
+    --glow-accent: 0 0 20px hsl(0 0% 75% / 0.30);
+  }
+  html.theme-void-black.light {
+    --background: 0 0% 97%;
+    --foreground: 0 0% 5%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 5%;
+    --primary: 0 0% 10%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 0 0% 93%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 0 0% 30%;
+    --accent-foreground: 0 0% 100%;
+    --border: 0 0% 82%;
+    --input: 0 0% 82%;
+    --ring: 0 0% 10%;
+    --ring-from: 0 0% 10%;
+    --ring-to: 0 0% 35%;
+    --gradient-primary: linear-gradient(135deg, hsl(0 0% 10%), hsl(0 0% 35%));
+    --gradient-success: linear-gradient(135deg, hsl(145 70% 38%), hsl(0 0% 20%));
+    --gradient-warm: linear-gradient(135deg, hsl(0 0% 35%), hsl(0 0% 10%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(0 0% 97%));
+    --glow-primary: 0 0 18px hsl(0 0% 10% / 0.15);
+    --glow-accent: 0 0 18px hsl(0 0% 30% / 0.12);
+  }
+  html.theme-void-black .bg-card,
+  html.theme-void-black .glass,
+  html.theme-void-black .glass-panel {
+    border-color: hsl(0 0% 20% / 0.60) !important;
+  }
+    }
