@@ -219,6 +219,7 @@ const SettingsPanel = () => {
                   ))}
                 </div>
                 <p className="text-xs font-semibold text-foreground leading-tight">{t.name}</p>
+                <p className="text-[9px] text-muted-foreground leading-tight mt-0.5 truncate">{t.tagline}</p>
 
                 {/* Premium badge */}
                 {t.premium && (
@@ -276,3 +277,4 @@ const SettingsPanel = () => {
 };
 
 export default SettingsPanel;
+    
