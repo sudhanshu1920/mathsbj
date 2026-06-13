@@ -21,7 +21,9 @@
     --sidebar-accent-foreground: var(--secondary-foreground);
     --sidebar-border: var(--border);
     --sidebar-ring: var(--ring);
-  }/* ----- 1. Dark Gaming ----- */
+  }
+  
+  /* ----- 1. Dark Gaming ----- */
   html.theme-dark-gaming.dark, html.theme-dark-gaming:not(.light) {
     --background: 240 22% 5%;
     --foreground: 0 0% 100%;
@@ -253,7 +255,9 @@
   html.theme-golden-premium .glass,
   html.theme-golden-premium .glass-panel {
     border-color: hsl(var(--ring) / 0.30) !important;
-    }/* ----- 5. Cyber Purple ----- */
+    }
+  
+  /* ----- 5. Cyber Purple ----- */
   html.theme-cyber-purple.dark, html.theme-cyber-purple:not(.light) {
     --background: 276 100% 4%;
     --foreground: 280 100% 97%;
@@ -391,7 +395,9 @@
   html.theme-blood-fire .glass,
   html.theme-blood-fire .glass-panel {
     border-color: hsl(0 100% 50% / 0.25) !important;
-  }/* ----- 7. Matrix Green ----- */
+  }
+  
+  /* ----- 7. Matrix Green ----- */
   html.theme-matrix-green.dark, html.theme-matrix-green:not(.light) {
     --background: 120 100% 2%;
     --foreground: 120 100% 90%;
