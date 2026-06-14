@@ -82,7 +82,7 @@ const SettingsPanel = () => {
   const isBusy = updateState === 'checking' || updateState === 'updating' || isSyncing();
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 min-w-0">
       {/* Profile */}
       {user && (
         <div className="bg-secondary/40 rounded-2xl p-3 flex items-center gap-3">
