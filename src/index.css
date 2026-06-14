@@ -644,4 +644,14 @@
   html.theme-void-black .glass-panel {
     border-color: hsl(0 0% 20% / 0.60) !important;
   }
+
+  @layer utilities {
+  .gradient-primary { background: var(--gradient-primary); }
+  .gradient-success { background: var(--gradient-success); }
+  .gradient-warm { background: var(--gradient-warm); }
+  .gradient-card { background: var(--gradient-card); }
+  .glow-primary { box-shadow: var(--glow-primary); }
+  .glow-accent { box-shadow: var(--glow-accent); }
+  }
+  
     }
