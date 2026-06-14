@@ -466,6 +466,14 @@
   html.theme-matrix-green .glass-panel {
     border-color: hsl(130 100% 50% / 0.20) !important;
   }
+  
+  html.light .glass-panel button {
+  color: hsl(var(--foreground));
+}
+
+html.light .neon-text {
+  text-shadow: none !important;
+}
 
   /* ----- 8. Rose Sakura ----- */
   html.theme-rose-sakura.dark, html.theme-rose-sakura:not(.light) {
@@ -521,7 +529,9 @@
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(340 60% 98%));
     --glow-primary: 0 0 18px hsl(340 85% 52% / 0.22);
     --glow-accent: 0 0 18px hsl(320 70% 52% / 0.20);
-                      }/* ----- 9. Arctic Ice ----- */
+                    
+  }
+  /* ----- 9. Arctic Ice ----- */
   html.theme-arctic-ice.dark, html.theme-arctic-ice:not(.light) {
     --background: 200 80% 4%;
     --foreground: 195 100% 95%;
@@ -656,15 +666,10 @@
   /* Premium Glass Panel */
 
 .glass-panel {
-  background: rgba(15, 20, 35, 0.45);
+  background: hsl(var(--card) / 0.65);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-
-  border-top: 1px solid rgba(255,255,255,0.08);
-
-  box-shadow:
-    0 -8px 32px rgba(0,0,0,0.35),
-    0 0 20px rgba(255,255,255,0.03);
+  border-top: 1px solid hsl(var(--border) / 0.3);
 }
 
 /* Better blur support */
@@ -673,5 +678,18 @@
     background: rgba(15,20,35,0.90);
   }
       }
-    
+    html.light .glass-panel {
+  background: rgba(255,255,255,0.75) !important;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+
+html.light .bottom-nav,
+html.light nav.glass-panel {
+  background: rgba(255,255,255,0.75) !important;
+}
+
+html.light .text-muted-foreground {
+  color: hsl(var(--foreground) / 0.75) !important;
+    }
 }
