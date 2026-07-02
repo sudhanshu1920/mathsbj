@@ -44,6 +44,17 @@ export default defineConfig(({ mode }) => ({
         skipWaiting: false,
         runtimeCaching: [
           {
+            // HTML navigations — always try the network first so new deploys land,
+            // fall back to cache when offline.
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "pages",
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            },
+          },
+          {
             urlPattern: ({ request }) => request.destination === "image",
             handler: "CacheFirst",
             options: {
