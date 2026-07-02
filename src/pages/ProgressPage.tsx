@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon, ArrowLeft } from 'lucide-react';
 import { getProgress, ProgressData } from '@/lib/progress';
 import { getStreak, StreakState } from '@/lib/streak';
 import ProgressAnalytics from '@/components/ProgressAnalytics';
 import XPBar from '@/components/XPBar';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import SettingsPanel from '@/components/SettingsPanel';
 
 const ProgressPage = () => {
@@ -31,6 +25,20 @@ const ProgressPage = () => {
       window.removeEventListener('analytics-updated', refreshAll);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showSettings) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowSettings(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [showSettings]);
 
   const accuracy = data.totalAttempts > 0 ? Math.round((data.correct / data.totalAttempts) * 100) : 0;
 
@@ -174,15 +182,35 @@ const ProgressPage = () => {
         </div>
       )}
 
-      {/* Settings dialog */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="rounded-2xl max-w-[340px]">
-          <DialogHeader>
-            <DialogTitle>Settings</DialogTitle>
-          </DialogHeader>
-          <SettingsPanel />
-        </DialogContent>
-      </Dialog>
+      {/* Full-screen settings */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            key="settings-fullscreen"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="fixed inset-0 z-50 bg-background flex flex-col overflow-hidden"
+          >
+            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-background/95 backdrop-blur">
+              <button
+                onClick={() => setShowSettings(false)}
+                aria-label="Back"
+                className="p-2 -ml-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <h2 className="font-display font-bold text-lg text-foreground">Settings</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-3xl mx-auto px-4 py-5">
+                <SettingsPanel />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
