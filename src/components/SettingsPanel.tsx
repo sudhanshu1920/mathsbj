@@ -8,6 +8,7 @@ import { getStreak, setTarget, StreakState } from '@/lib/streak';
 import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
 import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
+import { triggerUpdate } from '@/pwa';
 
 type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline';
 
@@ -49,32 +50,36 @@ const SettingsPanel = () => {
       return;
     }
     setUpdateState('checking');
+    // Safety: never leave the button stuck.
+    const safety = setTimeout(() => setUpdateState('idle'), 8000);
     try {
       // Sync user data
       if (user) {
         await pullFromCloud(user.id);
         await pushToCloud(user.id);
       }
-      // Trigger SW update if available
-      if ('serviceWorker' in navigator) {
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map((r) => r.update().catch(() => {})));
-        } catch {}
+      const result = await triggerUpdate();
+      if (result === 'offline') {
+        setUpdateState('offline');
+        setTimeout(() => setUpdateState('idle'), 1800);
+      } else if (result === 'updated') {
+        // New version is activating; page will reload automatically.
+        setUpdateState('updating');
+      } else {
+        setUpdateState('done');
+        setTimeout(() => setUpdateState('idle'), 1600);
       }
-      setUpdateState('updating');
-      await new Promise((r) => setTimeout(r, 600));
-      setUpdateState('done');
-      setTimeout(() => setUpdateState('idle'), 1600);
     } catch {
       setUpdateState('idle');
+    } finally {
+      clearTimeout(safety);
     }
   };
 
   const updateLabel: Record<UpdateState, string> = {
     idle: 'Check for updates',
     checking: 'Checking…',
-    updating: 'Syncing…',
+    updating: 'Downloading update…',
     done: 'Up to date',
     offline: 'You are offline',
   };
