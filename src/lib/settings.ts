@@ -29,6 +29,18 @@ export const setVibration = (v: boolean) => {
   const s = getSettings(); s.vibration = v; save(s); return s;
 };
 
+// --- Tables Pro Mode (×1..×20 instead of ×1..×10) ---
+const PRO_KEY = 'tables-pro-mode';
+export const getTablesProMode = (): boolean => {
+  try { return localStorage.getItem(PRO_KEY) === '1'; } catch { return false; }
+};
+export const setTablesProMode = (v: boolean) => {
+  try { localStorage.setItem(PRO_KEY, v ? '1' : '0'); } catch {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('tables-pro-updated'));
+  }
+};
+
 // --- Active time tracking (idle-aware) ---
 let lastInteraction = Date.now();
 const IDLE_MS = 30_000;
