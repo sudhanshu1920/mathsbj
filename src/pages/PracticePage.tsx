@@ -118,7 +118,8 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
   const nums = rangeArray(from, to);
 
   if (topicId === 'tables') {
-    const multipliers = from <= to ? rangeArray(1, 10) : rangeArray(10, 1);
+    const proMax = getTablesProMode() ? 20 : 10;
+    const multipliers = from <= to ? rangeArray(1, proMax) : rangeArray(proMax, 1);
     for (const n of nums) {
       for (const m of multipliers) {
         questions.push({ text: `${n} × ${m} = ?`, answer: n * m, topicLabel: label });
