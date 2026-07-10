@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart } from 'lucide-react';
+import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart, Crown } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import StatPill from '@/components/duo/StatPill';
+import { Switch } from '@/components/ui/switch';
+import { getTablesProMode, setTablesProMode } from '@/lib/settings';
 
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
@@ -39,6 +41,22 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   const selectedNumber = learningState?.selectedNumber ?? null;
   const selectedRange = learningState?.selectedRange ?? null;
   const [showPracticeMode, setShowPracticeMode] = useState(false);
+  const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
+
+  useEffect(() => {
+    const sync = () => setProModeState(getTablesProMode());
+    window.addEventListener('tables-pro-updated', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('tables-pro-updated', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  const toggleProMode = (v: boolean) => {
+    setTablesProMode(v);
+    setProModeState(v);
+  };
 
   const updateState = (partial: Partial<LearningState>) => {
     if (onLearningStateChange && learningState) {
