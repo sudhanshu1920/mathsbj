@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart } from 'lucide-react';
+import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart, Crown } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import StatPill from '@/components/duo/StatPill';
+import { Switch } from '@/components/ui/switch';
+import { getTablesProMode, setTablesProMode } from '@/lib/settings';
 
 import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
@@ -39,6 +41,22 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   const selectedNumber = learningState?.selectedNumber ?? null;
   const selectedRange = learningState?.selectedRange ?? null;
   const [showPracticeMode, setShowPracticeMode] = useState(false);
+  const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
+
+  useEffect(() => {
+    const sync = () => setProModeState(getTablesProMode());
+    window.addEventListener('tables-pro-updated', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('tables-pro-updated', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  const toggleProMode = (v: boolean) => {
+    setTablesProMode(v);
+    setProModeState(v);
+  };
 
   const updateState = (partial: Partial<LearningState>) => {
     if (onLearningStateChange && learningState) {
@@ -161,7 +179,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => (
       <div key={n}>
-        {renderDataCards(getTable(n))}
+        {renderDataCards(getTable(n, proMode ? 20 : 10))}
       </div>
     ));
 
@@ -180,6 +198,16 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       <SwipeBack onBack={() => setActiveTopic(null)}>
         <div>
           {renderHeader('Tables', () => setActiveTopic(null))}
+          <div className={`glass-panel rounded-2xl px-4 py-3 mb-4 flex items-center justify-between ${proMode ? 'shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_24px_hsl(var(--primary)/0.35)]' : ''}`}>
+            <div className="flex items-center gap-2">
+              <Crown size={18} className={proMode ? 'text-primary' : 'text-muted-foreground'} />
+              <div className="leading-tight">
+                <p className="font-display font-extrabold text-sm uppercase tracking-wider text-foreground">Pro Mode</p>
+                <p className="text-[11px] text-muted-foreground">{proMode ? '×1 – ×20 per table' : '×1 – ×10 per table'}</p>
+              </div>
+            </div>
+            <Switch checked={proMode} onCheckedChange={toggleProMode} />
+          </div>
           <p className="text-muted-foreground text-sm mb-4 text-center">Select a number (1–200)</p>
           {renderNumberGrid(200, setSelectedNumber)}
         </div>
