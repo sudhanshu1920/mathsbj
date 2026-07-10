@@ -179,7 +179,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
     const items = allNumbers.map((n) => (
       <div key={n}>
-        {renderDataCards(getTable(n))}
+        {renderDataCards(getTable(n, proMode ? 20 : 10))}
       </div>
     ));
 
@@ -198,6 +198,16 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       <SwipeBack onBack={() => setActiveTopic(null)}>
         <div>
           {renderHeader('Tables', () => setActiveTopic(null))}
+          <div className={`glass-panel rounded-2xl px-4 py-3 mb-4 flex items-center justify-between ${proMode ? 'shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_24px_hsl(var(--primary)/0.35)]' : ''}`}>
+            <div className="flex items-center gap-2">
+              <Crown size={18} className={proMode ? 'text-primary' : 'text-muted-foreground'} />
+              <div className="leading-tight">
+                <p className="font-display font-extrabold text-sm uppercase tracking-wider text-foreground">Pro Mode</p>
+                <p className="text-[11px] text-muted-foreground">{proMode ? '×1 – ×20 per table' : '×1 – ×10 per table'}</p>
+              </div>
+            </div>
+            <Switch checked={proMode} onCheckedChange={toggleProMode} />
+          </div>
           <p className="text-muted-foreground text-sm mb-4 text-center">Select a number (1–200)</p>
           {renderNumberGrid(200, setSelectedNumber)}
         </div>
