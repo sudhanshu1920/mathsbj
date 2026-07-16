@@ -609,14 +609,20 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (!q) return;
     // Avoid premature checking while user is still typing (e.g. "33", "1/").
     if (!isLikelyComplete(inputValue)) return;
-    if (q.answerType === 'trig') {
-      if (isTrigAnswerCorrect(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
-    } else if (typeof q.answer === 'number') {
-      const numVal = parseMathValue(inputValue);
-      if (numVal !== null && Math.abs(numVal - q.answer) < 1e-9) handleAnswer(numVal);
-    } else {
-      if (normalizeAnswer(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
-    }
+    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    autoSubmitTimerRef.current = setTimeout(() => {
+      if (q.answerType === 'trig') {
+        if (isTrigAnswerCorrect(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
+      } else if (typeof q.answer === 'number') {
+        const numVal = parseMathValue(inputValue);
+        if (numVal !== null && Math.abs(numVal - q.answer) < 1e-9) handleAnswer(numVal);
+      } else {
+        if (normalizeAnswer(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
+      }
+    }, 150);
+    return () => {
+      if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    };
   }, [inputValue, config, currentQ, questions, feedback, handleAnswer]);
 
   useEffect(() => {
