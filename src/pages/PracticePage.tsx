@@ -1024,10 +1024,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             {q.answerType !== 'trig' ? (
               <>
                 <div
-                  className="w-full max-w-xs bg-card/60 border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground min-h-[64px] flex items-center justify-center"
+                  className="w-full max-w-xs bg-card/60 border border-border rounded-2xl px-4 text-center text-2xl font-display font-bold text-foreground h-[64px] flex items-center justify-center overflow-hidden"
                   aria-live="polite"
                 >
-                  {inputValue || (
+                  {inputValue ? (
+                    <span className="truncate">{inputValue}</span>
+                  ) : (
                     <span className="text-muted-foreground text-base font-normal">
                       {q.answerType === 'fraction'
                         ? 'Type fraction e.g. 1/3'
@@ -1045,6 +1047,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   onSubmit={() => handleAnswer(inputValue.trim())}
                   variant="full"
                   disabled={!!feedback}
+                  hideOk
                 />
               </>
             ) : (
@@ -1057,6 +1060,29 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           </div>
         )}
       </div>
+
+      {config.mode === 'input' && !finished && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-40 glass border-t border-primary/20 pt-3 px-4"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+        >
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.96 }}
+            disabled={!!feedback || !inputValue.trim()}
+            onClick={() => {
+              if (submitLockRef.current) return;
+              if (!!feedback || !inputValue.trim()) return;
+              submitLockRef.current = true;
+              handleAnswer(inputValue.trim());
+              setTimeout(() => { submitLockRef.current = false; }, 300);
+            }}
+            className="mx-auto block w-full max-w-[360px] min-w-[180px] h-14 rounded-2xl gradient-primary text-primary-foreground font-display font-extrabold tracking-wide text-lg shadow-[0_0_24px_hsl(var(--primary)/0.5)] disabled:opacity-60 disabled:pointer-events-none"
+          >
+            Submit
+          </motion.button>
+        </div>
+      )}
       </SwipeBack>
     );
   }
