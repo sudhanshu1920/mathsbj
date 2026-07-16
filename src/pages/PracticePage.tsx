@@ -385,6 +385,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const elapsedRef = useRef<ReturnType<typeof setInterval>>();
   const inputRef = useRef<HTMLInputElement>(null);
+  const submitLockRef = useRef(false);
+  const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Setup form state - multi-topic
   const [selectedTopics, setSelectedTopics] = useState<Set<string>>(
