@@ -9,13 +9,15 @@ interface MathKeypadProps {
   /** Which special keys to enable. */
   variant?: 'numeric' | 'fraction' | 'mixed' | 'decimal' | 'full';
   disabled?: boolean;
+  /** Hide the OK row (submit handled externally, e.g. by a fixed bottom bar). */
+  hideOk?: boolean;
 }
 
 /**
  * Custom on-screen math keypad supporting digits, /, %, ., space, backspace and OK.
  * Designed for percentage / fraction practice typing.
  */
-const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled }: MathKeypadProps) => {
+const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled, hideOk }: MathKeypadProps) => {
   const press = (k: string) => {
     if (disabled) return;
     try { playClick(); } catch {}
@@ -38,7 +40,7 @@ const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled }: M
   };
 
   type Key = { label: React.ReactNode; key: string; tone?: 'num' | 'op' | 'ok' | 'back' | 'mute'; span?: number };
-  const rows: Key[][] = [
+  const allRows: Key[][] = [
     [
       { label: '1', key: '1', tone: 'num' },
       { label: '2', key: '2', tone: 'num' },
@@ -68,6 +70,7 @@ const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled }: M
       { label: <span className="inline-flex items-center gap-2"><Check size={20} /> OK</span>, key: 'ok', tone: 'ok', span: 3 },
     ],
   ];
+  const rows = hideOk ? allRows.slice(0, -1) : allRows;
 
   const toneClass = (t?: Key['tone']) => {
     switch (t) {
