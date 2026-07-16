@@ -1,46 +1,73 @@
-# Tables → Pro Mode Toggle (Grid + Practice)
+# Fix Submit Button — Mobile Sticky, No Shift
 
-Add a **PRO** toggle at the top of the Tables number grid (1–200). When ON:
-- Table detail view shows `n×1 … n×20` (instead of `n×1 … n×10`)
-- Practice for Tables generates questions up to `×20` (instead of `×10`)
+## Scope
+Only the input-mode Submit action inside the practice quiz. MCQ tiles unchanged. Setup screen unchanged.
 
-## Where the toggle appears
+The current "Submit" is the OK key at the bottom of `MathKeypad` (spans 3 columns). It sits inside normal flow inside a scrollable page, so as `inputValue` grows the answer preview box height changes and the row shifts. On some devices the browser toolbar / OS gesture bar also crops it. We'll lift it out of the scroll flow into a fixed bottom bar with safe-area insets, and lock its layout.
 
-- On the Tables entry screen (the 1–200 number grid), placed right under the header, above the "Select a number (1–200)" hint.
-- Not shown on other topics.
+## Changes
 
-## UI
+### 1. `src/pages/PracticePage.tsx` — input mode layout
+- Wrap the practice screen's scrollable content in a container with `pb-[calc(112px+env(safe-area-inset-bottom))]` so content doesn't hide behind the fixed submit bar.
+- Move the OK/Submit action out of `MathKeypad` when `config.mode === 'input'`. Render the keypad with `variant="numeric-only"` (new flag `hideOk`) — no OK key inside the grid.
+- Add a new fixed submit bar directly on the page:
+  - `position: fixed; left: 0; right: 0; bottom: 0;`
+  - Padding: `pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 px-4`
+  - Backdrop: `glass` + top border, so it reads above the keypad visually.
+  - Inside: single centered `<button>` — width `min(360px, 100% - 32px)`, `min-height: 56px`, `min-width: 180px`, rounded-2xl, gradient-primary, text "Submit".
+  - Uses `mx-auto`, `flex justify-center`, no width/margin animations. Only `transform: scale` on `whileTap`, plus a static box-shadow "glow". No `translateX`, no width transition.
+- Wire click to the existing `handleAnswer(inputValue.trim())`.
+- Trig text input path (line ~1043) also uses this same fixed submit bar (currently has no visible submit button at all — Enter key only).
 
-- Small pill row: `[ PRO MODE ]` label with a `Crown` icon (lucide-react) + a `Switch` (existing shadcn component).
-- Active: `gradient-primary` glow, subtle "×1–20" caption underneath.
-- Inactive: `glass-panel` outline, "×1–10" caption.
+### 2. Debounce + double-tap guard
+- Add a `submitLockRef` (useRef). On submit tap:
+  1. If locked or `feedback` truthy → ignore.
+  2. Set lock true, call `handleAnswer(...)`.
+  3. `setTimeout(() => submitLockRef.current = false, 300)`.
+- Disabled state visual: `opacity-60 pointer-events-none` when locked or feedback shown. No layout change (same height/width).
 
-## State & persistence
+### 3. Auto-submit when input becomes correct
+- Existing effect at line ~605 already auto-submits when `isLikelyComplete(inputValue)` and value matches. Wrap the eval in a 150ms `setTimeout` so the user briefly sees their completed input before it flies away. Clear timeout on `inputValue` change / unmount to prevent stale submits.
 
-- `localStorage` key `tables-pro-mode` (boolean).
-- Small helper in `src/lib/settings.ts`: `getTablesProMode()` / `setTablesProMode(v)` firing a `tables-pro-updated` window event so both LearningPage and PracticePage react instantly.
+### 4. Keypad — remove OK from grid
+- `src/components/MathKeypad.tsx`: accept optional `hideOk?: boolean`. When true, drop the last row (OK button) from `rows`. Keep everything else identical.
+- Grid stays `grid-cols-3` with fixed 12px gap; no reflow.
 
-## File changes
+### 5. Layout-shift prevention
+- The answer preview `div` currently sizes to content (`min-h-[64px]`). Change to fixed `h-[64px]` so it never grows as the user types (text truncates with `truncate`).
+- Keypad container: fixed `max-w-xs mx-auto` (already), and remove `mt-4` variability by using a static `gap-3`.
+- Remove any layout-affecting `whileHover`/`whileTap` from keypad keys except `scale` (already the case).
 
-1. **`src/lib/settings.ts`** — add `getTablesProMode` / `setTablesProMode`.
+### 6. Landscape / rotation
+- Fixed submit bar with `env(safe-area-inset-bottom)` handles both orientations automatically. On landscape short viewports, keep the bar height ≤ 88px so the question stays visible; scroll content area handles overflow.
 
-2. **`src/pages/LearningPage.tsx`**
-   - Read `proMode` via `useState` + subscribe to `tables-pro-updated` and `storage` events.
-   - In the Tables grid branch (around line 178), render the toggle row.
-   - In the Table detail branch (around line 160), pass `proMode ? 20 : 10` to `getTable(n, max)`.
-   - In `handlePracticeSelect`, when `activeTopic === 'tables'`, attach `ctx.to = proMode ? 20 : 10` so PracticePage knows the range.
+### 7. Performance
+- All animations restricted to `transform` + `opacity` (compositor-only). No width/margin/flex-basis transitions.
+- `will-change: transform` on the Submit button only while pressed (via framer-motion default). No CLS: preview box fixed height, submit bar fixed height, content padded to match.
 
-3. **`src/pages/PracticePage.tsx`** (Tables question generation)
-   - Where table questions are generated for a chosen number, use `ctx.to ?? 10` as the max multiplier (fallback preserves existing behavior).
-   - If Tables practice is launched without a specific number (all-tables mode), also read `getTablesProMode()` to decide max.
+## Technical details
 
-## Technical notes
+Fixed bar element (sketch):
+```text
+<div class="fixed inset-x-0 bottom-0 z-40 glass border-t border-primary/20
+            pt-3 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+  <motion.button
+    whileTap={{ scale: 0.96 }}
+    disabled={locked || !!feedback || !inputValue.trim()}
+    onClick={onSubmitFixed}
+    class="mx-auto block w-full max-w-[360px] min-w-[180px] h-14
+           rounded-2xl gradient-primary text-primary-foreground
+           font-display font-extrabold tracking-wide
+           shadow-[0_0_24px_hsl(var(--primary)/0.5)]
+           disabled:opacity-60">
+    Submit
+  </motion.button>
+</div>
+```
 
-- `getTable(num, max=10)` already accepts the extended range — no change needed in `src/lib/mathData.ts`.
-- Toggle is scoped to Tables only; Squares/Cubes/Powers/etc. are untouched.
-- No backend or theme changes.
+Only rendered when `config.mode === 'input'` and quiz is active (not on setup/finished screens, not in MCQ mode, not in infinite-mode result summary which already has its own Submit at line 869).
 
 ## Out of scope
-
-- Changing the 1–200 grid size.
-- Pro toggles for other topics (can be added later using the same pattern).
+- No changes to MCQ option tiles.
+- No changes to backend, sync, XP, or scoring.
+- No changes to the setup screen or infinite-mode summary submit.
