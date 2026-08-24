@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { LazyMotion } from "framer-motion";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +15,9 @@ import { useEffect, useState } from "react";
 import { isGuest } from "./lib/guest";
 
 const queryClient = new QueryClient();
+
+const loadMotionFeatures = () => import("./lib/motionFeatures").then((m) => m.default);
+
 
 const Gate = () => {
   const { user, loading } = useAuth();
