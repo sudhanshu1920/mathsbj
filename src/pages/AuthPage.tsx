@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Mail, Lock, User as UserIcon, Loader2, ArrowLeft, Zap } from 'lucide-react';

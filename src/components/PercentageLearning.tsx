@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import StackedFraction from './StackedFraction';
 import SwipeContainer from './SwipeContainer';

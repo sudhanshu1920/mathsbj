@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { Zap } from 'lucide-react';
 import { getXP, levelFromXP, xpInLevel, XP_PER_LEVEL } from '@/lib/xp';
 

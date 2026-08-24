@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react';
-import { motion, PanInfo } from 'framer-motion';
+import { m as motion, type PanInfo } from 'framer-motion';
 
 interface SwipeBackProps {
   onBack: () => void;

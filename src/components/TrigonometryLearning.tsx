@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { TRIG_ANGLES, TRIG_FUNCTIONS, TRIG_RADIANS, NOT_DEFINED, trigValue } from '@/lib/trigData';
 
 /**

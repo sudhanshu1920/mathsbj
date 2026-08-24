@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m as motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { getAnalytics, getDay, todayStr, AnalyticsState, DayAnalytics } from '@/lib/analytics';
 import { getStreak } from '@/lib/streak';

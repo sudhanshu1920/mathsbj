@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { Delete, Check, Plus } from 'lucide-react';
 import { playClick } from '@/lib/sound';
 

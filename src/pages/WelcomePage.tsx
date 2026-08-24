@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { UserPlus, LogIn, Zap, Gamepad2 } from 'lucide-react';
 import { setGuest } from '@/lib/guest';
 import ChunkyButton from '@/components/duo/ChunkyButton';
