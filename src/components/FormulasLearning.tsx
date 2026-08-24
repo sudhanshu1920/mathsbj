@@ -189,7 +189,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
               </h2>
               <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
             </div>
-            <Suspense fallback={<div className=\"h-40\" />}><TrigonometryLearning /></Suspense>
+            <Suspense fallback={<div className="h-40" />}><TrigonometryLearning /></Suspense>
           </div>
         </SwipeBack>
       );
