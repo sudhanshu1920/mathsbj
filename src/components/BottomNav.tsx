@@ -1,5 +1,5 @@
 import { BookOpen, Target, BarChart3 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { useRef, useCallback, useState } from 'react';
 import { playClick } from '@/lib/sound';
 

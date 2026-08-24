@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { ListChecks, Keyboard, Timer, Infinity } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 

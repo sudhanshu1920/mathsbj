@@ -9,4 +9,9 @@ initDesktopMode();
 initTheme();
 createRoot(document.getElementById("root")!).render(<App />);
 
-setupPWA();
+// Defer non-critical boot work until after first paint.
+const idle = (cb: () => void) =>
+  "requestIdleCallback" in window
+    ? (window as any).requestIdleCallback(cb, { timeout: 2000 })
+    : setTimeout(cb, 300);
+idle(() => setupPWA());

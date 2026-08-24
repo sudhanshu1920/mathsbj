@@ -1,6 +1,6 @@
 import { Monitor, Smartphone, Minus, Plus, Type } from 'lucide-react';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m as motion } from 'framer-motion';
 
 const MODE_KEY = 'desktop-mode';
 const SCALE_KEY = 'font-scale';

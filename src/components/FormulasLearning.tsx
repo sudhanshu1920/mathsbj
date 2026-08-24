@@ -1,6 +1,6 @@
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -8,7 +8,7 @@ import DesktopModeToggle from '@/components/DesktopModeToggle';
 import SwipeBack from '@/components/SwipeBack';
 import SwipeContainer from '@/components/SwipeContainer';
 import ShapeDiagram from '@/components/ShapeDiagram';
-import TrigonometryLearning from '@/components/TrigonometryLearning';
+const TrigonometryLearning = lazy(() => import('@/components/TrigonometryLearning'));
 import { FORMULA_SECTIONS, type FormulaItem } from '@/lib/formulaData';
 
 const KaTeXBlock = ({ latex }: { latex: string }) => {
@@ -189,7 +189,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
               </h2>
               <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
             </div>
-            <TrigonometryLearning />
+            <Suspense fallback={<div className="h-40" />}><TrigonometryLearning /></Suspense>
           </div>
         </SwipeBack>
       );

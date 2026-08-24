@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState, lazy, Suspense } from 'react';
+import { m as motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart, Crown } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
@@ -11,7 +11,7 @@ import SwipeContainer from '@/components/SwipeContainer';
 import SwipeBack from '@/components/SwipeBack';
 import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/components/PercentageLearning';
 import PracticeModeSelector, { type PracticeSettings } from '@/components/PracticeModeSelector';
-import FormulasLearning from '@/components/FormulasLearning';
+const FormulasLearning = lazy(() => import('@/components/FormulasLearning'));
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
 import { getStreak } from '@/lib/streak';
@@ -137,7 +137,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   );
 
   const renderNumberGrid = (max: number, onSelect: (n: number) => void) => (
-    <div className="grid grid-cols-5 gap-2">
+    <div className="grid grid-cols-5 gap-2 perf-list">
       {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
         <button
           key={n}
@@ -386,11 +386,13 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       <SwipeBack onBack={handleBack}>
         <div>
           {secIdx === null && renderHeader('Formulas', () => setActiveTopic(null), false)}
-          <FormulasLearning
-            sectionIndex={secIdx}
-            categoryIndex={catIdx}
-            onNavigate={(s, c) => updateState({ formulaSectionIndex: s, formulaCategoryIndex: c })}
-          />
+          <Suspense fallback={<div className="h-40" />}>
+            <FormulasLearning
+              sectionIndex={secIdx}
+              categoryIndex={catIdx}
+              onNavigate={(s, c) => updateState({ formulaSectionIndex: s, formulaCategoryIndex: c })}
+            />
+          </Suspense>
         </div>
       </SwipeBack>
     );

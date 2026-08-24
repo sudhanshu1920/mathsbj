@@ -7,17 +7,23 @@ export interface AppSettings {
 
 const defaults = (): AppSettings => ({ sound: true, vibration: true });
 
+// In-memory cache: getSettings() runs on every sound/haptic call, so parsing
+// JSON from localStorage each time is wasteful.
+let cache: AppSettings | null = null;
+
 export const getSettings = (): AppSettings => {
+  if (cache) return cache;
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return defaults();
-    return { ...defaults(), ...JSON.parse(raw) };
+    cache = raw ? { ...defaults(), ...JSON.parse(raw) } : defaults();
   } catch {
-    return defaults();
+    cache = defaults();
   }
+  return cache;
 };
 
 const save = (s: AppSettings) => {
+  cache = s;
   localStorage.setItem(KEY, JSON.stringify(s));
   window.dispatchEvent(new CustomEvent('settings-updated'));
 };
@@ -31,10 +37,14 @@ export const setVibration = (v: boolean) => {
 
 // --- Tables Pro Mode (×1..×20 instead of ×1..×10) ---
 const PRO_KEY = 'tables-pro-mode';
+let proCache: boolean | null = null;
 export const getTablesProMode = (): boolean => {
-  try { return localStorage.getItem(PRO_KEY) === '1'; } catch { return false; }
+  if (proCache !== null) return proCache;
+  try { proCache = localStorage.getItem(PRO_KEY) === '1'; } catch { proCache = false; }
+  return proCache;
 };
 export const setTablesProMode = (v: boolean) => {
+  proCache = v;
   try { localStorage.setItem(PRO_KEY, v ? '1' : '0'); } catch {}
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('tables-pro-updated'));
@@ -50,11 +60,17 @@ export const isActive = (): boolean =>
   document.visibilityState === 'visible' && (Date.now() - lastInteraction) < IDLE_MS;
 
 if (typeof window !== 'undefined') {
+  // Throttled: mousemove/wheel can fire hundreds of times per second.
+  let lastTick = 0;
+  const onActivity = () => {
+    const now = Date.now();
+    markInteraction();
+    if (now - lastTick < 250) return;
+    lastTick = now;
+    document.documentElement.classList.remove('app-idle');
+  };
   ['pointerdown', 'keydown', 'touchstart', 'mousemove', 'wheel'].forEach((ev) =>
-    window.addEventListener(ev, () => {
-      markInteraction();
-      document.documentElement.classList.remove('app-idle');
-    }, { passive: true })
+    window.addEventListener(ev, onActivity, { passive: true })
   );
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') markInteraction();

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m as motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon, ArrowLeft } from 'lucide-react';
 import { getProgress, ProgressData } from '@/lib/progress';
 import { getStreak, StreakState } from '@/lib/streak';
