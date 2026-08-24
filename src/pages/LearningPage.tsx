@@ -137,7 +137,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   );
 
   const renderNumberGrid = (max: number, onSelect: (n: number) => void) => (
-    <div className="grid grid-cols-5 gap-2">
+    <div className="grid grid-cols-5 gap-2 perf-list">
       {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
         <button
           key={n}
