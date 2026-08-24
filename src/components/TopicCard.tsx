@@ -1,5 +1,6 @@
 import { m as motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
+import { memo } from 'react';
 
 interface TopicCardProps {
   title: string;
@@ -25,4 +26,4 @@ const TopicCard = ({ title, icon: Icon, gradient, onClick, delay = 0 }: TopicCar
   );
 };
 
-export default TopicCard;
+export default memo(TopicCard);
