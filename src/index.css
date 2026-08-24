@@ -320,7 +320,7 @@
       radial-gradient(900px 520px at 108% 8%, hsl(320 100% 50% / 0.16), transparent 60%),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--background))) !important;
     background-size: 44px 44px, 44px 44px, auto, auto, auto;
-    background-attachment: fixed;
+    background-attachment: scroll;
   }
   html.theme-cyber-purple .bg-card,
   html.theme-cyber-purple .glass,
@@ -389,7 +389,7 @@
       radial-gradient(900px 500px at 110% 10%, hsl(22 100% 50% / 0.16), transparent 60%),
       radial-gradient(800px 400px at 50% 110%, hsl(0 100% 30% / 0.12), transparent 60%),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--background))) !important;
-    background-attachment: fixed;
+    background-attachment: scroll;
   }
   html.theme-blood-fire .bg-card,
   html.theme-blood-fire .glass,
@@ -459,7 +459,7 @@
       radial-gradient(1100px 560px at 50% -20%, hsl(130 100% 50% / 0.20), transparent 60%),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--background))) !important;
     background-size: 40px 40px, 40px 40px, auto, auto;
-    background-attachment: fixed;
+    background-attachment: scroll;
   }
   html.theme-matrix-green .bg-card,
   html.theme-matrix-green .glass,
@@ -591,7 +591,7 @@ html.light .neon-text {
       radial-gradient(1200px 600px at 50% -20%, hsl(196 100% 50% / 0.18), transparent 60%),
       radial-gradient(900px 500px at 100% 100%, hsl(173 100% 55% / 0.14), transparent 60%),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--background))) !important;
-    background-attachment: fixed;
+    background-attachment: scroll;
   }
 
   /* ----- 10. Void Black ----- */
@@ -688,7 +688,7 @@ html.light .neon-text {
       radial-gradient(1200px 600px at 10% -10%, hsl(var(--primary) / 0.12), transparent 60%),
       radial-gradient(900px 500px at 110% 10%, hsl(var(--accent) / 0.10), transparent 60%),
       radial-gradient(1000px 700px at 50% 120%, hsl(var(--primary) / 0.06), transparent 60%);
-    background-attachment: fixed;
+    background-attachment: scroll;
   }
   html.light body {
     background-image:
@@ -705,7 +705,7 @@ html.light .neon-text {
       radial-gradient(900px 520px at 108% 8%, hsl(var(--accent) / 0.14), transparent 60%),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--background))) !important;
     background-size: 44px 44px, 44px 44px, auto, auto, auto;
-    background-attachment: fixed;
+    background-attachment: scroll;
   }
 }
 
@@ -725,8 +725,8 @@ html.light .neon-text {
   }
   .glass {
     background: linear-gradient(145deg, hsl(var(--card) / 0.7), hsl(var(--card) / 0.4));
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid hsl(var(--border) / 0.6);
   }
   .glass-glow {
@@ -767,8 +767,8 @@ html.light .neon-text {
 /* Premium Glass Panel (bottom nav / floating panels) */
 .glass-panel {
   background: hsl(var(--card) / 0.65);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid hsl(var(--border) / 0.3);
 }
 
@@ -781,8 +781,8 @@ html.light .neon-text {
 
 html.light .glass-panel {
   background: rgba(255, 255, 255, 0.75) !important;
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 html.light .bottom-nav,
@@ -892,3 +892,26 @@ html.desktop-mode h4 {
 /* Idle dim */
 html.app-idle main { opacity: 0.85; transition: opacity 0.4s ease; }
 main { transition: opacity 0.4s ease; }
+
+
+/* ===== Performance ===== */
+/* Skip layout/paint for off-screen rows in long lists. */
+.perf-list > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
+}
+/* Promote the fixed glass surfaces so blurring them doesn't repaint the page. */
+.glass-panel,
+nav.glass-panel {
+  will-change: transform;
+  transform: translateZ(0);
+}
+/* Low-power / reduced-motion devices: drop the expensive blur entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .glass,
+  .glass-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
