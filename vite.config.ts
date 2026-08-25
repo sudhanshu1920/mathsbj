@@ -36,7 +36,8 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,json,woff,woff2,ttf}"],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/~oauth/],
         cleanupOutdatedCaches: true,
@@ -52,6 +53,32 @@ export default defineConfig(({ mode }) => ({
               cacheName: "pages",
               networkTimeoutSeconds: 3,
               expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            },
+          },
+          {
+            // Google Fonts stylesheets — keep offline copies of the CSS.
+            urlPattern: ({ url }) => url.origin === "https://fonts.googleapis.com",
+            handler: "StaleWhileRevalidate",
+            options: { cacheName: "google-fonts-stylesheets" },
+          },
+          {
+            // Font files themselves — long-lived, cache first.
+            urlPattern: ({ url }) => url.origin === "https://fonts.gstatic.com",
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-webfonts",
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+          {
+            // Any other font asset (e.g. KaTeX fonts served from CDN).
+            urlPattern: ({ request }) => request.destination === "font",
+            handler: "CacheFirst",
+            options: {
+              cacheName: "fonts",
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
           {
