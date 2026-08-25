@@ -128,8 +128,12 @@ export async function setupPWA() {
         const check = () => {
           if (navigator.onLine) registration.update().catch(() => {});
         };
-        // Check on focus, on network restore, and every 60 minutes.
+        // Check now, on focus, on network restore, and every 60 minutes.
+        check();
         window.addEventListener("focus", check);
+        window.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") check();
+        });
         window.addEventListener("online", () => {
           toast({ title: "Back online", description: "Checking for updates…" });
           check();
