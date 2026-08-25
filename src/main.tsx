@@ -4,6 +4,7 @@ import "./index.css";
 import { setupPWA } from "./pwa";
 import { initDesktopMode } from "./components/DesktopModeToggle";
 import { initTheme } from "./lib/theme";
+import { initPrecache } from "./lib/precache";
 
 initDesktopMode();
 initTheme();
@@ -14,4 +15,8 @@ const idle = (cb: () => void) =>
   "requestIdleCallback" in window
     ? (window as any).requestIdleCallback(cb, { timeout: 2000 })
     : setTimeout(cb, 300);
-idle(() => setupPWA());
+idle(() => {
+  void setupPWA();
+  // Warm every lazy screen so offline launches are complete.
+  idle(() => initPrecache());
+});
