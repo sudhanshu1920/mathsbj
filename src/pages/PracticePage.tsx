@@ -856,17 +856,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           <div className="flex-1 px-3 max-w-[180px]">
             <XPBar />
           </div>
-          {score.correct >= 2 && (
-            <motion.div
-              key={`combo-${score.correct}`}
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-warning/20 to-accent/20 border border-warning/40 text-warning text-xs font-bold mr-1 shadow-[0_0_12px_hsl(var(--warning)/0.35)]"
-              aria-label="Combo"
-            >
-              <Flame size={12} /> x{score.correct}
-            </motion.div>
-          )}
           {!isTimerHidden && (
             <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
               <Timer size={14} />{timeLeft}s
