@@ -226,45 +226,50 @@ const Index = () => {
   }, [returnToLearn]);
 
   return (
-    <div data-current-theme={currentTheme} data-current-mode={currentMode} className="min-h-screen bg-background pb-20 relative">
-      <Watermark />
-      <div className="max-w-lg mx-auto px-4 pt-4 relative z-10">
-        {tab !== 'learn' && (
-          <div className="flex justify-end gap-2 mb-2">
-            <ThemeToggle />
-            <DesktopModeToggle />
-          </div>
-        )}
-        <div className={tab === 'learn' ? 'animate-fade-in' : 'hidden'}>
-          <LearningPage
-            onStartPractice={handleStartPractice}
-            learningState={learningState}
-            onLearningStateChange={setLearningState}
-          />
-        </div>
-        <Suspense fallback={null}>
-          {tab === 'practice' && (
-            <div className="animate-fade-in">
-              <PracticePage
-                initialTopic={practiceTopic}
-                initialContext={practiceContext}
-                initialMode={practiceMode}
-                initialExtras={practiceExtras}
-                onExit={handlePracticeExit}
-                fromLearning={returnToLearn}
+    <div className="app-shell">
+      <div data-current-theme={currentTheme} data-current-mode={currentMode} className="app-frame bg-background">
+        <Watermark />
+        <div className="app-frame-scroll pb-20">
+          <div className="max-w-lg mx-auto px-4 pt-4 relative z-10">
+            {tab !== 'learn' && (
+              <div className="flex justify-end gap-2 mb-2">
+                <ThemeToggle />
+                <DesktopModeToggle />
+              </div>
+            )}
+            <div className={tab === 'learn' ? 'animate-fade-in' : 'hidden'}>
+              <LearningPage
+                onStartPractice={handleStartPractice}
+                learningState={learningState}
+                onLearningStateChange={setLearningState}
               />
             </div>
-          )}
-          {tab === 'progress' && (
-            <div className="animate-fade-in">
-              <ProgressPage />
-            </div>
-          )}
-        </Suspense>
+            <Suspense fallback={null}>
+              {tab === 'practice' && (
+                <div className="animate-fade-in">
+                  <PracticePage
+                    initialTopic={practiceTopic}
+                    initialContext={practiceContext}
+                    initialMode={practiceMode}
+                    initialExtras={practiceExtras}
+                    onExit={handlePracticeExit}
+                    fromLearning={returnToLearn}
+                  />
+                </div>
+              )}
+              {tab === 'progress' && (
+                <div className="animate-fade-in">
+                  <ProgressPage />
+                </div>
+              )}
+            </Suspense>
+          </div>
+        </div>
+        <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
       </div>
-      <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
     </div>
   );
+
 };
 
 export default Index;
