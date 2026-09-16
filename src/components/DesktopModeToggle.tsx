@@ -1,5 +1,6 @@
 import { Monitor, Smartphone, Minus, Plus, Type } from 'lucide-react';
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, m as motion } from 'framer-motion';
 
 const MODE_KEY = 'desktop-mode';
