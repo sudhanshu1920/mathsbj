@@ -32,9 +32,20 @@ const DesktopModeToggle = () => {
     return Number.isFinite(s) ? clamp(s) : 1;
   });
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const longPressed = useRef(false);
   const closeTimer = useRef<number | null>(null);
+
+  const updatePos = useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const right = Math.max(8, window.innerWidth - r.right);
+    setPos({ top: r.bottom + 10, right });
+  }, []);
 
   useEffect(() => {
     applyDesktopClass(desktop);
