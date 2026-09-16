@@ -117,12 +117,13 @@ const DesktopModeToggle = () => {
     setDesktop((d) => !d);
   };
 
-  const dec = () => setScale((s) => clamp(s - STEP));
-  const inc = () => setScale((s) => clamp(s + STEP));
+  const dec = () => { setScale((s) => clamp(s - STEP)); scheduleAutoClose(); };
+  const inc = () => { setScale((s) => clamp(s + STEP)); scheduleAutoClose(); };
 
   return (
     <div className="relative">
       <button
+        ref={btnRef}
         onClick={handleClick}
         onMouseDown={startLongPress}
         onMouseUp={cancelLongPress}
@@ -138,40 +139,50 @@ const DesktopModeToggle = () => {
         {desktop ? <Smartphone size={18} /> : <Monitor size={18} />}
       </button>
 
-      <AnimatePresence>
-        {overlayOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.95 }}
-            transition={{ duration: 0.18 }}
-            className="absolute right-0 top-full mt-2 z-50 flex items-center gap-2 rounded-full border border-border bg-popover/95 backdrop-blur px-2 py-1.5 shadow-lg"
-            onMouseEnter={() => closeTimer.current && window.clearTimeout(closeTimer.current)}
-            onMouseLeave={scheduleAutoClose}
-          >
-            <button
-              onClick={dec}
-              disabled={scale <= MIN_SCALE}
-              className="p-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Decrease text size"
+      {createPortal(
+        <AnimatePresence>
+          {overlayOpen && (
+            <motion.div
+              ref={panelRef}
+              initial={{ opacity: 0, y: -6, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.95 }}
+              transition={{ duration: 0.18 }}
+              style={{ position: 'fixed', top: pos.top, right: pos.right }}
+              className="z-[9999] flex flex-col items-center gap-2 rounded-2xl border-2 border-border bg-popover px-3 py-2.5 shadow-2xl"
+              onMouseEnter={() => closeTimer.current && window.clearTimeout(closeTimer.current)}
+              onMouseLeave={scheduleAutoClose}
             >
-              <Minus size={14} />
-            </button>
-            <div className="flex items-center gap-1 px-1 text-xs font-medium text-popover-foreground tabular-nums">
-              <Type size={12} />
-              {Math.round(scale * 100)}%
-            </div>
-            <button
-              onClick={inc}
-              disabled={scale >= MAX_SCALE}
-              className="p-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Increase text size"
-            >
-              <Plus size={14} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Type size={12} />
+                Text size
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={dec}
+                  disabled={scale <= MIN_SCALE}
+                  className="h-11 w-11 inline-flex items-center justify-center rounded-full bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Decrease text size"
+                >
+                  <Minus size={20} />
+                </button>
+                <span className="min-w-[3.5rem] text-center text-base font-bold text-popover-foreground tabular-nums">
+                  {Math.round(scale * 100)}%
+                </span>
+                <button
+                  onClick={inc}
+                  disabled={scale >= MAX_SCALE}
+                  className="h-11 w-11 inline-flex items-center justify-center rounded-full bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Increase text size"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 };
