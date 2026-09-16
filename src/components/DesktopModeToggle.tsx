@@ -59,7 +59,7 @@ const DesktopModeToggle = () => {
 
   const scheduleAutoClose = useCallback(() => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    closeTimer.current = window.setTimeout(() => setOverlayOpen(false), 3000);
+    closeTimer.current = window.setTimeout(() => setOverlayOpen(false), 5000);
   }, []);
 
   useEffect(() => {
@@ -69,11 +69,35 @@ const DesktopModeToggle = () => {
     };
   }, [overlayOpen, scale, scheduleAutoClose]);
 
+  useEffect(() => {
+    if (!overlayOpen) return;
+    updatePos();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOverlayOpen(false);
+    };
+    const onOutside = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (panelRef.current?.contains(t) || btnRef.current?.contains(t)) return;
+      setOverlayOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    document.addEventListener('pointerdown', onOutside, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+      document.removeEventListener('pointerdown', onOutside, true);
+    };
+  }, [overlayOpen, updatePos]);
+
   const startLongPress = () => {
     longPressed.current = false;
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
     longPressTimer.current = window.setTimeout(() => {
       longPressed.current = true;
+      updatePos();
       setOverlayOpen(true);
     }, 500);
   };
