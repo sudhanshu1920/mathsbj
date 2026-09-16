@@ -1,5 +1,6 @@
 import { Monitor, Smartphone, Minus, Plus, Type } from 'lucide-react';
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, m as motion } from 'framer-motion';
 
 const MODE_KEY = 'desktop-mode';
@@ -31,9 +32,20 @@ const DesktopModeToggle = () => {
     return Number.isFinite(s) ? clamp(s) : 1;
   });
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const longPressed = useRef(false);
   const closeTimer = useRef<number | null>(null);
+
+  const updatePos = useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const right = Math.max(8, window.innerWidth - r.right);
+    setPos({ top: r.bottom + 10, right });
+  }, []);
 
   useEffect(() => {
     applyDesktopClass(desktop);
@@ -47,7 +59,7 @@ const DesktopModeToggle = () => {
 
   const scheduleAutoClose = useCallback(() => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    closeTimer.current = window.setTimeout(() => setOverlayOpen(false), 3000);
+    closeTimer.current = window.setTimeout(() => setOverlayOpen(false), 5000);
   }, []);
 
   useEffect(() => {
@@ -57,11 +69,35 @@ const DesktopModeToggle = () => {
     };
   }, [overlayOpen, scale, scheduleAutoClose]);
 
+  useEffect(() => {
+    if (!overlayOpen) return;
+    updatePos();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOverlayOpen(false);
+    };
+    const onOutside = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (panelRef.current?.contains(t) || btnRef.current?.contains(t)) return;
+      setOverlayOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    document.addEventListener('pointerdown', onOutside, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+      document.removeEventListener('pointerdown', onOutside, true);
+    };
+  }, [overlayOpen, updatePos]);
+
   const startLongPress = () => {
     longPressed.current = false;
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
     longPressTimer.current = window.setTimeout(() => {
       longPressed.current = true;
+      updatePos();
       setOverlayOpen(true);
     }, 500);
   };
@@ -81,12 +117,13 @@ const DesktopModeToggle = () => {
     setDesktop((d) => !d);
   };
 
-  const dec = () => setScale((s) => clamp(s - STEP));
-  const inc = () => setScale((s) => clamp(s + STEP));
+  const dec = () => { setScale((s) => clamp(s - STEP)); scheduleAutoClose(); };
+  const inc = () => { setScale((s) => clamp(s + STEP)); scheduleAutoClose(); };
 
   return (
     <div className="relative">
       <button
+        ref={btnRef}
         onClick={handleClick}
         onMouseDown={startLongPress}
         onMouseUp={cancelLongPress}
@@ -102,40 +139,50 @@ const DesktopModeToggle = () => {
         {desktop ? <Smartphone size={18} /> : <Monitor size={18} />}
       </button>
 
-      <AnimatePresence>
-        {overlayOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.95 }}
-            transition={{ duration: 0.18 }}
-            className="absolute right-0 top-full mt-2 z-50 flex items-center gap-2 rounded-full border border-border bg-popover/95 backdrop-blur px-2 py-1.5 shadow-lg"
-            onMouseEnter={() => closeTimer.current && window.clearTimeout(closeTimer.current)}
-            onMouseLeave={scheduleAutoClose}
-          >
-            <button
-              onClick={dec}
-              disabled={scale <= MIN_SCALE}
-              className="p-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Decrease text size"
+      {createPortal(
+        <AnimatePresence>
+          {overlayOpen && (
+            <motion.div
+              ref={panelRef}
+              initial={{ opacity: 0, y: -6, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.95 }}
+              transition={{ duration: 0.18 }}
+              style={{ position: 'fixed', top: pos.top, right: pos.right }}
+              className="z-[9999] flex flex-col items-center gap-2 rounded-2xl border-2 border-border bg-popover px-3 py-2.5 shadow-2xl"
+              onMouseEnter={() => closeTimer.current && window.clearTimeout(closeTimer.current)}
+              onMouseLeave={scheduleAutoClose}
             >
-              <Minus size={14} />
-            </button>
-            <div className="flex items-center gap-1 px-1 text-xs font-medium text-popover-foreground tabular-nums">
-              <Type size={12} />
-              {Math.round(scale * 100)}%
-            </div>
-            <button
-              onClick={inc}
-              disabled={scale >= MAX_SCALE}
-              className="p-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Increase text size"
-            >
-              <Plus size={14} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Type size={12} />
+                Text size
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={dec}
+                  disabled={scale <= MIN_SCALE}
+                  className="h-11 w-11 inline-flex items-center justify-center rounded-full bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Decrease text size"
+                >
+                  <Minus size={20} />
+                </button>
+                <span className="min-w-[3.5rem] text-center text-base font-bold text-popover-foreground tabular-nums">
+                  {Math.round(scale * 100)}%
+                </span>
+                <button
+                  onClick={inc}
+                  disabled={scale >= MAX_SCALE}
+                  className="h-11 w-11 inline-flex items-center justify-center rounded-full bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Increase text size"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 };
