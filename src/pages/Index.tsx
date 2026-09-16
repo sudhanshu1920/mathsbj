@@ -1,12 +1,13 @@
-import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import Watermark from '@/components/Watermark';
 import LearningPage from '@/pages/LearningPage';
-const PracticePage = lazy(() => import('@/pages/PracticePage'));
-const ProgressPage = lazy(() => import('@/pages/ProgressPage'));
+const PracticePage = lazyWithRetry(() => import('@/pages/PracticePage'));
+const ProgressPage = lazyWithRetry(() => import('@/pages/ProgressPage'));
 import { useTheme, useMode } from '@/lib/theme';
 
 type Tab = 'learn' | 'practice' | 'progress';
