@@ -64,7 +64,7 @@ const DesktopStatsPanel = ({ onStartPractice, onOpenPalette, onOpenShortcuts }: 
   }, []);
 
   return (
-    <aside className="w-[264px] shrink-0 pt-4 pr-4 hidden xl:block">
+    <aside className="w-[264px] shrink-0 pt-4 pr-4">
       <div className="sticky top-4 space-y-3">
         {/* Level / XP */}
         <div className="glass rounded-xl p-3">
