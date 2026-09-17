@@ -314,9 +314,26 @@ const Index = () => {
               )}
             </Suspense>
           </div>
+          {wideDesktop && (
+            <DesktopStatsPanel
+              onStartPractice={quickPractice}
+              onOpenPalette={() => setPaletteOpen(true)}
+              onOpenShortcuts={() => setShortcutsOpen(true)}
+            />
+          )}
+          </div>
         </div>
         <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
       </div>
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        onNavigate={handleTabChange}
+        onStartPractice={quickPractice}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
+      />
+      <ShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </div>
   );
 
