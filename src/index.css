@@ -891,24 +891,70 @@ html {
 }
 
 @media (min-width: 768px) {
-  html.desktop-mode { --desktop-auto-scale: 1.1; }
+  html.desktop-mode { --desktop-auto-scale: 1.04; }
 }
 @media (min-width: 1024px) {
-  html.desktop-mode { --desktop-auto-scale: 1.18; }
+  html.desktop-mode { --desktop-auto-scale: 1.08; }
 }
 @media (min-width: 1440px) {
-  html.desktop-mode { --desktop-auto-scale: 1.25; }
+  html.desktop-mode { --desktop-auto-scale: 1.12; }
 }
 
 html.desktop-mode body {
   font-weight: 500;
-  line-height: 1.6;
+  line-height: 1.45;
 }
 html.desktop-mode h1,
 html.desktop-mode h2,
 html.desktop-mode h3,
 html.desktop-mode h4 {
   font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ===== Desktop pro workspace polish ===== */
+/* Tighter, tool-like density */
+html.desktop-mode .rounded-3xl { border-radius: 1rem; }
+html.desktop-mode .rounded-2xl { border-radius: 0.75rem; }
+html.desktop-mode .p-5 { padding: 1rem; }
+html.desktop-mode .p-4 { padding: 0.85rem; }
+html.desktop-mode .py-4 { padding-top: 0.85rem; padding-bottom: 0.85rem; }
+html.desktop-mode .gap-4 { gap: 0.75rem; }
+html.desktop-mode .mb-8 { margin-bottom: 1.5rem; }
+html.desktop-mode .mb-6 { margin-bottom: 1.15rem; }
+
+/* Aligned figures everywhere */
+html.desktop-mode {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Hairline separators, calmer glass */
+html.desktop-mode .glass,
+html.desktop-mode .glass-panel {
+  border-width: 1px;
+}
+
+/* Slim floating bottom bar */
+@media (min-width: 1024px) {
+  html.desktop-mode nav.fixed.bottom-0 {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    bottom: 0.75rem;
+    width: auto;
+    min-width: 22rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 9999px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px -12px hsl(var(--primary) / 0.45);
+  }
+  html.desktop-mode nav.fixed.bottom-0 > div {
+    height: 56px;
+    gap: 0.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
 }
 
 /* ===== Game-like feedback animations ===== */
