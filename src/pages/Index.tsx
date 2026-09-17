@@ -9,6 +9,10 @@ import LearningPage from '@/pages/LearningPage';
 const PracticePage = lazyWithRetry(() => import('@/pages/PracticePage'));
 const ProgressPage = lazyWithRetry(() => import('@/pages/ProgressPage'));
 import { useTheme, useMode } from '@/lib/theme';
+import { useWideDesktop } from '@/hooks/use-desktop-mode';
+import DesktopStatsPanel from '@/components/DesktopStatsPanel';
+import CommandPalette from '@/components/CommandPalette';
+import ShortcutsHelp from '@/components/ShortcutsHelp';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
