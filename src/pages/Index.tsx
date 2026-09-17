@@ -233,6 +233,47 @@ const Index = () => {
     }
   }, [returnToLearn]);
 
+  const quickPractice = useCallback((topic: string) => {
+    setPracticeTopic(topic);
+    setPracticeContext(undefined);
+    setPracticeMode(undefined);
+    setPracticeExtras(undefined);
+    setReturnToLearn(false);
+    setTab('practice');
+  }, []);
+
+  // Keyboard shortcuts (desktop-style, ignored while typing)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing =
+        !!el &&
+        (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+        return;
+      }
+      if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+
+      if (e.key === '?') {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
+      if (paletteOpen || shortcutsOpen) return;
+      if (tab === 'practice' && practiceMode) return; // don't hijack an active quiz
+
+      if (e.key === '1') handleTabChange('learn');
+      else if (e.key === '2') handleTabChange('practice');
+      else if (e.key === '3') handleTabChange('progress');
+      else if (e.key === 'Escape') window.history.back();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [paletteOpen, shortcutsOpen, tab, practiceMode]);
+
   return (
     <div className="app-shell">
       <div data-current-theme={currentTheme} data-current-mode={currentMode} className="app-frame bg-background">
