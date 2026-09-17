@@ -279,7 +279,8 @@ const Index = () => {
       <div data-current-theme={currentTheme} data-current-mode={currentMode} className="app-frame bg-background">
         <Watermark />
         <div className="app-frame-scroll pb-20">
-          <div className="max-w-lg mx-auto px-4 pt-4 relative z-10">
+          <div className={wideDesktop ? 'flex justify-center gap-4 relative z-10' : 'contents'}>
+          <div className="max-w-lg mx-auto px-4 pt-4 relative z-10 flex-1">
             {tab !== 'learn' && (
               <div className="flex justify-end gap-2 mb-2">
                 <ThemeToggle />
