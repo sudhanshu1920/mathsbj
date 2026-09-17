@@ -71,6 +71,9 @@ const Index = () => {
   const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean } | undefined>();
   const [returnToLearn, setReturnToLearn] = useState(false);
   const [learningState, setLearningState] = useState<LearningState>(INITIAL_LEARNING_STATE);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const wideDesktop = useWideDesktop();
   const lastBackPress = useRef(0);
   const isHandlingPopstate = useRef(false);
   const lastDepth = useRef('learn-home');
