@@ -9,6 +9,10 @@ import LearningPage from '@/pages/LearningPage';
 const PracticePage = lazyWithRetry(() => import('@/pages/PracticePage'));
 const ProgressPage = lazyWithRetry(() => import('@/pages/ProgressPage'));
 import { useTheme, useMode } from '@/lib/theme';
+import { useWideDesktop } from '@/hooks/use-desktop-mode';
+import DesktopStatsPanel from '@/components/DesktopStatsPanel';
+import CommandPalette from '@/components/CommandPalette';
+import ShortcutsHelp from '@/components/ShortcutsHelp';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -67,6 +71,9 @@ const Index = () => {
   const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean } | undefined>();
   const [returnToLearn, setReturnToLearn] = useState(false);
   const [learningState, setLearningState] = useState<LearningState>(INITIAL_LEARNING_STATE);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const wideDesktop = useWideDesktop();
   const lastBackPress = useRef(0);
   const isHandlingPopstate = useRef(false);
   const lastDepth = useRef('learn-home');
@@ -226,12 +233,54 @@ const Index = () => {
     }
   }, [returnToLearn]);
 
+  const quickPractice = useCallback((topic: string) => {
+    setPracticeTopic(topic);
+    setPracticeContext(undefined);
+    setPracticeMode(undefined);
+    setPracticeExtras(undefined);
+    setReturnToLearn(false);
+    setTab('practice');
+  }, []);
+
+  // Keyboard shortcuts (desktop-style, ignored while typing)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing =
+        !!el &&
+        (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+        return;
+      }
+      if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+
+      if (e.key === '?') {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
+      if (paletteOpen || shortcutsOpen) return;
+      if (tab === 'practice' && practiceMode) return; // don't hijack an active quiz
+
+      if (e.key === '1') handleTabChange('learn');
+      else if (e.key === '2') handleTabChange('practice');
+      else if (e.key === '3') handleTabChange('progress');
+      else if (e.key === 'Escape') window.history.back();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [paletteOpen, shortcutsOpen, tab, practiceMode]);
+
   return (
     <div className="app-shell">
       <div data-current-theme={currentTheme} data-current-mode={currentMode} className="app-frame bg-background">
         <Watermark />
         <div className="app-frame-scroll pb-20">
-          <div className="max-w-lg mx-auto px-4 pt-4 relative z-10">
+          <div className={wideDesktop ? 'flex justify-center gap-4 relative z-10' : 'contents'}>
+          <div className="max-w-lg mx-auto px-4 pt-4 relative z-10 flex-1">
             {tab !== 'learn' && (
               <div className="flex justify-end gap-2 mb-2">
                 <ThemeToggle />
@@ -265,9 +314,26 @@ const Index = () => {
               )}
             </Suspense>
           </div>
+          {wideDesktop && (
+            <DesktopStatsPanel
+              onStartPractice={quickPractice}
+              onOpenPalette={() => setPaletteOpen(true)}
+              onOpenShortcuts={() => setShortcutsOpen(true)}
+            />
+          )}
+          </div>
         </div>
         <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
       </div>
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        onNavigate={handleTabChange}
+        onStartPractice={quickPractice}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
+      />
+      <ShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </div>
   );
 

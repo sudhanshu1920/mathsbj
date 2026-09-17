@@ -24,10 +24,10 @@ const readStats = () => {
   const progress = getProgress();
   const day = getDay(getAnalytics(), todayStr());
   return {
-    level: levelFromXP(xp.total),
-    xpIn: xpInLevel(xp.total),
-    xpPct: xpProgressPct(xp.total),
-    totalXp: xp.total,
+    level: levelFromXP(xp.xp),
+    xpIn: xpInLevel(xp.xp),
+    xpPct: xpProgressPct(xp.xp),
+    totalXp: xp.xp,
     streak: streak.current,
     best: streak.best,
     todayQ: day.questions,
@@ -64,7 +64,7 @@ const DesktopStatsPanel = ({ onStartPractice, onOpenPalette, onOpenShortcuts }: 
   }, []);
 
   return (
-    <aside className="w-[264px] shrink-0 pt-4 pr-4 hidden xl:block">
+    <aside className="w-[264px] shrink-0 pt-4 pr-4">
       <div className="sticky top-4 space-y-3">
         {/* Level / XP */}
         <div className="glass rounded-xl p-3">
