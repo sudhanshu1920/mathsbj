@@ -91,8 +91,8 @@ export default defineConfig(({ mode }) => ({
           },
           {
             // Static app assets: serve from cache first, no network during use.
-            urlPattern: ({ request, url }) =>
-              url.origin === self.location.origin &&
+            urlPattern: ({ request, sameOrigin }) =>
+              sameOrigin &&
               (request.destination === "style" ||
                 request.destination === "script" ||
                 request.destination === "worker"),
