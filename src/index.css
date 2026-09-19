@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Nunito:wght@600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import './fonts.css';
 
 @layer base {
   :root {
@@ -1015,4 +1015,33 @@ nav.glass-panel {
     -webkit-backdrop-filter: none !important;
   }
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ===== Low-end device mode =====
+   Set by src/lib/device.ts. Keeps every feature, just removes the
+   most expensive paint work (blur, glow, heavy shadows, long animations). */
+html.low-power .glass,
+html.low-power .glass-panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: hsl(var(--card) / 0.96) !important;
+}
+html.low-power .glow-primary,
+html.low-power .glow-accent,
+html.low-power .glass-glow {
+  box-shadow: none !important;
+}
+html.low-power .text-glow,
+html.low-power .neon-text {
+  text-shadow: none !important;
+}
+html.low-power body {
+  background-image: none !important;
+}
+html.low-power *,
+html.low-power *::before,
+html.low-power *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 120ms !important;
 }

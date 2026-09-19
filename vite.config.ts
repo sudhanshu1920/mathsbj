@@ -90,12 +90,18 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
-            urlPattern: ({ request }) =>
-              request.destination === "style" ||
-              request.destination === "script" ||
-              request.destination === "worker",
-            handler: "StaleWhileRevalidate",
-            options: { cacheName: "assets" },
+            // Static app assets: serve from cache first, no network during use.
+            urlPattern: ({ request, sameOrigin }) =>
+              sameOrigin &&
+              (request.destination === "style" ||
+                request.destination === "script" ||
+                request.destination === "worker"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "assets",
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 90 },
+            },
           },
         ],
       },

@@ -13,6 +13,7 @@ import { useWideDesktop } from '@/hooks/use-desktop-mode';
 import DesktopStatsPanel from '@/components/DesktopStatsPanel';
 import CommandPalette from '@/components/CommandPalette';
 import ShortcutsHelp from '@/components/ShortcutsHelp';
+import OfflinePrep from '@/components/OfflinePrep';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -334,6 +335,7 @@ const Index = () => {
         onOpenShortcuts={() => setShortcutsOpen(true)}
       />
       <ShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      <OfflinePrep />
     </div>
   );
 
