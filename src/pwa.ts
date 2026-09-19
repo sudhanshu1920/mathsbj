@@ -121,24 +121,11 @@ export async function setupPWA() {
         });
       },
       onRegisteredSW(_swUrl, registration) {
-        // Periodically check for updates when online.
+        // No background update polling: normal usage must never wait on the
+        // network. Updates happen only via Settings → Check for updates.
         if (!registration) return;
         swRegistration = registration;
         armControllerReload();
-        const check = () => {
-          if (navigator.onLine) registration.update().catch(() => {});
-        };
-        // Check now, on focus, on network restore, and every 60 minutes.
-        check();
-        window.addEventListener("focus", check);
-        window.addEventListener("visibilitychange", () => {
-          if (document.visibilityState === "visible") check();
-        });
-        window.addEventListener("online", () => {
-          toast({ title: "Back online", description: "Checking for updates…" });
-          check();
-        });
-        setInterval(check, 60 * 60 * 1000);
       },
     });
     updateSWFn = updateSW;
