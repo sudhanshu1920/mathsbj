@@ -5,9 +5,11 @@ import { setupPWA } from "./pwa";
 import { initDesktopMode } from "./components/DesktopModeToggle";
 import { initTheme } from "./lib/theme";
 import { initPrecache } from "./lib/precache";
+import { initDeviceProfile } from "./lib/device";
 
 initDesktopMode();
 initTheme();
+initDeviceProfile();
 createRoot(document.getElementById("root")!).render(<App />);
 
 // Defer non-critical boot work until after first paint.
