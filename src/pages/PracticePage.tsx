@@ -990,7 +990,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </AnimatePresence>
 
         {config.mode === 'mcq' && q.options && (
-          <div className="grid grid-cols-2 gap-3 mt-4">
+          <div className="mcq-options-grid grid gap-3 mt-4">
             {q.options.map((opt, i) => {
               let optStyle = 'glass text-foreground hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
               if (feedback && selectedOption === i) {
@@ -1001,7 +1001,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               return (
                 <motion.button key={`${currentQ}-${i}`} whileTap={{ scale: 0.94 }} whileHover={{ y: -1 }}
                   onClick={() => { if (feedback) return; setSelectedOption(i); handleAnswer(opt); }}
-                  className={`rounded-2xl py-4 px-2 flex items-center justify-center font-display font-bold text-base transition-all min-h-[60px] ${optStyle}`}>
+                  className={`w-full h-full rounded-2xl px-2 flex items-center justify-center text-center font-display font-bold text-base transition-all overflow-hidden ${optStyle}`}>
                   {renderOption(opt, i)}
                 </motion.button>
               );
