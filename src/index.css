@@ -855,6 +855,11 @@ html.desktop-mode .max-w-lg {
   max-width: 64rem; /* ~1024px */
 }
 
+.mcq-options-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 4.5rem;
+}
+
 
 @media (min-width: 768px) {
   html.desktop-mode .grid.grid-cols-2 {
