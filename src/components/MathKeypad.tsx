@@ -75,15 +75,15 @@ const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled, hid
   const toneClass = (t?: Key['tone']) => {
     switch (t) {
       case 'op':
-        return 'glass text-primary border-primary/40 hover:border-primary';
+        return 'glass text-primary border-primary/40 [@media(hover:hover)]:hover:border-primary';
       case 'back':
-        return 'glass text-destructive border-destructive/40 hover:border-destructive';
+        return 'glass text-destructive border-destructive/40 [@media(hover:hover)]:hover:border-destructive';
       case 'ok':
         return 'gradient-primary text-primary-foreground shadow-[0_0_18px_hsl(var(--primary)/0.5)]';
       case 'mute':
         return 'opacity-30 pointer-events-none bg-card border border-border text-muted-foreground';
       default:
-        return 'glass text-foreground hover:border-primary/60';
+        return 'glass text-foreground [@media(hover:hover)]:hover:border-primary/60';
     }
   };
 
@@ -94,9 +94,9 @@ const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled, hid
           key={`${i}-${k.key}`}
           type="button"
           whileTap={{ scale: 0.92 }}
-          onClick={() => press(k.key)}
+          onClick={(e) => { e.currentTarget.blur(); press(k.key); }}
           style={k.span ? { gridColumn: `span ${k.span} / span ${k.span}` } : undefined}
-          className={`h-12 rounded-2xl font-display font-bold text-xl flex items-center justify-center transition-all border ${toneClass(k.tone)}`}
+          className={`h-12 rounded-2xl font-display font-bold text-xl flex items-center justify-center transition-all border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${toneClass(k.tone)}`}
         >
           {k.label}
         </motion.button>
