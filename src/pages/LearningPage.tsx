@@ -411,14 +411,15 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   };
 
   const cardTints: Record<Topic, { glow: string; text: string }> = {
-    tables:        { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)]',  text: 'text-primary' },
-    squares:       { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)]',     text: 'text-accent' },
-    'square-roots':{ glow: 'hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)]',  text: 'text-primary' },
-    cubes:         { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)]',  text: 'text-warning' },
-    'cube-roots':  { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)]',     text: 'text-accent' },
-    powers:        { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)]',  text: 'text-warning' },
-    percentage:    { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--destructive)/0.6),0_0_28px_hsl(var(--destructive)/0.30)]', text: 'text-destructive' },
-    formulas:      { glow: 'hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)]',     text: 'text-accent' },
+    // Resting glow + hover glow + press glow so the neon effect shows on touch too
+    tables:        { glow: 'shadow-[0_0_18px_-6px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)] active:shadow-[0_0_0_1px_hsl(var(--primary)/0.75),0_0_34px_hsl(var(--primary)/0.5)]',  text: 'text-primary' },
+    squares:       { glow: 'shadow-[0_0_18px_-6px_hsl(var(--accent)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--accent)/0.75),0_0_34px_hsl(var(--accent)/0.45)]',  text: 'text-accent' },
+    'square-roots':{ glow: 'shadow-[0_0_18px_-6px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)] active:shadow-[0_0_0_1px_hsl(var(--primary)/0.75),0_0_34px_hsl(var(--primary)/0.5)]',  text: 'text-primary' },
+    cubes:         { glow: 'shadow-[0_0_18px_-6px_hsl(var(--warning)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--warning)/0.75),0_0_34px_hsl(var(--warning)/0.45)]',  text: 'text-warning' },
+    'cube-roots':  { glow: 'shadow-[0_0_18px_-6px_hsl(var(--accent)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--accent)/0.75),0_0_34px_hsl(var(--accent)/0.45)]',  text: 'text-accent' },
+    powers:        { glow: 'shadow-[0_0_18px_-6px_hsl(var(--warning)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--warning)/0.75),0_0_34px_hsl(var(--warning)/0.45)]',  text: 'text-warning' },
+    percentage:    { glow: 'shadow-[0_0_18px_-6px_hsl(var(--destructive)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--destructive)/0.6),0_0_28px_hsl(var(--destructive)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--destructive)/0.75),0_0_34px_hsl(var(--destructive)/0.45)]', text: 'text-destructive' },
+    formulas:      { glow: 'shadow-[0_0_18px_-6px_hsl(var(--accent)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--accent)/0.75),0_0_34px_hsl(var(--accent)/0.45)]',  text: 'text-accent' },
   };
 
   return (
