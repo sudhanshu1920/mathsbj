@@ -733,6 +733,15 @@ html.light .neon-text {
     box-shadow: var(--glow-primary);
     border-color: hsl(var(--primary) / 0.55) !important;
   }
+  /* Keypad keys: glow while pressed, instantly gone on release (never sticks) */
+  .keypad-key:active {
+    box-shadow: var(--glow-primary);
+    border-color: hsl(var(--primary) / 0.8) !important;
+  }
+  .keypad-key-danger:active {
+    box-shadow: var(--glow-accent);
+    border-color: hsl(var(--destructive) / 0.8) !important;
+  }
   .neon-text {
     text-shadow: 0 0 12px hsl(var(--primary) / 0.55), 0 0 2px hsl(var(--primary) / 0.8);
   }

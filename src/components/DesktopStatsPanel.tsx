@@ -67,7 +67,7 @@ const DesktopStatsPanel = ({ onStartPractice, onOpenPalette, onOpenShortcuts }: 
     <aside className="w-[264px] shrink-0 pt-4 pr-4">
       <div className="sticky top-4 space-y-3">
         {/* Level / XP */}
-        <div className="glass rounded-xl p-3">
+        <div className="glass rounded-xl p-3 shadow-[0_0_18px_-8px_hsl(var(--primary)/0.3)]">
           <div className="flex items-baseline justify-between mb-2">
             <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Level</span>
             <span className="font-display font-extrabold text-xl text-primary tabular-nums">{s.level}</span>
@@ -93,7 +93,7 @@ const DesktopStatsPanel = ({ onStartPractice, onOpenPalette, onOpenShortcuts }: 
         </div>
 
         {/* Quick practice */}
-        <div className="glass rounded-xl p-3">
+        <div className="glass rounded-xl p-3 shadow-[0_0_18px_-8px_hsl(var(--primary)/0.3)]">
           <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-2">Quick practice</p>
           <div className="space-y-1">
             {QUICK.map((q) => (

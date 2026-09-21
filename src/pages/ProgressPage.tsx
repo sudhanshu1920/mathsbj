@@ -145,7 +145,7 @@ const ProgressPage = () => {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             transition={{ delay: i * 0.1 }}
-            className="glass rounded-2xl p-4 text-center hover:shadow-[0_0_20px_-6px_hsl(var(--primary)/0.4)] transition-shadow"
+            className="glass rounded-2xl p-4 text-center shadow-[0_0_18px_-6px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_20px_-6px_hsl(var(--primary)/0.4)] transition-shadow"
           >
             <s.icon size={20} className={`mx-auto mb-2 ${s.color}`} />
             <p className="font-display font-bold text-2xl text-foreground">{s.value}</p>

@@ -767,7 +767,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             </div>
             {config.infinite && <p className="text-sm text-muted-foreground mb-4">Time: {formatTime(elapsedTime)}</p>}
             <div className="flex gap-3">
-              <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold">Retry</button>
+              <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-[0_0_24px_hsl(var(--primary)/0.5)]">Retry</button>
               {fromLearning ? (
                 <button onClick={() => onExit?.()} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">Back to Learning</button>
               ) : (
@@ -992,7 +992,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         {config.mode === 'mcq' && q.options && (
           <div className="mcq-options-grid grid gap-3 mt-4">
             {q.options.map((opt, i) => {
-              let optStyle = 'glass text-foreground hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
+              let optStyle = 'glass text-foreground shadow-[0_0_14px_-6px_hsl(var(--primary)/0.3)] active:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
               if (feedback && selectedOption === i) {
                 optStyle = feedback === 'correct'
                   ? 'bg-success/20 border-2 border-success text-success shadow-[0_0_28px_hsl(var(--success)/0.55)]'
