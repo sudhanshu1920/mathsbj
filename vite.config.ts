@@ -31,8 +31,7 @@ export default defineConfig(({ mode }) => ({
         background_color: "#0d1117",
         theme_color: "#3b82f6",
         icons: [
-          { src: "/placeholder.svg", sizes: "192x192", type: "image/svg+xml" },
-          { src: "/placeholder.svg", sizes: "512x512", type: "image/svg+xml" },
+          { src: "/favicon.ico", sizes: "any", type: "image/x-icon" },
         ],
       },
       workbox: {
