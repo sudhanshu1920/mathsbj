@@ -60,7 +60,11 @@ const SwipeBack = ({ onBack, children, enabled = true }: SwipeBackProps) => {
         return;
       }
       active.current = true;
-      try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Pointer capture is optional; the gesture can still finish normally.
+      }
     }
 
     if (axis.current !== 'x' || !active.current) return;
@@ -87,7 +91,11 @@ const SwipeBack = ({ onBack, children, enabled = true }: SwipeBackProps) => {
       (dx >= TRIGGER_DISTANCE || velocityX.current >= TRIGGER_VELOCITY);
 
     e.currentTarget.style.removeProperty('--swipe-back-offset');
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // The pointer may already have been released/cancelled by the platform.
+    }
     reset();
 
     if (shouldGoBack) onBack();
