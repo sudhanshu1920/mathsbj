@@ -26,9 +26,11 @@ const loaders: Array<() => Promise<unknown>> = [
   () => import("@/components/FormulasLearning"),
   () => import("@/components/TrigonometryLearning"),
   () => import("@/components/PercentageLearning"),
+  () => import("@/components/PeriodicTableLearning"),
   () => import("@/lib/formulaData"),
   () => import("@/lib/trigData"),
   () => import("@/lib/mathData"),
+  () => import("@/lib/periodicTable"),
 ];
 
 /** Load every chunk once, reporting progress. Resolves even if some fail. */
