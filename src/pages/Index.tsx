@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
@@ -85,8 +87,15 @@ const Index = () => {
   const isHandlingPopstate = useRef(false);
   const lastDepth = useRef('learn-home');
   const historyInitialized = useRef(false);
+  const lastNavigationBack = useRef(0);
 
+  // One shared back action for header arrows, in-app edge swipe, and native
+  // Android back. A short lock prevents a native gesture + web gesture from
+  // navigating twice for the same physical action.
   const goBack = useCallback(() => {
+    const now = Date.now();
+    if (now - lastNavigationBack.current < 350) return;
+    lastNavigationBack.current = now;
     if (window.history.length > 1) window.history.back();
   }, []);
 
@@ -114,6 +123,48 @@ const Index = () => {
     }
     isHandlingPopstate.current = false;
   }, [tab, learningState, practiceTopic, practiceMode]);
+
+  // Handle native Android back button / system edge-back.
+  // Capacitor owns the native event before Android finishes the Activity, so
+  // nested screens can use the same history stack as the web back gesture.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let disposed = false;
+    let listenerHandle: { remove: () => Promise<void> } | null = null;
+
+    void App.addListener('backButton', () => {
+      const depth = getNavDepth(tab, learningState, practiceTopic, !!practiceMode);
+
+      if (depth === 'learn-home') {
+        const now = Date.now();
+        if (now - lastBackPress.current < 2000) {
+          void App.exitApp().catch(() => undefined);
+          return;
+        }
+
+        lastBackPress.current = now;
+        toast('Press back again to exit', { duration: 2000 });
+        return;
+      }
+
+      goBack();
+    }).then((handle) => {
+      if (disposed) {
+        void handle.remove();
+      } else {
+        listenerHandle = handle;
+      }
+    });
+
+    return () => {
+      disposed = true;
+      if (listenerHandle) {
+        void listenerHandle.remove();
+        listenerHandle = null;
+      }
+    };
+  }, [goBack, tab, learningState, practiceTopic, practiceMode]);
 
   // Handle browser back button / gesture
   useEffect(() => {
