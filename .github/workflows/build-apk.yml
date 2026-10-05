@@ -133,13 +133,17 @@ jobs:
 
       - name: Generate Android launcher icons from repository favicon
         run: |
-          command -v magick >/dev/null || command -v convert >/dev/null || { echo "ImageMagick installation failed"; exit 1; }
+          IMG_CMD="$(command -v magick || command -v convert || true)"
+          if [ -z "$IMG_CMD" ]; then
+            echo "ImageMagick installation failed"
+            exit 1
+          fi
           mkdir -p android/app/src/main/res/mipmap-mdpi
           mkdir -p android/app/src/main/res/mipmap-hdpi
           mkdir -p android/app/src/main/res/mipmap-xhdpi
           mkdir -p android/app/src/main/res/mipmap-xxhdpi
           mkdir -p android/app/src/main/res/mipmap-xxxhdpi
-          magick public/favicon.ico -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          "$IMG_CMD" public/favicon.ico -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
           magick public/favicon.ico -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
           magick public/favicon.ico -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
           magick public/favicon.ico -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
