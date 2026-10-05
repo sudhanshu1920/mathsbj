@@ -35,17 +35,24 @@ jobs:
           VITE_SUPABASE_URL: https://tkgogvbfxzookxlqjdtt.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrZ29ndmJmeHpvb2t4bHFqZHR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzEzMzUsImV4cCI6MjA5MzQwNzMzNX0.0yi-NBaydyQr_f9sMKhSrETkQI4sWi8C_iM7KRlOZtk
         run: |
-          cat > .env.production <<'EOF'
-          VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
-          VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-          VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
-          EOF
+          printf 'VITE_SUPABASE_PROJECT_ID=%s\nVITE_SUPABASE_URL=%s\nVITE_SUPABASE_PUBLISHABLE_KEY=%s\n' \
+            "$VITE_SUPABASE_PROJECT_ID" "$VITE_SUPABASE_URL" "$VITE_SUPABASE_PUBLISHABLE_KEY" > .env.production
 
       - name: Install web dependencies
         run: npm install --no-audit --no-fund
 
       - name: Build web app
         run: npm run build
+
+      - name: Validate client configuration in build
+        env:
+          VITE_SUPABASE_URL: https://tkgogvbfxzookxlqjdtt.supabase.co
+        run: |
+          test -s .env.production
+          grep -F "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" .env.production
+          ! grep -F '\$VITE_SUPABASE_URL' dist/assets/*.js
+          ! grep -F '\$VITE_SUPABASE_PUBLISHABLE_KEY' dist/assets/*.js
+          grep -R -F "$VITE_SUPABASE_URL" dist/assets >/dev/null
 
       - name: Install Capacitor
         run: npm install --no-save @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8
