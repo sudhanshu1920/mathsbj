@@ -501,8 +501,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const toggleTopic = (id: string) => {
     setSelectedTopics(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const wasSelected = next.has(id);
+      if (wasSelected) {
+        next.delete(id);
+        if (expandedTopic === id) setExpandedTopic(null);
+      } else {
+        next.add(id);
+        if (id === 'periodic-table') setExpandedTopic(id);
+      }
       return next;
     });
   };
@@ -1236,7 +1242,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                     <span className="text-base">{topicInfo.icon}</span>
                     <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
                     <span className="text-xs text-muted-foreground">
-                      {isTrig ? '(Standard angles)' : `(${range.from}–${range.to})`}
+                      {isTrig
+  ? '(Standard angles)'
+  : tid === 'periodic-table'
+    ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''})`
+    : `(${range.from}–${range.to})`}
                     </span>
                   </div>
                   {!isTrig && (isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />)}
