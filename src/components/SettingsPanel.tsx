@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette, Sun, Moon, Crown } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette, Sun, Moon, Crown, Keyboard } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSettings, setSound, setVibration, AppSettings } from '@/lib/settings';
+import { getSettings, setSound, setVibration, setKeyboardShortcuts, AppSettings } from '@/lib/settings';
 import { getStreak, setTarget, StreakState } from '@/lib/streak';
 import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
@@ -147,6 +147,18 @@ const SettingsPanel = () => {
           <Vibrate size={16} className="text-muted-foreground" /> Vibration
         </span>
         <Switch checked={settings.vibration} onCheckedChange={(v) => setSettingsState(setVibration(v))} />
+      </div>
+
+      {/* Desktop keyboard shortcuts */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground flex items-center gap-2">
+          <Keyboard size={16} className="text-muted-foreground" /> Keyboard shortcuts
+        </span>
+        <Switch
+          checked={settings.keyboardShortcuts}
+          onCheckedChange={(v) => setSettingsState(setKeyboardShortcuts(v))}
+          aria-label="Toggle keyboard shortcuts"
+        />
       </div>
 
       {/* Daily target */}

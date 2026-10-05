@@ -3,9 +3,10 @@ const KEY = 'math-app-settings-v1';
 export interface AppSettings {
   sound: boolean;
   vibration: boolean;
+  keyboardShortcuts: boolean;
 }
 
-const defaults = (): AppSettings => ({ sound: true, vibration: true });
+const defaults = (): AppSettings => ({ sound: true, vibration: true, keyboardShortcuts: true });
 
 // In-memory cache: getSettings() runs on every sound/haptic call, so parsing
 // JSON from localStorage each time is wasteful.
@@ -33,6 +34,11 @@ export const setSound = (v: boolean) => {
 };
 export const setVibration = (v: boolean) => {
   const s = getSettings(); s.vibration = v; save(s); return s;
+};
+export const setKeyboardShortcuts = (v: boolean) => {
+  const s = { ...getSettings(), keyboardShortcuts: v };
+  save(s);
+  return s;
 };
 
 // --- Tables Pro Mode (×1..×20 instead of ×1..×10) ---
