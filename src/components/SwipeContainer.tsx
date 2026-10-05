@@ -88,7 +88,7 @@ const SwipeContainer = ({ items, itemCount, renderItem, currentIndex, onIndexCha
           initial="enter"
           animate="center"
           exit="exit"
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          transition={{ type: 'tween', duration: 0.14, ease: 'easeOut' }}
           className="w-full"
         >
           {renderItem ? renderItem(currentIndex) : items?.[currentIndex] ?? null}
