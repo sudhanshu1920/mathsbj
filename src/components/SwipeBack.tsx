@@ -1,5 +1,4 @@
-import { useCallback, useRef } from 'react';
-import { m as motion, useDragControls, type PanInfo } from 'framer-motion';
+import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 
 interface SwipeBackProps {
   onBack: () => void;
@@ -7,56 +6,112 @@ interface SwipeBackProps {
   enabled?: boolean;
 }
 
-const EDGE_WIDTH = 40; // px from left edge that can start the gesture
+const EDGE_WIDTH = 28;
+const TRIGGER_DISTANCE = 72;
+const TRIGGER_VELOCITY = 700;
+const AXIS_LOCK_THRESHOLD = 10;
+const MAX_FOLLOW = 120;
 
 const SwipeBack = ({ onBack, children, enabled = true }: SwipeBackProps) => {
-  const controls = useDragControls();
-  const fromEdge = useRef(false);
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const axis = useRef<'x' | 'y' | null>(null);
+  const active = useRef(false);
+  const pointerId = useRef<number | null>(null);
+  const lastX = useRef(0);
+  const lastTime = useRef(0);
+  const velocityX = useRef(0);
 
-  // Drag NEVER starts on its own (dragListener=false). We only start it
-  // manually when the pointer goes down within the left edge zone, so
-  // taps/micro-drags on content (keypad, options) can never shift the layout.
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      if (!enabled) return;
-      if (e.clientX <= EDGE_WIDTH) {
-        fromEdge.current = true;
-        controls.start(e.nativeEvent);
-      } else {
-        fromEdge.current = false;
-      }
-    },
-    [controls, enabled]
-  );
+  const reset = useCallback(() => {
+    start.current = null;
+    axis.current = null;
+    active.current = false;
+    pointerId.current = null;
+    lastX.current = 0;
+    lastTime.current = 0;
+    velocityX.current = 0;
+  }, []);
 
-  const handleDragEnd = useCallback(
-    (_: any, info: PanInfo) => {
-      if (!enabled || !fromEdge.current) return;
-      const movedEnough = info.offset.x > 80;
-      const fastEnough = info.velocity.x > 300;
-      if (movedEnough || fastEnough) {
-        onBack();
+  const handlePointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enabled || e.pointerType === 'mouse') return;
+    if (e.clientX > EDGE_WIDTH || (e.target as HTMLElement | null)?.closest('[data-swipe-ignore-back="true"]')) {
+      reset();
+      return;
+    }
+
+    start.current = { x: e.clientX, y: e.clientY };
+    axis.current = null;
+    active.current = false;
+    pointerId.current = e.pointerId;
+    lastX.current = e.clientX;
+    lastTime.current = performance.now();
+    velocityX.current = 0;
+  }, [enabled, reset]);
+
+  const handlePointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enabled || pointerId.current !== e.pointerId || !start.current) return;
+
+    const dx = e.clientX - start.current.x;
+    const dy = e.clientY - start.current.y;
+
+    if (!axis.current && (Math.abs(dx) > AXIS_LOCK_THRESHOLD || Math.abs(dy) > AXIS_LOCK_THRESHOLD)) {
+      axis.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (axis.current === 'y') {
+        reset();
+        return;
       }
-    },
-    [onBack, enabled]
-  );
+      active.current = true;
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    }
+
+    if (axis.current !== 'x' || !active.current) return;
+
+    e.preventDefault();
+    const now = performance.now();
+    const dt = Math.max(1, now - lastTime.current);
+    velocityX.current = ((e.clientX - lastX.current) / dt) * 1000;
+    lastX.current = e.clientX;
+    lastTime.current = now;
+
+    const follow = Math.min(Math.max(0, dx), MAX_FOLLOW);
+    e.currentTarget.style.setProperty('--swipe-back-offset', `${follow}px`);
+  }, [enabled, reset]);
+
+  const finish = useCallback((e: ReactPointerEvent<HTMLDivElement>, cancelled = false) => {
+    if (!start.current || pointerId.current !== e.pointerId) return;
+
+    const dx = e.clientX - start.current.x;
+    const shouldGoBack =
+      !cancelled &&
+      axis.current === 'x' &&
+      active.current &&
+      (dx >= TRIGGER_DISTANCE || velocityX.current >= TRIGGER_VELOCITY);
+
+    e.currentTarget.style.removeProperty('--swipe-back-offset');
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    reset();
+
+    if (shouldGoBack) onBack();
+  }, [onBack, reset]);
+
+  const handlePointerUp = useCallback((e: ReactPointerEvent<HTMLDivElement>) => finish(e), [finish]);
+  const handlePointerCancel = useCallback((e: ReactPointerEvent<HTMLDivElement>) => finish(e, true), [finish]);
 
   if (!enabled) return <>{children}</>;
 
   return (
-    <motion.div
-      drag="x"
-      dragListener={false}
-      dragControls={controls}
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={{ left: 0, right: 0.3 }}
-      dragDirectionLock
+    <div
       onPointerDown={handlePointerDown}
-      onDragEnd={handleDragEnd}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       className="w-full"
+      style={{
+        touchAction: 'pan-y',
+        transform: 'translate3d(var(--swipe-back-offset, 0px), 0, 0)',
+      }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 };
 
