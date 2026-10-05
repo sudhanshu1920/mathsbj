@@ -13,15 +13,30 @@ const OfflinePrep = () => {
     if (isOfflineReady()) return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     let alive = true;
-    setActive(true);
-    prepareOffline((p) => {
-      if (alive) setPct(p);
-    }).finally(() => {
+    let cancelIdle: (() => void) | undefined;
+
+    const startPreparation = () => {
       if (!alive) return;
-      setTimeout(() => alive && setActive(false), 700);
-    });
+      setActive(true);
+      void prepareOffline((p) => {
+      if (alive) setPct(p);
+      }).finally(() => {
+        if (!alive) return;
+        setTimeout(() => alive && setActive(false), 700);
+      });
+    };
+
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(startPreparation, { timeout: 2500 });
+      cancelIdle = () => window.cancelIdleCallback(id);
+    } else {
+      const id = window.setTimeout(startPreparation, 1200);
+      cancelIdle = () => window.clearTimeout(id);
+    }
+
     return () => {
       alive = false;
+      cancelIdle?.();
     };
   }, []);
 
