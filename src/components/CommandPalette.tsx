@@ -28,6 +28,7 @@ const TOPICS = [
   { id: 'cubes', label: 'Cubes' },
   { id: 'powers', label: 'Powers' },
   { id: 'percentage', label: 'Percentage' },
+  { id: 'periodic-table', label: 'Periodic Table' },
 ];
 
 const CommandPalette = ({ open, onOpenChange, onNavigate, onStartPractice, onOpenShortcuts }: Props) => {
