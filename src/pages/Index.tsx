@@ -14,6 +14,7 @@ import DesktopStatsPanel from '@/components/DesktopStatsPanel';
 import CommandPalette from '@/components/CommandPalette';
 import ShortcutsHelp from '@/components/ShortcutsHelp';
 import OfflinePrep from '@/components/OfflinePrep';
+import { getSettings } from '@/lib/settings';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -246,6 +247,7 @@ const Index = () => {
   // Keyboard shortcuts (desktop-style, ignored while typing)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (!getSettings().keyboardShortcuts) return;
       const el = e.target as HTMLElement | null;
       const typing =
         !!el &&
