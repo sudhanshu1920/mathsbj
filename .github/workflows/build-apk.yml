@@ -126,9 +126,14 @@ jobs:
               variables.write_text(text)
           PY
 
+      - name: Install image tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y imagemagick
+
       - name: Generate Android launcher icons from repository favicon
         run: |
-          command -v magick >/dev/null || { echo "ImageMagick is required"; exit 1; }
+          command -v magick >/dev/null || command -v convert >/dev/null || { echo "ImageMagick installation failed"; exit 1; }
           mkdir -p android/app/src/main/res/mipmap-mdpi
           mkdir -p android/app/src/main/res/mipmap-hdpi
           mkdir -p android/app/src/main/res/mipmap-xhdpi
