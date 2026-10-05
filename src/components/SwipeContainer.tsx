@@ -70,6 +70,7 @@ const SwipeContainer = ({ items, currentIndex, onIndexChange }: SwipeContainerPr
 
   return (
     <div
+      data-swipe-ignore-back="true"
       className="overflow-hidden relative min-h-[200px] touch-pan-y"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
