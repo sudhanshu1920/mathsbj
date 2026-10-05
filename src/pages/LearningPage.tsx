@@ -253,18 +253,16 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
 
   // POWERS
   if (activeTopic === 'powers' && selectedNumber) {
-    const allNumbers = Array.from({ length: 200 }, (_, i) => i + 1);
-    const items = allNumbers.map((n) => (
-      <div key={n}>
-        {renderDataCards(getPowers(n))}
-      </div>
-    ));
-
     return (
       <SwipeBack onBack={() => setSelectedNumber(null)}>
         <div>
           {renderHeader(`Powers of ${selectedNumber}`, () => setSelectedNumber(null))}
-          <SwipeContainer items={items} currentIndex={selectedNumber - 1} onIndexChange={(i) => setSelectedNumber(i + 1)} />
+          <SwipeContainer
+            itemCount={200}
+            currentIndex={selectedNumber - 1}
+            onIndexChange={(i) => setSelectedNumber(i + 1)}
+            renderItem={(index) => renderDataCards(getPowers(index + 1))}
+          />
         </div>
       </SwipeBack>
     );
