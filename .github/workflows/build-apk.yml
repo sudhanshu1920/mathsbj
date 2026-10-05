@@ -35,10 +35,6 @@ jobs:
           # Supabase publishable (anon) key is client-safe by design; never use the service_role key here.
           VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrZ29ndmJmeHpvb2t4bHFqZHR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzEzMzUsImV4cCI6MjA5MzQwNzMzNX0.0yi-NBaydyQr_f9sMKhSrETkQI4sWi8C_iM7KRlOZtk
         run: |
-          if [ -z "${VITE_SUPABASE_PUBLISHABLE_KEY}" ]; then
-            echo "Missing VITE_SUPABASE_PUBLISHABLE_KEY repository secret."
-            exit 1
-          fi
           printf 'VITE_SUPABASE_PROJECT_ID=%s\nVITE_SUPABASE_URL=%s\nVITE_SUPABASE_PUBLISHABLE_KEY=%s\n' \
             "$VITE_SUPABASE_PROJECT_ID" "$VITE_SUPABASE_URL" "$VITE_SUPABASE_PUBLISHABLE_KEY" > .env.production
 
@@ -135,6 +131,9 @@ jobs:
           cp android/app/src/main/res/mipmap-xhdpi/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
           cp android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
           cp android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_foreground.xml
 
       - name: Sync web assets
         run: npx cap sync android
