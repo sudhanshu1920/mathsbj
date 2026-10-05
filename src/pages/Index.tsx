@@ -84,12 +84,32 @@ const Index = () => {
   const lastBackPress = useRef(0);
   const isHandlingPopstate = useRef(false);
   const lastDepth = useRef('learn-home');
+  const historyInitialized = useRef(false);
+
+  const goBack = useCallback(() => {
+    if (window.history.length > 1) window.history.back();
+  }, []);
+
+  // Seed one in-app history entry so Android system back/edge-back can be
+  // intercepted instead of immediately finishing the Capacitor Activity.
+  useEffect(() => {
+    if (historyInitialized.current) return;
+    const currentState = window.history.state;
+    const isAppEntry = currentState?.__mathsbj === true;
+    if (!isAppEntry) {
+      window.history.pushState({ __mathsbj: true, depth: 'learn-home', root: true }, '');
+    } else if (currentState?.root !== true) {
+      window.history.replaceState({ ...currentState, __mathsbj: true, depth: 'learn-home', root: true }, '');
+    }
+    historyInitialized.current = true;
+    lastDepth.current = 'learn-home';
+  }, []);
 
   // Push history state when navigation depth changes
   useEffect(() => {
     const depth = getNavDepth(tab, learningState, practiceTopic, !!practiceMode);
     if (depth !== lastDepth.current && !isHandlingPopstate.current) {
-      window.history.pushState({ depth }, '');
+      window.history.pushState({ __mathsbj: true, depth }, '');
       lastDepth.current = depth;
     }
     isHandlingPopstate.current = false;
@@ -181,17 +201,18 @@ const Index = () => {
         return;
       }
 
-      // At root - double back to exit
+      // At root - double back to exit.
       const now = Date.now();
       if (now - lastBackPress.current < 2000) {
-        // Actually exit - allow default behavior
+        // Leave the in-app sentinel and let Android/WebView finish the Activity.
         window.history.back();
         return;
       }
       lastBackPress.current = now;
       toast('Press back again to exit', { duration: 2000 });
-      // Push a state so next back press comes to us again
-      window.history.pushState({ depth: 'learn-home' }, '');
+      // Re-seed the root sentinel after the first back.
+      window.history.pushState({ __mathsbj: true, depth: 'learn-home', root: true }, '');
+      lastDepth.current = 'learn-home';
     };
 
     window.addEventListener('popstate', handlePopstate);
@@ -305,6 +326,7 @@ const Index = () => {
             )}
             <div className={tab === 'learn' ? 'animate-fade-in' : 'hidden'}>
               <LearningPage
+                onBack={goBack}
                 onStartPractice={handleStartPractice}
                 learningState={learningState}
                 onLearningStateChange={setLearningState}
