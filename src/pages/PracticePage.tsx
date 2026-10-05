@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect } from '@/lib/trigData';
+import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -37,6 +38,8 @@ interface TopicRange {
   pctDenFrom?: number;
   pctNumTo?: number;
   pctDenTo?: number;
+  periodicQuestionTypes?: PeriodicQuestionType[];
+  periodicMassMode?: PeriodicMassMode;
 }
 
 interface PracticeConfig {
@@ -49,7 +52,9 @@ interface PracticeConfig {
   sequential: boolean;
 }
 
-type AnswerType = 'decimal-pct' | 'mixed-pct' | 'fraction' | 'trig';
+type PeriodicQuestionType = 'atomic-number' | 'symbol' | 'name' | 'mass';
+type PeriodicMassMode = 'round' | 'exact';
+type AnswerType = 'decimal-pct' | 'mixed-pct' | 'fraction' | 'trig' | 'text';
 
 interface MixedPct {
   whole: number;
@@ -68,6 +73,7 @@ interface Question {
   questionMixed?: MixedPct;
   questionFraction?: { n: number; d: number };
   topicLabel?: string;
+  optionPool?: (number | string)[];
 }
 
 const TOPICS = [
@@ -79,6 +85,7 @@ const TOPICS = [
   { id: 'powers', label: 'Powers', icon: 'xⁿ', defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
   { id: 'percentage', label: 'Percentage', icon: '%', defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
   { id: 'trig', label: 'Trigonometry', icon: '△', defaultRange: { from: 0, to: 90 } },
+  { id: 'periodic-table', label: 'Periodic Table', icon: '⚛', defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
 ];
 
 const COUNTS = [10, 20, 25, 50];
@@ -158,6 +165,49 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
         answerType: 'trig',
         topicLabel: label,
       });
+    }
+  } else if (topicId === 'periodic-table') {
+    const inRange = nums.map((number) => ELEMENTS[number - 1]).filter(Boolean);
+    const selected = (range.periodicQuestionTypes?.length ? range.periodicQuestionTypes : ['atomic-number', 'symbol', 'name', 'mass']) as PeriodicQuestionType[];
+    const massMode: PeriodicMassMode = range.periodicMassMode || 'round';
+    const typeLabel: Record<PeriodicQuestionType, string> = {
+      'atomic-number': 'Atomic Number',
+      symbol: 'Symbol',
+      name: 'Element Name',
+      mass: 'Atomic Mass',
+    };
+    const optionPool = {
+      numbers: inRange.map((el) => el.number),
+      symbols: inRange.map((el) => el.symbol),
+      names: inRange.map((el) => el.name),
+      masses: inRange.map((el) => Number(formatMass(el, massMode))),
+    };
+    for (const el of inRange) {
+      for (const type of selected) {
+        const labelWithType = `${label} • ${typeLabel[type]}`;
+        const reverse = Math.random() > 0.5;
+        if (type === 'atomic-number') {
+          questions.push(reverse
+            ? { text: `Which element has atomic number ${el.number}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType }
+            : { text: `What is the atomic number of ${el.name}?`, answer: el.number, optionPool: optionPool.numbers, topicLabel: labelWithType });
+        } else if (type === 'symbol') {
+          questions.push(reverse
+            ? { text: `Which element has the symbol ${el.symbol}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType }
+            : { text: `What is the symbol of ${el.name}?`, answer: el.symbol, answerType: 'text', optionPool: optionPool.symbols, topicLabel: labelWithType });
+        } else if (type === 'name') {
+          questions.push(reverse
+            ? { text: `What element has atomic number ${el.number}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType }
+            : { text: `Which element has the symbol ${el.symbol}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType });
+        } else {
+          const massText = formatMass(el, massMode);
+          const massValue = Number(massText.replace(/[\\[\\]]/g, ''));
+          const massIsUnique = optionPool.masses.filter((value) => value === massValue).length === 1;
+          const useReverse = reverse && massIsUnique;
+          questions.push(useReverse
+            ? { text: `Which element has atomic mass ${massText}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType }
+            : { text: `What is the atomic mass of ${el.name}?`, answer: massValue, optionPool: optionPool.masses, topicLabel: labelWithType });
+        }
+      }
     }
   } else if (topicId === 'percentage') {
     const pairs: { n: number; d: number }[] = [];
@@ -243,28 +293,39 @@ function generateQuestions(config: PracticeConfig): Question[] {
       const opts = new Set<string>();
       opts.add(String(correct));
 
-      while (opts.size < 4) {
-        if (typeof correct === 'number') {
-          const offset = Math.floor(Math.random() * 20) - 10;
-          const wrong = correct + offset;
-          if (wrong !== correct && wrong >= 0) opts.add(String(wrong));
-        } else if (q.answerType === 'decimal-pct') {
-          const rd = Math.floor(Math.random() * 49) + 2;
-          const rn = q.questionFraction?.n || 1;
-          opts.add(toDecimalPct(rn, rd));
-        } else if (q.answerType === 'mixed-pct') {
-          const rd = Math.floor(Math.random() * 49) + 2;
-          const rn = q.questionFraction?.n || 1;
-          const m = toMixed(rn, rd);
-          if (m) opts.add(mixedToString(m));
-          else opts.add(`${Math.floor(Math.random() * 50)}%`);
-        } else if (q.answerType === 'fraction') {
-          const rd = Math.floor(Math.random() * 49) + 2;
-          const rn = Math.floor(Math.random() * 9) + 1;
-          opts.add(`${rn}/${rd}`);
-        } else {
-          const offset = Math.floor(Math.random() * 20) - 10;
-          opts.add(String(Number(correct) + offset));
+      if (q.optionPool) {
+        if (q.optionPool.length > 1) {
+          for (const candidate of [...q.optionPool].sort(() => Math.random() - 0.5)) {
+            if (opts.size >= 4) break;
+            if (String(candidate) !== String(correct)) opts.add(String(candidate));
+          }
+        }
+      } else {
+        let guard = 0;
+        while (opts.size < 4 && guard < 100) {
+          guard++;
+          if (typeof correct === 'number') {
+            const offset = Math.floor(Math.random() * 20) - 10;
+            const wrong = correct + offset;
+            if (wrong !== correct && wrong >= 0) opts.add(String(wrong));
+          } else if (q.answerType === 'decimal-pct') {
+            const rd = Math.floor(Math.random() * 49) + 2;
+            const rn = q.questionFraction?.n || 1;
+            opts.add(toDecimalPct(rn, rd));
+          } else if (q.answerType === 'mixed-pct') {
+            const rd = Math.floor(Math.random() * 49) + 2;
+            const rn = q.questionFraction?.n || 1;
+            const m = toMixed(rn, rd);
+            if (m) opts.add(mixedToString(m));
+            else opts.add(`${Math.floor(Math.random() * 50)}%`);
+          } else if (q.answerType === 'fraction') {
+            const rd = Math.floor(Math.random() * 49) + 2;
+            const rn = Math.floor(Math.random() * 9) + 1;
+            opts.add(`${rn}/${rd}`);
+          } else {
+            const offset = Math.floor(Math.random() * 20) - 10;
+            opts.add(String(Number(correct) + offset));
+          }
         }
       }
 
@@ -407,7 +468,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     }
     return defaults;
   });
-  const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
+  const [expandedTopic, setExpandedTopic] = useState<string | null>(() => initialTopic === 'periodic-table' ? 'periodic-table' : null);
   const [count, setCount] = useState(10);
   const [infinite, setInfinite] = useState(false);
   const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
@@ -446,11 +507,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     });
   };
 
-  const updateRange = (topicId: string, field: string, value: number | string) => {
+  const updateRange = (topicId: string, field: string, value: number | string | PeriodicQuestionType[]) => {
     setTopicRanges(prev => ({
       ...prev,
       [topicId]: { ...prev[topicId], [field]: value },
     }));
+  };
+
+  const togglePeriodicQuestionType = (type: PeriodicQuestionType) => {
+    const current = topicRanges['periodic-table']?.periodicQuestionTypes || [];
+    const next = current.includes(type) ? current.filter((item) => item !== type) : [...current, type];
+    updateRange('periodic-table', 'periodicQuestionTypes', next);
   };
 
   const startPractice = (cfg: PracticeConfig) => {
@@ -517,6 +584,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       if (answer !== null) {
         if (q.answerType === 'trig') {
           isCorrect = isTrigAnswerCorrect(String(answer), String(q.answer));
+        } else if (q.answerType === 'text') {
+          const normalizeText = (value: string) => value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+          isCorrect = normalizeText(String(answer)) === normalizeText(String(q.answer));
         } else if (typeof q.answer === 'number') {
           isCorrect = Number(answer) === q.answer;
         } else {
@@ -606,7 +676,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   useEffect(() => {
     if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
     const q = questions[currentQ];
-    if (!q) return;
+    if (!q || q.answerType === 'text') return;
     // Avoid premature checking while user is still typing (e.g. "33", "1/").
     if (!isLikelyComplete(inputValue)) return;
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
@@ -786,7 +856,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (!q) return null;
     const isLowTime = timeLeft <= 3 && config.timerEnabled;
     const isTimerHidden = !config.timerEnabled;
-    const isPctQuestion = q.answerType !== undefined;
+    const isPctQuestion = q.answerType === 'decimal-pct' || q.answerType === 'mixed-pct' || q.answerType === 'fraction' || q.answerType === 'trig';
     const totalAttempts = score.correct + score.wrong;
 
     const renderQuestionText = () => {
@@ -808,14 +878,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     };
 
     const renderAnswerHint = () => {
-      if (!isPctQuestion) return null;
+      if (!q.answerType) return null;
       const hints: Record<string, string> = {
         'decimal-pct': 'Answer in decimal %',
         'mixed-pct': 'Answer in mixed %',
         'fraction': 'Answer as fraction',
         'trig': 'Use √, /, or "Not Defined"',
+        'text': 'Type the answer and press Submit',
       };
-      return q.answerType ? <span className="text-xs text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">{hints[q.answerType]}</span> : null;
+      return <span className="text-xs text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">{hints[q.answerType] || 'Answer'}</span>;
     };
 
     const renderOption = (opt: string | number, index: number) => {
@@ -1011,7 +1082,18 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'input' && (
           <div className="flex flex-col items-center gap-4 mt-4">
-            {q.answerType !== 'trig' ? (
+            {q.answerType === 'text' || q.answerType === 'trig' ? (
+              <input
+                ref={inputRef}
+                type="text"
+                inputMode="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={q.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Type symbol or element name'}
+                autoFocus
+                className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
+              />
+            ) : (
               <>
                 <div
                   className="w-full max-w-xs bg-card/60 border border-border rounded-2xl px-4 text-center text-2xl font-display font-bold text-foreground h-[64px] flex items-center justify-center overflow-hidden"
@@ -1040,13 +1122,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   hideOk
                 />
               </>
-            ) : (
-              <input ref={inputRef} type="text" inputMode={q.answerType === 'trig' ? 'text' : 'numeric'}
-                value={inputValue} onChange={(e) => setInputValue(e.target.value)}
-                placeholder={q.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Your answer'}
-                autoFocus
-                className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all" />
-            )}
+            )}            )}
           </div>
         )}
       </div>
@@ -1083,7 +1159,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   // SETUP SCREEN - Game Style UI
   // ═══════════════════════════════════
 
-  const canStart = selectedTopics.size > 0;
+  const periodicRange = topicRanges['periodic-table'];
+  const periodicTypes = periodicRange?.periodicQuestionTypes || [];
+  const validPeriodicRange = !selectedTopics.has('periodic-table') || (
+    Number.isInteger(periodicRange?.from) &&
+    Number.isInteger(periodicRange?.to) &&
+    periodicRange.from >= 1 && periodicRange.from <= 118 &&
+    periodicRange.to >= 1 && periodicRange.to <= 118 &&
+    periodicTypes.length > 0 &&
+    (!periodicTypes.includes('mass') || !!periodicRange.periodicMassMode)
+  );
+  const canStart = selectedTopics.size > 0 && validPeriodicRange;
 
   return (
     <div className="pb-4">
@@ -1165,7 +1251,61 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                       className="border-t border-border"
                     >
                       <div className="p-4 space-y-3">
-                        {tid === 'percentage' ? (
+                        {tid === 'periodic-table' ? (
+                          <>
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Choose Topics</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {([
+                                  ['atomic-number', 'Atomic Number'],
+                                  ['symbol', 'Symbol'],
+                                  ['name', 'Element Name'],
+                                  ['mass', 'Atomic Mass'],
+                                ] as [PeriodicQuestionType, string][]).map(([type, title]) => {
+                                  const checked = periodicTypes.includes(type);
+                                  return (
+                                    <button key={type} type="button" onClick={() => togglePeriodicQuestionType(type)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition-all ${checked ? 'gradient-primary border-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-secondary border-border text-foreground'}`}>
+                                      <span className="mr-2">{checked ? '✓' : '○'}</span>{title}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {periodicTypes.length === 0 && <p className="mt-2 text-[11px] font-semibold text-destructive">Select at least one Periodic Table question topic.</p>}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Element Range (1–118)</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                {[['Start Element', 'from'], ['End Element', 'to']].map(([title, field]) => (
+                                  <div key={field}>
+                                    <label className="text-[11px] text-muted-foreground mb-1 block">{title}</label>
+                                    <input type="number" min={1} max={118} step={1} inputMode="numeric" value={range[field as 'from'|'to']} onChange={(e) => updateRange(tid, field, Number(e.target.value))} className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
+                                    <select value={range[field as 'from'|'to']} onChange={(e) => updateRange(tid, field, Number(e.target.value))} className="mt-1 w-full bg-secondary border border-border rounded-xl px-2 py-2 text-xs font-semibold text-foreground outline-none">
+                                      {ELEMENTS.map((el) => <option key={el.number} value={el.number}>{el.number} · {el.symbol} · {el.name}</option>)}
+                                    </select>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {[[1,10],[1,30],[11,20],[21,30]].map(([f,t]) => (
+                                  <button key={`${f}-${t}`} type="button" onClick={() => { updateRange(tid,'from',f); updateRange(tid,'to',t); }} className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${range.from === f && range.to === t ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>{f} → {t}</button>
+                                ))}
+                              </div>
+                            </div>
+                            {periodicTypes.includes('mass') && (
+                              <div>
+                                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Atomic Mass</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {(['round','exact'] as PeriodicMassMode[]).map((massMode) => (
+                                    <button key={massMode} type="button" onClick={() => updateRange(tid, 'periodicMassMode', massMode)} className={`rounded-xl border py-3 text-sm font-bold transition-colors ${range.periodicMassMode === massMode ? 'gradient-primary border-primary text-primary-foreground' : 'bg-secondary border-border text-secondary-foreground'}`}>
+                                      {massMode === 'round' ? 'Round Figure' : 'Exact Figure'}
+                                    </button>
+                                  ))}
+                                </div>
+                                {!range.periodicMassMode && <p className="mt-2 text-[11px] font-semibold text-destructive">Choose Round Figure or Exact Figure before starting.</p>}
+                              </div>
+                            )}
+                          </>
+                        ) : tid === 'percentage' ? (
                           <>
                             <div className="flex gap-2 mb-2">
                               <button
