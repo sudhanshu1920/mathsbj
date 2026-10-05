@@ -10,7 +10,6 @@ const PracticePage = lazyWithRetry(() => import('@/pages/PracticePage'));
 const ProgressPage = lazyWithRetry(() => import('@/pages/ProgressPage'));
 import { useTheme, useMode } from '@/lib/theme';
 import { useWideDesktop } from '@/hooks/use-desktop-mode';
-import DesktopStatsPanel from '@/components/DesktopStatsPanel';
 import CommandPalette from '@/components/CommandPalette';
 import ShortcutsHelp from '@/components/ShortcutsHelp';
 import OfflinePrep from '@/components/OfflinePrep';
@@ -329,13 +328,7 @@ const Index = () => {
               )}
             </Suspense>
           </div>
-          {wideDesktop && (
-            <DesktopStatsPanel
-              onStartPractice={quickPractice}
-              onOpenPalette={() => setPaletteOpen(true)}
-              onOpenShortcuts={() => setShortcutsOpen(true)}
-            />
-          )}
+
           </div>
         </div>
         <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
