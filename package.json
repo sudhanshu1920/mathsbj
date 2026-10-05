@@ -71,7 +71,8 @@
     "vaul": "^0.9.9",
     "vite-plugin-pwa": "^0.20.5",
     "zod": "^3.25.76",
-    "@capacitor/app": "^8.1.2"
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
