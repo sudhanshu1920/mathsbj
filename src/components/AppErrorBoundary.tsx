@@ -17,7 +17,9 @@ export default class AppErrorBoundary extends Component<AppErrorBoundaryProps, A
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Keep the failure visible to developers without leaking details to users.
-    console.error("[app] render failure", error, info.componentStack);
+    if (import.meta.env.DEV) {
+      console.error("[app] render failure", error, info.componentStack);
+    }
   }
 
   private handleReload = () => {
