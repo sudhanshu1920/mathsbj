@@ -177,8 +177,12 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
 
       <div
         ref={tableScrollRef}
-        className="periodic-table-scroll w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3"
-        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x', scrollBehavior: 'smooth' }}
+        className="periodic-table-scroll w-full max-h-[70dvh] min-h-0 overflow-auto overscroll-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x pan-y',
+          scrollBehavior: 'smooth',
+        }}
       >
         <div
           className="periodic-table-content w-max min-w-[1420px] pb-1"
