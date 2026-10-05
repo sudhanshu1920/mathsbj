@@ -15,6 +15,10 @@ const isInIframe = (() => {
 })();
 
 const host = typeof window !== "undefined" ? window.location.hostname : "";
+// Capacitor Android uses localhost as its embedded WebView origin. The native
+// package already contains every web asset, so PWA service workers are neither
+// required nor desirable there; keeping them can retain stale web caches.
+const isCapacitorNative = import.meta.env.PROD && host === "localhost";
 const isPreviewHost =
   host.includes("id-preview--") ||
   host.includes("lovableproject.com") ||
@@ -25,6 +29,7 @@ const shouldRegister =
   "serviceWorker" in navigator &&
   !isInIframe &&
   !isPreviewHost &&
+  !isCapacitorNative &&
   import.meta.env.PROD;
 
 // Module-level handles used by triggerUpdate() from the Settings button.
@@ -88,6 +93,23 @@ export async function triggerUpdate(): Promise<UpdateResult> {
 }
 
 export async function setupPWA() {
+  // Native Capacitor builds do not need a service worker: all assets are
+  // embedded in the APK. Remove any stale registration/cache left by an older
+  // PWA-enabled build so the native shell cannot boot from old web assets.
+  if (isCapacitorNative) {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+      if ("caches" in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((name) => caches.delete(name)));
+      }
+    } catch {
+      // ignore native cache cleanup failures
+    }
+    return;
+  }
+
   // Always clean up stale SWs in iframe / preview contexts.
   if (typeof window !== "undefined" && "serviceWorker" in navigator && (isInIframe || isPreviewHost)) {
     try {
