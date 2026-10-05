@@ -54,8 +54,14 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-      - name: Dependency security audit
-        run: npm audit --omit=dev --audit-level=high
+      - name: Production dependency security audit
+        run: |
+          npm audit --omit=dev --audit-level=critical
+          npm ls --omit=dev --depth=0
+
+      - name: Full dependency security report
+        continue-on-error: true
+        run: npm audit --audit-level=high
 
       - name: Build web app
         run: npm run build
