@@ -44,8 +44,20 @@ const F_BLOCK_ROWS = [
   { ypos: 10, label: 'Actinides', range: '89–103' },
 ] as const;
 
+const MAIN_ELEMENT_BY_POSITION = new Map(
+  ELEMENTS
+    .filter((el) => el.ypos <= 7)
+    .map((el) => [`${el.ypos}-${el.xpos}`, el] as const)
+);
+
+const F_ELEMENT_BY_POSITION = new Map(
+  ELEMENTS
+    .filter((el) => el.ypos >= 9)
+    .map((el) => [`${el.ypos}-${el.xpos}`, el] as const)
+);
+
 const findMainElement = (period: number, group: number) =>
-  ELEMENTS.find((el) => el.ypos === period && el.xpos === group && el.ypos <= 7);
+  MAIN_ELEMENT_BY_POSITION.get(`${period}-${group}`);
 
 const ElementCell = ({ el, compact = false, onClick }: { el: ChemElement; compact?: boolean; onClick: () => void }) => (
   <motion.button
@@ -177,6 +189,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
 
       <div
         ref={tableScrollRef}
+        data-swipe-ignore-back="true"
         className="periodic-table-scroll w-full max-h-[70dvh] min-h-0 overflow-auto overscroll-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3"
         style={{
           WebkitOverflowScrolling: 'touch',
@@ -215,7 +228,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
                 <div className="flex flex-col items-center justify-center rounded-lg bg-background/40 text-center"><span className="text-[8px] font-black uppercase text-muted-foreground">{label}</span><span className="mt-0.5 text-[8px] font-bold text-primary">{range}</span></div>
                 {GROUPS.map((group) => {
                   if (group < 4 || group > 18) return <div key={group} className="aspect-square h-[76px] rounded-lg border border-transparent" aria-hidden="true" />;
-                  const el = ELEMENTS.find((item) => item.ypos === row && item.xpos === group);
+                  const el = F_ELEMENT_BY_POSITION.get(`${row}-${group}`);
                   return el ? <ElementCell key={group} el={el} compact onClick={() => onSelectElement(el.number)} /> : <div key={group} className="aspect-square h-[76px] min-w-[76px]" />;
                 })}
               </div>
