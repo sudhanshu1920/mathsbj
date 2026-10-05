@@ -86,8 +86,8 @@ const AuthPage = ({ initialMode = 'login', onBack }: AuthPageProps = {}) => {
           },
         });
         if (error) {
-          if (error.message.toLowerCase().includes('already')) toast.error('Email already registered. Try logging in.');
-          else toast.error(error.message);
+          // Do not disclose whether an email is already registered.
+          toast.error('Unable to create the account. Please try again or use Sign in / Reset password.');
           return;
         }
         toast.success('Check your email to confirm your account');
