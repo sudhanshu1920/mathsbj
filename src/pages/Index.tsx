@@ -26,6 +26,7 @@ export interface LearningState {
   expandedDenominator: number | null;
   formulaSectionIndex: number | null;
   formulaCategoryIndex: number | null;
+  periodicSelectedElement: number | null;
 }
 
 const INITIAL_LEARNING_STATE: LearningState = {
@@ -36,6 +37,7 @@ const INITIAL_LEARNING_STATE: LearningState = {
   expandedDenominator: null,
   formulaSectionIndex: null,
   formulaCategoryIndex: null,
+  periodicSelectedElement: null,
 };
 
 // Compute a depth key representing how deep we are in navigation
@@ -46,8 +48,12 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
     return 'practice-setup';
   }
   // learn tab
-  const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex } = learningState;
+  const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex, periodicSelectedElement } = learningState;
   if (!activeTopic) return 'learn-home';
+  if (activeTopic === 'periodic-table') {
+    if (periodicSelectedElement) return `learn-periodic-table-element-${periodicSelectedElement}`;
+    return 'learn-periodic-table';
+  }
   if (activeTopic === 'percentage') {
     if (expandedDenominator) return `learn-percentage-expanded-${expandedDenominator}`;
     if (percentageGroup) return `learn-percentage-group-${percentageGroup.from}`;
@@ -126,7 +132,13 @@ const Index = () => {
       }
 
       // Learn tab - go back step by step
-      const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex } = learningState;
+      const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex, periodicSelectedElement } = learningState;
+
+      if (activeTopic === 'periodic-table' && periodicSelectedElement) {
+        setLearningState(prev => ({ ...prev, periodicSelectedElement: null }));
+        lastDepth.current = 'learn-periodic-table';
+        return;
+      }
 
       if (activeTopic === 'formulas') {
         if (formulaCategoryIndex !== null) {
