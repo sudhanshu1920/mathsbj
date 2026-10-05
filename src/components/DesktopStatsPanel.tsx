@@ -16,6 +16,7 @@ const QUICK = [
   { id: 'squares', label: 'Squares' },
   { id: 'roots', label: 'Roots' },
   { id: 'percentage', label: 'Percentage' },
+  { id: 'periodic-table', label: 'Periodic Table' },
 ];
 
 const readStats = () => {
