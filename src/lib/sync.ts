@@ -102,10 +102,17 @@ export function schedulePush(userId: string, delayMs = 1500) {
 }
 
 export function clearLocalUserData() {
+  // All synced state is account-scoped. Clear every synced key on sign-out so
+  // a later account cannot inherit or upload the previous account's data.
   localStorage.removeItem(KEYS.progress);
   localStorage.removeItem(KEYS.analytics);
   localStorage.removeItem(KEYS.streak);
+  localStorage.removeItem(KEYS.xp);
   localStorage.removeItem(META_KEY);
+  if (pushTimer) {
+    window.clearTimeout(pushTimer);
+    pushTimer = undefined;
+  }
   dispatchUpdated();
 }
 
