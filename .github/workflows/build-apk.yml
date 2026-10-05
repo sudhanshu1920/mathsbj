@@ -1,4 +1,4 @@
-name: Build Math SBJ APK
+name: Build Math SBJ Android APK
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-# APK build is kept on a dedicated branch so main remains untouched.
 
 jobs:
   build-apk:
@@ -33,13 +32,26 @@ jobs:
         env:
           VITE_SUPABASE_PROJECT_ID: tkgogvbfxzookxlqjdtt
           VITE_SUPABASE_URL: https://tkgogvbfxzookxlqjdtt.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrZ29ndmJmeHpvb2t4bHFqZHR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzEzMzUsImV4cCI6MjA5MzQwNzMzNX0.0yi-NBaydyQr_f9sMKhSrETkQI4sWi8C_iM7KRlOZtk
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: |
+          if [ -z "${VITE_SUPABASE_PUBLISHABLE_KEY}" ]; then
+            echo "Missing VITE_SUPABASE_PUBLISHABLE_KEY repository secret."
+            exit 1
+          fi
           printf 'VITE_SUPABASE_PROJECT_ID=%s\nVITE_SUPABASE_URL=%s\nVITE_SUPABASE_PUBLISHABLE_KEY=%s\n' \
             "$VITE_SUPABASE_PROJECT_ID" "$VITE_SUPABASE_URL" "$VITE_SUPABASE_PUBLISHABLE_KEY" > .env.production
 
       - name: Install web dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Dependency security audit
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Build web app
         run: npm run build
@@ -50,12 +62,12 @@ jobs:
         run: |
           test -s .env.production
           grep -F "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" .env.production
-          ! grep -F '\$VITE_SUPABASE_URL' dist/assets/*.js
-          ! grep -F '\$VITE_SUPABASE_PUBLISHABLE_KEY' dist/assets/*.js
+          ! grep -F '\\$VITE_SUPABASE_URL' dist/assets/*.js
+          ! grep -F '\\$VITE_SUPABASE_PUBLISHABLE_KEY' dist/assets/*.js
           grep -R -F "$VITE_SUPABASE_URL" dist/assets >/dev/null
 
       - name: Install Capacitor
-        run: npm install --no-save @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8
+        run: npm install --no-save @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/app@8
 
       - name: Create Capacitor config
         run: |
@@ -71,26 +83,93 @@ jobs:
           export default config;
           EOF
 
-      - name: Prepare Android SDK
-        run: |
-          yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" || true
-
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Configure Android release metadata
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          app_gradle = Path("android/app/build.gradle")
+          text = app_gradle.read_text()
+
+          replacements = [
+              (r'(?m)^\s*applicationId\s+"[^"]+"', '        applicationId "com.sudhanshu1920.mathsbj"'),
+              (r'(?m)^\s*versionCode\s+\d+', '        versionCode 1'),
+              (r'(?m)^\s*versionName\s+"[^"]+"', '        versionName "1.0.0"'),
+          ]
+          for pattern, value in replacements:
+              text, count = re.subn(pattern, value, text, count=1)
+              if count != 1:
+                  raise SystemExit(f"Could not patch android/app/build.gradle: {pattern}")
+          app_gradle.write_text(text)
+
+          variables = Path("android/variables.gradle")
+          if variables.exists():
+              text = variables.read_text()
+              for key, value in (("minSdkVersion", "23"), ("compileSdkVersion", "36"), ("targetSdkVersion", "36")):
+                  text, count = re.subn(rf'(?m)^\s*{key}\s*=\s*\d+', f'{key} = {value}', text, count=1)
+                  if count != 1:
+                      raise SystemExit(f"Could not set {key} in android/variables.gradle")
+              variables.write_text(text)
+          PY
+
+      - name: Generate Android launcher icons from repository favicon
+        run: |
+          command -v magick >/dev/null || { echo "ImageMagick is required"; exit 1; }
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          mkdir -p android/app/src/main/res/mipmap-hdpi
+          mkdir -p android/app/src/main/res/mipmap-xhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+          magick public/favicon.ico -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          magick public/favicon.ico -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          magick public/favicon.ico -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          magick public/favicon.ico -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          magick public/favicon.ico -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          cp android/app/src/main/res/mipmap-mdpi/ic_launcher.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+          cp android/app/src/main/res/mipmap-hdpi/ic_launcher.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          cp android/app/src/main/res/mipmap-xhdpi/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+          cp android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+          cp android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+
       - name: Sync web assets
         run: npx cap sync android
+
+      - name: Build unsigned release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Verify APK
+      - name: Verify APK metadata and packages
         run: |
+          set -e
+          test -f android/app/build/outputs/apk/release/app-release-unsigned.apk
           test -f android/app/build/outputs/apk/debug/app-debug.apk
-          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+          APKANALYZER="${ANDROID_HOME}/cmdline-tools/latest/bin/apkanalyzer"
+          "$APKANALYZER" manifest application-id android/app/build/outputs/apk/release/app-release-unsigned.apk | grep -Fx 'com.sudhanshu1920.mathsbj'
+          "$APKANALYZER" manifest version-name android/app/build/outputs/apk/release/app-release-unsigned.apk | grep -Fx '1.0.0'
+          "$APKANALYZER" manifest min-sdk android/app/build/outputs/apk/release/app-release-unsigned.apk | grep -Fx '23'
+          "$APKANALYZER" manifest target-sdk android/app/build/outputs/apk/release/app-release-unsigned.apk | grep -Fx '36'
+          file android/app/build/outputs/apk/release/app-release-unsigned.apk
+          file android/app/build/outputs/apk/debug/app-debug.apk
+          sha256sum android/app/build/outputs/apk/release/app-release-unsigned.apk
+          sha256sum android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload APK
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: math-sbj-release-apk
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: math-sbj-debug-apk
