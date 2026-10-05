@@ -119,7 +119,7 @@ jobs:
           variables = Path("android/variables.gradle")
           if variables.exists():
               text = variables.read_text()
-              for key, value in (("minSdkVersion", "23"), ("compileSdkVersion", "36"), ("targetSdkVersion", "36")):
+              for key, value in (("minSdkVersion", "24"), ("compileSdkVersion", "36"), ("targetSdkVersion", "36")):
                   text, count = re.subn(rf'(?m)^\s*{key}\s*=\s*\d+', f'{key} = {value}', text, count=1)
                   if count != 1:
                       raise SystemExit(f"Could not set {key} in android/variables.gradle")
