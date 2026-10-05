@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
 import WelcomePage from "./pages/WelcomePage.tsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage.tsx";
+import AppErrorBoundary from "./components/AppErrorBoundary.tsx";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.tsx";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -54,13 +55,15 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <Routes>
+            <AppErrorBoundary>
+              <Routes>
               <Route path="/" element={<Gate />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
+              </Routes>
+            </AppErrorBoundary>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
