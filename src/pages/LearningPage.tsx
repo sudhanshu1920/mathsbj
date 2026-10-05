@@ -21,6 +21,7 @@ import { getXP, levelFromXP } from '@/lib/xp';
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table';
 
 interface LearningPageProps {
+  onBack?: () => void;
   onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
@@ -38,7 +39,7 @@ const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
   { id: 'periodic-table', title: 'Periodic Table', icon: Atom, gradient: 'gradient-success' },
 ];
 
-const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
+const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
   const activeTopic = (learningState?.activeTopic as Topic | null) ?? null;
   const selectedNumber = learningState?.selectedNumber ?? null;
   const selectedRange = learningState?.selectedRange ?? null;
@@ -97,9 +98,11 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     setShowPracticeMode(false);
   };
 
-  const renderHeader = (title: string, onBack: () => void, showPractice = true) => (
+  const renderHeader = (title: string, localBack: () => void, showPractice = true) => {
+    const goBack = onBack ?? localBack;
+    return (
     <div className="flex items-center justify-between mb-4">
-      <button onClick={onBack} className="p-2 -ml-2 text-primary">
+      <button onClick={goBack} className="p-2 -ml-2 text-primary">
         <ArrowLeft size={20} />
       </button>
       <h2 className="font-display font-bold text-lg text-foreground">{title}</h2>
@@ -120,7 +123,8 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         <DesktopModeToggle />
       </div>
     </div>
-  );
+    );
+  };
 
   const renderDataCards = (items: { expression: string; answer: number; exponent?: number; approximate?: boolean }[]) => (
     <div className="space-y-2">
@@ -185,7 +189,8 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   if (activeTopic === 'periodic-table') {
     return (
       <SwipeBack onBack={() => {
-        if (periodicSelectedElement) setSelectedElement(null);
+        if (onBack) onBack();
+        else if (periodicSelectedElement) setSelectedElement(null);
         else setActiveTopic(null);
       }}>
         <div>
@@ -214,7 +219,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     ));
 
     return (
-      <SwipeBack onBack={() => setSelectedNumber(null)}>
+      <SwipeBack onBack={() => {
+        if (onBack) onBack();
+        else setSelectedNumber(null);
+      }}>
         <div>
           {renderHeader(`Table of ${selectedNumber}`, () => setSelectedNumber(null))}
           <SwipeContainer items={items} currentIndex={selectedNumber - 1} onIndexChange={(i) => setSelectedNumber(i + 1)} />
@@ -225,7 +233,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
 
   if (activeTopic === 'tables') {
     return (
-      <SwipeBack onBack={() => setActiveTopic(null)}>
+      <SwipeBack onBack={() => {
+        if (onBack) onBack();
+        else setActiveTopic(null);
+      }}>
         <div>
           {renderHeader('Tables', () => setActiveTopic(null))}
           <div className={`glass-panel rounded-2xl px-4 py-3 mb-4 flex items-center justify-between ${proMode ? 'shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_24px_hsl(var(--primary)/0.35)]' : ''}`}>
@@ -301,7 +312,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     const topicTitle = activeTopic?.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || '';
 
     return (
-      <SwipeBack onBack={() => setSelectedRange(null)}>
+      <SwipeBack onBack={() => {
+        if (onBack) onBack();
+        else setSelectedRange(null);
+      }}>
         <div>
           {renderHeader(topicTitle, () => setSelectedRange(null))}
           <SwipeContainer
@@ -334,7 +348,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
   if (activeTopic === 'percentage' && learningState?.expandedDenominator) {
     const d = learningState.expandedDenominator;
     return (
-      <SwipeBack onBack={() => updateState({ expandedDenominator: null })}>
+      <SwipeBack onBack={() => {
+        if (onBack) onBack();
+        else updateState({ expandedDenominator: null });
+      }}>
         <div>
           {renderHeader(`Multiples of 1/${d}`, () => updateState({ expandedDenominator: null }))}
           <PercentageExpanded
@@ -353,7 +370,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       : 0;
 
     return (
-      <SwipeBack onBack={() => updateState({ percentageGroup: null })}>
+      <SwipeBack onBack={() => {
+        if (onBack) onBack();
+        else updateState({ percentageGroup: null });
+      }}>
         <div>
           {renderHeader(
             learningState.percentageGroup
@@ -413,7 +433,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     };
 
     return (
-      <SwipeBack onBack={handleBack}>
+      <SwipeBack onBack={() => onBack?.() ?? handleBack()}>
         <div>
           {secIdx === null && renderHeader('Formulas', () => setActiveTopic(null), false)}
           <Suspense fallback={<div className="h-40" />}>
