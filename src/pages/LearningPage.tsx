@@ -1,6 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { m as motion } from 'framer-motion';
-import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart, Crown } from 'lucide-react';
+import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart, Atom } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import StatPill from '@/components/duo/StatPill';
@@ -14,10 +14,11 @@ import PracticeModeSelector, { type PracticeSettings } from '@/components/Practi
 const FormulasLearning = lazy(() => import('@/components/FormulasLearning'));
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, getExtendedRangeGroups } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
+const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearning'));
 import { getStreak } from '@/lib/streak';
 import { getXP, levelFromXP } from '@/lib/xp';
 
-type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas';
+type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table';
 
 interface LearningPageProps {
   onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => void;
@@ -34,12 +35,14 @@ const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
   { id: 'powers', title: 'Powers', icon: Zap, gradient: 'gradient-success' },
   { id: 'percentage', title: 'Percentage', icon: Percent, gradient: 'gradient-warm' },
   { id: 'formulas', title: 'Formulas', icon: BookOpen, gradient: 'gradient-primary' },
+  { id: 'periodic-table', title: 'Periodic Table', icon: Atom, gradient: 'gradient-success' },
 ];
 
 const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
   const activeTopic = (learningState?.activeTopic as Topic | null) ?? null;
   const selectedNumber = learningState?.selectedNumber ?? null;
   const selectedRange = learningState?.selectedRange ?? null;
+  const periodicSelectedElement = learningState?.periodicSelectedElement ?? null;
   const [showPracticeMode, setShowPracticeMode] = useState(false);
   const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
 
@@ -64,7 +67,8 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     }
   };
 
-  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null, formulaSectionIndex: null, formulaCategoryIndex: null });
+  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null, formulaSectionIndex: null, formulaCategoryIndex: null, periodicSelectedElement: null });
+  const setSelectedElement = (n: number | null) => updateState({ periodicSelectedElement: n });
   const setSelectedNumber = (n: number | null) => updateState({ selectedNumber: n });
   const setSelectedRange = (r: { from: number; to: number } | null) => updateState({ selectedRange: r });
 
@@ -102,7 +106,10 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
       <div className="flex items-center gap-2">
         {showPractice && (
           <button
-            onClick={() => setShowPracticeMode(true)}
+            onClick={() => {
+              if (activeTopic === 'periodic-table') onStartPractice?.(activeTopic);
+              else setShowPracticeMode(true);
+            }}
             className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
           >
             <Target size={14} />
@@ -171,6 +178,30 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
         {renderHeader('Choose Practice Mode', () => setShowPracticeMode(false), false)}
         <PracticeModeSelector onSelect={handlePracticeSelect} />
       </div>
+    );
+  }
+
+  // PERIODIC TABLE
+  if (activeTopic === 'periodic-table') {
+    return (
+      <SwipeBack onBack={() => {
+        if (periodicSelectedElement) setSelectedElement(null);
+        else setActiveTopic(null);
+      }}>
+        <div>
+          {renderHeader('Periodic Table', () => {
+            if (periodicSelectedElement) setSelectedElement(null);
+            else setActiveTopic(null);
+          })}
+          <Suspense fallback={<div className="py-16 text-center text-sm font-semibold text-muted-foreground">Loading Periodic Table…</div>}>
+            <PeriodicTableLearning
+              selectedElement={periodicSelectedElement}
+              onSelectElement={(n) => setSelectedElement(n)}
+              onPractice={() => onStartPractice?.('periodic-table')}
+            />
+          </Suspense>
+        </div>
+      </SwipeBack>
     );
   }
 
@@ -408,6 +439,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     powers: 'xⁿ',
     percentage: '%',
     formulas: 'f(x)',
+    'periodic-table': '⚛',
   };
 
   const cardTints: Record<Topic, { glow: string; text: string }> = {
@@ -420,6 +452,7 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
     powers:        { glow: 'shadow-[0_0_18px_-6px_hsl(var(--warning)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--warning)/0.75),0_0_34px_hsl(var(--warning)/0.45)]',  text: 'text-warning' },
     percentage:    { glow: 'shadow-[0_0_18px_-6px_hsl(var(--destructive)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--destructive)/0.6),0_0_28px_hsl(var(--destructive)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--destructive)/0.75),0_0_34px_hsl(var(--destructive)/0.45)]', text: 'text-destructive' },
     formulas:      { glow: 'shadow-[0_0_18px_-6px_hsl(var(--accent)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--accent)/0.75),0_0_34px_hsl(var(--accent)/0.45)]',  text: 'text-accent' },
+    'periodic-table': { glow: 'shadow-[0_0_18px_-6px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)] active:shadow-[0_0_0_1px_hsl(var(--primary)/0.75),0_0_34px_hsl(var(--primary)/0.5)]', text: 'text-primary' },
   };
 
   return (
