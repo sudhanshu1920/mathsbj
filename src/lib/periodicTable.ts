@@ -191,21 +191,19 @@ function place(n: number): Pick<ChemElement, 'period' | 'group' | 'block' | 'xpo
     return { period, group, block: group <= 2 ? 's' : group <= 12 ? 'd' : 'p', xpos: group, ypos: period };
   }
 
-  // Textbook layout: La/Ac occupy group 3 in the main table; the remaining
-  // 14 f-block members are shown in separated rows underneath.
+  // Textbook layout: periods 6–7 reserve group 3 for the f-block marker.
+  // All 15 lanthanides/actinides are rendered in the separated rows below.
   if (idx === 0 || idx === 1) {
     const group = idx + 1;
     return { period, group, block: 's', xpos: group, ypos: period };
   }
-  if (idx === 2) {
-    return { period, group: 3, block: 'd', xpos: 3, ypos: period };
-  }
-  if (idx >= 3 && idx <= 16) {
+  if (idx >= 2 && idx <= 16) {
     return {
       period,
       group: null,
       block: 'f',
-      xpos: idx,
+      // The f-block is aligned under groups 4–18 (15 elements).
+      xpos: idx + 2,
       ypos: period === 6 ? 9 : 10,
     };
   }
