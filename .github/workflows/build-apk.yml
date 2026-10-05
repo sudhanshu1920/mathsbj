@@ -144,10 +144,10 @@ jobs:
           mkdir -p android/app/src/main/res/mipmap-xxhdpi
           mkdir -p android/app/src/main/res/mipmap-xxxhdpi
           "$IMG_CMD" public/favicon.ico -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          magick public/favicon.ico -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-          magick public/favicon.ico -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          magick public/favicon.ico -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          magick public/favicon.ico -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          "$IMG_CMD" public/favicon.ico -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          "$IMG_CMD" public/favicon.ico -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          "$IMG_CMD" public/favicon.ico -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          "$IMG_CMD" public/favicon.ico -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           cp android/app/src/main/res/mipmap-mdpi/ic_launcher.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
           cp android/app/src/main/res/mipmap-hdpi/ic_launcher.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
           cp android/app/src/main/res/mipmap-xhdpi/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
