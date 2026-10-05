@@ -176,7 +176,7 @@ jobs:
           APKANALYZER="${ANDROID_HOME}/cmdline-tools/latest/bin/apkanalyzer"
           "$APKANALYZER" manifest application-id android/app/build/outputs/apk/release/app-release-unsigned.apk | grep -Fx 'com.sudhanshu1920.mathsbj'
           "$APKANALYZER" manifest version-name android/app/build/outputs/apk/release/app-release-unsigned.apk | grep -Fx '1.0.0'
-          "$APKANALYZER" manifest min-sdk android/app/build/outputs/apk/release/app-release-unsigned.apk | grep -Fx '23'
+          "$APKANALYZER" manifest min-sdk android/app/build/outputs/apk/release/app-release-unsigned.apk | grep -Fx '24'
           "$APKANALYZER" manifest target-sdk android/app/build/outputs/apk/release/app-release-unsigned.apk | grep -Fx '36'
           file android/app/build/outputs/apk/release/app-release-unsigned.apk
           file android/app/build/outputs/apk/debug/app-debug.apk
