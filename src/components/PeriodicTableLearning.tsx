@@ -40,6 +40,10 @@ const CATEGORY_DOTS: Record<ChemElement['category'], string> = {
 
 const MAIN_ROWS = Array.from({ length: 7 }, (_, i) => i + 1);
 const GROUPS = Array.from({ length: 18 }, (_, i) => i + 1);
+const F_BLOCK_ROWS = [
+  { ypos: 9, label: 'Lanthanides', range: '57–71' },
+  { ypos: 10, label: 'Actinides', range: '89–103' },
+] as const;
 
 const findMainElement = (period: number, group: number) =>
   ELEMENTS.find((el) => el.ypos === period && el.xpos === group && el.ypos <= 7);
@@ -52,7 +56,7 @@ const ElementCell = ({ el, compact = false, onClick }: { el: ChemElement; compac
     onClick={onClick}
     aria-label={`${el.name}, atomic number ${el.number}`}
     title={`${el.name} (${el.symbol})`}
-    className={`relative h-[68px] min-w-[52px] rounded-lg border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[60px] min-w-[52px]' : ''}`}
+    className={`relative h-[72px] min-w-[68px] rounded-lg border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[68px] min-w-[68px]' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
   >
     <span className="absolute left-1.5 top-1 text-[9px] font-bold text-muted-foreground">{el.number}</span>
     <span className="absolute right-1.5 top-1 text-[9px] font-semibold text-muted-foreground">{formatMass(el)}</span>
@@ -178,37 +182,37 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement, onPractice }:
 
       <div
         ref={tableScrollRef}
-        className="overflow-x-auto rounded-3xl border border-border bg-card/60 p-2 sm:p-3"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="periodic-table-scroll w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3"
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x', scrollBehavior: 'smooth' }}
       >
-        <div className="mx-auto w-full min-w-[1080px] lg:min-w-0">
-          <div className="grid grid-cols-[32px_repeat(18,minmax(0,1fr))] gap-1 pb-1 text-center">
+        <div className="w-max min-w-[1420px] pb-1">
+          <div className="grid grid-cols-[48px_repeat(18,68px)] gap-1 pb-1 text-center">
             <div />
             {GROUPS.map((g) => <div key={g} className="text-[9px] font-black text-muted-foreground">{g}</div>)}
           </div>
 
           <div className="space-y-1">
             {MAIN_ROWS.map((period) => (
-              <div key={period} className="grid grid-cols-[32px_repeat(18,minmax(0,1fr))] gap-1">
-                <div className="flex items-center justify-center text-[9px] font-black text-muted-foreground">{period}</div>
+              <div key={period} className="grid grid-cols-[48px_repeat(18,68px)] gap-1">
+                <div className="flex items-center justify-center rounded-lg bg-background/40 text-[9px] font-black tabular-nums text-muted-foreground">{period}</div>
                 {GROUPS.map((group) => {
                   const el = findMainElement(period, group);
                   if (el) return <ElementCell key={`${period}-${group}`} el={el} onClick={() => onSelectElement(el.number)} />;
                   if (period === 6 && group === 3) return <FPlaceholder key={`${period}-${group}`} label="57–71" text="Lanthanides ↓" />;
                   if (period === 7 && group === 3) return <FPlaceholder key={`${period}-${group}`} label="89–103" text="Actinides ↓" />;
-                  return <div key={`${period}-${group}`} className="h-[74px] min-w-[72px]" />;
+                  return <div key={`${period}-${group}`} className="h-[72px] rounded-lg border border-transparent" aria-hidden="true" />;
                 })}
               </div>
             ))}
           </div>
 
-          <div className="my-2 border-t border-border/70" />
+          <div className="my-3 flex items-center gap-2"><div className="h-px flex-1 bg-border/70" /><span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">f-block</span><div className="h-px flex-1 bg-border/70" /></div>
           <div className="space-y-1">
-            {[9, 10].map((row) => (
-              <div key={row} className="grid grid-cols-[32px_repeat(18,minmax(0,1fr))] gap-1">
-                <div className="flex items-center justify-center text-[9px] font-black text-muted-foreground">{row === 9 ? 'La' : 'Ac'}</div>
+            {F_BLOCK_ROWS.map(({ ypos: row, label, range }) => (
+              <div key={row} className="grid grid-cols-[48px_repeat(18,68px)] gap-1">
+                <div className="flex flex-col items-center justify-center rounded-lg bg-background/40 text-center"><span className="text-[8px] font-black uppercase text-muted-foreground">{label}</span><span className="mt-0.5 text-[8px] font-bold text-primary">{range}</span></div>
                 {GROUPS.map((group) => {
-                  if (group < 3 || group > 17) return <div key={group} className="h-[68px] min-w-[68px]" />;
+                  if (group < 4 || group > 18) return <div key={group} className="h-[68px] rounded-lg border border-transparent" aria-hidden="true" />;
                   const el = ELEMENTS.find((item) => item.ypos === row && item.xpos === group);
                   return el ? <ElementCell key={group} el={el} compact onClick={() => onSelectElement(el.number)} /> : <div key={group} className="h-[68px] min-w-[68px]" />;
                 })}
@@ -218,8 +222,9 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement, onPractice }:
         </div>
       </div>
 
+      <p className="mb-3 text-center text-[11px] font-semibold text-muted-foreground">← Swipe horizontally → to explore all 18 groups</p>
       <Legend />
-      <p className="mt-3 text-center text-[11px] font-semibold text-muted-foreground">Tap any element to view its complete local information.</p>
+      <p className="mt-3 text-center text-[11px] font-semibold text-muted-foreground">Swipe left/right to explore all 18 groups. Tap any element to view its complete local information.</p>
       {selected && (
         <ElementDetails
           element={selected}
