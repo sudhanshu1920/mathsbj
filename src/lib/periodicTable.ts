@@ -173,23 +173,45 @@ function place(n: number): Pick<ChemElement, 'period' | 'group' | 'block' | 'xpo
   const period = PERIOD_END.findIndex((e) => n <= e) + 1;
   const start = period === 1 ? 1 : PERIOD_END[period - 2] + 1;
   const idx = n - start;
+
   if (period === 1) {
-    const g = n === 1 ? 1 : 18;
-    return { period, group: g, block: 's', xpos: g, ypos: 1 };
+    const group = n === 1 ? 1 : 18;
+    return { period, group, block: 's', xpos: group, ypos: period };
   }
-  let group: number;
-  if (period <= 3) group = idx < 2 ? idx + 1 : idx + 11;
-  else if (period <= 5) group = idx + 1;
-  else {
-    if (idx >= 2 && idx <= 16) {
-      // Lanthanides / Actinides row
-      const isLaAc = idx === 2;
-      return { period, group: isLaAc ? 3 : null, block: isLaAc ? 'd' : 'f', xpos: idx + 1, ypos: period === 6 ? 9 : 10 };
-    }
-    group = idx < 2 ? idx + 1 : idx - 13;
+
+  // Periods 2–3: s-block, then the p-block at groups 13–18.
+  if (period <= 3) {
+    const group = idx < 2 ? idx + 1 : idx + 11;
+    return { period, group, block: group <= 2 ? 's' : 'p', xpos: group, ypos: period };
   }
-  const block = group <= 2 ? 's' : group <= 12 ? 'd' : 'p';
-  return { period, group, block, xpos: group, ypos: period };
+
+  // Periods 4–5 are complete 18-column rows.
+  if (period <= 5) {
+    const group = idx + 1;
+    return { period, group, block: group <= 2 ? 's' : group <= 12 ? 'd' : 'p', xpos: group, ypos: period };
+  }
+
+  // Textbook layout: La/Ac occupy group 3 in the main table; the remaining
+  // 14 f-block members are shown in separated rows underneath.
+  if (idx === 0 || idx === 1) {
+    const group = idx + 1;
+    return { period, group, block: 's', xpos: group, ypos: period };
+  }
+  if (idx === 2) {
+    return { period, group: 3, block: 'd', xpos: 3, ypos: period };
+  }
+  if (idx >= 3 && idx <= 16) {
+    return {
+      period,
+      group: null,
+      block: 'f',
+      xpos: idx,
+      ypos: period === 6 ? 9 : 10,
+    };
+  }
+
+  const group = 4 + (idx - 17);
+  return { period, group, block: group <= 12 ? 'd' : 'p', xpos: group, ypos: period };
 }
 
 export const ELEMENTS: ChemElement[] = RAW.split('\n').map((line, i) => {
