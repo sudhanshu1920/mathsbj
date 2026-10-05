@@ -150,7 +150,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
         <button
           key={n}
           onClick={() => onSelect(n)}
-          className="glass-panel rounded-xl py-3 text-center font-display font-semibold text-foreground hover:border-primary/60 active:scale-95"
+          className="bg-card border border-border rounded-xl py-3 text-center font-display font-semibold text-foreground hover:border-primary/60 active:scale-95"
         >
           {n}
         </button>
