@@ -197,7 +197,6 @@ const LearningPage = ({ onStartPractice, learningState, onLearningStateChange }:
             <PeriodicTableLearning
               selectedElement={periodicSelectedElement}
               onSelectElement={(n) => setSelectedElement(n)}
-              onPractice={() => onStartPractice?.('periodic-table')}
             />
           </Suspense>
         </div>
