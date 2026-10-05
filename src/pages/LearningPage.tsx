@@ -1,4 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart, Atom, Crown } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -27,7 +28,7 @@ interface LearningPageProps {
   onLearningStateChange?: (state: LearningState) => void;
 }
 
-const topics: { id: Topic; title: string; icon: any; gradient: string }[] = [
+const topics: { id: Topic; title: string; icon: LucideIcon; gradient: string }[] = [
   { id: 'tables', title: 'Tables', icon: Grid3x3, gradient: 'gradient-primary' },
   { id: 'squares', title: 'Squares', icon: Square, gradient: 'gradient-success' },
   { id: 'square-roots', title: 'Square Roots', icon: Radical, gradient: 'gradient-primary' },
@@ -283,7 +284,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   // SQUARES / ROOTS / CUBES / CUBE ROOTS
   if (['squares', 'square-roots', 'cubes', 'cube-roots'].includes(activeTopic || '') && selectedRange) {
     const allItems = rangeGroups.map((g) => {
-      let data: any[];
+      let data: { expression: string; answer: number; approximate?: boolean; exponent?: number }[];
       switch (activeTopic) {
         case 'squares': data = getSquares(g.from, g.to); break;
         case 'square-roots': data = getSquareRoots(g.from, g.to); break;
