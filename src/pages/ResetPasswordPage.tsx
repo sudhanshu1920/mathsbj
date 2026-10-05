@@ -15,11 +15,30 @@ const ResetPasswordPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Supabase puts recovery tokens in the hash; getSession picks them up.
-    supabase.auth.getSession().then(({ data }) => setReady(!!data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') setReady(true);
+    // Supabase puts recovery tokens in the hash. Let Supabase consume the hash
+    // first, then remove it from the URL so the token is not retained in history.
+    const clearRecoveryHash = () => {
+      if (window.location.hash) {
+        window.history.replaceState(
+          window.history.state,
+          document.title,
+          window.location.pathname + window.location.search,
+        );
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      setReady(!!data.session);
+      if (data.session) clearRecoveryHash();
     });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+        setReady(true);
+        clearRecoveryHash();
+      }
+    });
+
     return () => sub.subscription.unsubscribe();
   }, []);
 
