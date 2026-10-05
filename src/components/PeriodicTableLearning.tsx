@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import { ArrowLeft, Atom, ChevronRight, Layers3, X } from 'lucide-react';
+import { ArrowLeft, Atom, Layers3, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
@@ -7,7 +7,6 @@ import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
 interface PeriodicTableLearningProps {
   selectedElement: number | null;
   onSelectElement: (number: number | null) => void;
-  onPractice?: () => void;
 }
 
 const CATEGORY_STYLES: Record<ChemElement['category'], string> = {
@@ -56,13 +55,13 @@ const ElementCell = ({ el, compact = false, onClick }: { el: ChemElement; compac
     onClick={onClick}
     aria-label={`${el.name}, atomic number ${el.number}`}
     title={`${el.name} (${el.symbol})`}
-    className={`relative h-[72px] min-w-[68px] rounded-lg border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[68px] min-w-[68px]' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
+    className={`relative aspect-square h-[76px] min-w-[76px] rounded-lg border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[76px] min-w-[76px]' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
   >
     <span className="absolute left-1.5 top-1 text-[9px] font-bold text-muted-foreground">{el.number}</span>
     <span className="absolute right-1.5 top-1 text-[9px] font-semibold text-muted-foreground">{formatMass(el)}</span>
     <div className="flex h-full flex-col items-center justify-end pb-1">
-      <span className="font-display text-[24px] font-black leading-none text-foreground">{el.symbol}</span>
-      <span className="mt-1 w-full truncate text-center text-[9px] font-bold text-foreground" title={el.name}>{el.name}</span>
+      <span className="font-display text-[22px] sm:text-[24px] font-black leading-none text-foreground">{el.symbol}</span>
+      <span className="mt-1 w-full truncate text-center text-[9px] sm:text-[10px] font-bold leading-tight text-foreground" title={el.name}>{el.name}</span>
     </div>
   </motion.button>
 );
@@ -159,7 +158,7 @@ const ElementDetails = ({ element, onBack, onClose }: { element: ChemElement; on
   );
 };
 
-const PeriodicTableLearning = ({ selectedElement, onSelectElement, onPractice }: PeriodicTableLearningProps) => {
+const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTableLearningProps) => {
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const selected = selectedElement ? ELEMENTS[selectedElement - 1] : undefined;
 
@@ -173,11 +172,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement, onPractice }:
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">18 groups • 7 periods • 118 elements</p>
           </div>
         </div>
-        {onPractice && (
-          <button type="button" onClick={onPractice} className="inline-flex items-center gap-1 rounded-full gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.2)]">
-            Practice <ChevronRight size={14} />
-          </button>
-        )}
+
       </div>
 
       <div
