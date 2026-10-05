@@ -23,6 +23,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
       - name: Install web dependencies
         run: npm install --no-audit --no-fund
 
