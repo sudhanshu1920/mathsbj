@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+\n# Environment files — never commit local credentials/config
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
