@@ -88,6 +88,18 @@ const Index = () => {
   const lastDepth = useRef('learn-home');
   const historyInitialized = useRef(false);
   const lastNavigationBack = useRef(0);
+  const navigationStateRef = useRef({
+    tab,
+    learningState,
+    practiceTopic,
+    practiceMode,
+  });
+  navigationStateRef.current = {
+    tab,
+    learningState,
+    practiceTopic,
+    practiceMode,
+  };
 
   // One shared back action for header arrows, in-app edge swipe, and native
   // Android back. A short lock prevents a native gesture + web gesture from
@@ -134,6 +146,7 @@ const Index = () => {
     let listenerHandle: { remove: () => Promise<void> } | null = null;
 
     void App.addListener('backButton', () => {
+      const { tab, learningState, practiceTopic, practiceMode } = navigationStateRef.current;
       const depth = getNavDepth(tab, learningState, practiceTopic, !!practiceMode);
 
       if (depth === 'learn-home') {
@@ -164,7 +177,7 @@ const Index = () => {
         listenerHandle = null;
       }
     };
-  }, [goBack, tab, learningState, practiceTopic, practiceMode]);
+  }, [goBack]);
 
   // Handle browser back button / gesture
   useEffect(() => {
