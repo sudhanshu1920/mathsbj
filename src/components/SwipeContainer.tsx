@@ -2,12 +2,15 @@ import { useState, useRef, useCallback, ReactNode, TouchEvent } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
 
 interface SwipeContainerProps {
-  items: ReactNode[];
+  items?: ReactNode[];
+  itemCount?: number;
+  renderItem?: (index: number) => ReactNode;
   currentIndex: number;
   onIndexChange: (index: number) => void;
 }
 
-const SwipeContainer = ({ items, currentIndex, onIndexChange }: SwipeContainerProps) => {
+const SwipeContainer = ({ items, itemCount, renderItem, currentIndex, onIndexChange }: SwipeContainerProps) => {
+  const count = itemCount ?? items?.length ?? 0;
   const [direction, setDirection] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const axisLocked = useRef<'x' | 'y' | null>(null);
@@ -49,7 +52,7 @@ const SwipeContainer = ({ items, currentIndex, onIndexChange }: SwipeContainerPr
     const dx = touch.clientX - touchStart.current.x;
     const threshold = 50;
 
-    if (dx < -threshold && currentIndex < items.length - 1) {
+    if (dx < -threshold && currentIndex < count - 1) {
       setDirection(1);
       onIndexChange(currentIndex + 1);
     } else if (dx > threshold && currentIndex > 0) {
@@ -60,7 +63,7 @@ const SwipeContainer = ({ items, currentIndex, onIndexChange }: SwipeContainerPr
     touchStart.current = null;
     axisLocked.current = null;
     swiping.current = false;
-  }, [currentIndex, items.length, onIndexChange]);
+  }, [count, currentIndex, onIndexChange]);
 
   const variants = {
     enter: (d: number) => ({ x: d > 0 ? 300 : -300, opacity: 0 }),
@@ -88,7 +91,7 @@ const SwipeContainer = ({ items, currentIndex, onIndexChange }: SwipeContainerPr
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className="w-full"
         >
-          {items[currentIndex]}
+          {renderItem ? renderItem(currentIndex) : items?.[currentIndex] ?? null}
         </motion.div>
       </AnimatePresence>
     </div>
