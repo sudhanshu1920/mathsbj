@@ -82,6 +82,7 @@ const Index = () => {
   const [learningState, setLearningState] = useState<LearningState>(INITIAL_LEARNING_STATE);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [practiceBackRequest, setPracticeBackRequest] = useState(0);
   const wideDesktop = useWideDesktop();
   const lastBackPress = useRef(0);
   const isHandlingPopstate = useRef(false);
@@ -184,9 +185,13 @@ const Index = () => {
     const handlePopstate = () => {
       isHandlingPopstate.current = true;
 
-      // If a practice session is active, let PracticePage handle the back press
-      // (it shows its own exit confirmation dialog and intercepts popstate).
+      // PracticePage owns the confirmation UI, but this router owns history.
+      // Re-seed the active depth without creating a second sentinel entry, then
+      // signal PracticePage to open its existing exit dialog.
       if (tab === 'practice' && practiceMode) {
+        window.history.pushState({ __mathsbj: true, depth: 'practice-active' }, '');
+        lastDepth.current = 'practice-active';
+        setPracticeBackRequest((value) => value + 1);
         return;
       }
 
@@ -319,17 +324,23 @@ const Index = () => {
 
   const handlePracticeExit = useCallback(() => {
     if (returnToLearn) {
+      const targetDepth = getNavDepth('learn', learningState);
+      window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
+      lastDepth.current = targetDepth;
       setReturnToLearn(false);
       setPracticeTopic(undefined);
       setPracticeContext(undefined);
       setPracticeMode(undefined);
       setTab('learn');
     } else {
+      const targetDepth = 'practice-setup';
+      window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
+      lastDepth.current = targetDepth;
       setPracticeTopic(undefined);
       setPracticeContext(undefined);
       setPracticeMode(undefined);
     }
-  }, [returnToLearn]);
+  }, [learningState, returnToLearn]);
 
   const quickPractice = useCallback((topic: string) => {
     setPracticeTopic(topic);
@@ -405,6 +416,7 @@ const Index = () => {
                     initialMode={practiceMode}
                     initialExtras={practiceExtras}
                     onExit={handlePracticeExit}
+                    externalBackRequest={practiceBackRequest}
                     fromLearning={returnToLearn}
                   />
                 </div>
