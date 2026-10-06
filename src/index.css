@@ -967,6 +967,27 @@ html.desktop-mode .glass-panel {
   border-width: 1px;
 }
 
+/* Mobile Mode only: float the bottom navigation like Desktop Mode.
+   Desktop Mode keeps the original desktop positioning below. */
+html:not(.desktop-mode) nav.bottom-nav {
+  left: 50%;
+  right: auto;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(calc(100% - 1.5rem), 32rem);
+  max-width: 32rem;
+  border: 1px solid hsl(var(--border) / 0.8);
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 10px 30px -12px hsl(var(--primary) / 0.45);
+}
+html:not(.desktop-mode) nav.bottom-nav > div {
+  width: 100%;
+  height: 68px;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
 /* Slim floating bottom bar */
 @media (min-width: 1024px) {
   html.desktop-mode nav.fixed.bottom-0 {
