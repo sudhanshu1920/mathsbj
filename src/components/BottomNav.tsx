@@ -53,8 +53,11 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
   }, [onChange, onDoubleTap]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-b-0 border-x-0 safe-bottom shadow-[0_-12px_32px_-12px_hsl(var(--primary)/0.35)]">
-      <div className="flex justify-around items-center h-[68px] max-w-lg mx-auto py-2">
+    <nav
+      aria-label="Primary navigation"
+      className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-1/2 z-50 w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 rounded-3xl border border-border/80 bg-card/95 p-1.5 shadow-2xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/80"
+    >
+      <div className="flex h-[68px] w-full items-center justify-around gap-1 px-1">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
           const isBouncing = bouncingTab === tab.id;
@@ -62,7 +65,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
             <button
               key={tab.id}
               onClick={() => handleTap(tab.id)}
-              className="relative flex flex-col items-center justify-center gap-1 flex-1 h-full"
+              className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <motion.div
                 animate={isBouncing ? { scale: [1, 1.25, 1] } : { scale: 1 }}
