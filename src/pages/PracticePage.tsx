@@ -120,10 +120,21 @@ function mixedToString(m: MixedPct): string {
 }
 
 // Helper to generate a range array that supports ascending, descending, and single value
-function rangeArray(from: number, to: number): number[] {
-  const step = from <= to ? 1 : -1;
-  const length = Math.abs(to - from) + 1;
-  return Array.from({ length }, (_, i) => from + i * step);
+const MAX_QUIZ_RANGE_VALUE = 200;
+const MAX_POWER_EXPONENT = 20;
+
+function clampQuizValue(value: number, min: number, max: number, fallback: number): number {
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.trunc(value))) : fallback;
+}
+
+// Keep user-controlled ranges bounded so malformed/huge inputs cannot allocate
+// runaway question arrays. Normal app ranges remain unchanged.
+function rangeArray(from: number, to: number, maxItems = MAX_QUIZ_RANGE_VALUE): number[] {
+  const safeFrom = clampQuizValue(from, -maxItems, maxItems, 0);
+  const safeTo = clampQuizValue(to, -maxItems, maxItems, 0);
+  const step = safeFrom <= safeTo ? 1 : -1;
+  const length = Math.min(Math.abs(safeTo - safeFrom) + 1, maxItems);
+  return Array.from({ length }, (_, i) => safeFrom + i * step);
 }
 
 function generateQuestionsForTopic(topicId: string, range: TopicRange, label: string): Question[] {
@@ -267,7 +278,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
   return questions;
 }
 
-function generateQuestions(config: PracticeConfig): Question[] {
+export function generateQuestions(config: PracticeConfig): Question[] {
   const baseQuestions: Question[] = [];
 
   for (const topic of config.topics) {
@@ -285,8 +296,7 @@ function generateQuestions(config: PracticeConfig): Question[] {
   });
 
   if (config.mode === 'mcq') {
-    const sliced = config.infinite ? allQuestions : allQuestions.slice(0, config.count);
-    return sliced.map((q) => {
+    return allQuestions.map((q) => {
       // Trig: build options from the standard trig value pool
       if (q.answerType === 'trig') {
         const opts = buildTrigOptions({
@@ -353,7 +363,7 @@ function generateQuestions(config: PracticeConfig): Question[] {
     });
   }
 
-  return config.infinite ? allQuestions : allQuestions.slice(0, config.count);
+  return allQuestions;
 }
 
 /**
@@ -452,6 +462,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [levelUp, setLevelUp] = useState<number | null>(null);
   const [sessionXP, setSessionXP] = useState(0);
   const xpPopId = useRef(0);
+  const answerLockRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const elapsedRef = useRef<ReturnType<typeof setInterval>>();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -555,6 +566,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setElapsedTime(0);
     setSessionXP(0);
     setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
+    answerLockRef.current = false;
   };
 
   useEffect(() => {
@@ -597,9 +609,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
-      if (!config || finished || feedback) return;
+      if (!config || finished || feedback || answerLockRef.current) return;
       const q = questions[currentQ];
       if (!q) return;
+      answerLockRef.current = true;
 
       let isCorrect = false;
       if (answer !== null) {
@@ -676,14 +689,23 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         if (!config.infinite && currentQ + 1 >= questions.length) {
           setFinished(true);
           if (timerRef.current) clearInterval(timerRef.current);
-        } else {
-          if (config.infinite && currentQ + 1 >= questions.length) {
-            const moreQs = generateQuestions(config);
-            setQuestions(prev => [...prev, ...moreQs]);
+        } else if (config.infinite && currentQ + 1 >= questions.length) {
+          const nextPool = generateQuestions(config);
+          if (nextPool.length === 0) {
+            setFinished(true);
+            if (timerRef.current) clearInterval(timerRef.current);
+          } else {
+            // Keep infinite mode memory-bounded: recycle a fresh pool instead
+            // of appending another full pool on every cycle.
+            setQuestions(nextPool);
+            setCurrentQ(0);
+            if (config.timerEnabled) setTimeLeft(config.timerSeconds);
           }
+        } else {
           setCurrentQ(currentQ + 1);
           if (config.timerEnabled) setTimeLeft(config.timerSeconds);
         }
+        answerLockRef.current = false;
       }, isCorrect ? 350 : 700);
     },
     [config, currentQ, questions, score, finished, feedback]
@@ -939,7 +961,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     return (
       <>
       <SwipeBack onBack={handleExitRequest}>
-      <div className="pb-[calc(120px+env(safe-area-inset-bottom))]">
+      <div className="pb-6">
         <AlertDialog open={showExitDialog} onOpenChange={(open) => { if (!open) setShowExitDialog(false); }}>
           <AlertDialogContent className="rounded-2xl max-w-[320px]">
             <AlertDialogHeader>
@@ -1160,34 +1182,19 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 />
               </>
             )}
+            <button
+              type="button"
+              disabled={!!feedback || !inputValue.trim()}
+              onClick={() => handleAnswer(inputValue.trim())}
+              className="w-full max-w-[360px] min-w-[180px] min-h-12 rounded-2xl gradient-primary text-primary-foreground font-display font-extrabold tracking-wide text-base shadow-[0_0_24px_hsl(var(--primary)/0.45)] active:scale-[0.98] transition-transform disabled:opacity-60 disabled:pointer-events-none"
+            >
+              Submit
+            </button>
           </div>
         )}
       </div>
       </SwipeBack>
 
-      {/* Fixed Submit bar — rendered OUTSIDE SwipeBack so no drag/transform
-          ancestor can ever move it sideways. It stays locked bottom-center. */}
-      {config.mode === 'input' && !finished && (
-        <div
-          className="fixed inset-x-0 bottom-0 z-40 glass border-t border-primary/20 pt-3 px-4"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
-        >
-          <button
-            type="button"
-            disabled={!!feedback || !inputValue.trim()}
-            onClick={() => {
-              if (submitLockRef.current) return;
-              if (!!feedback || !inputValue.trim()) return;
-              submitLockRef.current = true;
-              handleAnswer(inputValue.trim());
-              setTimeout(() => { submitLockRef.current = false; }, 300);
-            }}
-            className="mx-auto block w-full max-w-[360px] min-w-[180px] h-14 rounded-2xl gradient-primary text-primary-foreground font-display font-extrabold tracking-wide text-lg shadow-[0_0_24px_hsl(var(--primary)/0.5)] active:scale-[0.97] transition-transform disabled:opacity-60 disabled:pointer-events-none"
-          >
-            Submit
-          </button>
-        </div>
-      )}
       </>
     );
   }
