@@ -6,6 +6,9 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Capacitor can serve packaged assets from a local WebView origin. Relative
+  // URLs keep the same build valid for both native packaging and web hosting.
+  base: "./",
   server: {
     host: "::",
     port: 8080,
@@ -26,12 +29,12 @@ export default defineConfig(({ mode }) => ({
         name: "Math Master",
         short_name: "MathMaster",
         description: "Premium Math Learning & Practice App",
-        start_url: "/",
+        start_url: "./",
         display: "standalone",
         background_color: "#0d1117",
         theme_color: "#3b82f6",
         icons: [
-          { src: "/favicon.ico", sizes: "any", type: "image/x-icon" },
+          { src: "./favicon.ico", sizes: "any", type: "image/x-icon" },
         ],
       },
       workbox: {
