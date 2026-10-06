@@ -3,8 +3,12 @@ name: Android APK
 run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
 
 on:
-  # APK builds are manual-only after the explicitly approved build.
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/workflows/android-apk.yml'
 
 permissions:
   contents: write
@@ -69,26 +73,41 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Locate and verify release APK
+      - name: Sign release APK
         shell: bash
         run: |
-          APK_PATH="$(find android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
-          test -n "$APK_PATH"
-          test -s "$APK_PATH"
-          echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
-          sha256sum "$APK_PATH"
+          set -euo pipefail
 
-      - name: Sync generated package lock
+          APK_UNSIGNED="$(find android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK_UNSIGNED"
+          test -s "$APK_UNSIGNED"
+
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          ZIPALIGN="$BUILD_TOOLS/zipalign"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+
+          KEYSTORE="$RUNNER_TEMP/math-master-release.jks"
+          SIGNED_APK="$RUNNER_TEMP/math-master-release-aligned.apk"
+
+          keytool -genkeypair             -keystore "$KEYSTORE"             -storepass changeit             -keypass changeit             -alias math-master             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Math Master, O=SBJ, C=IN"
+
+          "$ZIPALIGN" -v -p 4 "$APK_UNSIGNED" "$SIGNED_APK"
+
+          "$APKSIGNER" sign             --ks "$KEYSTORE"             --ks-pass pass:changeit             --key-pass pass:changeit             --out android/app/build/outputs/apk/release/math-master-release.apk             "$SIGNED_APK"
+
+          "$APKSIGNER" verify --verbose android/app/build/outputs/apk/release/math-master-release.apk
+
+          rm -f "$APK_UNSIGNED" "$SIGNED_APK" "$KEYSTORE"
+
+          echo "APK_PATH=android/app/build/outputs/apk/release/math-master-release.apk" >> "$GITHUB_ENV"
+
+      - name: Verify signed release APK
         shell: bash
         run: |
-          if git diff --quiet -- package-lock.json; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: sync package lock for Capacitor Android build"
-          git push
+          set -euo pipefail
+          test -s "$APK_PATH"
+          sha256sum "$APK_PATH"
+          ls -lh "$APK_PATH"
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
