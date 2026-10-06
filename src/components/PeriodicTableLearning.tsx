@@ -479,7 +479,6 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
           </div>
         </div>
         </div>
-        </div>
       )}
 
       {rangeView ? (
