@@ -63,21 +63,19 @@ describe('PeriodicTableLearning', () => {
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
     fireEvent.click(screen.getByRole('button', { name: /1–10 10 elements/i }));
 
-    let rangeSurface = screen.getByLabelText('Periodic Table elements 1 to 10');
-    fireEvent.pointerDown(rangeSurface, { clientX: 180, clientY: 160, pointerId: 3, pointerType: 'touch' });
-    fireEvent.pointerMove(rangeSurface, { clientX: 320, clientY: 160, pointerId: 3, pointerType: 'touch' });
-    fireEvent.pointerUp(rangeSurface, { clientX: 320, clientY: 160, pointerId: 3, pointerType: 'touch' });
+    expect(screen.getByRole('button', { name: /← Prev/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /Next →/i }));
+    expect(screen.getByRole('heading', { name: 'Elements 11–20' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /← Prev/i }));
     expect(screen.getByRole('heading', { name: 'Elements 1–10' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
     fireEvent.click(screen.getByRole('button', { name: /110–118 9 elements/i }));
 
-    rangeSurface = screen.getByLabelText('Periodic Table elements 110 to 118');
-    fireEvent.pointerDown(rangeSurface, { clientX: 320, clientY: 160, pointerId: 4, pointerType: 'touch' });
-    fireEvent.pointerMove(rangeSurface, { clientX: 170, clientY: 160, pointerId: 4, pointerType: 'touch' });
-    fireEvent.pointerUp(rangeSurface, { clientX: 170, clientY: 160, pointerId: 4, pointerType: 'touch' });
-
-    expect(screen.getByRole('heading', { name: 'Elements 110–118' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Next →/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /← Prev/i }));
+    expect(screen.getByRole('heading', { name: 'Elements 101–110' })).toBeInTheDocument();
   });
 
   it('preserves element selection and the full-table two-axis scroll surface', () => {
