@@ -1,0 +1,89 @@
+name: Android Release APK
+
+on:
+  push:
+    branches:
+      - apk-production-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript / lint validation
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Install Capacitor Android build tooling
+        run: npm install --no-save @capacitor/cli@8.1.2 @capacitor/android@8.1.2
+
+      - name: Generate Android project from repository source
+        run: npx cap add android
+
+      - name: Sync web build into Android project
+        run: npx cap sync android
+
+      - name: Apply repository favicon as Android launcher icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p resources
+          git show "HEAD:public/favicon.ico" > resources/icon.ico
+          convert resources/icon.ico -resize 1024x1024 -background none -gravity center -extent 1024x1024 resources/icon.png
+          npx --yes @capacitor/assets@8.1.2 generate --android
+        env:
+          CI: "true"
+
+      - name: Build unsigned release APK
+        working-directory: android
+        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
+
+      - name: Collect release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
+          test -n "$apk"
+          cp "$apk" MathMaster-release.apk
+          ls -lh MathMaster-release.apk
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MathMaster-release
+          path: MathMaster-release.apk
+          if-no-files-found: error
+          retention-days: 14
