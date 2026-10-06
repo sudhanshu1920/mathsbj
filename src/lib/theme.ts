@@ -113,8 +113,8 @@ export const toggleMode = () => setMode(getMode() === 'dark' ? 'light' : 'dark')
 export const initTheme = () => {
   const theme = getTheme();
   const mode = getMode();
-  try { localStorage.setItem(KEY, theme); } catch {}
-  try { localStorage.setItem(MODE_KEY, mode); } catch {}
+  try { localStorage.setItem(KEY, theme); } catch { /* storage may be unavailable */ }
+  try { localStorage.setItem(MODE_KEY, mode); } catch { /* storage may be unavailable */ }
   applyTheme(theme);
   applyMode(mode);
 };
