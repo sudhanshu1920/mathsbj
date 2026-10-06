@@ -858,29 +858,6 @@ html.light .app-shell::before {
   border-color: hsl(var(--border) / 0.42);
 }
 
-/* Compact top header panel: no flat fill, fades softly into the page. */
-.app-top-header {
-  height: 30px;
-  min-height: 30px;
-  padding-inline: 0.35rem;
-  border: 1px solid hsl(var(--border) / 0.42);
-  border-radius: 0.9rem;
-  background: linear-gradient(
-    180deg,
-    hsl(var(--card) / 0.74),
-    hsl(var(--background) / 0.22)
-  );
-  backdrop-filter: blur(10px) saturate(1.02);
-  -webkit-backdrop-filter: blur(10px) saturate(1.02);
-}
-html.light .app-top-header {
-  background: linear-gradient(
-    180deg,
-    hsl(0 0% 100% / 0.78),
-    hsl(var(--background) / 0.28)
-  );
-}
-
 @media (max-width: 767px), (min-width: 768px) {
   :root {
     --system-top-strip-height: 28px;
@@ -1143,7 +1120,7 @@ html.light .bottom-nav {
 
 @media (min-width: 768px) {
   .app-frame-scroll {
-    padding-bottom: 3rem;
+    padding-bottom: 3.5rem;
   }
 }
 
