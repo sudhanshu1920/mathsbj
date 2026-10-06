@@ -1,6 +1,6 @@
 name: Android APK
 
-run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
+run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }} — approved build
 
 on:
   push:
