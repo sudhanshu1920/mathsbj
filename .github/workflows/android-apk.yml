@@ -3,12 +3,8 @@ name: Android APK
 run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
 
 on:
-  # Manual release builds are the default; the scoped push trigger is used only
-  # for the explicitly approved build requested in this turn.
+  # APK builds are manual-only after the explicitly approved build.
   workflow_dispatch:
-  push:
-    paths:
-      - 'APK_BUILD_TRIGGER.txt'
 
 permissions:
   contents: write
@@ -29,17 +25,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Record build run
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf '%s\n' "$GITHUB_RUN_ID" > APK_BUILD_RUN_ID.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add APK_BUILD_RUN_ID.txt
-          git commit -m "ci: record APK run $GITHUB_RUN_ID"
-          git push
 
       - name: Setup Node 22
         uses: actions/setup-node@v6
