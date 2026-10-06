@@ -12,6 +12,7 @@ on:
       - ".github/workflows/android-apk.yml"
   workflow_dispatch:
 
+# Production Android APK pipeline
 permissions:
   contents: write
 
