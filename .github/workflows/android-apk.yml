@@ -6,8 +6,6 @@ on:
   # Explicit user approval has been received for this APK build.
   workflow_dispatch:
   push:
-    paths:
-      - '.github/workflows/android-apk.yml'
 
 permissions:
   contents: write
