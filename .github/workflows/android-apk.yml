@@ -1,5 +1,7 @@
 name: Android APK
 
+run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
+
 on:
   push:
     paths:
@@ -15,6 +17,10 @@ on:
 # Production Android APK pipeline
 permissions:
   contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
