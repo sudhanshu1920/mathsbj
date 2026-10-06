@@ -388,7 +388,7 @@ const Index = () => {
     <div className="app-shell">
       <div data-current-theme={currentTheme} data-current-mode={currentMode} className="app-frame bg-background">
         <Watermark />
-        <div className="app-frame-scroll pb-28">
+        <div className="app-frame-scroll pb-16">
           <div className={wideDesktop ? 'flex justify-center gap-4 relative z-10' : 'contents'}>
           <div className={learningState.activeTopic === 'periodic-table'
               ? 'w-full max-w-[1480px] mx-auto px-3 sm:px-4 pt-4 relative z-10 flex-1'
