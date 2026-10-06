@@ -3,15 +3,7 @@ name: Android APK
 run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
 
 on:
-  push:
-    paths:
-      - "src/**"
-      - "public/**"
-      - "index.html"
-      - "package.json"
-      - "vite.config.ts"
-      - "capacitor.config.ts"
-      - ".github/workflows/android-apk.yml"
+  # APK builds are intentionally manual. Do not trigger an APK build from source/config pushes.
   workflow_dispatch:
 
 # Production Android APK pipeline
