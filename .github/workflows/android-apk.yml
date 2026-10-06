@@ -29,6 +29,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Record build run
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_RUN_ID" > APK_BUILD_RUN_ID.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add APK_BUILD_RUN_ID.txt
+          git commit -m "ci: record APK run $GITHUB_RUN_ID"
+          git push
+
       - name: Setup Node 22
         uses: actions/setup-node@v6
         with:
