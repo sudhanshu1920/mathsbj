@@ -102,9 +102,9 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   const renderHeader = (title: string, localBack: () => void, showPractice = true) => {
     const goBack = onBack ?? localBack;
     return (
-    <div className="app-top-header flex min-h-[28px] items-center justify-between mb-2">
-      <button onClick={goBack} className="h-8 w-8 shrink-0 -ml-1 p-1 text-primary" aria-label="Back">
-        <ArrowLeft size={18} />
+    <div className="app-top-header flex h-6 min-h-6 items-center justify-between mb-2 rounded-xl border border-border/50 px-1.5">
+      <button onClick={goBack} className="h-7 w-7 shrink-0 -ml-0.5 inline-flex items-center justify-center text-primary" aria-label="Back">
+        <ArrowLeft size={17} />
       </button>
       <h2 className="px-2 font-display font-bold text-base leading-none text-foreground text-center">{title}</h2>
       <div className="flex shrink-0 items-center gap-1">
