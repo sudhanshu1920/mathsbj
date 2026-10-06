@@ -1,12 +1,15 @@
 // Lightweight WebAudio UI sound system. No external assets.
 import { getSettings } from './settings';
 
+type AudioContextConstructor = typeof AudioContext;
+type AudioWindow = Window & { webkitAudioContext?: AudioContextConstructor };
+
 let ctx: AudioContext | null = null;
 const getCtx = (): AudioContext | null => {
   if (typeof window === 'undefined') return null;
   if (!ctx) {
     try {
-      const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+      const AC = window.AudioContext || (window as AudioWindow).webkitAudioContext;
       if (!AC) return null;
       ctx = new AC();
     } catch { return null; }
