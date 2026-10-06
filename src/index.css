@@ -823,20 +823,21 @@ html, body {
 }
 
 /* Edge-to-edge Android system-area polish.
-   The overlays sit behind the status/gesture icons, keep the app visible
-   through them, and use a deliberately smaller bottom strip (50% of top). */
+   Keep only the top system-area overlay here. The bottom navigation is the
+   single floating bottom surface; a second bottom pseudo-strip caused the
+   appearance of two stacked bottom bars. */
 :root {
   --system-top-strip-height: 40px;
-  --system-bottom-strip-height: 20px;
 }
 
-.app-shell::before,
-.app-shell::after {
+.app-shell::before {
   content: "";
   position: fixed;
   left: 0;
   right: 0;
+  top: 0;
   z-index: 80;
+  height: var(--system-top-strip-height);
   pointer-events: none;
   backdrop-filter: blur(16px) saturate(1.05);
   -webkit-backdrop-filter: blur(16px) saturate(1.05);
@@ -845,22 +846,10 @@ html, body {
     hsl(var(--card) / 0.68),
     hsl(var(--background) / 0.38)
   );
-}
-
-.app-shell::before {
-  top: 0;
-  height: var(--system-top-strip-height);
   border-bottom: 1px solid hsl(var(--border) / 0.34);
 }
 
-.app-shell::after {
-  bottom: 0;
-  height: var(--system-bottom-strip-height);
-  border-top: 1px solid hsl(var(--border) / 0.26);
-}
-
-html.light .app-shell::before,
-html.light .app-shell::after {
+html.light .app-shell::before {
   background: linear-gradient(
     180deg,
     hsl(0 0% 100% / 0.62),
@@ -869,17 +858,9 @@ html.light .app-shell::after {
   border-color: hsl(var(--border) / 0.42);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (min-width: 768px) {
   :root {
     --system-top-strip-height: 40px;
-    --system-bottom-strip-height: 20px;
-  }
-}
-
-@media (min-width: 768px) {
-  :root {
-    --system-top-strip-height: 40px;
-    --system-bottom-strip-height: 20px;
   }
 }
 
@@ -1067,10 +1048,6 @@ html:not(.desktop-mode) nav.bottom-nav button > span {
   font-size: 8px;
   line-height: 9px;
 }
-html:not(.desktop-mode) .app-shell::after {
-  display: none;
-}
-
 /* Slim floating bottom bar */
 @media (min-width: 1024px) {
   html.desktop-mode nav.fixed.bottom-0 {
