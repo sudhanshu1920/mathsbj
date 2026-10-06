@@ -50,6 +50,7 @@ interface PracticeConfig {
   timerEnabled: boolean;
   timerSeconds: number;
   sequential: boolean;
+  repetition: number;
 }
 
 type PeriodicQuestionType = 'atomic-number' | 'symbol' | 'name' | 'mass';
@@ -89,6 +90,7 @@ const TOPICS = [
 ];
 
 const COUNTS = [10, 20, 25, 50];
+const REPETITIONS = [1, 2, 3, 5, 10];
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
@@ -275,9 +277,15 @@ function generateQuestions(config: PracticeConfig): Question[] {
     }
   }
 
+  // Questions is the number of base questions. When Repetition is enabled,
+  // each selected base question is presented the requested number of times.
+  const baseQuestions = config.infinite ? allQuestions : allQuestions.slice(0, config.count);
+  const repeatedQuestions = config.repetition > 1
+    ? baseQuestions.flatMap((question) => Array.from({ length: config.repetition }, () => ({ ...question })))
+    : baseQuestions;
+
   if (config.mode === 'mcq') {
-    const sliced = config.infinite ? allQuestions : allQuestions.slice(0, config.count);
-    return sliced.map((q) => {
+    return repeatedQuestions.map((q) => {
       // Trig: build options from the standard trig value pool
       if (q.answerType === 'trig') {
         const opts = buildTrigOptions({
@@ -478,6 +486,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [sequential, setSequential] = useState(false);
+  const [repetition, setRepetition] = useState(1);
 
   useEffect(() => {
     if (initialTopic && initialMode) {
@@ -496,6 +505,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         timerEnabled: timerOn,
         timerSeconds: timerOn ? (initialExtras?.timerSeconds ?? 10) : 9999,
         sequential: false,
+        repetition: 1,
       };
       startPractice(cfg);
     }
@@ -1437,6 +1447,33 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </div>
       </div>
 
+      {/* Repetition */}
+      <div className="mb-5">
+        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Repetition</label>
+        <div className="grid grid-cols-5 gap-2">
+          {REPETITIONS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setRepetition(value)}
+              aria-pressed={repetition === value}
+              className={`py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                repetition === value
+                  ? 'gradient-primary text-primary-foreground'
+                  : 'bg-card border border-border text-foreground'
+              }`}
+            >
+              {value === 1 ? 'Off' : `${value}×`}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
+          {repetition === 1
+            ? 'Off — existing question flow is unchanged.'
+            : `Each generated question is asked ${repetition} times. Questions count is the base count, so ${count} questions becomes up to ${count * repetition} attempts.`}
+        </p>
+      </div>
+
       {/* Answer Mode */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-2 block font-semibold">Answer Mode</label>
@@ -1500,6 +1537,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             timerEnabled,
             timerSeconds: timerEnabled ? timerSeconds : 9999,
             sequential,
+            repetition,
           };
           startPractice(cfg);
         }}
