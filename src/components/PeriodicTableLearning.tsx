@@ -9,6 +9,8 @@ interface PeriodicTableLearningProps {
   onSelectElement: (number: number | null) => void;
 }
 
+type AtomicMassMode = 'exact' | 'round';
+
 const CATEGORY_STYLES: Record<ChemElement['category'], string> = {
   'alkali-metal': 'border-rose-400/60 bg-rose-500/10 hover:bg-rose-500/20',
   'alkaline-earth': 'border-orange-400/60 bg-orange-500/10 hover:bg-orange-500/20',
@@ -59,7 +61,7 @@ const F_ELEMENT_BY_POSITION = new Map(
 const findMainElement = (period: number, group: number) =>
   MAIN_ELEMENT_BY_POSITION.get(`${period}-${group}`);
 
-const ElementCell = ({ el, compact = false, onClick }: { el: ChemElement; compact?: boolean; onClick: () => void }) => (
+const ElementCell = ({ el, compact = false, massMode = 'exact', onClick }: { el: ChemElement; compact?: boolean; massMode?: AtomicMassMode; onClick: () => void }) => (
   <motion.button
     type="button"
     whileTap={{ scale: 0.96 }}
@@ -70,7 +72,7 @@ const ElementCell = ({ el, compact = false, onClick }: { el: ChemElement; compac
     className={`relative aspect-square h-[72px] min-w-[72px] rounded-lg border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[72px] min-w-[72px]' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
   >
     <span className="absolute left-1.5 top-1 text-[9px] font-bold text-muted-foreground">{el.number}</span>
-    <span className="absolute right-1.5 top-1 text-[9px] font-semibold text-muted-foreground">{formatMass(el)}</span>
+    <span className="absolute right-1.5 top-1 text-[9px] font-semibold text-muted-foreground">{formatMass(el, massMode)}</span>
     <div className="flex h-full flex-col items-center justify-end pb-1">
       <span className="font-display text-[22px] sm:text-[24px] font-black leading-none text-foreground">{el.symbol}</span>
       <span className="mt-1 w-full truncate text-center text-[9px] sm:text-[10px] font-bold leading-tight text-foreground" title={el.name}>{el.name}</span>
@@ -104,18 +106,18 @@ const Legend = () => {
   );
 };
 
-const ColumnElementRow = ({ el, onClick }: { el: ChemElement; onClick: () => void }) => (
+const ColumnElementRow = ({ el, massMode, onClick }: { el: ChemElement; massMode: AtomicMassMode; onClick: () => void }) => (
   <motion.button
     type="button"
     whileTap={{ scale: 0.99 }}
     onClick={onClick}
-    aria-label={`${el.name}, atomic number ${el.number}, symbol ${el.symbol}, atomic mass ${formatMass(el)}`}
+    aria-label={`${el.name}, atomic number ${el.number}, symbol ${el.symbol}, atomic mass ${formatMass(el, massMode)}`}
     className="grid w-full grid-cols-[56px_minmax(0,1fr)_64px_88px] items-center gap-2 rounded-xl border border-border bg-card/70 px-3 py-3 text-left transition-colors hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:grid-cols-[72px_minmax(0,1fr)_80px_110px]"
   >
     <span className="text-sm font-black tabular-nums text-primary">{el.number}</span>
     <span className="min-w-0 truncate text-sm font-bold text-foreground">{el.name}</span>
     <span className="text-center font-display text-base font-black text-foreground">{el.symbol}</span>
-    <span className="text-right text-sm font-bold tabular-nums text-muted-foreground">{formatMass(el)}</span>
+    <span className="text-right text-sm font-bold tabular-nums text-muted-foreground">{formatMass(el, massMode)}</span>
   </motion.button>
 );
 
@@ -151,7 +153,7 @@ const PeriodicColumnView = ({ onSelectElement }: { onSelectElement: (number: num
             </div>
 
             {elements.map((el) => (
-              <ColumnElementRow key={el.number} el={el} onClick={() => onSelectElement(el.number)} />
+              <ColumnElementRow key={el.number} el={el} massMode={massMode} onClick={() => onSelectElement(el.number)} />
             ))}
           </div>
         </section>
@@ -160,12 +162,12 @@ const PeriodicColumnView = ({ onSelectElement }: { onSelectElement: (number: num
   );
 };
 
-const ElementDetails = ({ element, onBack, onClose }: { element: ChemElement; onBack: () => void; onClose: () => void }) => {
+const ElementDetails = ({ element, massMode, onBack, onClose }: { element: ChemElement; massMode: AtomicMassMode; onBack: () => void; onClose: () => void }) => {
   const facts = useMemo(() => [
     ['Atomic Number', String(element.number)],
     ['Symbol', element.symbol],
     ['Element Name', element.name],
-    ['Atomic Mass', formatMass(element)],
+    ['Atomic Mass', formatMass(element, massMode)],
     ['Group', element.group === null ? '— (f-block)' : String(element.group)],
     ['Period', String(element.period)],
     ['Block', `${element.block}-block`],
@@ -193,7 +195,7 @@ const ElementDetails = ({ element, onBack, onClose }: { element: ChemElement; on
               <span className="self-start px-4 pt-3 text-sm font-bold text-muted-foreground">{element.number}</span>
               <span className="font-display text-7xl font-black leading-none text-foreground">{element.symbol}</span>
               <span className="mt-2 text-center text-lg font-extrabold text-foreground">{element.name}</span>
-              <span className="mt-2 rounded-full bg-background/50 px-3 py-1 text-sm font-bold text-primary">{formatMass(element)}</span>
+              <span className="mt-2 rounded-full bg-background/50 px-3 py-1 text-sm font-bold text-primary">{formatMass(element, massMode)}</span>
             </div>
 
             <div>
@@ -228,38 +230,95 @@ const ElementDetails = ({ element, onBack, onClose }: { element: ChemElement; on
 
 const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTableLearningProps) => {
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const morePressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [columnView, setColumnView] = useState(false);
+  const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
+  const [massMenuOpen, setMassMenuOpen] = useState(false);
+  const [longPressTriggered, setLongPressTriggered] = useState(false);
+
+  const clearMorePressTimer = () => {
+    if (morePressTimerRef.current) {
+      clearTimeout(morePressTimerRef.current);
+      morePressTimerRef.current = null;
+    }
+  };
+
+  const handleMorePointerDown = () => {
+    clearMorePressTimer();
+    setLongPressTriggered(false);
+    morePressTimerRef.current = setTimeout(() => {
+      setLongPressTriggered(true);
+      setMassMenuOpen(true);
+    }, 550);
+  };
+
+  const handleMorePointerUp = () => {
+    clearMorePressTimer();
+  };
+
+  const handleMoreClick = () => {
+    if (longPressTriggered) {
+      setLongPressTriggered(false);
+      return;
+    }
+    setMassMenuOpen(false);
+    setColumnView((value) => !value);
+  };
   const selected = selectedElement ? ELEMENTS[selectedElement - 1] : undefined;
 
   return (
     <div className="pb-6">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="relative mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="rounded-xl bg-primary/10 p-2 text-primary"><Layers3 size={19} /></div>
           <div>
             <h2 className="font-display text-lg font-black text-foreground">Periodic Table</h2>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {columnView ? 'Column view • 118 elements' : '18 groups • 7 periods • 118 elements'}
+              {columnView ? `Column view • 118 elements • ${massMode === 'exact' ? 'Exact mass' : 'Round mass'}` : `18 groups • 7 periods • 118 elements • ${massMode === 'exact' ? 'Exact mass' : 'Round mass'}`}
             </p>
           </div>
         </div>
 
         <button
           type="button"
-          onClick={() => setColumnView((value) => !value)}
-          aria-label={columnView ? 'Show periodic table grid' : 'Show periodic table column view'}
-          title={columnView ? 'Show periodic table grid' : 'Show elements in columns'}
+          onPointerDown={handleMorePointerDown}
+          onPointerUp={handleMorePointerUp}
+          onPointerCancel={handleMorePointerUp}
+          onPointerLeave={handleMorePointerUp}
+          onClick={handleMoreClick}
+          onContextMenu={(event) => { event.preventDefault(); setLongPressTriggered(true); setMassMenuOpen(true); }}
+          aria-label={columnView ? 'Show periodic table grid; long press for atomic mass format' : 'Show elements in columns; long press for atomic mass format'}
+          title={columnView ? 'Tap to show grid • Long press for atomic mass format' : 'Tap to show columns • Long press for atomic mass format'}
           aria-pressed={columnView}
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-secondary text-secondary-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <MoreVertical size={19} />
         </button>
 
+        {massMenuOpen && (
+          <div className="absolute right-4 top-14 z-40 w-56 rounded-2xl border border-border bg-popover p-2 shadow-xl" role="dialog" aria-label="Atomic mass format">
+            <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Atomic Mass</p>
+            {(['exact', 'round'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => { setMassMode(mode); setMassMenuOpen(false); setLongPressTriggered(false); }}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-bold text-foreground hover:bg-secondary"
+                aria-pressed={massMode === mode}
+              >
+                <span>{mode === 'exact' ? 'Exact' : 'Round Figure'}</span>
+                {massMode === mode && <span className="text-primary">✓</span>}
+              </button>
+            ))}
+            <p className="px-3 pb-1 pt-2 text-[10px] font-semibold leading-relaxed text-muted-foreground">Long press the 3-dot button to change this format.</p>
+          </div>
+        )}
+
       </div>
 
       {columnView ? (
         <div className="max-h-[70dvh] overflow-y-auto overscroll-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-          <PeriodicColumnView onSelectElement={(number) => onSelectElement(number)} />
+          <PeriodicColumnView onSelectElement={(number) => onSelectElement(number)} massMode={massMode} />
         </div>
       ) : (
         <div
@@ -287,7 +346,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
                 <div className="flex items-center justify-center rounded-lg bg-background/40 text-[9px] font-black tabular-nums text-muted-foreground">{period}</div>
                 {GROUPS.map((group) => {
                   const el = findMainElement(period, group);
-                  if (el) return <ElementCell key={`${period}-${group}`} el={el} onClick={() => onSelectElement(el.number)} />;
+                  if (el) return <ElementCell key={`${period}-${group}`} el={el} massMode={massMode} onClick={() => onSelectElement(el.number)} />;
                   if (period === 6 && group === 3) return <FPlaceholder key={`${period}-${group}`} label="57–71" text="Lanthanides ↓" />;
                   if (period === 7 && group === 3) return <FPlaceholder key={`${period}-${group}`} label="89–103" text="Actinides ↓" />;
                   return <div key={`${period}-${group}`} className="aspect-square h-[72px] rounded-lg border border-transparent" aria-hidden="true" />;
@@ -304,7 +363,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
                 {GROUPS.map((group) => {
                   if (group < 4 || group > 18) return <div key={group} className="aspect-square h-[72px] rounded-lg border border-transparent" aria-hidden="true" />;
                   const el = F_ELEMENT_BY_POSITION.get(`${row}-${group}`);
-                  return el ? <ElementCell key={group} el={el} compact onClick={() => onSelectElement(el.number)} /> : <div key={group} className="aspect-square h-[72px] min-w-[72px]" />;
+                  return el ? <ElementCell key={group} el={el} compact massMode={massMode} onClick={() => onSelectElement(el.number)} /> : <div key={group} className="aspect-square h-[72px] min-w-[72px]" />;
                 })}
               </div>
             ))}
@@ -325,6 +384,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
       {selected && (
         <ElementDetails
           element={selected}
+          massMode={massMode}
           onBack={() => onSelectElement(null)}
           onClose={() => onSelectElement(null)}
         />
