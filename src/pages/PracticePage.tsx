@@ -33,6 +33,7 @@ interface TopicRange {
   to: number;
   exponentFrom?: number;
   exponentTo?: number;
+  repetition?: number;
   pctRangeMode?: 'preset' | 'custom';
   pctNumFrom?: number;
   pctDenFrom?: number;
@@ -50,7 +51,6 @@ interface PracticeConfig {
   timerEnabled: boolean;
   timerSeconds: number;
   sequential: boolean;
-  repetition: number;
 }
 
 type PeriodicQuestionType = 'atomic-number' | 'symbol' | 'name' | 'mass';
@@ -65,6 +65,8 @@ interface MixedPct {
 
 interface Question {
   text: string;
+  /** Repetition count resolved from this question's selected topic/range. */
+  topicRepetition?: number;
   superscript?: string;
   answer: number | string;
   answerType?: AnswerType;
@@ -91,6 +93,12 @@ const TOPICS = [
 
 const COUNTS = [10, 20, 25, 50];
 const REPETITIONS = [1, 2, 3, 5, 10];
+const MAX_REPETITION = Math.max(...REPETITIONS);
+
+function normalizeRepetition(value: number | undefined): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(MAX_REPETITION, Math.max(1, Math.floor(value)));
+}
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
@@ -266,7 +274,9 @@ function generateQuestions(config: PracticeConfig): Question[] {
   const allQuestions: Question[] = [];
 
   for (const topic of config.topics) {
-    const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label);
+    const topicRepetition = normalizeRepetition(topic.range.repetition);
+    const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label)
+      .map((question) => ({ ...question, topicRepetition }));
     allQuestions.push(...qs);
   }
 
@@ -277,12 +287,15 @@ function generateQuestions(config: PracticeConfig): Question[] {
     }
   }
 
-  // Questions is the number of base questions. When Repetition is enabled,
-  // each selected base question is presented the requested number of times.
-  const baseQuestions = config.infinite ? allQuestions : allQuestions.slice(0, config.count);
-  const repeatedQuestions = config.repetition > 1
-    ? baseQuestions.flatMap((question) => Array.from({ length: config.repetition }, () => ({ ...question })))
-    : baseQuestions;
+  // Preserve the existing global Questions count as the number of base
+  // questions. Repetition is resolved per selected topic/range, so every
+  // base question selected from a topic gets that topic's repetition count.
+  const baseQuestions = config.infinite
+    ? allQuestions
+    : allQuestions.slice(0, Math.max(0, config.count));
+  const repeatedQuestions = baseQuestions.flatMap((question) =>
+    Array.from({ length: normalizeRepetition(question.topicRepetition) }, () => ({ ...question }))
+  );
 
   if (config.mode === 'mcq') {
     return repeatedQuestions.map((q) => {
@@ -352,7 +365,7 @@ function generateQuestions(config: PracticeConfig): Question[] {
     });
   }
 
-  return config.infinite ? allQuestions : allQuestions.slice(0, config.count);
+  return repeatedQuestions;
 }
 
 /**
@@ -467,7 +480,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [topicRanges, setTopicRanges] = useState<Record<string, TopicRange>>(() => {
     const defaults: Record<string, TopicRange> = {};
     for (const t of TOPICS) {
-      defaults[t.id] = { ...t.defaultRange };
+      defaults[t.id] = { ...t.defaultRange, repetition: 1 };
     }
     if (initialTopic && initialContext) {
       const tid = initialTopic === 'square-roots' ? 'roots' : initialTopic;
@@ -486,7 +499,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [sequential, setSequential] = useState(false);
-  const [repetition, setRepetition] = useState(1);
 
   useEffect(() => {
     if (initialTopic && initialMode) {
@@ -505,7 +517,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         timerEnabled: timerOn,
         timerSeconds: timerOn ? (initialExtras?.timerSeconds ?? 10) : 9999,
         sequential: false,
-        repetition: 1,
       };
       startPractice(cfg);
     }
@@ -540,12 +551,22 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   };
 
   const startPractice = (cfg: PracticeConfig) => {
-    const qs = generateQuestions(cfg);
+    const normalizedConfig: PracticeConfig = {
+      ...cfg,
+      topics: cfg.topics.map((topic) => ({
+        ...topic,
+        range: {
+          ...topic.range,
+          repetition: normalizeRepetition(topic.range.repetition),
+        },
+      })),
+    };
+    const qs = generateQuestions(normalizedConfig);
     if (qs.length === 0) return;
     submitLockRef.current = false;
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     answerAdvanceTimerRef.current = undefined;
-    setConfig(cfg);
+    setConfig(normalizedConfig);
     setQuestions(qs);
     setCurrentQ(0);
     setScore({ correct: 0, wrong: 0 });
@@ -555,7 +576,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setSelectedOption(null);
     setElapsedTime(0);
     setSessionXP(0);
-    setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
+    setTimeLeft(normalizedConfig.timerEnabled ? normalizedConfig.timerSeconds : 9999);
   };
 
   useEffect(() => {
@@ -1263,14 +1284,43 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                     <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
                     <span className="text-xs text-muted-foreground">
                       {isTrig
-  ? '(Standard angles)'
+  ? `(Standard angles • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`
   : tid === 'periodic-table'
-    ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''})`
-    : `(${range.from}–${range.to})`}
+    ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''} • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`
+    : `(${range.from}–${range.to} • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`
                     </span>
                   </div>
                   {!isTrig && (isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />)}
                 </button>
+
+                <div className="border-t border-border px-4 py-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Repetition</label>
+                    <span className="text-[10px] font-semibold text-muted-foreground">
+                      {normalizeRepetition(range.repetition) === 1 ? 'Off — current quiz behavior' : `${normalizeRepetition(range.repetition)}× per selected item`}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {REPETITIONS.map((value) => {
+                      const selectedRepetition = normalizeRepetition(range.repetition);
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => updateRange(tid, 'repetition', value)}
+                          aria-pressed={selectedRepetition === value}
+                          className={`min-w-0 rounded-xl border py-2 text-xs font-bold transition-colors ${
+                            selectedRepetition === value
+                              ? 'gradient-primary border-primary text-primary-foreground'
+                              : 'bg-secondary border-border text-secondary-foreground'
+                          }`}
+                        >
+                          {value === 1 ? 'Off' : `${value}×`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 <AnimatePresence>
                   {isExpanded && (
@@ -1447,33 +1497,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </div>
       </div>
 
-      {/* Repetition */}
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Repetition</label>
-        <div className="grid grid-cols-5 gap-2">
-          {REPETITIONS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setRepetition(value)}
-              aria-pressed={repetition === value}
-              className={`py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                repetition === value
-                  ? 'gradient-primary text-primary-foreground'
-                  : 'bg-card border border-border text-foreground'
-              }`}
-            >
-              {value === 1 ? 'Off' : `${value}×`}
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
-          {repetition === 1
-            ? 'Off — existing question flow is unchanged.'
-            : `Each generated question is asked ${repetition} times. Questions count is the base count, so ${count} questions becomes up to ${count * repetition} attempts.`}
-        </p>
-      </div>
-
       {/* Answer Mode */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-2 block font-semibold">Answer Mode</label>
@@ -1530,14 +1553,21 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         onClick={() => {
           const topics = Array.from(selectedTopics).map(tid => {
             const info = TOPICS.find(t => t.id === tid)!;
-            return { id: tid, label: info.label, range: topicRanges[tid] };
+            const range = topicRanges[tid];
+            return {
+              id: tid,
+              label: info.label,
+              range: {
+                ...range,
+                repetition: normalizeRepetition(range?.repetition),
+              },
+            };
           });
           const cfg: PracticeConfig = {
             topics, count, infinite, mode,
             timerEnabled,
             timerSeconds: timerEnabled ? timerSeconds : 9999,
             sequential,
-            repetition,
           };
           startPractice(cfg);
         }}
