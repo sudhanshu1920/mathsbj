@@ -236,3 +236,4 @@ jobs:
           path: MathMaster-release.apk
           if-no-files-found: error
           retention-days: 14
+# Production APK build approved explicitly by user.
