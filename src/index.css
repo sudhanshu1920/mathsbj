@@ -1031,6 +1031,7 @@ html.desktop-mode .glass-panel {
 /* Mobile Mode only: float the bottom navigation like Desktop Mode.
    Desktop Mode keeps the original desktop positioning below. */
 html:not(.desktop-mode) nav.bottom-nav {
+  padding-bottom: 0 !important;
   left: 50%;
   right: auto;
   bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
