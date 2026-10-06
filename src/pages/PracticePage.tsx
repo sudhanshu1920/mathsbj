@@ -469,6 +469,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [sessionXP, setSessionXP] = useState(0);
   const xpPopId = useRef(0);
   const answerLockRef = useRef(false);
+  const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const elapsedRef = useRef<ReturnType<typeof setInterval>>();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -572,6 +573,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setElapsedTime(0);
     setSessionXP(0);
     setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
+    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    answerAdvanceTimerRef.current = undefined;
+    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    autoSubmitTimerRef.current = undefined;
     answerLockRef.current = false;
   };
 
@@ -688,7 +693,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       };
       setScore(newScore);
 
-      setTimeout(() => {
+      answerAdvanceTimerRef.current = setTimeout(() => {
+        answerAdvanceTimerRef.current = undefined;
         setFeedback(null);
         setInputValue('');
         setSelectedOption(null);
@@ -755,8 +761,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const resetToPracticeHome = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
+    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     timerRef.current = undefined;
     elapsedRef.current = undefined;
+    answerAdvanceTimerRef.current = undefined;
+    autoSubmitTimerRef.current = undefined;
+    answerLockRef.current = false;
     setShowExitDialog(false);
     setConfig(null);
     setQuestions([]);
@@ -768,6 +779,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setSelectedOption(null);
     setElapsedTime(0);
     setTimeLeft(0);
+    setXpPop(null);
+    setLevelUp(null);
+    setSessionXP(0);
   }, []);
 
   const handleExitConfirmed = useCallback(() => {
