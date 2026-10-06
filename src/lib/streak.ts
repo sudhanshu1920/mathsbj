@@ -133,7 +133,7 @@ export const setTarget = (minutes: number): StreakState => {
  * advances streak when target reached.
  */
 export const addSeconds = (seconds: number): StreakState => {
-  let s = evaluateStreak();
+  const s = evaluateStreak();
   if (!s.enabled || seconds <= 0) return s;
 
   const t = today();
