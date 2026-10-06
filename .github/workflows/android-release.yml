@@ -55,7 +55,7 @@ jobs:
         run: npm run build
 
       - name: Install Capacitor Android build tooling
-        run: npm install --no-save @capacitor/cli@8.1.2 @capacitor/android@8.1.2
+        run: npm install --no-save @capacitor/cli@8.5.2 @capacitor/android@8.5.2
 
       - name: Generate Android project from repository source
         run: npx cap add android
