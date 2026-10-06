@@ -51,7 +51,9 @@ export const getTablesProMode = (): boolean => {
 };
 export const setTablesProMode = (v: boolean) => {
   proCache = v;
-  try { localStorage.setItem(PRO_KEY, v ? '1' : '0'); } catch {}
+  try { localStorage.setItem(PRO_KEY, v ? '1' : '0'); } catch {
+    // Storage can be unavailable in restricted browser contexts.
+  }
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('tables-pro-updated'));
   }
