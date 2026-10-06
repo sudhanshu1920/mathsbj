@@ -37,7 +37,7 @@ const setSyncing = (v: boolean) => {
 export const isSyncing = () => syncing;
 
 export async function pullFromCloud(userId: string): Promise<void> {
-  if (!navigator.onLine) return;
+  if (!supabase || !navigator.onLine) return;
   setSyncing(true);
   try {
     const { data, error } = await supabase
@@ -74,7 +74,7 @@ export async function pullFromCloud(userId: string): Promise<void> {
 }
 
 export async function pushToCloud(userId: string): Promise<void> {
-  if (!navigator.onLine) return;
+  if (!supabase || !navigator.onLine) return;
   setSyncing(true);
   try {
     const payload = {
@@ -118,6 +118,7 @@ export function clearLocalUserData() {
 
 /** Initialize sync listeners for a signed-in user. Returns a cleanup fn. */
 export function startSync(userId: string): () => void {
+  if (!supabase) return () => {};
   void pullFromCloud(userId).then(() => { void pushToCloud(userId); });
 
   const onLocalChange = () => schedulePush(userId);
