@@ -13,6 +13,7 @@ jobs:
   build-android:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Native Android build is generated from the checked-in web source.
 
     steps:
       - name: Checkout repository
