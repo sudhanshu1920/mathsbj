@@ -183,11 +183,18 @@ jobs:
           sha256sum android/app/build/outputs/apk/release/app-release-unsigned.apk
           sha256sum android/app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Prepare release artifact
+        run: |
+          set -e
+          mkdir -p artifacts
+          cp android/app/build/outputs/apk/release/app-release-unsigned.apk artifacts/Math-SBJ-release-unsigned.apk
+          sha256sum artifacts/Math-SBJ-release-unsigned.apk > artifacts/Math-SBJ-release-unsigned.apk.sha256
+
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: math-sbj-release-apk
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          name: math-sbj-release-apk-v2
+          path: artifacts/*
           if-no-files-found: error
           retention-days: 14
 
