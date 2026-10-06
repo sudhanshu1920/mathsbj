@@ -41,6 +41,33 @@ describe('PeriodicTableLearning', () => {
     expect(screen.getByRole('heading', { name: 'Elements 11–20' })).toBeInTheDocument();
   });
 
+  it('keeps the range menu synchronized after swipe and ignores cancelled swipes', () => {
+    const onSelectElement = vi.fn();
+    render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /21–30 10 elements/i }));
+
+    const rangeSurface = screen.getByLabelText('Periodic Table elements 21 to 30');
+    fireEvent.pointerDown(rangeSurface, { clientX: 320, clientY: 160, pointerId: 11, pointerType: 'touch' });
+    fireEvent.pointerMove(rangeSurface, { clientX: 180, clientY: 160, pointerId: 11, pointerType: 'touch' });
+    fireEvent.pointerUp(rangeSurface, { clientX: 180, clientY: 160, pointerId: 11, pointerType: 'touch' });
+
+    expect(screen.getByRole('heading', { name: 'Elements 31–40' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+    expect(screen.getByRole('button', { name: /31–40 10 elements/i })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: /close element range menu/i }));
+
+    const nextSurface = screen.getByLabelText('Periodic Table elements 31 to 40');
+    fireEvent.pointerDown(nextSurface, { clientX: 320, clientY: 160, pointerId: 12, pointerType: 'touch' });
+    fireEvent.pointerMove(nextSurface, { clientX: 180, clientY: 160, pointerId: 12, pointerType: 'touch' });
+    fireEvent.pointerCancel(nextSurface, { clientX: 120, clientY: 160, pointerId: 12, pointerType: 'touch' });
+
+    expect(screen.getByRole('heading', { name: 'Elements 31–40' })).toBeInTheDocument();
+  });
+
   it('does not navigate beyond the first or last range', () => {
     const onSelectElement = vi.fn();
     render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
