@@ -3,11 +3,8 @@ name: Android APK
 run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
 
 on:
-  # Release APK build is manual by default; this approved build also triggers from main.
+  # APK builds are manual-only after the explicitly approved build.
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: write
