@@ -67,7 +67,7 @@ const ElementCell = ({ el, compact = false, onClick }: { el: ChemElement; compac
     onClick={onClick}
     aria-label={`${el.name}, atomic number ${el.number}`}
     title={`${el.name} (${el.symbol})`}
-    className={`relative aspect-square h-[76px] min-w-[76px] rounded-lg border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[76px] min-w-[76px]' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
+    className={`relative aspect-square h-[72px] min-w-[72px] rounded-lg border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[72px] min-w-[72px]' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
   >
     <span className="absolute left-1.5 top-1 text-[9px] font-bold text-muted-foreground">{el.number}</span>
     <span className="absolute right-1.5 top-1 text-[9px] font-semibold text-muted-foreground">{formatMass(el)}</span>
@@ -79,7 +79,7 @@ const ElementCell = ({ el, compact = false, onClick }: { el: ChemElement; compac
 );
 
 const FPlaceholder = ({ text, label }: { text: string; label: string }) => (
-  <div className="flex aspect-square h-[76px] min-w-[76px] items-center justify-center rounded-lg border border-dashed border-primary/25 bg-primary/5 px-1 text-center">
+  <div className="flex aspect-square h-[72px] min-w-[72px] items-center justify-center rounded-lg border border-dashed border-primary/25 bg-primary/5 px-1 text-center">
     <div>
       <div className="text-[9px] font-black uppercase tracking-wide text-primary">{label}</div>
       <div className="mt-1 text-[10px] font-semibold leading-tight text-muted-foreground">{text}</div>
@@ -198,17 +198,17 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
         }}
       >
         <div
-          className="periodic-table-content w-max min-w-[1420px] pb-1"
-          style={{ width: 'max-content', minWidth: '1420px', maxWidth: 'none' }}
+          className="periodic-table-content w-max min-w-[1416px] pb-1"
+          style={{ width: 'max-content', minWidth: '1416px', maxWidth: 'none' }}
         >
-          <div className="grid grid-cols-[48px_repeat(18,68px)] gap-1 pb-1 text-center">
+          <div className="grid grid-cols-[48px_repeat(18,72px)] gap-1 pb-1 text-center">
             <div />
             {GROUPS.map((g) => <div key={g} className="text-[9px] font-black text-muted-foreground">{g}</div>)}
           </div>
 
           <div className="space-y-1">
             {MAIN_ROWS.map((period) => (
-              <div key={period} className="grid grid-cols-[48px_repeat(18,68px)] gap-1">
+              <div key={period} className="grid grid-cols-[48px_repeat(18,72px)] gap-1">
                 <div className="flex items-center justify-center rounded-lg bg-background/40 text-[9px] font-black tabular-nums text-muted-foreground">{period}</div>
                 {GROUPS.map((group) => {
                   const el = findMainElement(period, group);
@@ -224,12 +224,12 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
           <div className="my-3 flex items-center gap-2"><div className="h-px flex-1 bg-border/70" /><span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">f-block</span><div className="h-px flex-1 bg-border/70" /></div>
           <div className="space-y-1">
             {F_BLOCK_ROWS.map(({ ypos: row, label, range }) => (
-              <div key={row} className="grid grid-cols-[48px_repeat(18,68px)] gap-1">
+              <div key={row} className="grid grid-cols-[48px_repeat(18,72px)] gap-1">
                 <div className="flex flex-col items-center justify-center rounded-lg bg-background/40 text-center"><span className="text-[8px] font-black uppercase text-muted-foreground">{label}</span><span className="mt-0.5 text-[8px] font-bold text-primary">{range}</span></div>
                 {GROUPS.map((group) => {
                   if (group < 4 || group > 18) return <div key={group} className="aspect-square h-[76px] rounded-lg border border-transparent" aria-hidden="true" />;
                   const el = F_ELEMENT_BY_POSITION.get(`${row}-${group}`);
-                  return el ? <ElementCell key={group} el={el} compact onClick={() => onSelectElement(el.number)} /> : <div key={group} className="aspect-square h-[76px] min-w-[76px]" />;
+                  return el ? <ElementCell key={group} el={el} compact onClick={() => onSelectElement(el.number)} /> : <div key={group} className="aspect-square h-[72px] min-w-[72px]" />;
                 })}
               </div>
             ))}
