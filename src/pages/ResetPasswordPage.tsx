@@ -15,6 +15,10 @@ const ResetPasswordPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!supabase) {
+      setReady(false);
+      return;
+    }
     // Supabase puts recovery tokens in the hash. Let Supabase consume the hash
     // first, then remove it from the URL so the token is not retained in history.
     const clearRecoveryHash = () => {
@@ -46,6 +50,10 @@ const ResetPasswordPage = () => {
     e.preventDefault();
     if (password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
     if (password !== confirm) { toast.error('Passwords do not match'); return; }
+    if (!supabase) {
+      toast.error('Account recovery is not configured in this build.');
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
