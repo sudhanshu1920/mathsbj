@@ -822,6 +822,67 @@ html, body {
   overflow: hidden;
 }
 
+/* Edge-to-edge Android system-area polish.
+   The overlays sit behind the status/gesture icons, keep the app visible
+   through them, and use a deliberately smaller bottom strip (50% of top). */
+:root {
+  --system-top-strip-height: 40px;
+  --system-bottom-strip-height: 20px;
+}
+
+.app-shell::before,
+.app-shell::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  pointer-events: none;
+  backdrop-filter: blur(16px) saturate(1.05);
+  -webkit-backdrop-filter: blur(16px) saturate(1.05);
+  background: linear-gradient(
+    180deg,
+    hsl(var(--card) / 0.68),
+    hsl(var(--background) / 0.38)
+  );
+}
+
+.app-shell::before {
+  top: 0;
+  height: var(--system-top-strip-height);
+  border-bottom: 1px solid hsl(var(--border) / 0.34);
+}
+
+.app-shell::after {
+  bottom: 0;
+  height: var(--system-bottom-strip-height);
+  border-top: 1px solid hsl(var(--border) / 0.26);
+}
+
+html.light .app-shell::before,
+html.light .app-shell::after {
+  background: linear-gradient(
+    180deg,
+    hsl(0 0% 100% / 0.62),
+    hsl(var(--card) / 0.30)
+  );
+  border-color: hsl(var(--border) / 0.42);
+}
+
+@media (max-width: 767px) {
+  :root {
+    --system-top-strip-height: 40px;
+    --system-bottom-strip-height: 20px;
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --system-top-strip-height: 40px;
+    --system-bottom-strip-height: 20px;
+  }
+}
+
 .app-frame {
   position: relative;
   transform: translateZ(0);
