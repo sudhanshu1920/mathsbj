@@ -112,7 +112,7 @@ const ColumnElementRow = ({ el, massMode, onClick }: { el: ChemElement; massMode
     whileTap={{ scale: 0.99 }}
     onClick={onClick}
     aria-label={`${el.name}, atomic number ${el.number}, symbol ${el.symbol}, atomic mass ${formatMass(el, massMode)}`}
-    className="grid w-full grid-cols-[58px_minmax(0,1fr)_68px_88px] items-center gap-2 rounded-xl border border-border/80 bg-card px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-secondary/60 active:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:grid-cols-[68px_minmax(0,1fr)_76px_100px]"
+    className="grid w-full grid-cols-[54px_minmax(0,1fr)_62px_78px] items-center gap-1.5 rounded-xl border border-border/80 bg-card px-2.5 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-secondary/60 active:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:grid-cols-[68px_minmax(0,1fr)_76px_100px]"
   >
     <span className="text-sm font-black tabular-nums text-primary">{el.number}</span>
     <span className="min-w-0 truncate text-sm font-bold text-foreground">{el.name}</span>
@@ -132,7 +132,7 @@ const PeriodicColumnView = ({ onSelectElement, massMode }: { onSelectElement: (n
   }, []);
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-3">
+    <div className="mx-auto w-full max-w-4xl space-y-3">
       {groups.map(({ from, to, elements }) => (
         <section key={`${from}-${to}`} className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
           <div className="flex items-center justify-between border-b border-border bg-secondary/70 px-3 py-2.5">
@@ -145,7 +145,7 @@ const PeriodicColumnView = ({ onSelectElement, massMode }: { onSelectElement: (n
           </div>
 
           <div className="space-y-1.5 p-2">
-            <div className="grid grid-cols-[58px_minmax(0,1fr)_68px_88px] gap-2 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-muted-foreground sm:grid-cols-[68px_minmax(0,1fr)_76px_100px]">
+            <div className="grid grid-cols-[54px_minmax(0,1fr)_62px_78px] gap-1.5 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-muted-foreground sm:grid-cols-[68px_minmax(0,1fr)_76px_100px]">
               <span>Atomic No.</span>
               <span>Name</span>
               <span className="text-center">Symbol</span>
