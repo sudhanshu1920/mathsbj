@@ -122,3 +122,22 @@ EOF
           git add apk-build-info.txt
           git commit -m "ci: record Android APK build metadata" || exit 0
           git push
+
+
+      - name: Record APK workflow status
+        if: always()
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+          APK_ARTIFACT_ID: ${{ steps.upload_apk.outputs.artifact-id }}
+          APK_RUN_ID: ${{ github.run_id }}
+          APK_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          printf 'run_id=%s\njob_status=%s\nartifact_id=%s\ncommit_sha=%s\n' \\
+            "$APK_RUN_ID" "$JOB_STATUS" "$APK_ARTIFACT_ID" "$APK_SHA" > apk-build-status.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@github.com"
+          git add apk-build-status.txt
+          git commit -m "ci: record APK workflow status" || exit 0
+          git push
