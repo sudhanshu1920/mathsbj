@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Atom, Layers3, MoreVertical, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import type { ChemElement } from '@/lib/periodicTable';
@@ -121,7 +121,7 @@ const ColumnElementRow = ({ el, massMode, onClick }: { el: ChemElement; massMode
   </motion.button>
 );
 
-const PeriodicColumnView = ({ onSelectElement }: { onSelectElement: (number: number) => void }) => {
+const PeriodicColumnView = ({ onSelectElement, massMode }: { onSelectElement: (number: number) => void; massMode: AtomicMassMode }) => {
   const groups = useMemo(() => {
     const result: Array<{ from: number; to: number; elements: ChemElement[] }> = [];
     for (let from = 1; from <= ELEMENTS.length; from += 10) {
@@ -175,7 +175,7 @@ const ElementDetails = ({ element, massMode, onBack, onClose }: { element: ChemE
     ['State', element.state],
     ['Radioactive', element.radioactive ? 'Yes' : 'No'],
     ['Electron Configuration', element.config],
-  ], [element]);
+  ], [element, massMode]);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 backdrop-blur-md">
@@ -255,6 +255,8 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
   const handleMorePointerUp = () => {
     clearMorePressTimer();
   };
+
+  useEffect(() => () => clearMorePressTimer(), []);
 
   const handleMoreClick = () => {
     if (longPressTriggered) {
