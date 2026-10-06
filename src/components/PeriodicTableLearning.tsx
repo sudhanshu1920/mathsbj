@@ -106,13 +106,20 @@ const Legend = () => {
   );
 };
 
-const PERIODIC_GROUPS = Array.from(
-  { length: Math.ceil(ELEMENTS.length / 10) },
-  (_, index) => {
-    const from = index * 10 + 1;
-    return { from, to: Math.min(from + 9, ELEMENTS.length) };
-  },
-);
+const PERIODIC_GROUPS = [
+  { from: 1, to: 10 },
+  { from: 11, to: 20 },
+  { from: 21, to: 30 },
+  { from: 31, to: 40 },
+  { from: 41, to: 50 },
+  { from: 51, to: 60 },
+  { from: 61, to: 70 },
+  { from: 71, to: 80 },
+  { from: 81, to: 90 },
+  { from: 91, to: 100 },
+  { from: 101, to: 110 },
+  { from: 110, to: 118 },
+] as const;
 
 const PeriodicRangePicker = ({
   onSelectRange,
@@ -474,10 +481,10 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
             ))}
           </div>
 
-          <div className="periodic-table-legend mt-4">
-            <Legend />
-          </div>
         </div>
+        </div>
+        <div className="periodic-table-legend mt-4">
+          <Legend />
         </div>
       )}
 
