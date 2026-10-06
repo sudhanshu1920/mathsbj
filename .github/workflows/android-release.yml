@@ -63,13 +63,16 @@ jobs:
       - name: Sync web build into Android project
         run: npx cap sync android
 
-      - name: Apply repository favicon as Android launcher icon
+      - name: Generate Android launcher icon from repository favicon
         shell: bash
         run: |
           set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
           mkdir -p resources
           git show "HEAD:public/favicon.ico" > resources/icon.ico
-          convert resources/icon.ico -resize 1024x1024 -background none -gravity center -extent 1024x1024 resources/icon.png
+          convert resources/icon.ico -alpha on -resize 1024x1024 -background none -gravity center -extent 1024x1024 resources/icon.png
+          test -s resources/icon.png
           npx --yes @capacitor/assets@3.0.5 generate --android
         env:
           CI: "true"
