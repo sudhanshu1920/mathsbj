@@ -102,26 +102,26 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   const renderHeader = (title: string, localBack: () => void, showPractice = true) => {
     const goBack = onBack ?? localBack;
     return (
-    <div className="top-panel flex items-center justify-between gap-2 mb-2 px-1 py-0.5">
-      <button onClick={goBack} className="p-1.5 -ml-1.5 text-primary">
-        <ArrowLeft size={18} />
+    <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
+      <button onClick={goBack} className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-full text-primary" aria-label="Back">
+        <ArrowLeft size={16} />
       </button>
-      <h2 className="font-display font-bold text-base text-foreground sm:text-lg">{title}</h2>
-      <div className="flex items-center gap-1.5">
+      <h2 className="min-w-0 flex-1 text-center font-display font-bold text-sm text-foreground sm:text-base truncate">{title}</h2>
+      <div className="flex items-center gap-1.5 shrink-0">
         {showPractice && (
           <button
             onClick={() => {
               if (activeTopic === 'periodic-table') onStartPractice?.(activeTopic);
               else setShowPracticeMode(true);
             }}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full gradient-primary text-primary-foreground text-[11px] font-semibold"
+            className="h-7 inline-flex items-center gap-1 px-2 rounded-full gradient-primary text-primary-foreground text-[10px] font-semibold"
           >
-            <Target size={13} />
+            <Target size={12} />
             Practice
           </button>
         )}
-        <ThemeToggle />
-        <DesktopModeToggle />
+        <ThemeToggle compact />
+        <DesktopModeToggle compact />
       </div>
     </div>
     );
@@ -536,17 +536,17 @@ const TopStatBar = () => {
   }, []);
 
   return (
-    <div className="top-panel flex items-center justify-between gap-2 mb-3 px-3 py-0.5">
+    <div className="app-topbar-stats flex items-center justify-between gap-2" data-app-topbar>
       <div>
-        <h1 className="font-display font-black text-xl text-foreground leading-none">Math Quest</h1>
-        <p className="text-[11px] text-muted-foreground font-display font-bold uppercase tracking-wider mt-0.5">
+        <h1 className="font-display font-black text-base text-foreground leading-none">Math Quest</h1>
+        <p className="text-[9px] text-muted-foreground font-display font-bold uppercase tracking-wider mt-px leading-none">
           Level {levelFromXP(xp)}
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <StatPill icon={Flame} value={streak} color="warning" />
-        <StatPill icon={Zap} value={xp} color="primary" />
-        <StatPill icon={Heart} value={hearts} color="destructive" />
+        <StatPill compact icon={Flame} value={streak} color="warning" />
+        <StatPill compact icon={Zap} value={xp} color="primary" />
+        <StatPill compact icon={Heart} value={hearts} color="destructive" />
       </div>
     </div>
   );
