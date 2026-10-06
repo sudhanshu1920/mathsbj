@@ -57,14 +57,18 @@ const normalizeMode = (value: string | null): ModeId =>
 export const getTheme = (): ThemeId => {
   try {
     return normalizeTheme(localStorage.getItem(KEY));
-  } catch {}
+  } catch {
+    // Local storage may be unavailable.
+  }
   return DEFAULT_THEME;
 };
 
 export const getMode = (): ModeId => {
   try {
     return normalizeMode(localStorage.getItem(MODE_KEY));
-  } catch {}
+  } catch {
+    // Local storage may be unavailable.
+  }
   return DEFAULT_MODE;
 };
 
