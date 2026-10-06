@@ -102,21 +102,21 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   const renderHeader = (title: string, localBack: () => void, showPractice = true) => {
     const goBack = onBack ?? localBack;
     return (
-    <div className="flex items-center justify-between mb-4">
-      <button onClick={goBack} className="p-2 -ml-2 text-primary">
-        <ArrowLeft size={20} />
+    <div className="top-panel flex items-center justify-between gap-2 mb-2 px-1 py-0.5">
+      <button onClick={goBack} className="p-1.5 -ml-1.5 text-primary">
+        <ArrowLeft size={18} />
       </button>
-      <h2 className="font-display font-bold text-lg text-foreground">{title}</h2>
-      <div className="flex items-center gap-2">
+      <h2 className="font-display font-bold text-base text-foreground sm:text-lg">{title}</h2>
+      <div className="flex items-center gap-1.5">
         {showPractice && (
           <button
             onClick={() => {
               if (activeTopic === 'periodic-table') onStartPractice?.(activeTopic);
               else setShowPracticeMode(true);
             }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full gradient-primary text-primary-foreground text-[11px] font-semibold"
           >
-            <Target size={14} />
+            <Target size={13} />
             Practice
           </button>
         )}
@@ -474,7 +474,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
       <TopStatBar />
 
       {/* HUD welcome strip */}
-      <div className="glass-panel rounded-2xl px-4 py-3 mb-5 flex items-center justify-between">
+      <div className="glass-panel rounded-2xl px-3 py-2 mb-4 flex items-center justify-between">
         <div>
           <p className="font-display font-extrabold text-foreground leading-tight tracking-wide neon-text">
             READY PLAYER
@@ -536,9 +536,9 @@ const TopStatBar = () => {
   }, []);
 
   return (
-    <div className="flex items-center justify-between gap-2 mb-5">
+    <div className="top-panel flex items-center justify-between gap-2 mb-3 px-3 py-1.5">
       <div>
-        <h1 className="font-display font-black text-2xl text-foreground leading-none">Math Quest</h1>
+        <h1 className="font-display font-black text-xl text-foreground leading-none">Math Quest</h1>
         <p className="text-[11px] text-muted-foreground font-display font-bold uppercase tracking-wider mt-0.5">
           Level {levelFromXP(xp)}
         </p>
