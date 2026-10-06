@@ -34,7 +34,7 @@ export function brokeredPreviewStorage() {
       if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         return crypto.randomUUID();
       }
-    } catch {}
+    } catch { /* use Math.random fallback */ }
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
   };
 
