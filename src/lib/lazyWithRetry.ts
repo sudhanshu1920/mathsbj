@@ -7,6 +7,8 @@ const RELOAD_KEY = "chunk-reload-at";
  * hashed files that no longer exist after a deploy). Retries once, then
  * force-reloads the page a single time to pick up the new build.
  */
+// React's ComponentType constraint uses any in its public type signature; keep the boundary explicit.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function lazyWithRetry<T extends ComponentType<any>>(
   load: () => Promise<{ default: T }>,
 ) {
