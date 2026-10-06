@@ -25,6 +25,12 @@ import {
 
 import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect } from '@/lib/trigData';
 import { ELEMENTS, formatMass } from '@/lib/periodicTable';
+import {
+  expandQuizQuestionPool,
+  MAX_QUIZ_REPETITION,
+  normalizeQuizRepetition,
+  QUIZ_REPETITION_OPTIONS,
+} from '@/lib/quizRepetition';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -92,13 +98,8 @@ const TOPICS = [
 ];
 
 const COUNTS = [10, 20, 25, 50];
-const REPETITIONS = [1, 2, 3, 5, 10];
-const MAX_REPETITION = Math.max(...REPETITIONS);
-
-function normalizeRepetition(value: number | undefined): number {
-  if (!Number.isFinite(value)) return 1;
-  return Math.min(MAX_REPETITION, Math.max(1, Math.floor(value)));
-}
+const REPETITIONS = QUIZ_REPETITION_OPTIONS;
+const MAX_REPETITION = MAX_QUIZ_REPETITION;
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
@@ -274,7 +275,7 @@ function generateQuestions(config: PracticeConfig): Question[] {
   const allQuestions: Question[] = [];
 
   for (const topic of config.topics) {
-    const topicRepetition = normalizeRepetition(topic.range.repetition);
+    const topicRepetition = normalizeQuizRepetition(topic.range.repetition);
     const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label)
       .map((question) => ({ ...question, topicRepetition }));
     allQuestions.push(...qs);
@@ -293,8 +294,10 @@ function generateQuestions(config: PracticeConfig): Question[] {
   const baseQuestions = config.infinite
     ? allQuestions
     : allQuestions.slice(0, Math.max(0, config.count));
-  const repeatedQuestions = baseQuestions.flatMap((question) =>
-    Array.from({ length: normalizeRepetition(question.topicRepetition) }, () => ({ ...question }))
+  const repeatedQuestions = expandQuizQuestionPool(
+    baseQuestions,
+    (question) => question.topicRepetition,
+    config.sequential,
   );
 
   if (config.mode === 'mcq') {
@@ -557,7 +560,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         ...topic,
         range: {
           ...topic.range,
-          repetition: normalizeRepetition(topic.range.repetition),
+          repetition: normalizeQuizRepetition(topic.range.repetition),
         },
       })),
     };
@@ -1288,10 +1291,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                     <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
                     <span className="text-xs text-muted-foreground">
                       {isTrig
-  ? `(Standard angles • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`
+  ? `(Standard angles • Rep ${normalizeQuizRepetition(range.repetition) === 1 ? 'Off' : `${normalizeQuizRepetition(range.repetition)}×`})`
   : tid === 'periodic-table'
-    ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''} • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`
-    : `(${range.from}–${range.to} • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`}
+    ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''} • Rep ${normalizeQuizRepetition(range.repetition) === 1 ? 'Off' : `${normalizeQuizRepetition(range.repetition)}×`})`
+    : `(${range.from}–${range.to} • Rep ${normalizeQuizRepetition(range.repetition) === 1 ? 'Off' : `${normalizeQuizRepetition(range.repetition)}×`})`}
                     </span>
                   </div>
                   {!isTrig && (isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />)}
@@ -1301,12 +1304,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Repetition</label>
                     <span className="text-[10px] font-semibold text-muted-foreground">
-                      {normalizeRepetition(range.repetition) === 1 ? 'Off — current quiz behavior' : `${normalizeRepetition(range.repetition)}× per selected item`}
+                      {normalizeQuizRepetition(range.repetition) === 1 ? 'Off — current quiz behavior' : `${normalizeQuizRepetition(range.repetition)}× per selected item`}
                     </span>
                   </div>
                   <div className="grid grid-cols-5 gap-2">
                     {REPETITIONS.map((value) => {
-                      const selectedRepetition = normalizeRepetition(range.repetition);
+                      const selectedRepetition = normalizeQuizRepetition(range.repetition);
                       return (
                         <button
                           key={value}
@@ -1563,7 +1566,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               label: info.label,
               range: {
                 ...range,
-                repetition: normalizeRepetition(range?.repetition),
+                repetition: normalizeQuizRepetition(range?.repetition),
               },
             };
           });
