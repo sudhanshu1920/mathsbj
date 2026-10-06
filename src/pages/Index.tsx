@@ -419,7 +419,9 @@ const Index = () => {
 
           </div>
         </div>
-        <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
+        {!(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practiceMode) && (
+          <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
+        )}
       </div>
 
       <CommandPalette
