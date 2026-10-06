@@ -25,3 +25,17 @@ export function getAdjacentPeriodicRangeIndex(
 export function isValidPeriodicRangeIndex(index: number): boolean {
   return Number.isInteger(index) && index >= 0 && index < PERIODIC_GROUPS.length;
 }
+
+export function getPeriodicSwipeDirection(
+  dx: number,
+  dy: number,
+  threshold = 56,
+): 'next' | 'previous' | null {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(threshold) || threshold <= 0) {
+    return null;
+  }
+
+  const horizontal = Math.abs(dx) >= threshold && Math.abs(dx) > Math.abs(dy) * 1.15;
+  if (!horizontal) return null;
+  return dx < 0 ? 'next' : 'previous';
+}
