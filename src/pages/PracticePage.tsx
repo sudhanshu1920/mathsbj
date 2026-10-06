@@ -140,7 +140,9 @@ function rangeArray(from: number, to: number, maxItems = MAX_QUIZ_RANGE_VALUE): 
 function generateQuestionsForTopic(topicId: string, range: TopicRange, label: string): Question[] {
   const questions: Question[] = [];
   const { from, to } = range;
-  const nums = rangeArray(from, to);
+  const safeFrom = clampQuizValue(from, 1, MAX_QUIZ_RANGE_VALUE, 1);
+  const safeTo = clampQuizValue(to, 1, MAX_QUIZ_RANGE_VALUE, safeFrom);
+  const nums = rangeArray(safeFrom, safeTo);
 
   if (topicId === 'tables') {
     const proMax = getTablesProMode() ? 20 : 10;
@@ -167,9 +169,9 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       questions.push({ text: `∛${n * n * n} = ?`, answer: n, topicLabel: label });
     }
   } else if (topicId === 'powers') {
-    const expFrom = range.exponentFrom || 1;
-    const expTo = range.exponentTo || 10;
-    const exps = rangeArray(expFrom, expTo);
+    const expFrom = clampQuizValue(range.exponentFrom ?? 1, 1, MAX_POWER_EXPONENT, 1);
+    const expTo = clampQuizValue(range.exponentTo ?? 10, 1, MAX_POWER_EXPONENT, expFrom);
+    const exps = rangeArray(expFrom, expTo, MAX_POWER_EXPONENT);
     for (const n of nums) {
       for (const e of exps) {
         questions.push({ text: `${n}`, superscript: `${e}`, answer: Math.pow(n, e), topicLabel: label });
@@ -232,12 +234,16 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
     if (range.pctRangeMode === 'custom' && range.pctNumFrom !== undefined && range.pctDenFrom !== undefined && range.pctNumTo !== undefined && range.pctDenTo !== undefined) {
       if (range.pctDenFrom === range.pctDenTo) {
         const d = range.pctDenFrom;
-        const pctNums = rangeArray(range.pctNumFrom, range.pctNumTo);
+        const safeNumFrom = clampQuizValue(range.pctNumFrom, 0, MAX_QUIZ_RANGE_VALUE, 0);
+        const safeNumTo = clampQuizValue(range.pctNumTo, 0, MAX_QUIZ_RANGE_VALUE, safeNumFrom);
+        const pctNums = rangeArray(safeNumFrom, safeNumTo);
         for (const n of pctNums) {
           pairs.push({ n, d });
         }
       } else {
-        const dens = rangeArray(range.pctDenFrom, range.pctDenTo);
+        const safeDenFrom = clampQuizValue(range.pctDenFrom, 1, MAX_QUIZ_RANGE_VALUE, 1);
+        const safeDenTo = clampQuizValue(range.pctDenTo, 1, MAX_QUIZ_RANGE_VALUE, safeDenFrom);
+        const dens = rangeArray(safeDenFrom, safeDenTo);
         for (const d of dens) {
           if (d === 0) continue;
           pairs.push({ n: 1, d });
