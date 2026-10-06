@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
 const KEYS = {
   progress: 'math-app-progress',
@@ -59,7 +60,7 @@ export async function pullFromCloud(userId: string): Promise<void> {
       if (data.progress && Object.keys(data.progress as object).length) writeJSON(KEYS.progress, data.progress);
       if (data.analytics && Object.keys(data.analytics as object).length) writeJSON(KEYS.analytics, data.analytics);
       if (data.streak && Object.keys(data.streak as object).length) writeJSON(KEYS.streak, data.streak);
-      const anyXP = (data as any).xp;
+      const anyXP = (data as unknown as { xp?: unknown }).xp;
       if (anyXP && Object.keys(anyXP as object).length) writeJSON(KEYS.xp, anyXP);
       setMeta({ ...localMeta, userId, lastPulledAt: new Date().toISOString(), lastPushAt: remoteTs });
       dispatchUpdated();
@@ -86,7 +87,7 @@ export async function pushToCloud(userId: string): Promise<void> {
       client_updated_at: new Date().toISOString(),
     };
     // xp column may not exist in remote schema — server-ignore unknown gracefully
-    const { error } = await supabase.from('user_data').upsert(payload as any, { onConflict: 'user_id' });
+    const { error } = await supabase.from('user_data').upsert(payload as unknown as Database['public']['Tables']['user_data']['Insert'], { onConflict: 'user_id' });
     if (error) throw error;
     setMeta({ ...getMeta(), userId, lastPushAt: Date.now() });
   } catch (e) {
