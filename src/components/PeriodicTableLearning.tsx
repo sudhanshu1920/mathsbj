@@ -179,7 +179,6 @@ const PeriodicRangeView = ({
   massMode: AtomicMassMode;
 }) => {
   const pointerStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
-  const pointerAxisRef = useRef<'x' | 'y' | null>(null);
   const group = PERIODIC_GROUPS[rangeIndex] || PERIODIC_GROUPS[0];
   const elements = useMemo(() => ELEMENTS.slice(group.from - 1, group.to), [group.from, group.to]);
   const hasPrevious = getAdjacentPeriodicRangeIndex(rangeIndex, 'previous') !== rangeIndex;
@@ -187,7 +186,6 @@ const PeriodicRangeView = ({
 
   const resetPointer = () => {
     pointerStartRef.current = null;
-    pointerAxisRef.current = null;
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -197,32 +195,6 @@ const PeriodicRangeView = ({
       y: event.clientY,
       pointerId: event.pointerId,
     };
-    pointerAxisRef.current = null;
-  };
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const start = pointerStartRef.current;
-    if (!start || start.pointerId !== event.pointerId) return;
-
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-
-    if (!pointerAxisRef.current && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
-      pointerAxisRef.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-      if (pointerAxisRef.current === 'x') {
-        try {
-          event.currentTarget.setPointerCapture(event.pointerId);
-        } catch {
-          // Pointer capture is optional; the gesture can still complete without it.
-        }
-      } else {
-        resetPointer();
-      }
-    }
-
-    if (pointerAxisRef.current === 'x') {
-      event.preventDefault();
-    }
   };
 
   const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -231,15 +203,9 @@ const PeriodicRangeView = ({
 
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
-    const isHorizontalSwipe = pointerAxisRef.current === 'x' &&
+    const isHorizontalSwipe =
       Math.abs(dx) >= 56 &&
       Math.abs(dx) > Math.abs(dy) * 1.15;
-
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture may already be released by the platform.
-    }
 
     resetPointer();
 
@@ -254,7 +220,6 @@ const PeriodicRangeView = ({
       className="w-full touch-pan-y select-none"
       style={{ touchAction: 'pan-y' }}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
       onPointerCancel={() => { resetPointer(); }}
       aria-label={`Periodic Table elements ${group.from} to ${group.to}`}
