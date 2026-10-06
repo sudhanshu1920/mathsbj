@@ -37,12 +37,12 @@ const setSyncing = (v: boolean) => {
 export const isSyncing = () => syncing;
 
 export async function pullFromCloud(userId: string): Promise<void> {
-  if (!navigator.onLine) return;
+  if (!supabase || !navigator.onLine) return;
   setSyncing(true);
   try {
     const { data, error } = await supabase
       .from('user_data')
-      .select('progress, analytics, streak, client_updated_at')
+      .select('progress, analytics, streak, xp, client_updated_at')
       .eq('user_id', userId)
       .maybeSingle();
     if (error) throw error;
@@ -59,8 +59,7 @@ export async function pullFromCloud(userId: string): Promise<void> {
       if (data.progress && Object.keys(data.progress as object).length) writeJSON(KEYS.progress, data.progress);
       if (data.analytics && Object.keys(data.analytics as object).length) writeJSON(KEYS.analytics, data.analytics);
       if (data.streak && Object.keys(data.streak as object).length) writeJSON(KEYS.streak, data.streak);
-      const anyXP = (data as any).xp;
-      if (anyXP && Object.keys(anyXP as object).length) writeJSON(KEYS.xp, anyXP);
+      if (data.xp && Object.keys(data.xp as object).length) writeJSON(KEYS.xp, data.xp);
       setMeta({ ...localMeta, userId, lastPulledAt: new Date().toISOString(), lastPushAt: remoteTs });
       dispatchUpdated();
     } else {
@@ -74,7 +73,7 @@ export async function pullFromCloud(userId: string): Promise<void> {
 }
 
 export async function pushToCloud(userId: string): Promise<void> {
-  if (!navigator.onLine) return;
+  if (!supabase || !navigator.onLine) return;
   setSyncing(true);
   try {
     const payload = {
@@ -86,7 +85,7 @@ export async function pushToCloud(userId: string): Promise<void> {
       client_updated_at: new Date().toISOString(),
     };
     // xp column may not exist in remote schema — server-ignore unknown gracefully
-    const { error } = await supabase.from('user_data').upsert(payload as any, { onConflict: 'user_id' });
+    const { error } = await supabase.from('user_data').upsert(payload, { onConflict: 'user_id' });
     if (error) throw error;
     setMeta({ ...getMeta(), userId, lastPushAt: Date.now() });
   } catch (e) {
@@ -118,6 +117,7 @@ export function clearLocalUserData() {
 
 /** Initialize sync listeners for a signed-in user. Returns a cleanup fn. */
 export function startSync(userId: string): () => void {
+  if (!supabase) return () => {};
   void pullFromCloud(userId).then(() => { void pushToCloud(userId); });
 
   const onLocalChange = () => schedulePush(userId);
