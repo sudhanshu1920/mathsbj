@@ -51,6 +51,19 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Prepare supplied SBJ app logo
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          base64 -d public/app-icon.b64 > /tmp/sbj-logo.jpg
+          test -s /tmp/sbj-logo.jpg
+          identify /tmp/sbj-logo.jpg
+          convert /tmp/sbj-logo.jpg -auto-orient -resize 1024x1024^ -gravity center -extent 1024x1024 public/app-icon.png
+          identify -format '%wx%h' public/app-icon.png | grep -qx '1024x1024'
+          test -s public/app-icon.png
+
       - name: Build web application
         run: npm run build
 
@@ -63,15 +76,12 @@ jobs:
       - name: Sync web build into Android project
         run: npx cap sync android
 
-      - name: Generate Android launcher icon from repository favicon
+      - name: Generate Android launcher icon from supplied SBJ logo
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq imagemagick
           mkdir -p resources
-          git show "HEAD:public/favicon.ico" > resources/icon.ico
-          convert resources/icon.ico -alpha on -resize 1024x1024 -background none -gravity center -extent 1024x1024 resources/icon.png
+          cp public/app-icon.png resources/icon.png
           test -s resources/icon.png
           npx --yes @capacitor/assets@3.0.5 generate --android
         env:
