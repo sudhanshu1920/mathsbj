@@ -6,6 +6,8 @@ import { getStreak, StreakState } from '@/lib/streak';
 import ProgressAnalytics from '@/components/ProgressAnalytics';
 import XPBar from '@/components/XPBar';
 import SettingsPanel from '@/components/SettingsPanel';
+import ThemeToggle from '@/components/ThemeToggle';
+import DesktopModeToggle from '@/components/DesktopModeToggle';
 
 const ProgressPage = () => {
   const [data, setData] = useState<ProgressData>(getProgress());
@@ -60,33 +62,36 @@ const ProgressPage = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h1 className="font-display font-bold text-2xl text-glow">Progress</h1>
-        <div className="flex items-center gap-2">
+      {/* Top App Bar */}
+      <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
+        <h1 className="font-display font-bold text-base sm:text-lg text-foreground">Progress</h1>
+        <div className="flex items-center gap-1.5">
           <motion.div
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full glass ${streak.current > 0 ? 'shadow-[0_0_18px_hsl(var(--warning)/0.45)] border-warning/40' : ''}`}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full glass ${streak.current > 0 ? 'shadow-[0_0_18px_hsl(var(--warning)/0.45)] border-warning/40' : ''}`}
+            aria-label={`Current streak ${streak.current}`}
           >
             <motion.span
               animate={streak.current > 0 ? { scale: [1, 1.15, 1] } : {}}
               transition={{ repeat: Infinity, duration: 1.6 }}
               className="inline-flex"
             >
-              <Flame size={18} className={streak.current > 0 ? 'text-warning' : 'text-muted-foreground'} />
+              <Flame size={13} className={streak.current > 0 ? 'text-warning' : 'text-muted-foreground'} />
             </motion.span>
-            <span className="font-display font-bold text-lg text-foreground">{streak.current}</span>
+            <span className="font-display font-bold text-[11px] text-foreground">{streak.current}</span>
           </motion.div>
           <motion.button
             whileTap={{ scale: 0.92 }}
             whileHover={{ rotate: 35 }}
             onClick={() => setShowSettings(true)}
             aria-label="Settings"
-            className="p-2 rounded-full glass text-muted-foreground hover:text-primary transition-colors"
+            className="h-7 w-7 inline-flex items-center justify-center rounded-full glass text-muted-foreground hover:text-primary transition-colors"
           >
-            <SettingsIcon size={18} />
+            <SettingsIcon size={15} />
           </motion.button>
+          <ThemeToggle compact />
+          <DesktopModeToggle compact />
         </div>
       </div>
 
