@@ -6,7 +6,7 @@ import { Mail, Lock, User as UserIcon, Loader2, ArrowLeft, Zap } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, supabaseConfigured } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
 import { setGuest } from '@/lib/guest';
 
@@ -30,6 +30,10 @@ const AuthPage = ({ initialMode = 'login', onBack }: AuthPageProps = {}) => {
   const [busy, setBusy] = useState(false);
 
   const googleSignIn = async () => {
+    if (!supabaseConfigured || !supabase) {
+      toast.error('Account sign-in is not configured in this build. Continue as Guest.');
+      return;
+    }
     setBusy(true);
     try {
       const result = await lovable.auth.signInWithOAuth('google', {
@@ -54,6 +58,10 @@ const AuthPage = ({ initialMode = 'login', onBack }: AuthPageProps = {}) => {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabaseConfigured || !supabase) {
+      toast.error('Account sign-in is not configured in this build. Continue as Guest.');
+      return;
+    }
     setBusy(true);
     try {
       const e1 = emailSchema.safeParse(email);
