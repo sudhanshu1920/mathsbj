@@ -121,43 +121,124 @@ const ColumnElementRow = ({ el, massMode, onClick }: { el: ChemElement; massMode
   </motion.button>
 );
 
-const PeriodicColumnView = ({ onSelectElement, massMode }: { onSelectElement: (number: number) => void; massMode: AtomicMassMode }) => {
-  const groups = useMemo(() => {
-    const result: Array<{ from: number; to: number; elements: ChemElement[] }> = [];
-    for (let from = 1; from <= ELEMENTS.length; from += 10) {
-      const to = Math.min(from + 9, ELEMENTS.length);
-      result.push({ from, to, elements: ELEMENTS.slice(from - 1, to) });
-    }
-    return result;
-  }, []);
+const PERIODIC_GROUPS = Array.from(
+  { length: Math.ceil(ELEMENTS.length / 10) },
+  (_, index) => {
+    const from = index * 10 + 1;
+    return { from, to: Math.min(from + 9, ELEMENTS.length) };
+  },
+);
+
+const PeriodicRangePicker = ({
+  onSelectRange,
+}: {
+  onSelectRange: (index: number) => void;
+}) => (
+  <div className="w-full py-1">
+    <div className="mb-3 text-center">
+      <p className="font-display text-sm font-black uppercase tracking-wide text-foreground">Element Groups</p>
+      <p className="mt-1 text-[11px] font-semibold text-muted-foreground">Select a range, then swipe left/right to move to the next or previous group.</p>
+    </div>
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+      {PERIODIC_GROUPS.map(({ from, to }, index) => (
+        <button
+          key={from}
+          type="button"
+          onClick={() => onSelectRange(index)}
+          className="rounded-2xl border border-border bg-secondary/70 px-3 py-4 text-left transition-all hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <span className="block font-display text-lg font-black text-foreground">{from}–{to}</span>
+          <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            {to - from + 1} elements
+          </span>
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+const PeriodicRangeView = ({
+  rangeIndex,
+  onSelectElement,
+  onChangeRange,
+  massMode,
+}: {
+  rangeIndex: number;
+  onSelectElement: (number: number) => void;
+  onChangeRange: (index: number) => void;
+  massMode: AtomicMassMode;
+}) => {
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const group = PERIODIC_GROUPS[rangeIndex];
+  const elements = ELEMENTS.slice(group.from - 1, group.to);
+  const hasPrevious = rangeIndex > 0;
+  const hasNext = rangeIndex < PERIODIC_GROUPS.length - 1;
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.changedTouches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 55 || Math.abs(dx) <= Math.abs(dy) * 1.15) return;
+
+    if (dx < 0 && hasNext) onChangeRange(rangeIndex + 1);
+    if (dx > 0 && hasPrevious) onChangeRange(rangeIndex - 1);
+  };
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-3">
-      {groups.map(({ from, to, elements }) => (
-        <section key={`${from}-${to}`} className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
-          <div className="flex items-center justify-between border-b border-border bg-secondary/70 px-3 py-2.5">
-            <h3 className="font-display text-sm font-black uppercase tracking-wide text-foreground">
-              Elements {from}–{to}
-            </h3>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              {elements.length} elements
-            </span>
-          </div>
+    <div
+      className="w-full touch-pan-y"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      aria-label={`Periodic Table elements ${group.from} to ${group.to}`}
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => onChangeRange(rangeIndex - 1)}
+          disabled={!hasPrevious}
+          className="rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ← Previous
+        </button>
+        <div className="text-center">
+          <h3 className="font-display text-lg font-black text-foreground">Elements {group.from}–{group.to}</h3>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{rangeIndex + 1}/{PERIODIC_GROUPS.length}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onChangeRange(rangeIndex + 1)}
+          disabled={!hasNext}
+          className="rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next →
+        </button>
+      </div>
 
-          <div className="space-y-1.5 p-2">
-            <div className="grid grid-cols-[54px_minmax(0,1fr)_62px_78px] gap-1.5 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-muted-foreground sm:grid-cols-[68px_minmax(0,1fr)_76px_100px]">
-              <span>Atomic No.</span>
-              <span>Name</span>
-              <span className="text-center">Symbol</span>
-              <span className="text-right">Atomic Mass</span>
-            </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-10">
+        {elements.map((el) => (
+          <ElementCell
+            key={el.number}
+            el={el}
+            massMode={massMode}
+            onClick={() => onSelectElement(el.number)}
+          />
+        ))}
+      </div>
 
-            {elements.map((el) => (
-              <ColumnElementRow key={el.number} el={el} massMode={massMode} onClick={() => onSelectElement(el.number)} />
-            ))}
-          </div>
-        </section>
-      ))}
+      <div className="mt-3 flex justify-center">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary">Swipe left/right for next/previous group</span>
+      </div>
+
+      <Legend />
     </div>
   );
 };
@@ -231,7 +312,8 @@ const ElementDetails = ({ element, massMode, onBack, onClose }: { element: ChemE
 const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTableLearningProps) => {
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const morePressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [columnView, setColumnView] = useState(false);
+  const [rangeView, setRangeView] = useState(false);
+  const [selectedRangeIndex, setSelectedRangeIndex] = useState<number | null>(null);
   const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
   const [massMenuOpen, setMassMenuOpen] = useState(false);
   const [longPressTriggered, setLongPressTriggered] = useState(false);
@@ -269,7 +351,12 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
       return;
     }
     setMassMenuOpen(false);
-    setColumnView((value) => !value);
+    setRangeView((value) => !value);
+  };
+
+  const handleRangeChange = (index: number) => {
+    if (index < 0 || index >= PERIODIC_GROUPS.length) return;
+    setSelectedRangeIndex(index);
   };
   const selected = selectedElement ? ELEMENTS[selectedElement - 1] : undefined;
 
@@ -281,7 +368,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
           <div>
             <h2 className="font-display text-lg font-black text-foreground">Periodic Table</h2>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {columnView ? `Column view • 118 elements • ${massMode === 'exact' ? 'Exact mass' : 'Round mass'}` : `18 groups • 7 periods • 118 elements • ${massMode === 'exact' ? 'Exact mass' : 'Round mass'}`}
+              {rangeView ? `Element groups • ${massMode === 'exact' ? 'Exact mass' : 'Round mass'}` : `18 groups • 7 periods • 118 elements • ${massMode === 'exact' ? 'Exact mass' : 'Round mass'}`}
             </p>
           </div>
         </div>
@@ -294,9 +381,9 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
           onPointerLeave={handleMorePointerUp}
           onClick={handleMoreClick}
           onContextMenu={(event) => { event.preventDefault(); setLongPressTriggered(true); setMassMenuOpen(true); }}
-          aria-label={columnView ? 'Show periodic table grid; long press for atomic mass format' : 'Show elements in columns; long press for atomic mass format'}
-          title={columnView ? 'Tap to show grid • Long press for atomic mass format' : 'Tap to show columns • Long press for atomic mass format'}
-          aria-pressed={columnView}
+          aria-label={rangeView ? 'Show standard periodic table grid; long press for atomic mass format' : 'Show element groups 1 to 10, 11 to 20, and so on; long press for atomic mass format'}
+          title={rangeView ? 'Tap to show standard table • Long press for atomic mass format' : 'Tap to show element groups • Long press for atomic mass format'}
+          aria-pressed={rangeView}
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-secondary text-secondary-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <MoreVertical size={19} />
@@ -323,12 +410,21 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
 
       </div>
 
-      {columnView ? (
-        <div
-          className="periodic-column-scroll max-h-[70dvh] w-full overflow-x-hidden overflow-y-auto overscroll-contain py-1"
-          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
-        >
-          <PeriodicColumnView onSelectElement={(number) => onSelectElement(number)} massMode={massMode} />
+      {rangeView ? (
+        <div className="w-full py-1">
+          <PeriodicRangePicker onSelectRange={(index) => {
+            handleRangeChange(index);
+          }} />
+          {selectedRangeIndex !== null && (
+            <div className="mt-4">
+              <PeriodicRangeView
+                rangeIndex={selectedRangeIndex}
+                onSelectElement={(number) => onSelectElement(number)}
+                onChangeRange={handleRangeChange}
+                massMode={massMode}
+              />
+            </div>
+          )}
         </div>
       ) : (
         <div
@@ -378,19 +474,20 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
               </div>
             ))}
           </div>
+
+          <div className="mt-4">
+            <Legend />
+          </div>          </div>
         </div>
         </div>
       )}
 
-      {columnView ? (
-        <p className="mb-3 text-center text-[11px] font-semibold text-muted-foreground">
-          Tap any element row to view its complete information.
-        </p>
+      {rangeView ? (
+        <div className="hidden" aria-hidden="true" />
       ) : (
-        <p className="mb-3 text-center text-[11px] font-semibold text-muted-foreground">← Swipe horizontally → to explore all 18 groups</p>
+        <p className="mb-3 text-center text-[11px] font-semibold text-muted-foreground">← Swipe horizontally → to explore all 18 groups • scroll vertically for f-block + colour code</p>
       )}
-      <Legend />
-      <p className="mt-3 text-center text-[11px] font-semibold text-muted-foreground">Swipe left/right to explore all 18 groups. Tap any element to view its complete local information.</p>
+      <p className="mt-3 text-center text-[11px] font-semibold text-muted-foreground">Tap any element to view its complete information.</p>
       {selected && (
         <ElementDetails
           element={selected}
