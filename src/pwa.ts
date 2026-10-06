@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 // PWA registration with safe guards for Lovable preview iframes.
 // - Only registers in production builds.
 // - Never registers inside an iframe or on Lovable preview hosts.
@@ -21,6 +22,7 @@ const isPreviewHost =
   host.includes("lovable.app") === false && host.includes("lovable.dev");
 
 const shouldRegister =
+  !Capacitor.isNativePlatform() &&
   typeof window !== "undefined" &&
   "serviceWorker" in navigator &&
   !isInIframe &&
@@ -88,6 +90,11 @@ export async function triggerUpdate(): Promise<UpdateResult> {
 }
 
 export async function setupPWA() {
+  // Native Capacitor builds package the web assets inside the APK. A browser
+  // service worker would add a second cache layer and can pin stale bundled
+  // assets across APK upgrades, so native builds rely on the packaged files.
+  if (Capacitor.isNativePlatform()) return;
+
   // Always clean up stale SWs in iframe / preview contexts.
   if (typeof window !== "undefined" && "serviceWorker" in navigator && (isInIframe || isPreviewHost)) {
     try {
