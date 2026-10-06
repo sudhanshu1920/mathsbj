@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from 'react';
 import { ArrowLeft, Atom, Layers3, MoreVertical, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import type { ChemElement } from '@/lib/periodicTable';
@@ -106,21 +106,6 @@ const Legend = () => {
   );
 };
 
-const ColumnElementRow = ({ el, massMode, onClick }: { el: ChemElement; massMode: AtomicMassMode; onClick: () => void }) => (
-  <motion.button
-    type="button"
-    whileTap={{ scale: 0.99 }}
-    onClick={onClick}
-    aria-label={`${el.name}, atomic number ${el.number}, symbol ${el.symbol}, atomic mass ${formatMass(el, massMode)}`}
-    className="grid w-full grid-cols-[54px_minmax(0,1fr)_62px_78px] items-center gap-1.5 rounded-xl border border-border/80 bg-card px-2.5 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-secondary/60 active:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:grid-cols-[68px_minmax(0,1fr)_76px_100px]"
-  >
-    <span className="text-sm font-black tabular-nums text-primary">{el.number}</span>
-    <span className="min-w-0 truncate text-sm font-bold text-foreground">{el.name}</span>
-    <span className="text-center font-display text-base font-black text-foreground">{el.symbol}</span>
-    <span className="text-right text-sm font-bold tabular-nums text-muted-foreground">{formatMass(el, massMode)}</span>
-  </motion.button>
-);
-
 const PERIODIC_GROUPS = Array.from(
   { length: Math.ceil(ELEMENTS.length / 10) },
   (_, index) => {
@@ -161,11 +146,13 @@ const PeriodicRangeView = ({
   rangeIndex,
   onSelectElement,
   onChangeRange,
+  onBackToGroups,
   massMode,
 }: {
   rangeIndex: number;
   onSelectElement: (number: number) => void;
   onChangeRange: (index: number) => void;
+  onBackToGroups: () => void;
   massMode: AtomicMassMode;
 }) => {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -174,7 +161,7 @@ const PeriodicRangeView = ({
   const hasPrevious = rangeIndex > 0;
   const hasNext = rangeIndex < PERIODIC_GROUPS.length - 1;
 
-  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
     const touch = event.changedTouches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY };
   };
@@ -200,14 +187,14 @@ const PeriodicRangeView = ({
       onTouchEnd={handleTouchEnd}
       aria-label={`Periodic Table elements ${group.from} to ${group.to}`}
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-3 grid grid-cols-[auto_1fr_auto] items-center gap-2">
         <button
           type="button"
           onClick={() => onChangeRange(rangeIndex - 1)}
           disabled={!hasPrevious}
           className="rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
-          ← Previous
+          ← Prev
         </button>
         <div className="text-center">
           <h3 className="font-display text-lg font-black text-foreground">Elements {group.from}–{group.to}</h3>
@@ -220,6 +207,15 @@ const PeriodicRangeView = ({
           className="rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
           Next →
+        </button>
+      </div>
+      <div className="mb-3 flex justify-center">
+        <button
+          type="button"
+          onClick={onBackToGroups}
+          className="rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-bold text-primary hover:bg-primary/15"
+        >
+          ← All element groups
         </button>
       </div>
 
@@ -351,7 +347,11 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
       return;
     }
     setMassMenuOpen(false);
-    setRangeView((value) => !value);
+    setRangeView((value) => {
+      const next = !value;
+      if (next) setSelectedRangeIndex(null);
+      return next;
+    });
   };
 
   const handleRangeChange = (index: number) => {
@@ -412,18 +412,16 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
 
       {rangeView ? (
         <div className="w-full py-1">
-          <PeriodicRangePicker onSelectRange={(index) => {
-            handleRangeChange(index);
-          }} />
-          {selectedRangeIndex !== null && (
-            <div className="mt-4">
-              <PeriodicRangeView
-                rangeIndex={selectedRangeIndex}
-                onSelectElement={(number) => onSelectElement(number)}
-                onChangeRange={handleRangeChange}
-                massMode={massMode}
-              />
-            </div>
+          {selectedRangeIndex === null ? (
+            <PeriodicRangePicker onSelectRange={handleRangeChange} />
+          ) : (
+            <PeriodicRangeView
+              rangeIndex={selectedRangeIndex}
+              onSelectElement={(number) => onSelectElement(number)}
+              onChangeRange={handleRangeChange}
+              onBackToGroups={() => setSelectedRangeIndex(null)}
+              massMode={massMode}
+            />
           )}
         </div>
       ) : (
@@ -475,9 +473,10 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
             ))}
           </div>
 
-          <div className="mt-4">
+          <div className="periodic-table-legend mt-4">
             <Legend />
-          </div>          </div>
+          </div>
+        </div>
         </div>
         </div>
       )}
