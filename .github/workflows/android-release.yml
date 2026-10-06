@@ -6,6 +6,10 @@ on:
       - apk-production-build
   workflow_dispatch:
 
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
