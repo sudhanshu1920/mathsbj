@@ -57,7 +57,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
       aria-label="Primary navigation"
       className="bottom-nav fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-b-0 border-x-0 safe-bottom shadow-[0_-12px_32px_-12px_hsl(var(--primary)/0.35)]"
     >
-      <div className="flex h-[68px] max-w-lg mx-auto items-center justify-around py-2">
+      <div className="flex h-[44px] max-w-lg mx-auto items-center justify-around py-1">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
           const isBouncing = bouncingTab === tab.id;
@@ -65,21 +65,21 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
             <button
               key={tab.id}
               onClick={() => handleTap(tab.id)}
-              className="relative flex flex-col items-center justify-center gap-1 flex-1 h-full"
+              className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full"
             >
               <motion.div
                 animate={isBouncing ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                 transition={{ duration: 0.3 }}
-                className={`relative flex items-center justify-center w-14 h-10 rounded-2xl border ${
+                className={`relative flex items-center justify-center w-12 h-7 rounded-xl border ${
                   isActive
                     ? 'bg-primary/10 border-primary/60 text-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.45),0_0_18px_hsl(var(--primary)/0.45)]'
                     : 'bg-transparent border-transparent text-muted-foreground'
                 }`}
               >
-                <tab.icon size={22} strokeWidth={2.5} />
+                <tab.icon size={19} strokeWidth={2.5} />
               </motion.div>
               <span
-                className={`text-[10px] font-display font-extrabold uppercase tracking-wider ${
+                className={`text-[9px] leading-none font-display font-extrabold uppercase tracking-wider ${
                   isActive ? 'text-primary neon-text' : 'text-muted-foreground'
                 }`}
               >
