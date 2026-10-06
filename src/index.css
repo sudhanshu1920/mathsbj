@@ -844,7 +844,7 @@ html.desktop-mode .app-frame {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
 }
 
 .app-frame *,
@@ -946,28 +946,37 @@ html.desktop-mode .glass-panel {
    The panel itself is compact; its child buttons keep a larger invisible
    tap area without restoring the old layout height. */
 [data-app-bottom-bar] {
+  position: fixed;
   left: 0;
   right: 0;
+  top: auto;
   bottom: 0;
-  border-radius: 0;
   width: 100%;
   min-width: 0;
+  height: calc(28px + env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
   overflow: visible;
 }
 
 [data-app-bottom-bar] > div {
   width: min(100%, 32rem);
+  height: 28px;
   margin: 0 auto;
+  padding-bottom: 0;
 }
 
 @media (min-width: 1024px) {
   html.desktop-mode [data-app-bottom-bar] {
     left: 0;
     right: 0;
+    top: auto;
     bottom: 0;
     transform: none;
     width: 100%;
     min-width: 0;
+    height: calc(28px + env(safe-area-inset-bottom, 0px));
     border-radius: 0;
     border-left: 0;
     border-right: 0;
@@ -1067,8 +1076,8 @@ html.low-power *::after {
 
 /* ===== Compact gradient app bars ===== */
 .app-topbar-page {
-  min-height: 26px;
-  height: 26px;
+  min-height: 28px;
+  height: 28px;
   margin: 0 0 6px;
   padding: 0 3px;
   background:
@@ -1082,8 +1091,8 @@ html.low-power *::after {
 }
 
 .app-topbar-stats {
-  min-height: 30px;
-  height: 30px;
+  min-height: 32px;
+  height: 32px;
   margin: 0 0 6px;
   padding: 0 8px;
   background:
