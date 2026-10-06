@@ -536,7 +536,7 @@ const TopStatBar = () => {
   }, []);
 
   return (
-    <div className="top-panel flex items-center justify-between gap-2 mb-3 px-3 py-1.5">
+    <div className="top-panel flex items-center justify-between gap-2 mb-3 px-3 py-0.5">
       <div>
         <h1 className="font-display font-black text-xl text-foreground leading-none">Math Quest</h1>
         <p className="text-[11px] text-muted-foreground font-display font-bold uppercase tracking-wider mt-0.5">
