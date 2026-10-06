@@ -57,14 +57,14 @@ const normalizeMode = (value: string | null): ModeId =>
 export const getTheme = (): ThemeId => {
   try {
     return normalizeTheme(localStorage.getItem(KEY));
-  } catch {}
+  } catch { /* storage may be unavailable */ }
   return DEFAULT_THEME;
 };
 
 export const getMode = (): ModeId => {
   try {
     return normalizeMode(localStorage.getItem(MODE_KEY));
-  } catch {}
+  } catch { /* storage may be unavailable */ }
   return DEFAULT_MODE;
 };
 
@@ -97,13 +97,13 @@ const notifyListeners = () => {
 };
 
 export const setTheme = (id: ThemeId) => {
-  try { localStorage.setItem(KEY, id); } catch {}
+  try { localStorage.setItem(KEY, id); } catch { /* storage may be unavailable */ }
   applyTheme(id);
   notifyListeners();
 };
 
 export const setMode = (mode: ModeId) => {
-  try { localStorage.setItem(MODE_KEY, mode); } catch {}
+  try { localStorage.setItem(MODE_KEY, mode); } catch { /* storage may be unavailable */ }
   applyMode(mode);
   notifyListeners();
 };
