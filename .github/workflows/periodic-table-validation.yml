@@ -33,3 +33,5 @@ jobs:
 
       - name: Web build
         run: npm run build
+
+# validation trigger
