@@ -448,6 +448,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const inputRef = useRef<HTMLInputElement>(null);
   const submitLockRef = useRef(false);
   const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const handleAnswerRef = useRef<(answer: number | string | null) => void>(() => undefined);
 
   // Setup form state - multi-topic
   const [selectedTopics, setSelectedTopics] = useState<Set<string>>(
@@ -529,6 +531,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const startPractice = (cfg: PracticeConfig) => {
     const qs = generateQuestions(cfg);
     if (qs.length === 0) return;
+    submitLockRef.current = false;
+    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    answerAdvanceTimerRef.current = undefined;
     setConfig(cfg);
     setQuestions(qs);
     setCurrentQ(0);
@@ -570,7 +575,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          handleAnswer(null);
+          handleAnswerRef.current(null);
           return config.timerSeconds;
         }
         return prev - 1;
@@ -582,9 +587,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
-      if (!config || finished || feedback) return;
+      if (submitLockRef.current || !config || finished || feedback) return;
       const q = questions[currentQ];
       if (!q) return;
+      submitLockRef.current = true;
 
       let isCorrect = false;
       if (answer !== null) {
@@ -650,7 +656,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       };
       setScore(newScore);
 
-      setTimeout(() => {
+      if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+      answerAdvanceTimerRef.current = setTimeout(() => {
         setFeedback(null);
         setInputValue('');
         setSelectedOption(null);
@@ -662,13 +669,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             const moreQs = generateQuestions(config);
             setQuestions(prev => [...prev, ...moreQs]);
           }
+          submitLockRef.current = false;
           setCurrentQ(currentQ + 1);
           if (config.timerEnabled) setTimeLeft(config.timerSeconds);
         }
+        answerAdvanceTimerRef.current = undefined;
       }, isCorrect ? 350 : 700);
     },
     [config, currentQ, questions, score, finished, feedback]
   );
+
+  handleAnswerRef.current = handleAnswer;
 
   const handleSubmitInfinite = useCallback(() => {
     if (!config?.infinite) return;
@@ -708,6 +719,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const resetToPracticeHome = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
+    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    answerAdvanceTimerRef.current = undefined;
+    submitLockRef.current = false;
     timerRef.current = undefined;
     elapsedRef.current = undefined;
     setShowExitDialog(false);
