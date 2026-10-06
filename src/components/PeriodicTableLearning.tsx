@@ -433,8 +433,9 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
           )}
         </div>
       ) : (
-        <div
-          ref={tableScrollRef}
+        <div className="w-full">
+          <div
+            ref={tableScrollRef}
           data-swipe-ignore-back="true"
           className="periodic-table-scroll w-full max-h-[70dvh] min-h-0 overflow-x-auto overflow-y-auto overscroll-contain py-1"
           style={{
@@ -483,8 +484,9 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
 
         </div>
         </div>
-        <div className="periodic-table-legend mt-4">
-          <Legend />
+          <div className="periodic-table-legend mt-4">
+            <Legend />
+          </div>
         </div>
       )}
 
