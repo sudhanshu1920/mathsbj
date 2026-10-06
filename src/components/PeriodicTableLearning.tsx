@@ -170,8 +170,8 @@ const PeriodicRangeView = ({
   const pointerAxisRef = useRef<'x' | 'y' | null>(null);
   const group = PERIODIC_GROUPS[rangeIndex] || PERIODIC_GROUPS[0];
   const elements = useMemo(() => ELEMENTS.slice(group.from - 1, group.to), [group.from, group.to]);
-  const hasPrevious = rangeIndex > 0;
-  const hasNext = rangeIndex < PERIODIC_GROUPS.length - 1;
+  const hasPrevious = getAdjacentPeriodicRangeIndex(rangeIndex, 'previous') !== rangeIndex;
+  const hasNext = getAdjacentPeriodicRangeIndex(rangeIndex, 'next') !== rangeIndex;
 
   const resetPointer = () => {
     pointerStartRef.current = null;
@@ -244,7 +244,7 @@ const PeriodicRangeView = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
+      onPointerCancel={() => { resetPointer(); }}
       aria-label={`Periodic Table elements ${group.from} to ${group.to}`}
     >
       <div className="mb-3 grid grid-cols-[auto_1fr_auto] items-center gap-2">
