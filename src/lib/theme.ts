@@ -101,13 +101,17 @@ const notifyListeners = () => {
 };
 
 export const setTheme = (id: ThemeId) => {
-  try { localStorage.setItem(KEY, id); } catch {}
+  try { localStorage.setItem(KEY, id); } catch {
+    // Storage may be unavailable; theme still applies for this session.
+  }
   applyTheme(id);
   notifyListeners();
 };
 
 export const setMode = (mode: ModeId) => {
-  try { localStorage.setItem(MODE_KEY, mode); } catch {}
+  try { localStorage.setItem(MODE_KEY, mode); } catch {
+    // Storage may be unavailable; mode still applies for this session.
+  }
   applyMode(mode);
   notifyListeners();
 };
@@ -117,8 +121,12 @@ export const toggleMode = () => setMode(getMode() === 'dark' ? 'light' : 'dark')
 export const initTheme = () => {
   const theme = getTheme();
   const mode = getMode();
-  try { localStorage.setItem(KEY, theme); } catch {}
-  try { localStorage.setItem(MODE_KEY, mode); } catch {}
+  try { localStorage.setItem(KEY, theme); } catch {
+    // Ignore storage failures during initialization.
+  }
+  try { localStorage.setItem(MODE_KEY, mode); } catch {
+    // Ignore storage failures during initialization.
+  }
   applyTheme(theme);
   applyMode(mode);
 };
