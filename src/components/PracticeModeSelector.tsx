@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { m as motion } from 'framer-motion';
-import { ListChecks, Keyboard, Timer, Infinity } from 'lucide-react';
+import { ListChecks, Keyboard, Timer, Infinity as InfinityIcon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
 export interface PracticeSettings {
@@ -93,7 +93,7 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
-            <Infinity size={18} className="text-primary" />
+            <InfinityIcon size={18} className="text-primary" />
             <span className="font-semibold text-foreground text-sm">Infinite Questions</span>
           </div>
           <Switch checked={infinite} onCheckedChange={setInfinite} />
