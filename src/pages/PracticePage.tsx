@@ -424,10 +424,11 @@ interface PracticePageProps {
   initialMode?: 'mcq' | 'input';
   initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean };
   onExit?: () => void;
+  externalBackRequest?: number;
   fromLearning?: boolean;
 }
 
-const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, fromLearning }: PracticePageProps) => {
+const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, externalBackRequest, fromLearning }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -781,6 +782,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     resetToPracticeHome();
   }, [config, finished, resetToPracticeHome, showExitDialog, fromLearning, onExit]);
 
+  useEffect(() => {
+    if (!externalBackRequest || !config || finished) return;
+    setShowExitDialog(true);
+  }, [externalBackRequest, config, finished]);
+
   const handleBackToPractice = useCallback(() => {
     // Used from results screen swipe-back
     if (fromLearning) {
@@ -789,32 +795,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       resetToPracticeHome();
     }
   }, [resetToPracticeHome, fromLearning, onExit]);
-
-  // Intercept system back / swipe-back while a practice session is active.
-  // We push an extra history entry so the first back-press lands here and
-  // shows the exit confirmation dialog instead of leaving the screen.
-  useEffect(() => {
-    if (!config || finished) return;
-
-    let popped = false;
-    const handlePopstate = () => {
-      popped = true;
-      // Re-add the sentinel so subsequent back presses keep being intercepted
-      window.history.pushState({ practiceSentinel: true }, '');
-      setShowExitDialog(true);
-    };
-
-    window.history.pushState({ practiceSentinel: true }, '');
-    window.addEventListener('popstate', handlePopstate);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopstate);
-      // Clean up the sentinel entry we added if user didn't back through it
-      if (!popped) {
-        window.history.back();
-      }
-    };
-  }, [config, finished]);
 
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);
