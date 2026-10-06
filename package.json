@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,7 +13,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npm run build && npx cap sync android",
+    "build:android:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
@@ -71,9 +77,11 @@
     "vaul": "^0.9.9",
     "zod": "^3.25.76",
     "@capacitor/app": "^8.1.2",
-    "@capacitor/core": "^8.1.2"
+    "@capacitor/core": "^8.1.2",
+    "@capacitor/android": "^8.1.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.1.2",
     "@eslint/js": "^9.32.0",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/typography": "^0.5.16",

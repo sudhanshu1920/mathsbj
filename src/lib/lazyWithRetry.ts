@@ -7,7 +7,7 @@ const RELOAD_KEY = "chunk-reload-at";
  * hashed files that no longer exist after a deploy). Retries once, then
  * force-reloads the page a single time to pick up the new build.
  */
-export function lazyWithRetry<T extends ComponentType<any>>(
+export function lazyWithRetry<P, T extends ComponentType<P>>(
   load: () => Promise<{ default: T }>,
 ) {
   return lazy(async () => {

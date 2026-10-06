@@ -29,13 +29,22 @@ export function brokeredPreviewStorage() {
     : (dev ? ['https://lovable.dev', 'http://localhost:3000'] : ['https://lovable.dev']);
   const RESULT = 'lovable-preview-auth:result';
   const TIMEOUT = 2000;
-  const newId = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const newId = () => {
+    try {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+    } catch {
+      // crypto.randomUUID may be unavailable.
+    }
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  };
 
   const request = (type: string, key: string, value?: string): Promise<{ ok: boolean; value?: string | null } | null> =>
     new Promise((resolve) => {
       const requestId = newId();
       let done = false;
-      let timer: ReturnType<typeof setTimeout>;
+      const timer = setTimeout(() => finish(null), TIMEOUT);
       const finish = (r: { ok: boolean; value?: string | null } | null) => {
         if (done) return;
         done = true;
@@ -44,6 +53,7 @@ export function brokeredPreviewStorage() {
         resolve(r);
       };
       const onMessage = (e: MessageEvent) => {
+        if (e.source !== window.parent) return;
         if (editorOrigins.indexOf(e.origin) < 0) return;
         const d = e.data;
         if (d && d.type === RESULT && d.requestId === requestId) finish(d);
@@ -53,7 +63,7 @@ export function brokeredPreviewStorage() {
       if (value !== undefined) msg['value'] = value;
       // targetOrigin per trusted editor origin, so a session token never reaches an arbitrary embedder.
       for (const origin of editorOrigins) window.parent.postMessage(msg, origin);
-      timer = setTimeout(() => finish(null), TIMEOUT);
+
     });
 
   // The editor may not be listening yet at the first getItem, so retry once.

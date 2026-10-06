@@ -261,7 +261,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
 }
 
 function generateQuestions(config: PracticeConfig): Question[] {
-  let allQuestions: Question[] = [];
+  const allQuestions: Question[] = [];
 
   for (const topic of config.topics) {
     const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label);
@@ -391,7 +391,7 @@ function isLikelyComplete(input: string): boolean {
   const s = input.trim();
   if (!s) return false;
   // Trailing operator/separator = still typing
-  if (/[\/.\s+]$/.test(s)) return false;
+  if (/[/.\s+]$/.test(s)) return false;
   // "33 1" (mixed without /) or "1/" alone — incomplete
   if (/^\d+\s+\d+$/.test(s)) return false;
   if (/\/$/.test(s)) return false;
@@ -617,7 +617,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         } else {
           playWrong();
         }
-      } catch {}
+      } catch {
+        // Audio/vibration feedback is non-critical.
+      }
       // Save result for all topics
       const topicId = config.topics.length === 1 ? config.topics[0].id : 'mixed';
       saveResult(topicId, isCorrect);
@@ -638,7 +640,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             playLevelUp();
             const settings = getSettings();
             if (settings.vibration && 'vibrate' in navigator) navigator.vibrate([20, 30, 20, 30, 60]);
-          } catch {}
+          } catch {
+            // Audio/vibration feedback is non-critical.
+          }
           setTimeout(() => { setLevelUp(null); acknowledgeLevel(); }, 1400);
         }
         setTimeout(() => setXpPop((p) => (p && p.id === xpPopId.current ? null : p)), 700);
@@ -1128,7 +1132,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   hideOk
                 />
               </>
-            )}            )}
+            )}
           </div>
         )}
       </div>

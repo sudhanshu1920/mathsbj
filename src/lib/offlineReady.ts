@@ -1,5 +1,7 @@
-// One-time "prepare offline mode" pass: warms every lazy chunk and data module
-// so later launches never touch the network. Progress is reported 0-100.
+import { Capacitor } from "@capacitor/core";
+
+// One-time preparation pass. In native builds, assets are already bundled by
+// Capacitor, so only the lazy chunks/data are warmed; there is no SW wait.
 
 const FLAG = "offline-ready-v1";
 
@@ -33,10 +35,10 @@ const loaders: Array<() => Promise<unknown>> = [
   () => import("@/lib/periodicTable"),
 ];
 
-/** Load every chunk once, reporting progress. Resolves even if some fail. */
 export async function prepareOffline(onProgress?: (pct: number) => void): Promise<boolean> {
   let done = 0;
   let failed = false;
+
   for (const load of loaders) {
     try {
       await load();
@@ -47,17 +49,19 @@ export async function prepareOffline(onProgress?: (pct: number) => void): Promis
     onProgress?.(Math.round((done / (loaders.length + 1)) * 100));
   }
 
-  // Give the service worker a moment to finish its own precache.
-  try {
-    if ("serviceWorker" in navigator) {
-      await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise((r) => setTimeout(r, 4000)),
-      ]);
+  if (!Capacitor.isNativePlatform()) {
+    try {
+      if ("serviceWorker" in navigator) {
+        await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise((r) => setTimeout(r, 4000)),
+        ]);
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
   }
+
   onProgress?.(100);
 
   if (!failed) markOfflineReady();
