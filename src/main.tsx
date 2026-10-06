@@ -12,10 +12,16 @@ initDeviceProfile();
 createRoot(document.getElementById("root")!).render(<App />);
 
 // Defer non-critical boot work until after first paint.
-const idle = (cb: () => void) =>
-  "requestIdleCallback" in window
-    ? (window as any).requestIdleCallback(cb, { timeout: 2000 })
-    : setTimeout(cb, 300);
+type IdleCapableWindow = Window & {
+  requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+};
+
+const idle = (cb: () => void) => {
+  const idleWindow = window as IdleCapableWindow;
+  return idleWindow.requestIdleCallback
+    ? idleWindow.requestIdleCallback(cb, { timeout: 2000 })
+    : window.setTimeout(cb, 300);
+};
 idle(() => {
   // Chunk warming happens once via the offline preparation pass (OfflinePrep).
   void setupPWA();
