@@ -77,9 +77,80 @@ jobs:
         env:
           CI: "true"
 
-      - name: Build unsigned release APK
+      - name: Configure CI release signing
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          key_password="$(openssl rand -hex 24)"
+          store_password="$(openssl rand -hex 24)"
+          keystore="$GITHUB_WORKSPACE/android/app/ci-release.keystore"
+
+          keytool -genkeypair -v             -keystore "$keystore"             -storepass "$store_password"             -keypass "$key_password"             -alias "MathMasterCI"             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Math Master CI,O=SBJ Sigma,C=IN"
+
+          {
+            echo "CI_KEYSTORE_PATH=$keystore"
+            echo "CI_KEYSTORE_PASSWORD=$store_password"
+            echo "CI_KEY_PASSWORD=$key_password"
+          } >> "$GITHUB_ENV"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/app/build.gradle")
+          text = path.read_text(encoding="utf-8")
+
+          marker = "android {"
+          signing = """android {
+              signingConfigs {
+                  ciRelease {
+                      storeFile file(System.getenv("CI_KEYSTORE_PATH"))
+                      storePassword System.getenv("CI_KEYSTORE_PASSWORD")
+                      keyAlias "MathMasterCI"
+                      keyPassword System.getenv("CI_KEY_PASSWORD")
+                  }
+              }
+          """
+
+          if text.count(marker) != 1:
+              raise SystemExit("Expected exactly one android { block")
+
+          if "signingConfigs {" not in text:
+              text = text.replace(marker, signing, 1)
+
+          target = "buildTypes {\n        release {"
+          replacement = """buildTypes {
+                  release {
+                      signingConfig signingConfigs.ciRelease"""
+          if target not in text:
+              raise SystemExit("Expected release buildTypes block not found")
+
+          text = text.replace(target, replacement, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          test -s "$keystore"
+          echo "CI release signing configured"
+
+      - name: Build signed release APK
         working-directory: android
         run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
+
+      - name: Verify APK is signed and installable
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sdk_apksigner="${ANDROID_HOME}/build-tools/35.0.0/apksigner"
+          if [ ! -x "$sdk_apksigner" ]; then
+            sdk_apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          fi
+          test -x "$sdk_apksigner"
+
+          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
+          test -n "$apk"
+
+          "$sdk_apksigner" verify --verbose "$apk"
 
       - name: Collect release APK
         shell: bash
