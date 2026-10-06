@@ -1,9 +1,8 @@
-// PWA registration with safe guards for Lovable preview iframes.
-// - Only registers in production builds.
-// - Never registers inside an iframe or on Lovable preview hosts.
-// - Auto-updates: when a new version is detected, applies it and reloads.
-// - Shows a tiny "Updating…" toast while a new version installs.
+// PWA registration for browser builds only.
+// Capacitor Android packages the web assets directly, so a Service Worker is
+// intentionally disabled on native to avoid interfering with native plugins.
 
+import { Capacitor } from "@capacitor/core";
 import { toast } from "@/hooks/use-toast";
 
 const isInIframe = (() => {
@@ -18,16 +17,18 @@ const host = typeof window !== "undefined" ? window.location.hostname : "";
 const isPreviewHost =
   host.includes("id-preview--") ||
   host.includes("lovableproject.com") ||
-  host.includes("lovable.app") === false && host.includes("lovable.dev");
+  (host.includes("lovable.app") === false && host.includes("lovable.dev"));
+
+const isNativeApp = Capacitor.isNativePlatform();
 
 const shouldRegister =
   typeof window !== "undefined" &&
   "serviceWorker" in navigator &&
+  !isNativeApp &&
   !isInIframe &&
   !isPreviewHost &&
   import.meta.env.PROD;
 
-// Module-level handles used by triggerUpdate() from the Settings button.
 let updateSWFn: ((reloadPage?: boolean) => Promise<void>) | null = null;
 let swRegistration: ServiceWorkerRegistration | null = null;
 let reloadArmed = false;
@@ -36,7 +37,6 @@ function armControllerReload() {
   if (reloadArmed || typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
   reloadArmed = true;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    // The new SW has taken control — reload once so the fresh HTML/JS loads.
     window.location.reload();
   });
 }
@@ -56,24 +56,28 @@ export async function triggerUpdate(): Promise<UpdateResult> {
   } catch {
     return "current";
   }
-  // Give the browser a moment to surface a waiting worker after update().
+
   const start = Date.now();
   while (Date.now() - start < 1500) {
     if (swRegistration.waiting || swRegistration.installing) break;
     await new Promise((r) => setTimeout(r, 150));
   }
+
   if (swRegistration.waiting) {
-    // Activate the new SW and reload once it takes over.
     updateSWFn(true).catch(() => {});
     return "updated";
   }
+
   if (swRegistration.installing) {
-    // Wait for installation to finish, then activate if it becomes waiting.
     const installing = swRegistration.installing;
     const becameWaiting = await new Promise<boolean>((resolve) => {
       const done = () => resolve(!!swRegistration?.waiting);
       installing.addEventListener("statechange", () => {
-        if (installing.state === "installed" || installing.state === "activated" || installing.state === "redundant") {
+        if (
+          installing.state === "installed" ||
+          installing.state === "activated" ||
+          installing.state === "redundant"
+        ) {
           done();
         }
       });
@@ -84,12 +88,12 @@ export async function triggerUpdate(): Promise<UpdateResult> {
       return "updated";
     }
   }
+
   return "current";
 }
 
 export async function setupPWA() {
-  // Always clean up stale SWs in iframe / preview contexts.
-  if (typeof window !== "undefined" && "serviceWorker" in navigator && (isInIframe || isPreviewHost)) {
+  if (typeof window !== "undefined" && "serviceWorker" in navigator && (isNativeApp || isInIframe || isPreviewHost)) {
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
       regs.forEach((r) => r.unregister());
@@ -111,7 +115,6 @@ export async function setupPWA() {
           title: "Updating…",
           description: "A new version is being installed.",
         });
-        // Apply update immediately, then reload.
         updateSW(true);
       },
       onOfflineReady() {
@@ -121,15 +124,14 @@ export async function setupPWA() {
         });
       },
       onRegisteredSW(_swUrl, registration) {
-        // No background update polling: normal usage must never wait on the
-        // network. Updates happen only via Settings → Check for updates.
         if (!registration) return;
         swRegistration = registration;
         armControllerReload();
       },
     });
+
     updateSWFn = updateSW;
   } catch {
-    // virtual module unavailable in dev — safe to ignore
+    // virtual module may be unavailable in development.
   }
 }
