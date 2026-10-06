@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react';
-import { ArrowLeft, Atom, Layers3, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Atom, Layers3, MoreVertical, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
@@ -104,6 +104,62 @@ const Legend = () => {
   );
 };
 
+const ColumnElementRow = ({ el, onClick }: { el: ChemElement; onClick: () => void }) => (
+  <motion.button
+    type="button"
+    whileTap={{ scale: 0.99 }}
+    onClick={onClick}
+    aria-label={`${el.name}, atomic number ${el.number}, symbol ${el.symbol}, atomic mass ${formatMass(el)}`}
+    className="grid w-full grid-cols-[56px_minmax(0,1fr)_64px_88px] items-center gap-2 rounded-xl border border-border bg-card/70 px-3 py-3 text-left transition-colors hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:grid-cols-[72px_minmax(0,1fr)_80px_110px]"
+  >
+    <span className="text-sm font-black tabular-nums text-primary">{el.number}</span>
+    <span className="min-w-0 truncate text-sm font-bold text-foreground">{el.name}</span>
+    <span className="text-center font-display text-base font-black text-foreground">{el.symbol}</span>
+    <span className="text-right text-sm font-bold tabular-nums text-muted-foreground">{formatMass(el)}</span>
+  </motion.button>
+);
+
+const PeriodicColumnView = ({ onSelectElement }: { onSelectElement: (number: number) => void }) => {
+  const groups = useMemo(() => {
+    const result: Array<{ from: number; to: number; elements: ChemElement[] }> = [];
+    for (let from = 1; from <= ELEMENTS.length; from += 10) {
+      const to = Math.min(from + 9, ELEMENTS.length);
+      result.push({ from, to, elements: ELEMENTS.slice(from - 1, to) });
+    }
+    return result;
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      {groups.map(({ from, to, elements }) => (
+        <section key={`${from}-${to}`} className="overflow-hidden rounded-2xl border border-border bg-card/60">
+          <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-3 py-2.5">
+            <h3 className="font-display text-sm font-black uppercase tracking-wide text-foreground">
+              Elements {from}–{to}
+            </h3>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {elements.length} elements
+            </span>
+          </div>
+
+          <div className="space-y-1.5 p-2">
+            <div className="grid grid-cols-[56px_minmax(0,1fr)_64px_88px] gap-2 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-muted-foreground sm:grid-cols-[72px_minmax(0,1fr)_80px_110px]">
+              <span>Atomic No.</span>
+              <span>Name</span>
+              <span className="text-center">Symbol</span>
+              <span className="text-right">Atomic Mass</span>
+            </div>
+
+            {elements.map((el) => (
+              <ColumnElementRow key={el.number} el={el} onClick={() => onSelectElement(el.number)} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+};
+
 const ElementDetails = ({ element, onBack, onClose }: { element: ChemElement; onBack: () => void; onClose: () => void }) => {
   const facts = useMemo(() => [
     ['Atomic Number', String(element.number)],
@@ -172,6 +228,7 @@ const ElementDetails = ({ element, onBack, onClose }: { element: ChemElement; on
 
 const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTableLearningProps) => {
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const [columnView, setColumnView] = useState(false);
   const selected = selectedElement ? ELEMENTS[selectedElement - 1] : undefined;
 
   return (
@@ -181,22 +238,40 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
           <div className="rounded-xl bg-primary/10 p-2 text-primary"><Layers3 size={19} /></div>
           <div>
             <h2 className="font-display text-lg font-black text-foreground">Periodic Table</h2>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">18 groups • 7 periods • 118 elements</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {columnView ? 'Column view • 118 elements' : '18 groups • 7 periods • 118 elements'}
+            </p>
           </div>
         </div>
 
+        <button
+          type="button"
+          onClick={() => setColumnView((value) => !value)}
+          aria-label={columnView ? 'Show periodic table grid' : 'Show periodic table column view'}
+          title={columnView ? 'Show periodic table grid' : 'Show elements in columns'}
+          aria-pressed={columnView}
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-secondary text-secondary-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <MoreVertical size={19} />
+        </button>
+
       </div>
 
-      <div
-        ref={tableScrollRef}
-        data-swipe-ignore-back="true"
-        className="periodic-table-scroll w-full max-h-[70dvh] min-h-0 overflow-auto overscroll-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3"
-        style={{
-          WebkitOverflowScrolling: 'touch',
-          touchAction: 'pan-x pan-y',
-          scrollBehavior: 'smooth',
-        }}
-      >
+      {columnView ? (
+        <div className="max-h-[70dvh] overflow-y-auto overscroll-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
+          <PeriodicColumnView onSelectElement={(number) => onSelectElement(number)} />
+        </div>
+      ) : (
+        <div
+          ref={tableScrollRef}
+          data-swipe-ignore-back="true"
+          className="periodic-table-scroll w-full max-h-[70dvh] min-h-0 overflow-auto overscroll-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-x pan-y',
+            scrollBehavior: 'smooth',
+          }}
+        >
         <div
           className="periodic-table-content w-max min-w-[1416px] pb-1"
           style={{ width: 'max-content', minWidth: '1416px', maxWidth: 'none' }}
@@ -235,9 +310,16 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
             ))}
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
-      <p className="mb-3 text-center text-[11px] font-semibold text-muted-foreground">← Swipe horizontally → to explore all 18 groups</p>
+      {columnView ? (
+        <p className="mb-3 text-center text-[11px] font-semibold text-muted-foreground">
+          Tap any element row to view its complete information.
+        </p>
+      ) : (
+        <p className="mb-3 text-center text-[11px] font-semibold text-muted-foreground">← Swipe horizontally → to explore all 18 groups</p>
+      )
       <Legend />
       <p className="mt-3 text-center text-[11px] font-semibold text-muted-foreground">Swipe left/right to explore all 18 groups. Tap any element to view its complete local information.</p>
       {selected && (
