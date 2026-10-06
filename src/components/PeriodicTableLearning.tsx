@@ -178,7 +178,7 @@ const PeriodicRangeView = ({
   onBackToGroups: () => void;
   massMode: AtomicMassMode;
 }) => {
-  const pointerStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const group = PERIODIC_GROUPS[rangeIndex] || PERIODIC_GROUPS[0];
   const elements = useMemo(() => ELEMENTS.slice(group.from - 1, group.to), [group.from, group.to]);
   const hasPrevious = getAdjacentPeriodicRangeIndex(rangeIndex, 'previous') !== rangeIndex;
@@ -193,13 +193,12 @@ const PeriodicRangeView = ({
     pointerStartRef.current = {
       x: event.clientX,
       y: event.clientY,
-      pointerId: event.pointerId,
     };
   };
 
   const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
     const start = pointerStartRef.current;
-    if (!start || start.pointerId !== event.pointerId) return;
+    if (!start) return;
 
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
