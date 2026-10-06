@@ -380,7 +380,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
         </p>
       ) : (
         <p className="mb-3 text-center text-[11px] font-semibold text-muted-foreground">← Swipe horizontally → to explore all 18 groups</p>
-      )
+      )}
       <Legend />
       <p className="mt-3 text-center text-[11px] font-semibold text-muted-foreground">Swipe left/right to explore all 18 groups. Tap any element to view its complete local information.</p>
       {selected && (
