@@ -59,17 +59,18 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
   }, []);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-panel bottom-nav-panel border-t border-b-0 border-x-0 safe-bottom shadow-[0_-12px_28px_-14px_hsl(var(--primary)/0.32)]">
-      <div className="flex justify-around items-center h-[34px] max-w-lg mx-auto px-1">
+    <nav className="fixed inset-x-0 bottom-0 z-50 h-[24px] glass-panel bottom-nav-panel border-t border-b-0 border-x-0 safe-bottom shadow-[0_-12px_28px_-14px_hsl(var(--primary)/0.32)]" data-app-bottom-bar>
+      <div className="relative flex items-center h-[24px] max-w-lg mx-auto px-1">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
           const isBouncing = bouncingTab === tab.id;
           return (
-            <button
-              key={tab.id}
-              onClick={() => handleTap(tab.id)}
-              className="relative flex min-h-[44px] flex-col items-center justify-center gap-0 flex-1 h-full"
-            >
+            <div key={tab.id} className="relative h-[24px] flex-1">
+              <button
+                onClick={() => handleTap(tab.id)}
+                className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-11 flex flex-col items-center justify-center gap-0"
+                aria-label={tab.label}
+              >
               <motion.div
                 animate={isBouncing ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                 transition={{ duration: 0.3 }}
@@ -81,14 +82,15 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
               >
                 <tab.icon size={14} strokeWidth={2.5} />
               </motion.div>
-              <span
-                className={`text-[8px] font-display leading-none font-extrabold uppercase tracking-wider ${
+                <span
+                  className={`text-[8px] font-display leading-none font-extrabold uppercase tracking-wider ${
                   isActive ? 'text-primary neon-text' : 'text-muted-foreground'
                 }`}
               >
-                {tab.label}
-              </span>
-            </button>
+                  {tab.label}
+                </span>
+              </button>
+            </div>
           );
         })}
       </div>
