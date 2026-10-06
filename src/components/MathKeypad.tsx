@@ -20,7 +20,7 @@ interface MathKeypadProps {
 const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled, hideOk }: MathKeypadProps) => {
   const press = (k: string) => {
     if (disabled) return;
-    try { playClick(); } catch {}
+    try { playClick(); } catch { /* audio is optional */ }
     if (k === 'back') {
       onChange(value.slice(0, -1));
       return;
