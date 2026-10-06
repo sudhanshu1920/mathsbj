@@ -114,18 +114,30 @@ const Legend = () => {
 const PeriodicRangeMenu = ({
   selectedRangeIndex,
   onSelectRange,
+  onClose,
 }: {
   selectedRangeIndex: number | null;
   onSelectRange: (index: number) => void;
+  onClose: () => void;
 }) => (
   <div
     className="absolute right-0 top-full z-40 mt-2 w-[min(22rem,calc(100vw-2rem))] border border-border/70 bg-popover/95 p-3 shadow-xl backdrop-blur-md"
     role="dialog"
     aria-label="Element ranges"
   >
-    <div className="mb-2">
-      <p className="font-display text-xs font-black uppercase tracking-wider text-foreground">Element Range</p>
-      <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">Choose a range to open its study chart.</p>
+    <div className="mb-2 flex items-start justify-between gap-2">
+      <div>
+        <p className="font-display text-xs font-black uppercase tracking-wider text-foreground">Element Range</p>
+        <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">Choose a range to open its study chart.</p>
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close element range menu"
+        className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        <X size={15} />
+      </button>
     </div>
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {PERIODIC_GROUPS.map(({ from, to }, index) => {
@@ -459,6 +471,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
           <PeriodicRangeMenu
             selectedRangeIndex={selectedRangeIndex}
             onSelectRange={handleRangeChange}
+            onClose={() => setRangeMenuOpen(false)}
           />
         )}
 
