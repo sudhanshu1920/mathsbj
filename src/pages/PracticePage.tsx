@@ -391,7 +391,7 @@ function isLikelyComplete(input: string): boolean {
   const s = input.trim();
   if (!s) return false;
   // Trailing operator/separator = still typing
-  if (/[\/.\s+]$/.test(s)) return false;
+  if (/[/\.\s+]$/.test(s)) return false;
   // "33 1" (mixed without /) or "1/" alone — incomplete
   if (/^\d+\s+\d+$/.test(s)) return false;
   if (/\/$/.test(s)) return false;
