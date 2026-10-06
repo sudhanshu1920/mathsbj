@@ -382,17 +382,6 @@ const Index = () => {
           <div className={learningState.activeTopic === 'periodic-table'
               ? 'w-full max-w-[1480px] mx-auto px-3 sm:px-4 pt-0 relative z-10 flex-1'
               : 'max-w-lg mx-auto px-4 pt-0 relative z-10 flex-1'}>
-            {tab !== 'learn' && (
-              <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
-                <h1 className="font-display font-black text-base sm:text-lg text-foreground leading-none">
-                  {tab === 'practice' ? 'Quiz Arena' : 'Progress'}
-                </h1>
-                <div className="flex items-center gap-1.5">
-                  <ThemeToggle compact />
-                  <DesktopModeToggle compact />
-                </div>
-              </div>
-            )}
             <div className={tab === 'learn' ? 'animate-fade-in' : 'hidden'}>
               <LearningPage
                 onBack={goBack}
