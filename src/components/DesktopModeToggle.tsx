@@ -25,7 +25,11 @@ export const initDesktopMode = () => {
   applyFontScale(Number.isFinite(savedScale) ? clamp(savedScale) : 1);
 };
 
-const DesktopModeToggle = () => {
+interface DesktopModeToggleProps {
+  compact?: boolean;
+}
+
+const DesktopModeToggle = ({ compact = false }: DesktopModeToggleProps) => {
   const [desktop, setDesktop] = useState(() => localStorage.getItem(MODE_KEY) === '1');
   const [scale, setScale] = useState<number>(() => {
     const s = parseFloat(localStorage.getItem(SCALE_KEY) || '1');
@@ -132,11 +136,11 @@ const DesktopModeToggle = () => {
         onTouchEnd={cancelLongPress}
         onTouchCancel={cancelLongPress}
         onContextMenu={(e) => e.preventDefault()}
-        className="p-2 rounded-full bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+        className={`${compact ? 'h-7 w-7 p-1.5' : 'p-2'} rounded-full bg-secondary text-secondary-foreground hover:bg-accent transition-colors`}
         aria-label="Toggle desktop mode (long press for text size)"
         title={desktop ? 'Switch to mobile layout (long press: text size)' : 'Switch to desktop layout (long press: text size)'}
       >
-        {desktop ? <Smartphone size={18} /> : <Monitor size={18} />}
+        {desktop ? <Smartphone size={compact ? 15 : 18} /> : <Monitor size={compact ? 15 : 18} />}
       </button>
 
       {createPortal(
