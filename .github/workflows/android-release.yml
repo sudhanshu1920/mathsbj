@@ -15,6 +15,9 @@ permissions:
 
 jobs:
   build-android:
+    # APK creation is explicit: manual dispatch, or a commit explicitly marked
+    # with [BUILD_APK]. Normal source/UI changes never produce an APK.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, '[BUILD_APK]'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Native Android build is generated from the checked-in web source.
