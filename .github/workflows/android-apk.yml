@@ -1,5 +1,7 @@
 name: Android APK
 
+# Build requested from ChatGPT: package the android-production-build branch into an APK.
+
 on:
   push:
     paths:
