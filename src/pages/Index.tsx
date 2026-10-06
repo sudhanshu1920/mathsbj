@@ -4,8 +4,6 @@ import { App } from '@capacitor/app';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
-import ThemeToggle from '@/components/ThemeToggle';
-import DesktopModeToggle from '@/components/DesktopModeToggle';
 import Watermark from '@/components/Watermark';
 import LearningPage from '@/pages/LearningPage';
 const PracticePage = lazyWithRetry(() => import('@/pages/PracticePage'));
