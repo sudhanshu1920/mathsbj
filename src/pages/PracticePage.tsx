@@ -515,6 +515,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         timerEnabled: timerOn,
         timerSeconds: timerOn ? (initialExtras?.timerSeconds ?? 10) : 9999,
         sequential: false,
+        repetitionEnabled: false,
+        repetitionByTopic: {},
       };
       startPractice(cfg);
     }
@@ -1570,7 +1572,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             timerEnabled,
             timerSeconds: timerEnabled ? timerSeconds : 9999,
             sequential,
-          };
+             repetitionEnabled,
+             repetitionByTopic: repetitionEnabled
+               ? Object.fromEntries(Array.from(selectedTopics).map((tid) => [tid, sanitizeRepetition(topicRepetitions[tid])]))
+               : {},
+           };
           startPractice(cfg);
         }}
         className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-2 transition-all flex items-center justify-center gap-2 ${
