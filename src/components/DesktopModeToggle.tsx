@@ -138,11 +138,11 @@ const DesktopModeToggle = () => {
         onPointerCancel={cancelLongPress}
         onPointerLeave={cancelLongPress}
         onContextMenu={(e) => e.preventDefault()}
-        className="p-2 rounded-full bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+        className="h-7 w-7 rounded-full bg-secondary p-1.5 text-secondary-foreground hover:bg-accent transition-colors"
         aria-label="Toggle desktop mode (long press for text size)"
         title={desktop ? 'Switch to mobile layout (long press: text size)' : 'Switch to desktop layout (long press: text size)'}
       >
-        {desktop ? <Smartphone size={18} /> : <Monitor size={18} />}
+        {desktop ? <Smartphone size={15} /> : <Monitor size={15} />}
       </button>
 
       {createPortal(
