@@ -3,6 +3,11 @@ import { ArrowLeft, Atom, Layers3, MoreVertical, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
+import {
+  getAdjacentPeriodicRangeIndex,
+  isValidPeriodicRangeIndex,
+  PERIODIC_GROUPS,
+} from '@/lib/periodicRangeNavigation';
 
 interface PeriodicTableLearningProps {
   selectedElement: number | null;
@@ -106,21 +111,6 @@ const Legend = () => {
   );
 };
 
-const PERIODIC_GROUPS = [
-  { from: 1, to: 10 },
-  { from: 11, to: 20 },
-  { from: 21, to: 30 },
-  { from: 31, to: 40 },
-  { from: 41, to: 50 },
-  { from: 51, to: 60 },
-  { from: 61, to: 70 },
-  { from: 71, to: 80 },
-  { from: 81, to: 90 },
-  { from: 91, to: 100 },
-  { from: 101, to: 110 },
-  { from: 110, to: 118 },
-] as const;
-
 const PeriodicRangeMenu = ({
   selectedRangeIndex,
   onSelectRange,
@@ -178,7 +168,7 @@ const PeriodicRangeView = ({
 }) => {
   const pointerStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   const pointerAxisRef = useRef<'x' | 'y' | null>(null);
-  const group = PERIODIC_GROUPS[rangeIndex];
+  const group = PERIODIC_GROUPS[rangeIndex] || PERIODIC_GROUPS[0];
   const elements = useMemo(() => ELEMENTS.slice(group.from - 1, group.to), [group.from, group.to]);
   const hasPrevious = rangeIndex > 0;
   const hasNext = rangeIndex < PERIODIC_GROUPS.length - 1;
@@ -242,8 +232,8 @@ const PeriodicRangeView = ({
     resetPointer();
 
     if (!isHorizontalSwipe) return;
-    if (dx < 0 && hasNext) onChangeRange(rangeIndex + 1);
-    if (dx > 0 && hasPrevious) onChangeRange(rangeIndex - 1);
+    if (dx < 0 && hasNext) onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'next'));
+    if (dx > 0 && hasPrevious) onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'previous'));
   };
 
   return (
@@ -260,7 +250,7 @@ const PeriodicRangeView = ({
       <div className="mb-3 grid grid-cols-[auto_1fr_auto] items-center gap-2">
         <button
           type="button"
-          onClick={() => onChangeRange(rangeIndex - 1)}
+          onClick={() => onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'previous'))}
           disabled={!hasPrevious}
           className="rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -272,7 +262,7 @@ const PeriodicRangeView = ({
         </div>
         <button
           type="button"
-          onClick={() => onChangeRange(rangeIndex + 1)}
+          onClick={() => onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'next'))}
           disabled={!hasNext}
           className="rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -417,7 +407,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
   };
 
   const handleRangeChange = (index: number) => {
-    if (index < 0 || index >= PERIODIC_GROUPS.length) return;
+    if (!isValidPeriodicRangeIndex(index)) return;
     setSelectedRangeIndex(index);
     setRangeMenuOpen(false);
   };
