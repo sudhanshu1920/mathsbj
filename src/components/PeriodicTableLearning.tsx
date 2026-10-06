@@ -95,7 +95,7 @@ const Legend = () => {
     'metalloid', 'nonmetal', 'halogen', 'noble-gas', 'lanthanide', 'actinide', 'unknown',
   ] as ChemElement['category'][];
   return (
-    <div className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-2 rounded-2xl border border-border bg-card/70 px-3 py-3">
+    <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 border-y border-border/60 bg-background/30 px-3 py-2.5">
       {visibleCategories.map((category) => (
         <div key={category} className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
           <span className={`h-2 w-2 rounded-full ${CATEGORY_DOTS[category]}`} />
