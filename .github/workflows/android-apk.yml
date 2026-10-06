@@ -3,18 +3,9 @@ name: Android APK
 run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
 
 on:
-  push:
-    paths:
-      - "src/**"
-      - "public/**"
-      - "index.html"
-      - "package.json"
-      - "vite.config.ts"
-      - "capacitor.config.ts"
-      - ".github/workflows/android-apk.yml"
+  # APK builds are manual-only after the explicitly approved build.
   workflow_dispatch:
 
-# Production Android APK pipeline
 permissions:
   contents: write
 
@@ -74,15 +65,18 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build installable debug APK
+      - name: Build unsigned release APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
 
-      - name: Verify APK and checksum
+      - name: Locate and verify release APK
         shell: bash
         run: |
-          test -s android/app/build/outputs/apk/debug/app-debug.apk
-          sha256sum android/app/build/outputs/apk/debug/app-debug.apk
+          APK_PATH="$(find android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK_PATH"
+          test -s "$APK_PATH"
+          echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
+          sha256sum "$APK_PATH"
 
       - name: Sync generated package lock
         shell: bash
@@ -96,10 +90,10 @@ jobs:
           git commit -m "chore: sync package lock for Capacitor Android build"
           git push
 
-      - name: Upload APK
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: math-master-android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: math-master-android-release
+          path: ${{ env.APK_PATH }}
           if-no-files-found: error
           retention-days: 14

@@ -960,11 +960,11 @@ html.desktop-mode .glass-panel {
     min-width: 22rem;
     border: 1px solid hsl(var(--border));
     border-radius: 9999px;
-    overflow: hidden;
+    overflow: visible;
     box-shadow: 0 10px 30px -12px hsl(var(--primary) / 0.45);
   }
   html.desktop-mode nav.fixed.bottom-0 > div {
-    height: 56px;
+    height: 28px;
     gap: 0.5rem;
     padding-left: 0.5rem;
     padding-right: 0.5rem;
@@ -1058,4 +1058,75 @@ html.low-power *::after {
   animation-duration: 0.001ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 120ms !important;
+}
+
+
+/* ===== Compact gradient app panels ===== */
+.top-panel {
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--primary) / 0.10) 0%,
+      hsl(var(--card) / 0.52) 48%,
+      hsl(var(--background) / 0.06) 100%
+    );
+  border-bottom: 1px solid hsl(var(--border) / 0.28);
+}
+
+.bottom-nav-panel {
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.12) 0%,
+      hsl(var(--primary) / 0.06) 46%,
+      hsl(var(--card) / 0.74) 100%
+    ) !important;
+}
+
+html.light .bottom-nav-panel {
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.18) 0%,
+      hsl(var(--primary) / 0.05) 46%,
+      hsl(var(--card) / 0.78) 100%
+    ) !important;
+}
+
+html.low-power .bottom-nav-panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.12) 0%,
+      hsl(var(--primary) / 0.06) 46%,
+      hsl(var(--card) / 0.92) 100%
+    ) !important;
+}
+
+@supports not (backdrop-filter: blur(24px)) {
+  .top-panel,
+  .bottom-nav-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .top-panel {
+    background:
+      linear-gradient(
+        180deg,
+        hsl(var(--primary) / 0.10),
+        hsl(var(--background) / 0.08)
+      );
+  }
+
+  .bottom-nav-panel {
+    background:
+      linear-gradient(
+        180deg,
+        hsl(var(--background) / 0.12),
+        hsl(var(--card) / 0.82)
+      ) !important;
+  }
 }

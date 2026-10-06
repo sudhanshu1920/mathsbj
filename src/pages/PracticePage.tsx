@@ -25,6 +25,7 @@ import {
 
 import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect } from '@/lib/trigData';
 import { ELEMENTS, formatMass } from '@/lib/periodicTable';
+import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -50,6 +51,8 @@ interface PracticeConfig {
   timerEnabled: boolean;
   timerSeconds: number;
   sequential: boolean;
+  repetitionEnabled: boolean;
+  repetitionByTopic: Record<string, number>;
 }
 
 type PeriodicQuestionType = 'atomic-number' | 'symbol' | 'name' | 'mass';
@@ -63,6 +66,7 @@ interface MixedPct {
 }
 
 interface Question {
+  topicId?: string;
   text: string;
   superscript?: string;
   answer: number | string;
@@ -89,6 +93,7 @@ const TOPICS = [
 ];
 
 const COUNTS = [10, 20, 25, 50];
+const REPETITION_OPTIONS = [1, 2, 3, 5, 10] as const;
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
@@ -261,19 +266,21 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
 }
 
 function generateQuestions(config: PracticeConfig): Question[] {
-  const allQuestions: Question[] = [];
+  const baseQuestions: Question[] = [];
 
   for (const topic of config.topics) {
-    const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label);
-    allQuestions.push(...qs);
+    const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label)
+      .map((question) => ({ ...question, topicId: topic.id }));
+    baseQuestions.push(...qs);
   }
 
-  if (!config.sequential) {
-    for (let i = allQuestions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
-    }
-  }
+  const allQuestions = buildQuestionPool(baseQuestions, {
+    enabled: config.repetitionEnabled,
+    repetitionByTopic: config.repetitionByTopic,
+    sequential: config.sequential,
+    count: config.count,
+    infinite: config.infinite,
+  });
 
   if (config.mode === 'mcq') {
     const sliced = config.infinite ? allQuestions : allQuestions.slice(0, config.count);
@@ -475,6 +482,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [sequential, setSequential] = useState(false);
+  const [repetitionEnabled, setRepetitionEnabled] = useState(false);
+  const [topicRepetitions, setTopicRepetitions] = useState<Record<string, number>>(() => (
+    Object.fromEntries(TOPICS.map((topic) => [topic.id, 1]))
+  ));
 
   useEffect(() => {
     if (initialTopic && initialMode) {
@@ -493,6 +504,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         timerEnabled: timerOn,
         timerSeconds: timerOn ? (initialExtras?.timerSeconds ?? 10) : 9999,
         sequential: false,
+        repetitionEnabled: false,
+        repetitionByTopic: {},
       };
       startPractice(cfg);
     }
@@ -1179,7 +1192,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     periodicTypes.length > 0 &&
     (!periodicTypes.includes('mass') || !!periodicRange.periodicMassMode)
   );
-  const canStart = selectedTopics.size > 0 && validPeriodicRange;
+  const repetitionValid = !repetitionEnabled || Array.from(selectedTopics).every((tid) => {
+    const value = sanitizeRepetition(topicRepetitions[tid]);
+    return value >= 1 && value <= MAX_REPETITION;
+  });
+  const canStart = selectedTopics.size > 0 && validPeriodicRange && repetitionValid;
 
   return (
     <div className="pb-4">
@@ -1431,6 +1448,56 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </div>
       </div>
 
+      {/* Repetition */}
+      <div className="mb-5 bg-card border border-border rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="font-semibold text-sm text-foreground">Repetition</span>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Repeat each generated item independently for every selected topic.
+            </p>
+          </div>
+          <Switch checked={repetitionEnabled} onCheckedChange={setRepetitionEnabled} />
+        </div>
+
+        {repetitionEnabled && (
+          <div className="mt-3 space-y-3 border-t border-border pt-3">
+            {Array.from(selectedTopics).map((tid) => {
+              const topicInfo = TOPICS.find((t) => t.id === tid);
+              const value = sanitizeRepetition(topicRepetitions[tid]);
+              return (
+                <div key={tid} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                  <span className="min-w-0 truncate text-xs font-bold text-foreground">
+                    {topicInfo?.label || tid}
+                  </span>
+                  <div className="grid grid-cols-5 gap-1">
+                    {REPETITION_OPTIONS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        aria-pressed={value === option}
+                        onClick={() => setTopicRepetitions((prev) => ({
+                          ...prev,
+                          [tid]: option,
+                        }))}
+                        className={
+                          'min-h-9 min-w-10 rounded-lg border px-2 py-1.5 text-[11px] font-bold transition-colors ' +
+                          (value === option
+                            ? 'gradient-primary border-primary text-primary-foreground'
+                            : 'bg-secondary border-border text-secondary-foreground hover:border-primary/50')
+                        }
+                      >
+                        {option}×
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Answer Mode */}
       <div className="mb-5">
         <label className="text-sm text-muted-foreground mb-2 block font-semibold">Answer Mode</label>
@@ -1494,7 +1561,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             timerEnabled,
             timerSeconds: timerEnabled ? timerSeconds : 9999,
             sequential,
-          };
+             repetitionEnabled,
+             repetitionByTopic: repetitionEnabled
+               ? Object.fromEntries(Array.from(selectedTopics).map((tid) => [tid, sanitizeRepetition(topicRepetitions[tid])]))
+               : {},
+           };
           startPractice(cfg);
         }}
         className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-2 transition-all flex items-center justify-center gap-2 ${
