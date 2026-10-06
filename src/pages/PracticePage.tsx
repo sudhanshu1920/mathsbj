@@ -1291,7 +1291,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   ? `(Standard angles • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`
   : tid === 'periodic-table'
     ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''} • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`
-    : `(${range.from}–${range.to} • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`
+    : `(${range.from}–${range.to} • Rep ${normalizeRepetition(range.repetition) === 1 ? 'Off' : `${normalizeRepetition(range.repetition)}×`})`}
                     </span>
                   </div>
                   {!isTrig && (isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />)}
