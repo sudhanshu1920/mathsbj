@@ -324,14 +324,17 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
       </div>
 
       {columnView ? (
-        <div className="max-h-[70dvh] overflow-y-auto overscroll-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
+        <div
+          className="periodic-column-scroll max-h-[70dvh] w-full overflow-x-hidden overflow-y-auto overscroll-contain py-1"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
           <PeriodicColumnView onSelectElement={(number) => onSelectElement(number)} massMode={massMode} />
         </div>
       ) : (
         <div
           ref={tableScrollRef}
           data-swipe-ignore-back="true"
-          className="periodic-table-scroll w-full max-h-[70dvh] min-h-0 overflow-auto overscroll-contain rounded-3xl border border-border bg-card/60 p-2 sm:p-3"
+          className="periodic-table-scroll w-full max-h-[70dvh] min-h-0 overflow-x-auto overflow-y-auto overscroll-contain py-1"
           style={{
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-x pan-y',
