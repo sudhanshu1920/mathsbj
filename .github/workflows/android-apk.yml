@@ -93,9 +93,32 @@ jobs:
           git push
 
       - name: Upload APK
+        id: upload_apk
         uses: actions/upload-artifact@v4
         with:
           name: math-master-android-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+
+      - name: Record APK build metadata
+        if: success()
+        shell: bash
+        env:
+          APK_ARTIFACT_ID: ${{ steps.upload_apk.outputs.artifact-id }}
+          APK_RUN_ID: ${{ github.run_id }}
+          APK_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          cat > apk-build-info.txt <<EOF
+run_id=$APK_RUN_ID
+artifact_id=$APK_ARTIFACT_ID
+commit_sha=$APK_SHA
+artifact_name=math-master-android-debug
+EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@github.com"
+          git add apk-build-info.txt
+          git commit -m "ci: record Android APK build metadata" || exit 0
+          git push
