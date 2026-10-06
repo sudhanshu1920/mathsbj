@@ -261,7 +261,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
 }
 
 function generateQuestions(config: PracticeConfig): Question[] {
-  let allQuestions: Question[] = [];
+  const allQuestions: Question[] = [];
 
   for (const topic of config.topics) {
     const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label);
@@ -617,7 +617,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         } else {
           playWrong();
         }
-      } catch {}
+      } catch { /* vibration/audio are optional */ }
       // Save result for all topics
       const topicId = config.topics.length === 1 ? config.topics[0].id : 'mixed';
       saveResult(topicId, isCorrect);
