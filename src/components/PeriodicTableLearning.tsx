@@ -256,7 +256,12 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
     clearMorePressTimer();
   };
 
-  useEffect(() => () => clearMorePressTimer(), []);
+  useEffect(() => () => {
+    if (morePressTimerRef.current) {
+      clearTimeout(morePressTimerRef.current);
+      morePressTimerRef.current = null;
+    }
+  }, []);
 
   const handleMoreClick = () => {
     if (longPressTriggered) {
