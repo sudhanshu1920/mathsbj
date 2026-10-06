@@ -3,8 +3,11 @@ name: Android APK
 run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
 
 on:
-  # APK builds are manual-only after the explicitly approved build.
+  # Explicit user approval has been received for this APK build.
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/android-apk.yml'
 
 permissions:
   contents: write
