@@ -11,6 +11,8 @@ import { getSettings, isActive, markInteraction, getTablesProMode } from '@/lib/
 import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
 import { playClick, playSuccess, playWrong, playLevelUp, playStreak } from '@/lib/sound';
 import XPBar from '@/components/XPBar';
+import ThemeToggle from '@/components/ThemeToggle';
+import DesktopModeToggle from '@/components/DesktopModeToggle';
 import MathKeypad from '@/components/MathKeypad';
 import {
   AlertDialog,
@@ -815,7 +817,18 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     const accuracy = totalAttempts > 0 ? Math.round((score.correct / totalAttempts) * 100) : 0;
     return (
       <SwipeBack onBack={handleBackToPractice}>
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div>
+          <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
+            <button onClick={handleBackToPractice} className="h-7 w-7 inline-flex items-center justify-center rounded-full text-primary" aria-label="Back">
+              <ArrowLeft size={16} />
+            </button>
+            <h1 className="font-display font-bold text-sm sm:text-base text-foreground">Quiz Result</h1>
+            <div className="flex items-center gap-1.5">
+              <ThemeToggle compact />
+              <DesktopModeToggle compact />
+            </div>
+          </div>
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
             <div className="mb-4 flex justify-center">
               {accuracy >= 80 ? (
@@ -868,6 +881,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               )}
             </div>
           </motion.div>
+          </div>
         </div>
       </SwipeBack>
     );
@@ -945,7 +959,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           </AlertDialogContent>
         </AlertDialog>
 
-        <div className="flex items-center justify-between mb-4">
+        <div className="app-topbar-page flex items-center justify-between gap-1.5" data-app-topbar>
           <button onClick={handleExitRequest} className="text-primary flex items-center gap-1"><ArrowLeft size={18} /></button>
           <div className="flex-1 px-3 max-w-[180px]">
             <XPBar />
@@ -1200,12 +1214,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   return (
     <div className="pb-4">
-      <div className="flex items-center justify-between gap-3 mb-6">
-        <h1 className="font-display font-bold text-2xl text-glow flex items-center gap-2">
-          <Zap size={20} className="text-primary" /> Quiz Arena
+      <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
+        <h1 className="font-display font-bold text-base sm:text-lg text-foreground flex items-center gap-1.5">
+          <Zap size={16} className="text-primary" /> Quiz Arena
         </h1>
-        <div className="flex-1 max-w-[180px]">
-          <XPBar />
+        <div className="flex items-center gap-1.5">
+          <div className="w-[110px] sm:w-[150px]">
+            <XPBar />
+          </div>
+          <ThemeToggle compact />
+          <DesktopModeToggle compact />
         </div>
       </div>
 
