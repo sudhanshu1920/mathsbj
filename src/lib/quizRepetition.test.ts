@@ -11,6 +11,9 @@ interface TestQuestion {
 }
 
 describe('quiz repetition', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it('normalizes invalid and extreme repetition values safely', () => {
     expect(normalizeQuizRepetition(undefined)).toBe(1);
     expect(normalizeQuizRepetition(Number.NaN)).toBe(1);
@@ -59,8 +62,23 @@ describe('quiz repetition', () => {
     expect(result.slice(0, 10).map((question) => question.item)).not.toEqual([
       1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
     ]);
+  });
 
-    vi.restoreAllMocks();
+  it('keeps the existing Questions count as the base-pool selector', () => {
+    const source: TestQuestion[] = Array.from({ length: 20 }, (_, index) => ({
+      topic: 'Square',
+      item: index + 1,
+      repetition: 5,
+    }));
+
+    const baseQuestions = source.slice(0, 10);
+    const result = expandQuizQuestionPool(baseQuestions, (question) => question.repetition, true);
+
+    expect(result).toHaveLength(50);
+    expect(new Set(result.map((question) => question.item))).toEqual(new Set(Array.from({ length: 10 }, (_, i) => i + 1)));
+    for (let item = 1; item <= 10; item += 1) {
+      expect(result.filter((question) => question.item === item)).toHaveLength(5);
+    }
   });
 
   it('keeps different repetition values isolated to each topic/range item', () => {
