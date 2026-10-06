@@ -22,25 +22,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    // Set up listener FIRST
+    if (!supabase) {
+      setSession(null);
+      setUser(null);
+      setGuest(true);
+      setLoading(false);
+      return;
+    }
+
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
 
-      // Tear down previous sync
       if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
 
       if (s?.user) {
-        // Signed in: leave guest mode if it was active
         setGuest(false);
-        // Defer to avoid deadlocks in the auth callback
         setTimeout(() => {
           cleanupRef.current = startSync(s.user.id);
         }, 0);
       }
     });
 
-    // Then check existing session
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
@@ -57,9 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    if (user) { try { await pushToCloud(user.id); } catch { /* ignore */ } }
+    if (user && supabase) {
+      try { await pushToCloud(user.id); } catch { /* ignore */ }
+    }
     if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
-    await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     clearLocalUserData();
     setGuest(false);
   };
