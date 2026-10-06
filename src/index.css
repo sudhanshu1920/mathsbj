@@ -964,7 +964,7 @@ html.desktop-mode .glass-panel {
     box-shadow: 0 10px 30px -12px hsl(var(--primary) / 0.45);
   }
   html.desktop-mode nav.fixed.bottom-0 > div {
-    height: 36px;
+    height: 28px;
     gap: 0.5rem;
     padding-left: 0.5rem;
     padding-right: 0.5rem;
