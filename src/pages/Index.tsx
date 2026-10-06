@@ -377,15 +377,20 @@ const Index = () => {
     <div className="app-shell">
       <div data-current-theme={currentTheme} data-current-mode={currentMode} className="app-frame bg-background">
         <Watermark />
-        <div className="app-frame-scroll pb-[calc(44px+env(safe-area-inset-bottom))]">
+        <div className="app-frame-scroll">
           <div className={wideDesktop ? 'flex justify-center gap-4 relative z-10' : 'contents'}>
           <div className={learningState.activeTopic === 'periodic-table'
-              ? 'w-full max-w-[1480px] mx-auto px-3 sm:px-4 pt-4 relative z-10 flex-1'
-              : 'max-w-lg mx-auto px-4 pt-4 relative z-10 flex-1'}>
+              ? 'w-full max-w-[1480px] mx-auto px-3 sm:px-4 pt-0 relative z-10 flex-1'
+              : 'max-w-lg mx-auto px-4 pt-0 relative z-10 flex-1'}>
             {tab !== 'learn' && (
-              <div className="flex justify-end gap-2 mb-2">
-                <ThemeToggle />
-                <DesktopModeToggle />
+              <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
+                <h1 className="font-display font-black text-base sm:text-lg text-foreground leading-none">
+                  {tab === 'practice' ? 'Quiz Arena' : 'Progress'}
+                </h1>
+                <div className="flex items-center gap-1.5">
+                  <ThemeToggle compact />
+                  <DesktopModeToggle compact />
+                </div>
               </div>
             )}
             <div className={tab === 'learn' ? 'animate-fade-in' : 'hidden'}>
