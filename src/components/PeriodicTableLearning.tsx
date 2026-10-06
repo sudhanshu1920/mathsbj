@@ -215,7 +215,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
                   if (el) return <ElementCell key={`${period}-${group}`} el={el} onClick={() => onSelectElement(el.number)} />;
                   if (period === 6 && group === 3) return <FPlaceholder key={`${period}-${group}`} label="57–71" text="Lanthanides ↓" />;
                   if (period === 7 && group === 3) return <FPlaceholder key={`${period}-${group}`} label="89–103" text="Actinides ↓" />;
-                  return <div key={`${period}-${group}`} className="aspect-square h-[76px] rounded-lg border border-transparent" aria-hidden="true" />;
+                  return <div key={`${period}-${group}`} className="aspect-square h-[72px] rounded-lg border border-transparent" aria-hidden="true" />;
                 })}
               </div>
             ))}
@@ -227,7 +227,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
               <div key={row} className="grid grid-cols-[48px_repeat(18,72px)] gap-1">
                 <div className="flex flex-col items-center justify-center rounded-lg bg-background/40 text-center"><span className="text-[8px] font-black uppercase text-muted-foreground">{label}</span><span className="mt-0.5 text-[8px] font-bold text-primary">{range}</span></div>
                 {GROUPS.map((group) => {
-                  if (group < 4 || group > 18) return <div key={group} className="aspect-square h-[76px] rounded-lg border border-transparent" aria-hidden="true" />;
+                  if (group < 4 || group > 18) return <div key={group} className="aspect-square h-[72px] rounded-lg border border-transparent" aria-hidden="true" />;
                   const el = F_ELEMENT_BY_POSITION.get(`${row}-${group}`);
                   return el ? <ElementCell key={group} el={el} compact onClick={() => onSelectElement(el.number)} /> : <div key={group} className="aspect-square h-[72px] min-w-[72px]" />;
                 })}
