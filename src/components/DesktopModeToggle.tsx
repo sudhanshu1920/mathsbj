@@ -92,7 +92,8 @@ const DesktopModeToggle = () => {
     };
   }, [overlayOpen, updatePos]);
 
-  const startLongPress = () => {
+  const startLongPress = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
     longPressed.current = false;
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
     longPressTimer.current = window.setTimeout(() => {
@@ -108,6 +109,13 @@ const DesktopModeToggle = () => {
       longPressTimer.current = null;
     }
   };
+
+  useEffect(() => {
+    return () => {
+      cancelLongPress();
+      if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    };
+  }, []);
 
   const handleClick = () => {
     if (longPressed.current) {
@@ -125,12 +133,10 @@ const DesktopModeToggle = () => {
       <button
         ref={btnRef}
         onClick={handleClick}
-        onMouseDown={startLongPress}
-        onMouseUp={cancelLongPress}
-        onMouseLeave={cancelLongPress}
-        onTouchStart={startLongPress}
-        onTouchEnd={cancelLongPress}
-        onTouchCancel={cancelLongPress}
+        onPointerDown={startLongPress}
+        onPointerUp={cancelLongPress}
+        onPointerCancel={cancelLongPress}
+        onPointerLeave={cancelLongPress}
         onContextMenu={(e) => e.preventDefault()}
         className="p-2 rounded-full bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
         aria-label="Toggle desktop mode (long press for text size)"
