@@ -1137,7 +1137,7 @@ html.light .bottom-nav {
 
 @media (max-width: 767px) {
   .app-frame-scroll {
-    padding-bottom: 3rem;
+    padding-bottom: 3.5rem;
   }
 }
 
