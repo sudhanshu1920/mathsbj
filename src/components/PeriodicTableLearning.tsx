@@ -182,6 +182,7 @@ const PeriodicRangeView = ({
 
   return (
     <div
+      data-swipe-ignore-back="true"
       className="w-full touch-pan-y"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
