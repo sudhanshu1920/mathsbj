@@ -25,6 +25,7 @@ import {
 
 import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect } from '@/lib/trigData';
 import { ELEMENTS, formatMass } from '@/lib/periodicTable';
+import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -65,6 +66,7 @@ interface MixedPct {
 }
 
 interface Question {
+  topicId?: string;
   text: string;
   superscript?: string;
   answer: number | string;
@@ -92,13 +94,6 @@ const TOPICS = [
 
 const COUNTS = [10, 20, 25, 50];
 const REPETITION_OPTIONS = [1, 2, 3, 5, 10] as const;
-const MAX_REPETITION = 10;
-
-function sanitizeRepetition(value: unknown): number {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 1;
-  return Math.min(MAX_REPETITION, Math.max(1, Math.floor(numeric)));
-}
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
@@ -271,27 +266,21 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
 }
 
 function generateQuestions(config: PracticeConfig): Question[] {
-  const allQuestions: Question[] = [];
+  const baseQuestions: Question[] = [];
 
   for (const topic of config.topics) {
-    const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label);
-    const repetition = config.repetitionEnabled
-      ? sanitizeRepetition(config.repetitionByTopic[topic.id])
-      : 1;
-
-    for (const question of qs) {
-      for (let i = 0; i < repetition; i += 1) {
-        allQuestions.push(question);
-      }
-    }
+    const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label)
+      .map((question) => ({ ...question, topicId: topic.id }));
+    baseQuestions.push(...qs);
   }
 
-  if (!config.sequential) {
-    for (let i = allQuestions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
-    }
-  }
+  const allQuestions = buildQuestionPool(baseQuestions, {
+    enabled: config.repetitionEnabled,
+    repetitionByTopic: config.repetitionByTopic,
+    sequential: config.sequential,
+    count: config.count,
+    infinite: config.infinite,
+  });
 
   if (config.mode === 'mcq') {
     const sliced = config.infinite ? allQuestions : allQuestions.slice(0, config.count);
