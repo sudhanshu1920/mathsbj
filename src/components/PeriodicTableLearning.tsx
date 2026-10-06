@@ -3,6 +3,7 @@ import { ArrowLeft, Atom, ChevronLeft, ChevronRight, Grid3X3, Layers3, MoreVerti
 import { m as motion } from 'framer-motion';
 import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
+import { getPeriodicRangeElements, movePeriodicRangeIndex, PERIODIC_RANGES } from '@/lib/periodicRanges';
 
 interface PeriodicTableLearningProps {
   selectedElement: number | null;
@@ -39,21 +40,6 @@ const CATEGORY_DOTS: Record<ChemElement['category'], string> = {
 
 const MAIN_ROWS = Array.from({ length: 7 }, (_, i) => i + 1);
 const GROUPS = Array.from({ length: 18 }, (_, i) => i + 1);
-const PERIODIC_RANGES = [
-  { from: 1, to: 10, label: '1–10' },
-  { from: 11, to: 20, label: '11–20' },
-  { from: 21, to: 30, label: '21–30' },
-  { from: 31, to: 40, label: '31–40' },
-  { from: 41, to: 50, label: '41–50' },
-  { from: 51, to: 60, label: '51–60' },
-  { from: 61, to: 70, label: '61–70' },
-  { from: 71, to: 80, label: '71–80' },
-  { from: 81, to: 90, label: '81–90' },
-  { from: 91, to: 100, label: '91–100' },
-  { from: 101, to: 110, label: '101–110' },
-  { from: 110, to: 118, label: '110–118' },
-] as const;
-
 const F_BLOCK_ROWS = [
   { ypos: 9, label: 'Lanthanides', range: '57–71' },
   { ypos: 10, label: 'Actinides', range: '89–103' },
@@ -250,8 +236,8 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
   const selected = selectedElement ? ELEMENTS[selectedElement - 1] : undefined;
   const selectedRange = selectedRangeIndex === null ? null : PERIODIC_RANGES[selectedRangeIndex];
   const rangeElements = useMemo(
-    () => selectedRange ? ELEMENTS.slice(selectedRange.from - 1, selectedRange.to) : [],
-    [selectedRange],
+    () => selectedRangeIndex === null ? [] : getPeriodicRangeElements(selectedRangeIndex),
+    [selectedRangeIndex],
   );
 
   useEffect(() => {
@@ -275,10 +261,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
   }, []);
 
   const moveRange = useCallback((delta: number) => {
-    setSelectedRangeIndex((current) => {
-      if (current === null) return delta > 0 ? Math.min(1, PERIODIC_RANGES.length - 1) : null;
-      return Math.max(0, Math.min(PERIODIC_RANGES.length - 1, current + delta));
-    });
+    setSelectedRangeIndex((current) => movePeriodicRangeIndex(current, delta));
   }, []);
 
   const finishRangeSwipe = useCallback((event: ReactPointerEvent<HTMLDivElement>, cancelled = false) => {
