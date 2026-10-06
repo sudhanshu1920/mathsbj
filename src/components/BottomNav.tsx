@@ -60,7 +60,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass-panel bottom-nav-panel border-t border-b-0 border-x-0 safe-bottom shadow-[0_-12px_28px_-14px_hsl(var(--primary)/0.32)]">
-      <div className="flex justify-around items-center h-[36px] max-w-lg mx-auto px-1">
+      <div className="flex justify-around items-center h-[34px] max-w-lg mx-auto px-1">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
           const isBouncing = bouncingTab === tab.id;
@@ -73,16 +73,16 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
               <motion.div
                 animate={isBouncing ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                 transition={{ duration: 0.3 }}
-                className={`relative flex items-center justify-center w-11 h-6 rounded-lg border ${
+                className={`relative flex items-center justify-center w-10 h-5 rounded-lg border ${
                   isActive
                     ? 'bg-primary/10 border-primary/60 text-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.45),0_0_18px_hsl(var(--primary)/0.45)]'
                     : 'bg-transparent border-transparent text-muted-foreground'
                 }`}
               >
-                <tab.icon size={16} strokeWidth={2.5} />
+                <tab.icon size={14} strokeWidth={2.5} />
               </motion.div>
               <span
-                className={`text-[8px] font-display font-extrabold uppercase tracking-wider ${
+                className={`text-[8px] font-display leading-none font-extrabold uppercase tracking-wider ${
                   isActive ? 'text-primary neon-text' : 'text-muted-foreground'
                 }`}
               >
