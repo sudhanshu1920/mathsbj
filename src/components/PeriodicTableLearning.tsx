@@ -5,6 +5,7 @@ import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
 import {
   getAdjacentPeriodicRangeIndex,
+  getPeriodicSwipeDirection,
   isValidPeriodicRangeIndex,
   PERIODIC_GROUPS,
 } from '@/lib/periodicRangeNavigation';
@@ -202,15 +203,15 @@ const PeriodicRangeView = ({
 
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
-    const isHorizontalSwipe =
-      Math.abs(dx) >= 56 &&
-      Math.abs(dx) > Math.abs(dy) * 1.15;
+    const direction = getPeriodicSwipeDirection(dx, dy);
 
     resetPointer();
 
-    if (!isHorizontalSwipe) return;
-    if (dx < 0 && hasNext) onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'next'));
-    if (dx > 0 && hasPrevious) onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'previous'));
+    if (direction === 'next' && hasNext) {
+      onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'next'));
+    } else if (direction === 'previous' && hasPrevious) {
+      onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'previous'));
+    }
   };
 
   return (
