@@ -638,7 +638,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             playLevelUp();
             const settings = getSettings();
             if (settings.vibration && 'vibrate' in navigator) navigator.vibrate([20, 30, 20, 30, 60]);
-          } catch {}
+          } catch { /* optional level-up effects */ }
           setTimeout(() => { setLevelUp(null); acknowledgeLevel(); }, 1400);
         }
         setTimeout(() => setXpPop((p) => (p && p.id === xpPopId.current ? null : p)), 700);
