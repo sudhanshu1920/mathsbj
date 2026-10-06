@@ -61,8 +61,8 @@ const ProgressPage = () => {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h1 className="font-display font-bold text-2xl text-glow">Progress</h1>
+      <div className="app-top-header flex h-6 min-h-6 items-center justify-between mb-3 rounded-xl border border-border/50 px-2">
+        <h1 className="font-display font-bold text-xl leading-none text-glow">Progress</h1>
         <div className="flex items-center gap-2">
           <motion.div
             initial={{ scale: 0.6, opacity: 0 }}
