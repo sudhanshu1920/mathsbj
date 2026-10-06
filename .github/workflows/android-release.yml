@@ -86,7 +86,16 @@ jobs:
           store_password="$(openssl rand -hex 24)"
           keystore="$GITHUB_WORKSPACE/android/app/ci-release.keystore"
 
-          keytool -genkeypair -v             -keystore "$keystore"             -storepass "$store_password"             -keypass "$key_password"             -alias "MathMasterCI"             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Math Master CI,O=SBJ Sigma,C=IN"
+          keytool -genkeypair -v \
+            -storetype JKS \
+            -keystore "$keystore" \
+            -storepass "$store_password" \
+            -keypass "$key_password" \
+            -alias "MathMasterCI" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Math Master CI,O=SBJ Sigma,C=IN"
 
           {
             echo "CI_KEYSTORE_PATH=$keystore"
