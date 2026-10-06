@@ -3,7 +3,9 @@ name: Android APK
 run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
 
 on:
-  # APK builds are manual-only after the explicitly approved build.
+  push:
+    branches:
+      - fix/production-panels-periodic-repetition-2026-10-06
   workflow_dispatch:
 
 # Production Android APK pipeline
