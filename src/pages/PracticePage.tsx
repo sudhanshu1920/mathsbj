@@ -682,13 +682,25 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   handleAnswerRef.current = handleAnswer;
 
   const handleSubmitInfinite = useCallback(() => {
-    if (!config?.infinite) return;
+    if (!config?.infinite || submitLockRef.current) return;
     const totalAttempts = score.correct + score.wrong;
     if (totalAttempts === 0) return;
+    submitLockRef.current = true;
+    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    answerAdvanceTimerRef.current = undefined;
     setFinished(true);
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
   }, [config, score]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+      if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+      if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
@@ -738,9 +750,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, []);
 
   const handleExitConfirmed = useCallback(() => {
-    // Stop timers + dispose session, then route appropriately
+    // Stop timers + pending answer transition, then route appropriately
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
+    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    answerAdvanceTimerRef.current = undefined;
+    submitLockRef.current = false;
     timerRef.current = undefined;
     elapsedRef.current = undefined;
     setShowExitDialog(false);
