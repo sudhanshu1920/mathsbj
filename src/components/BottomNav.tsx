@@ -82,7 +82,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
                 <tab.icon size={18} strokeWidth={2.5} />
               </motion.div>
               <span
-                className={`text-[8px] font-display font-extrabold uppercase tracking-wider ${
+                className={`text-[9px] font-display font-extrabold uppercase tracking-wider ${
                   isActive ? 'text-primary neon-text' : 'text-muted-foreground'
                 }`}
               >
