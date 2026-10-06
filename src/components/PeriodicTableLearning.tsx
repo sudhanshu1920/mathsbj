@@ -245,6 +245,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
   const rangeMenuRef = useRef<HTMLDivElement | null>(null);
   const rangeSwipeStart = useRef<{ x: number; y: number } | null>(null);
   const rangeSwipePointerId = useRef<number | null>(null);
+  const suppressRangeClick = useRef(false);
 
   const selected = selectedElement ? ELEMENTS[selectedElement - 1] : undefined;
   const selectedRange = selectedRangeIndex === null ? null : PERIODIC_RANGES[selectedRangeIndex];
@@ -306,6 +307,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (selectedRangeIndex === null) return;
 
+    suppressRangeClick.current = false;
     rangeSwipeStart.current = { x: event.clientX, y: event.clientY };
     rangeSwipePointerId.current = event.pointerId;
 
@@ -321,6 +323,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
     const dx = event.clientX - rangeSwipeStart.current.x;
     const dy = event.clientY - rangeSwipeStart.current.y;
     if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+      suppressRangeClick.current = true;
       event.preventDefault();
     }
   }, []);
@@ -422,6 +425,12 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
             onPointerMove={handleRangePointerMove}
             onPointerUp={finishRangeSwipe}
             onPointerCancel={(event) => finishRangeSwipe(event, true)}
+            onClickCapture={(event) => {
+              if (!suppressRangeClick.current) return;
+              event.preventDefault();
+              event.stopPropagation();
+              suppressRangeClick.current = false;
+            }}
           >
             {rangeElements.map((el) => (
               <RangeElementCell key={el.number} el={el} onClick={() => onSelectElement(el.number)} />
