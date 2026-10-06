@@ -102,21 +102,21 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   const renderHeader = (title: string, localBack: () => void, showPractice = true) => {
     const goBack = onBack ?? localBack;
     return (
-    <div className="flex items-center justify-between mb-4">
-      <button onClick={goBack} className="p-2 -ml-2 text-primary">
-        <ArrowLeft size={20} />
+    <div className="app-top-header flex min-h-[28px] items-center justify-between mb-2">
+      <button onClick={goBack} className="h-8 w-8 shrink-0 -ml-1 p-1 text-primary" aria-label="Back">
+        <ArrowLeft size={18} />
       </button>
-      <h2 className="font-display font-bold text-lg text-foreground">{title}</h2>
-      <div className="flex items-center gap-2">
+      <h2 className="px-2 font-display font-bold text-base leading-none text-foreground text-center">{title}</h2>
+      <div className="flex shrink-0 items-center gap-1">
         {showPractice && (
           <button
             onClick={() => {
               if (activeTopic === 'periodic-table') onStartPractice?.(activeTopic);
               else setShowPracticeMode(true);
             }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold"
+            className="flex h-7 items-center gap-1 px-2.5 rounded-full gradient-primary text-primary-foreground text-[11px] font-semibold"
           >
-            <Target size={14} />
+            <Target size={12} />
             Practice
           </button>
         )}
