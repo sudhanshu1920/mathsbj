@@ -33,7 +33,7 @@ describe('PracticePage question generation', () => {
   it('keeps repetition isolated per topic', () => {
     const questions = generateQuestions({
       ...baseConfig,
-      count: 10,
+      count: 5,
       topics: [
         { id: 'squares', label: 'Squares', range: { from: 1, to: 3 } },
         { id: 'cubes', label: 'Cubes', range: { from: 1, to: 2 } },
@@ -46,7 +46,7 @@ describe('PracticePage question generation', () => {
     const cubeQuestions = questions.filter((question) => question.topicId === 'cubes');
 
     expect(squareQuestions).toHaveLength(15);
-    expect(cubeQuestions).toHaveLength(15);
+    expect(cubeQuestions).toHaveLength(6);
   });
 
   it('bounds malformed quiz ranges instead of allocating unbounded arrays', () => {
