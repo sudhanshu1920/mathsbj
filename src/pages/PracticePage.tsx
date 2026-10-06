@@ -1128,7 +1128,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   hideOk
                 />
               </>
-            )}            )}
+            )}
           </div>
         )}
       </div>
