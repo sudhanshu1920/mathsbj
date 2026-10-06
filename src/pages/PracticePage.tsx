@@ -1216,7 +1216,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     periodicTypes.length > 0 &&
     (!periodicTypes.includes('mass') || !!periodicRange.periodicMassMode)
   );
-  const canStart = selectedTopics.size > 0 && validPeriodicRange;
+  const validTopicRepetitions = Array.from(selectedTopics).every((topicId) => {
+    const value = topicRanges[topicId]?.repetition;
+    return value === undefined || (Number.isInteger(value) && value >= 1 && value <= MAX_REPETITION);
+  });
+  const canStart = selectedTopics.size > 0 && validPeriodicRange && validTopicRepetitions;
 
   return (
     <div className="pb-4">
