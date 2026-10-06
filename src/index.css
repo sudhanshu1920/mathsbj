@@ -1059,3 +1059,74 @@ html.low-power *::after {
   animation-iteration-count: 1 !important;
   transition-duration: 120ms !important;
 }
+
+
+/* ===== Compact gradient app panels ===== */
+.top-panel {
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--primary) / 0.10) 0%,
+      hsl(var(--card) / 0.52) 48%,
+      hsl(var(--background) / 0.06) 100%
+    );
+  border-bottom: 1px solid hsl(var(--border) / 0.28);
+}
+
+.bottom-nav-panel {
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.12) 0%,
+      hsl(var(--primary) / 0.06) 46%,
+      hsl(var(--card) / 0.74) 100%
+    ) !important;
+}
+
+html.light .bottom-nav-panel {
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.18) 0%,
+      hsl(var(--primary) / 0.05) 46%,
+      hsl(var(--card) / 0.78) 100%
+    ) !important;
+}
+
+html.low-power .bottom-nav-panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.12) 0%,
+      hsl(var(--primary) / 0.06) 46%,
+      hsl(var(--card) / 0.92) 100%
+    ) !important;
+}
+
+@supports not (backdrop-filter: blur(24px)) {
+  .top-panel,
+  .bottom-nav-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .top-panel {
+    background:
+      linear-gradient(
+        180deg,
+        hsl(var(--primary) / 0.10),
+        hsl(var(--background) / 0.08)
+      );
+  }
+
+  .bottom-nav-panel {
+    background:
+      linear-gradient(
+        180deg,
+        hsl(var(--background) / 0.12),
+        hsl(var(--card) / 0.82)
+      ) !important;
+  }
+}
