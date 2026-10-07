@@ -110,10 +110,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
       <div className="flex items-center gap-1.5 shrink-0">
         {showPractice && (
           <button
-            onClick={() => {
-              if (activeTopic === 'periodic-table') onStartPractice?.(activeTopic);
-              else setShowPracticeMode(true);
-            }}
+            onClick={() => setShowPracticeMode(true)}
             className="h-7 inline-flex items-center gap-1 px-2 rounded-full gradient-primary text-primary-foreground text-[10px] font-semibold"
           >
             <Target size={12} />
