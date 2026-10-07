@@ -21,12 +21,12 @@ describe("Quiz repetition", () => {
     expect(result.map((q) => q.id)).toEqual(Array.from({ length: 10 }, (_, i) => i + 1));
   });
 
-  it("applies repetition after selecting the base question count in sequential mode", () => {
+  it("makes repetition the master count and ignores Questions", () => {
     const result = buildQuestionPool(makeQuestions("square", 20), {
       enabled: true,
       repetitionByTopic: { square: 5 },
       sequential: true,
-      count: 20,
+      count: 10,
       infinite: false,
     });
 
@@ -37,12 +37,27 @@ describe("Quiz repetition", () => {
     }
   });
 
+  it("ignores the legacy ∞ Questions selection while repetition is enabled", () => {
+    const result = buildQuestionPool(makeQuestions("square", 3), {
+      enabled: true,
+      repetitionByTopic: { square: 2 },
+      sequential: false,
+      count: 50,
+      infinite: true,
+    });
+
+    expect(result).toHaveLength(6);
+    for (let id = 1; id <= 3; id += 1) {
+      expect(result.filter((q) => q.id === id)).toHaveLength(2);
+    }
+  });
+
   it("preserves exact repetition counts after randomization", () => {
     const result = buildQuestionPool(makeQuestions("square", 20), {
       enabled: true,
       repetitionByTopic: { square: 5 },
       sequential: false,
-      count: 20,
+      count: 50,
       infinite: false,
     });
 
@@ -54,21 +69,32 @@ describe("Quiz repetition", () => {
 
   it("keeps different repetition values independent per topic", () => {
     const base = [
-      ...makeQuestions("square", 2),
-      ...makeQuestions("cube", 2),
+      ...makeQuestions("square", 20),
+      ...makeQuestions("cube", 10),
     ];
 
     const result = buildQuestionPool(base, {
       enabled: true,
-      repetitionByTopic: { square: 2, cube: 3 },
+      repetitionByTopic: { square: 5, cube: 3 },
       sequential: true,
-      count: 4,
+      count: 1,
       infinite: false,
     });
 
-    expect(result).toHaveLength(10);
-    expect(result.filter((q) => q.topicId === "square")).toHaveLength(4);
-    expect(result.filter((q) => q.topicId === "cube")).toHaveLength(6);
+    expect(result).toHaveLength(130);
+    expect(result.filter((q) => q.topicId === "square")).toHaveLength(100);
+    expect(result.filter((q) => q.topicId === "cube")).toHaveLength(30);
+
+    for (let i = 0; i < 20; i += 1) {
+      const group = result.slice(i * 5, i * 5 + 5);
+      expect(group.every((q) => q.id === i + 1 && q.topicId === "square")).toBe(true);
+    }
+
+    for (let i = 0; i < 10; i += 1) {
+      const start = 100 + i * 3;
+      const group = result.slice(start, start + 3);
+      expect(group.every((q) => q.id === i + 1 && q.topicId === "cube")).toBe(true);
+    }
   });
 
   it("normalizes unsafe repetition values to the supported range", () => {
@@ -97,5 +123,6 @@ describe("Quiz repetition", () => {
 
     expect(first).toHaveLength(10);
     expect(second).toHaveLength(10);
+    expect(first.map((q) => q.id)).toEqual([1, 1, 1, 1, 1, 2, 2, 2, 2, 2]);
   });
 });
