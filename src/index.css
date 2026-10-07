@@ -1105,6 +1105,7 @@ html.low-power *::after {
   display: flex;
   align-items: center;
   overflow: visible;
+  border-radius: 10px;
 }
 
 [data-app-topbar] > * {
