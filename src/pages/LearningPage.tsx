@@ -491,7 +491,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-[calc(72px+env(safe-area-inset-bottom))] animate-fade-in">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] animate-fade-in">
         {topics.map((t) => {
           const tint = cardTints[t.id];
           return (
