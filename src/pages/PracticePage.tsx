@@ -527,9 +527,11 @@ interface PracticePageProps {
   initialMode?: 'mcq' | 'input';
   initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean };
   onExit?: () => void;
+  onExitCancelled?: () => void;
   externalBackRequest?: number;
   fromLearning?: boolean;
   onQuizStart?: (mode: PracticeMode) => void;
+  onQuizFinish?: () => void;
 }
 
 const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, externalBackRequest, fromLearning, onQuizStart }: PracticePageProps) => {
@@ -559,6 +561,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const inputRef = useRef<HTMLInputElement>(null);
   const submitLockRef = useRef(false);
   const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  // externalBackRequest is an edge-triggered signal from the app shell.
+  // Ignore the initial value and consume each new request exactly once.
+  const lastExternalBackRequestRef = useRef(externalBackRequest ?? 0);
 
   // Setup form state - multi-topic
   const [selectedTopics, setSelectedTopics] = useState<Set<string>>(
@@ -727,8 +732,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (elapsedRef.current) clearInterval(elapsedRef.current);
     timerRef.current = undefined;
     elapsedRef.current = undefined;
+    onQuizFinish?.();
     setFinished(true);
-  }, []);
+  }, [onQuizFinish]);
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
@@ -937,9 +943,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, [resetToPracticeHome, fromLearning, onExit]);
 
   // Index.tsx owns browser/native navigation history and signals this page
-  // through externalBackRequest for an active-quiz back action.
+  // through externalBackRequest for an active-quiz back action. Treat it as
+  // an edge-triggered event so an old request cannot reopen the dialog when
+  // a new Practice session is initialized.
   useEffect(() => {
-    if (!externalBackRequest || !config || finished) return;
+    const request = externalBackRequest ?? 0;
+    if (request <= lastExternalBackRequestRef.current) return;
+
+    lastExternalBackRequestRef.current = request;
+    if (!config || finished) return;
+
     setShowExitDialog(true);
   }, [externalBackRequest, config, finished]);
 
@@ -1079,7 +1092,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       <>
       <SwipeBack onBack={handleExitRequest}>
       <div className="pb-6">
-        <AlertDialog open={showExitDialog} onOpenChange={(open) => { if (!open) setShowExitDialog(false); }}>
+        <AlertDialog
+          open={showExitDialog}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowExitDialog(false);
+              onExitCancelled?.();
+            }
+          }}
+        >
           <AlertDialogContent className="rounded-2xl max-w-[320px]">
             <AlertDialogHeader>
               <AlertDialogTitle>Exit Practice?</AlertDialogTitle>
