@@ -471,6 +471,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const xpPopId = useRef(0);
   const answerLockRef = useRef(false);
   // Keep timer callbacks on the latest answer handler without recreating the interval.
+  // Production APK build requested after Quiz crash fix.
   const handleAnswerRef = useRef<(answer: number | string | null) => void>(() => {});
   const finishLockRef = useRef(false);
   const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
