@@ -15,12 +15,9 @@ permissions:
 
 jobs:
   build-android:
-    # APK creation is explicit: manual dispatch, or a commit explicitly marked
-    # with [BUILD_APK]. Normal source/UI changes never produce an APK.
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, '[BUILD_APK]'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Native Android build is generated from the checked-in web source.
 
     steps:
       - name: Checkout repository
@@ -97,630 +94,14 @@ jobs:
           if f'applicationId "{application_id}"' not in text:
               raise SystemExit(f"Production applicationId mismatch; expected {application_id}")
 
-          if not re.search(r'(?m)^\s*namespace\s+"'+re.escape(application_id)+r'"\s*
-        shell: bash
-        run: |
-          set -euo pipefail
-          main_activity="android/app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java"
-          test -f "$main_activity"
-          cat > "$main_activity" <<'JAVA'
-          package com.sudhanshu.mathsbj;
-
-          import android.graphics.Color;
-          import android.os.Build;
-          import android.os.Bundle;
-          import android.view.View;
-          import android.view.Window;
-
-          import com.getcapacitor.BridgeActivity;
-
-          public class MainActivity extends BridgeActivity {
-              @Override
-              public void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-
-                  Window window = getWindow();
-                  window.setStatusBarColor(Color.TRANSPARENT);
-                  window.setNavigationBarColor(Color.TRANSPARENT);
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                      window.setNavigationBarContrastEnforced(false);
-                  }
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                      window.setDecorFitsSystemWindows(false);
-                  } else {
-                      window.getDecorView().setSystemUiVisibility(
-                          View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                              | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                              | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                      );
-                  }
-              }
-          }
-          JAVA
-
-          grep -q "setDecorFitsSystemWindows(false)" "$main_activity"
-          grep -q "setNavigationBarColor(Color.TRANSPARENT)" "$main_activity"
-
-      - name: Sync web build into Android project
-        run: npx cap sync android
-
-      - name: Generate Android launcher icon from supplied SBJ logo
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p resources
-          cp public/app-icon.png resources/icon.png
-          test -s resources/icon.png
-          npx --yes @capacitor/assets@3.0.5 generate --android
-        env:
-          CI: "true"
-
-      - name: Apply exact supplied logo to Android launcher icons
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s public/app-icon.png
-
-          declare -A sizes=(
-            [mdpi]=48
-            [hdpi]=72
-            [xhdpi]=96
-            [xxhdpi]=144
-            [xxxhdpi]=192
-          )
-
-          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            dir="android/app/src/main/res/mipmap-${density}"
-            test -d "$dir"
-            size="${sizes[$density]}"
-            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher.png"
-            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher_round.png"
-            test -s "$dir/ic_launcher.png"
-            test -s "$dir/ic_launcher_round.png"
-          done
-
-          # Capacitor Assets generates adaptive icon XML for API 26+. Remove
-          # those overrides so Android resolves the exact supplied raster icon
-          # above instead of a separate foreground/background composition.
-          rm -f             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-
-          grep -R "ic_launcher" android/app/src/main/AndroidManifest.xml android/app/src/main/res/mipmap-anydpi-v26 2>/dev/null || true
-
-      - name: Configure production release signing
-        shell: bash
-        env:
-          MATHMASTER_RELEASE_KEYSTORE_BASE64: ${{ secrets.MATHMASTER_RELEASE_KEYSTORE_BASE64 }}
-          MATHMASTER_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.MATHMASTER_RELEASE_KEYSTORE_PASSWORD }}
-          MATHMASTER_RELEASE_KEY_ALIAS: ${{ secrets.MATHMASTER_RELEASE_KEY_ALIAS }}
-          MATHMASTER_RELEASE_KEY_PASSWORD: ${{ secrets.MATHMASTER_RELEASE_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-
-          for name in MATHMASTER_RELEASE_KEYSTORE_BASE64 MATHMASTER_RELEASE_KEYSTORE_PASSWORD MATHMASTER_RELEASE_KEY_ALIAS MATHMASTER_RELEASE_KEY_PASSWORD; do
-            if [ -z "${!name}" ]; then
-              echo "::error::Missing required production signing secret: ${name}"
-              echo "::error::The original signing key is required for direct APK updates over the installed app."
-              exit 1
-            fi
-          done
-
-          keystore="$RUNNER_TEMP/math-master-production-release.jks"
-          printf '%s' "$MATHMASTER_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore"
-          test -s "$keystore"
-
-          keytool -list -v \
-            -keystore "$keystore" \
-            -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD" \
-            -alias "$MATHMASTER_RELEASE_KEY_ALIAS" >/dev/null
-
-          {
-            echo "MATHMASTER_RELEASE_KEYSTORE_PATH=$keystore"
-            echo "MATHMASTER_RELEASE_KEYSTORE_PASSWORD=$MATHMASTER_RELEASE_KEYSTORE_PASSWORD"
-            echo "MATHMASTER_RELEASE_KEY_ALIAS=$MATHMASTER_RELEASE_KEY_ALIAS"
-            echo "MATHMASTER_RELEASE_KEY_PASSWORD=$MATHMASTER_RELEASE_KEY_PASSWORD"
-          } >> "$GITHUB_ENV"
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("android/app/build.gradle")
-          text = path.read_text(encoding="utf-8")
-
-          marker = "android {"
-          signing = """android {
-              signingConfigs {
-                  productionRelease {
-                      storeFile file(System.getenv("MATHMASTER_RELEASE_KEYSTORE_PATH"))
-                      storePassword System.getenv("MATHMASTER_RELEASE_KEYSTORE_PASSWORD")
-                      keyAlias System.getenv("MATHMASTER_RELEASE_KEY_ALIAS")
-                      keyPassword System.getenv("MATHMASTER_RELEASE_KEY_PASSWORD")
-                  }
-              }
-          """
-
-          if text.count(marker) != 1:
-              raise SystemExit("Expected exactly one android { block")
-
-          if "signingConfigs {" not in text:
-              text = text.replace(marker, signing, 1)
-          elif "productionRelease" not in text:
-              raise SystemExit("Existing signingConfigs block is present but productionRelease is missing")
-
-          target = "buildTypes {\n        release {"
-          replacement = """buildTypes {
-                  release {
-                      signingConfig signingConfigs.productionRelease"""
-          if target not in text:
-              raise SystemExit("Expected release buildTypes block not found")
-
-          text = text.replace(target, replacement, 1)
-          path.write_text(text, encoding="utf-8")
-          PY
-
-          grep -q "signingConfigs.productionRelease" android/app/build.gradle
-          echo "Production release signing configured from protected GitHub secrets."
-
-      - name: Build signed release APK
-        working-directory: android
-        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
-
-      - name: Verify APK identity, version, signature and installability
-        shell: bash
-        env:
-          EXPECTED_VERSION_CODE: ${{ github.run_id }}
-          EXPECTED_VERSION_NAME: "1.0"
-          EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
-        run: |
-          set -euo pipefail
-
-          sdk_apksigner="${ANDROID_HOME}/build-tools/35.0.0/apksigner"
-          if [ ! -x "$sdk_apksigner" ]; then
-            sdk_apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          fi
-          test -x "$sdk_apksigner"
-
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
-          test -n "$apk"
-
-          "$sdk_apksigner" verify --verbose "$apk"
-
-          aapt2_bin="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
-          test -x "$aapt2_bin"
-          badging="$("$aapt2_bin" dump badging "$apk")"
-          echo "$badging" | grep -q "package: name='$EXPECTED_APPLICATION_ID' versionCode='$EXPECTED_VERSION_CODE' versionName='$EXPECTED_VERSION_NAME'"
-
-          expected_fp="$(
-            keytool -exportcert -rfc \
-              -keystore "$MATHMASTER_RELEASE_KEYSTORE_PATH" \
-              -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD" \
-              -alias "$MATHMASTER_RELEASE_KEY_ALIAS" |
-            openssl x509 -noout -fingerprint -sha256 |
-            sed 's/.*=//' | tr -d ':' | tr '[:lower:]' '[:upper:]'
-          )"
-
-          actual_fp="$(
-            "$sdk_apksigner" verify --print-certs "$apk" 2>&1 |
-            awk -F': ' '/certificate SHA-256 digest/ { print $2; exit }' |
-            tr -d ':' | tr '[:lower:]' '[:upper:]'
-          )"
-
-          test -n "$expected_fp"
-          test -n "$actual_fp"
-          test "$expected_fp" = "$actual_fp"
-
-          echo "APK applicationId/version/signature verified."
-          echo "Certificate SHA-256: $actual_fp"
-      - name: Collect release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
-          test -n "$apk"
-          cp "$apk" MathMaster-release.apk
-          ls -lh MathMaster-release.apk
-
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: MathMaster-release
-          path: MathMaster-release.apk
-          if-no-files-found: error
-          retention-days: 14
-# Production APK build approved explicitly by user.
-# [BUILD_APK] requested build 2026-10-07 after mobile UI fixes, text):
+          if not re.search(r'(?m)^\s*namespace\s+"'+re.escape(application_id)+r'"\s*$', text):
               raise SystemExit("Android namespace does not match the production applicationId")
 
-          text, count = re.subn(r'(?m)^(\s*)versionCode\s+\d+\s*
-        shell: bash
-        run: |
-          set -euo pipefail
-          main_activity="android/app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java"
-          test -f "$main_activity"
-          cat > "$main_activity" <<'JAVA'
-          package com.sudhanshu.mathsbj;
-
-          import android.graphics.Color;
-          import android.os.Build;
-          import android.os.Bundle;
-          import android.view.View;
-          import android.view.Window;
-
-          import com.getcapacitor.BridgeActivity;
-
-          public class MainActivity extends BridgeActivity {
-              @Override
-              public void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-
-                  Window window = getWindow();
-                  window.setStatusBarColor(Color.TRANSPARENT);
-                  window.setNavigationBarColor(Color.TRANSPARENT);
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                      window.setNavigationBarContrastEnforced(false);
-                  }
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                      window.setDecorFitsSystemWindows(false);
-                  } else {
-                      window.getDecorView().setSystemUiVisibility(
-                          View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                              | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                              | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                      );
-                  }
-              }
-          }
-          JAVA
-
-          grep -q "setDecorFitsSystemWindows(false)" "$main_activity"
-          grep -q "setNavigationBarColor(Color.TRANSPARENT)" "$main_activity"
-
-      - name: Sync web build into Android project
-        run: npx cap sync android
-
-      - name: Generate Android launcher icon from supplied SBJ logo
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p resources
-          cp public/app-icon.png resources/icon.png
-          test -s resources/icon.png
-          npx --yes @capacitor/assets@3.0.5 generate --android
-        env:
-          CI: "true"
-
-      - name: Apply exact supplied logo to Android launcher icons
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s public/app-icon.png
-
-          declare -A sizes=(
-            [mdpi]=48
-            [hdpi]=72
-            [xhdpi]=96
-            [xxhdpi]=144
-            [xxxhdpi]=192
-          )
-
-          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            dir="android/app/src/main/res/mipmap-${density}"
-            test -d "$dir"
-            size="${sizes[$density]}"
-            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher.png"
-            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher_round.png"
-            test -s "$dir/ic_launcher.png"
-            test -s "$dir/ic_launcher_round.png"
-          done
-
-          # Capacitor Assets generates adaptive icon XML for API 26+. Remove
-          # those overrides so Android resolves the exact supplied raster icon
-          # above instead of a separate foreground/background composition.
-          rm -f             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-
-          grep -R "ic_launcher" android/app/src/main/AndroidManifest.xml android/app/src/main/res/mipmap-anydpi-v26 2>/dev/null || true
-
-      - name: Configure CI release signing
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          key_password="$(openssl rand -hex 24)"
-          store_password="$(openssl rand -hex 24)"
-          keystore="$GITHUB_WORKSPACE/android/app/ci-release.keystore"
-
-          keytool -genkeypair -v \
-            -storetype JKS \
-            -keystore "$keystore" \
-            -storepass "$store_password" \
-            -keypass "$key_password" \
-            -alias "MathMasterCI" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Math Master CI,O=SBJ Sigma,C=IN"
-
-          {
-            echo "CI_KEYSTORE_PATH=$keystore"
-            echo "CI_KEYSTORE_PASSWORD=$store_password"
-            echo "CI_KEY_PASSWORD=$key_password"
-          } >> "$GITHUB_ENV"
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("android/app/build.gradle")
-          text = path.read_text(encoding="utf-8")
-
-          marker = "android {"
-          signing = """android {
-              signingConfigs {
-                  ciRelease {
-                      storeFile file(System.getenv("CI_KEYSTORE_PATH"))
-                      storePassword System.getenv("CI_KEYSTORE_PASSWORD")
-                      keyAlias "MathMasterCI"
-                      keyPassword System.getenv("CI_KEY_PASSWORD")
-                  }
-              }
-          """
-
-          if text.count(marker) != 1:
-              raise SystemExit("Expected exactly one android { block")
-
-          if "signingConfigs {" not in text:
-              text = text.replace(marker, signing, 1)
-
-          target = "buildTypes {\n        release {"
-          replacement = """buildTypes {
-                  release {
-                      signingConfig signingConfigs.ciRelease"""
-          if target not in text:
-              raise SystemExit("Expected release buildTypes block not found")
-
-          text = text.replace(target, replacement, 1)
-          path.write_text(text, encoding="utf-8")
-          PY
-
-          test -s "$keystore"
-          echo "CI release signing configured"
-
-      - name: Build signed release APK
-        working-directory: android
-        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
-
-      - name: Verify APK is signed and installable
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          sdk_apksigner="${ANDROID_HOME}/build-tools/35.0.0/apksigner"
-          if [ ! -x "$sdk_apksigner" ]; then
-            sdk_apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          fi
-          test -x "$sdk_apksigner"
-
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
-          test -n "$apk"
-
-          "$sdk_apksigner" verify --verbose "$apk"
-
-      - name: Collect release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
-          test -n "$apk"
-          cp "$apk" MathMaster-release.apk
-          ls -lh MathMaster-release.apk
-
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: MathMaster-release
-          path: MathMaster-release.apk
-          if-no-files-found: error
-          retention-days: 14
-# Production APK build approved explicitly by user.
-# [BUILD_APK] requested build 2026-10-07 after mobile UI fixes, r'\g<1>versionCode '+version_code, text, count=1)
+          text, count = re.subn(r'(?m)^(\s*)versionCode\s+\d+\s*$', r'\g<1>versionCode '+version_code, text, count=1)
           if count != 1:
               raise SystemExit("Expected exactly one generated versionCode declaration")
 
-          text, count = re.subn(r'(?m)^(\s*)versionName\s+"[^"]*"\s*
-        shell: bash
-        run: |
-          set -euo pipefail
-          main_activity="android/app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java"
-          test -f "$main_activity"
-          cat > "$main_activity" <<'JAVA'
-          package com.sudhanshu.mathsbj;
-
-          import android.graphics.Color;
-          import android.os.Build;
-          import android.os.Bundle;
-          import android.view.View;
-          import android.view.Window;
-
-          import com.getcapacitor.BridgeActivity;
-
-          public class MainActivity extends BridgeActivity {
-              @Override
-              public void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-
-                  Window window = getWindow();
-                  window.setStatusBarColor(Color.TRANSPARENT);
-                  window.setNavigationBarColor(Color.TRANSPARENT);
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                      window.setNavigationBarContrastEnforced(false);
-                  }
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                      window.setDecorFitsSystemWindows(false);
-                  } else {
-                      window.getDecorView().setSystemUiVisibility(
-                          View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                              | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                              | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                      );
-                  }
-              }
-          }
-          JAVA
-
-          grep -q "setDecorFitsSystemWindows(false)" "$main_activity"
-          grep -q "setNavigationBarColor(Color.TRANSPARENT)" "$main_activity"
-
-      - name: Sync web build into Android project
-        run: npx cap sync android
-
-      - name: Generate Android launcher icon from supplied SBJ logo
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p resources
-          cp public/app-icon.png resources/icon.png
-          test -s resources/icon.png
-          npx --yes @capacitor/assets@3.0.5 generate --android
-        env:
-          CI: "true"
-
-      - name: Apply exact supplied logo to Android launcher icons
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s public/app-icon.png
-
-          declare -A sizes=(
-            [mdpi]=48
-            [hdpi]=72
-            [xhdpi]=96
-            [xxhdpi]=144
-            [xxxhdpi]=192
-          )
-
-          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            dir="android/app/src/main/res/mipmap-${density}"
-            test -d "$dir"
-            size="${sizes[$density]}"
-            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher.png"
-            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher_round.png"
-            test -s "$dir/ic_launcher.png"
-            test -s "$dir/ic_launcher_round.png"
-          done
-
-          # Capacitor Assets generates adaptive icon XML for API 26+. Remove
-          # those overrides so Android resolves the exact supplied raster icon
-          # above instead of a separate foreground/background composition.
-          rm -f             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-
-          grep -R "ic_launcher" android/app/src/main/AndroidManifest.xml android/app/src/main/res/mipmap-anydpi-v26 2>/dev/null || true
-
-      - name: Configure CI release signing
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          key_password="$(openssl rand -hex 24)"
-          store_password="$(openssl rand -hex 24)"
-          keystore="$GITHUB_WORKSPACE/android/app/ci-release.keystore"
-
-          keytool -genkeypair -v \
-            -storetype JKS \
-            -keystore "$keystore" \
-            -storepass "$store_password" \
-            -keypass "$key_password" \
-            -alias "MathMasterCI" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Math Master CI,O=SBJ Sigma,C=IN"
-
-          {
-            echo "CI_KEYSTORE_PATH=$keystore"
-            echo "CI_KEYSTORE_PASSWORD=$store_password"
-            echo "CI_KEY_PASSWORD=$key_password"
-          } >> "$GITHUB_ENV"
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("android/app/build.gradle")
-          text = path.read_text(encoding="utf-8")
-
-          marker = "android {"
-          signing = """android {
-              signingConfigs {
-                  ciRelease {
-                      storeFile file(System.getenv("CI_KEYSTORE_PATH"))
-                      storePassword System.getenv("CI_KEYSTORE_PASSWORD")
-                      keyAlias "MathMasterCI"
-                      keyPassword System.getenv("CI_KEY_PASSWORD")
-                  }
-              }
-          """
-
-          if text.count(marker) != 1:
-              raise SystemExit("Expected exactly one android { block")
-
-          if "signingConfigs {" not in text:
-              text = text.replace(marker, signing, 1)
-
-          target = "buildTypes {\n        release {"
-          replacement = """buildTypes {
-                  release {
-                      signingConfig signingConfigs.ciRelease"""
-          if target not in text:
-              raise SystemExit("Expected release buildTypes block not found")
-
-          text = text.replace(target, replacement, 1)
-          path.write_text(text, encoding="utf-8")
-          PY
-
-          test -s "$keystore"
-          echo "CI release signing configured"
-
-      - name: Build signed release APK
-        working-directory: android
-        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
-
-      - name: Verify APK is signed and installable
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          sdk_apksigner="${ANDROID_HOME}/build-tools/35.0.0/apksigner"
-          if [ ! -x "$sdk_apksigner" ]; then
-            sdk_apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          fi
-          test -x "$sdk_apksigner"
-
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
-          test -n "$apk"
-
-          "$sdk_apksigner" verify --verbose "$apk"
-
-      - name: Collect release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
-          test -n "$apk"
-          cp "$apk" MathMaster-release.apk
-          ls -lh MathMaster-release.apk
-
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: MathMaster-release
-          path: MathMaster-release.apk
-          if-no-files-found: error
-          retention-days: 14
-# Production APK build approved explicitly by user.
-# [BUILD_APK] requested build 2026-10-07 after mobile UI fixes, r'\g<1>versionName "'+version_name+'"', text, count=1)
+          text, count = re.subn(r'(?m)^(\s*)versionName\s+"[^"]*"\s*$', r'\g<1>versionName "'+version_name+'"', text, count=1)
           if count != 1:
               raise SystemExit("Expected exactly one generated versionName declaration")
 
@@ -730,203 +111,8 @@ jobs:
           grep -q 'applicationId "com.sudhanshu.mathsbj"' android/app/build.gradle
           grep -q 'namespace "com.sudhanshu.mathsbj"' android/app/build.gradle
           grep -Eq "^\s*versionCode\s+${VERSION_CODE}\s*$" android/app/build.gradle
-          grep -Eq '^\s*versionName "1\.0"\s*
-        shell: bash
-        run: |
-          set -euo pipefail
-          main_activity="android/app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java"
-          test -f "$main_activity"
-          cat > "$main_activity" <<'JAVA'
-          package com.sudhanshu.mathsbj;
-
-          import android.graphics.Color;
-          import android.os.Build;
-          import android.os.Bundle;
-          import android.view.View;
-          import android.view.Window;
-
-          import com.getcapacitor.BridgeActivity;
-
-          public class MainActivity extends BridgeActivity {
-              @Override
-              public void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-
-                  Window window = getWindow();
-                  window.setStatusBarColor(Color.TRANSPARENT);
-                  window.setNavigationBarColor(Color.TRANSPARENT);
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                      window.setNavigationBarContrastEnforced(false);
-                  }
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                      window.setDecorFitsSystemWindows(false);
-                  } else {
-                      window.getDecorView().setSystemUiVisibility(
-                          View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                              | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                              | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                      );
-                  }
-              }
-          }
-          JAVA
-
-          grep -q "setDecorFitsSystemWindows(false)" "$main_activity"
-          grep -q "setNavigationBarColor(Color.TRANSPARENT)" "$main_activity"
-
-      - name: Sync web build into Android project
-        run: npx cap sync android
-
-      - name: Generate Android launcher icon from supplied SBJ logo
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p resources
-          cp public/app-icon.png resources/icon.png
-          test -s resources/icon.png
-          npx --yes @capacitor/assets@3.0.5 generate --android
-        env:
-          CI: "true"
-
-      - name: Apply exact supplied logo to Android launcher icons
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s public/app-icon.png
-
-          declare -A sizes=(
-            [mdpi]=48
-            [hdpi]=72
-            [xhdpi]=96
-            [xxhdpi]=144
-            [xxxhdpi]=192
-          )
-
-          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            dir="android/app/src/main/res/mipmap-${density}"
-            test -d "$dir"
-            size="${sizes[$density]}"
-            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher.png"
-            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher_round.png"
-            test -s "$dir/ic_launcher.png"
-            test -s "$dir/ic_launcher_round.png"
-          done
-
-          # Capacitor Assets generates adaptive icon XML for API 26+. Remove
-          # those overrides so Android resolves the exact supplied raster icon
-          # above instead of a separate foreground/background composition.
-          rm -f             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-
-          grep -R "ic_launcher" android/app/src/main/AndroidManifest.xml android/app/src/main/res/mipmap-anydpi-v26 2>/dev/null || true
-
-      - name: Configure CI release signing
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          key_password="$(openssl rand -hex 24)"
-          store_password="$(openssl rand -hex 24)"
-          keystore="$GITHUB_WORKSPACE/android/app/ci-release.keystore"
-
-          keytool -genkeypair -v \
-            -storetype JKS \
-            -keystore "$keystore" \
-            -storepass "$store_password" \
-            -keypass "$key_password" \
-            -alias "MathMasterCI" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Math Master CI,O=SBJ Sigma,C=IN"
-
-          {
-            echo "CI_KEYSTORE_PATH=$keystore"
-            echo "CI_KEYSTORE_PASSWORD=$store_password"
-            echo "CI_KEY_PASSWORD=$key_password"
-          } >> "$GITHUB_ENV"
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("android/app/build.gradle")
-          text = path.read_text(encoding="utf-8")
-
-          marker = "android {"
-          signing = """android {
-              signingConfigs {
-                  ciRelease {
-                      storeFile file(System.getenv("CI_KEYSTORE_PATH"))
-                      storePassword System.getenv("CI_KEYSTORE_PASSWORD")
-                      keyAlias "MathMasterCI"
-                      keyPassword System.getenv("CI_KEY_PASSWORD")
-                  }
-              }
-          """
-
-          if text.count(marker) != 1:
-              raise SystemExit("Expected exactly one android { block")
-
-          if "signingConfigs {" not in text:
-              text = text.replace(marker, signing, 1)
-
-          target = "buildTypes {\n        release {"
-          replacement = """buildTypes {
-                  release {
-                      signingConfig signingConfigs.ciRelease"""
-          if target not in text:
-              raise SystemExit("Expected release buildTypes block not found")
-
-          text = text.replace(target, replacement, 1)
-          path.write_text(text, encoding="utf-8")
-          PY
-
-          test -s "$keystore"
-          echo "CI release signing configured"
-
-      - name: Build signed release APK
-        working-directory: android
-        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
-
-      - name: Verify APK is signed and installable
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          sdk_apksigner="${ANDROID_HOME}/build-tools/35.0.0/apksigner"
-          if [ ! -x "$sdk_apksigner" ]; then
-            sdk_apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          fi
-          test -x "$sdk_apksigner"
-
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
-          test -n "$apk"
-
-          "$sdk_apksigner" verify --verbose "$apk"
-
-      - name: Collect release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
-          test -n "$apk"
-          cp "$apk" MathMaster-release.apk
-          ls -lh MathMaster-release.apk
-
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: MathMaster-release
-          path: MathMaster-release.apk
-          if-no-files-found: error
-          retention-days: 14
-# Production APK build approved explicitly by user.
-# [BUILD_APK] requested build 2026-10-07 after mobile UI fixes android/app/build.gradle
+          grep -Eq '^\s*versionName "1\.0"\s*$' android/app/build.gradle
           test "${VERSION_CODE}" -gt 1
-          echo "Production applicationId=${EXPECTED_APPLICATION_ID}"
-          echo "Release versionCode=${VERSION_CODE}"
-          echo "Release versionName=${VERSION_NAME}"
 
       - name: Configure Android edge-to-edge system bars
         shell: bash
@@ -1012,37 +198,37 @@ jobs:
             test -s "$dir/ic_launcher_round.png"
           done
 
-          # Capacitor Assets generates adaptive icon XML for API 26+. Remove
-          # those overrides so Android resolves the exact supplied raster icon
-          # above instead of a separate foreground/background composition.
-          rm -f             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 
-          grep -R "ic_launcher" android/app/src/main/AndroidManifest.xml android/app/src/main/res/mipmap-anydpi-v26 2>/dev/null || true
-
-      - name: Configure CI release signing
+      - name: Configure production release signing
         shell: bash
+        env:
+          MATHMASTER_RELEASE_KEYSTORE_BASE64: ${{ secrets.MATHMASTER_RELEASE_KEYSTORE_BASE64 }}
+          MATHMASTER_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.MATHMASTER_RELEASE_KEYSTORE_PASSWORD }}
+          MATHMASTER_RELEASE_KEY_ALIAS: ${{ secrets.MATHMASTER_RELEASE_KEY_ALIAS }}
+          MATHMASTER_RELEASE_KEY_PASSWORD: ${{ secrets.MATHMASTER_RELEASE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
 
-          key_password="$(openssl rand -hex 24)"
-          store_password="$(openssl rand -hex 24)"
-          keystore="$GITHUB_WORKSPACE/android/app/ci-release.keystore"
+          for name in MATHMASTER_RELEASE_KEYSTORE_BASE64 MATHMASTER_RELEASE_KEYSTORE_PASSWORD MATHMASTER_RELEASE_KEY_ALIAS MATHMASTER_RELEASE_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required production signing secret: ${name}"
+              echo "::error::The original signing key is required for direct APK updates over the installed app."
+              exit 1
+            fi
+          done
 
-          keytool -genkeypair -v \
-            -storetype JKS \
-            -keystore "$keystore" \
-            -storepass "$store_password" \
-            -keypass "$key_password" \
-            -alias "MathMasterCI" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Math Master CI,O=SBJ Sigma,C=IN"
+          keystore="$RUNNER_TEMP/math-master-production-release.jks"
+          printf '%s' "$MATHMASTER_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          test -s "$keystore"
+
+          keytool -list -v             -keystore "$keystore"             -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD"             -alias "$MATHMASTER_RELEASE_KEY_ALIAS" >/dev/null
 
           {
-            echo "CI_KEYSTORE_PATH=$keystore"
-            echo "CI_KEYSTORE_PASSWORD=$store_password"
-            echo "CI_KEY_PASSWORD=$key_password"
+            echo "MATHMASTER_RELEASE_KEYSTORE_PATH=$keystore"
+            echo "MATHMASTER_RELEASE_KEYSTORE_PASSWORD=$MATHMASTER_RELEASE_KEYSTORE_PASSWORD"
+            echo "MATHMASTER_RELEASE_KEY_ALIAS=$MATHMASTER_RELEASE_KEY_ALIAS"
+            echo "MATHMASTER_RELEASE_KEY_PASSWORD=$MATHMASTER_RELEASE_KEY_PASSWORD"
           } >> "$GITHUB_ENV"
 
           python3 - <<'PY'
@@ -1054,11 +240,11 @@ jobs:
           marker = "android {"
           signing = """android {
               signingConfigs {
-                  ciRelease {
-                      storeFile file(System.getenv("CI_KEYSTORE_PATH"))
-                      storePassword System.getenv("CI_KEYSTORE_PASSWORD")
-                      keyAlias "MathMasterCI"
-                      keyPassword System.getenv("CI_KEY_PASSWORD")
+                  productionRelease {
+                      storeFile file(System.getenv("MATHMASTER_RELEASE_KEYSTORE_PATH"))
+                      storePassword System.getenv("MATHMASTER_RELEASE_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("MATHMASTER_RELEASE_KEY_ALIAS")
+                      keyPassword System.getenv("MATHMASTER_RELEASE_KEY_PASSWORD")
                   }
               }
           """
@@ -1068,11 +254,13 @@ jobs:
 
           if "signingConfigs {" not in text:
               text = text.replace(marker, signing, 1)
+          elif "productionRelease" not in text:
+              raise SystemExit("Existing signingConfigs block is present but productionRelease is missing")
 
           target = "buildTypes {\n        release {"
           replacement = """buildTypes {
                   release {
-                      signingConfig signingConfigs.ciRelease"""
+                      signingConfig signingConfigs.productionRelease"""
           if target not in text:
               raise SystemExit("Expected release buildTypes block not found")
 
@@ -1080,15 +268,18 @@ jobs:
           path.write_text(text, encoding="utf-8")
           PY
 
-          test -s "$keystore"
-          echo "CI release signing configured"
+          grep -q "signingConfigs.productionRelease" android/app/build.gradle
 
       - name: Build signed release APK
         working-directory: android
         run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
 
-      - name: Verify APK is signed and installable
+      - name: Verify APK identity, version, signature and installability
         shell: bash
+        env:
+          EXPECTED_VERSION_CODE: ${{ github.run_id }}
+          EXPECTED_VERSION_NAME: "1.0"
+          EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
         run: |
           set -euo pipefail
 
@@ -1102,6 +293,30 @@ jobs:
           test -n "$apk"
 
           "$sdk_apksigner" verify --verbose "$apk"
+
+          aapt2_bin="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          test -x "$aapt2_bin"
+          badging="$("$aapt2_bin" dump badging "$apk")"
+          echo "$badging" | grep -q "package: name='$EXPECTED_APPLICATION_ID' versionCode='$EXPECTED_VERSION_CODE' versionName='$EXPECTED_VERSION_NAME'"
+
+          expected_fp="$(
+            keytool -exportcert -rfc               -keystore "$MATHMASTER_RELEASE_KEYSTORE_PATH"               -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD"               -alias "$MATHMASTER_RELEASE_KEY_ALIAS" |
+            openssl x509 -noout -fingerprint -sha256 |
+            sed 's/.*=//' | tr -d ':' | tr '[:lower:]' '[:upper:]'
+          )"
+
+          actual_fp="$(
+            "$sdk_apksigner" verify --print-certs "$apk" 2>&1 |
+            awk -F': ' '/certificate SHA-256 digest/ { print $2; exit }' |
+            tr -d ':' | tr '[:lower:]' '[:upper:]'
+          )"
+
+          test -n "$expected_fp"
+          test -n "$actual_fp"
+          test "$expected_fp" = "$actual_fp"
+
+          echo "APK applicationId/version/signature/installability verified."
+          echo "Certificate SHA-256: $actual_fp"
 
       - name: Collect release APK
         shell: bash
@@ -1119,5 +334,4 @@ jobs:
           path: MathMaster-release.apk
           if-no-files-found: error
           retention-days: 14
-# Production APK build approved explicitly by user.
-# [BUILD_APK] requested build 2026-10-07 after mobile UI fixes
+# [BUILD_APK] Release pipeline hardened for APK upgrade compatibility.
