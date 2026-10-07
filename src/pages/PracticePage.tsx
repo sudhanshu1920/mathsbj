@@ -906,17 +906,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, []);
 
   const handleExitConfirmed = useCallback(() => {
-    // Stop timers + dispose session, then route appropriately
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (elapsedRef.current) clearInterval(elapsedRef.current);
-    timerRef.current = undefined;
-    elapsedRef.current = undefined;
-    setShowExitDialog(false);
+    // Fully dispose the temporary session before changing routes. This also
+    // clears pending answer/auto-submit work so nothing can fire after exit.
+    resetToPracticeHome();
     if (fromLearning) {
-      // Return to the same Learning screen the user came from
+      // Return to the same Learning screen the user came from.
       onExit?.();
-    } else {
-      resetToPracticeHome();
     }
   }, [fromLearning, onExit, resetToPracticeHome]);
 
@@ -941,6 +936,20 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       resetToPracticeHome();
     }
   }, [resetToPracticeHome, fromLearning, onExit]);
+
+  // Safety net for route changes/unmounts: release every session timer/timeout.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+      if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+      if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+      timerRef.current = undefined;
+      elapsedRef.current = undefined;
+      answerAdvanceTimerRef.current = undefined;
+      autoSubmitTimerRef.current = undefined;
+    };
+  }, []);
 
   // Index.tsx owns browser/native navigation history and signals this page
   // through externalBackRequest for an active-quiz back action. Treat it as
