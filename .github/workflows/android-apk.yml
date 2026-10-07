@@ -70,8 +70,6 @@ jobs:
           EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
         run: |
           set -euo pipefail
-          EXPECTED_VERSION_CODE="$(git rev-list --count HEAD)"
-          export EXPECTED_VERSION_CODE
           VERSION_CODE="$(git rev-list --count HEAD)"
           export VERSION_CODE
           test "$VERSION_CODE" -gt 1
@@ -198,6 +196,8 @@ jobs:
           EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
         run: |
           set -euo pipefail
+          EXPECTED_VERSION_CODE="$(git rev-list --count HEAD)"
+          export EXPECTED_VERSION_CODE
 
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
           APKSIGNER="$BUILD_TOOLS/apksigner"
