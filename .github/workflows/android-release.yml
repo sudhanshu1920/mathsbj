@@ -133,6 +133,37 @@ jobs:
         env:
           CI: "true"
 
+      - name: Apply exact supplied logo to Android launcher icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s public/app-icon.png
+
+          declare -A sizes=(
+            [mdpi]=48
+            [hdpi]=72
+            [xhdpi]=96
+            [xxhdpi]=144
+            [xxxhdpi]=192
+          )
+
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            dir="android/app/src/main/res/mipmap-${density}"
+            test -d "$dir"
+            size="${sizes[$density]}"
+            convert public/app-icon.png -resize "${size}x${size}" "$dir/ic_launcher.png"
+            convert public/app-icon.png -resize "${size}x${size}" "$dir/ic_launcher_round.png"
+            test -s "$dir/ic_launcher.png"
+            test -s "$dir/ic_launcher_round.png"
+          done
+
+          # Capacitor Assets generates adaptive icon XML for API 26+. Remove
+          # those overrides so Android resolves the exact supplied raster icon
+          # above instead of a separate foreground/background composition.
+          rm -f             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+          grep -R "ic_launcher" android/app/src/main/AndroidManifest.xml android/app/src/main/res/mipmap-anydpi-v26 2>/dev/null || true
+
       - name: Configure CI release signing
         shell: bash
         run: |
