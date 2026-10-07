@@ -14,6 +14,7 @@ import CommandPalette from '@/components/CommandPalette';
 import ShortcutsHelp from '@/components/ShortcutsHelp';
 import OfflinePrep from '@/components/OfflinePrep';
 import { getSettings } from '@/lib/settings';
+import { getPracticeNavDepth, isUnsavedPracticePhase, type PracticePhase } from '@/lib/practiceNavigation';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -40,12 +41,9 @@ const INITIAL_LEARNING_STATE: LearningState = {
 };
 
 // Compute a depth key representing how deep we are in navigation
-function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: string, practiceActive?: boolean): string {
+function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: string, practicePhase: PracticePhase = 'setup'): string {
   if (tab === 'progress') return 'progress';
-  if (tab === 'practice') {
-    if (practiceActive) return 'practice-active';
-    return 'practice-setup';
-  }
+  if (tab === 'practice') return getPracticeNavDepth(practicePhase);
   // learn tab
   const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex, periodicSelectedElement } = learningState;
   if (!activeTopic) return 'learn-home';
@@ -81,6 +79,8 @@ const Index = () => {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [practiceBackRequest, setPracticeBackRequest] = useState(0);
+  const [practicePhase, setPracticePhase] = useState<PracticePhase>('setup');
+  const pendingPracticeNavigation = useRef<{ tab: Tab; resetLearn?: boolean } | null>(null);
   const wideDesktop = useWideDesktop();
   const lastBackPress = useRef(0);
   const isHandlingPopstate = useRef(false);
@@ -92,6 +92,7 @@ const Index = () => {
     learningState,
     practiceTopic,
     practiceMode,
+    practicePhase,
   });
   navigationStateRef.current = {
     tab,
@@ -127,13 +128,13 @@ const Index = () => {
 
   // Push history state when navigation depth changes
   useEffect(() => {
-    const depth = getNavDepth(tab, learningState, practiceTopic, !!practiceMode);
+    const depth = getNavDepth(tab, learningState, practiceTopic, practicePhase);
     if (depth !== lastDepth.current && !isHandlingPopstate.current) {
       window.history.pushState({ __mathsbj: true, depth }, '');
       lastDepth.current = depth;
     }
     isHandlingPopstate.current = false;
-  }, [tab, learningState, practiceTopic, practiceMode]);
+  }, [tab, learningState, practiceTopic, practicePhase]);
 
   // Handle native Android back button / system edge-back.
   // Capacitor owns the native event before Android finishes the Activity, so
@@ -145,8 +146,8 @@ const Index = () => {
     let listenerHandle: { remove: () => Promise<void> } | null = null;
 
     void App.addListener('backButton', () => {
-      const { tab, learningState, practiceTopic, practiceMode } = navigationStateRef.current;
-      const depth = getNavDepth(tab, learningState, practiceTopic, !!practiceMode);
+      const { tab, learningState, practiceTopic, practicePhase } = navigationStateRef.current;
+      const depth = getNavDepth(tab, learningState, practiceTopic, practicePhase);
 
       if (depth === 'learn-home') {
         const now = Date.now();
@@ -185,7 +186,8 @@ const Index = () => {
 
       // PracticePage owns the confirmation UI, but this router owns history.
       // Re-seed the active depth and signal PracticePage to open its dialog.
-      if (tab === 'practice' && practiceMode) {
+      if (tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
+        pendingPracticeNavigation.current = null;
         window.history.pushState({ __mathsbj: true, depth: 'practice-active' }, '');
         lastDepth.current = 'practice-active';
         setPracticeBackRequest((value) => value + 1);
@@ -283,67 +285,118 @@ const Index = () => {
 
     window.addEventListener('popstate', handlePopstate);
     return () => window.removeEventListener('popstate', handlePopstate);
-  }, [tab, learningState, returnToLearn, practiceMode]);
+  }, [tab, learningState, returnToLearn, practicePhase]);
 
   const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => {
     setPracticeTopic(topic);
     setPracticeContext(context);
     setPracticeMode(mode);
     setPracticeExtras(extras);
+    setPracticePhase('setup');
     setReturnToLearn(true);
     setTab('practice');
   }, []);
 
-  const handleTabChange = (newTab: Tab) => {
+  const clearPracticeState = useCallback(() => {
+    pendingPracticeNavigation.current = null;
+    setPracticeTopic(undefined);
+    setPracticeContext(undefined);
+    setPracticeMode(undefined);
+    setPracticeExtras(undefined);
+    setPracticePhase('setup');
+    setReturnToLearn(false);
+  }, []);
+
+  const requestPracticeNavigation = useCallback((targetTab: Tab, resetLearn = false) => {
+    pendingPracticeNavigation.current = { tab: targetTab, resetLearn };
+    setPracticeBackRequest((value) => value + 1);
+  }, []);
+
+  const handleTabChange = useCallback((newTab: Tab) => {
+    if (newTab !== 'practice' && tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
+      requestPracticeNavigation(newTab);
+      return;
+    }
+
     if (newTab !== 'practice') {
-      setPracticeTopic(undefined);
-      setPracticeContext(undefined);
-      setPracticeMode(undefined);
+      clearPracticeState();
     }
     setTab(newTab);
-  };
+  }, [tab, practicePhase, requestPracticeNavigation, clearPracticeState]);
 
   const handleDoubleTap = useCallback((targetTab: Tab) => {
+    if (targetTab !== 'practice' && tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
+      requestPracticeNavigation(targetTab, targetTab === 'learn');
+      return;
+    }
+
     if (targetTab === 'learn') {
+      clearPracticeState();
       setLearningState(INITIAL_LEARNING_STATE);
       setTab('learn');
     } else if (targetTab === 'practice') {
-      setPracticeTopic(undefined);
-      setPracticeContext(undefined);
-      setPracticeMode(undefined);
-      setPracticeExtras(undefined);
-      setReturnToLearn(false);
+      clearPracticeState();
       setTab('practice');
     } else if (targetTab === 'progress') {
+      clearPracticeState();
       setTab('progress');
     }
-  }, []);
+  }, [tab, practicePhase, requestPracticeNavigation, clearPracticeState]);
 
   const handlePracticeExit = useCallback(() => {
+    const pending = pendingPracticeNavigation.current;
+    pendingPracticeNavigation.current = null;
+
+    if (pending) {
+      const targetLearningState = pending.tab === 'learn' && pending.resetLearn
+        ? INITIAL_LEARNING_STATE
+        : learningState;
+
+      const targetDepth = getNavDepth(pending.tab, targetLearningState, undefined, 'setup');
+      window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
+      lastDepth.current = targetDepth;
+
+      clearPracticeState();
+      if (pending.tab === 'learn' && pending.resetLearn) {
+        setLearningState(INITIAL_LEARNING_STATE);
+      }
+      setTab(pending.tab);
+      return;
+    }
+
     if (returnToLearn) {
       const targetDepth = getNavDepth('learn', learningState);
       window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
       lastDepth.current = targetDepth;
-      setReturnToLearn(false);
-      setPracticeTopic(undefined);
-      setPracticeContext(undefined);
-      setPracticeMode(undefined);
+      clearPracticeState();
       setTab('learn');
     } else {
       const targetDepth = 'practice-setup';
       window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
       lastDepth.current = targetDepth;
-      setPracticeTopic(undefined);
-      setPracticeContext(undefined);
-      setPracticeMode(undefined);
+      clearPracticeState();
     }
-  }, [learningState, returnToLearn]);
+  }, [clearPracticeState, learningState, returnToLearn]);
+
+  const handlePracticeExitCancelled = useCallback(() => {
+    pendingPracticeNavigation.current = null;
+  }, []);
+
+  const handlePracticeStarted = useCallback((mode: 'mcq' | 'input') => {
+    setPracticeMode(mode);
+    setPracticePhase('active');
+  }, []);
+
+  const handlePracticeFinished = useCallback(() => {
+    setPracticePhase('finished');
+  }, []);
 
   const quickPractice = useCallback((topic: string) => {
     setPracticeTopic(topic);
     setPracticeContext(undefined);
     setPracticeMode(undefined);
     setPracticeExtras(undefined);
+    setPracticePhase('setup');
     setReturnToLearn(false);
     setTab('practice');
   }, []);
@@ -370,7 +423,7 @@ const Index = () => {
         return;
       }
       if (paletteOpen || shortcutsOpen) return;
-      if (tab === 'practice' && practiceMode) return; // don't hijack an active quiz
+      if (tab === 'practice' && isUnsavedPracticePhase(practicePhase)) return; // don't hijack an active quiz
 
       if (e.key === '1') handleTabChange('learn');
       else if (e.key === '2') handleTabChange('practice');
@@ -379,7 +432,7 @@ const Index = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [paletteOpen, shortcutsOpen, tab, practiceMode]);
+  }, [paletteOpen, shortcutsOpen, tab, practicePhase]);
 
   return (
     <div className="app-shell">
@@ -409,7 +462,9 @@ const Index = () => {
                     onExit={handlePracticeExit}
                     externalBackRequest={practiceBackRequest}
                     fromLearning={returnToLearn}
-                    onQuizStart={setPracticeMode}
+                    onQuizStart={handlePracticeStarted}
+                    onQuizFinish={handlePracticeFinished}
+                    onExitCancelled={handlePracticeExitCancelled}
                   />
                 </div>
               )}
