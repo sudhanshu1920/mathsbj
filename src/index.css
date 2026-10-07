@@ -1133,6 +1133,7 @@ html.low-power *::after {
 .app-topbar-page,
 .app-topbar-stats {
   background:
+  border-radius: 10px;
     linear-gradient(
       180deg,
       hsl(var(--primary) / 0.11) 0%,
