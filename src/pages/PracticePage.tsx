@@ -569,12 +569,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       infinite: cfg.repetitionEnabled ? false : cfg.infinite,
       topics: cfg.topics.map((topic) => ({
         ...topic,
-        range: {
-          ...topic.range,
-          repetition: cfg.repetitionEnabled
-            ? sanitizeRepetition(cfg.repetitionByTopic[topic.id])
-            : topic.range.repetition,
-        },
+        range: { ...topic.range },
       })),
       repetitionByTopic: Object.fromEntries(
         cfg.topics.map((topic) => [
