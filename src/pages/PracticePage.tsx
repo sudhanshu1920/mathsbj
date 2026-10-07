@@ -34,6 +34,7 @@ type PracticeMode = 'mcq' | 'input';
 interface TopicRange {
   from: number;
   to: number;
+  digitCount?: number;
   exponentFrom?: number;
   exponentTo?: number;
   pctRangeMode?: 'preset' | 'custom';
@@ -90,12 +91,15 @@ const TOPICS = [
   { id: 'cube-roots', label: 'Cube Roots', icon: '∛', defaultRange: { from: 1, to: 20 } },
   { id: 'powers', label: 'Powers', icon: 'xⁿ', defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
   { id: 'percentage', label: 'Percentage', icon: '%', defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
+  { id: 'addition-subtraction-digits', label: 'Addition / Subtraction – Digit Numbers', icon: '±', defaultRange: { from: 2, to: 2, digitCount: 2 } },
   { id: 'trig', label: 'Trigonometry', icon: '△', defaultRange: { from: 0, to: 90 } },
   { id: 'periodic-table', label: 'Periodic Table', icon: '⚛', defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
 ];
 
 const COUNTS = [10, 20, 25, 50];
 const REPETITION_OPTIONS = [1, 2, 3, 5, 10] as const;
+const DIGIT_COUNT_OPTIONS = Array.from({ length: 9 }, (_, index) => index + 2);
+const DIGIT_ARITHMETIC_POOL_SIZE = 100;
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
@@ -137,12 +141,49 @@ function rangeArray(from: number, to: number, maxItems = MAX_QUIZ_RANGE_VALUE): 
   return Array.from({ length }, (_, i) => safeFrom + i * step);
 }
 
+function randomDigitNumber(digits: number): number {
+  const safeDigits = clampQuizValue(digits, 2, 10, 2);
+  const min = 10 ** (safeDigits - 1);
+  const max = (10 ** safeDigits) - 1;
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+function generateDigitArithmeticQuestions(label: string, digits: number): Question[] {
+  const safeDigits = clampQuizValue(digits, 2, 10, 2);
+  const questions: Question[] = [];
+  const seen = new Set<string>();
+
+  while (questions.length < DIGIT_ARITHMETIC_POOL_SIZE) {
+    const first = randomDigitNumber(safeDigits);
+    const second = randomDigitNumber(safeDigits);
+    const subtraction = Math.random() < 0.5;
+    const left = subtraction ? Math.max(first, second) : first;
+    const right = subtraction ? Math.min(first, second) : second;
+    const operator = subtraction ? '−' : '+';
+    const key = left + operator + right;
+
+    if (seen.has(key)) continue;
+    seen.add(key);
+    questions.push({
+      text: left + ' ' + operator + ' ' + right + ' = ?',
+      answer: subtraction ? left - right : left + right,
+      topicLabel: label,
+    });
+  }
+
+  return questions;
+}
+
 function generateQuestionsForTopic(topicId: string, range: TopicRange, label: string): Question[] {
   const questions: Question[] = [];
   const { from, to } = range;
   const safeFrom = clampQuizValue(from, 1, MAX_QUIZ_RANGE_VALUE, 1);
   const safeTo = clampQuizValue(to, 1, MAX_QUIZ_RANGE_VALUE, safeFrom);
   const nums = rangeArray(safeFrom, safeTo);
+
+  if (topicId === 'addition-subtraction-digits') {
+    return generateDigitArithmeticQuestions(label, range.digitCount ?? range.from ?? 2);
+  }
 
   if (topicId === 'tables') {
     const proMax = getTablesProMode() ? 20 : 10;
@@ -1353,6 +1394,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                     <span className="text-xs text-muted-foreground">
                       {isTrig
   ? '(Standard angles)'
+  : tid === 'addition-subtraction-digits'
+    ? (range.digitCount ?? 2) + '-digit operands'
   : tid === 'periodic-table'
     ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''})`
     : `(${range.from}–${range.to})`}
@@ -1424,6 +1467,28 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                               </div>
                             )}
                           </>
+                        ) : tid === 'addition-subtraction-digits' ? (
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Operand Digits</p>
+                            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                              {DIGIT_COUNT_OPTIONS.map((digits) => (
+                                <button
+                                  key={digits}
+                                  type="button"
+                                  aria-pressed={(range.digitCount ?? 2) === digits}
+                                  onClick={() => updateRange(tid, 'digitCount', digits)}
+                                  className={`rounded-xl border px-2 py-2.5 text-xs font-bold transition-colors ${(range.digitCount ?? 2) === digits
+                                    ? 'gradient-primary border-primary text-primary-foreground'
+                                    : 'bg-secondary border-border text-secondary-foreground hover:border-primary/50'}`}
+                                >
+                                  {digits} Digit
+                                </button>
+                              ))}
+                            </div>
+                            <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
+                              Both operands will always have exactly the selected number of digits.
+                            </p>
+                          </div>
                         ) : tid === 'percentage' ? (
                           <>
                             <div className="flex gap-2 mb-2">
