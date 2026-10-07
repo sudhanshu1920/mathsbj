@@ -26,9 +26,13 @@ function shuffleInPlace<T>(items: T[]): void {
 }
 
 /**
- * Selects the base question pool first, then applies each topic's repetition.
- * This keeps the existing Questions setting deterministic while ensuring
- * repetition is applied exactly once per generated question.
+ * Build the quiz pool with one clear ownership rule:
+ * - Repetition OFF: the existing Questions / Infinite behavior is preserved.
+ * - Repetition ON: Questions is ignored completely. Every generated base
+ *   question is repeated exactly by its topic's configured finite count.
+ *
+ * Selection happens before repetition so a repetition run can never be
+ * truncated by the legacy question-count setting.
  */
 export function buildQuestionPool<T extends TopicQuestion>(
   questions: T[],
@@ -36,26 +40,32 @@ export function buildQuestionPool<T extends TopicQuestion>(
 ): T[] {
   const basePool = [...questions];
 
-  if (!config.sequential) {
-    shuffleInPlace(basePool);
+  if (!config.enabled) {
+    if (!config.sequential) {
+      shuffleInPlace(basePool);
+    }
+
+    const baseCount = Number.isFinite(config.count)
+      ? Math.max(0, Math.floor(config.count))
+      : 0;
+    return config.infinite ? basePool : basePool.slice(0, baseCount);
   }
 
-  const baseCount = Number.isFinite(config.count)
-    ? Math.max(0, Math.floor(config.count))
-    : 0;
-  const selectedBase = config.infinite ? basePool : basePool.slice(0, baseCount);
-
+  // Repetition mode owns the total. The legacy Questions setting, including
+  // the ∞ option, has no authority here.
   const expanded: T[] = [];
-  for (const question of selectedBase) {
-    const repetition = config.enabled
-      ? sanitizeRepetition(config.repetitionByTopic[question.topicId ?? ''])
-      : 1;
+  for (const question of basePool) {
+    const repetition = sanitizeRepetition(config.repetitionByTopic[question.topicId ?? '']);
 
     for (let i = 0; i < repetition; i += 1) {
-      expanded.push(question);
+      // Clone each generated instance so every slot is an independent
+      // question instance even when the source question repeats.
+      expanded.push({ ...question });
     }
   }
 
+  // Sequential mode keeps each item's repetitions contiguous. Random mode
+  // shuffles the fully expanded pool while preserving exact multiplicities.
   if (!config.sequential) {
     shuffleInPlace(expanded);
   }
