@@ -1084,7 +1084,7 @@ html.low-power *::after {
 }
 
 
-/* ===== Global application top app bar =====
+/* ===== Global application top app bar — content-sized, consistent, responsive =====
    One shared sizing/layout contract is used by home, learning, practice,
    progress, and detail screens. The system status-bar inset is handled by
    .app-frame-scroll; this rule only controls the app-owned header itself. */
