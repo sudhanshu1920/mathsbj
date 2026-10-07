@@ -449,10 +449,11 @@ interface PracticePageProps {
   initialMode?: 'mcq' | 'input';
   initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean };
   onExit?: () => void;
+  externalBackRequest?: number;
   fromLearning?: boolean;
 }
 
-const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, fromLearning }: PracticePageProps) => {
+const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, externalBackRequest, fromLearning }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -824,6 +825,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   // Intercept system back / swipe-back while a practice session is active.
   // We push an extra history entry so the first back-press lands here and
   // shows the exit confirmation dialog instead of leaving the screen.
+  useEffect(() => {
+    if (!externalBackRequest || !config || finished) return;
+    setShowExitDialog(true);
+  }, [externalBackRequest, config, finished]);
+
   useEffect(() => {
     if (!config || finished) return;
 
