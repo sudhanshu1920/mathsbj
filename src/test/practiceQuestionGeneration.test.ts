@@ -100,3 +100,5 @@ describe('PracticePage question generation', () => {
     expect(questions.every((question) => question.text.endsWith('² = ?'))).toBe(true);
   });
 });
+
+// Production APK build requested by user after adding the digit-number arithmetic quiz topic.
