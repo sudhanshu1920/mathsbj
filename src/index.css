@@ -1084,12 +1084,53 @@ html.low-power *::after {
 }
 
 
-/* ===== Compact gradient app bars ===== */
-.app-topbar-page {
-  min-height: 28px;
-  height: 28px;
+/* ===== Global application top app bar =====
+   One shared sizing/layout contract is used by home, learning, practice,
+   progress, and detail screens. The system status-bar inset is handled by
+   .app-frame-scroll; this rule only controls the app-owned header itself. */
+:root {
+  --app-topbar-min-height: 56px;
+  --app-topbar-pad-x: 12px;
+  --app-topbar-pad-y: 8px;
+  --app-topbar-control-size: 40px;
+}
+
+[data-app-topbar] {
+  box-sizing: border-box;
+  min-height: var(--app-topbar-min-height);
+  height: auto;
+  width: 100%;
   margin: 0 0 6px;
-  padding: 0 3px;
+  padding: var(--app-topbar-pad-y) var(--app-topbar-pad-x);
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+
+[data-app-topbar] > * {
+  min-height: 0;
+}
+
+[data-app-topbar] button {
+  box-sizing: border-box;
+  min-height: var(--app-topbar-control-size);
+}
+
+[data-app-topbar] > button[aria-label="Back"],
+[data-app-topbar] > button[aria-label="Settings"] {
+  min-width: var(--app-topbar-control-size);
+  min-height: var(--app-topbar-control-size);
+  flex: 0 0 var(--app-topbar-control-size);
+}
+
+[data-app-topbar] h1,
+[data-app-topbar] h2,
+[data-app-topbar] p {
+  line-height: 1.2;
+}
+
+.app-topbar-page,
+.app-topbar-stats {
   background:
     linear-gradient(
       180deg,
@@ -1098,27 +1139,46 @@ html.low-power *::after {
       hsl(var(--background) / 0.04) 100%
     );
   border-bottom: 1px solid hsl(var(--border) / 0.24);
-}
-
-.app-topbar-stats {
-  min-height: 32px;
-  height: 32px;
-  margin: 0 0 6px;
-  padding: 0 8px;
-  background:
-    linear-gradient(
-      180deg,
-      hsl(var(--primary) / 0.12) 0%,
-      hsl(var(--card) / 0.52) 52%,
-      hsl(var(--background) / 0.04) 100%
-    );
-  border-bottom: 1px solid hsl(var(--border) / 0.26);
-}
-
-.app-topbar-page,
-.app-topbar-stats {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+
+/* Page headers with many controls keep the title flexible instead of
+   shrinking the whole bar or vertically clipping the action group. */
+[data-app-topbar] > h1,
+[data-app-topbar] > h2 {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --app-topbar-min-height: 56px;
+    --app-topbar-pad-x: 10px;
+    --app-topbar-pad-y: 8px;
+    --app-topbar-control-size: 40px;
+  }
+
+  [data-app-topbar] {
+    gap: 8px;
+  }
+
+  [data-app-topbar] > div {
+    min-width: 0;
+  }
+
+  [data-app-topbar] .app-topbar-actions,
+  [data-app-topbar] [data-topbar-actions] {
+    flex: 0 1 auto;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  :root {
+    --app-topbar-min-height: 52px;
+    --app-topbar-pad-y: 6px;
+    --app-topbar-control-size: 38px;
+  }
 }
 
 .top-panel {
