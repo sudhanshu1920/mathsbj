@@ -477,6 +477,18 @@ const finiteSeries: FormulaItem[] = [
   { latex: '1 + \\dfrac{1}{1!} + \\dfrac{1}{2!} + \\cdots + \\dfrac{1}{(n-1)!} + \\cdots = e' },
 ];
 
+const basicTrigonometricFunctionsFormulas: FormulaItem[] = [
+  { latex: '\\sin\\theta = \\dfrac{\\text{Opposite}}{\\text{Hypotenuse}}' },
+  { latex: '\\cos\\theta = \\dfrac{\\text{Adjacent}}{\\text{Hypotenuse}}' },
+  { latex: '\\tan\\theta = \\dfrac{\\text{Opposite}}{\\text{Adjacent}}' },
+  { latex: '\\csc\\theta = \\dfrac{\\text{Hypotenuse}}{\\text{Opposite}}' },
+  { latex: '\\sec\\theta = \\dfrac{\\text{Hypotenuse}}{\\text{Adjacent}}' },
+  { latex: '\\cot\\theta = \\dfrac{\\text{Adjacent}}{\\text{Opposite}}' },
+  { latex: '\\csc\\theta = \\dfrac{1}{\\sin\\theta}' },
+  { latex: '\\sec\\theta = \\dfrac{1}{\\cos\\theta}' },
+  { latex: '\\cot\\theta = \\dfrac{1}{\\tan\\theta}' },
+];
+
 const binomialSeries: FormulaItem[] = [
   { latex: '\\dfrac{1}{1 + x} = 1 - x + x^2 - x^3 + \\cdots, \\quad |x| < 1' },
   { latex: '\\dfrac{1}{1 - x} = 1 + x + x^2 + x^3 + \\cdots, \\quad |x| < 1' },
@@ -622,6 +634,7 @@ export const FORMULA_SECTIONS: FormulaSection[] = [
     title: 'Trigonometry',
     symbol: 'sin',
     categories: [
+      { id: 'trig-basic-functions', title: 'Basic Trigonometric Functions', symbol: 'sin', formulas: basicTrigonometricFunctionsFormulas },
       // Special category — rendered by FormulasLearning as the TrigonometryLearning table
       { id: 'trig-angles', title: 'Table of Angles', symbol: 'θ', formulas: [] },
     ],
