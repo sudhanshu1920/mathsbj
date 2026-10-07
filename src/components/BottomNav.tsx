@@ -1,6 +1,6 @@
 import { BookOpen, Target, BarChart3 } from 'lucide-react';
 import { m as motion } from 'framer-motion';
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { playClick } from '@/lib/sound';
 
 interface BottomNavProps {
@@ -32,18 +32,14 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
     }
 
     if (now - lastTap < DOUBLE_TAP_DELAY) {
-      // Double tap detected
       lastTapTime.current[tabId] = 0;
       setBouncingTab(tabId);
       setTimeout(() => setBouncingTab(null), 300);
-      
       if (navigator.vibrate) {
         navigator.vibrate(10);
       }
-      
       onDoubleTap?.(tabId);
     } else {
-      // Wait to see if it's a double tap
       lastTapTime.current[tabId] = now;
       tapTimers.current[tabId] = setTimeout(() => {
         onChange(tabId);
@@ -52,45 +48,36 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
     }
   }, [onChange, onDoubleTap]);
 
-  useEffect(() => {
-    return () => {
-      Object.values(tapTimers.current).forEach((timer) => clearTimeout(timer));
-    };
-  }, []);
-
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 h-[24px] glass-panel bottom-nav-panel border-t border-b-0 border-x-0 safe-bottom shadow-[0_-12px_28px_-14px_hsl(var(--primary)/0.32)]" data-app-bottom-bar>
-      <div className="relative flex items-center h-[24px] max-w-lg mx-auto px-1">
+    <nav
+      aria-label="Primary navigation"
+      className="bottom-nav fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-b-0 border-x-0 safe-bottom shadow-[0_-12px_32px_-12px_hsl(var(--primary)/0.35)]"
+    >
+      <div className="flex h-full max-w-lg mx-auto items-center justify-around px-1">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
           const isBouncing = bouncingTab === tab.id;
           return (
-            <div key={tab.id} className="relative h-[24px] flex-1">
-              <button
-                onClick={() => handleTap(tab.id)}
-                className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-11 flex flex-col items-center justify-center gap-0"
-                aria-label={tab.label}
-              >
+            <button
+              key={tab.id}
+              onClick={() => handleTap(tab.id)}
+              className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px] py-1"
+            >
               <motion.div
                 animate={isBouncing ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                 transition={{ duration: 0.3 }}
-                className={`relative flex items-center justify-center w-10 h-5 rounded-lg border ${
-                  isActive
-                    ? 'bg-primary/10 border-primary/60 text-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.45),0_0_18px_hsl(var(--primary)/0.45)]'
-                    : 'bg-transparent border-transparent text-muted-foreground'
-                }`}
+                className={`relative flex items-center justify-center w-12 h-7 rounded-xl border ${isActive
+                  ? 'bg-primary/10 border-primary/60 text-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.45),0_0_18px_hsl(var(--primary)/0.45)]'
+                  : 'bg-transparent border-transparent text-muted-foreground'}`}
               >
-                <tab.icon size={14} strokeWidth={2.5} />
+                <tab.icon size={19} strokeWidth={2.5} />
               </motion.div>
-                <span
-                  className={`text-[8px] font-display leading-none font-extrabold uppercase tracking-wider ${
-                  isActive ? 'text-primary neon-text' : 'text-muted-foreground'
-                }`}
+              <span
+                className={`text-[9px] leading-none font-display font-extrabold uppercase tracking-wider ${isActive ? 'text-primary neon-text' : 'text-muted-foreground'}`}
               >
-                  {tab.label}
-                </span>
-              </button>
-            </div>
+                {tab.label}
+              </span>
+            </button>
           );
         })}
       </div>
