@@ -32,9 +32,6 @@ const RightTriangleDiagram = ({
   hypotenuseLabel = 'Hypotenuse',
   compact = false,
 }: RightTriangleDiagramProps) => {
-  const width = compact ? 280 : 420;
-  const height = compact ? 205 : 285;
-
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-border bg-background/70 px-2 py-3">
       <svg
