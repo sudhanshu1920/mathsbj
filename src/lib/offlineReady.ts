@@ -26,6 +26,7 @@ const loaders: Array<() => Promise<unknown>> = [
   () => import("@/pages/PracticePage"),
   () => import("@/pages/ProgressPage"),
   () => import("@/components/FormulasLearning"),
+  () => import("@/components/BasicTrigonometricFunctionsLearning"),
   () => import("@/components/TrigonometryLearning"),
   () => import("@/components/PercentageLearning"),
   () => import("@/components/PeriodicTableLearning"),
