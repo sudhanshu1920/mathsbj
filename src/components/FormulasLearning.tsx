@@ -9,6 +9,7 @@ import SwipeBack from '@/components/SwipeBack';
 import SwipeContainer from '@/components/SwipeContainer';
 import ShapeDiagram from '@/components/ShapeDiagram';
 const TrigonometryLearning = lazy(() => import('@/components/TrigonometryLearning'));
+const BasicTrigonometricFunctionsLearning = lazy(() => import('@/components/BasicTrigonometricFunctionsLearning'));
 import { FORMULA_SECTIONS, type FormulaItem } from '@/lib/formulaData';
 
 const KaTeXBlock = ({ latex }: { latex: string }) => {
@@ -174,6 +175,29 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
     const section = FORMULA_SECTIONS[sectionIndex];
     const category = section?.categories[categoryIndex];
     if (!section || !category) return null;
+
+    // Special case: Trigonometry → Basic Trigonometric Functions renders the
+    // dedicated educational lesson inside the existing Formula hierarchy.
+    if (category.id === 'trig-basic-functions') {
+      return (
+        <SwipeBack onBack={() => onNavigate(sectionIndex, null)}>
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={() => onNavigate(sectionIndex, null)} className="p-2 -ml-2 text-primary" aria-label="Back">
+                <ArrowLeft size={20} />
+              </button>
+              <h2 className="min-w-0 text-center font-display font-bold text-lg text-foreground truncate">
+                {category.title}
+              </h2>
+              <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
+            </div>
+            <Suspense fallback={<div className="h-40" />}>
+              <BasicTrigonometricFunctionsLearning />
+            </Suspense>
+          </div>
+        </SwipeBack>
+      );
+    }
 
     // Special case: Trigonometry → Table of Angles renders the trig table component
     if (category.id === 'trig-angles') {
