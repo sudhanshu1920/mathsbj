@@ -1,3 +1,5 @@
+// Production APK build requested after adding the Basic Trigonometric Functions lesson.
+
 export interface BasicTrigFunction {
   name: string;
   title: string;
