@@ -1179,3 +1179,106 @@ html.low-power .bottom-nav-panel {
       ) !important;
   }
 }
+
+
+/* APK production UI fixes: keep the compact bottom navigation stable across
+   mobile and desktop widths, and prevent the Periodic Table grid from being
+   collapsed by the global app-frame width rules. */
+:root {
+  --bottom-nav-height: 58px;
+}
+
+.bottom-nav {
+  height: var(--bottom-nav-height) !important;
+  min-height: var(--bottom-nav-height) !important;
+  padding: 0 !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)) !important;
+  transform: translateX(-50%) !important;
+  width: min(calc(100% - 1rem), 32rem) !important;
+  max-width: 32rem !important;
+  border: 1px solid hsl(var(--border) / 0.72) !important;
+  border-radius: 9999px !important;
+  overflow: hidden !important;
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--primary) / 0.13) 0%,
+      hsl(var(--card) / 0.46) 52%,
+      hsl(var(--background) / 0.20) 100%
+    ) !important;
+  backdrop-filter: blur(12px) saturate(1.04);
+  -webkit-backdrop-filter: blur(12px) saturate(1.04);
+  box-shadow: 0 8px 24px -14px hsl(var(--primary) / 0.42);
+}
+
+html.light .bottom-nav {
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--primary) / 0.07) 0%,
+      hsl(0 0% 100% / 0.56) 52%,
+      hsl(var(--background) / 0.24) 100%
+    ) !important;
+}
+
+.bottom-nav > div {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  padding: 0 0.35rem !important;
+  overflow: hidden;
+}
+
+.bottom-nav button {
+  position: relative;
+  height: 100% !important;
+  min-height: 48px !important;
+  padding: 3px 6px !important;
+  gap: 2px !important;
+  overflow: visible;
+  touch-action: manipulation;
+}
+
+.bottom-nav button > div {
+  width: 2.5rem !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  border-radius: 0.6rem !important;
+}
+
+.bottom-nav button > div svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.bottom-nav button > span {
+  font-size: 9px !important;
+  line-height: 10px !important;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px), (min-width: 768px) {
+  .bottom-nav {
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  html.desktop-mode .bottom-nav {
+    width: auto !important;
+    min-width: 21rem !important;
+  }
+}
+
+.periodic-table-content,
+.periodic-table-row {
+  max-width: none !important;
+  flex: 0 0 auto;
+}
+
+.periodic-table-scroll .periodic-element-cell,
+.periodic-table-scroll .periodic-table-placeholder {
+  max-width: none !important;
+}
