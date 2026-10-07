@@ -48,7 +48,7 @@ const CATEGORY_DOTS: Record<ChemElement['category'], string> = {
 const MAIN_ROWS = Array.from({ length: 7 }, (_, i) => i + 1);
 const GROUPS = Array.from({ length: 18 }, (_, i) => i + 1);
 const PERIODIC_CELL_SIZE = 76;
-const PERIODIC_LABEL_WIDTH = 52;
+const PERIODIC_LABEL_WIDTH = 48;
 const PERIODIC_GRID_GAP = 4;
 const PERIODIC_GRID_WIDTH =
   PERIODIC_LABEL_WIDTH +
