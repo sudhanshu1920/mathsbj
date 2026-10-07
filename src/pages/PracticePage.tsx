@@ -31,11 +31,14 @@ import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/qui
 
 type PracticeMode = 'mcq' | 'input';
 
+type ArithmeticOperation = 'addition' | 'subtraction';
+
 interface TopicRange {
   from: number;
   to: number;
   operand1DigitCount?: number;
   operand2DigitCount?: number;
+  arithmeticOperations?: ArithmeticOperation[];
   exponentFrom?: number;
   exponentTo?: number;
   pctRangeMode?: 'preset' | 'custom';
@@ -97,7 +100,7 @@ const TOPICS = [
   { id: 'cube-roots', label: 'Cube Roots', icon: '∛', defaultRange: { from: 1, to: 20 } },
   { id: 'powers', label: 'Powers', icon: 'xⁿ', defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
   { id: 'percentage', label: 'Percentage', icon: '%', defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
-  { id: 'addition-subtraction-digits', label: 'Addition / Subtraction – Digit Numbers', icon: '±', defaultRange: { from: 2, to: 2, operand1DigitCount: 2, operand2DigitCount: 2 } },
+  { id: 'addition-subtraction-digits', label: 'Addition / Subtraction – Digit Numbers', icon: '±', defaultRange: { from: 2, to: 2, operand1DigitCount: 2, operand2DigitCount: 2, arithmeticOperations: ['addition', 'subtraction'] as ArithmeticOperation[] } },
   { id: 'trig', label: 'Trigonometry', icon: '△', defaultRange: { from: 0, to: 90 } },
   { id: 'periodic-table', label: 'Periodic Table', icon: '⚛', defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
 ];
@@ -158,24 +161,33 @@ function generateDigitArithmeticQuestions(
   label: string,
   operand1DigitCount: number,
   operand2DigitCount: number,
+  selectedOperations: ArithmeticOperation[] = ['addition', 'subtraction'],
 ): Question[] {
   const safeOperand1Digits = clampQuizValue(operand1DigitCount, 1, 10, 1);
   const safeOperand2Digits = clampQuizValue(operand2DigitCount, 1, 10, 1);
+  const operations = selectedOperations.filter(
+    (operation): operation is ArithmeticOperation => operation === 'addition' || operation === 'subtraction',
+  );
+  const activeOperations: ArithmeticOperation[] = operations.length > 0 ? operations : ['addition', 'subtraction'];
   const questions: Question[] = [];
   const seen = new Set<string>();
+  let attempts = 0;
+  const maxAttempts = DIGIT_ARITHMETIC_POOL_SIZE * 50;
 
-  while (questions.length < DIGIT_ARITHMETIC_POOL_SIZE) {
+  while (questions.length < DIGIT_ARITHMETIC_POOL_SIZE && attempts < maxAttempts) {
     const operand1 = randomDigitNumber(safeOperand1Digits);
     const operand2 = randomDigitNumber(safeOperand2Digits);
-    const subtraction = Math.random() < 0.5;
+    const operation = activeOperations[questions.length % activeOperations.length];
+    const subtraction = operation === 'subtraction';
 
-    // Preserve both selected digit sizes. For subtraction, display the
-    // larger operand first when necessary so the existing quiz remains
-    // non-negative without changing the stored operand configurations.
+    // For subtraction, place the larger generated value first so answers
+    // remain non-negative while both generated operands retain their own
+    // independent digit-count configuration.
     const left = subtraction ? Math.max(operand1, operand2) : operand1;
     const right = subtraction ? Math.min(operand1, operand2) : operand2;
     const operator = subtraction ? '−' : '+';
     const key = left + operator + right;
+    attempts += 1;
 
     if (seen.has(key)) continue;
     seen.add(key);
@@ -194,7 +206,6 @@ function generateDigitArithmeticQuestions(
 
   return questions;
 }
-
 function generateQuestionsForTopic(topicId: string, range: TopicRange, label: string): Question[] {
   const questions: Question[] = [];
   const { from, to } = range;
@@ -207,6 +218,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       label,
       range.operand1DigitCount ?? 2,
       range.operand2DigitCount ?? 2,
+      range.arithmeticOperations,
     );
   }
 
@@ -612,7 +624,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         if (expandedTopic === id) setExpandedTopic(null);
       } else {
         next.add(id);
-        if (id === 'periodic-table') setExpandedTopic(id);
+        if (id === 'periodic-table' || id === 'addition-subtraction-digits') setExpandedTopic(id);
       }
       return next;
     });
@@ -924,36 +936,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     }
   }, [resetToPracticeHome, fromLearning, onExit]);
 
-  // Intercept system back / swipe-back while a practice session is active.
-  // We push an extra history entry so the first back-press lands here and
-  // shows the exit confirmation dialog instead of leaving the screen.
+  // Index.tsx owns browser/native navigation history and signals this page
+  // through externalBackRequest for an active-quiz back action.
   useEffect(() => {
     if (!externalBackRequest || !config || finished) return;
     setShowExitDialog(true);
   }, [externalBackRequest, config, finished]);
-
-  useEffect(() => {
-    if (!config || finished) return;
-
-    let popped = false;
-    const handlePopstate = () => {
-      popped = true;
-      // Re-add the sentinel so subsequent back presses keep being intercepted
-      window.history.pushState({ practiceSentinel: true }, '');
-      setShowExitDialog(true);
-    };
-
-    window.history.pushState({ practiceSentinel: true }, '');
-    window.addEventListener('popstate', handlePopstate);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopstate);
-      // Clean up the sentinel entry we added if user didn't back through it
-      if (!popped) {
-        window.history.back();
-      }
-    };
-  }, [config, finished]);
 
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);
@@ -1342,11 +1330,22 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     periodicTypes.length > 0 &&
     (!periodicTypes.includes('mass') || !!periodicRange.periodicMassMode)
   );
+  const arithmeticValid = !selectedTopics.has('addition-subtraction-digits') || (() => {
+    const range = topicRanges['addition-subtraction-digits'];
+    const operations = range?.arithmeticOperations || ['addition', 'subtraction'];
+    const digit1 = range?.operand1DigitCount ?? 2;
+    const digit2 = range?.operand2DigitCount ?? 2;
+    return operations.length > 0
+      && operations.every((operation) => operation === 'addition' || operation === 'subtraction')
+      && Number.isInteger(digit1) && digit1 >= 1 && digit1 <= 10
+      && Number.isInteger(digit2) && digit2 >= 1 && digit2 <= 10;
+  })();
+
   const repetitionValid = !repetitionEnabled || Array.from(selectedTopics).every((tid) => {
     const value = sanitizeRepetition(topicRepetitions[tid]);
     return value >= 1 && value <= MAX_REPETITION;
   });
-  const canStart = selectedTopics.size > 0 && validPeriodicRange && repetitionValid;
+  const canStart = selectedTopics.size > 0 && validPeriodicRange && arithmeticValid && repetitionValid;
 
   return (
     <div className="pb-24 md:pb-6">
@@ -1420,7 +1419,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                       {isTrig
   ? '(Standard angles)'
   : tid === 'addition-subtraction-digits'
-    ? (range.operand1DigitCount ?? 2) + '-digit + ' + (range.operand2DigitCount ?? 2) + '-digit operands'
+    ? (range.operand1DigitCount ?? 2) + '-digit + ' + (range.operand2DigitCount ?? 2) + '-digit • ' + ((range.arithmeticOperations || ['addition', 'subtraction']).map((operation) => operation === 'addition' ? '+' : '−').join(' / '))
   : tid === 'periodic-table'
     ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''})`
     : `(${range.from}–${range.to})`}
@@ -1493,23 +1492,56 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                             )}
                           </>
                         ) : tid === 'addition-subtraction-digits' ? (
-                          <div className="space-y-4">
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Operation</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {([
+                                  ['addition', '✓ Addition'],
+                                  ['subtraction', '✓ Subtraction'],
+                                ] as const).map(([operation, title]) => {
+                                  const selected = (range.arithmeticOperations || ['addition', 'subtraction']).includes(operation);
+                                  return (
+                                    <button
+                                      key={operation}
+                                      type="button"
+                                      aria-pressed={selected}
+                                      onClick={() => {
+                                        const current = range.arithmeticOperations || ['addition', 'subtraction'];
+                                        const next = current.includes(operation)
+                                          ? current.filter((item) => item !== operation)
+                                          : [...current, operation];
+                                        updateRange(tid, 'arithmeticOperations', next);
+                                      }}
+                                      className={selected
+                                        ? 'rounded-xl border px-3 py-2 text-xs font-bold transition-colors gradient-primary border-primary text-primary-foreground'
+                                        : 'rounded-xl border px-3 py-2 text-xs font-bold transition-colors bg-secondary border-border text-secondary-foreground hover:border-primary/50'}
+                                    >
+                                      {title}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {!(range.arithmeticOperations || ['addition', 'subtraction']).length && (
+                                <p className="mt-1.5 text-[11px] font-semibold text-destructive">Select Addition, Subtraction, or both.</p>
+                              )}
+                            </div>
                             {([
                               ['Number 1', 'operand1DigitCount'],
                               ['Number 2', 'operand2DigitCount'],
                             ] as const).map(([labelText, field]) => (
                               <div key={field}>
-                                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">{labelText}</p>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{labelText} · Digit Count</p>
+                                <div className="grid grid-cols-5 gap-1.5">
                                   {DIGIT_COUNT_OPTIONS.map((digits) => (
                                     <button
                                       key={digits}
                                       type="button"
                                       aria-pressed={(range[field] ?? 2) === digits}
                                       onClick={() => updateRange(tid, field, digits)}
-                                      className={`rounded-xl border px-2 py-2.5 text-xs font-bold transition-colors ${(range[field] ?? 2) === digits
-                                        ? 'gradient-primary border-primary text-primary-foreground'
-                                        : 'bg-secondary border-border text-secondary-foreground hover:border-primary/50'}`}
+                                      className={(range[field] ?? 2) === digits
+                                        ? 'rounded-lg border px-1 py-2 text-[10px] font-bold leading-none transition-colors gradient-primary border-primary text-primary-foreground'
+                                        : 'rounded-lg border px-1 py-2 text-[10px] font-bold leading-none transition-colors bg-secondary border-border text-secondary-foreground hover:border-primary/50'}
                                     >
                                       {digits} Digit
                                     </button>
@@ -1517,8 +1549,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                                 </div>
                               </div>
                             ))}
-                            <p className="text-[11px] font-semibold text-muted-foreground">
-                              Number 1 and Number 2 digit counts are independent. For subtraction, the displayed larger operand stays first so answers remain non-negative.
+                            <p className="text-[10px] leading-snug font-semibold text-muted-foreground">
+                              Number 1 and Number 2 are independent. Subtraction keeps the displayed result non-negative.
                             </p>
                           </div>
                         ) : tid === 'percentage' ? (
