@@ -49,39 +49,57 @@ describe('PracticePage question generation', () => {
     expect(cubeQuestions).toHaveLength(6);
   });
 
-  it('generates the Addition / Subtraction – Digit Numbers topic with exact operand digit counts', () => {
-    for (const digits of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+  it('supports independent digit counts for both operands, including 1–10 digits', () => {
+    const combinations = [
+      [1, 1], [2, 2], [2, 3], [3, 2], [4, 6], [5, 3], [10, 8],
+    ] as const;
+
+    for (const [digits1, digits2] of combinations) {
       const questions = generateQuestions({
         ...baseConfig,
         count: 50,
         topics: [{
           id: 'addition-subtraction-digits',
           label: 'Addition / Subtraction – Digit Numbers',
-          range: { from: digits, to: digits, digitCount: digits },
+          range: {
+            from: digits1,
+            to: digits2,
+            operand1DigitCount: digits1,
+            operand2DigitCount: digits2,
+          },
         }],
         repetitionEnabled: false,
         repetitionByTopic: {},
       });
 
       expect(questions).toHaveLength(50);
-      expect(questions.some((question) => question.text.includes(' + '))).toBe(true);
-      expect(questions.some((question) => question.text.includes(' − '))).toBe(true);
+      expect(questions.some((question) => question.operation === '+')).toBe(true);
+      expect(questions.some((question) => question.operation === '−')).toBe(true);
 
       for (const question of questions) {
+        expect(question.operand1DigitCount).toBe(digits1);
+        expect(question.operand2DigitCount).toBe(digits2);
+
+        expect(String(question.operand1)).toHaveLength(digits1);
+        expect(String(question.operand2)).toHaveLength(digits2);
+
         const match = question.text.match(/^(\d+) ([+−]) (\d+) = \?$/);
         expect(match).not.toBeNull();
-        expect(match?.[1]).toHaveLength(digits);
-        expect(match?.[3]).toHaveLength(digits);
-        expect(question.answer).toEqual(
-          match?.[2] === '+'
-            ? Number(match?.[1]) + Number(match?.[3])
-            : Number(match?.[1]) - Number(match?.[3]),
-        );
 
-        if (match?.[2] === '−') {
-          expect(Number(match[1])).toBeGreaterThanOrEqual(Number(match[3]));
-          expect(question.answer).toBeGreaterThanOrEqual(0);
+        const left = Number(match?.[1]);
+        const right = Number(match?.[3]);
+
+        if (question.operation === '+') {
+          expect(left).toBe(question.operand1);
+          expect(right).toBe(question.operand2);
+          expect(question.answer).toBe(left + right);
+        } else {
+          expect(left).toBeGreaterThanOrEqual(right);
+          expect(question.answer).toBe(left - right);
         }
+
+        expect(String(question.operand1)).not.toMatch(/^0/);
+        expect(String(question.operand2)).not.toMatch(/^0/);
       }
     }
   });
@@ -101,4 +119,5 @@ describe('PracticePage question generation', () => {
   });
 });
 
-// Production APK build requested by user after adding the digit-number arithmetic quiz topic.
+// Production APK build requested by user after independent operand digit selection and logo fix.
+// [BUILD_APK] requested build 2026-10-07 after independent digit selection + logo fix.
