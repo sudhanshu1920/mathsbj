@@ -1113,6 +1113,7 @@ html.low-power *::after {
 
 [data-app-topbar] button {
   box-sizing: border-box;
+  min-width: var(--app-topbar-control-size);
   min-height: var(--app-topbar-control-size);
 }
 
