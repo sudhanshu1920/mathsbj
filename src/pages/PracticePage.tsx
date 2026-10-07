@@ -470,6 +470,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [sessionXP, setSessionXP] = useState(0);
   const xpPopId = useRef(0);
   const answerLockRef = useRef(false);
+  // Keep timer callbacks on the latest answer handler without recreating the interval.
+  const handleAnswerRef = useRef<(answer: number | string | null) => void>(() => {});
   const finishLockRef = useRef(false);
   const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const timerRef = useRef<ReturnType<typeof setInterval>>();
