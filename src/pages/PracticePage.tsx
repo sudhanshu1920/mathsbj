@@ -451,9 +451,10 @@ interface PracticePageProps {
   onExit?: () => void;
   externalBackRequest?: number;
   fromLearning?: boolean;
+  onQuizStart?: (mode: PracticeMode) => void;
 }
 
-const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, externalBackRequest, fromLearning }: PracticePageProps) => {
+const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, externalBackRequest, fromLearning, onQuizStart }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -586,6 +587,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setConfig(normalizedConfig);
     setQuestions(qs);
     setCurrentQ(0);
+    onQuizStart?.(normalizedConfig.mode);
     setScore({ correct: 0, wrong: 0 });
     setFinished(false);
     setFeedback(null);
