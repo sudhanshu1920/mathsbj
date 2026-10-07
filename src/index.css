@@ -1134,7 +1134,6 @@ html.low-power *::after {
 .app-topbar-page,
 .app-topbar-stats {
   background:
-  border-radius: 10px;
     linear-gradient(
       180deg,
       hsl(var(--primary) / 0.11) 0%,
@@ -1142,6 +1141,7 @@ html.low-power *::after {
       hsl(var(--background) / 0.04) 100%
     );
   border-bottom: 1px solid hsl(var(--border) / 0.24);
+  border-radius: 10px;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
