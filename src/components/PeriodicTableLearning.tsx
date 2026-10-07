@@ -102,7 +102,7 @@ const ElementCell = ({ el, compact = false, massMode = 'exact', onClick }: { el:
 );
 
 const FPlaceholder = ({ text, label }: { text: string; label: string }) => (
-  <div className="flex aspect-square h-[76px] min-w-[76px] max-w-none shrink-0 items-center justify-center rounded-lg border border-dashed border-primary/25 bg-primary/5 px-1 text-center">
+  <div className="periodic-table-placeholder flex aspect-square h-[76px] min-w-[76px] max-w-none shrink-0 items-center justify-center rounded-lg border border-dashed border-primary/25 bg-primary/5 px-1 text-center">
     <div>
       <div className="text-[9px] font-black uppercase tracking-wide text-primary">{label}</div>
       <div className="mt-1 text-[10px] font-semibold leading-tight text-muted-foreground">{text}</div>
@@ -498,7 +498,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
             }}
           >
             <div
-              className="periodic-table-content w-max min-w-[1416px] pb-1"
+              className="periodic-table-content w-max min-w-[1488px] max-w-none shrink-0 pb-1"
               style={{ width: `${PERIODIC_GRID_WIDTH}px`, minWidth: `${PERIODIC_GRID_WIDTH}px`, maxWidth: 'none' }}
             >
               <div className="periodic-table-row grid pb-1 text-center" style={periodicGridStyle}>
