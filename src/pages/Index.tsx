@@ -99,6 +99,7 @@ const Index = () => {
     learningState,
     practiceTopic,
     practiceMode,
+    practicePhase,
   };
 
   // One shared back action for header arrows, in-app edge swipe, and native
