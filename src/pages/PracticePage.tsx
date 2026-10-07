@@ -534,7 +534,7 @@ interface PracticePageProps {
   onQuizFinish?: () => void;
 }
 
-const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, externalBackRequest, fromLearning, onQuizStart }: PracticePageProps) => {
+const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, onExitCancelled, externalBackRequest, fromLearning, onQuizStart, onQuizFinish }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
