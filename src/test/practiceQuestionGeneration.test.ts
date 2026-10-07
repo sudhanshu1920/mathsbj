@@ -120,4 +120,5 @@ describe('PracticePage question generation', () => {
 });
 
 // Production APK build requested by user after independent operand digit selection and logo fix.
+// APK build rerun after self-contained app logo repair.
 // [BUILD_APK] requested build 2026-10-07 after independent digit selection + logo fix.
