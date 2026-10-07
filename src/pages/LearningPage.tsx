@@ -491,19 +491,19 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 pb-6 animate-fade-in">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-6 animate-fade-in">
         {topics.map((t) => {
           const tint = cardTints[t.id];
           return (
             <button
               key={t.id}
               onClick={() => setActiveTopic(t.id)}
-              className={`glass-panel relative overflow-hidden flex flex-col items-center justify-center gap-2 aspect-square w-full rounded-3xl active:scale-[0.97] ${tint.glow} ${tint.text}`}
+              className={`glass-panel relative overflow-hidden flex min-h-[104px] sm:min-h-[112px] lg:min-h-[120px] w-full flex-col items-center justify-center gap-1.5 px-2 py-2 rounded-2xl active:scale-[0.97] ${tint.glow} ${tint.text}`}
             >
-              <span className="font-display font-black text-4xl leading-none neon-text">
+              <span className="font-display font-black text-2xl sm:text-[27px] lg:text-3xl leading-none neon-text">
                 {topicSymbols[t.id]}
               </span>
-              <span className="font-display font-extrabold text-sm uppercase tracking-wider text-center text-foreground">
+              <span className="font-display font-extrabold text-xs sm:text-sm uppercase tracking-wider text-center leading-tight text-foreground">
                 {t.title}
               </span>
             </button>
