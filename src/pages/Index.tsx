@@ -80,7 +80,11 @@ const Index = () => {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [practiceBackRequest, setPracticeBackRequest] = useState(0);
   const [practicePhase, setPracticePhase] = useState<PracticePhase>('setup');
-  const pendingPracticeNavigation = useRef<{ tab: Tab; resetLearn?: boolean } | null>(null);
+  const pendingPracticeNavigation = useRef<{
+    tab: Tab;
+    resetLearn?: boolean;
+    replacementPracticeTopic?: string;
+  } | null>(null);
   const wideDesktop = useWideDesktop();
   const lastBackPress = useRef(0);
   const isHandlingPopstate = useRef(false);
@@ -199,15 +203,21 @@ const Index = () => {
       if (tab === 'practice') {
         // Practice setup screen — leave to learn (or wherever we came from)
         if (returnToLearn) {
+          pendingPracticeNavigation.current = null;
           setReturnToLearn(false);
           setPracticeTopic(undefined);
           setPracticeContext(undefined);
           setPracticeMode(undefined);
+          setPracticeExtras(undefined);
+          setPracticePhase('setup');
           setTab('learn');
         } else {
+          pendingPracticeNavigation.current = null;
           setPracticeTopic(undefined);
           setPracticeContext(undefined);
           setPracticeMode(undefined);
+          setPracticeExtras(undefined);
+          setPracticePhase('setup');
         }
         lastDepth.current = getNavDepth('learn', learningState);
         return;
@@ -308,8 +318,16 @@ const Index = () => {
     setReturnToLearn(false);
   }, []);
 
-  const requestPracticeNavigation = useCallback((targetTab: Tab, resetLearn = false) => {
-    pendingPracticeNavigation.current = { tab: targetTab, resetLearn };
+  const requestPracticeNavigation = useCallback((
+    targetTab: Tab,
+    resetLearn = false,
+    replacementPracticeTopic?: string,
+  ) => {
+    pendingPracticeNavigation.current = {
+      tab: targetTab,
+      resetLearn,
+      replacementPracticeTopic,
+    };
     setPracticeBackRequest((value) => value + 1);
   }, []);
 
@@ -326,7 +344,7 @@ const Index = () => {
   }, [tab, practicePhase, requestPracticeNavigation, clearPracticeState]);
 
   const handleDoubleTap = useCallback((targetTab: Tab) => {
-    if (targetTab !== 'practice' && tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
+    if (tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
       requestPracticeNavigation(targetTab, targetTab === 'learn');
       return;
     }
@@ -361,6 +379,14 @@ const Index = () => {
       if (pending.tab === 'learn' && pending.resetLearn) {
         setLearningState(INITIAL_LEARNING_STATE);
       }
+      if (pending.tab === 'practice') {
+        setPracticeTopic(pending.replacementPracticeTopic);
+        setPracticeContext(undefined);
+        setPracticeMode(undefined);
+        setPracticeExtras(undefined);
+        setPracticePhase('setup');
+        setReturnToLearn(false);
+      }
       setTab(pending.tab);
       return;
     }
@@ -393,6 +419,11 @@ const Index = () => {
   }, []);
 
   const quickPractice = useCallback((topic: string) => {
+    if (tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
+      requestPracticeNavigation('practice', false, topic);
+      return;
+    }
+
     setPracticeTopic(topic);
     setPracticeContext(undefined);
     setPracticeMode(undefined);
@@ -400,7 +431,7 @@ const Index = () => {
     setPracticePhase('setup');
     setReturnToLearn(false);
     setTab('practice');
-  }, []);
+  }, [tab, practicePhase, requestPracticeNavigation]);
 
   // Keyboard shortcuts (desktop-style, ignored while typing)
   useEffect(() => {
@@ -479,7 +510,7 @@ const Index = () => {
 
           </div>
         </div>
-        {!(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practiceMode === 'input') && (
+        {!(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practicePhase === 'active' && practiceMode === 'input') && (
           <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
         )}
       </div>
