@@ -151,8 +151,8 @@ jobs:
             dir="android/app/src/main/res/mipmap-${density}"
             test -d "$dir"
             size="${sizes[$density]}"
-            convert public/app-icon.png -resize "${size}x${size}" "$dir/ic_launcher.png"
-            convert public/app-icon.png -resize "${size}x${size}" "$dir/ic_launcher_round.png"
+            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher.png"
+            rsvg-convert -w "$size" -h "$size" public/app-icon.svg -o "$dir/ic_launcher_round.png"
             test -s "$dir/ic_launcher.png"
             test -s "$dir/ic_launcher_round.png"
           done
