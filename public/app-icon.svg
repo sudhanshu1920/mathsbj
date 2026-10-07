@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#020914"/><stop offset="1" stop-color="#07111f"/></linearGradient>
+  <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#19d8ff"/><stop offset="1" stop-color="#0786e8"/></linearGradient>
+  <filter id="shadow"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-opacity=".45"/></filter>
+</defs>
+<rect width="1024" height="1024" rx="170" fill="url(#bg)"/>
+<circle cx="512" cy="500" r="350" fill="none" stroke="url(#blue)" stroke-width="28" stroke-linecap="round" stroke-dasharray="850 170" transform="rotate(-28 512 500)"/>
+<g filter="url(#shadow)" font-family="Arial,Helvetica,sans-serif" font-weight="900" text-anchor="middle">
+  <text x="512" y="560" font-size="300" fill="#f7f8fa" letter-spacing="-35">S</text>
+  <text x="512" y="560" font-size="300" fill="url(#blue)" dx="110">B</text>
+  <text x="512" y="560" font-size="300" fill="#f7f8fa" dx="235">J</text>
+</g>
+<g fill="#fff" font-family="Arial,Helvetica,sans-serif" font-weight="700" text-anchor="middle">
+  <text x="360" y="270" font-size="105">+</text><text x="670" y="270" font-size="105">−</text>
+  <text x="270" y="355" font-size="100" fill="#0aa9f5">×</text><text x="755" y="355" font-size="92" fill="#0aa9f5">÷</text>
+  <text x="512" y="275" font-size="105" fill="#10d8ef">√</text><text x="570" y="275" font-size="105">x</text>
+</g>
+<g transform="translate(420 650)">
+  <rect width="184" height="205" rx="32" fill="#07111f" stroke="#0ba8f5" stroke-width="16"/>
+  <rect x="35" y="28" width="114" height="45" rx="9" fill="#20262c"/>
+  <g fill="#f5f6f7"><rect x="28" y="95" width="46" height="40" rx="8"/><rect x="82" y="95" width="46" height="40" rx="8"/><rect x="28" y="145" width="46" height="40" rx="8"/><rect x="82" y="145" width="46" height="40" rx="8"/></g>
+  <rect x="136" y="95" width="28" height="90" rx="8" fill="#0aa8f5"/>
+</g>
+<text x="512" y="915" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="40" font-weight="700" text-anchor="middle" letter-spacing="8">MATH · CALCULATE · SUCCEED</text>
+</svg>
