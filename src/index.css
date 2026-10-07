@@ -1010,8 +1010,12 @@ html.desktop-mode .glass-panel {
 }
 
 /* Compact shared top/bottom panels.
-   Keep visual surfaces slim while preserving usable controls and safe-area
-   spacing. The gradients use existing theme tokens and fade into the page. */
+   Root-cause sizing fix: the outer floating nav and its inner controls now
+   share one real height instead of a 26px wrapper with 44px overflowing buttons. */
+:root {
+  --bottom-nav-height: 58px;
+}
+
 .app-top-header {
   position: relative;
   background:
@@ -1043,18 +1047,18 @@ html.desktop-mode .app-top-header {
 }
 
 .bottom-nav {
-  height: 26px !important;
-  min-height: 26px !important;
-  padding-bottom: 0 !important;
+  height: var(--bottom-nav-height) !important;
+  min-height: var(--bottom-nav-height) !important;
+  padding: 0 !important;
   left: 50% !important;
   right: auto !important;
-  bottom: calc(0.625rem + env(safe-area-inset-bottom, 0px)) !important;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)) !important;
   transform: translateX(-50%) !important;
   width: min(calc(100% - 1rem), 32rem) !important;
   max-width: 32rem !important;
   border: 1px solid hsl(var(--border) / 0.72) !important;
   border-radius: 9999px !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   background:
     linear-gradient(
       180deg,
@@ -1079,48 +1083,49 @@ html.light .bottom-nav {
 
 .bottom-nav > div {
   width: 100% !important;
-  height: 26px !important;
-  min-height: 26px !important;
-  padding: 0 0.25rem !important;
-  overflow: visible;
+  height: 100% !important;
+  min-height: 100% !important;
+  padding: 0 0.35rem !important;
+  overflow: hidden;
 }
 
 .bottom-nav button {
   position: relative;
-  height: 44px !important;
-  min-height: 44px !important;
-  padding: 0 !important;
-  gap: 0 !important;
+  height: 100% !important;
+  min-height: 48px !important;
+  padding: 3px 6px !important;
+  gap: 2px !important;
   overflow: visible;
+  touch-action: manipulation;
 }
 
 .bottom-nav button > div {
-  width: 2.25rem !important;
-  height: 20px !important;
-  min-height: 20px !important;
-  border-radius: 0.55rem !important;
+  width: 2.5rem !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  border-radius: 0.6rem !important;
 }
 
 .bottom-nav button > div svg {
-  width: 15px !important;
-  height: 15px !important;
+  width: 18px !important;
+  height: 18px !important;
 }
 
 .bottom-nav button > span {
-  font-size: 7px !important;
-  line-height: 8px !important;
+  font-size: 9px !important;
+  line-height: 10px !important;
   white-space: nowrap;
 }
 
 @media (max-width: 767px) {
   .app-frame-scroll {
-    padding-bottom: 3.5rem;
+    padding-bottom: 5rem;
   }
 }
 
 @media (min-width: 768px) {
   .app-frame-scroll {
-    padding-bottom: 3.5rem;
+    padding-bottom: 5rem;
   }
 }
 
@@ -1131,6 +1136,19 @@ html.light .bottom-nav {
   }
 }
 
+/* Periodic Table layout guardrails.
+   Prevent the global app-frame max-width rule from collapsing the scientific
+   chart rows or individual fixed-size cells. */
+.periodic-table-content,
+.periodic-table-row {
+  max-width: none !important;
+  flex: 0 0 auto;
+}
+
+.periodic-table-scroll .periodic-element-cell,
+.periodic-table-scroll .periodic-table-placeholder {
+  max-width: none !important;
+}
 /* ===== Game-like feedback animations ===== */
 @keyframes shake-x {
   0%, 100% { transform: translateX(0); }

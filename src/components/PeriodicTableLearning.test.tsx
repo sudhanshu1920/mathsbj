@@ -90,6 +90,8 @@ describe('PeriodicTableLearning', () => {
     expect(scrollSurface).toHaveAttribute('data-swipe-ignore-back', 'true');
 
     const tableContent = container.querySelector('.periodic-table-content');
-    expect(tableContent).toHaveStyle({ minWidth: '1416px' });
+    expect(tableContent).toHaveStyle({ minWidth: '1488px', width: '1488px', maxWidth: 'none' });
+    const firstRow = container.querySelector('.periodic-table-row');
+    expect(firstRow).toHaveStyle({ minWidth: '1488px', width: '1488px', maxWidth: 'none' });
   });
 });

@@ -47,6 +47,21 @@ const CATEGORY_DOTS: Record<ChemElement['category'], string> = {
 
 const MAIN_ROWS = Array.from({ length: 7 }, (_, i) => i + 1);
 const GROUPS = Array.from({ length: 18 }, (_, i) => i + 1);
+const PERIODIC_CELL_SIZE = 76;
+const PERIODIC_LABEL_WIDTH = 52;
+const PERIODIC_GRID_GAP = 4;
+const PERIODIC_GRID_WIDTH =
+  PERIODIC_LABEL_WIDTH +
+  GROUPS.length * PERIODIC_CELL_SIZE +
+  GROUPS.length * PERIODIC_GRID_GAP;
+
+const periodicGridStyle = {
+  gridTemplateColumns: `${PERIODIC_LABEL_WIDTH}px repeat(${GROUPS.length}, ${PERIODIC_CELL_SIZE}px)`,
+  gap: `${PERIODIC_GRID_GAP}px`,
+  width: `${PERIODIC_GRID_WIDTH}px`,
+  minWidth: `${PERIODIC_GRID_WIDTH}px`,
+  maxWidth: 'none',
+};
 const F_BLOCK_ROWS = [
   { ypos: 9, label: 'Lanthanides', range: '57–71' },
   { ypos: 10, label: 'Actinides', range: '89–103' },
@@ -75,7 +90,7 @@ const ElementCell = ({ el, compact = false, massMode = 'exact', onClick }: { el:
     onClick={onClick}
     aria-label={`${el.name}, atomic number ${el.number}`}
     title={`${el.name} (${el.symbol})`}
-    className={`relative aspect-square h-[72px] min-w-[72px] rounded-lg border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[72px] min-w-[72px]' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
+    className={`periodic-element-cell relative aspect-square h-[76px] min-w-[76px] rounded-lg max-w-none shrink-0 border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[76px] min-w-[76px] max-w-none shrink-0' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
   >
     <span className="absolute left-1.5 top-1 text-[9px] font-bold text-muted-foreground">{el.number}</span>
     <span className="absolute right-1.5 top-1 text-[9px] font-semibold text-muted-foreground">{formatMass(el, massMode)}</span>
@@ -87,7 +102,7 @@ const ElementCell = ({ el, compact = false, massMode = 'exact', onClick }: { el:
 );
 
 const FPlaceholder = ({ text, label }: { text: string; label: string }) => (
-  <div className="flex aspect-square h-[72px] min-w-[72px] items-center justify-center rounded-lg border border-dashed border-primary/25 bg-primary/5 px-1 text-center">
+  <div className="flex aspect-square h-[76px] min-w-[76px] max-w-none shrink-0 items-center justify-center rounded-lg border border-dashed border-primary/25 bg-primary/5 px-1 text-center">
     <div>
       <div className="text-[9px] font-black uppercase tracking-wide text-primary">{label}</div>
       <div className="mt-1 text-[10px] font-semibold leading-tight text-muted-foreground">{text}</div>
@@ -484,23 +499,23 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
           >
             <div
               className="periodic-table-content w-max min-w-[1416px] pb-1"
-              style={{ width: 'max-content', minWidth: '1416px', maxWidth: 'none' }}
+              style={{ width: `${PERIODIC_GRID_WIDTH}px`, minWidth: `${PERIODIC_GRID_WIDTH}px`, maxWidth: 'none' }}
             >
-              <div className="grid grid-cols-[48px_repeat(18,72px)] gap-1 pb-1 text-center">
+              <div className="periodic-table-row grid pb-1 text-center" style={periodicGridStyle}>
                 <div />
                 {GROUPS.map((g) => <div key={g} className="text-[9px] font-black text-muted-foreground">{g}</div>)}
               </div>
 
               <div className="space-y-1">
                 {MAIN_ROWS.map((period) => (
-                  <div key={period} className="grid grid-cols-[48px_repeat(18,72px)] gap-1">
+                  <div key={period} className="periodic-table-row grid" style={periodicGridStyle}>
                     <div className="flex items-center justify-center rounded-lg bg-background/40 text-[9px] font-black tabular-nums text-muted-foreground">{period}</div>
                     {GROUPS.map((group) => {
                       const el = findMainElement(period, group);
                       if (el) return <ElementCell key={`${period}-${group}`} el={el} massMode={massMode} onClick={() => onSelectElement(el.number)} />;
                       if (period === 6 && group === 3) return <FPlaceholder key={`${period}-${group}`} label="57–71" text="Lanthanides ↓" />;
                       if (period === 7 && group === 3) return <FPlaceholder key={`${period}-${group}`} label="89–103" text="Actinides ↓" />;
-                      return <div key={`${period}-${group}`} className="aspect-square h-[72px] rounded-lg border border-transparent" aria-hidden="true" />;
+                      return <div key={`${period}-${group}`} className="aspect-square h-[76px] min-w-[76px] max-w-none rounded-lg border border-transparent shrink-0" aria-hidden="true" />;
                     })}
                   </div>
                 ))}
@@ -509,12 +524,12 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
               <div className="my-3 flex items-center gap-2"><div className="h-px flex-1 bg-border/70" /><span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">f-block</span><div className="h-px flex-1 bg-border/70" /></div>
               <div className="space-y-1">
                 {F_BLOCK_ROWS.map(({ ypos: row, label, range }) => (
-                  <div key={row} className="grid grid-cols-[48px_repeat(18,72px)] gap-1">
+                  <div key={row} className="periodic-table-row grid" style={periodicGridStyle}>
                     <div className="flex flex-col items-center justify-center rounded-lg bg-background/40 text-center"><span className="text-[8px] font-black uppercase text-muted-foreground">{label}</span><span className="mt-0.5 text-[8px] font-bold text-primary">{range}</span></div>
                     {GROUPS.map((group) => {
-                      if (group < 4 || group > 18) return <div key={group} className="aspect-square h-[72px] rounded-lg border border-transparent" aria-hidden="true" />;
+                      if (group < 4 || group > 18) return <div key={group} className="aspect-square h-[76px] min-w-[76px] max-w-none rounded-lg border border-transparent shrink-0" aria-hidden="true" />;
                       const el = F_ELEMENT_BY_POSITION.get(`${row}-${group}`);
-                      return el ? <ElementCell key={group} el={el} compact massMode={massMode} onClick={() => onSelectElement(el.number)} /> : <div key={group} className="aspect-square h-[72px] min-w-[72px]" />;
+                      return el ? <ElementCell key={group} el={el} compact massMode={massMode} onClick={() => onSelectElement(el.number)} /> : <div key={group} className="aspect-square h-[76px] min-w-[76px] max-w-none shrink-0" />;
                     })}
                   </div>
                 ))}
