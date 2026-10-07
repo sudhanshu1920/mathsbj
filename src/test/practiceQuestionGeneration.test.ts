@@ -104,6 +104,40 @@ describe('PracticePage question generation', () => {
     }
   });
 
+  it('supports selecting addition only, subtraction only, or both operations', () => {
+    const makeConfig = (operations: ('addition' | 'subtraction')[]) => ({
+      ...baseConfig,
+      count: 40,
+      topics: [{
+        id: 'addition-subtraction-digits',
+        label: 'Addition / Subtraction – Digit Numbers',
+        range: {
+          from: 2,
+          to: 3,
+          operand1DigitCount: 2,
+          operand2DigitCount: 3,
+          arithmeticOperations: operations,
+        },
+      }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    const additions = generateQuestions(makeConfig(['addition']));
+    expect(additions).toHaveLength(40);
+    expect(additions.every((question) => question.operation === '+')).toBe(true);
+
+    const subtractions = generateQuestions(makeConfig(['subtraction']));
+    expect(subtractions).toHaveLength(40);
+    expect(subtractions.every((question) => question.operation === '−')).toBe(true);
+    expect(subtractions.every((question) => question.answer >= 0)).toBe(true);
+
+    const both = generateQuestions(makeConfig(['addition', 'subtraction']));
+    expect(both).toHaveLength(40);
+    expect(both.filter((question) => question.operation === '+')).toHaveLength(20);
+    expect(both.filter((question) => question.operation === '−')).toHaveLength(20);
+  });
+
   it('bounds malformed quiz ranges instead of allocating unbounded arrays', () => {
     const questions = generateQuestions({
       ...baseConfig,
@@ -121,4 +155,4 @@ describe('PracticePage question generation', () => {
 
 // Production APK build requested by user after independent operand digit selection and logo fix.
 // APK build rerun after self-contained app logo repair.
-// [BUILD_APK] requested build 2026-10-07 after independent digit selection + logo fix.
+// [BUILD_APK] requested build after quiz popup fix, operation selection, and independent digit controls.
