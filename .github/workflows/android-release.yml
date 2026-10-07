@@ -58,10 +58,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s public/app-icon-source.jpg
+          test -s public/app-icon.svg
           sudo apt-get update -qq
-          sudo apt-get install -y -qq imagemagick
-          convert public/app-icon-source.jpg -resize 1024x1024 -strip public/app-icon.png
+          sudo apt-get install -y -qq imagemagick librsvg2-bin
+          convert -background none public/app-icon.svg -resize 1024x1024 public/app-icon.png
           identify -format '%wx%h' public/app-icon.png | grep -qx '1024x1024'
           test -s public/app-icon.png
 
