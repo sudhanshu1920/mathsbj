@@ -21,3 +21,5 @@ describe('Practice navigation lifecycle', () => {
     expect(getPracticeNavDepth('setup')).not.toBe('practice-active');
   });
 });
+
+// [BUILD_APK] release build requested after navigation exit-guard root-cause fix.
