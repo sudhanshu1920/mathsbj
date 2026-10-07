@@ -3,7 +3,6 @@ name: Android APK
 run-name: Android APK #${{ github.run_number }} — ${{ github.ref_name }}
 
 on:
-  # APK builds are manual-only after the explicitly approved build.
   workflow_dispatch:
 
 permissions:
@@ -85,18 +84,30 @@ jobs:
           if f'applicationId "{application_id}"' not in text:
               raise SystemExit(f"Production applicationId mismatch; expected {application_id}")
 
-          if not re.search(r'(?m)^\s*namespace\s+"'+re.escape(application_id)+r'"\s*
+          if not re.search(r'(?m)^\s*namespace\s+"'+re.escape(application_id)+r'"\s*$', text):
+              raise SystemExit("Android namespace does not match the production applicationId")
+
+          text, count = re.subn(r'(?m)^(\s*)versionCode\s+\d+\s*$', r'\g<1>versionCode '+version_code, text, count=1)
+          if count != 1:
+              raise SystemExit("Expected exactly one generated versionCode declaration")
+
+          text, count = re.subn(r'(?m)^(\s*)versionName\s+"[^"]*"\s*$', r'\g<1>versionName "'+version_name+'"', text, count=1)
+          if count != 1:
+              raise SystemExit("Expected exactly one generated versionName declaration")
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          grep -q 'applicationId "com.sudhanshu.mathsbj"' android/app/build.gradle
+          grep -q 'namespace "com.sudhanshu.mathsbj"' android/app/build.gradle
+          grep -Eq "^\s*versionCode\s+${VERSION_CODE}\s*$" android/app/build.gradle
+          grep -Eq '^\s*versionName "1\.0"\s*$' android/app/build.gradle
+          test "${VERSION_CODE}" -gt 1
+
+      - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build unsigned release APK
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
-
-      - name: Build unsigned release APK
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
-
-      - name: Sign release APK with production key
+      - name: Configure production release signing
         shell: bash
         env:
           MATHMASTER_RELEASE_KEYSTORE_BASE64: ${{ secrets.MATHMASTER_RELEASE_KEYSTORE_BASE64 }}
@@ -114,52 +125,73 @@ jobs:
             fi
           done
 
-          APK_UNSIGNED="$(find android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
-          test -n "$APK_UNSIGNED"
-          test -s "$APK_UNSIGNED"
-
-          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          ZIPALIGN="$BUILD_TOOLS/zipalign"
-          APKSIGNER="$BUILD_TOOLS/apksigner"
-          test -x "$ZIPALIGN"
-          test -x "$APKSIGNER"
-
-          KEYSTORE="$RUNNER_TEMP/math-master-production-release.jks"
-          printf '%s' "$MATHMASTER_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
-          test -s "$KEYSTORE"
+          keystore="$RUNNER_TEMP/math-master-production-release.jks"
+          printf '%s' "$MATHMASTER_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          test -s "$keystore"
 
           keytool -list -v \
-            -keystore "$KEYSTORE" \
+            -keystore "$keystore" \
             -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD" \
             -alias "$MATHMASTER_RELEASE_KEY_ALIAS" >/dev/null
 
-          SIGNED_APK="$RUNNER_TEMP/math-master-release-aligned.apk"
-          OUTPUT_APK="android/app/build/outputs/apk/release/math-master-release.apk"
+          {
+            echo "MATHMASTER_RELEASE_KEYSTORE_PATH=$keystore"
+            echo "MATHMASTER_RELEASE_KEYSTORE_PASSWORD=$MATHMASTER_RELEASE_KEYSTORE_PASSWORD"
+            echo "MATHMASTER_RELEASE_KEY_ALIAS=$MATHMASTER_RELEASE_KEY_ALIAS"
+            echo "MATHMASTER_RELEASE_KEY_PASSWORD=$MATHMASTER_RELEASE_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
 
-          "$ZIPALIGN" -v -p 4 "$APK_UNSIGNED" "$SIGNED_APK"
-          "$APKSIGNER" sign \
-            --ks "$KEYSTORE" \
-            --ks-pass "pass:$MATHMASTER_RELEASE_KEYSTORE_PASSWORD" \
-            --ks-key-alias "$MATHMASTER_RELEASE_KEY_ALIAS" \
-            --key-pass "pass:$MATHMASTER_RELEASE_KEY_PASSWORD" \
-            --out "$OUTPUT_APK" \
-            "$SIGNED_APK"
+          python3 - <<'PY'
+          from pathlib import Path
 
-          "$APKSIGNER" verify --verbose "$OUTPUT_APK"
-          rm -f "$APK_UNSIGNED" "$SIGNED_APK" "$KEYSTORE"
-          echo "APK_PATH=$OUTPUT_APK" >> "$GITHUB_ENV"
+          path = Path("android/app/build.gradle")
+          text = path.read_text(encoding="utf-8")
 
-      - name: Verify signed release APK identity and version
+          marker = "android {"
+          signing = """android {
+              signingConfigs {
+                  productionRelease {
+                      storeFile file(System.getenv("MATHMASTER_RELEASE_KEYSTORE_PATH"))
+                      storePassword System.getenv("MATHMASTER_RELEASE_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("MATHMASTER_RELEASE_KEY_ALIAS")
+                      keyPassword System.getenv("MATHMASTER_RELEASE_KEY_PASSWORD")
+                  }
+              }
+          """
+
+          if text.count(marker) != 1:
+              raise SystemExit("Expected exactly one android { block")
+
+          if "signingConfigs {" not in text:
+              text = text.replace(marker, signing, 1)
+          elif "productionRelease" not in text:
+              raise SystemExit("Existing signingConfigs block is present but productionRelease is missing")
+
+          target = "buildTypes {\n        release {"
+          replacement = """buildTypes {
+                  release {
+                      signingConfig signingConfigs.productionRelease"""
+          if target not in text:
+              raise SystemExit("Expected release buildTypes block not found")
+
+          text = text.replace(target, replacement, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          grep -q "signingConfigs.productionRelease" android/app/build.gradle
+
+      - name: Build signed release APK
+        working-directory: android
+        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
+
+      - name: Verify APK identity, version, signature and installability
         shell: bash
         env:
           EXPECTED_VERSION_CODE: ${{ github.run_id }}
           EXPECTED_VERSION_NAME: "1.0"
           EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
-          MATHMASTER_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.MATHMASTER_RELEASE_KEYSTORE_PASSWORD }}
-          MATHMASTER_RELEASE_KEY_ALIAS: ${{ secrets.MATHMASTER_RELEASE_KEY_ALIAS }}
         run: |
           set -euo pipefail
-          test -s "$APK_PATH"
 
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
           APKSIGNER="$BUILD_TOOLS/apksigner"
@@ -167,22 +199,25 @@ jobs:
           test -x "$APKSIGNER"
           test -x "$AAPT2"
 
-          "$APKSIGNER" verify --verbose "$APK_PATH"
+          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
+          test -n "$apk"
 
-          badging="$("$AAPT2" dump badging "$APK_PATH")"
+          "$APKSIGNER" verify --verbose "$apk"
+
+          badging="$("$AAPT2" dump badging "$apk")"
           echo "$badging" | grep -q "package: name='$EXPECTED_APPLICATION_ID' versionCode='$EXPECTED_VERSION_CODE' versionName='$EXPECTED_VERSION_NAME'"
 
           expected_fp="$(
             keytool -exportcert -rfc \
-              -keystore "$RUNNER_TEMP/math-master-production-release.jks" \
+              -keystore "$MATHMASTER_RELEASE_KEYSTORE_PATH" \
               -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD" \
-              -alias "$MATHMASTER_RELEASE_KEY_ALIAS" 2>/dev/null |
+              -alias "$MATHMASTER_RELEASE_KEY_ALIAS" |
             openssl x509 -noout -fingerprint -sha256 |
             sed 's/.*=//' | tr -d ':' | tr '[:lower:]' '[:upper:]'
           )"
 
           actual_fp="$(
-            "$APKSIGNER" verify --print-certs "$APK_PATH" 2>&1 |
+            "$APKSIGNER" verify --print-certs "$apk" 2>&1 |
             awk -F': ' '/certificate SHA-256 digest/ { print $2; exit }' |
             tr -d ':' | tr '[:lower:]' '[:upper:]'
           )"
@@ -191,184 +226,13 @@ jobs:
           test -n "$actual_fp"
           test "$expected_fp" = "$actual_fp"
 
-          sha256sum "$APK_PATH"
-          ls -lh "$APK_PATH"
+          sha256sum "$apk"
+          ls -lh "$apk"
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
           name: math-master-android-release
-          path: ${{ env.APK_PATH }}
-          if-no-files-found: error
-          retention-days: 14
-, text):
-              raise SystemExit("Android namespace does not match the production applicationId")
-
-          text, count = re.subn(r'(?m)^(\s*)versionCode\s+\d+\s*
-        run: npx cap sync android
-
-      - name: Build unsigned release APK
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
-
-      - name: Sign release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          APK_UNSIGNED="$(find android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
-          test -n "$APK_UNSIGNED"
-          test -s "$APK_UNSIGNED"
-
-          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          ZIPALIGN="$BUILD_TOOLS/zipalign"
-          APKSIGNER="$BUILD_TOOLS/apksigner"
-
-          KEYSTORE="$RUNNER_TEMP/math-master-release.jks"
-          SIGNED_APK="$RUNNER_TEMP/math-master-release-aligned.apk"
-
-          keytool -genkeypair             -keystore "$KEYSTORE"             -storepass changeit             -keypass changeit             -alias math-master             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Math Master, O=SBJ, C=IN"
-
-          "$ZIPALIGN" -v -p 4 "$APK_UNSIGNED" "$SIGNED_APK"
-
-          "$APKSIGNER" sign             --ks "$KEYSTORE"             --ks-pass pass:changeit             --key-pass pass:changeit             --out android/app/build/outputs/apk/release/math-master-release.apk             "$SIGNED_APK"
-
-          "$APKSIGNER" verify --verbose android/app/build/outputs/apk/release/math-master-release.apk
-
-          rm -f "$APK_UNSIGNED" "$SIGNED_APK" "$KEYSTORE"
-
-          echo "APK_PATH=android/app/build/outputs/apk/release/math-master-release.apk" >> "$GITHUB_ENV"
-
-      - name: Verify signed release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "$APK_PATH"
-          sha256sum "$APK_PATH"
-          ls -lh "$APK_PATH"
-
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: math-master-android-release
-          path: ${{ env.APK_PATH }}
-          if-no-files-found: error
-          retention-days: 14
-, r'\g<1>versionCode '+version_code, text, count=1)
-          if count != 1:
-              raise SystemExit("Expected exactly one generated versionCode declaration")
-
-          text, count = re.subn(r'(?m)^(\s*)versionName\s+"[^"]*"\s*
-        run: npx cap sync android
-
-      - name: Build unsigned release APK
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
-
-      - name: Sign release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          APK_UNSIGNED="$(find android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
-          test -n "$APK_UNSIGNED"
-          test -s "$APK_UNSIGNED"
-
-          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          ZIPALIGN="$BUILD_TOOLS/zipalign"
-          APKSIGNER="$BUILD_TOOLS/apksigner"
-
-          KEYSTORE="$RUNNER_TEMP/math-master-release.jks"
-          SIGNED_APK="$RUNNER_TEMP/math-master-release-aligned.apk"
-
-          keytool -genkeypair             -keystore "$KEYSTORE"             -storepass changeit             -keypass changeit             -alias math-master             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Math Master, O=SBJ, C=IN"
-
-          "$ZIPALIGN" -v -p 4 "$APK_UNSIGNED" "$SIGNED_APK"
-
-          "$APKSIGNER" sign             --ks "$KEYSTORE"             --ks-pass pass:changeit             --key-pass pass:changeit             --out android/app/build/outputs/apk/release/math-master-release.apk             "$SIGNED_APK"
-
-          "$APKSIGNER" verify --verbose android/app/build/outputs/apk/release/math-master-release.apk
-
-          rm -f "$APK_UNSIGNED" "$SIGNED_APK" "$KEYSTORE"
-
-          echo "APK_PATH=android/app/build/outputs/apk/release/math-master-release.apk" >> "$GITHUB_ENV"
-
-      - name: Verify signed release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "$APK_PATH"
-          sha256sum "$APK_PATH"
-          ls -lh "$APK_PATH"
-
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: math-master-android-release
-          path: ${{ env.APK_PATH }}
-          if-no-files-found: error
-          retention-days: 14
-, r'\g<1>versionName "'+version_name+'"', text, count=1)
-          if count != 1:
-              raise SystemExit("Expected exactly one generated versionName declaration")
-
-          path.write_text(text, encoding="utf-8")
-          PY
-
-          grep -q 'applicationId "com.sudhanshu.mathsbj"' android/app/build.gradle
-          grep -q 'namespace "com.sudhanshu.mathsbj"' android/app/build.gradle
-          test "${VERSION_CODE}" -gt 1
-          echo "Production applicationId=${EXPECTED_APPLICATION_ID}"
-          echo "Release versionCode=${VERSION_CODE}"
-          echo "Release versionName=${VERSION_NAME}"
-
-      - name: Sync Capacitor
-        run: npx cap sync android
-
-      - name: Build unsigned release APK
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
-
-      - name: Sign release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          APK_UNSIGNED="$(find android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
-          test -n "$APK_UNSIGNED"
-          test -s "$APK_UNSIGNED"
-
-          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          ZIPALIGN="$BUILD_TOOLS/zipalign"
-          APKSIGNER="$BUILD_TOOLS/apksigner"
-
-          KEYSTORE="$RUNNER_TEMP/math-master-release.jks"
-          SIGNED_APK="$RUNNER_TEMP/math-master-release-aligned.apk"
-
-          keytool -genkeypair             -keystore "$KEYSTORE"             -storepass changeit             -keypass changeit             -alias math-master             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Math Master, O=SBJ, C=IN"
-
-          "$ZIPALIGN" -v -p 4 "$APK_UNSIGNED" "$SIGNED_APK"
-
-          "$APKSIGNER" sign             --ks "$KEYSTORE"             --ks-pass pass:changeit             --key-pass pass:changeit             --out android/app/build/outputs/apk/release/math-master-release.apk             "$SIGNED_APK"
-
-          "$APKSIGNER" verify --verbose android/app/build/outputs/apk/release/math-master-release.apk
-
-          rm -f "$APK_UNSIGNED" "$SIGNED_APK" "$KEYSTORE"
-
-          echo "APK_PATH=android/app/build/outputs/apk/release/math-master-release.apk" >> "$GITHUB_ENV"
-
-      - name: Verify signed release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "$APK_PATH"
-          sha256sum "$APK_PATH"
-          ls -lh "$APK_PATH"
-
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: math-master-android-release
-          path: ${{ env.APK_PATH }}
+          path: android/app/build/outputs/apk/release/*release*.apk
           if-no-files-found: error
           retention-days: 14
