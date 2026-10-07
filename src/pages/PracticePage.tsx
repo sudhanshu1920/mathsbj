@@ -1283,7 +1283,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const canStart = selectedTopics.size > 0 && validPeriodicRange && repetitionValid;
 
   return (
-    <div className="pb-4">
+    <div className="pb-24 md:pb-6">
       <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
         <h1 className="font-display font-bold text-base sm:text-lg text-foreground flex items-center gap-1.5">
           <Zap size={16} className="text-primary" /> Quiz Arena
