@@ -30,16 +30,13 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col gap-5 py-4"
     >
-      {/* Answer Mode */}
       <div>
         <label className="text-sm text-muted-foreground mb-2 block">Answer Mode</label>
         <div className="flex gap-3">
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setMode('mcq')}
-            className={`flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl font-semibold shadow-lg transition-colors ${
-              mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'
-            }`}
+            className={`flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl font-semibold shadow-lg transition-colors ${mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}
           >
             <ListChecks size={24} />
             <span className="text-sm">MCQ</span>
@@ -47,9 +44,7 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setMode('input')}
-            className={`flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl font-semibold shadow-lg transition-colors ${
-              mode === 'input' ? 'bg-accent text-accent-foreground' : 'bg-card border border-border text-foreground'
-            }`}
+            className={`flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl font-semibold shadow-lg transition-colors ${mode === 'input' ? 'bg-accent text-accent-foreground' : 'bg-card border border-border text-foreground'}`}
           >
             <Keyboard size={24} />
             <span className="text-sm">Type Answer</span>
@@ -57,7 +52,6 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
         </div>
       </div>
 
-      {/* Timer Toggle */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
@@ -78,9 +72,7 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
               <button
                 key={s}
                 onClick={() => setTimerSeconds(s)}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${
-                  timerSeconds === s ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
-                }`}
+                className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${timerSeconds === s ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
               >
                 {s}s
               </button>
@@ -89,7 +81,6 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
         )}
       </div>
 
-      {/* Infinite Mode Toggle */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
@@ -103,7 +94,6 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
         </p>
       </div>
 
-      {/* Start Button */}
       <motion.button
         whileTap={{ scale: 0.97 }}
         onClick={handleStart}
