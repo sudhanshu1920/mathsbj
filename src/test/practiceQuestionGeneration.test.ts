@@ -49,6 +49,43 @@ describe('PracticePage question generation', () => {
     expect(cubeQuestions).toHaveLength(6);
   });
 
+  it('generates the Addition / Subtraction – Digit Numbers topic with exact operand digit counts', () => {
+    for (const digits of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      const questions = generateQuestions({
+        ...baseConfig,
+        count: 50,
+        topics: [{
+          id: 'addition-subtraction-digits',
+          label: 'Addition / Subtraction – Digit Numbers',
+          range: { from: digits, to: digits, digitCount: digits },
+        }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+
+      expect(questions).toHaveLength(50);
+      expect(questions.some((question) => question.text.includes(' + '))).toBe(true);
+      expect(questions.some((question) => question.text.includes(' − '))).toBe(true);
+
+      for (const question of questions) {
+        const match = question.text.match(/^(\d+) ([+−]) (\d+) = \?$/);
+        expect(match).not.toBeNull();
+        expect(match?.[1]).toHaveLength(digits);
+        expect(match?.[3]).toHaveLength(digits);
+        expect(question.answer).toEqual(
+          match?.[2] === '+'
+            ? Number(match?.[1]) + Number(match?.[3])
+            : Number(match?.[1]) - Number(match?.[3]),
+        );
+
+        if (match?.[2] === '−') {
+          expect(Number(match[1])).toBeGreaterThanOrEqual(Number(match[3]));
+          expect(question.answer).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
+  });
+
   it('bounds malformed quiz ranges instead of allocating unbounded arrays', () => {
     const questions = generateQuestions({
       ...baseConfig,
