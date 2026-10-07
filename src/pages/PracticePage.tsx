@@ -470,6 +470,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [sessionXP, setSessionXP] = useState(0);
   const xpPopId = useRef(0);
   const answerLockRef = useRef(false);
+  const finishLockRef = useRef(false);
   const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const elapsedRef = useRef<ReturnType<typeof setInterval>>();
@@ -561,9 +562,30 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   };
 
   const startPractice = (cfg: PracticeConfig) => {
-    const qs = generateQuestions(cfg);
+    const normalizedConfig: PracticeConfig = {
+      ...cfg,
+      // Repetition mode is finite and owns quiz length. The legacy Questions
+      // ∞ flag must never leak into this mode.
+      infinite: cfg.repetitionEnabled ? false : cfg.infinite,
+      topics: cfg.topics.map((topic) => ({
+        ...topic,
+        range: {
+          ...topic.range,
+          repetition: cfg.repetitionEnabled
+            ? sanitizeRepetition(cfg.repetitionByTopic[topic.id])
+            : topic.range.repetition,
+        },
+      })),
+      repetitionByTopic: Object.fromEntries(
+        cfg.topics.map((topic) => [
+          topic.id,
+          sanitizeRepetition(cfg.repetitionByTopic[topic.id]),
+        ]),
+      ),
+    };
+    const qs = generateQuestions(normalizedConfig);
     if (qs.length === 0) return;
-    setConfig(cfg);
+    setConfig(normalizedConfig);
     setQuestions(qs);
     setCurrentQ(0);
     setScore({ correct: 0, wrong: 0 });
@@ -579,6 +601,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     autoSubmitTimerRef.current = undefined;
     answerLockRef.current = false;
+    finishLockRef.current = false;
   };
 
   useEffect(() => {
@@ -609,7 +632,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          handleAnswer(null);
+          handleAnswerRef.current(null);
           return config.timerSeconds;
         }
         return prev - 1;
@@ -618,6 +641,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [config, currentQ, finished]);
+
+  const finishQuiz = useCallback(() => {
+    if (finishLockRef.current) return;
+    finishLockRef.current = true;
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (elapsedRef.current) clearInterval(elapsedRef.current);
+    timerRef.current = undefined;
+    elapsedRef.current = undefined;
+    setFinished(true);
+  }, []);
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
@@ -699,9 +732,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         setFeedback(null);
         setInputValue('');
         setSelectedOption(null);
-        if (!config.infinite && currentQ + 1 >= questions.length) {
-          setFinished(true);
-          if (timerRef.current) clearInterval(timerRef.current);
+        const isFiniteQuiz = config.repetitionEnabled || !config.infinite;
+        if (isFiniteQuiz && currentQ + 1 >= questions.length) {
+          finishQuiz();
         } else if (config.infinite && currentQ + 1 >= questions.length) {
           const nextPool = generateQuestions(config);
           if (nextPool.length === 0) {
@@ -721,17 +754,19 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         answerLockRef.current = false;
       }, isCorrect ? 350 : 700);
     },
-    [config, currentQ, questions, score, finished, feedback]
+    [config, currentQ, questions, score, finished, feedback, finishQuiz]
   );
 
+  useEffect(() => {
+    handleAnswerRef.current = handleAnswer;
+  }, [handleAnswer]);
+
   const handleSubmitInfinite = useCallback(() => {
-    if (!config?.infinite) return;
+    if (!config?.infinite || config.repetitionEnabled) return;
     const totalAttempts = score.correct + score.wrong;
     if (totalAttempts === 0) return;
-    setFinished(true);
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (elapsedRef.current) clearInterval(elapsedRef.current);
-  }, [config, score]);
+    finishQuiz();
+  }, [config, score, finishQuiz]);
 
   useEffect(() => {
     if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
@@ -769,6 +804,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     answerAdvanceTimerRef.current = undefined;
     autoSubmitTimerRef.current = undefined;
     answerLockRef.current = false;
+    finishLockRef.current = false;
     setShowExitDialog(false);
     setConfig(null);
     setQuestions([]);
@@ -943,6 +979,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     const isTimerHidden = !config.timerEnabled;
     const isPctQuestion = q.answerType === 'decimal-pct' || q.answerType === 'mixed-pct' || q.answerType === 'fraction' || q.answerType === 'trig';
     const totalAttempts = score.correct + score.wrong;
+    const isFiniteQuiz = config.repetitionEnabled || !config.infinite;
 
     const renderQuestionText = () => {
       if (isPctQuestion && q.questionFraction) {
@@ -1017,7 +1054,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               <Timer size={14} />{timeLeft}s
             </div>
           )}
-          {config.infinite ? (
+          {config.infinite && !config.repetitionEnabled ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Q{currentQ + 1}</span>
               <button onClick={handleSubmitInfinite} disabled={totalAttempts === 0}
@@ -1037,13 +1074,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           </div>
         )}
 
-        {!config.infinite && (
+        {isFiniteQuiz && (
           <div className="h-1 bg-secondary rounded-full mb-6 overflow-hidden">
             <motion.div className="h-full gradient-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }} />
           </div>
         )}
 
-        {config.infinite && (
+        {config.infinite && !config.repetitionEnabled && (
           <div className="flex items-center justify-between mb-4 px-1">
             <span className="text-xs text-muted-foreground">∞ Infinite Mode</span>
             <span className="text-xs text-muted-foreground">{formatTime(elapsedTime)}</span>
@@ -1483,17 +1520,54 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       )}
 
       {/* Questions Count */}
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Questions</label>
-        <div className="flex gap-2">
+      <div className={`mb-5 rounded-2xl border p-4 ${repetitionEnabled ? 'border-border bg-muted/30' : 'border-transparent bg-transparent p-0'}`}>
+        <div className="flex items-center justify-between gap-2">
+          <label className={`text-sm font-semibold ${repetitionEnabled ? 'text-muted-foreground' : 'text-foreground'}`}>
+            Questions
+          </label>
+          {repetitionEnabled && (
+            <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              Disabled while Repetition is ON
+            </span>
+          )}
+        </div>
+        <div className="mt-2 flex gap-2">
           {COUNTS.map((c) => (
-            <button key={c} onClick={() => { setCount(c); setInfinite(false); }}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${!infinite && count === c ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
+            <button
+              key={c}
+              type="button"
+              disabled={repetitionEnabled}
+              onClick={() => {
+                if (repetitionEnabled) return;
+                setCount(c);
+                setInfinite(false);
+              }}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                repetitionEnabled
+                  ? 'cursor-not-allowed bg-muted/60 text-muted-foreground opacity-60'
+                  : !infinite && count === c
+                    ? 'gradient-primary text-primary-foreground'
+                    : 'bg-card border border-border text-foreground'
+              }`}
+            >
               {c}
             </button>
           ))}
-          <button onClick={() => setInfinite(true)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${infinite ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
+          <button
+            type="button"
+            disabled={repetitionEnabled}
+            onClick={() => {
+              if (repetitionEnabled) return;
+              setInfinite(true);
+            }}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+              repetitionEnabled
+                ? 'cursor-not-allowed bg-muted/60 text-muted-foreground opacity-60'
+                : infinite
+                  ? 'gradient-primary text-primary-foreground'
+                  : 'bg-card border border-border text-foreground'
+            }`}
+          >
             ∞
           </button>
         </div>
@@ -1508,7 +1582,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               Repeat each generated item independently for every selected topic.
             </p>
           </div>
-          <Switch checked={repetitionEnabled} onCheckedChange={setRepetitionEnabled} />
+          <Switch
+            checked={repetitionEnabled}
+            onCheckedChange={(enabled) => {
+              setRepetitionEnabled(enabled);
+              if (enabled) {
+                // Keep the user's previous Questions selection for restoration,
+                // but it has no effect while Repetition Mode is enabled.
+                setInfinite(false);
+              }
+            }}
+          />
         </div>
 
         {repetitionEnabled && (
