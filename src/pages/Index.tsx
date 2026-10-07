@@ -409,6 +409,7 @@ const Index = () => {
                     onExit={handlePracticeExit}
                     externalBackRequest={practiceBackRequest}
                     fromLearning={returnToLearn}
+                    onQuizStart={setPracticeMode}
                   />
                 </div>
               )}
@@ -422,7 +423,7 @@ const Index = () => {
 
           </div>
         </div>
-        {!(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practiceMode) && (
+        {!(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practiceMode === 'input') && (
           <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
         )}
       </div>
