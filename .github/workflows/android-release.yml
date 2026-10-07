@@ -55,6 +55,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          EXPECTED_VERSION_CODE="$(git rev-list --count HEAD)"
+          export EXPECTED_VERSION_CODE
           test -s public/app-icon.svg
           sudo apt-get update -qq
           sudo apt-get install -y -qq imagemagick librsvg2-bin
@@ -280,7 +282,6 @@ jobs:
       - name: Verify APK identity, version, signature and installability
         shell: bash
         env:
-          EXPECTED_VERSION_CODE: ${{ github.run_id }}
           EXPECTED_VERSION_NAME: "1.0"
           EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
         run: |
