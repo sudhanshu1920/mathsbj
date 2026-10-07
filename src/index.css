@@ -847,6 +847,16 @@ html.desktop-mode .app-frame {
   padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Native Android runs edge-to-edge, so some devices report a zero CSS
+   safe-area inset even though the status bar still overlays WebView content.
+   Reserve a small top clearance in portrait mobile mode so every page header
+   stays below the system status bar. */
+@media (max-width: 767px) {
+  .app-frame-scroll {
+    padding-top: max(28px, env(safe-area-inset-top, 0px));
+  }
+}
+
 .app-frame *,
 .app-frame-scroll * {
   min-width: 0;
