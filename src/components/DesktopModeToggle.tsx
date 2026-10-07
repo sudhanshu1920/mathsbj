@@ -25,11 +25,7 @@ export const initDesktopMode = () => {
   applyFontScale(Number.isFinite(savedScale) ? clamp(savedScale) : 1);
 };
 
-interface DesktopModeToggleProps {
-  compact?: boolean;
-}
-
-const DesktopModeToggle = ({ compact = false }: DesktopModeToggleProps) => {
+const DesktopModeToggle = () => {
   const [desktop, setDesktop] = useState(() => localStorage.getItem(MODE_KEY) === '1');
   const [scale, setScale] = useState<number>(() => {
     const s = parseFloat(localStorage.getItem(SCALE_KEY) || '1');
@@ -96,7 +92,8 @@ const DesktopModeToggle = ({ compact = false }: DesktopModeToggleProps) => {
     };
   }, [overlayOpen, updatePos]);
 
-  const startLongPress = () => {
+  const startLongPress = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
     longPressed.current = false;
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
     longPressTimer.current = window.setTimeout(() => {
@@ -112,6 +109,13 @@ const DesktopModeToggle = ({ compact = false }: DesktopModeToggleProps) => {
       longPressTimer.current = null;
     }
   };
+
+  useEffect(() => {
+    return () => {
+      cancelLongPress();
+      if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    };
+  }, []);
 
   const handleClick = () => {
     if (longPressed.current) {
@@ -129,18 +133,16 @@ const DesktopModeToggle = ({ compact = false }: DesktopModeToggleProps) => {
       <button
         ref={btnRef}
         onClick={handleClick}
-        onMouseDown={startLongPress}
-        onMouseUp={cancelLongPress}
-        onMouseLeave={cancelLongPress}
-        onTouchStart={startLongPress}
-        onTouchEnd={cancelLongPress}
-        onTouchCancel={cancelLongPress}
+        onPointerDown={startLongPress}
+        onPointerUp={cancelLongPress}
+        onPointerCancel={cancelLongPress}
+        onPointerLeave={cancelLongPress}
         onContextMenu={(e) => e.preventDefault()}
-        className={`${compact ? 'h-7 w-7 p-1.5' : 'p-2'} rounded-full bg-secondary text-secondary-foreground hover:bg-accent transition-colors`}
+        className="h-7 w-7 rounded-full bg-secondary p-1.5 text-secondary-foreground hover:bg-accent transition-colors"
         aria-label="Toggle desktop mode (long press for text size)"
         title={desktop ? 'Switch to mobile layout (long press: text size)' : 'Switch to desktop layout (long press: text size)'}
       >
-        {desktop ? <Smartphone size={compact ? 15 : 18} /> : <Monitor size={compact ? 15 : 18} />}
+        {desktop ? <Smartphone size={15} /> : <Monitor size={15} />}
       </button>
 
       {createPortal(
