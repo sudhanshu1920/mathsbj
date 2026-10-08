@@ -237,7 +237,7 @@ jobs:
                               }
                               new android.os.Handler(getContext().getMainLooper()).postDelayed(this, 1000);
                           }
-                      }).run();
+                      });
 
                       JSObject result = new JSObject();
                       result.put("downloadId", downloadId);
