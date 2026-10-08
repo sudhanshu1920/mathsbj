@@ -595,7 +595,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const elapsedRef = useRef<ReturnType<typeof setInterval>>();
   const inputRef = useRef<HTMLInputElement>(null);
-  const submitLockRef = useRef(false);
   const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
   // externalBackRequest is an edge-triggered signal from the app shell.
   // Ignore the initial value and consume each new request exactly once.
