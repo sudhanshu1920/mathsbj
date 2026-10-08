@@ -62,7 +62,7 @@ if (!index.includes('window.visualViewport?.height ?? window.innerHeight') || !i
   fail('floating-bar reserve does not account for the actual viewport footprint');
 }
 const bottomNavUi = read('src/components/BottomNav.tsx');
-if (!bottomNavUi.includes('aria-current={isActive ? 'page' : undefined}')) {
+if (!bottomNavUi.includes("aria-current={isActive ? 'page' : undefined}")) {
   fail('floating-bar active navigation semantics are missing');
 }
 if (!bottomNavUi.includes('scale: [1, 1.06, 1]')) {
