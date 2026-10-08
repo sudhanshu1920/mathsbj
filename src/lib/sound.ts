@@ -6,7 +6,8 @@ const getCtx = (): AudioContext | null => {
   if (typeof window === 'undefined') return null;
   if (!ctx) {
     try {
-      const win = window as Window & {
+      const win = window as unknown as {
+        AudioContext?: typeof AudioContext;
         webkitAudioContext?: typeof AudioContext;
       };
       const AC = win.AudioContext ?? win.webkitAudioContext;
