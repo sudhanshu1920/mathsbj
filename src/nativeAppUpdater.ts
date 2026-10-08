@@ -7,8 +7,8 @@ type NativeUpdater = {
 
 const AppUpdater = registerPlugin<NativeUpdater>("AppUpdater");
 
-const RELEASE_API =
-  "https://api.github.com/repos/sudhanshu1920/mathsbj/releases/tags/latest";
+const DOWNLOAD_BASE_URL = "https://sudhanshu1920.github.io/mathsbj";
+const VERSION_URL = `${DOWNLOAD_BASE_URL}/version.json`;
 
 export type NativeUpdateResult =
   | { status: "updated"; versionCode: number }
@@ -28,8 +28,8 @@ export async function checkAndInstallAndroidUpdate(): Promise<NativeUpdateResult
   try {
     const current = await AppUpdater.getVersion();
 
-    const response = await fetch(RELEASE_API, {
-      headers: { Accept: "application/vnd.github+json" },
+    const response = await fetch(VERSION_URL, {
+      headers: { Accept: "application/json" },
       cache: "no-store",
     });
 
@@ -39,33 +39,36 @@ export async function checkAndInstallAndroidUpdate(): Promise<NativeUpdateResult
     }
 
     const release = (await response.json()) as {
-      body?: string | null;
-      assets?: Array<{ name?: string; browser_download_url?: string }>;
+      versionName?: string;
+      versionCode?: number;
+      apk?: string;
+      sha256?: string;
+      sizeBytes?: number;
     };
 
-    const versionMatch = release.body?.match(/versionCode:\s*(\d+)/i);
-    const remoteVersionCode = versionMatch ? Number(versionMatch[1]) : NaN;
+    const remoteVersionCode = release.versionCode;
 
-    if (!Number.isSafeInteger(remoteVersionCode) || remoteVersionCode <= current.versionCode) {
+    if (
+      !Number.isSafeInteger(remoteVersionCode) ||
+      remoteVersionCode <= current.versionCode
+    ) {
       return { status: "current", versionCode: current.versionCode };
     }
 
-    const asset = release.assets?.find(
-      (item) =>
-        item.name === "MathMaster-release.apk" &&
-        typeof item.browser_download_url === "string",
-    );
-
-    if (!asset?.browser_download_url) {
+    if (release.apk !== "MathMaster-release.apk") {
       throw new Error("A signed update APK is not available.");
     }
 
-    const url = new URL(asset.browser_download_url);
-    if (url.protocol !== "https:" || url.hostname !== "github.com") {
+    const url = new URL(`${DOWNLOAD_BASE_URL}/${release.apk}`);
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== "sudhanshu1920.github.io" ||
+      url.pathname !== "/mathsbj/MathMaster-release.apk"
+    ) {
       throw new Error("Update APK source is not trusted.");
     }
 
-    await AppUpdater.downloadAndInstall({ url: asset.browser_download_url });
+    await AppUpdater.downloadAndInstall({ url: url.toString() });
     return { status: "updated", versionCode: remoteVersionCode };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Update failed.";
