@@ -16,6 +16,8 @@ const index = read('src/pages/Index.tsx');
 const sync = read('src/lib/sync.ts');
 const auth = read('src/contexts/AuthContext.tsx');
 const practiceSelector = read('src/components/PracticeModeSelector.tsx');
+const offlineReady = read('src/lib/offlineReady.ts');
+const streak = read('src/lib/streak.ts');
 
 
 if (!css.includes('padding-bottom: var(--floating-bar-height, 0px);')) {
@@ -46,6 +48,30 @@ if (practice.includes('sort(() => Math.random() - 0.5)')) {
 }
 if (!index.includes('const showBottomNav = !settingsOpen;')) {
   fail('floating-bar visibility is not controlled by the shared Settings state');
+}
+if (index.includes("data-current-theme={currentTheme}") || index.includes("data-current-mode={currentMode}")) {
+  fail('app shell still subscribes to theme/mode only for redundant data attributes');
+}
+if (index.includes("className={tab === 'learn' ? 'animate-fade-in' : 'hidden'}")) {
+  fail('inactive Learning screen remains mounted and hidden instead of being unmounted');
+}
+if (!index.includes("{tab === 'learn' && (") || !index.includes("<LearningPage")) {
+  fail('Learning screen is not conditionally mounted');
+}
+if (!practice.includes("sessionIntervalRef")) {
+  fail('Practice session clock consolidation is missing');
+}
+if (practice.includes("const timerRef = useRef") || practice.includes("const elapsedRef = useRef")) {
+  fail('duplicate Practice timer refs were reintroduced');
+}
+if ((practice.match(/setInterval\(/g) || []).length > 1) {
+  fail('Practice should use one consolidated session interval');
+}
+if (!offlineReady.includes("Capacitor.isNativePlatform()") || !offlineReady.includes("markOfflineReady();")) {
+  fail('native offline preparation still performs unnecessary chunk warming');
+}
+if (!streak.includes("let cache: StreakState | null = null") || !streak.includes("save(s, notify)")) {
+  fail('streak hot-path cache/notification throttling is missing');
 }
 if (!practice.includes('practice-exit-dialog')) {
   fail('Practice exit dialog is missing its viewport positioning class');
