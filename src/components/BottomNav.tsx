@@ -46,7 +46,7 @@ const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, o
       bounceTimerRef.current = setTimeout(() => {
         bounceTimerRef.current = null;
         setBouncingTab(null);
-      }, 300);
+      }, 220);
       if (navigator.vibrate) {
         navigator.vibrate(10);
       }
@@ -74,14 +74,16 @@ const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, o
             <button
               key={tab.id}
               onClick={() => handleTap(tab.id)}
-              className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px] py-1"
+              className="bottom-nav-item-button relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px] py-1"
+              aria-current={isActive ? 'page' : undefined}
+              aria-label={tab.label}
             >
               <motion.div
-                animate={isBouncing ? { scale: [1, 1.25, 1] } : { scale: 1 }}
-                transition={{ duration: 0.3 }}
-                className={`relative flex items-center justify-center w-12 h-7 rounded-xl border ${isActive
-                  ? 'bg-primary/10 border-primary/60 text-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.45),0_0_18px_hsl(var(--primary)/0.45)]'
-                  : 'bg-transparent border-transparent text-muted-foreground'}`}
+                animate={isBouncing ? { scale: [1, 1.06, 1] } : { scale: 1 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+                className={`bottom-nav-item relative flex items-center justify-center w-12 h-7 rounded-xl border ${isActive
+                  ? 'is-active'
+                  : ''}`}
               >
                 <tab.icon size={19} strokeWidth={2.5} />
               </motion.div>
