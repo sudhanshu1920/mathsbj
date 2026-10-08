@@ -9,7 +9,7 @@ describe('topic icon semantics', () => {
       squares: { label: 'Squares', icon: Square },
       'square-roots': { label: 'Square Roots', icon: Radical },
       cubes: { label: 'Cubes', icon: Box },
-      'cube-roots': { label: 'Cube Roots', icon: Radical },
+      'cube-roots': { label: 'Cube Roots', symbol: '∛' },
       powers: { label: 'Powers', icon: Superscript },
       percentage: { label: 'Percentage', icon: Percent },
       formulas: { label: 'Formulas', icon: Sigma },
@@ -37,9 +37,10 @@ describe('topic icon semantics', () => {
     expect(TOPIC_ICON_MAP.roots.label).toBe('Square Roots');
   });
 
-  it('distinguishes cube roots from square roots without changing topic ids', () => {
-    expect(TOPIC_ICON_MAP['cube-roots'].icon).toBe(TOPIC_ICON_MAP['square-roots'].icon);
-    expect(TOPIC_ICON_MAP['cube-roots'].badge).toBe('3');
-    expect(TOPIC_ICON_MAP['square-roots'].badge).toBeUndefined();
+  it('uses the exact cube-root symbol for cube roots without changing topic ids', () => {
+    expect(TOPIC_ICON_MAP['cube-roots'].symbol).toBe('∛');
+    expect(TOPIC_ICON_MAP['cube-roots'].icon).toBeUndefined();
+    expect(TOPIC_ICON_MAP['square-roots'].icon).toBe(Radical);
+    expect(TOPIC_ICON_MAP['square-roots'].symbol).toBeUndefined();
   });
 });
