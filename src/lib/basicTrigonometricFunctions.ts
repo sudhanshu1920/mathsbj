@@ -1,5 +1,3 @@
-// Production APK build requested after adding the Basic Trigonometric Functions lesson.
-
 export interface BasicTrigFunction {
   name: string;
   title: string;
@@ -18,9 +16,9 @@ export const BASIC_TRIG_FUNCTIONS: BasicTrigFunction[] = [
 ];
 
 export const SOH_CAH_TOA = [
-  { key: 'SOH', formula: 'Sine = Opposite / Hypotenuse', meaning: 'Sine = Opposite / Hypotenuse' },
-  { key: 'CAH', formula: 'Cosine = Adjacent / Hypotenuse', meaning: 'Cosine = Adjacent / Hypotenuse' },
-  { key: 'TOA', formula: 'Tangent = Opposite / Adjacent', meaning: 'Tangent = Opposite / Adjacent' },
+  { key: 'SOH', function: 'sin' },
+  { key: 'CAH', function: 'cos' },
+  { key: 'TOA', function: 'tan' },
 ] as const;
 
 export const RECIPROCAL_TRIG_FUNCTIONS = [
@@ -29,14 +27,6 @@ export const RECIPROCAL_TRIG_FUNCTIONS = [
   { symbol: 'cot', description: 'cot = reciprocal of tan', latex: '\\cot\\theta = \\dfrac{1}{\\tan\\theta}' },
 ] as const;
 
-export const BASIC_TRIG_SUMMARY = [
-  { function: 'sin θ', formula: 'Opposite / Hypotenuse', memory: 'SOH' },
-  { function: 'cos θ', formula: 'Adjacent / Hypotenuse', memory: 'CAH' },
-  { function: 'tan θ', formula: 'Opposite / Adjacent', memory: 'TOA' },
-  { function: 'csc θ', formula: 'Hypotenuse / Opposite', memory: 'Reciprocal of sin' },
-  { function: 'sec θ', formula: 'Hypotenuse / Adjacent', memory: 'Reciprocal of cos' },
-  { function: 'cot θ', formula: 'Adjacent / Opposite', memory: 'Reciprocal of tan' },
-] as const;
 
 export const BASIC_TRIG_EXAMPLE = [
   { label: 'sin θ', latex: '\\sin\\theta = \\dfrac{3}{5}' },
