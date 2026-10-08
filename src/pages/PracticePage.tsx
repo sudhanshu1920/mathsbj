@@ -766,7 +766,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     });
   };
 
-  const updateRange = (topicId: string, field: string, value: number | string | PeriodicQuestionType[]) => {
+  const updateRange = (
+    topicId: string,
+    field: string,
+    value: number | string | PeriodicQuestionType[] | ArithmeticOperation[],
+  ) => {
     setTopicRanges(prev => ({
       ...prev,
       [topicId]: { ...prev[topicId], [field]: value },
