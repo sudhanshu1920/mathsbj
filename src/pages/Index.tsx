@@ -90,10 +90,10 @@ const Index = () => {
   } | null>(null);
   const wideDesktop = useWideDesktop();
 
-  const showBottomNav =
-    !settingsOpen &&
-    !(tab === 'learn' && learningState.activeTopic) &&
-    !(tab === 'practice' && practicePhase === 'active' && practiceMode === 'input');
+  // The layout owns the floating-bar visibility. Settings is an overlay
+  // inside ProgressPage, so this single flag is the only condition that can
+  // remove the navigation from the DOM.
+  const showBottomNav = !settingsOpen;
 
   // Keep the content reserve synchronized with the floating bar's actual
   // rendered border-box height. This is layout-only state: it writes a CSS
@@ -107,6 +107,16 @@ const Index = () => {
     let lastHeight = -1;
 
     const syncBottomReserve = () => {
+      if (!showBottomNav) {
+        cancelAnimationFrame(frame);
+        lastHeight = 0;
+        // Clear the reserve synchronously in the same layout pass in which the
+        // floating bar is removed from the DOM. This prevents stale bar space
+        // from surviving into the Settings overlay.
+        scrollElement.style.setProperty('--floating-bar-height', '0px');
+        return;
+      }
+
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const measuredHeight = bottomNavRef.current?.getBoundingClientRect().height ?? 0;
@@ -114,7 +124,7 @@ const Index = () => {
         lastHeight = measuredHeight;
         scrollElement.style.setProperty(
           '--floating-bar-height',
-          measuredHeight > 0 ? `${measuredHeight}px` : '0px',
+          measuredHeight > 0 ? measuredHeight + 'px' : '0px',
         );
       });
     };
@@ -137,6 +147,9 @@ const Index = () => {
       observer?.disconnect();
       window.removeEventListener('resize', syncBottomReserve);
       window.visualViewport?.removeEventListener('resize', syncBottomReserve);
+      if (!showBottomNav) {
+        scrollElement.style.setProperty('--floating-bar-height', '0px');
+      }
     };
   }, [showBottomNav]);
   const lastBackPress = useRef(0);
