@@ -150,6 +150,53 @@ function mixedToString(m: MixedPct): string {
 const MAX_QUIZ_RANGE_VALUE = 200;
 const MAX_POWER_EXPONENT = 20;
 
+export function isValidPracticeRange(topicId: string, range: TopicRange | undefined): boolean {
+  if (!range) return false;
+
+  const integerInRange = (value: unknown, min: number, max: number) =>
+    typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max;
+
+  if (topicId === 'trig') return true;
+
+  if (!integerInRange(range.from, 1, MAX_QUIZ_RANGE_VALUE) ||
+      !integerInRange(range.to, 1, MAX_QUIZ_RANGE_VALUE)) {
+    return false;
+  }
+
+  if (topicId === 'periodic-table') {
+    const types = range.periodicQuestionTypes;
+    return Array.isArray(types) &&
+      types.length > 0 &&
+      types.every((type) => type === 'atomic-number' || type === 'symbol' || type === 'name' || type === 'mass') &&
+      (!types.includes('mass') || range.periodicMassMode === 'round' || range.periodicMassMode === 'exact') &&
+      range.from <= 118 &&
+      range.to <= 118;
+  }
+
+  if (topicId === 'addition-subtraction-digits') {
+    const operations = range.arithmeticOperations;
+    return Array.isArray(operations) &&
+      operations.length > 0 &&
+      operations.every((operation) => operation === 'addition' || operation === 'subtraction') &&
+      integerInRange(range.operand1DigitCount, 1, 10) &&
+      integerInRange(range.operand2DigitCount, 1, 10);
+  }
+
+  if (topicId === 'powers') {
+    return integerInRange(range.exponentFrom ?? 1, 1, MAX_POWER_EXPONENT) &&
+      integerInRange(range.exponentTo ?? 10, 1, MAX_POWER_EXPONENT);
+  }
+
+  if (topicId === 'percentage' && range.pctRangeMode === 'custom') {
+    return integerInRange(range.pctNumFrom, 0, MAX_QUIZ_RANGE_VALUE) &&
+      integerInRange(range.pctNumTo, 0, MAX_QUIZ_RANGE_VALUE) &&
+      integerInRange(range.pctDenFrom, 1, MAX_QUIZ_RANGE_VALUE) &&
+      integerInRange(range.pctDenTo, 1, MAX_QUIZ_RANGE_VALUE);
+  }
+
+  return true;
+}
+
 function clampQuizValue(value: number, min: number, max: number, fallback: number): number {
   return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.trunc(value))) : fallback;
 }
@@ -1396,7 +1443,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     const value = sanitizeRepetition(topicRepetitions[tid]);
     return value >= 1 && value <= MAX_REPETITION;
   });
-  const canStart = selectedTopics.size > 0 && validPeriodicRange && arithmeticValid && repetitionValid;
+  const rangesValid = Array.from(selectedTopics).every((tid) => isValidPracticeRange(tid, topicRanges[tid]));
+  const canStart = selectedTopics.size > 0 && validPeriodicRange && arithmeticValid && repetitionValid && rangesValid;
 
   return (
     <div className="pb-24 md:pb-6">
@@ -1637,21 +1685,21 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                             ) : (
                               <div className="flex items-center gap-3 justify-center">
                                 <div className="flex flex-col items-center">
-                                  <input type="number" inputMode="numeric" value={range.pctNumFrom || 1}
+                                  <input type="number" inputMode="numeric" value={range.pctNumFrom ?? 1}
                                     onChange={(e) => updateRange(tid, 'pctNumFrom', Math.max(0, Number(e.target.value)))}
                                     className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
                                   <div className="w-14 h-px bg-foreground/40 my-0.5" />
-                                  <input type="number" inputMode="numeric" value={range.pctDenFrom || 2}
+                                  <input type="number" inputMode="numeric" value={range.pctDenFrom ?? 2}
                                     onChange={(e) => updateRange(tid, 'pctDenFrom', Math.max(1, Number(e.target.value)))}
                                     className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
                                 </div>
                                 <span className="text-muted-foreground text-xs font-semibold">to</span>
                                 <div className="flex flex-col items-center">
-                                  <input type="number" inputMode="numeric" value={range.pctNumTo || 5}
+                                  <input type="number" inputMode="numeric" value={range.pctNumTo ?? 5}
                                     onChange={(e) => updateRange(tid, 'pctNumTo', Math.max(0, Number(e.target.value)))}
                                     className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
                                   <div className="w-14 h-px bg-foreground/40 my-0.5" />
-                                  <input type="number" inputMode="numeric" value={range.pctDenTo || 2}
+                                  <input type="number" inputMode="numeric" value={range.pctDenTo ?? 2}
                                     onChange={(e) => updateRange(tid, 'pctDenTo', Math.max(1, Number(e.target.value)))}
                                     className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
                                 </div>
