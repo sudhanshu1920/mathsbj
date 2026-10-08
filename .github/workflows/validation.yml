@@ -40,7 +40,7 @@ jobs:
         run: npm run typecheck
 
       - name: Architecture regression checks
-        run: node scripts/verify-architecture.mjs
+        run: npm run regression:check
 
       - name: Lint
         run: npm run lint
