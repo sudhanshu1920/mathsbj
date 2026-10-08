@@ -1208,7 +1208,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             }
           }}
         >
-          <AlertDialogContent className="rounded-2xl max-w-[320px]">
+          <AlertDialogContent className="practice-exit-dialog rounded-2xl max-w-[320px]">
             <AlertDialogHeader>
               <AlertDialogTitle>Exit Practice?</AlertDialogTitle>
               <AlertDialogDescription>Your progress will not be saved.</AlertDialogDescription>
