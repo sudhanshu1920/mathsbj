@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Atom, Layers3, MoreVertical, X } from 'lucide-react';
+import { ArrowLeft, Atom, MoreVertical, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
@@ -413,7 +413,7 @@ const PeriodicTableLearning = ({ selectedElement, onSelectElement }: PeriodicTab
     <div className="pb-6">
       <div className="relative mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="rounded-xl bg-primary/10 p-2 text-primary"><Layers3 size={19} /></div>
+          <div className="rounded-xl bg-primary/10 p-2 text-primary"><Atom size={19} /></div>
           <div>
             <h2 className="font-display text-lg font-black text-foreground">Periodic Table</h2>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
