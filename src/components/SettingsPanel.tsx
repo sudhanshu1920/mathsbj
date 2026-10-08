@@ -71,7 +71,7 @@ const SettingsPanel = () => {
     }
 
     setUpdateState('checking');
-    const safety = setTimeout(() => setUpdateState('idle'), 15000);
+    scheduleUpdateReset(15000);
 
     try {
       if (user) {
@@ -110,7 +110,8 @@ const SettingsPanel = () => {
       setUpdateState('error');
       setTimeout(() => setUpdateState('idle'), 3000);
     } finally {
-      clearTimeout(safety);
+      // The shared reset timer is cleaned up on unmount and replaced by any
+      // shorter success/error timer scheduled above.
     }
   };
 
