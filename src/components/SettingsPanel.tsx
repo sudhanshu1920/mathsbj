@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
 import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette, Sun, Moon, Crown, Keyboard, Type } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -22,9 +22,27 @@ const SettingsPanel = () => {
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
+  const updateResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const theme = useTheme();
   const mode = useMode();
   const guest = !user && isGuest();
+
+  useEffect(() => {
+    return () => {
+      if (updateResetTimerRef.current) {
+        clearTimeout(updateResetTimerRef.current);
+        updateResetTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const scheduleUpdateReset = (delay: number) => {
+    if (updateResetTimerRef.current) clearTimeout(updateResetTimerRef.current);
+    updateResetTimerRef.current = setTimeout(() => {
+      updateResetTimerRef.current = null;
+      setUpdateState('idle');
+    }, delay);
+  };
 
   useEffect(() => {
     const refresh = () => { setSettingsState(getSettings()); setStreak(getStreak()); };
@@ -48,7 +66,7 @@ const SettingsPanel = () => {
   const checkForUpdates = async () => {
     if (!navigator.onLine) {
       setUpdateState('offline');
-      setTimeout(() => setUpdateState('idle'), 1800);
+      scheduleUpdateReset(1800);
       return;
     }
 
@@ -72,7 +90,7 @@ const SettingsPanel = () => {
           setUpdateState('done');
         } else if (result.status === 'error') {
           setUpdateState('error');
-          setTimeout(() => setUpdateState('idle'), 3000);
+          scheduleUpdateReset(3000);
         } else {
           setUpdateState('done');
         }
@@ -85,7 +103,7 @@ const SettingsPanel = () => {
           setUpdateState('updating');
         } else {
           setUpdateState('done');
-          setTimeout(() => setUpdateState('idle'), 1600);
+          scheduleUpdateReset(1600);
         }
       }
     } catch {
