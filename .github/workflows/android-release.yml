@@ -527,3 +527,4 @@ jobs:
           retention-days: 14
 
 # [BUILD_APK] Native updater registration is kept in the final MainActivity.
+# [BUILD_APK] Release build requested after runtime crash fix.
