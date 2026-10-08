@@ -45,6 +45,13 @@ if (practice.includes('sort(() => Math.random() - 0.5)')) {
 if (!index.includes('const showBottomNav = !settingsOpen;')) {
   fail('floating-bar visibility is not controlled by the shared Settings state');
 }
+if (!index.includes('createPortal(') || !index.includes('document.body')) {
+  fail('floating-bar is not portalled to the viewport root');
+}
+const bottomNav = read('src/components/BottomNav.tsx');
+if (!bottomNav.includes('bottom-nav fixed bottom-0')) {
+  fail('floating-bar is not fixed to the viewport');
+}
 if (!index.includes("scrollElement.style.setProperty('--floating-bar-height', '0px');")) {
   fail('Settings layout does not clear the floating-bar reserve synchronously');
 }
