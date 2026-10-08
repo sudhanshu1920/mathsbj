@@ -552,7 +552,7 @@ const TopicIconForTopic = ({ topicId }: { topicId: AppTopicId }) => {
     <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden="true">
       <Icon size={17} strokeWidth={2.3} />
       {config.badge && (
-        <span className="absolute -right-1 -top-1 rounded-sm bg-current/15 px-0.5 font-display text-[7px] font-black leading-none">
+        <span className="absolute -right-1 -top-1 rounded-sm bg-background/80 px-0.5 font-display text-[7px] font-black leading-none text-current">
           {config.badge}
         </span>
       )}
