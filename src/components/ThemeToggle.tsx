@@ -140,7 +140,7 @@ const ThemeToggle = ({ compact = false }: ThemeToggleProps) => {
               exit={{ opacity: 0, y: -5, scale: 0.97 }}
               transition={{ duration: 0.16 }}
               style={{ position: 'fixed', top: position.top, right: position.right }}
-              className="z-[9999] w-[min(280px,calc(100vw-1rem))] rounded-2xl border border-border/80 bg-popover/95 p-2.5 shadow-2xl backdrop-blur-xl"
+              className="glass-panel z-[9999] w-[min(280px,calc(100vw-1rem))] rounded-2xl p-2.5 shadow-2xl"
             >
               <div className="mb-2 flex items-center justify-between gap-2 px-1">
                 <div>
