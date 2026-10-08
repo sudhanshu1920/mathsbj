@@ -119,6 +119,168 @@ jobs:
 
           path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
+      - name: Add native Android in-app updater
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          plugin_dir="android/app/src/main/java/com/sudhanshu/mathsbj"
+          mkdir -p "$plugin_dir"
+
+          cat > "$plugin_dir/AppUpdaterPlugin.java" <<'JAVA'
+          package com.sudhanshu.mathsbj;
+
+          import android.app.DownloadManager;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.pm.PackageInfo;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Environment;
+          import android.provider.Settings;
+
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          @CapacitorPlugin(name = "AppUpdater")
+          public class AppUpdaterPlugin extends Plugin {
+              @PluginMethod
+              public void getVersion(PluginCall call) {
+                  try {
+                      PackageInfo info = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+                      long versionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                          ? info.getLongVersionCode()
+                          : info.versionCode;
+
+                      JSObject result = new JSObject();
+                      result.put("versionCode", versionCode);
+                      result.put("versionName", info.versionName);
+                      call.resolve(result);
+                  } catch (Exception e) {
+                      call.reject("Unable to read app version.", e);
+                  }
+              }
+
+              @PluginMethod
+              public void downloadAndInstall(PluginCall call) {
+                  String url = call.getString("url");
+                  if (url == null || !url.startsWith("https://github.com/")) {
+                      call.reject("Update APK source is not trusted.");
+                      return;
+                  }
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                      && !getContext().getPackageManager().canRequestPackageInstalls()) {
+                      Intent settings = new Intent(
+                          Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                          Uri.parse("package:" + getContext().getPackageName())
+                      );
+                      getActivity().startActivity(settings);
+                      call.reject("INSTALL_PERMISSION_REQUIRED");
+                      return;
+                  }
+
+                  try {
+                      DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                      request.setTitle("MathMaster update");
+                      request.setDescription("Downloading the latest MathMaster APK");
+                      request.setMimeType("application/vnd.android.package-archive");
+                      request.setNotificationVisibility(
+                          DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                      );
+                      request.setDestinationInExternalFilesDir(
+                          getContext(),
+                          Environment.DIRECTORY_DOWNLOADS,
+                          "MathMaster-update.apk"
+                      );
+
+                      DownloadManager manager =
+                          (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
+                      long downloadId = manager.enqueue(request);
+
+                      new android.os.Handler(getContext().getMainLooper()).post(new Runnable() {
+                          private int attempts = 0;
+
+                          @Override
+                          public void run() {
+                              DownloadManager.Query query =
+                                  new DownloadManager.Query().setFilterById(downloadId);
+                              try (android.database.Cursor cursor = manager.query(query)) {
+                                  if (cursor != null && cursor.moveToFirst()) {
+                                      int status = cursor.getInt(
+                                          cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
+                                      );
+
+                                      if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                                          Uri apkUri = manager.getUriForDownloadedFile(downloadId);
+                                          if (apkUri != null) {
+                                              Intent install = new Intent(Intent.ACTION_VIEW);
+                                              install.setDataAndType(
+                                                  apkUri,
+                                                  "application/vnd.android.package-archive"
+                                              );
+                                              install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                              install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                              getContext().startActivity(install);
+                                              return;
+                                          }
+                                      } else if (
+                                          status == DownloadManager.STATUS_FAILED
+                                          || attempts++ > 600
+                                      ) {
+                                          return;
+                                      }
+                                  }
+                              }
+                              new android.os.Handler(getContext().getMainLooper()).postDelayed(this, 1000);
+                          }
+                      }).run();
+
+                      JSObject result = new JSObject();
+                      result.put("downloadId", downloadId);
+                      call.resolve(result);
+                  } catch (Exception e) {
+                      call.reject("Unable to download the update APK.", e);
+                  }
+              }
+          }
+          JAVA
+
+          main_activity="android/app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java")
+          text = path.read_text(encoding="utf-8")
+          if "AppUpdaterPlugin.class" not in text:
+              text = text.replace(
+                  "super.onCreate(savedInstanceState);",
+                  "registerPlugin(AppUpdaterPlugin.class);\n                  super.onCreate(savedInstanceState);",
+                  1,
+              )
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          manifest="android/app/src/main/AndroidManifest.xml"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          text = path.read_text(encoding="utf-8")
+          permission = '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />'
+          if permission not in text:
+              text = text.replace("<manifest", "<manifest", 1)
+              insert_at = text.find(">") + 1
+              text = text[:insert_at] + "\n" + permission + text[insert_at:]
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          grep -q "REQUEST_INSTALL_PACKAGES" "$manifest"
+          grep -q "AppUpdaterPlugin.class" "$main_activity"
+
       - name: Configure Android edge-to-edge system bars
         shell: bash
         run: |
@@ -330,6 +492,26 @@ jobs:
           test -n "$apk"
           cp "$apk" MathMaster-release.apk
           ls -lh MathMaster-release.apk
+
+      - name: Publish latest GitHub Release APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_CODE: ${{ env.VERSION_CODE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_tag="latest"
+          release_title="MathMaster 1.0 (${VERSION_CODE})"
+          release_notes="Automated signed Android release.\nversionCode: ${VERSION_CODE}"
+
+          if gh release view "${release_tag}" >/dev/null 2>&1; then
+            gh release edit "${release_tag}" --title "${release_title}" --notes "${release_notes}"
+          else
+            gh release create "${release_tag}" MathMaster-release.apk --title "${release_title}" --notes "${release_notes}" --target "${GITHUB_SHA}"
+            exit 0
+          fi
+
+          gh release upload "${release_tag}" MathMaster-release.apk --clobber
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
