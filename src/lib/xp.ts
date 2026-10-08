@@ -17,8 +17,18 @@ export const getXP = (): XPState => {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaults();
-    return { ...defaults(), ...JSON.parse(raw) };
-  } catch { return defaults(); }
+    const value = JSON.parse(raw);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return defaults();
+    const parsed = value as Record<string, unknown>;
+    const xpNumber = Number(parsed.xp);
+    const levelNumber = Number(parsed.lastLevel);
+    return {
+      xp: Number.isFinite(xpNumber) ? Math.max(0, Math.floor(xpNumber)) : 0,
+      lastLevel: Number.isFinite(levelNumber) ? Math.max(1, Math.floor(levelNumber)) : 1,
+    };
+  } catch {
+    return defaults();
+  }
 };
 
 const save = (s: XPState) => {
