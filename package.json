@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "cap:add:android": "npx cap add android",
     "cap:sync": "npm run build && npx cap sync android",
-    "build:android:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug"
+    "build:android:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug",
+    "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
