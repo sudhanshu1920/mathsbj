@@ -1,0 +1,3 @@
+- [ ] Extend the existing global font registry with selected local font options and math-safe fallbacks.
+- [ ] Add compact, accurately rendered font previews in Settings and preserve immediate persistent selection.
+- [ ] Verify the font preference, representative UI/math rendering, and available build diagnostics.
