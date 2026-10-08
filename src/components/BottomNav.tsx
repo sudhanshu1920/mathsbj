@@ -64,7 +64,7 @@ const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, o
     <nav
       ref={ref}
       aria-label="Primary navigation"
-      className="bottom-nav fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-b-0 border-x-0 shadow-[0_-12px_32px_-12px_hsl(var(--primary)/0.35)]"
+      className="bottom-nav absolute bottom-0 left-0 right-0 z-50 glass-panel border-t border-b-0 border-x-0 shadow-[0_-12px_32px_-12px_hsl(var(--primary)/0.35)]"
     >
       <div className="flex h-full max-w-lg mx-auto items-center justify-around px-1">
         {tabs.map((tab) => {
