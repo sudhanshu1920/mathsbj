@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Timer, CheckCircle2, XCircle, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame } from 'lucide-react';
+import { ArrowLeft, Timer, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
 import Particles from '@/components/Particles';
@@ -14,6 +14,7 @@ import XPBar from '@/components/XPBar';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import MathKeypad from '@/components/MathKeypad';
+import AnswerFeedback from '@/components/AnswerFeedback';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -1177,48 +1178,25 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -30 }}
-            className={`text-center mb-4 rounded-2xl py-4 ${
-              feedback === 'correct'
-                ? 'anim-pulse-card anim-flash-success'
-                : feedback === 'wrong'
-                ? 'anim-shake anim-flash-destructive'
-                : ''
-            }`}
+            className="text-center mb-4 rounded-2xl py-4"
           >
             {renderQuestionText()}
             <div className="mt-2">{renderAnswerHint()}</div>
           </motion.div>
         </AnimatePresence>
 
-        <AnimatePresence>
-          {feedback && (
-            <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none">
-              {feedback === 'correct' ? (
-                <div className="relative">
-                  <motion.div
-                    initial={{ scale: 0.4, opacity: 0 }}
-                    animate={{ scale: [0.4, 1.25, 1], opacity: 1 }}
-                    transition={{ duration: 0.4, times: [0, 0.6, 1] }}
-                  >
-                    <CheckCircle2 size={80} className="text-success drop-shadow-[0_0_18px_hsl(var(--success)/0.6)]" />
-                  </motion.div>
-                  <Particles count={14} color="bg-success" spread={90} />
-                  {(score.correct + 1) % 5 === 0 && (
-                    <span
-                      className="absolute inset-0 rounded-full border-2 border-warning"
-                      style={{ animation: 'ring-burst 0.6s ease-out forwards' }}
-                    />
-                  )}
-                </div>
-              ) : (
-                <div className="text-center">
-                  <XCircle size={80} className="text-destructive mx-auto" />
-                  <p className="text-foreground mt-2 text-lg font-semibold flex items-center justify-center gap-2">Answer: {renderCorrectAnswer()}</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="min-h-[104px] mb-3 flex items-center justify-center">
+          <AnimatePresence mode="wait" initial={false}>
+            {feedback && (
+              <AnswerFeedback
+                key={`feedback-${currentQ}-${feedback}`}
+                status={feedback}
+                correctAnswer={feedback === 'wrong' ? renderCorrectAnswer() : undefined}
+                milestone={feedback === 'correct' && (score.correct + 1) % 5 === 0}
+              />
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Floating XP popup */}
         <AnimatePresence>
