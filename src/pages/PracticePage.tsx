@@ -1175,9 +1175,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQ}
-            initial={{ opacity: 1 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -30 }}
             className="relative text-center mb-4 rounded-2xl py-4"
           >
             {renderQuestionText()}
