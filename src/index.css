@@ -1220,16 +1220,15 @@ html.low-power .bottom-nav-panel {
 .bottom-nav {
   height: auto !important;
   min-height: 0 !important;
-  padding: 0 0 env(safe-area-inset-bottom, 0px) !important;
+  padding: 4px !important;
   left: 50% !important;
   right: auto !important;
-  bottom: 0 !important;
-  transform: translateX(-50%) !important;
-  width: min(calc(100% - 1rem), 32rem) !important;
-  max-width: 32rem !important;
-  border: 1px solid hsl(var(--border) / 0.72) !important;
-  border-radius: 9999px !important;
-  overflow: hidden !important;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  transform: translate3d(-50%, 0, 0) !important;
+  width: min(calc(100% - 1.25rem), 31rem) !important;
+  max-width: 31rem !important;
+  border-radius: 1.35rem !important;
+  overflow: visible !important;
   background:
     linear-gradient(
       180deg,
@@ -1280,13 +1279,13 @@ html.low-power .bottom-nav-panel {
 
 @media (max-width: 767px), (min-width: 768px) {
   .bottom-nav {
-    bottom: 0 !important;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
 @media (min-width: 1024px) {
   html.desktop-mode .bottom-nav {
-    width: auto !important;
+    width: min(31rem, calc(100vw - 2rem)) !important;
     min-width: 21rem !important;
   }
 }
