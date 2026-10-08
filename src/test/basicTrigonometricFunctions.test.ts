@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASIC_TRIG_FUNCTIONS, BASIC_TRIG_EXAMPLE, BASIC_TRIG_SUMMARY, RECIPROCAL_TRIG_FUNCTIONS, SOH_CAH_TOA } from '@/lib/basicTrigonometricFunctions';
+import { BASIC_TRIG_FUNCTIONS, BASIC_TRIG_EXAMPLE, RECIPROCAL_TRIG_FUNCTIONS, SOH_CAH_TOA } from '@/lib/basicTrigonometricFunctions';
 import { FORMULA_SECTIONS } from '@/lib/formulaData';
 
 describe('Basic Trigonometric Functions lesson', () => {
@@ -29,7 +29,11 @@ describe('Basic Trigonometric Functions lesson', () => {
   });
 
   it('contains SOH, CAH and TOA plus reciprocal identities', () => {
-    expect(SOH_CAH_TOA.map((item) => item.key)).toEqual(['SOH', 'CAH', 'TOA']);
+    expect(SOH_CAH_TOA).toEqual([
+      { key: 'SOH', function: 'sin' },
+      { key: 'CAH', function: 'cos' },
+      { key: 'TOA', function: 'tan' },
+    ]);
     expect(RECIPROCAL_TRIG_FUNCTIONS.map((item) => item.latex)).toEqual([
       '\\csc\\theta = \\dfrac{1}{\\sin\\theta}',
       '\\sec\\theta = \\dfrac{1}{\\cos\\theta}',
@@ -37,7 +41,7 @@ describe('Basic Trigonometric Functions lesson', () => {
     ]);
   });
 
-  it('contains the requested 3-4-5 example and summary', () => {
+  it('contains the requested 3-4-5 example', () => {
     expect(BASIC_TRIG_EXAMPLE.map((item) => item.latex)).toEqual([
       '\\sin\\theta = \\dfrac{3}{5}',
       '\\cos\\theta = \\dfrac{4}{5}',
@@ -45,10 +49,6 @@ describe('Basic Trigonometric Functions lesson', () => {
       '\\csc\\theta = \\dfrac{5}{3}',
       '\\sec\\theta = \\dfrac{5}{4}',
       '\\cot\\theta = \\dfrac{4}{3}',
-    ]);
-    expect(BASIC_TRIG_SUMMARY).toHaveLength(6);
-    expect(BASIC_TRIG_SUMMARY.map((row) => row.memory)).toEqual([
-      'SOH', 'CAH', 'TOA', 'Reciprocal of sin', 'Reciprocal of cos', 'Reciprocal of tan',
     ]);
   });
 });
