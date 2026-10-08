@@ -1299,12 +1299,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={q.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Type symbol or element name'}
                 autoFocus
-                className="w-full max-w-xs bg-card border border-border rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
+                className="w-full max-w-xs glass-lite rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
               />
             ) : (
               <>
                 <div
-                  className="w-full max-w-xs bg-card/60 border border-border rounded-2xl px-4 text-center text-2xl font-display font-bold text-foreground h-[64px] flex items-center justify-center overflow-hidden"
+                  className="w-full max-w-xs glass-lite rounded-2xl px-4 text-center text-2xl font-display font-bold text-foreground h-[64px] flex items-center justify-center overflow-hidden"
                   aria-live="polite"
                 >
                   {inputValue ? (
