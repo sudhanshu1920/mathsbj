@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import "./glass.css";
 import { setupPWA } from "./pwa";
 import { initDesktopMode } from "./components/DesktopModeToggle";
 import { initTheme } from "./lib/theme";
