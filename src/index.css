@@ -2408,3 +2408,231 @@ textarea {
     transition: none !important;
   }
 }
+
+
+/* ==========================================================================
+   Math Master — Real Glass Surface v2
+   The previous system used mostly opaque card colors (86–96% opacity), which
+   left backdrop-filter with almost nothing to reveal. These tokens keep the
+   existing architecture but make glass genuinely translucent, layered and
+   theme-aware.
+   ========================================================================== */
+:root {
+  --app-font: 'Inter', system-ui, sans-serif;
+
+  --glass-blur: 22px;
+  --glass-saturation: 1.16;
+  --glass-surface: hsl(var(--card) / 0.34);
+  --glass-surface-strong: hsl(var(--card) / 0.52);
+  --glass-border: hsl(0 0% 100% / 0.16);
+  --glass-highlight: hsl(0 0% 100% / 0.16);
+  --glass-shadow:
+    0 20px 50px -32px hsl(220 35% 4% / 0.62),
+    0 8px 24px -20px hsl(var(--primary) / 0.22);
+}
+
+html.light {
+  --glass-blur: 20px;
+  --glass-surface: hsl(0 0% 100% / 0.52);
+  --glass-surface-strong: hsl(0 0% 100% / 0.68);
+  --glass-border: hsl(var(--border) / 0.56);
+  --glass-highlight: hsl(0 0% 100% / 0.76);
+  --glass-shadow:
+    0 20px 44px -30px hsl(220 25% 22% / 0.22),
+    0 8px 20px -18px hsl(var(--primary) / 0.18);
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --glass-blur: 26px;
+  }
+
+  html.light {
+    --glass-blur: 24px;
+  }
+}
+
+/* Actual visual depth behind transparent surfaces. The layers below provide
+   color variation for the real backdrop-filter blur on the live scene. */
+.app-frame {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(520px 360px at 10% 2%, hsl(var(--primary) / 0.16), transparent 70%),
+    radial-gradient(460px 320px at 92% 10%, hsl(var(--accent) / 0.12), transparent 72%),
+    radial-gradient(620px 420px at 50% 100%, hsl(var(--primary) / 0.08), transparent 72%),
+    hsl(var(--background));
+}
+
+.app-frame::before,
+.app-frame::after {
+  content: "";
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 9999px;
+  filter: blur(42px);
+  transform: translateZ(0);
+  opacity: 0.78;
+}
+
+.app-frame::before {
+  width: min(46vw, 34rem);
+  height: min(46vw, 34rem);
+  top: -14rem;
+  left: -8rem;
+  background: radial-gradient(circle, hsl(var(--primary) / 0.18), transparent 66%);
+}
+
+.app-frame::after {
+  width: min(44vw, 32rem);
+  height: min(44vw, 32rem);
+  right: -8rem;
+  bottom: 4rem;
+  background: radial-gradient(circle, hsl(var(--accent) / 0.16), transparent 66%);
+}
+
+.app-frame-scroll {
+  position: relative;
+  z-index: 1;
+}
+
+/* Reusable premium glass surface.
+   A low-alpha background is essential: backdrop-filter cannot show through
+   an opaque surface. The inset highlight supplies the polished edge. */
+.glass {
+  background:
+    linear-gradient(145deg, hsl(0 0% 100% / 0.09), transparent 48%),
+    var(--glass-surface) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  background-clip: padding-box;
+}
+
+.glass-panel {
+  background:
+    linear-gradient(145deg, hsl(0 0% 100% / 0.11), transparent 54%),
+    var(--glass-surface-strong) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.18);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.18);
+  background-clip: padding-box;
+}
+
+/* Primary app chrome keeps its existing size/layout but becomes visibly
+   translucent so the background actually shows through it. */
+.app-topbar-page,
+.app-topbar-stats {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.10), transparent 52%),
+    var(--glass-surface-strong) !important;
+  border-color: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.16);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.16);
+}
+
+.bottom-nav {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.13), transparent 56%),
+    var(--glass-surface-strong) !important;
+  border-color: var(--glass-border) !important;
+  box-shadow:
+    0 20px 44px -18px hsl(220 35% 4% / 0.62),
+    inset 0 1px 0 var(--glass-highlight) !important;
+  backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.18);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.18);
+}
+
+[data-radix-popper-content-wrapper] > div,
+[role="dialog"] {
+  background:
+    linear-gradient(145deg, hsl(0 0% 100% / 0.10), transparent 58%),
+    var(--glass-surface-strong) !important;
+  border-color: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.18);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.18);
+}
+
+/* The settings shell separates the settings layer without becoming opaque. */
+.settings-glass-shell {
+  background: hsl(var(--background) / 0.64) !important;
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+html.light .settings-glass-shell {
+  background: hsl(0 0% 100% / 0.60) !important;
+}
+
+/* Keep selected premium controls visually elevated without stacking a third
+   blur layer on top of the parent glass surface. */
+[data-theme-palette],
+[data-font-selector] {
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+
+/* Reliable low-power fallback: keep the UI complete while dropping expensive
+   live backdrop blur and decorative background blobs. */
+html.low-power .app-topbar-page,
+html.low-power .app-topbar-stats,
+html.low-power .bottom-nav,
+html.low-power [data-radix-popper-content-wrapper] > div,
+html.low-power [role="dialog"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: hsl(var(--card) / 0.96) !important;
+  box-shadow: 0 8px 24px -20px hsl(220 35% 4% / 0.36) !important;
+}
+
+html.low-power .settings-glass-shell {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: hsl(var(--background)) !important;
+}
+
+html.low-power .app-frame::before,
+html.low-power .app-frame::after {
+  display: none;
+}
+
+/* Reduced-motion should reduce motion, not remove a static visual treatment
+   the user intentionally selected. */
+@media (prefers-reduced-motion: reduce) {
+  .app-frame::before,
+  .app-frame::after {
+    filter: none;
+  }
+
+  .glass,
+  .glass-panel,
+  .app-topbar-page,
+  .app-topbar-stats,
+  .bottom-nav {
+    transition: none !important;
+  }
+}
+
+/* Dense scientific/table tiles stay crisp and performant; the enclosing panel
+   provides the glass depth around them. */
+.periodic-element-cell,
+.periodic-table-placeholder {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* The selected font controls inherited text and the existing typography
+   utilities at the same time. */
+body,
+button,
+input,
+textarea,
+select,
+.font-body,
+.font-display {
+  font-family: var(--app-font), system-ui, sans-serif !important;
+}
