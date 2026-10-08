@@ -134,7 +134,7 @@ describe('PracticePage question generation', () => {
     const subtractions = generateQuestions(makeConfig(['subtraction']));
     expect(subtractions).toHaveLength(40);
     expect(subtractions.every((question) => question.operation === '−')).toBe(true);
-    expect(subtractions.every((question) => question.answer >= 0)).toBe(true);
+    expect(subtractions.every((question) => typeof question.answer === 'number' && question.answer >= 0)).toBe(true);
 
     const both = generateQuestions(makeConfig(['addition', 'subtraction']));
     expect(both).toHaveLength(40);
