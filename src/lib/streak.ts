@@ -53,14 +53,51 @@ const defaults = (): StreakState => ({
   lastEvalDate: today(),
 });
 
+const normalizeStreak = (value: unknown): StreakState => {
+  const base = defaults();
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return base;
+
+  const raw = value as Record<string, unknown>;
+  const target = Number(raw.targetMinutes);
+  const current = Number(raw.current);
+  const best = Number(raw.best);
+  const freezesUsed = Number(raw.freezesUsed);
+  const days: StreakState['days'] = {};
+
+  if (raw.days && typeof raw.days === 'object' && !Array.isArray(raw.days)) {
+    for (const [date, entry] of Object.entries(raw.days as Record<string, unknown>)) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+      const item = entry as Record<string, unknown>;
+      const seconds = Number(item.seconds);
+      days[date] = {
+        date: typeof item.date === 'string' ? item.date : date,
+        seconds: Number.isFinite(seconds) ? Math.max(0, seconds) : 0,
+        completed: item.completed === true,
+        ...(item.freeze === true ? { freeze: true } : {}),
+      };
+    }
+  }
+
+  return {
+    enabled: true,
+    targetMinutes: Number.isFinite(target) ? Math.max(1, target) : base.targetMinutes,
+    current: Number.isFinite(current) ? Math.max(0, Math.floor(current)) : 0,
+    best: Number.isFinite(best) ? Math.max(0, Math.floor(best), Number.isFinite(current) ? Math.max(0, Math.floor(current)) : 0) : 0,
+    freezeUsedMonth: typeof raw.freezeUsedMonth === 'string' && /^d{4}-d{2}$/.test(raw.freezeUsedMonth)
+      ? raw.freezeUsedMonth
+      : base.freezeUsedMonth,
+    freezesUsed: Number.isFinite(freezesUsed) ? Math.min(MAX_FREEZE_PER_MONTH, Math.max(0, Math.floor(freezesUsed))) : 0,
+    days,
+    lastEvalDate: typeof raw.lastEvalDate === 'string' && /^d{4}-d{2}-d{2}$/.test(raw.lastEvalDate)
+      ? raw.lastEvalDate
+      : base.lastEvalDate,
+  };
+};
+
 export const getStreak = (): StreakState => {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return defaults();
-    const merged = { ...defaults(), ...JSON.parse(raw) } as StreakState;
-    // Daily target is mandatory always-on now
-    merged.enabled = true;
-    return merged;
+    return normalizeStreak(raw ? JSON.parse(raw) : null);
   } catch {
     return defaults();
   }
