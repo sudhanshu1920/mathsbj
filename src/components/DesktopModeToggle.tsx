@@ -25,7 +25,11 @@ export const initDesktopMode = () => {
   applyFontScale(Number.isFinite(savedScale) ? clamp(savedScale) : 1);
 };
 
-const DesktopModeToggle = () => {
+interface DesktopModeToggleProps {
+  compact?: boolean;
+}
+
+const DesktopModeToggle = (_props: DesktopModeToggleProps) => {
   const [desktop, setDesktop] = useState(() => localStorage.getItem(MODE_KEY) === '1');
   const [scale, setScale] = useState<number>(() => {
     const s = parseFloat(localStorage.getItem(SCALE_KEY) || '1');
