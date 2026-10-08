@@ -715,7 +715,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     autoSubmitTimerRef.current = undefined;
     answerLockRef.current = false;
     finishLockRef.current = false;
-  };
+  }, [onQuizStart]);
 
   useEffect(() => {
     if (initialTopic && initialMode) {
