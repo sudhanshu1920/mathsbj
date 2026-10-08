@@ -75,39 +75,68 @@ const save = (s: StreakState) => {
  * Roll forward through any missed days since lastEvalDate.
  * For each missed day apply a freeze (if available) else reset streak.
  */
-export const evaluateStreak = (state?: StreakState): StreakState => {
+const countMonthFreezes = (state: StreakState, month: string): number =>
+  Object.values(state.days).filter((record) => monthKey(record.date) === month && record.freeze === true).length;
+
+/**
+ * Roll forward through any missed days since lastEvalDate.
+ * Each missed day consumes one of that calendar month's available freezes before
+ * resetting the streak. Historical month usage is reconstructed from recorded
+ * freeze days so a delayed app launch cannot incorrectly reset a prior month.
+ */
+export const evaluateStreak = (state?: StreakState, evaluationDate = today()): StreakState => {
   const s = state ? { ...state, days: { ...state.days } } : getStreak();
+  const t = evaluationDate;
   if (!s.enabled) {
-    s.lastEvalDate = today();
+    s.lastEvalDate = t;
     save(s);
     return s;
   }
 
-  const t = today();
-  // Reset monthly freeze counter if month changed
-  if (s.freezeUsedMonth !== monthKey(t)) {
-    s.freezeUsedMonth = monthKey(t);
-    s.freezesUsed = 0;
+  const currentMonth = monthKey(t);
+  const currentMonthFreezes = countMonthFreezes(s, currentMonth);
+
+  // Keep the persisted counter aligned with the current calendar month.
+  if (s.freezeUsedMonth !== currentMonth) {
+    s.freezeUsedMonth = currentMonth;
+    s.freezesUsed = currentMonthFreezes;
+  } else {
+    s.freezesUsed = Math.max(s.freezesUsed, currentMonthFreezes);
   }
 
-  // Walk from day after lastEvalDate up to (but not including) today
+  // Walk from day after lastEvalDate up to (but not including) today.
   let cursor = addDays(s.lastEvalDate, 1);
   while (cursor < t) {
     const rec = s.days[cursor];
-    const completed = rec?.completed;
-    if (!completed) {
-      // Need a freeze
-      if (s.freezesUsed < MAX_FREEZE_PER_MONTH && monthKey(cursor) === s.freezeUsedMonth) {
-        s.days[cursor] = { date: cursor, seconds: rec?.seconds || 0, completed: false, freeze: true };
-        s.freezesUsed += 1;
+    if (!rec?.completed) {
+      const cursorMonth = monthKey(cursor);
+      const freezesUsed = cursorMonth === currentMonth
+        ? s.freezesUsed
+        : countMonthFreezes(s, cursorMonth);
+
+      if (freezesUsed < MAX_FREEZE_PER_MONTH) {
+        s.days[cursor] = {
+          date: cursor,
+          seconds: rec?.seconds || 0,
+          completed: false,
+          freeze: true,
+        };
+        if (cursorMonth === currentMonth) {
+          s.freezesUsed = freezesUsed + 1;
+        }
       } else {
-        // streak resets
+        // Streak resets when that calendar month's freeze allowance is exhausted.
         s.current = 0;
-        s.days[cursor] = { date: cursor, seconds: rec?.seconds || 0, completed: false };
+        s.days[cursor] = {
+          date: cursor,
+          seconds: rec?.seconds || 0,
+          completed: false,
+        };
       }
     }
     cursor = addDays(cursor, 1);
   }
+
   s.lastEvalDate = t;
   save(s);
   return s;
