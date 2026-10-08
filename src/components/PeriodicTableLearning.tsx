@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Atom, MoreVertical, X } from 'lucide-react';
+import { ArrowLeft, Atom, Check, Circle, MoreVertical, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
