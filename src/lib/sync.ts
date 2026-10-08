@@ -163,6 +163,7 @@ export function startSync(userId: string): () => void {
 
   window.addEventListener('analytics-updated', onLocalChange);
   window.addEventListener('streak-updated', onLocalChange);
+  window.addEventListener('streak-persisted', onLocalChange);
   window.addEventListener('xp-updated', onLocalChange);
   window.addEventListener('online', onOnline);
 
@@ -175,6 +176,7 @@ export function startSync(userId: string): () => void {
     disposed = true;
     window.removeEventListener('analytics-updated', onLocalChange);
     window.removeEventListener('streak-updated', onLocalChange);
+    window.removeEventListener('streak-persisted', onLocalChange);
     window.removeEventListener('xp-updated', onLocalChange);
     window.removeEventListener('online', onOnline);
     window.clearInterval(interval);
