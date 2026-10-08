@@ -1,1 +1,0 @@
-- Keep font choices in one typed whitelist registry and apply the selection through the global CSS font token, so every screen shares one safe source of truth.
