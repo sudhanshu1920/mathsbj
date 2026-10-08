@@ -92,6 +92,7 @@ const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled, hid
         <button
           key={`${i}-${k.key}`}
           type="button"
+          whileTap={{ scale: 0.92 }}
           onClick={(e) => { e.currentTarget.blur(); press(k.key); }}
           style={k.span ? { gridColumn: `span ${k.span} / span ${k.span}` } : undefined}
           className={`motion-press keypad-key ${k.tone === 'back' ? 'keypad-key-danger' : ''} h-12 rounded-2xl font-display font-bold text-xl flex items-center justify-center transition-all border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${toneClass(k.tone)}`}

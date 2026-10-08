@@ -1,7 +1,6 @@
 import { m as motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { memo } from 'react';
-import { MOTION } from '@/lib/motion';
 
 interface TopicCardProps {
   title: string;
@@ -16,8 +15,8 @@ const TopicCard = ({ title, icon: Icon, gradient, onClick, delay = 0 }: TopicCar
     <motion.button
       initial={{ opacity: 0, y: MOTION.distance.small }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: delay * MOTION.stagger.standard, duration: MOTION.duration.slow, ease: MOTION.ease.enter }}
-      whileTap={{ scale: MOTION.scale.press }}
+      transition={{ delay: delay * 0.08, duration: 0.3 }}
+      whileTap={{ scale: 0.95 }}
       onClick={onClick}
       className={`${gradient} rounded-2xl p-5 flex flex-col items-center justify-center gap-3 aspect-square shadow-lg`}
     >

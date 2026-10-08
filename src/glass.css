@@ -230,8 +230,8 @@ html.light {
   border-radius: 1rem;
   color: hsl(var(--foreground) / 0.76);
   transition:
-    color var(--motion-duration-standard) var(--motion-ease-standard),
-    opacity var(--motion-duration-standard) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard),
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
     transform var(--motion-duration-fast) var(--motion-ease-standard);
 }
 

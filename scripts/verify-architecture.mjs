@@ -181,8 +181,14 @@ if (!index.includes("e.pointerType === 'mouse'") || !index.includes('!e.isPrimar
 if (!practiceSelector.includes('data-swipe-ignore-app-section="true"')) {
   fail('Practice mode selector can accidentally trigger app-level navigation');
 }
-if (!bottomNavUi.includes('scale: [1, 1.06, 1]')) {
-  fail('floating-bar interaction polish regressed to an aggressive bounce');
+if (!bottomNavUi.includes('motion-press') ||
+    !bottomNavUi.includes('const DOUBLE_TAP_DELAY = 280;') ||
+    !bottomNavUi.includes('onChange(tabId);')) {
+  fail('floating-bar fast tap interaction architecture regressed');
+}
+if (bottomNavUi.includes('tapTimers') ||
+    bottomNavUi.includes('setTimeout(() => {\n        onChange(tabId);')) {
+  fail('floating-bar navigation must not defer first-tap navigation');
 }
 if (!sync.includes('switchedUser') || !sync.includes('data.progress ?? {}')) {
   fail('cross-account sync isolation guard is missing');
