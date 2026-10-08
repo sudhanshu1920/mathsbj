@@ -13,7 +13,7 @@ export const PERIODIC_RANGES = [
   { from: 81, to: 90, label: '81–90' },
   { from: 91, to: 100, label: '91–100' },
   { from: 101, to: 110, label: '101–110' },
-  { from: 110, to: 118, label: '110–118' },
+  { from: 111, to: 118, label: '111–118' },
 ] as const;
 
 export function movePeriodicRangeIndex(current: number | null, delta: number): number | null {
