@@ -270,6 +270,9 @@ jobs:
               text = text[:manifest_start] + root + text[manifest_end + 1:]
               manifest_end = manifest_start + len(root) - 1
 
+          if 'xmlns:android="http://schemas.android.com/apk/res/android"' not in root:
+              raise SystemExit("Android namespace is missing from <manifest> root")
+
           if permission not in text:
               insert_at = manifest_end + 1
               text = text[:insert_at] + "\n" + permission + text[insert_at:]
