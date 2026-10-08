@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { Atom, Box, Grid3x3, Percent, Radical, Sigma, Square, Superscript, Triangle } from 'lucide-react';
+import { Atom, Box, Grid3X3, Percent, Radical, Sigma, Square, Superscript, Triangle } from 'lucide-react';
 import { TOPIC_ICON_MAP } from '@/lib/topicIcons';
 
 describe('topic icon semantics', () => {
   it('keeps every Learning topic centrally mapped with a matching label and icon', () => {
     const expected = {
-      tables: { label: 'Tables', icon: Grid3x3 },
+      tables: { label: 'Tables', icon: Grid3X3 },
       squares: { label: 'Squares', icon: Square },
       'square-roots': { label: 'Square Roots', icon: Radical },
       cubes: { label: 'Cubes', icon: Box },
