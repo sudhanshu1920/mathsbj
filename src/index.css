@@ -2395,6 +2395,7 @@ textarea,
   user-select: text;
 }
 
+/* [BUILD_APK] Verify app-wide text selection prevention in production APK. */
 /* Touch-friendly, calm interactions. */
 button,
 a,
