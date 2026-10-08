@@ -628,7 +628,7 @@ const Index = () => {
       !cancelled &&
       !gesture.triggered &&
       gesture.active &&
-      direction === 'left' &&
+      (direction === 'left' || direction === 'right') &&
       now - lastSectionSwipeAt.current >= 400;
 
     resetSectionSwipe(e.currentTarget, e.pointerId);
@@ -637,10 +637,20 @@ const Index = () => {
 
     lastSectionSwipeAt.current = now;
 
+    // Reuse the existing top-level navigation order:
+    // Learn/Home <-> Practice <-> Progress.
+    // At the first/last section, the unavailable direction is a safe no-op.
     if (tab === 'learn' && learningState.activeTopic === null) {
-      handleTabChange('practice');
+      if (direction === 'left') {
+        handleTabChange('practice');
+      }
+      // Home is the first section, so right swipe intentionally does nothing.
     } else if (tab === 'practice' && practicePhase === 'setup') {
-      handleTabChange('progress');
+      if (direction === 'left') {
+        handleTabChange('progress');
+      } else {
+        handleTabChange('learn');
+      }
     }
   }, [
     handleTabChange,
