@@ -11,13 +11,13 @@ const TrigonometryLearning = () => {
   const [active, setActive] = useState<string | null>(null);
 
   const cellBase =
-    'border border-border px-3 py-2.5 text-center font-semibold whitespace-nowrap text-sm';
+    'trig-table-cell border border-border px-3 py-2.5 text-center font-semibold whitespace-nowrap text-sm';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-card border border-border rounded-2xl overflow-hidden"
+      className="glass rounded-2xl overflow-hidden"
     >
       <div className="overflow-x-auto">
         <table className="w-full border-collapse min-w-[640px]">
