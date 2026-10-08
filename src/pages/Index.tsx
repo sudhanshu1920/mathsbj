@@ -16,6 +16,8 @@ import ShortcutsHelp from '@/components/ShortcutsHelp';
 import OfflinePrep from '@/components/OfflinePrep';
 import { getSettings } from '@/lib/settings';
 import { getPracticeNavDepth, isUnsavedPracticePhase, type PracticePhase } from '@/lib/practiceNavigation';
+import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -84,6 +86,15 @@ const Index = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const appFrameScrollRef = useRef<HTMLDivElement>(null);
   const bottomNavRef = useRef<HTMLElement>(null);
+  const sectionSwipeRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    axis: 'x' | 'y' | null;
+    active: boolean;
+    triggered: boolean;
+  } | null>(null);
+  const lastSectionSwipeAt = useRef(0);
   const pendingPracticeNavigation = useRef<{
     tab: Tab;
     resetLearn?: boolean;
@@ -513,6 +524,142 @@ const Index = () => {
     setTab('practice');
   }, [tab, practicePhase, requestPracticeNavigation]);
 
+  const appSectionSwipeEnabled =
+    !paletteOpen &&
+    !shortcutsOpen &&
+    ((tab === 'learn' && learningState.activeTopic === null) ||
+      (tab === 'practice' && practicePhase === 'setup'));
+
+  const isExcludedAppSwipeTarget = useCallback((target: EventTarget | null, root: HTMLElement) => {
+    let element = target instanceof HTMLElement ? target : null;
+
+    while (element && element !== root) {
+      if (element.dataset.swipeIgnoreAppSection === 'true') return true;
+
+      const style = window.getComputedStyle(element);
+      const canScrollHorizontally =
+        element.scrollWidth > element.clientWidth + 1 &&
+        (style.overflowX === 'auto' || style.overflowX === 'scroll');
+      if (canScrollHorizontally) return true;
+
+      element = element.parentElement;
+    }
+
+    return false;
+  }, []);
+
+  const resetSectionSwipe = useCallback((eventTarget?: HTMLElement, pointerId?: number) => {
+    if (eventTarget && pointerId !== undefined) {
+      try {
+        eventTarget.releasePointerCapture(pointerId);
+      } catch {
+        // Pointer capture may already have been released by the browser.
+      }
+    }
+    sectionSwipeRef.current = null;
+  }, []);
+
+  const handleSectionPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!appSectionSwipeEnabled || e.pointerType === 'mouse' || !e.isPrimary) {
+      resetSectionSwipe();
+      return;
+    }
+
+    if (isExcludedAppSwipeTarget(e.target, e.currentTarget)) {
+      resetSectionSwipe();
+      return;
+    }
+
+    sectionSwipeRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      axis: null,
+      active: false,
+      triggered: false,
+    };
+  }, [appSectionSwipeEnabled, isExcludedAppSwipeTarget, resetSectionSwipe]);
+
+  const handleSectionPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = sectionSwipeRef.current;
+    if (
+      !appSectionSwipeEnabled ||
+      !gesture ||
+      gesture.pointerId !== e.pointerId ||
+      !e.isPrimary
+    ) {
+      return;
+    }
+
+    const dx = e.clientX - gesture.startX;
+    const dy = e.clientY - gesture.startY;
+
+    if (!gesture.axis && (Math.abs(dx) >= 10 || Math.abs(dy) >= 10)) {
+      gesture.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+
+      if (gesture.axis === 'y') {
+        resetSectionSwipe();
+        return;
+      }
+
+      gesture.active = true;
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Pointer capture is optional; the gesture can still finish normally.
+      }
+    }
+
+    if (!gesture.active || gesture.axis !== 'x') return;
+
+    e.preventDefault();
+  }, [appSectionSwipeEnabled, resetSectionSwipe]);
+
+  const handleSectionPointerEnd = useCallback((e: ReactPointerEvent<HTMLDivElement>, cancelled = false) => {
+    const gesture = sectionSwipeRef.current;
+    if (!gesture || gesture.pointerId !== e.pointerId) return;
+
+    const dx = e.clientX - gesture.startX;
+    const dy = e.clientY - gesture.startY;
+    const direction = getHorizontalSwipeDirection(dx, dy);
+
+    const now = Date.now();
+    const shouldNavigate =
+      !cancelled &&
+      !gesture.triggered &&
+      gesture.active &&
+      direction === 'left' &&
+      now - lastSectionSwipeAt.current >= 400;
+
+    resetSectionSwipe(e.currentTarget, e.pointerId);
+
+    if (!shouldNavigate) return;
+
+    lastSectionSwipeAt.current = now;
+
+    if (tab === 'learn' && learningState.activeTopic === null) {
+      handleTabChange('practice');
+    } else if (tab === 'practice' && practicePhase === 'setup') {
+      handleTabChange('progress');
+    }
+  }, [
+    handleTabChange,
+    learningState.activeTopic,
+    practicePhase,
+    resetSectionSwipe,
+    tab,
+  ]);
+
+  const handleSectionPointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => handleSectionPointerEnd(e),
+    [handleSectionPointerEnd],
+  );
+
+  const handleSectionPointerCancel = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => handleSectionPointerEnd(e, true),
+    [handleSectionPointerEnd],
+  );
+
   // Keyboard shortcuts (desktop-style, ignored while typing)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -550,7 +697,15 @@ const Index = () => {
     <div className="app-shell">
       <div data-current-theme={currentTheme} data-current-mode={currentMode} className="app-frame bg-background">
         <Watermark />
-        <div ref={appFrameScrollRef} className="app-frame-scroll">
+        <div
+          ref={appFrameScrollRef}
+          className="app-frame-scroll"
+          onPointerDown={handleSectionPointerDown}
+          onPointerMove={handleSectionPointerMove}
+          onPointerUp={handleSectionPointerUp}
+          onPointerCancel={handleSectionPointerCancel}
+          style={{ touchAction: 'pan-y' }}
+        >
           <div className={wideDesktop ? 'flex justify-center gap-4 relative z-10' : 'contents'}>
           <div className={learningState.activeTopic === 'periodic-table'
               ? 'w-full max-w-[1480px] mx-auto px-3 sm:px-4 pt-0 relative z-10 flex-1'
