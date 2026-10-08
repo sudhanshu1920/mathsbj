@@ -58,6 +58,16 @@ if (!index.includes("scrollElement.style.setProperty('--floating-bar-height', '0
 if (!index.includes('--floating-bar-height') || !index.includes('ResizeObserver')) {
   fail('runtime floating-bar measurement architecture is missing');
 }
+if (!index.includes('window.visualViewport?.height ?? window.innerHeight') || !index.includes('viewportHeight - rect.top')) {
+  fail('floating-bar reserve does not account for the actual viewport footprint');
+}
+const bottomNavUi = read('src/components/BottomNav.tsx');
+if (!bottomNavUi.includes('aria-current={isActive ? 'page' : undefined}')) {
+  fail('floating-bar active navigation semantics are missing');
+}
+if (!bottomNavUi.includes('scale: [1, 1.06, 1]')) {
+  fail('floating-bar interaction polish regressed to an aggressive bounce');
+}
 if (!sync.includes('switchedUser') || !sync.includes('data.progress ?? {}')) {
   fail('cross-account sync isolation guard is missing');
 }
