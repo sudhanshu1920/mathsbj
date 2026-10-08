@@ -1,7 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
-import type { LucideIcon } from 'lucide-react';
 import { m as motion } from 'framer-motion';
-import { Grid3x3, Square, Radical, Box, Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart, Atom, Crown } from 'lucide-react';
+import { Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart, Crown } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import StatPill from '@/components/duo/StatPill';
@@ -18,6 +17,7 @@ import type { LearningState } from '@/pages/Index';
 const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearning'));
 import { getStreak } from '@/lib/streak';
 import { getXP, levelFromXP } from '@/lib/xp';
+import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table';
 
@@ -28,16 +28,16 @@ interface LearningPageProps {
   onLearningStateChange?: (state: LearningState) => void;
 }
 
-const topics: { id: Topic; title: string; icon: LucideIcon; gradient: string }[] = [
-  { id: 'tables', title: 'Tables', icon: Grid3x3, gradient: 'gradient-primary' },
-  { id: 'squares', title: 'Squares', icon: Square, gradient: 'gradient-success' },
-  { id: 'square-roots', title: 'Square Roots', icon: Radical, gradient: 'gradient-primary' },
-  { id: 'cubes', title: 'Cubes', icon: Box, gradient: 'gradient-warm' },
-  { id: 'cube-roots', title: 'Cube Roots', icon: Box, gradient: 'gradient-primary' },
-  { id: 'powers', title: 'Powers', icon: Zap, gradient: 'gradient-success' },
-  { id: 'percentage', title: 'Percentage', icon: Percent, gradient: 'gradient-warm' },
-  { id: 'formulas', title: 'Formulas', icon: BookOpen, gradient: 'gradient-primary' },
-  { id: 'periodic-table', title: 'Periodic Table', icon: Atom, gradient: 'gradient-success' },
+const topics: { id: LearningTopicId; title: string }[] = [
+  { id: 'tables', title: 'Tables' },
+  { id: 'squares', title: 'Squares' },
+  { id: 'square-roots', title: 'Square Roots' },
+  { id: 'cubes', title: 'Cubes' },
+  { id: 'cube-roots', title: 'Cube Roots' },
+  { id: 'powers', title: 'Powers' },
+  { id: 'percentage', title: 'Percentage' },
+  { id: 'formulas', title: 'Formulas' },
+  { id: 'periodic-table', title: 'Periodic Table' },
 ];
 
 const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
@@ -440,18 +440,6 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   }
 
   // TOPIC LIST
-  const topicSymbols: Record<Topic, string> = {
-    tables: '×',
-    squares: 'x²',
-    'square-roots': '√',
-    cubes: 'x³',
-    'cube-roots': '∛',
-    powers: 'xⁿ',
-    percentage: '%',
-    formulas: 'f(x)',
-    'periodic-table': '⚛',
-  };
-
   return (
     <div>
       <TopStatBar />
@@ -484,25 +472,31 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] animate-fade-in sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {topics.map((t, index) => (
-          <motion.button
-            key={t.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.035, duration: 0.24 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setActiveTopic(t.id)}
-            className="group relative flex min-h-[124px] w-full flex-col items-center justify-center gap-3 rounded-[1.15rem] border border-border/70 bg-card/80 px-3 py-4 text-center shadow-[var(--ds-shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[var(--ds-shadow-elevated)] active:translate-y-0"
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 font-display text-xl font-black leading-none text-primary ring-1 ring-inset ring-primary/10 transition-colors group-hover:bg-primary/15">
-              {topicSymbols[t.id]}
-            </span>
-            <span className="font-display text-xs font-extrabold leading-tight tracking-[0.03em] text-foreground sm:text-sm">
-              {t.title}
-            </span>
-          </motion.button>
-        ))}
+      <div className="grid grid-cols-2 gap-3 pb-6 animate-fade-in sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {topics.map((t, index) => {
+          const { icon: TopicIcon, toneClass } = TOPIC_ICON_MAP[t.id];
+          return (
+            <motion.button
+              key={t.id}
+              type="button"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.035, duration: 0.24 }}
+              whileTap={{ scale: 0.985 }}
+              onClick={() => setActiveTopic(t.id)}
+              aria-label={`Open ${t.title} learning topic`}
+              className="group relative flex min-h-[132px] w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-[1.15rem] border border-border/70 bg-card/80 px-3.5 py-4 text-center shadow-[var(--ds-shadow-card)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:bg-card hover:shadow-[var(--ds-shadow-elevated)] focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0"
+            >
+              <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-accent/[0.05] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <span className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/40 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)] backdrop-blur-sm transition-all duration-200 group-hover:border-primary/25 group-hover:bg-primary/[0.08] group-hover:-translate-y-px ${toneClass}`}>
+                <TopicIcon size={20} strokeWidth={2.25} aria-hidden="true" />
+              </span>
+              <span className="relative max-w-full text-balance font-display text-[13px] font-semibold leading-[1.15] tracking-[0.01em] text-foreground sm:text-sm">
+                {t.title}
+              </span>
+            </motion.button>
+          );
+        })}
       </div>
     </div>
   );
