@@ -9,8 +9,9 @@ import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
 import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
 import { triggerUpdate } from '@/pwa';
+import { checkAndInstallAndroidUpdate, isAndroidNativeUpdaterAvailable } from '@/nativeAppUpdater';
 
-type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline';
+type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline' | 'error';
 
 const PRESET_MINUTES = [5, 10, 15, 30, 60];
 
@@ -49,28 +50,46 @@ const SettingsPanel = () => {
       setTimeout(() => setUpdateState('idle'), 1800);
       return;
     }
+
     setUpdateState('checking');
-    // Safety: never leave the button stuck.
-    const safety = setTimeout(() => setUpdateState('idle'), 8000);
+    const safety = setTimeout(() => setUpdateState('idle'), 15000);
+
     try {
-      // Sync user data
       if (user) {
         await pullFromCloud(user.id);
         await pushToCloud(user.id);
       }
-      const result = await triggerUpdate();
-      if (result === 'offline') {
-        setUpdateState('offline');
-        setTimeout(() => setUpdateState('idle'), 1800);
-      } else if (result === 'updated') {
-        // New version is activating; page will reload automatically.
-        setUpdateState('updating');
+
+      if (isAndroidNativeUpdaterAvailable()) {
+        const result = await checkAndInstallAndroidUpdate();
+
+        if (result.status === 'offline') {
+          setUpdateState('offline');
+        } else if (result.status === 'updated') {
+          setUpdateState('updating');
+        } else if (result.status === 'current') {
+          setUpdateState('done');
+        } else if (result.status === 'error') {
+          setUpdateState('error');
+          setTimeout(() => setUpdateState('idle'), 3000);
+        } else {
+          setUpdateState('done');
+        }
       } else {
-        setUpdateState('done');
-        setTimeout(() => setUpdateState('idle'), 1600);
+        const result = await triggerUpdate();
+        if (result === 'offline') {
+          setUpdateState('offline');
+          setTimeout(() => setUpdateState('idle'), 1800);
+        } else if (result === 'updated') {
+          setUpdateState('updating');
+        } else {
+          setUpdateState('done');
+          setTimeout(() => setUpdateState('idle'), 1600);
+        }
       }
     } catch {
-      setUpdateState('idle');
+      setUpdateState('error');
+      setTimeout(() => setUpdateState('idle'), 3000);
     } finally {
       clearTimeout(safety);
     }
@@ -82,6 +101,7 @@ const SettingsPanel = () => {
     updating: 'Downloading update…',
     done: 'Up to date',
     offline: 'You are offline',
+    error: 'Update failed — try again',
   };
 
   const isBusy = updateState === 'checking' || updateState === 'updating' || isSyncing();
