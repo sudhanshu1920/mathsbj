@@ -491,7 +491,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
               <span className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/40 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)] backdrop-blur-sm transition-all duration-200 group-hover:border-primary/25 group-hover:bg-primary/[0.08] group-hover:-translate-y-px ${toneClass}`}>
                 {TOPIC_ICON_MAP[topicId].symbol ? (
                   <span className="font-display text-lg font-black leading-none" aria-hidden="true">
-                    {TOPIC_ICON_MAP[t.id].symbol}
+                    {TOPIC_ICON_MAP[topicId].symbol}
                   </span>
                 ) : TOPIC_ICON_MAP[topicId].icon ? (
                   <>
