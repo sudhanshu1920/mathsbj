@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Timer, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame } from 'lucide-react';
+import { ArrowLeft, Timer, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame, Plus, Minus } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
 import Particles from '@/components/Particles';
@@ -1549,7 +1549,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                                         ? 'rounded-xl border px-3 py-2 text-xs font-bold transition-colors gradient-primary border-primary text-primary-foreground'
                                         : 'rounded-xl border px-3 py-2 text-xs font-bold transition-colors bg-secondary border-border text-secondary-foreground hover:border-primary/50'}
                                     >
-                                      {title}
+                                      <span className="inline-flex items-center gap-1.5">
+                                        {operation === 'addition' ? <Plus size={14} strokeWidth={2.8} /> : <Minus size={14} strokeWidth={2.8} />}
+                                        {title}
+                                      </span>
                                     </button>
                                   );
                                 })}
