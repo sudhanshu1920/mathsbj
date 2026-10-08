@@ -196,9 +196,9 @@ const ProgressPage = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="fixed inset-0 z-50 bg-background flex flex-col overflow-hidden"
+            className="settings-glass-shell fixed inset-0 z-50 bg-background/72 flex flex-col overflow-hidden"
           >
-            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-background/95 backdrop-blur">
+            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/40 glass-panel">
               <button
                 onClick={() => setShowSettings(false)}
                 aria-label="Back"
