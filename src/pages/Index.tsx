@@ -9,7 +9,6 @@ import Watermark from '@/components/Watermark';
 import LearningPage from '@/pages/LearningPage';
 const PracticePage = lazyWithRetry(() => import('@/pages/PracticePage'));
 const ProgressPage = lazyWithRetry(() => import('@/pages/ProgressPage'));
-import { useTheme, useMode } from '@/lib/theme';
 import { useWideDesktop } from '@/hooks/use-desktop-mode';
 import CommandPalette from '@/components/CommandPalette';
 import ShortcutsHelp from '@/components/ShortcutsHelp';
@@ -70,8 +69,6 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
 }
 
 const Index = () => {
-  const currentTheme = useTheme();
-  const currentMode = useMode();
   const [tab, setTab] = useState<Tab>('learn');
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
   const [practiceContext, setPracticeContext] = useState<{ from?: number; to?: number; number?: number } | undefined>();
@@ -705,7 +702,7 @@ const Index = () => {
 
   return (
     <div className="app-shell">
-      <div data-current-theme={currentTheme} data-current-mode={currentMode} className="app-frame bg-background">
+      <div className="app-frame bg-background">
         <Watermark />
         <div
           ref={appFrameScrollRef}
@@ -720,14 +717,16 @@ const Index = () => {
           <div className={learningState.activeTopic === 'periodic-table'
               ? 'w-full max-w-[1480px] mx-auto px-3 sm:px-4 pt-0 relative z-10 flex-1'
               : 'max-w-lg mx-auto px-4 pt-0 relative z-10 flex-1'}>
-            <div className={tab === 'learn' ? 'animate-fade-in' : 'hidden'}>
-              <LearningPage
-                onBack={goBack}
-                onStartPractice={handleStartPractice}
-                learningState={learningState}
-                onLearningStateChange={setLearningState}
-              />
-            </div>
+            {tab === 'learn' && (
+              <div className="animate-fade-in">
+                <LearningPage
+                  onBack={goBack}
+                  onStartPractice={handleStartPractice}
+                  learningState={learningState}
+                  onLearningStateChange={setLearningState}
+                />
+              </div>
+            )}
             <Suspense fallback={null}>
               {tab === 'practice' && (
                 <div className="animate-fade-in">
