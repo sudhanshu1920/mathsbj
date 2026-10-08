@@ -559,9 +559,6 @@ jobs:
           test -s "$PAGE_DIR/version.json"
           test -s "$PAGE_DIR/MathMaster-release.apk"
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
       - name: Upload APK-only GitHub Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
@@ -585,6 +582,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
       - name: Deploy APK-only download page
         id: deployment
         uses: actions/deploy-pages@v4
