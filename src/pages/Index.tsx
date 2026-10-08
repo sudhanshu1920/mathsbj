@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
@@ -81,12 +81,64 @@ const Index = () => {
   const [practiceBackRequest, setPracticeBackRequest] = useState(0);
   const [practicePhase, setPracticePhase] = useState<PracticePhase>('setup');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const appFrameScrollRef = useRef<HTMLDivElement>(null);
+  const bottomNavRef = useRef<HTMLElement>(null);
   const pendingPracticeNavigation = useRef<{
     tab: Tab;
     resetLearn?: boolean;
     replacementPracticeTopic?: string;
   } | null>(null);
   const wideDesktop = useWideDesktop();
+
+  const showBottomNav =
+    !settingsOpen &&
+    !(tab === 'learn' && learningState.activeTopic) &&
+    !(tab === 'practice' && practicePhase === 'active' && practiceMode === 'input');
+
+  // Keep the content reserve synchronized with the floating bar's actual
+  // rendered border-box height. This is layout-only state: it writes a CSS
+  // variable directly, so resize/orientation changes do not trigger React
+  // render loops.
+  useLayoutEffect(() => {
+    const scrollElement = appFrameScrollRef.current;
+    if (!scrollElement) return;
+
+    let frame = 0;
+    let lastHeight = -1;
+
+    const syncBottomReserve = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const measuredHeight = bottomNavRef.current?.getBoundingClientRect().height ?? 0;
+        if (Math.abs(measuredHeight - lastHeight) < 0.01) return;
+        lastHeight = measuredHeight;
+        scrollElement.style.setProperty(
+          '--floating-bar-height',
+          measuredHeight > 0 ? `${measuredHeight}px` : '0px',
+        );
+      });
+    };
+
+    syncBottomReserve();
+
+    const observer = bottomNavRef.current && typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(syncBottomReserve)
+      : null;
+
+    if (observer && bottomNavRef.current) {
+      observer.observe(bottomNavRef.current);
+    }
+
+    window.addEventListener('resize', syncBottomReserve, { passive: true });
+    window.visualViewport?.addEventListener('resize', syncBottomReserve);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener('resize', syncBottomReserve);
+      window.visualViewport?.removeEventListener('resize', syncBottomReserve);
+    };
+  }, [showBottomNav]);
   const lastBackPress = useRef(0);
   const isHandlingPopstate = useRef(false);
   const lastDepth = useRef('learn-home');
@@ -475,7 +527,7 @@ const Index = () => {
     <div className="app-shell">
       <div data-current-theme={currentTheme} data-current-mode={currentMode} className="app-frame bg-background">
         <Watermark />
-        <div className="app-frame-scroll">
+        <div ref={appFrameScrollRef} className="app-frame-scroll">
           <div className={wideDesktop ? 'flex justify-center gap-4 relative z-10' : 'contents'}>
           <div className={learningState.activeTopic === 'periodic-table'
               ? 'w-full max-w-[1480px] mx-auto px-3 sm:px-4 pt-0 relative z-10 flex-1'
@@ -515,8 +567,8 @@ const Index = () => {
 
           </div>
         </div>
-        {!settingsOpen && !(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practicePhase === 'active' && practiceMode === 'input') && (
-          <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
+        {showBottomNav && (
+          <BottomNav ref={bottomNavRef} active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
         )}
       </div>
 
