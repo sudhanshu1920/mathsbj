@@ -249,21 +249,6 @@ jobs:
           }
           JAVA
 
-          main_activity="android/app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java"
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("android/app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java")
-          text = path.read_text(encoding="utf-8")
-          if "AppUpdaterPlugin.class" not in text:
-              text = text.replace(
-                  "super.onCreate(savedInstanceState);",
-                  "registerPlugin(AppUpdaterPlugin.class);\n                  super.onCreate(savedInstanceState);",
-                  1,
-              )
-          path.write_text(text, encoding="utf-8")
-          PY
-
           manifest="android/app/src/main/AndroidManifest.xml"
           python3 - <<'PY'
           from pathlib import Path
@@ -279,7 +264,7 @@ jobs:
           PY
 
           grep -q "REQUEST_INSTALL_PACKAGES" "$manifest"
-          grep -q "AppUpdaterPlugin.class" "$main_activity"
+          grep -q "@CapacitorPlugin(name = "AppUpdater")" "$plugin_dir/AppUpdaterPlugin.java"
 
       - name: Configure Android edge-to-edge system bars
         shell: bash
@@ -301,6 +286,7 @@ jobs:
           public class MainActivity extends BridgeActivity {
               @Override
               public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(AppUpdaterPlugin.class);
                   super.onCreate(savedInstanceState);
 
                   Window window = getWindow();
@@ -324,6 +310,7 @@ jobs:
           }
           JAVA
 
+          grep -q "AppUpdaterPlugin.class" "$main_activity"
           grep -q "setDecorFitsSystemWindows(false)" "$main_activity"
           grep -q "setNavigationBarColor(Color.TRANSPARENT)" "$main_activity"
 
@@ -521,5 +508,4 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 # [BUILD_APK] Release pipeline hardened for APK upgrade compatibility.
-
-# [BUILD_APK] Native in-app APK updater release trigger.
+# [BUILD_APK] Native updater registration is kept in the final MainActivity.
