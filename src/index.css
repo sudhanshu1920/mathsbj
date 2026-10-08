@@ -803,10 +803,10 @@ html.light .neon-text {
   }
 }
 
-/* ===== App frame: 9:16 on mobile, 16:9 in desktop mode =====
-   The whole app lives inside a centered frame that always fits the screen.
-   The frame has its own transform, which makes it the containing block for
-   fixed children (bottom nav, submit bar) so they align to the frame. */
+/* ===== App frame: full viewport with a dedicated scroll surface =====
+   The app content scrolls inside the frame. The bottom navigation is portalled
+   to document.body and fixed to the viewport so transforms and nested scrolling
+   cannot make the floating bar disappear or drift. */
 html, body {
   overflow-x: hidden;
   max-width: 100%;
