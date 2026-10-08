@@ -1254,7 +1254,7 @@ html.low-power .bottom-nav-panel {
 }
 
 
-/* APK production UI fixes: keep the compact bottom navigation stable across
+/* [BUILD_APK] APK production UI fixes: keep the compact bottom navigation stable across
    mobile and desktop widths, and prevent the Periodic Table grid from being
    collapsed by the global app-frame width rules. */
 :root {
