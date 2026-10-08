@@ -1439,7 +1439,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             const isTrig = tid === 'trig';
 
             return (
-              <div key={tid} className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div key={tid} className="glass rounded-2xl overflow-hidden">
                 <button
                   onClick={() => { if (!isTrig) setExpandedTopic(isExpanded ? null : tid); }}
                   className="w-full flex items-center justify-between px-4 py-3"
@@ -1738,7 +1738,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Repetition */}
-      <div className="mb-5 bg-card border border-border rounded-2xl p-4">
+      <div className="mb-5 glass rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="font-semibold text-sm text-foreground">Repetition</span>
