@@ -152,9 +152,11 @@ html.light {
    index.css; this layer owns only the reusable glass treatment. */
 .bottom-nav {
   --bottom-nav-surface: var(--glass-background);
-  --bottom-nav-surface-strong: var(--glass-background-strong);
   --bottom-nav-border: var(--glass-border-strong);
   --bottom-nav-highlight: var(--glass-highlight);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   isolation: isolate;
   background:
     linear-gradient(
