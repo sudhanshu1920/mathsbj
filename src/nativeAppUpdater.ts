@@ -7,8 +7,7 @@ type NativeUpdater = {
 
 const AppUpdater = registerPlugin<NativeUpdater>("AppUpdater");
 
-const DOWNLOAD_BASE_URL = "https://sudhanshu1920.github.io/mathsbj";
-const VERSION_URL = `${DOWNLOAD_BASE_URL}/version.json`;
+const RELEASE_API = "https://api.github.com/repos/sudhanshu1920/mathsbj/releases/tags/latest";
 
 export type NativeUpdateResult =
   | { status: "updated"; versionCode: number }
@@ -28,8 +27,8 @@ export async function checkAndInstallAndroidUpdate(): Promise<NativeUpdateResult
   try {
     const current = await AppUpdater.getVersion();
 
-    const response = await fetch(VERSION_URL, {
-      headers: { Accept: "application/json" },
+    const response = await fetch(RELEASE_API, {
+      headers: { Accept: "application/vnd.github+json" },
       cache: "no-store",
     });
 
@@ -39,23 +38,24 @@ export async function checkAndInstallAndroidUpdate(): Promise<NativeUpdateResult
     }
 
     const release = (await response.json()) as {
-      versionName?: string;
-      versionCode?: number;
-      apk?: string;
-      sha256?: string;
-      sizeBytes?: number;
+      body?: string | null;
+      assets?: Array<{ name?: string; browser_download_url?: string }>;
     };
 
-    const remoteVersionCode = release.versionCode;
+    const versionMatch = release.body?.match(/versionCode:\s*(\d+)/i);
+    const remoteVersionCode = versionMatch ? Number(versionMatch[1]) : NaN;
 
-    if (
-      !Number.isSafeInteger(remoteVersionCode) ||
-      remoteVersionCode <= current.versionCode
-    ) {
+    if (!Number.isSafeInteger(remoteVersionCode) || remoteVersionCode <= current.versionCode) {
       return { status: "current", versionCode: current.versionCode };
     }
 
-    if (release.apk !== "MathMaster-release.apk") {
+    const asset = release.assets?.find(
+      (item) =>
+        item.name === "MathMaster-release.apk" &&
+        typeof item.browser_download_url === "string",
+    );
+
+    if (!asset?.browser_download_url) {
       throw new Error("A signed update APK is not available.");
     }
 
