@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Atom, Check, Circle, MoreVertical, X } from 'lucide-react';
-import { m as motion } from 'framer-motion';
 import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
 import {
@@ -83,14 +82,12 @@ const findMainElement = (period: number, group: number) =>
   MAIN_ELEMENT_BY_POSITION.get(`${period}-${group}`);
 
 const ElementCell = ({ el, compact = false, massMode = 'exact', onClick }: { el: ChemElement; compact?: boolean; massMode?: AtomicMassMode; onClick: () => void }) => (
-  <motion.button
+  <button
     type="button"
-    whileTap={{ scale: 0.96 }}
-    whileHover={{ y: -1 }}
     onClick={onClick}
     aria-label={`${el.name}, atomic number ${el.number}`}
     title={`${el.name} (${el.symbol})`}
-    className={`periodic-element-cell relative aspect-square h-[76px] min-w-[76px] rounded-lg max-w-none shrink-0 border p-1.5 text-left transition-all ${CATEGORY_STYLES[el.category]} hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] ${compact ? 'h-[76px] min-w-[76px] max-w-none shrink-0' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
+    className={`periodic-element-cell relative aspect-square h-[76px] min-w-[76px] rounded-lg max-w-none shrink-0 border p-1.5 text-left transition-[transform,border-color,background-color,box-shadow] ${CATEGORY_STYLES[el.category]} hover:-translate-y-px hover:shadow-[0_0_18px_hsl(var(--primary)/0.15)] active:scale-[0.96] ${compact ? 'h-[76px] min-w-[76px] max-w-none shrink-0' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
   >
     <span className="absolute left-1.5 top-1 text-[9px] font-bold text-muted-foreground">{el.number}</span>
     <span className="absolute right-1.5 top-1 text-[9px] font-semibold text-muted-foreground">{formatMass(el, massMode)}</span>
@@ -98,7 +95,7 @@ const ElementCell = ({ el, compact = false, massMode = 'exact', onClick }: { el:
       <span className="font-display text-[22px] sm:text-[24px] font-black leading-none text-foreground">{el.symbol}</span>
       <span className="mt-1 w-full truncate text-center text-[9px] sm:text-[10px] font-bold leading-tight text-foreground" title={el.name}>{el.name}</span>
     </div>
-  </motion.button>
+  </button>
 );
 
 const FPlaceholder = ({ text, label }: { text: string; label: string }) => (
