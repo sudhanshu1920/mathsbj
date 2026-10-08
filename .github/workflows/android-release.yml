@@ -496,10 +496,10 @@ jobs:
       - name: Publish latest GitHub Release APK
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION_CODE: ${{ env.VERSION_CODE }}
         shell: bash
         run: |
           set -euo pipefail
+          VERSION_CODE="$(git rev-list --count HEAD)"
           release_tag="latest"
           release_title="MathMaster 1.0 (${VERSION_CODE})"
           release_notes="Automated signed Android release.\nversionCode: ${VERSION_CODE}"
