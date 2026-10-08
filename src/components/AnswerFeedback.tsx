@@ -61,18 +61,18 @@ const AnswerFeedback = ({ status, correctAnswer }: AnswerFeedbackProps) => {
       {isCorrect ? (
         <div className="relative flex items-center justify-center gap-2 whitespace-nowrap font-display">
           <Check size={16} strokeWidth={2.8} aria-hidden="true" />
-          <span className="text-sm font-semibold tracking-[0.01em] text-foreground">Correct</span>
+          <span className="text-[13px] font-semibold tracking-[0.01em] text-foreground">Correct</span>
         </div>
       ) : (
         <div className="relative flex flex-col items-center justify-center gap-0.5 text-center font-display">
           <div className="flex items-center gap-1.5 whitespace-nowrap">
             <X size={16} strokeWidth={2.8} aria-hidden="true" />
-            <span className="text-sm font-semibold tracking-[0.01em] text-foreground">Wrong</span>
+            <span className="text-[13px] font-semibold tracking-[0.01em] text-foreground">Wrong</span>
           </div>
           {correctAnswer !== undefined && (
             <div className="flex items-baseline justify-center gap-1 whitespace-nowrap leading-5">
               <span className="text-[11px] font-medium text-muted-foreground">Correct Answer:</span>
-              <span className="text-base font-extrabold tracking-[0.01em] text-primary">{correctAnswer}</span>
+              <span className="text-[15px] font-extrabold leading-4 tracking-[0.01em] text-primary">{correctAnswer}</span>
             </div>
           )}
         </div>
