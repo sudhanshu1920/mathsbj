@@ -24,8 +24,6 @@ const ThemeToggle = ({ compact = false }: ThemeToggleProps) => {
   const holdTimerRef = useRef<number | null>(null);
   const longPressedRef = useRef(false);
 
-  const buttonSize = compact ? 28 : 28;
-
   const updatePosition = useCallback(() => {
     const button = buttonRef.current;
     if (!button) return;
@@ -155,7 +153,7 @@ const ThemeToggle = ({ compact = false }: ThemeToggleProps) => {
               </div>
 
               <div
-                className="grid h-[156px] auto-cols-[60px] grid-flow-col grid-rows-3 gap-1.5 overflow-x-auto overscroll-contain pr-1 scrollbar-thin"
+                className="mx-auto grid h-[156px] max-w-[200px] auto-cols-[60px] grid-flow-col grid-rows-3 gap-1.5 overflow-x-auto overscroll-contain pr-1 scrollbar-thin"
                 aria-label="Available themes"
               >
                 {THEMES.map((item) => {
