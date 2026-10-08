@@ -1,6 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { m as motion } from 'framer-motion';
-import { Zap, Percent, ArrowLeft, Target, BookOpen, Flame, Heart, Crown } from 'lucide-react';
+import { Zap, ArrowLeft, Dumbbell, BookOpen, Flame, Heart, Crown } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import StatPill from '@/components/duo/StatPill';
@@ -113,7 +113,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
             onClick={() => setShowPracticeMode(true)}
             className="h-7 inline-flex items-center gap-1 px-2 rounded-full gradient-primary text-primary-foreground text-[10px] font-semibold"
           >
-            <Target size={12} />
+            <Dumbbell size={12} />
             Practice
           </button>
         )}
@@ -489,7 +489,20 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
             >
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-accent/[0.05] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <span className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/40 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)] backdrop-blur-sm transition-all duration-200 group-hover:border-primary/25 group-hover:bg-primary/[0.08] group-hover:-translate-y-px ${toneClass}`}>
-                <TopicIcon size={20} strokeWidth={2.25} aria-hidden="true" />
+                {TOPIC_ICON_MAP[t.id].symbol ? (
+                  <span className="font-display text-lg font-black leading-none" aria-hidden="true">
+                    {TOPIC_ICON_MAP[t.id].symbol}
+                  </span>
+                ) : TOPIC_ICON_MAP[t.id].icon ? (
+                  <>
+                    <TopicIcon size={20} strokeWidth={2.25} aria-hidden="true" />
+                    {TOPIC_ICON_MAP[t.id].badge && (
+                      <span className="absolute -right-0.5 -top-1 rounded-sm bg-background px-0.5 font-display text-[8px] font-black leading-none text-foreground" aria-hidden="true">
+                        {TOPIC_ICON_MAP[t.id].badge}
+                      </span>
+                    )}
+                  </>
+                ) : null}
               </span>
               <span className="relative max-w-full text-balance font-display text-[13px] font-semibold leading-[1.15] tracking-[0.01em] text-foreground sm:text-sm">
                 {t.title}
