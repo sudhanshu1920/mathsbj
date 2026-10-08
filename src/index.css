@@ -2644,3 +2644,33 @@ select,
 .font-display {
   font-family: var(--app-font), system-ui, sans-serif !important;
 }
+
+/* Global non-editable UI text is not selectable. Keep genuine text-entry controls editable. */
+html,
+body,
+#root,
+#root * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"],
+[contenteditable=""],
+[contenteditable="plaintext-only"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Prevent native drag-selection behavior on non-editable UI without affecting scrolling. */
+#root img,
+#root svg {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
