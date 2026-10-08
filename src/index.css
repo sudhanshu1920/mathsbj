@@ -2373,6 +2373,28 @@ html.dark {
   -webkit-backdrop-filter: blur(18px) saturate(1.05);
 }
 
+/* App-wide non-editable UI text selection prevention.
+   Keep genuine text-entry controls selectable so typing/cursor/editing remain normal. */
+html,
+body,
+#root {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+[contenteditable=""],
+[contenteditable="plaintext-only"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 /* Touch-friendly, calm interactions. */
 button,
 a,
