@@ -1355,3 +1355,184 @@ html.light .bottom-nav {
 .periodic-table-scroll .periodic-table-placeholder {
   max-width: none !important;
 }
+
+
+/* ========================================================================
+   MATH MASTER — Aesthetic Design System
+   Centralized semantic roles used by the existing Tailwind/shadcn UI.
+   Keep business logic untouched; these tokens define visual language only.
+   ======================================================================== */
+
+:root {
+  --ds-primary: hsl(var(--primary));
+  --ds-primary-soft: hsl(var(--primary) / 0.10);
+  --ds-secondary: hsl(var(--secondary));
+  --ds-accent: hsl(var(--accent));
+  --ds-background: hsl(var(--background));
+  --ds-surface: hsl(var(--card));
+  --ds-surface-elevated: hsl(var(--popover));
+  --ds-text-primary: hsl(var(--foreground));
+  --ds-text-secondary: hsl(var(--muted-foreground));
+  --ds-border: hsl(var(--border));
+  --ds-divider: hsl(var(--border) / 0.65);
+  --ds-success: hsl(var(--success));
+  --ds-warning: hsl(var(--warning));
+  --ds-error: hsl(var(--destructive));
+  --ds-info: hsl(var(--accent));
+  --ds-disabled: hsl(var(--muted-foreground) / 0.55);
+  --ds-radius-sm: 0.75rem;
+  --ds-radius-md: 1rem;
+  --ds-radius-lg: 1.25rem;
+  --ds-shadow-card: 0 8px 28px -20px hsl(220 30% 10% / 0.28);
+  --ds-shadow-elevated: 0 16px 40px -24px hsl(220 30% 10% / 0.34);
+  --ds-gradient-primary: linear-gradient(135deg, hsl(var(--primary) / 0.96), hsl(var(--primary) / 0.72));
+  --ds-gradient-subtle: linear-gradient(180deg, hsl(var(--primary) / 0.08), hsl(var(--card) / 0.92));
+}
+
+html.dark {
+  --ds-shadow-card: 0 10px 30px -22px hsl(0 0% 0% / 0.70);
+  --ds-shadow-elevated: 0 18px 46px -26px hsl(0 0% 0% / 0.82);
+}
+
+/* Base canvas: calm depth without changing each screen independently. */
+.app-frame {
+  background:
+    radial-gradient(900px 420px at 50% -8%, hsl(var(--primary) / 0.055), transparent 64%),
+    hsl(var(--background));
+  color: var(--ds-text-primary);
+}
+
+.app-frame-scroll {
+  background: transparent;
+}
+
+/* Shared surfaces: matte, readable and consistent across all screens. */
+.bg-card {
+  box-shadow: var(--ds-shadow-card);
+}
+
+.glass,
+.glass-panel {
+  background: var(--ds-gradient-subtle) !important;
+  border-color: var(--ds-border) !important;
+  box-shadow: var(--ds-shadow-card);
+  backdrop-filter: blur(14px) saturate(1.04);
+  -webkit-backdrop-filter: blur(14px) saturate(1.04);
+}
+
+.bg-card,
+.glass,
+.glass-panel {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+/* Replace rainbow/neon gradients with restrained, theme-aware gradients. */
+.gradient-primary {
+  background: var(--ds-gradient-primary) !important;
+  box-shadow: 0 10px 24px -16px hsl(var(--primary) / 0.55);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, hsl(var(--success) / 0.96), hsl(var(--success) / 0.70)) !important;
+  box-shadow: 0 10px 24px -16px hsl(var(--success) / 0.40);
+}
+
+.gradient-warm {
+  background: linear-gradient(135deg, hsl(var(--accent) / 0.96), hsl(var(--primary) / 0.72)) !important;
+  box-shadow: 0 10px 24px -16px hsl(var(--accent) / 0.38);
+}
+
+.neon-text {
+  text-shadow: none !important;
+}
+
+.text-glow {
+  text-shadow: none !important;
+}
+
+/* Consistent keyboard/touch focus treatment. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.20);
+}
+
+/* Shared top bar: clear hierarchy, quiet chrome. */
+.app-topbar-page,
+.app-topbar-stats {
+  background: hsl(var(--card) / 0.76) !important;
+  border: 1px solid hsl(var(--border) / 0.72) !important;
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.app-topbar-page h1,
+.app-topbar-page h2,
+.app-topbar-stats h1 {
+  letter-spacing: -0.02em;
+}
+
+/* Shared theme / layout controls. */
+[data-app-topbar] .glass,
+[data-app-topbar] .glass-panel,
+[data-app-topbar] button {
+  box-shadow: none;
+}
+
+/* Learning/practice/result cards gain lift on hover without disturbing layout. */
+@media (hover: hover) {
+  .bg-card:hover,
+  .glass:hover,
+  .glass-panel:hover {
+    border-color: hsl(var(--primary) / 0.34) !important;
+  }
+}
+
+/* Modal/popover surfaces follow the same system. */
+[role="dialog"],
+[data-radix-popper-content-wrapper] > div {
+  border-color: hsl(var(--border) / 0.78);
+  box-shadow: var(--ds-shadow-elevated);
+}
+
+/* Keep long study sessions comfortable. */
+p,
+span,
+label,
+button,
+input,
+select,
+textarea {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Bottom navigation is intentionally floating and compact on every viewport. */
+.bottom-nav {
+  border-color: hsl(var(--border) / 0.82) !important;
+  background: hsl(var(--card) / 0.90) !important;
+  box-shadow: 0 16px 34px -18px hsl(220 30% 10% / 0.45) !important;
+  backdrop-filter: blur(18px) saturate(1.06);
+  -webkit-backdrop-filter: blur(18px) saturate(1.06);
+}
+
+html.dark .bottom-nav {
+  background: hsl(var(--card) / 0.84) !important;
+  box-shadow: 0 18px 34px -18px hsl(0 0% 0% / 0.78) !important;
+}
+
+/* Respect reduced-motion and existing low-power safeguards. */
+@media (prefers-reduced-motion: reduce) {
+  .bg-card,
+  .glass,
+  .glass-panel {
+    transition: none !important;
+  }
+}
