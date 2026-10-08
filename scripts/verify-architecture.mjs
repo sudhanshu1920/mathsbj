@@ -42,6 +42,12 @@ if (!icons.includes('Grid3x3') || !icons.includes('Radical') || !icons.includes(
 if (practice.includes('sort(() => Math.random() - 0.5)')) {
   fail('biased random sort shuffle reintroduced');
 }
+if (!index.includes('const showBottomNav = !settingsOpen;')) {
+  fail('floating-bar visibility is not controlled by the shared Settings state');
+}
+if (!index.includes("scrollElement.style.setProperty('--floating-bar-height', '0px');")) {
+  fail('Settings layout does not clear the floating-bar reserve synchronously');
+}
 if (!index.includes('--floating-bar-height') || !index.includes('ResizeObserver')) {
   fail('runtime floating-bar measurement architecture is missing');
 }
