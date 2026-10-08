@@ -36,7 +36,7 @@ const setSyncing = (v: boolean) => {
 };
 export const isSyncing = () => syncing;
 
-export async function pullFromCloud(userId: string): Promise<void> {
+export async function pullFromCloud(userId: string, canApply?: () => boolean): Promise<void> {
   if (!supabase || !navigator.onLine) return;
   setSyncing(true);
   try {
@@ -48,6 +48,8 @@ export async function pullFromCloud(userId: string): Promise<void> {
     if (error) throw error;
     if (!data) return;
 
+    if (canApply && !canApply()) return;
+
     const localMeta = getMeta();
     const remoteTs = data.client_updated_at ? new Date(data.client_updated_at).getTime() : 0;
     const localTs = localMeta.lastPushAt || 0;
@@ -56,6 +58,7 @@ export async function pullFromCloud(userId: string): Promise<void> {
     const switchedUser = localMeta.userId && localMeta.userId !== userId;
 
     if (switchedUser || remoteTs >= localTs) {
+      if (canApply && !canApply()) return;
       if (data.progress && Object.keys(data.progress as object).length) writeJSON(KEYS.progress, data.progress);
       if (data.analytics && Object.keys(data.analytics as object).length) writeJSON(KEYS.analytics, data.analytics);
       if (data.streak && Object.keys(data.streak as object).length) writeJSON(KEYS.streak, data.streak);
@@ -118,10 +121,23 @@ export function clearLocalUserData() {
 /** Initialize sync listeners for a signed-in user. Returns a cleanup fn. */
 export function startSync(userId: string): () => void {
   if (!supabase) return () => {};
-  void pullFromCloud(userId).then(() => { void pushToCloud(userId); });
 
-  const onLocalChange = () => schedulePush(userId);
-  const onOnline = () => { void pushToCloud(userId); };
+  let disposed = false;
+  const isCurrent = () => !disposed;
+
+  // Do not push a user's local snapshot until that user's cloud state has been
+  // safely pulled. The guard prevents a late pull from an old account from
+  // overwriting a newly signed-in user's local data after navigation/sign-out.
+  void pullFromCloud(userId, isCurrent).then(() => {
+    if (!disposed) void pushToCloud(userId);
+  });
+
+  const onLocalChange = () => {
+    if (!disposed) schedulePush(userId);
+  };
+  const onOnline = () => {
+    if (!disposed) void pushToCloud(userId);
+  };
 
   window.addEventListener('analytics-updated', onLocalChange);
   window.addEventListener('streak-updated', onLocalChange);
@@ -129,14 +145,20 @@ export function startSync(userId: string): () => void {
   window.addEventListener('online', onOnline);
 
   // Periodic safety push
-  const interval = window.setInterval(() => { if (navigator.onLine) void pushToCloud(userId); }, 60_000);
+  const interval = window.setInterval(() => {
+    if (!disposed && navigator.onLine) void pushToCloud(userId);
+  }, 60_000);
 
   return () => {
+    disposed = true;
     window.removeEventListener('analytics-updated', onLocalChange);
     window.removeEventListener('streak-updated', onLocalChange);
     window.removeEventListener('xp-updated', onLocalChange);
     window.removeEventListener('online', onOnline);
     window.clearInterval(interval);
-    if (pushTimer) window.clearTimeout(pushTimer);
+    if (pushTimer) {
+      window.clearTimeout(pushTimer);
+      pushTimer = undefined;
+    }
   };
 }
