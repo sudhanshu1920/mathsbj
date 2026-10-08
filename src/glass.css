@@ -1,0 +1,279 @@
+/*
+ * Math Master — App-wide Glass Design System
+ * Single source of truth for reusable glass surfaces.
+ *
+ * Glass is derived from the existing theme + appearance tokens:
+ * theme = color identity, appearance = light/dark, glass = visual treatment.
+ * No user-controlled CSS values are accepted here.
+ */
+
+:root {
+  --glass-background: hsl(var(--card) / 0.42);
+  --glass-background-strong: hsl(var(--card) / 0.60);
+  --glass-background-subtle: hsl(var(--card) / 0.30);
+  --glass-tint: hsl(var(--primary) / 0.075);
+  --glass-tint-accent: hsl(var(--accent) / 0.035);
+  --glass-opacity: 0.42;
+  --glass-border: hsl(var(--foreground) / 0.10);
+  --glass-border-strong: hsl(var(--border) / 0.72);
+  --glass-highlight: hsl(0 0% 100% / 0.13);
+  --glass-shadow:
+    0 20px 46px -30px hsl(220 35% 4% / 0.52),
+    0 8px 24px -18px hsl(var(--primary) / 0.18);
+  --glass-shadow-strong:
+    0 24px 56px -28px hsl(220 35% 4% / 0.64),
+    0 10px 28px -18px hsl(var(--primary) / 0.22);
+  --glass-blur-subtle: 8px;
+  --glass-blur-medium: 18px;
+  --glass-blur-strong: 28px;
+  --glass-saturation: 1.12;
+}
+
+html.light {
+  --glass-background: hsl(var(--card) / 0.52);
+  --glass-background-strong: hsl(var(--card) / 0.68);
+  --glass-background-subtle: hsl(var(--card) / 0.36);
+  --glass-opacity: 0.52;
+  --glass-border: hsl(var(--foreground) / 0.08);
+  --glass-border-strong: hsl(var(--border) / 0.74);
+  --glass-highlight: hsl(0 0% 100% / 0.62);
+  --glass-shadow:
+    0 18px 42px -30px hsl(220 25% 22% / 0.22),
+    0 8px 20px -18px hsl(var(--primary) / 0.15);
+  --glass-shadow-strong:
+    0 24px 50px -28px hsl(220 25% 22% / 0.28),
+    0 10px 24px -18px hsl(var(--primary) / 0.18);
+}
+
+@media (max-width: 767px) {
+  :root {
+    --glass-blur-subtle: 7px;
+    --glass-blur-medium: 16px;
+    --glass-blur-strong: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --glass-blur-subtle: 9px;
+    --glass-blur-medium: 20px;
+    --glass-blur-strong: 30px;
+  }
+}
+
+/* The frame is still the app canvas; these ambient fields create real color
+   variation behind glass so backdrop-filter has something meaningful to blur. */
+.app-frame {
+  background:
+    radial-gradient(520px 360px at 8% 0%, hsl(var(--primary) / 0.15), transparent 70%),
+    radial-gradient(500px 340px at 94% 10%, hsl(var(--accent) / 0.11), transparent 72%),
+    radial-gradient(620px 420px at 50% 100%, hsl(var(--primary) / 0.07), transparent 74%),
+    hsl(var(--background)) !important;
+}
+
+.app-frame::before {
+  opacity: 0.72;
+}
+
+.app-frame::after {
+  opacity: 0.60;
+}
+
+/* Reusable semantic glass utilities. */
+.glass,
+.glass-surface {
+  position: relative;
+  background:
+    linear-gradient(145deg, var(--glass-tint), var(--glass-tint-accent) 48%, transparent 78%),
+    var(--glass-background) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(var(--glass-blur-medium)) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur-medium)) saturate(var(--glass-saturation));
+  background-clip: padding-box;
+}
+
+.glass-panel,
+.glass-strong {
+  position: relative;
+  background:
+    linear-gradient(145deg, hsl(var(--primary) / 0.09), hsl(var(--accent) / 0.04) 52%, transparent 80%),
+    var(--glass-background-strong) !important;
+  border: 1px solid var(--glass-border-strong) !important;
+  box-shadow: var(--glass-shadow-strong), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.16);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.16);
+  background-clip: padding-box;
+}
+
+.glass-subtle {
+  background:
+    linear-gradient(145deg, hsl(var(--primary) / 0.045), hsl(var(--accent) / 0.02) 52%, transparent 82%),
+    var(--glass-background-subtle) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: 0 10px 28px -22px hsl(220 35% 4% / 0.40), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(var(--glass-blur-subtle)) saturate(1.06);
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle)) saturate(1.06);
+}
+
+/* Generic card tokens become intentionally translucent but stay inexpensive.
+   Important surfaces opt into real blur through .glass/.glass-panel. */
+.bg-card,
+[class*="bg-card/"] {
+  background:
+    linear-gradient(145deg, hsl(var(--primary) / 0.035), hsl(var(--accent) / 0.015) 55%, transparent 82%),
+    hsl(var(--card) / 0.72) !important;
+  border-color: hsl(var(--border) / 0.62);
+  box-shadow: 0 10px 26px -22px hsl(220 35% 4% / 0.36);
+}
+
+/* App chrome. Dimensions/layout remain owned by the existing selectors. */
+.app-topbar-page,
+.app-topbar-stats {
+  background:
+    linear-gradient(180deg, hsl(var(--primary) / 0.09), hsl(var(--accent) / 0.03) 54%, transparent 82%),
+    var(--glass-background-strong) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.14);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.14);
+}
+
+.bottom-nav {
+  background:
+    linear-gradient(180deg, hsl(var(--primary) / 0.10), hsl(var(--accent) / 0.035) 54%, transparent 84%),
+    var(--glass-background-strong) !important;
+  border: 1px solid var(--glass-border-strong) !important;
+  box-shadow:
+    0 22px 50px -20px hsl(220 35% 4% / 0.58),
+    inset 0 1px 0 var(--glass-highlight) !important;
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.16);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.16);
+}
+
+[data-radix-popper-content-wrapper] > div,
+[role="dialog"] {
+  background:
+    linear-gradient(145deg, hsl(var(--primary) / 0.09), hsl(var(--accent) / 0.035) 56%, transparent 82%),
+    var(--glass-background-strong) !important;
+  border: 1px solid var(--glass-border-strong) !important;
+  box-shadow: var(--glass-shadow-strong), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.16);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.16);
+}
+
+/* Nested command/select surfaces should not become an opaque second layer. */
+[role="dialog"] .bg-popover,
+[role="dialog"] .bg-card,
+[data-radix-popper-content-wrapper] .bg-popover {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Settings gets an atmospheric separation layer without hiding its content. */
+.settings-glass-shell {
+  background: hsl(var(--background) / 0.62) !important;
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+/* Strong surfaces should be visually lifted, not neon. */
+.glass-glow {
+  box-shadow: var(--glass-shadow-strong), var(--glow-primary), inset 0 1px 0 var(--glass-highlight) !important;
+}
+
+/* Theme-aware focus remains clearly visible over glass. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  box-shadow:
+    0 0 0 3px hsl(var(--primary) / 0.18),
+    inset 0 1px 0 var(--glass-highlight);
+}
+
+/* Unsupported backdrop-filter: keep a deliberate translucent/tinted surface. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-surface,
+  .glass-subtle,
+  .glass-panel,
+  .glass-strong,
+  .app-topbar-page,
+  .app-topbar-stats,
+  .bottom-nav,
+  [data-radix-popper-content-wrapper] > div,
+  [role="dialog"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .glass,
+  .glass-surface,
+  .glass-subtle {
+    background:
+      linear-gradient(145deg, hsl(var(--primary) / 0.09), hsl(var(--accent) / 0.035)),
+      hsl(var(--card) / 0.78) !important;
+  }
+
+  .glass-panel,
+  .glass-strong,
+  .app-topbar-page,
+  .app-topbar-stats,
+  .bottom-nav,
+  [data-radix-popper-content-wrapper] > div,
+  [role="dialog"] {
+    background:
+      linear-gradient(145deg, hsl(var(--primary) / 0.11), hsl(var(--accent) / 0.04)),
+      hsl(var(--card) / 0.88) !important;
+  }
+}
+
+/* Device profile fallback already used by the app stays authoritative. */
+html.low-power .glass,
+html.low-power .glass-surface,
+html.low-power .glass-subtle,
+html.low-power .glass-panel,
+html.low-power .glass-strong,
+html.low-power .app-topbar-page,
+html.low-power .app-topbar-stats,
+html.low-power .bottom-nav,
+html.low-power [data-radix-popper-content-wrapper] > div,
+html.low-power [role="dialog"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background:
+    linear-gradient(145deg, hsl(var(--primary) / 0.06), hsl(var(--accent) / 0.025)),
+    hsl(var(--card) / 0.94) !important;
+  box-shadow: 0 10px 24px -18px hsl(220 35% 4% / 0.32), inset 0 1px 0 var(--glass-highlight) !important;
+}
+
+html.low-power .app-frame::before,
+html.low-power .app-frame::after {
+  display: none;
+}
+
+/* Dense scientific data stays crisp. The enclosing table/detail panel can be glass. */
+.periodic-element-cell,
+.periodic-table-placeholder,
+.trig-table td,
+.trig-table th {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Avoid expensive continuous motion in reduced-motion mode without removing
+   the static glass treatment. */
+@media (prefers-reduced-motion: reduce) {
+  .glass,
+  .glass-surface,
+  .glass-subtle,
+  .glass-panel,
+  .glass-strong,
+  .app-topbar-page,
+  .app-topbar-stats,
+  .bottom-nav {
+    transition: none !important;
+  }
+}
