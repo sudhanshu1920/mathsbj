@@ -473,39 +473,39 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
       </div>
 
       <div className="grid grid-cols-2 gap-3 pb-6 animate-fade-in sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {topics.map((t, index) => {
-          const { icon: TopicIcon, toneClass } = TOPIC_ICON_MAP[t.id];
+        {topics.map((topicId, index) => {
+          const { icon: TopicIcon, toneClass } = TOPIC_ICON_MAP[topicId];
           return (
             <motion.button
-              key={t.id}
+              key={topicId}
               type="button"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.035, duration: 0.24 }}
               whileTap={{ scale: 0.985 }}
-              onClick={() => setActiveTopic(t.id)}
-              aria-label={`Open ${TOPIC_ICON_MAP[t].label} learning topic`}
+              onClick={() => setActiveTopic(topicId)}
+              aria-label={`Open ${TOPIC_ICON_MAP[topicId].label} learning topic`}
               className="group glass relative flex min-h-[132px] w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-[1.15rem] px-3.5 py-4 text-center outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[var(--ds-shadow-elevated)] focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0"
             >
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-accent/[0.05] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <span className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/40 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)] backdrop-blur-sm transition-all duration-200 group-hover:border-primary/25 group-hover:bg-primary/[0.08] group-hover:-translate-y-px ${toneClass}`}>
-                {TOPIC_ICON_MAP[t.id].symbol ? (
+                {TOPIC_ICON_MAP[topicId].symbol ? (
                   <span className="font-display text-lg font-black leading-none" aria-hidden="true">
                     {TOPIC_ICON_MAP[t.id].symbol}
                   </span>
-                ) : TOPIC_ICON_MAP[t.id].icon ? (
+                ) : TOPIC_ICON_MAP[topicId].icon ? (
                   <>
                     <TopicIcon size={20} strokeWidth={2.25} aria-hidden="true" />
-                    {TOPIC_ICON_MAP[t.id].badge && (
+                    {TOPIC_ICON_MAP[topicId].badge && (
                       <span className="absolute -right-0.5 -top-1 rounded-sm bg-background px-0.5 font-display text-[8px] font-black leading-none text-foreground" aria-hidden="true">
-                        {TOPIC_ICON_MAP[t.id].badge}
+                        {TOPIC_ICON_MAP[topicId].badge}
                       </span>
                     )}
                   </>
                 ) : null}
               </span>
               <span className="relative max-w-full text-balance font-display text-[13px] font-semibold leading-[1.15] tracking-[0.01em] text-foreground sm:text-sm">
-                {TOPIC_ICON_MAP[t].label}
+                {TOPIC_ICON_MAP[topicId].label}
               </span>
             </motion.button>
           );
