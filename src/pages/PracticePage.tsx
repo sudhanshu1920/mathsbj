@@ -639,8 +639,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const handleAnswerRef = useRef<(answer: number | string | null) => void>(() => {});
   const finishLockRef = useRef(false);
   const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const timerRef = useRef<ReturnType<typeof setInterval>>();
-  const elapsedRef = useRef<ReturnType<typeof setInterval>>();
+  const sessionIntervalRef = useRef<ReturnType<typeof setInterval>>();
   const inputRef = useRef<HTMLInputElement>(null);
   const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
   // externalBackRequest is an edge-triggered signal from the app shell.
@@ -785,51 +784,50 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
 
 
+  // One shared 1 Hz session clock handles elapsed time, daily streak time and
+  // the per-question timer. Keeping one interval avoids timer duplication and
+  // prevents timer recreation on every question.
   useEffect(() => {
-    if (!config || finished || !config.infinite) {
-      if (elapsedRef.current) clearInterval(elapsedRef.current);
+    if (!config || finished) {
+      if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+      sessionIntervalRef.current = undefined;
       return;
     }
-    elapsedRef.current = setInterval(() => setElapsedTime(prev => prev + 1), 1000);
-    return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
-  }, [config, finished]);
 
-  // Daily streak time tracking — ticks every second while a session is active
-  useEffect(() => {
-    if (!config || finished) return;
-    const id = setInterval(() => {
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    sessionIntervalRef.current = setInterval(() => {
+      if (config.infinite) {
+        setElapsedTime((prev) => prev + 1);
+      }
+
       if (isActive()) {
         addStreakSeconds(1);
       }
+
+      if (config.timerEnabled && config.timerSeconds < 9999) {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            handleAnswerRef.current(null);
+            return config.timerSeconds;
+          }
+          return prev - 1;
+        });
+      }
     }, 1000);
-    return () => clearInterval(id);
+
+    return () => {
+      if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+      sessionIntervalRef.current = undefined;
+    };
   }, [config, finished]);
-
-  useEffect(() => {
-    if (!config || finished) return;
-    if (!config.timerEnabled || config.timerSeconds >= 9999) return;
-    if (timerRef.current) clearInterval(timerRef.current);
-
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          handleAnswerRef.current(null);
-          return config.timerSeconds;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [config, currentQ, finished]);
 
   const finishQuiz = useCallback(() => {
     if (finishLockRef.current) return;
     finishLockRef.current = true;
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (elapsedRef.current) clearInterval(elapsedRef.current);
-    timerRef.current = undefined;
-    elapsedRef.current = undefined;
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    sessionIntervalRef.current = undefined;
+    sessionIntervalRef.current = undefined;
     onQuizFinish?.();
     setFinished(true);
   }, [onQuizFinish]);
@@ -921,7 +919,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           const nextPool = generateQuestions(config);
           if (nextPool.length === 0) {
             setFinished(true);
-            if (timerRef.current) clearInterval(timerRef.current);
+            if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
           } else {
             // Keep infinite mode memory-bounded: recycle a fresh pool instead
             // of appending another full pool on every cycle.
@@ -977,12 +975,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, [currentQ, config]);
 
   const resetToPracticeHome = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (elapsedRef.current) clearInterval(elapsedRef.current);
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
-    timerRef.current = undefined;
-    elapsedRef.current = undefined;
+    sessionIntervalRef.current = undefined;
+    sessionIntervalRef.current = undefined;
     answerAdvanceTimerRef.current = undefined;
     autoSubmitTimerRef.current = undefined;
     answerLockRef.current = false;
@@ -1038,12 +1036,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   // Safety net for route changes/unmounts: release every session timer/timeout.
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (elapsedRef.current) clearInterval(elapsedRef.current);
+      if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+      if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
       if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
       if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
-      timerRef.current = undefined;
-      elapsedRef.current = undefined;
+      sessionIntervalRef.current = undefined;
+      sessionIntervalRef.current = undefined;
       answerAdvanceTimerRef.current = undefined;
       autoSubmitTimerRef.current = undefined;
     };
@@ -1350,18 +1348,18 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         {config.mode === 'mcq' && q.options && (
           <div className="mcq-options-grid grid gap-3 mt-[30px]">
             {q.options.map((opt, i) => {
-              let optStyle = 'glass text-foreground shadow-[0_0_14px_-6px_hsl(var(--primary)/0.3)] active:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
+              let optStyle = 'glass-lite text-foreground shadow-[0_0_14px_-6px_hsl(var(--primary)/0.3)] active:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
               if (feedback && selectedOption === i) {
                 optStyle = feedback === 'correct'
                   ? 'bg-success/20 border-2 border-success text-success shadow-[0_0_28px_hsl(var(--success)/0.55)]'
                   : 'bg-destructive/20 border-2 border-destructive text-destructive shadow-[0_0_24px_hsl(var(--destructive)/0.5)]';
               }
               return (
-                <motion.button key={`${currentQ}-${i}`} whileTap={{ scale: 0.94 }} whileHover={{ y: -1 }}
+                <button key={`${currentQ}-${i}`}
                   onClick={() => { if (feedback) return; setSelectedOption(i); handleAnswer(opt); }}
                   className={`w-full h-full rounded-2xl px-2 flex items-center justify-center text-center font-display font-bold text-base transition-all overflow-hidden ${optStyle}`}>
                   {renderOption(opt, i)}
-                </motion.button>
+                </button>
               );
             })}
           </div>
@@ -1481,9 +1479,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           {TOPICS.map((t) => {
             const isSelected = selectedTopics.has(t.id);
             return (
-              <motion.button
+              <button
                 key={t.id}
-                whileTap={{ scale: 0.93 }}
                 onClick={() => toggleTopic(t.id)}
                 className={`flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition-all relative overflow-hidden ${
                   isSelected
@@ -1498,7 +1495,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 {isSelected && (
                   <motion.div layoutId="glow" className="absolute inset-0 bg-primary/10 rounded-2xl" initial={false} />
                 )}
-              </motion.button>
+              </button>
             );
           })}
         </div>
@@ -1519,7 +1516,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             const isTrig = tid === 'trig';
 
             return (
-              <div key={tid} className="glass rounded-2xl overflow-hidden">
+              <div key={tid} className="glass-lite rounded-2xl overflow-hidden">
                 <button
                   onClick={() => { if (!isTrig) setExpandedTopic(isExpanded ? null : tid); }}
                   className="w-full flex items-center justify-between px-4 py-3"
