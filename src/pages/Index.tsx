@@ -450,7 +450,7 @@ const Index = () => {
   }, []);
 
   const handleTabChange = useCallback((newTab: Tab, transitionDirection?: SectionTransitionDirection) => {
-    if (newTab === tab) return;
+    if (newTab === tab || sectionTransitionDirection) return;
 
     if (newTab !== 'practice' && tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
       requestPracticeNavigation(newTab);
@@ -471,7 +471,7 @@ const Index = () => {
     // Keep the current screen visible while lazy chunks resolve. The transition
     // starts only once the destination screen is ready, preventing blank flashes.
     startTransition(applyNavigation);
-  }, [tab, practicePhase, requestPracticeNavigation, clearPracticeState]);
+  }, [tab, practicePhase, sectionTransitionDirection, requestPracticeNavigation, clearPracticeState]);
 
   const handleDoubleTap = useCallback((targetTab: Tab) => {
     if (tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {

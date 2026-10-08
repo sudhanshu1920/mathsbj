@@ -129,6 +129,22 @@ if (!index.includes("tab === 'practice' && practicePhase === 'setup'")) {
 if (!index.includes("appSectionSwipeEnabled =")) {
   fail('Page-level swipe enablement guard is missing');
 }
+if (!index.includes("AnimatePresence") ||
+    !index.includes('mode="sync"') ||
+    !index.includes('variants={sectionPageVariants}') ||
+    !index.includes("translate3d") && !index.includes("translateX")) {
+  fail('Directional page transition architecture is missing');
+}
+if (!index.includes("useReducedMotion") ||
+    !index.includes("prefersReducedMotion ? 0.01 : 0.28")) {
+  fail('Reduced-motion-aware section transition timing is missing');
+}
+if (!index.includes("startTransition(applyNavigation)")) {
+  fail('Navigation must keep the current screen visible while lazy destination chunks resolve');
+}
+if (!index.includes("!sectionTransitionDirection")) {
+  fail('Page-level swiping must be locked while a section transition is active');
+}
 if (!index.includes("e.pointerType === 'mouse'") || !index.includes('!e.isPrimary')) {
   fail('app-level swipe is not protected from mouse or multi-touch gestures');
 }
