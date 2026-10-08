@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Atom, Box, Grid3x3, Percent, Radical, Sigma, Square, Superscript, Triangle } from 'lucide-react';
+import { Atom, Box, Grid3X3, Percent, Radical, Sigma, Square, Superscript, Triangle } from 'lucide-react';
 
 export type LearningTopicId =
   | 'tables'
@@ -53,7 +53,7 @@ const ADDITION_SUBTRACTION_ICON: TopicIconConfig = {
  */
 export const TOPIC_ICON_MAP: Record<AppTopicId, TopicIconConfig> = {
   tables: {
-    icon: Grid3x3,
+    icon: Grid3X3,
     toneClass: 'text-primary',
     label: 'Tables',
   },
