@@ -117,7 +117,7 @@ if (!index.includes("!settingsOpen") ||
 if (!index.includes("direction === 'left' ? 1 : -1")) {
   fail('Left swipe must map to the next section and right swipe to the previous section');
 }
-if (!index.includes("if (nextTab) handleTabChange(nextTab);")) {
+if (!index.includes("if (nextTab) handleTabChange(nextTab, direction);")) {
   fail('Boundary swipes must resolve to a safe no-op without navigation');
 }
 if (!index.includes("tab === 'learn' && learningState.activeTopic === null")) {
