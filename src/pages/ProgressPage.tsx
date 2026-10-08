@@ -8,6 +8,7 @@ import XPBar from '@/components/XPBar';
 import SettingsPanel from '@/components/SettingsPanel';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
+import { TOPIC_ICON_MAP } from '@/lib/topicIcons';
 
 interface ProgressPageProps {
   onSettingsVisibilityChange?: (visible: boolean) => void;
@@ -65,14 +66,9 @@ const ProgressPage = ({ onSettingsVisibilityChange }: ProgressPageProps) => {
     { label: 'Streak', value: data.bestStreak, icon: Flame, color: 'text-warning' },
   ];
 
-  const topicNames: Record<string, string> = {
-    tables: 'Tables',
-    squares: 'Squares',
-    roots: 'Roots',
-    cubes: 'Cubes',
-    powers: 'Powers',
-    percentage: 'Percentage',
-  };
+  const topicNames: Record<string, string> = Object.fromEntries(
+    Object.entries(TOPIC_ICON_MAP).map(([id, config]) => [id, config.label]),
+  );
 
   return (
     <div>
