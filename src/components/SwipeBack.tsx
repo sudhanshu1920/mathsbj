@@ -1,4 +1,5 @@
 import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
 
 interface SwipeBackProps {
   onBack: () => void;
@@ -84,11 +85,12 @@ const SwipeBack = ({ onBack, children, enabled = true }: SwipeBackProps) => {
     if (!start.current || pointerId.current !== e.pointerId) return;
 
     const dx = e.clientX - start.current.x;
+    const direction = getHorizontalSwipeDirection(dx, 0, TRIGGER_DISTANCE);
     const shouldGoBack =
       !cancelled &&
       axis.current === 'x' &&
       active.current &&
-      (dx >= TRIGGER_DISTANCE || velocityX.current >= TRIGGER_VELOCITY);
+      (direction === 'right' || velocityX.current >= TRIGGER_VELOCITY);
 
     e.currentTarget.style.removeProperty('--swipe-back-offset');
     try {
