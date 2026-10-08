@@ -256,10 +256,24 @@ jobs:
           path = Path("android/app/src/main/AndroidManifest.xml")
           text = path.read_text(encoding="utf-8")
           permission = '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />'
+
+          # Capacitor-generated manifests can omit the android namespace on the
+          # root element. Ensure the permission we add is always namespace-valid.
+          manifest_start = text.find("<manifest")
+          manifest_end = text.find(">", manifest_start)
+          if manifest_start < 0 or manifest_end < 0:
+              raise SystemExit("AndroidManifest.xml has no valid <manifest> root element")
+
+          root = text[manifest_start:manifest_end + 1]
+          if "xmlns:android=" not in root:
+              root = root[:-1] + ' xmlns:android="http://schemas.android.com/apk/res/android">'
+              text = text[:manifest_start] + root + text[manifest_end + 1:]
+              manifest_end = manifest_start + len(root) - 1
+
           if permission not in text:
-              text = text.replace("<manifest", "<manifest", 1)
-              insert_at = text.find(">") + 1
+              insert_at = manifest_end + 1
               text = text[:insert_at] + "\n" + permission + text[insert_at:]
+
           path.write_text(text, encoding="utf-8")
           PY
 
