@@ -1536,3 +1536,67 @@ html.dark .bottom-nav {
     transition: none !important;
   }
 }
+
+
+/* ----- Professional Slate theme: calm, focused and education-first ----- */
+html.theme-professional-slate.dark,
+html.theme-professional-slate:not(.light) {
+  --background: 222 28% 8%;
+  --foreground: 210 40% 96%;
+  --card: 222 24% 12%;
+  --card-foreground: 210 40% 96%;
+  --popover: 222 24% 12%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 214 84% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 18% 17%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 220 18% 15%;
+  --muted-foreground: 215 18% 72%;
+  --accent: 171 72% 42%;
+  --accent-foreground: 0 0% 100%;
+  --border: 218 20% 24%;
+  --input: 218 20% 24%;
+  --ring: 214 84% 58%;
+  --ring-from: 214 84% 58%;
+  --ring-to: 171 72% 42%;
+  --gradient-primary: linear-gradient(135deg, hsl(214 84% 58%), hsl(214 78% 51%));
+  --gradient-success: linear-gradient(135deg, hsl(151 55% 43%), hsl(171 62% 40%));
+  --gradient-warm: linear-gradient(135deg, hsl(171 72% 42%), hsl(214 70% 52%));
+  --gradient-card: linear-gradient(180deg, hsl(222 24% 14%), hsl(222 28% 10%));
+  --glow-primary: 0 0 20px hsl(214 84% 58% / 0.24);
+  --glow-accent: 0 0 18px hsl(171 72% 42% / 0.20);
+}
+
+html.theme-professional-slate.light {
+  --background: 210 28% 97%;
+  --foreground: 222 28% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 28% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 28% 13%;
+  --primary: 214 82% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 20% 92%;
+  --secondary-foreground: 222 28% 16%;
+  --muted: 214 22% 94%;
+  --muted-foreground: 218 14% 42%;
+  --accent: 171 76% 33%;
+  --accent-foreground: 0 0% 100%;
+  --border: 214 18% 86%;
+  --input: 214 18% 86%;
+  --ring: 214 82% 48%;
+  --ring-from: 214 82% 48%;
+  --ring-to: 171 76% 33%;
+  --gradient-primary: linear-gradient(135deg, hsl(214 82% 48%), hsl(214 76% 43%));
+  --gradient-success: linear-gradient(135deg, hsl(151 58% 37%), hsl(171 65% 33%));
+  --gradient-warm: linear-gradient(135deg, hsl(171 76% 33%), hsl(214 72% 44%));
+  --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 28% 98%));
+  --glow-primary: 0 0 18px hsl(214 82% 48% / 0.16);
+  --glow-accent: 0 0 18px hsl(171 76% 33% / 0.14);
+}
+html.theme-professional-slate.dark .app-frame {
+  background:
+    radial-gradient(820px 340px at 50% -10%, hsl(214 84% 58% / 0.08), transparent 64%),
+    hsl(var(--background));
+}
