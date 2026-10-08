@@ -498,81 +498,25 @@ jobs:
           cp "$apk" MathMaster-release.apk
           ls -lh MathMaster-release.apk
 
-      - name: Remove legacy GitHub Release distribution
+      - name: Publish latest GitHub Release APK
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view latest >/dev/null 2>&1; then
-            gh release delete latest --yes --cleanup-tag
+          VERSION_CODE="$(git rev-list --count HEAD)"
+          release_tag="latest"
+          release_title="MathMaster 1.0 (${VERSION_CODE})"
+          release_notes="Automated signed Android release.\\nversionCode: ${VERSION_CODE}"
+
+          if gh release view "${release_tag}" >/dev/null 2>&1; then
+            gh release edit "${release_tag}" --title "${release_title}" --notes "${release_notes}"
+          else
+            gh release create "${release_tag}" MathMaster-release.apk --title "${release_title}" --notes "${release_notes}" --target "${GITHUB_SHA}"
+            exit 0
           fi
 
-      - name: Prepare APK-only download page
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          VERSION_CODE="$(git rev-list --count HEAD)"
-          PAGE_DIR="$RUNNER_TEMP/mathmaster-download-page"
-          mkdir -p "$PAGE_DIR"
-
-          cp MathMaster-release.apk "$PAGE_DIR/MathMaster-release.apk"
-          APK_SIZE_BYTES="$(stat -c '%s' MathMaster-release.apk)"
-          APK_SHA256="$(sha256sum MathMaster-release.apk | awk '{print $1}')"
-
-          cat > "$PAGE_DIR/version.json" <<JSON
-          {
-            "name": "MathMaster",
-            "versionName": "1.0",
-            "versionCode": ${VERSION_CODE},
-            "apk": "MathMaster-release.apk",
-            "sha256": "${APK_SHA256}",
-            "sizeBytes": ${APK_SIZE_BYTES}
-          }
-          JSON
-
-          cat > "$PAGE_DIR/index.html" <<HTML
-          <!doctype html>
-          <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1">
-            <meta name="robots" content="noindex,nofollow">
-            <title>MathMaster APK</title>
-            <style>
-              :root { color-scheme: light; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-              * { box-sizing: border-box; }
-              body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f6f8fb; color: #172033; padding: 24px; }
-              main { width: min(100%, 460px); background: #fff; border: 1px solid #e4e8ef; border-radius: 24px; padding: 32px 24px; text-align: center; box-shadow: 0 16px 48px rgba(23,32,51,.08); }
-              h1 { margin: 0 0 8px; font-size: 30px; }
-              p { margin: 8px 0; color: #657085; }
-              .version { font-size: 14px; margin-bottom: 24px; }
-              a { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 52px; border-radius: 14px; background: #2563eb; color: #fff; text-decoration: none; font-weight: 700; font-size: 17px; }
-              a:active { transform: translateY(1px); }
-              .meta { margin-top: 18px; font-size: 13px; color: #7b8495; }
-            </style>
-          </head>
-          <body>
-            <main>
-              <h1>MathMaster</h1>
-              <p>Android App</p>
-              <p class="version">Version 1.0 (${VERSION_CODE})</p>
-              <a href="MathMaster-release.apk" download>Download MathMaster APK</a>
-              <p class="meta">Signed production APK • ${APK_SIZE_BYTES} bytes</p>
-            </main>
-          </body>
-          </html>
-          HTML
-
-          test -s "$PAGE_DIR/index.html"
-          test -s "$PAGE_DIR/version.json"
-          test -s "$PAGE_DIR/MathMaster-release.apk"
-
-      - name: Upload APK-only GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: "${{ runner.temp }}/mathmaster-download-page"
+          gh release upload "${release_tag}" MathMaster-release.apk --clobber
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
@@ -582,21 +526,4 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  deploy-download-page:
-    needs: build-android
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Deploy APK-only download page
-        id: deployment
-        uses: actions/deploy-pages@v4
-# [BUILD_APK] Release pipeline now publishes the APK through a dedicated GitHub Pages download site.
 # [BUILD_APK] Native updater registration is kept in the final MainActivity.
