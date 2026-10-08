@@ -262,7 +262,7 @@ describe('PracticePage question generation', () => {
     expect(isRootAnswerCorrect(2, Math.sqrt(4), 0)).toBe(true);
     expect(isRootAnswerCorrect(2.004, Math.sqrt(4), 0)).toBe(false);
   });
-}
+});
 
 // Production APK build requested by user after independent operand digit selection and logo fix.
 // APK build rerun after self-contained app logo repair.
