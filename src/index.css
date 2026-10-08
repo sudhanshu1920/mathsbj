@@ -844,7 +844,7 @@ html.desktop-mode .app-frame {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--bottom-nav-height) + 1.5rem + var(--app-bottom-inset));
 }
 
 /* Native Android runs edge-to-edge, so some devices report a zero CSS
@@ -1259,6 +1259,15 @@ html.low-power .bottom-nav-panel {
    collapsed by the global app-frame width rules. */
 :root {
   --bottom-nav-height: 58px;
+  --app-bottom-inset: env(safe-area-inset-bottom, 0px);
+}
+
+/* Edge-to-edge Android WebViews can report a zero CSS safe-area inset while
+   the system gesture/navigation area still overlays the bottom of the app. */
+@media (pointer: coarse) {
+  :root {
+    --app-bottom-inset: max(env(safe-area-inset-bottom, 0px), 24px);
+  }
 }
 
 .bottom-nav {
