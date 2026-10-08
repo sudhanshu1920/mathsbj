@@ -1227,7 +1227,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </AlertDialog>
 
         <div className="app-topbar-page flex items-center justify-between gap-1.5" data-app-topbar>
-          <button onClick={handleExitRequest} className="text-primary flex items-center gap-1"><ArrowLeft size={18} /></button>
+          <button
+            type="button"
+            onClick={handleExitRequest}
+            aria-label="Back from Practice"
+            className="text-primary flex items-center gap-1"
+          >
+            <ArrowLeft size={18} />
+          </button>
           <div className="flex-1 px-3 max-w-[180px]">
             <XPBar />
           </div>
