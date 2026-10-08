@@ -7,7 +7,8 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command';
-import { BookOpen, Target, BarChart3, Sun, Moon, Crown, Keyboard } from 'lucide-react';
+import { BookOpen, ListChecks, BarChart3, Sun, Moon, Crown, Keyboard } from 'lucide-react';
+import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { toggleMode, useMode } from '@/lib/theme';
 import { getTablesProMode, setTablesProMode } from '@/lib/settings';
 
@@ -22,13 +23,13 @@ interface Props {
 }
 
 const TOPICS = [
-  { id: 'tables', label: 'Tables' },
-  { id: 'squares', label: 'Squares' },
-  { id: 'roots', label: 'Roots' },
-  { id: 'cubes', label: 'Cubes' },
-  { id: 'powers', label: 'Powers' },
-  { id: 'percentage', label: 'Percentage' },
-  { id: 'periodic-table', label: 'Periodic Table' },
+  { id: 'tables' as AppTopicId, label: TOPIC_ICON_MAP.tables.label },
+  { id: 'squares' as AppTopicId, label: TOPIC_ICON_MAP.squares.label },
+  { id: 'roots' as AppTopicId, label: TOPIC_ICON_MAP.roots.label },
+  { id: 'cubes' as AppTopicId, label: TOPIC_ICON_MAP.cubes.label },
+  { id: 'powers' as AppTopicId, label: TOPIC_ICON_MAP.powers.label },
+  { id: 'percentage' as AppTopicId, label: TOPIC_ICON_MAP.percentage.label },
+  { id: 'periodic-table' as AppTopicId, label: TOPIC_ICON_MAP['periodic-table'].label },
 ];
 
 const CommandPalette = ({ open, onOpenChange, onNavigate, onStartPractice, onOpenShortcuts }: Props) => {
@@ -50,7 +51,7 @@ const CommandPalette = ({ open, onOpenChange, onNavigate, onStartPractice, onOpe
             <BookOpen className="mr-2 h-4 w-4" /> Learning
           </CommandItem>
           <CommandItem onSelect={() => run(() => onNavigate('practice'))}>
-            <Target className="mr-2 h-4 w-4" /> Quiz
+            <ListChecks className="mr-2 h-4 w-4" /> Quiz
           </CommandItem>
           <CommandItem onSelect={() => run(() => onNavigate('progress'))}>
             <BarChart3 className="mr-2 h-4 w-4" /> Progress
@@ -60,11 +61,14 @@ const CommandPalette = ({ open, onOpenChange, onNavigate, onStartPractice, onOpe
         <CommandSeparator />
 
         <CommandGroup heading="Practice">
-          {TOPICS.map((t) => (
-            <CommandItem key={t.id} onSelect={() => run(() => onStartPractice(t.id))}>
-              <Target className="mr-2 h-4 w-4" /> Practice {t.label}
-            </CommandItem>
-          ))}
+          {TOPICS.map((t) => {
+            const Icon = TOPIC_ICON_MAP[t.id].icon;
+            return (
+              <CommandItem key={t.id} onSelect={() => run(() => onStartPractice(t.id))}>
+                {Icon ? <Icon className="mr-2 h-4 w-4" /> : null} Practice {t.label}
+              </CommandItem>
+            );
+          })}
         </CommandGroup>
 
         <CommandSeparator />
