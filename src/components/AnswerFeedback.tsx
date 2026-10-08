@@ -12,8 +12,6 @@ const AnswerFeedback = ({ status, correctAnswer }: AnswerFeedbackProps) => {
   const isCorrect = status === 'correct';
 
   const surfaceTint = isCorrect ? 'bg-success/[0.075]' : 'bg-destructive/[0.075]';
-  const accent = isCorrect ? 'success' : 'destructive';
-
   return (
     <motion.div
       role="status"
