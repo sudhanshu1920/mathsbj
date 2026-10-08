@@ -70,7 +70,7 @@ if ((practice.match(/setInterval\(/g) || []).length > 1) {
 if (!offlineReady.includes("Capacitor.isNativePlatform()") || !offlineReady.includes("markOfflineReady();")) {
   fail('native offline preparation still performs unnecessary chunk warming');
 }
-if (!streak.includes("let cache: StreakState | null = null") || !streak.includes("save(s, notify)")) {
+if (!streak.includes("let cache: StreakState | null = null") || !streak.includes("save(s, notify)") || !streak.includes("streak-persisted")) {
   fail('streak hot-path cache/notification throttling is missing');
 }
 if (!practice.includes('practice-exit-dialog')) {
