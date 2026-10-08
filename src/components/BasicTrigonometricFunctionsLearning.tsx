@@ -170,7 +170,7 @@ const BasicTrigonometricFunctionsLearning = () => {
         <RightTriangleDiagram />
       </section>
 
-      <section className="rounded-2xl border border-border/70 bg-card/60 p-4 sm:p-5">
+      <section className="glass-lite rounded-2xl p-4 sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="font-display text-base font-black text-foreground sm:text-lg">Trigonometric Ratios</h2>
           <span className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">SOH · CAH · TOA</span>
@@ -182,7 +182,7 @@ const BasicTrigonometricFunctionsLearning = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/70 bg-card/60 p-4 sm:p-5">
+      <section className="glass-lite rounded-2xl p-4 sm:p-5">
         <h2 className="font-display text-base font-black text-foreground sm:text-lg">Reciprocal Ratios</h2>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {reciprocalRatios.map((item) => (
@@ -194,7 +194,7 @@ const BasicTrigonometricFunctionsLearning = () => {
           <h3 className="font-display text-sm font-black text-foreground">Reciprocal relationships</h3>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             {RECIPROCAL_TRIG_FUNCTIONS.map((item) => (
-              <div key={item.symbol} className="min-w-0 overflow-x-auto rounded-xl bg-secondary/35 px-2 py-2.5">
+              <div key={item.symbol} className="glass-lite min-w-0 overflow-x-auto rounded-xl px-2 py-2.5">
                 <KaTeXBlock latex={item.latex} className="min-w-max text-[1rem] sm:text-[1.05rem]" />
               </div>
             ))}
@@ -202,7 +202,7 @@ const BasicTrigonometricFunctionsLearning = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+      <section className="glass-lite rounded-2xl p-4 sm:p-5">
         <h2 className="font-display text-base font-black text-foreground sm:text-lg">SOH – CAH – TOA</h2>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {SOH_CAH_TOA.map((item) => {
@@ -210,7 +210,7 @@ const BasicTrigonometricFunctionsLearning = () => {
             if (!ratio) return null;
 
             return (
-              <div key={item.key} className="flex items-center gap-3 rounded-xl border border-primary/15 bg-card/55 px-3 py-2.5">
+              <div key={item.key} className="glass-lite flex items-center gap-3 rounded-xl px-3 py-2.5">
                 <span className="font-display text-sm font-black text-primary">{item.key}</span>
                 <div className="min-w-0 flex-1 overflow-x-auto">
                   <KaTeXBlock latex={ratio.latex} className="min-w-max text-[0.95rem]" />
@@ -221,7 +221,7 @@ const BasicTrigonometricFunctionsLearning = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/70 bg-card/60 p-4 sm:p-5">
+      <section className="glass-lite rounded-2xl p-4 sm:p-5">
         <h2 className="font-display text-base font-black text-foreground sm:text-lg">3–4–5 Example</h2>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {[
