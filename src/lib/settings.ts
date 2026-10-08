@@ -88,13 +88,16 @@ export const setTablesProMode = (v: boolean) => {
     // Storage can be unavailable in restricted browser contexts.
   }
   if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('tables-pro-updated'));
+  }
+};
+
+if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
     if (event.key === KEY) cache = null;
     if (event.key === PRO_KEY) proCache = null;
   });
-    window.dispatchEvent(new CustomEvent('tables-pro-updated'));
-  }
-};
+}
 
 // --- Active time tracking (idle-aware) ---
 let lastInteraction = Date.now();
