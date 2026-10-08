@@ -20,12 +20,24 @@ const defaults = (): AppSettings => ({
 // JSON from localStorage each time is wasteful.
 let cache: AppSettings | null = null;
 
+const normalizeBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === 'boolean' ? value : fallback;
+
 export const getSettings = (): AppSettings => {
   if (cache) return cache;
   try {
     const raw = localStorage.getItem(KEY);
-    cache = raw ? { ...defaults(), ...JSON.parse(raw) } : defaults();
-    cache.font = normalizeFont(cache.font);
+    const parsed = raw ? JSON.parse(raw) : null;
+    const value = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+    const base = defaults();
+    cache = {
+      sound: normalizeBoolean(value.sound, base.sound),
+      vibration: normalizeBoolean(value.vibration, base.vibration),
+      keyboardShortcuts: normalizeBoolean(value.keyboardShortcuts, base.keyboardShortcuts),
+      font: normalizeFont(typeof value.font === 'string' ? value.font : base.font),
+    };
   } catch {
     cache = defaults();
   }
@@ -76,6 +88,10 @@ export const setTablesProMode = (v: boolean) => {
     // Storage can be unavailable in restricted browser contexts.
   }
   if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === KEY) cache = null;
+    if (event.key === PRO_KEY) proCache = null;
+  });
     window.dispatchEvent(new CustomEvent('tables-pro-updated'));
   }
 };
