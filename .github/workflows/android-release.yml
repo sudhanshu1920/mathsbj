@@ -167,7 +167,7 @@ jobs:
               @PluginMethod
               public void downloadAndInstall(PluginCall call) {
                   String url = call.getString("url");
-                  if (url == null || !url.startsWith("https://github.com/")) {
+                  if (url == null || !url.startsWith("https://sudhanshu1920.github.io/mathsbj/")) {
                       call.reject("Update APK source is not trusted.");
                       return;
                   }
