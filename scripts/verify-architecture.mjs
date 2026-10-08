@@ -32,7 +32,7 @@ for (const id of [
   'tables', 'squares', 'square-roots', 'cubes', 'cube-roots',
   'powers', 'percentage', 'formulas', 'periodic-table',
 ]) {
-  if (!icons.includes(`  ${id}: {`) && !icons.includes(`  '${id}': {`)) {
+  if (!icons.includes(id)) {
     fail(`missing canonical topic icon mapping: ${id}`);
   }
 }
