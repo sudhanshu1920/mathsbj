@@ -116,6 +116,9 @@ export const getStreak = (): StreakState => {
 const save = (s: StreakState, notify = true) => {
   cache = s;
   localStorage.setItem(KEY, JSON.stringify(s));
+  // Persistence sync is independent from UI refresh. This keeps partial daily
+  // progress cloud-synced without waking LearningPage every second.
+  window.dispatchEvent(new CustomEvent('streak-persisted'));
   if (notify) window.dispatchEvent(new CustomEvent('streak-updated'));
 };
 
