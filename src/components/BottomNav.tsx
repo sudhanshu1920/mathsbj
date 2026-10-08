@@ -74,7 +74,7 @@ const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, o
             <button
               key={tab.id}
               onClick={() => handleTap(tab.id)}
-              className="bottom-nav-item-button relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px] py-1"
+              className={`bottom-nav-item-button relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px] py-1 ${isActive ? 'is-active' : ''}`}
               aria-current={isActive ? 'page' : undefined}
               aria-label={tab.label}
             >
