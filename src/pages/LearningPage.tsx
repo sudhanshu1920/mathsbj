@@ -473,7 +473,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
       </div>
 
       <div className="grid grid-cols-2 gap-3 pb-6 animate-fade-in sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {topics.map((topicId, index) => {
+        {topics.map((topicId) => {
           const { icon: TopicIcon, toneClass } = TOPIC_ICON_MAP[topicId];
           return (
             <button
