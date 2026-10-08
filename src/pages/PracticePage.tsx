@@ -1192,7 +1192,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 key={`feedback-${currentQ}-${feedback}`}
                 status={feedback}
                 correctAnswer={feedback === 'wrong' ? renderCorrectAnswer() : undefined}
-                milestone={feedback === 'correct' && (score.correct + 1) % 5 === 0}
               />
             )}
           </AnimatePresence>
