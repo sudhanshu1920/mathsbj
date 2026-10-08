@@ -776,8 +776,8 @@ const Index = () => {
                   animate="center"
                   exit="exit"
                   transition={{
-                    duration: sectionTransitionDirection ? (prefersReducedMotion ? 0.01 : 0.28) : 0,
-                    ease: [0.22, 1, 0.36, 1],
+                    duration: sectionTransitionDirection ? (prefersReducedMotion ? MOTION.duration.instant : MOTION.duration.page) : 0,
+                    ease: MOTION.ease.standard,
                   }}
                   className="col-start-1 row-start-1 min-w-0 w-full"
                   style={{ willChange: sectionTransitionDirection ? 'transform' : 'auto' }}
@@ -799,8 +799,8 @@ const Index = () => {
                   animate="center"
                   exit="exit"
                   transition={{
-                    duration: sectionTransitionDirection ? (prefersReducedMotion ? 0.01 : 0.28) : 0,
-                    ease: [0.22, 1, 0.36, 1],
+                    duration: sectionTransitionDirection ? (prefersReducedMotion ? MOTION.duration.instant : MOTION.duration.page) : 0,
+                    ease: MOTION.ease.standard,
                   }}
                   className="col-start-1 row-start-1 min-w-0 w-full"
                   style={{ willChange: sectionTransitionDirection ? 'transform' : 'auto' }}
@@ -830,8 +830,8 @@ const Index = () => {
                   animate="center"
                   exit="exit"
                   transition={{
-                    duration: sectionTransitionDirection ? (prefersReducedMotion ? 0.01 : 0.28) : 0,
-                    ease: [0.22, 1, 0.36, 1],
+                    duration: sectionTransitionDirection ? (prefersReducedMotion ? MOTION.duration.instant : MOTION.duration.page) : 0,
+                    ease: MOTION.ease.standard,
                   }}
                   className="col-start-1 row-start-1 min-w-0 w-full"
                   style={{ willChange: sectionTransitionDirection ? 'transform' : 'auto' }}
