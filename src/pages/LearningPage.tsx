@@ -28,16 +28,16 @@ interface LearningPageProps {
   onLearningStateChange?: (state: LearningState) => void;
 }
 
-const topics: { id: LearningTopicId; title: string }[] = [
-  { id: 'tables', title: 'Tables' },
-  { id: 'squares', title: 'Squares' },
-  { id: 'square-roots', title: 'Square Roots' },
-  { id: 'cubes', title: 'Cubes' },
-  { id: 'cube-roots', title: 'Cube Roots' },
-  { id: 'powers', title: 'Powers' },
-  { id: 'percentage', title: 'Percentage' },
-  { id: 'formulas', title: 'Formulas' },
-  { id: 'periodic-table', title: 'Periodic Table' },
+const topics: LearningTopicId[] = [
+  'tables',
+  'squares',
+  'square-roots',
+  'cubes',
+  'cube-roots',
+  'powers',
+  'percentage',
+  'formulas',
+  'periodic-table',
 ];
 
 const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
@@ -484,7 +484,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
               transition={{ delay: index * 0.035, duration: 0.24 }}
               whileTap={{ scale: 0.985 }}
               onClick={() => setActiveTopic(t.id)}
-              aria-label={`Open ${t.title} learning topic`}
+              aria-label={`Open ${TOPIC_ICON_MAP[t].label} learning topic`}
               className="group relative flex min-h-[132px] w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-[1.15rem] border border-border/70 bg-card/80 px-3.5 py-4 text-center shadow-[var(--ds-shadow-card)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:bg-card hover:shadow-[var(--ds-shadow-elevated)] focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0"
             >
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-accent/[0.05] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
@@ -505,7 +505,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
                 ) : null}
               </span>
               <span className="relative max-w-full text-balance font-display text-[13px] font-semibold leading-[1.15] tracking-[0.01em] text-foreground sm:text-sm">
-                {t.title}
+                {TOPIC_ICON_MAP[t].label}
               </span>
             </motion.button>
           );
