@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useLayoutEffect, useRef, Suspense } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef, Suspense, startTransition } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, useReducedMotion, m as motion } from 'framer-motion';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
@@ -55,6 +56,20 @@ function getAdjacentMainSection(
   return MAIN_SECTION_ORDER[index + offset] ?? null;
 }
 
+type SectionTransitionDirection = 'left' | 'right';
+
+const sectionPageVariants = {
+  enter: (direction: SectionTransitionDirection) => ({
+    x: direction === 'left' ? '100%' : '-100%',
+  }),
+  center: {
+    x: '0%',
+  },
+  exit: (direction: SectionTransitionDirection) => ({
+    x: direction === 'left' ? '-100%' : '100%',
+  }),
+};
+
 // Compute a depth key representing how deep we are in navigation
 function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: string, practicePhase: PracticePhase = 'setup'): string {
   if (tab === 'progress') return 'progress';
@@ -94,6 +109,8 @@ const Index = () => {
   const [practiceBackRequest, setPracticeBackRequest] = useState(0);
   const [practicePhase, setPracticePhase] = useState<PracticePhase>('setup');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sectionTransitionDirection, setSectionTransitionDirection] = useState<SectionTransitionDirection | null>(null);
+  const prefersReducedMotion = useReducedMotion();
   const appFrameScrollRef = useRef<HTMLDivElement>(null);
   const bottomNavRef = useRef<HTMLElement>(null);
   const sectionSwipeRef = useRef<{
@@ -432,16 +449,28 @@ const Index = () => {
     setSettingsOpen(visible);
   }, []);
 
-  const handleTabChange = useCallback((newTab: Tab) => {
+  const handleTabChange = useCallback((newTab: Tab, transitionDirection?: SectionTransitionDirection) => {
+    if (newTab === tab) return;
+
     if (newTab !== 'practice' && tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
       requestPracticeNavigation(newTab);
       return;
     }
 
-    if (newTab !== 'practice') {
-      clearPracticeState();
+    if (transitionDirection) {
+      setSectionTransitionDirection(transitionDirection);
     }
-    setTab(newTab);
+
+    const applyNavigation = () => {
+      if (newTab !== 'practice') {
+        clearPracticeState();
+      }
+      setTab(newTab);
+    };
+
+    // Keep the current screen visible while lazy chunks resolve. The transition
+    // starts only once the destination screen is ready, preventing blank flashes.
+    startTransition(applyNavigation);
   }, [tab, practicePhase, requestPracticeNavigation, clearPracticeState]);
 
   const handleDoubleTap = useCallback((targetTab: Tab) => {
@@ -538,6 +567,7 @@ const Index = () => {
     !paletteOpen &&
     !shortcutsOpen &&
     !settingsOpen &&
+    !sectionTransitionDirection &&
     ((tab === 'learn' && learningState.activeTopic === null) ||
       (tab === 'practice' && practicePhase === 'setup') ||
       tab === 'progress');
@@ -660,7 +690,7 @@ const Index = () => {
       tab === 'progress'
     ) {
       const nextTab = getAdjacentMainSection(tab, direction);
-      if (nextTab) handleTabChange(nextTab);
+      if (nextTab) handleTabChange(nextTab, direction);
     }
   }, [
     handleTabChange,
@@ -728,41 +758,89 @@ const Index = () => {
         >
           <div className={wideDesktop ? 'flex justify-center gap-4 relative z-10' : 'contents'}>
           <div className={learningState.activeTopic === 'periodic-table'
-              ? 'w-full max-w-[1480px] mx-auto px-3 sm:px-4 pt-0 relative z-10 flex-1'
-              : 'max-w-lg mx-auto px-4 pt-0 relative z-10 flex-1'}>
-            {tab === 'learn' && (
-              <div className="animate-fade-in">
-                <LearningPage
-                  onBack={goBack}
-                  onStartPractice={handleStartPractice}
-                  learningState={learningState}
-                  onLearningStateChange={setLearningState}
-                />
-              </div>
-            )}
-            <Suspense fallback={null}>
-              {tab === 'practice' && (
-                <div className="animate-fade-in">
-                  <PracticePage
-                    initialTopic={practiceTopic}
-                    initialContext={practiceContext}
-                    initialMode={practiceMode}
-                    initialExtras={practiceExtras}
-                    onExit={handlePracticeExit}
-                    externalBackRequest={practiceBackRequest}
-                    fromLearning={returnToLearn}
-                    onQuizStart={handlePracticeStarted}
-                    onQuizFinish={handlePracticeFinished}
-                    onExitCancelled={handlePracticeExitCancelled}
+              ? 'w-full max-w-[1480px] mx-auto px-3 sm:px-4 pt-0 relative z-10 flex-1 grid grid-cols-1'
+              : 'max-w-lg mx-auto px-4 pt-0 relative z-10 flex-1 grid grid-cols-1'}>
+            <AnimatePresence
+              initial={false}
+              custom={sectionTransitionDirection ?? 'left'}
+              mode="sync"
+              onExitComplete={() => setSectionTransitionDirection(null)}
+            >
+              {tab === 'learn' && (
+                <motion.div
+                  key="learn"
+                  custom={sectionTransitionDirection ?? 'left'}
+                  variants={sectionPageVariants}
+                  initial={sectionTransitionDirection ? 'enter' : false}
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    duration: sectionTransitionDirection ? (prefersReducedMotion ? 0.01 : 0.28) : 0,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="col-start-1 row-start-1 min-w-0 w-full"
+                  style={{ willChange: sectionTransitionDirection ? 'transform' : 'auto' }}
+                >
+                  <LearningPage
+                    onBack={goBack}
+                    onStartPractice={handleStartPractice}
+                    learningState={learningState}
+                    onLearningStateChange={setLearningState}
                   />
-                </div>
+                </motion.div>
+              )}
+              {tab === 'practice' && (
+                <motion.div
+                  key="practice"
+                  custom={sectionTransitionDirection ?? 'left'}
+                  variants={sectionPageVariants}
+                  initial={sectionTransitionDirection ? 'enter' : false}
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    duration: sectionTransitionDirection ? (prefersReducedMotion ? 0.01 : 0.28) : 0,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="col-start-1 row-start-1 min-w-0 w-full"
+                  style={{ willChange: sectionTransitionDirection ? 'transform' : 'auto' }}
+                >
+                  <Suspense fallback={null}>
+                    <PracticePage
+                      initialTopic={practiceTopic}
+                      initialContext={practiceContext}
+                      initialMode={practiceMode}
+                      initialExtras={practiceExtras}
+                      onExit={handlePracticeExit}
+                      externalBackRequest={practiceBackRequest}
+                      fromLearning={returnToLearn}
+                      onQuizStart={handlePracticeStarted}
+                      onQuizFinish={handlePracticeFinished}
+                      onExitCancelled={handlePracticeExitCancelled}
+                    />
+                  </Suspense>
+                </motion.div>
               )}
               {tab === 'progress' && (
-                <div className="animate-fade-in">
-                  <ProgressPage onSettingsVisibilityChange={handleSettingsVisibilityChange} />
-                </div>
+                <motion.div
+                  key="progress"
+                  custom={sectionTransitionDirection ?? 'left'}
+                  variants={sectionPageVariants}
+                  initial={sectionTransitionDirection ? 'enter' : false}
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    duration: sectionTransitionDirection ? (prefersReducedMotion ? 0.01 : 0.28) : 0,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="col-start-1 row-start-1 min-w-0 w-full"
+                  style={{ willChange: sectionTransitionDirection ? 'transform' : 'auto' }}
+                >
+                  <Suspense fallback={null}>
+                    <ProgressPage onSettingsVisibilityChange={handleSettingsVisibilityChange} />
+                  </Suspense>
+                </motion.div>
               )}
-            </Suspense>
+            </AnimatePresence>
           </div>
 
           </div>
