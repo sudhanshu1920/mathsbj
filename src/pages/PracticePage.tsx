@@ -1178,23 +1178,23 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -30 }}
-            className="text-center mb-2 rounded-2xl py-4"
+            className="relative text-center mb-2 rounded-2xl py-4"
           >
             {renderQuestionText()}
             <div className="mt-2">{renderAnswerHint()}</div>
-          </motion.div>
-        </AnimatePresence>
 
-        <AnimatePresence mode="wait" initial={false}>
-          {feedback && (
-            <div className="pointer-events-none -mt-1 mb-1 flex justify-center">
-              <AnswerFeedback
-                key={`feedback-${currentQ}-${feedback}`}
-                status={feedback}
-                correctAnswer={feedback === 'wrong' ? renderCorrectAnswer() : undefined}
-              />
-            </div>
-          )}
+            <AnimatePresence mode="wait" initial={false}>
+              {feedback && (
+                <div className="pointer-events-none absolute inset-x-0 -bottom-1 z-10 flex translate-y-1/2 justify-center">
+                  <AnswerFeedback
+                    key={`feedback-${currentQ}-${feedback}`}
+                    status={feedback}
+                    correctAnswer={feedback === 'wrong' ? renderCorrectAnswer() : undefined}
+                  />
+                </div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </AnimatePresence>
 
         {/* Floating XP popup */}
