@@ -37,6 +37,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const startUserSync = (nextUser: User | null) => {
+      if (
+        nextUser &&
+        syncUserIdRef.current === nextUser.id &&
+        (cleanupRef.current || syncStartTimerRef.current)
+      ) {
+        return;
+      }
+
       stopCurrentSync();
       if (!nextUser) return;
 
