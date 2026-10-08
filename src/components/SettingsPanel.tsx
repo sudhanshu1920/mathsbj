@@ -135,7 +135,7 @@ const SettingsPanel = () => {
 
       {/* Guest banner */}
       {guest && (
-        <div className="bg-secondary/40 rounded-2xl p-3 flex items-center gap-3">
+        <div className="glass-lite rounded-2xl p-3 flex items-center gap-3">
           <div className="h-11 w-11 rounded-full bg-secondary text-foreground font-display font-bold flex items-center justify-center text-lg">
             G
           </div>
