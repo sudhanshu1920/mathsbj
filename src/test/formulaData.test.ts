@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FORMULA_CATEGORIES } from '@/lib/formulaData';
+import { FORMULA_SECTIONS } from '@/lib/formulaData';
 
 const flattenLatex = (value: unknown): string[] => {
   if (Array.isArray(value)) return value.flatMap((item) => flattenLatex(item));
@@ -10,7 +10,7 @@ const flattenLatex = (value: unknown): string[] => {
 
 describe('Formula data integrity', () => {
   it('defines every triangular-prism variable referenced by its surface-area formulas', () => {
-    const all = flattenLatex(FORMULA_CATEGORIES);
+    const all = flattenLatex(FORMULA_SECTIONS);
     expect(all).toContain('c_1 = \\text{Triangle side 1}');
     expect(all).toContain('c_2 = \\text{Triangle side 2}');
     expect(all).toContain('LSA = (a + c_1 + c_2) \\times h');
