@@ -1,4 +1,4 @@
-import { BookOpen, Target, BarChart3 } from 'lucide-react';
+import { BookOpen, ListChecks, BarChart3 } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import { useRef, useCallback, useState } from 'react';
 import { playClick } from '@/lib/sound';
@@ -11,7 +11,7 @@ interface BottomNavProps {
 
 const tabs = [
   { id: 'learn' as const, label: 'Learning', icon: BookOpen },
-  { id: 'practice' as const, label: 'Quiz', icon: Target },
+  { id: 'practice' as const, label: 'Quiz', icon: ListChecks },
   { id: 'progress' as const, label: 'Progress', icon: BarChart3 },
 ];
 
