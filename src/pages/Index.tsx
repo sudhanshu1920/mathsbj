@@ -42,6 +42,19 @@ const INITIAL_LEARNING_STATE: LearningState = {
   periodicSelectedElement: null,
 };
 
+const MAIN_SECTION_ORDER: readonly Tab[] = ['learn', 'practice', 'progress'];
+
+function getAdjacentMainSection(
+  current: Tab,
+  direction: 'left' | 'right',
+): Tab | null {
+  const index = MAIN_SECTION_ORDER.indexOf(current);
+  if (index < 0) return null;
+
+  const offset = direction === 'left' ? 1 : -1;
+  return MAIN_SECTION_ORDER[index + offset] ?? null;
+}
+
 // Compute a depth key representing how deep we are in navigation
 function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: string, practicePhase: PracticePhase = 'setup'): string {
   if (tab === 'progress') return 'progress';
@@ -524,8 +537,10 @@ const Index = () => {
   const appSectionSwipeEnabled =
     !paletteOpen &&
     !shortcutsOpen &&
+    !settingsOpen &&
     ((tab === 'learn' && learningState.activeTopic === null) ||
-      (tab === 'practice' && practicePhase === 'setup'));
+      (tab === 'practice' && practicePhase === 'setup') ||
+      tab === 'progress');
 
   const isExcludedAppSwipeTarget = useCallback((target: EventTarget | null, root: HTMLElement) => {
     let element = target instanceof HTMLElement ? target : null;
@@ -634,20 +649,18 @@ const Index = () => {
 
     lastSectionSwipeAt.current = now;
 
-    // Reuse the existing top-level navigation order:
-    // Learn/Home <-> Practice <-> Progress.
-    // At the first/last section, the unavailable direction is a safe no-op.
-    if (tab === 'learn' && learningState.activeTopic === null) {
-      if (direction === 'left') {
-        handleTabChange('practice');
-      }
-      // Home is the first section, so right swipe intentionally does nothing.
-    } else if (tab === 'practice' && practicePhase === 'setup') {
-      if (direction === 'left') {
-        handleTabChange('progress');
-      } else {
-        handleTabChange('learn');
-      }
+    // Navigate only between the three existing main section roots:
+    // Learning -> Quiz -> Progress.
+    // The disabled edges resolve to null, so boundary swipes are no-ops.
+    // Active Quiz sessions never reach this handler because
+    // appSectionSwipeEnabled is limited to Quiz setup.
+    if (
+      (tab === 'learn' && learningState.activeTopic === null) ||
+      (tab === 'practice' && practicePhase === 'setup') ||
+      tab === 'progress'
+    ) {
+      const nextTab = getAdjacentMainSection(tab, direction);
+      if (nextTab) handleTabChange(nextTab);
     }
   }, [
     handleTabChange,

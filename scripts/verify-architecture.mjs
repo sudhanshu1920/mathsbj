@@ -106,16 +106,28 @@ if (!index.includes("getHorizontalSwipeDirection") ||
     !index.includes("direction === 'right'")) {
   fail('Top-level horizontal swipe navigation must support both directions');
 }
-if (!index.includes("handleTabChange('practice')") ||
-    !index.includes("handleTabChange('progress')") ||
-    !index.includes("handleTabChange('learn')")) {
-  fail('Top-level swipe navigation does not preserve Learn/Practice/Progress flow');
+if (!index.includes("const MAIN_SECTION_ORDER: readonly Tab[] = ['learn', 'practice', 'progress'];") ||
+    !index.includes("getAdjacentMainSection(tab, direction)")) {
+  fail('Three-section swipe navigation must use one shared Learning/Quiz/Progress section order');
+}
+if (!index.includes("!settingsOpen") ||
+    !index.includes("tab === 'progress')) {
+  fail('Progress/settings swipe root guards are missing');
+}
+if (!index.includes("direction === 'left' ? 1 : -1")) {
+  fail('Left swipe must map to the next section and right swipe to the previous section');
+}
+if (!index.includes("if (nextTab) handleTabChange(nextTab);")) {
+  fail('Boundary swipes must resolve to a safe no-op without navigation');
 }
 if (!index.includes("tab === 'learn' && learningState.activeTopic === null")) {
   fail('Learning swipe is not restricted to the top-level Learning screen');
 }
 if (!index.includes("tab === 'practice' && practicePhase === 'setup'")) {
-  fail('Quiz-to-Progress swipe is not restricted to quiz setup');
+  fail('Quiz swipe is not restricted to quiz setup');
+}
+if (!index.includes("appSectionSwipeEnabled =")) {
+  fail('Page-level swipe enablement guard is missing');
 }
 if (!index.includes("e.pointerType === 'mouse'") || !index.includes('!e.isPrimary')) {
   fail('app-level swipe is not protected from mouse or multi-touch gestures');
