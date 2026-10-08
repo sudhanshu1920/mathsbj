@@ -670,10 +670,24 @@ html.light .neon-text {
     overscroll-behavior: none;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
+  /* Keep every native/form control on the selected global app font.
+     Component-level typography tokens still resolve through --app-font. */
   body,
   button,
   input,
   textarea,
+  select,
+  optgroup,
+  option {
+    font-family: var(--app-font), system-ui, sans-serif;
+  }
+  body,
+  button,
+  input,
+  textarea,
+  select,
+  optgroup,
+  option,
   .bg-card,
   .bg-popover,
   .bg-secondary,
