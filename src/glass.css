@@ -8,7 +8,7 @@
  */
 
 :root {
-  --glass-background: hsl(var(--card) / 0.42);
+  --glass-background: hsl(var(--card) / var(--glass-opacity));
   --glass-background-strong: hsl(var(--card) / 0.60);
   --glass-background-subtle: hsl(var(--card) / 0.30);
   --glass-tint: hsl(var(--primary) / 0.075);
