@@ -4,8 +4,15 @@ import { FORMULA_SECTIONS } from '@/lib/formulaData';
 const flattenLatex = (value: unknown): string[] => {
   if (Array.isArray(value)) return value.flatMap((item) => flattenLatex(item));
   if (!value || typeof value !== 'object') return [];
+
   const record = value as Record<string, unknown>;
-  return typeof record.latex === 'string' ? [record.latex] : [];
+  const current = typeof record.latex === 'string' ? [record.latex] : [];
+
+  return current.concat(
+    Object.values(record)
+      .filter((child) => child && typeof child === 'object')
+      .flatMap((child) => flattenLatex(child)),
+  );
 };
 
 describe('Formula data integrity', () => {
