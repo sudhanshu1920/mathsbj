@@ -178,7 +178,7 @@ if (!index.includes("AnimatePresence") ||
   fail('Directional page transition architecture is missing');
 }
 if (!index.includes("useReducedMotion") ||
-    !index.includes("prefersReducedMotion ? 0.01 : 0.28")) {
+    !index.includes("prefersReducedMotion ? MOTION.duration.instant : MOTION.duration.page")) {
   fail('Reduced-motion-aware section transition timing is missing');
 }
 if (!index.includes("startTransition(applyNavigation)")) {
