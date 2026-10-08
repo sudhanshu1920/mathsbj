@@ -149,7 +149,13 @@ const button = read('src/components/ui/button.tsx');
 if (!button.includes('motion-press')) {
   fail('Base Button does not use shared press feedback');
 }
-if (arch.includes("whileTap={{ scale: 0.92 }}")) {
+const settingsPanel = read('src/components/SettingsPanel.tsx');
+const progressPage = read('src/pages/ProgressPage.tsx');
+if (
+  practice.includes("whileTap={{ scale: 0.92 }}") ||
+  settingsPanel.includes("whileTap={{ scale: 0.92 }}") ||
+  progressPage.includes("whileTap={{ scale: 0.92 }}")
+) {
   fail('Aggressive 0.92 tap scale should not be reintroduced');
 }
 if (!index.includes("AnimatePresence") ||
