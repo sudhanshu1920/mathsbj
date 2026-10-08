@@ -83,12 +83,12 @@ const normalizeStreak = (value: unknown): StreakState => {
     targetMinutes: Number.isFinite(target) ? Math.max(1, target) : base.targetMinutes,
     current: Number.isFinite(current) ? Math.max(0, Math.floor(current)) : 0,
     best: Number.isFinite(best) ? Math.max(0, Math.floor(best), Number.isFinite(current) ? Math.max(0, Math.floor(current)) : 0) : 0,
-    freezeUsedMonth: typeof raw.freezeUsedMonth === 'string' && /^d{4}-d{2}$/.test(raw.freezeUsedMonth)
+    freezeUsedMonth: typeof raw.freezeUsedMonth === 'string' && /^\d{4}-\d{2}$/.test(raw.freezeUsedMonth)
       ? raw.freezeUsedMonth
       : base.freezeUsedMonth,
     freezesUsed: Number.isFinite(freezesUsed) ? Math.min(MAX_FREEZE_PER_MONTH, Math.max(0, Math.floor(freezesUsed))) : 0,
     days,
-    lastEvalDate: typeof raw.lastEvalDate === 'string' && /^d{4}-d{2}-d{2}$/.test(raw.lastEvalDate)
+    lastEvalDate: typeof raw.lastEvalDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.lastEvalDate)
       ? raw.lastEvalDate
       : base.lastEvalDate,
   };
