@@ -80,6 +80,7 @@ const Index = () => {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [practiceBackRequest, setPracticeBackRequest] = useState(0);
   const [practicePhase, setPracticePhase] = useState<PracticePhase>('setup');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const pendingPracticeNavigation = useRef<{
     tab: Tab;
     resetLearn?: boolean;
@@ -331,6 +332,10 @@ const Index = () => {
     setPracticeBackRequest((value) => value + 1);
   }, []);
 
+  const handleSettingsVisibilityChange = useCallback((visible: boolean) => {
+    setSettingsOpen(visible);
+  }, []);
+
   const handleTabChange = useCallback((newTab: Tab) => {
     if (newTab !== 'practice' && tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
       requestPracticeNavigation(newTab);
@@ -502,7 +507,7 @@ const Index = () => {
               )}
               {tab === 'progress' && (
                 <div className="animate-fade-in">
-                  <ProgressPage />
+                  <ProgressPage onSettingsVisibilityChange={handleSettingsVisibilityChange} />
                 </div>
               )}
             </Suspense>
@@ -510,7 +515,7 @@ const Index = () => {
 
           </div>
         </div>
-        {!(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practicePhase === 'active' && practiceMode === 'input') && (
+        {!settingsOpen && !(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practicePhase === 'active' && practiceMode === 'input') && (
           <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
         )}
       </div>
