@@ -498,6 +498,16 @@ jobs:
           cp "$apk" MathMaster-release.apk
           ls -lh MathMaster-release.apk
 
+      - name: Remove legacy GitHub Release distribution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view latest >/dev/null 2>&1; then
+            gh release delete latest --yes --cleanup-tag
+          fi
+
       - name: Prepare APK-only download page
         shell: bash
         run: |
