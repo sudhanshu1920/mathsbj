@@ -515,11 +515,10 @@ const Index = () => {
 
           </div>
         </div>
+        {!settingsOpen && !(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practicePhase === 'active' && practiceMode === 'input') && (
+          <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
+        )}
       </div>
-
-      {!settingsOpen && !(tab === 'learn' && learningState.activeTopic) && !(tab === 'practice' && practicePhase === 'active' && practiceMode === 'input') && (
-        <BottomNav active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
-      )}
 
       <CommandPalette
         open={paletteOpen}
