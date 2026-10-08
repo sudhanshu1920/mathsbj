@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Atom, BookOpen, Box, Grid3x3, Percent, Radical, Square, Superscript, Zap } from 'lucide-react';
+import { Atom, Box, Grid3x3, Percent, Radical, Sigma, Square, Superscript, Triangle } from 'lucide-react';
 
 export type LearningTopicId =
   | 'tables'
@@ -12,17 +12,46 @@ export type LearningTopicId =
   | 'formulas'
   | 'periodic-table';
 
+export type AppTopicId =
+  | LearningTopicId
+  | 'roots'
+  | 'addition-subtraction-digits'
+  | 'trig';
+
 export interface TopicIconConfig {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   toneClass: string;
   label: string;
+  symbol?: string;
+  badge?: string;
 }
 
+const SQUARE_ROOTS_ICON: TopicIconConfig = {
+  icon: Radical,
+  toneClass: 'text-primary',
+  label: 'Square Roots',
+};
+
+const CUBE_ROOTS_ICON: TopicIconConfig = {
+  icon: Radical,
+  toneClass: 'text-primary',
+  label: 'Cube Roots',
+  badge: '3',
+};
+
+const ADDITION_SUBTRACTION_ICON: TopicIconConfig = {
+  toneClass: 'text-primary',
+  label: '+/-',
+  symbol: '±',
+};
+
 /**
- * Single source of truth for Learning Mode topic icon assignments.
- * Change an icon here instead of editing individual topic cards.
+ * Single source of truth for app topic icon + visible name assignments.
+ *
+ * Important: keys are existing internal topic IDs/keys. Never rename them here.
+ * Update the icon definition once and every consuming screen stays aligned.
  */
-export const TOPIC_ICON_MAP: Record<LearningTopicId, TopicIconConfig> = {
+export const TOPIC_ICON_MAP: Record<AppTopicId, TopicIconConfig> = {
   tables: {
     icon: Grid3x3,
     toneClass: 'text-primary',
@@ -33,23 +62,16 @@ export const TOPIC_ICON_MAP: Record<LearningTopicId, TopicIconConfig> = {
     toneClass: 'text-success',
     label: 'Squares',
   },
-  'square-roots': {
-    icon: Radical,
-    toneClass: 'text-primary',
-    label: 'Square Roots',
-  },
+  'square-roots': SQUARE_ROOTS_ICON,
+  roots: SQUARE_ROOTS_ICON,
   cubes: {
     icon: Box,
     toneClass: 'text-warning',
     label: 'Cubes',
   },
-  'cube-roots': {
-    icon: Superscript,
-    toneClass: 'text-primary',
-    label: 'Cube Roots',
-  },
+  'cube-roots': CUBE_ROOTS_ICON,
   powers: {
-    icon: Zap,
+    icon: Superscript,
     toneClass: 'text-success',
     label: 'Powers',
   },
@@ -59,10 +81,16 @@ export const TOPIC_ICON_MAP: Record<LearningTopicId, TopicIconConfig> = {
     label: 'Percentage',
   },
   formulas: {
-    icon: BookOpen,
+    icon: Sigma,
     toneClass: 'text-primary',
     label: 'Formulas',
   },
+  trig: {
+    icon: Triangle,
+    toneClass: 'text-primary',
+    label: 'Trigonometry',
+  },
+  'addition-subtraction-digits': ADDITION_SUBTRACTION_ICON,
   'periodic-table': {
     icon: Atom,
     toneClass: 'text-success',
