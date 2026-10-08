@@ -16,38 +16,38 @@ const AnswerFeedback = ({ status, correctAnswer }: AnswerFeedbackProps) => {
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -5 }}
+      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -5, scale: 0.98 }}
       animate={
         reducedMotion
           ? { opacity: 1 }
           : isCorrect
-            ? { opacity: 1, y: 0 }
-            : { opacity: 1, y: [0, 1.5, -1.2, 0] }
+            ? { opacity: 1, y: 0, scale: 1 }
+            : { opacity: 1, y: [0, 1.2, -0.8, 0], scale: 1 }
       }
-      exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+      exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -3, scale: 0.99 }}
       transition={{
         duration: reducedMotion ? 0.1 : isCorrect ? 0.2 : 0.22,
         ease: 'easeOut',
       }}
       className={[
-        'glass-panel pointer-events-none relative w-fit max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1rem]',
-        'px-3 py-1.5 backdrop-blur-md',
+        'glass-panel relative mx-auto w-fit max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.05rem]',
+        'px-4 py-2 backdrop-blur-md',
         isCorrect
-          ? 'text-success shadow-[0_10px_26px_-20px_hsl(var(--success)/0.55)]'
-          : 'text-destructive shadow-[0_10px_26px_-20px_hsl(var(--destructive)/0.5)]',
+          ? 'text-success shadow-[0_10px_28px_-20px_hsl(var(--success)/0.55)]'
+          : 'text-destructive shadow-[0_10px_28px_-20px_hsl(var(--destructive)/0.5)]',
       ].join(' ')}
     >
       <span
         aria-hidden="true"
         className={[
-          'pointer-events-none absolute inset-0 rounded-[1rem]',
-          isCorrect ? 'bg-success/[0.07]' : 'bg-destructive/[0.07]',
+          'pointer-events-none absolute inset-0 rounded-[1.05rem]',
+          isCorrect ? 'bg-success/[0.075]' : 'bg-destructive/[0.075]',
         ].join(' ')}
       />
 
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-foreground/[0.16] to-transparent"
+        className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-foreground/[0.16] to-transparent"
       />
 
       <motion.span
@@ -59,20 +59,20 @@ const AnswerFeedback = ({ status, correctAnswer }: AnswerFeedbackProps) => {
       />
 
       {isCorrect ? (
-        <div className="relative flex items-center justify-center gap-1.5 whitespace-nowrap font-display">
-          <Check size={14} strokeWidth={2.8} aria-hidden="true" />
-          <span className="text-xs font-semibold tracking-[0.01em] text-foreground">Correct</span>
+        <div className="relative flex items-center justify-center gap-2 whitespace-nowrap font-display">
+          <Check size={16} strokeWidth={2.8} aria-hidden="true" />
+          <span className="text-sm font-semibold tracking-[0.01em] text-foreground">Correct</span>
         </div>
       ) : (
-        <div className="relative flex flex-col items-center justify-center gap-0.5 whitespace-nowrap text-center font-display">
-          <div className="flex items-center gap-1.5">
-            <X size={14} strokeWidth={2.8} aria-hidden="true" />
-            <span className="text-xs font-semibold tracking-[0.01em] text-foreground">Wrong</span>
+        <div className="relative flex flex-col items-center justify-center gap-0.5 text-center font-display">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <X size={16} strokeWidth={2.8} aria-hidden="true" />
+            <span className="text-sm font-semibold tracking-[0.01em] text-foreground">Wrong</span>
           </div>
           {correctAnswer !== undefined && (
-            <div className="text-sm font-bold leading-5 text-foreground">
-              <span className="text-[11px] font-medium text-muted-foreground">Correct Answer: </span>
-              {correctAnswer}
+            <div className="flex items-baseline justify-center gap-1 whitespace-nowrap leading-5">
+              <span className="text-[11px] font-medium text-muted-foreground">Correct Answer:</span>
+              <span className="text-base font-extrabold tracking-[0.01em] text-primary">{correctAnswer}</span>
             </div>
           )}
         </div>
