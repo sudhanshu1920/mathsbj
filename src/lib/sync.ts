@@ -1,3 +1,5 @@
+import { invalidateStreakCache } from '@/lib/streak';
+
 import { supabase } from '@/integrations/supabase/client';
 
 const KEYS = {
@@ -75,6 +77,7 @@ export async function pullFromCloud(userId: string, canApply?: () => boolean): P
         if (data.xp && Object.keys(data.xp as object).length) writeJSON(KEYS.xp, data.xp);
       }
 
+      invalidateStreakCache();
       setMeta({ ...localMeta, userId, lastPulledAt: new Date().toISOString(), lastPushAt: remoteTs });
       dispatchUpdated();
     } else {
@@ -126,6 +129,7 @@ export function clearLocalUserData() {
   localStorage.removeItem(KEYS.progress);
   localStorage.removeItem(KEYS.analytics);
   localStorage.removeItem(KEYS.streak);
+  invalidateStreakCache();
   localStorage.removeItem(KEYS.xp);
   localStorage.removeItem(META_KEY);
   if (pushTimer) {
