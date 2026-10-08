@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateQuestions } from '@/pages/PracticePage';
+import { generateQuestions, isValidPracticeRange } from '@/pages/PracticePage';
 
 const baseConfig = {
   count: 10,
@@ -136,6 +136,41 @@ describe('PracticePage question generation', () => {
     expect(both).toHaveLength(40);
     expect(both.filter((question) => question.operation === '+')).toHaveLength(20);
     expect(both.filter((question) => question.operation === '−')).toHaveLength(20);
+  });
+
+
+
+  it('rejects malformed numeric ranges before quiz start', () => {
+    expect(isValidPracticeRange('squares', { from: 0, to: 10 })).toBe(false);
+    expect(isValidPracticeRange('squares', { from: 1, to: Number.NaN })).toBe(false);
+    expect(isValidPracticeRange('powers', { from: 1, to: 10, exponentFrom: 0, exponentTo: 5 })).toBe(false);
+    expect(isValidPracticeRange('periodic-table', {
+      from: 1,
+      to: 118,
+      periodicQuestionTypes: ['mass'],
+      periodicMassMode: undefined,
+    })).toBe(false);
+  });
+
+  it('accepts descending ranges because the generator intentionally supports them', () => {
+    expect(isValidPracticeRange('squares', { from: 10, to: 1 })).toBe(true);
+    expect(isValidPracticeRange('periodic-table', {
+      from: 118,
+      to: 100,
+      periodicQuestionTypes: ['atomic-number'],
+    })).toBe(true);
+  });
+
+  it('preserves zero as a valid custom percentage numerator', () => {
+    expect(isValidPracticeRange('percentage', {
+      from: 2,
+      to: 10,
+      pctRangeMode: 'custom',
+      pctNumFrom: 0,
+      pctDenFrom: 2,
+      pctNumTo: 0,
+      pctDenTo: 2,
+    })).toBe(true);
   });
 
   it('bounds malformed quiz ranges instead of allocating unbounded arrays', () => {
