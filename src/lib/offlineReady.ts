@@ -37,6 +37,13 @@ const loaders: Array<() => Promise<unknown>> = [
 ];
 
 export async function prepareOffline(onProgress?: (pct: number) => void): Promise<boolean> {
+  // Capacitor packages all app assets locally. Warming every lazy chunk on
+  // first launch only adds CPU/parse/memory work on Android and is unnecessary.
+  if (Capacitor.isNativePlatform()) {
+    onProgress?.(100);
+    markOfflineReady();
+    return true;
+  }
   let done = 0;
   let failed = false;
 
