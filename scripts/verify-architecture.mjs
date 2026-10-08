@@ -15,6 +15,8 @@ const practice = read('src/pages/PracticePage.tsx');
 const index = read('src/pages/Index.tsx');
 const sync = read('src/lib/sync.ts');
 const auth = read('src/contexts/AuthContext.tsx');
+const practiceSelector = read('src/components/PracticeModeSelector.tsx');
+
 
 if (!css.includes('padding-bottom: var(--floating-bar-height, 0px);')) {
   fail('floating-bar reserve is not tied to the runtime measurement variable');
@@ -64,6 +66,21 @@ if (!index.includes('window.visualViewport?.height ?? window.innerHeight') || !i
 const bottomNavUi = read('src/components/BottomNav.tsx');
 if (!bottomNavUi.includes("aria-current={isActive ? 'page' : undefined}")) {
   fail('floating-bar active navigation semantics are missing');
+}
+if (!index.includes("getHorizontalSwipeDirection") || !index.includes("direction === 'left'")) {
+  fail('Learning app-level left swipe navigation is missing');
+}
+if (!index.includes("tab === 'learn' && learningState.activeTopic === null")) {
+  fail('Learning swipe is not restricted to the top-level Learning screen');
+}
+if (!index.includes("tab === 'practice' && practicePhase === 'setup'")) {
+  fail('Quiz-to-Progress swipe is not restricted to quiz setup');
+}
+if (!index.includes("e.pointerType === 'mouse'") || !index.includes('!e.isPrimary')) {
+  fail('app-level swipe is not protected from mouse or multi-touch gestures');
+}
+if (!practiceSelector.includes('data-swipe-ignore-app-section="true"')) {
+  fail('Practice mode selector can accidentally trigger app-level navigation');
 }
 if (!bottomNavUi.includes('scale: [1, 1.06, 1]')) {
   fail('floating-bar interaction polish regressed to an aggressive bounce');
