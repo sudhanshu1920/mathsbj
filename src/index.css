@@ -844,7 +844,7 @@ html.desktop-mode .app-frame {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: calc(var(--bottom-nav-height) + 1.5rem + var(--app-bottom-inset));
+  padding-bottom: var(--floating-bar-height, 0px);
 }
 
 /* Native Android runs edge-to-edge, so some devices report a zero CSS
@@ -950,48 +950,6 @@ html.desktop-mode {
 html.desktop-mode .glass,
 html.desktop-mode .glass-panel {
   border-width: 1px;
-}
-
-/* Bottom app bar stays flush with the viewport bottom in every mode.
-   The panel itself is compact; its child buttons keep a larger invisible
-   tap area without restoring the old layout height. */
-[data-app-bottom-bar] {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: auto;
-  bottom: 0;
-  width: 100%;
-  min-width: 0;
-  height: calc(28px + env(safe-area-inset-bottom, 0px));
-  margin: 0;
-  padding: 0;
-  border-radius: 0;
-  overflow: visible;
-}
-
-[data-app-bottom-bar] > div {
-  width: min(100%, 32rem);
-  height: 28px;
-  margin: 0 auto;
-  padding-bottom: 0;
-}
-
-@media (min-width: 1024px) {
-  html.desktop-mode [data-app-bottom-bar] {
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 0;
-    transform: none;
-    width: 100%;
-    min-width: 0;
-    height: calc(28px + env(safe-area-inset-bottom, 0px));
-    border-radius: 0;
-    border-left: 0;
-    border-right: 0;
-    box-shadow: 0 -10px 26px -16px hsl(var(--primary) / 0.40);
-  }
 }
 
 /* ===== Game-like feedback animations ===== */
@@ -1257,26 +1215,15 @@ html.low-power .bottom-nav-panel {
 /* [BUILD_APK] APK production UI fixes: keep the compact bottom navigation stable across
    mobile and desktop widths, and prevent the Periodic Table grid from being
    collapsed by the global app-frame width rules. */
-:root {
-  --bottom-nav-height: 58px;
-  --app-bottom-inset: env(safe-area-inset-bottom, 0px);
-}
-
-/* Edge-to-edge Android WebViews can report a zero CSS safe-area inset while
-   the system gesture/navigation area still overlays the bottom of the app. */
-@media (pointer: coarse) {
-  :root {
-    --app-bottom-inset: max(env(safe-area-inset-bottom, 0px), 24px);
-  }
-}
+/* Floating-bar space is measured at runtime from the real DOM node. */
 
 .bottom-nav {
-  height: var(--bottom-nav-height) !important;
-  min-height: var(--bottom-nav-height) !important;
-  padding: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 0 env(safe-area-inset-bottom, 0px) !important;
   left: 50% !important;
   right: auto !important;
-  bottom: calc(0.75rem + var(--app-bottom-inset)) !important;
+  bottom: 0 !important;
   transform: translateX(-50%) !important;
   width: min(calc(100% - 1rem), 32rem) !important;
   max-width: 32rem !important;
@@ -1297,15 +1244,15 @@ html.low-power .bottom-nav-panel {
 
 .bottom-nav > div {
   width: 100% !important;
-  height: 100% !important;
-  min-height: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
   padding: 0 0.35rem !important;
   overflow: hidden;
 }
 
 .bottom-nav button {
   position: relative;
-  height: 100% !important;
+  height: auto !important;
   min-height: 48px !important;
   padding: 3px 6px !important;
   gap: 2px !important;
@@ -1333,7 +1280,7 @@ html.low-power .bottom-nav-panel {
 
 @media (max-width: 767px), (min-width: 768px) {
   .bottom-nav {
-    bottom: calc(0.75rem + var(--app-bottom-inset)) !important;
+    bottom: 0 !important;
   }
 }
 
