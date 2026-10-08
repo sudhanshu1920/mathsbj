@@ -1,6 +1,6 @@
 import { BookOpen, ListChecks, BarChart3 } from 'lucide-react';
 import { m as motion } from 'framer-motion';
-import { useRef, useCallback, useState } from 'react';
+import { forwardRef, useRef, useCallback, useState } from 'react';
 import { playClick } from '@/lib/sound';
 
 interface BottomNavProps {
@@ -17,7 +17,7 @@ const tabs = [
 
 const DOUBLE_TAP_DELAY = 280;
 
-const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
+const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, onDoubleTap }, ref) => {
   const lastTapTime = useRef<Record<string, number>>({});
   const tapTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [bouncingTab, setBouncingTab] = useState<string | null>(null);
@@ -50,6 +50,7 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
 
   return (
     <nav
+      ref={ref}
       aria-label="Primary navigation"
       className="bottom-nav fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-b-0 border-x-0 shadow-[0_-12px_32px_-12px_hsl(var(--primary)/0.35)]"
     >
@@ -83,6 +84,8 @@ const BottomNav = ({ active, onChange, onDoubleTap }: BottomNavProps) => {
       </div>
     </nav>
   );
-};
+});
+
+BottomNav.displayName = 'BottomNav';
 
 export default BottomNav;
