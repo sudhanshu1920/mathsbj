@@ -452,63 +452,57 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
     'periodic-table': '⚛',
   };
 
-  const cardTints: Record<Topic, { glow: string; text: string }> = {
-    // Resting glow + hover glow + press glow so the neon effect shows on touch too
-    tables:        { glow: 'shadow-[0_0_18px_-6px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)] active:shadow-[0_0_0_1px_hsl(var(--primary)/0.75),0_0_34px_hsl(var(--primary)/0.5)]',  text: 'text-primary' },
-    squares:       { glow: 'shadow-[0_0_18px_-6px_hsl(var(--accent)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--accent)/0.75),0_0_34px_hsl(var(--accent)/0.45)]',  text: 'text-accent' },
-    'square-roots':{ glow: 'shadow-[0_0_18px_-6px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)] active:shadow-[0_0_0_1px_hsl(var(--primary)/0.75),0_0_34px_hsl(var(--primary)/0.5)]',  text: 'text-primary' },
-    cubes:         { glow: 'shadow-[0_0_18px_-6px_hsl(var(--warning)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--warning)/0.75),0_0_34px_hsl(var(--warning)/0.45)]',  text: 'text-warning' },
-    'cube-roots':  { glow: 'shadow-[0_0_18px_-6px_hsl(var(--accent)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--accent)/0.75),0_0_34px_hsl(var(--accent)/0.45)]',  text: 'text-accent' },
-    powers:        { glow: 'shadow-[0_0_18px_-6px_hsl(var(--warning)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--warning)/0.6),0_0_28px_hsl(var(--warning)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--warning)/0.75),0_0_34px_hsl(var(--warning)/0.45)]',  text: 'text-warning' },
-    percentage:    { glow: 'shadow-[0_0_18px_-6px_hsl(var(--destructive)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--destructive)/0.6),0_0_28px_hsl(var(--destructive)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--destructive)/0.75),0_0_34px_hsl(var(--destructive)/0.45)]', text: 'text-destructive' },
-    formulas:      { glow: 'shadow-[0_0_18px_-6px_hsl(var(--accent)/0.28)] hover:shadow-[0_0_0_1px_hsl(var(--accent)/0.6),0_0_28px_hsl(var(--accent)/0.30)] active:shadow-[0_0_0_1px_hsl(var(--accent)/0.75),0_0_34px_hsl(var(--accent)/0.45)]',  text: 'text-accent' },
-    'periodic-table': { glow: 'shadow-[0_0_18px_-6px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_28px_hsl(var(--primary)/0.35)] active:shadow-[0_0_0_1px_hsl(var(--primary)/0.75),0_0_34px_hsl(var(--primary)/0.5)]', text: 'text-primary' },
-  };
-
   return (
     <div>
-      {/* Top stat bar — Duolingo style */}
       <TopStatBar />
 
-      {/* HUD welcome strip */}
-      <div className="glass-panel rounded-2xl px-3 py-2 mb-4 flex items-center justify-between">
-        <div>
-          <p className="font-display font-extrabold text-foreground leading-tight tracking-wide neon-text">
-            READY PLAYER
-          </p>
-          <p className="text-[11px] text-muted-foreground font-display font-bold uppercase tracking-wider mt-0.5">
-            Select a module to engage
-          </p>
+      <section className="mb-5 rounded-[1.35rem] border border-border/70 bg-card/75 p-4 sm:p-5 shadow-[var(--ds-shadow-card)]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary">Study dashboard</p>
+            <h2 className="mt-1 font-display text-xl font-black tracking-tight text-foreground sm:text-2xl">
+              Learn at your pace.
+            </h2>
+            <p className="mt-1 max-w-md text-sm leading-5 text-muted-foreground">
+              Explore a topic, build your fundamentals, then practice when you are ready.
+            </p>
+          </div>
+          <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:flex">
+            <BookOpen size={20} strokeWidth={2.4} />
+          </div>
         </div>
-        <span className="font-display font-black text-primary text-2xl neon-text">⌁</span>
-      </div>
+      </section>
 
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-display font-extrabold text-lg uppercase tracking-wide text-foreground">Topics</h2>
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-black tracking-tight text-foreground sm:text-xl">Topics</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">Choose a module to begin learning.</p>
+        </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <DesktopModeToggle />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] animate-fade-in">
-        {topics.map((t) => {
-          const tint = cardTints[t.id];
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveTopic(t.id)}
-              className={`glass-panel relative overflow-hidden flex min-h-[104px] sm:min-h-[112px] lg:min-h-[120px] w-full flex-col items-center justify-center gap-1.5 px-2 py-2 rounded-2xl active:scale-[0.97] ${tint.glow} ${tint.text}`}
-            >
-              <span className="font-display font-black text-2xl sm:text-[27px] lg:text-3xl leading-none neon-text">
-                {topicSymbols[t.id]}
-              </span>
-              <span className="font-display font-extrabold text-xs sm:text-sm uppercase tracking-wider text-center leading-tight text-foreground">
-                {t.title}
-              </span>
-            </button>
-          );
-        })}
+      <div className="grid grid-cols-2 gap-3 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] animate-fade-in sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {topics.map((t, index) => (
+          <motion.button
+            key={t.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.035, duration: 0.24 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setActiveTopic(t.id)}
+            className="group relative flex min-h-[124px] w-full flex-col items-center justify-center gap-3 rounded-[1.15rem] border border-border/70 bg-card/80 px-3 py-4 text-center shadow-[var(--ds-shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[var(--ds-shadow-elevated)] active:translate-y-0"
+          >
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 font-display text-xl font-black leading-none text-primary ring-1 ring-inset ring-primary/10 transition-colors group-hover:bg-primary/15">
+              {topicSymbols[t.id]}
+            </span>
+            <span className="font-display text-xs font-extrabold leading-tight tracking-[0.03em] text-foreground sm:text-sm">
+              {t.title}
+            </span>
+          </motion.button>
+        ))}
       </div>
     </div>
   );
