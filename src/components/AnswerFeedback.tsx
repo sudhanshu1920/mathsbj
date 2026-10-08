@@ -31,7 +31,7 @@ const AnswerFeedback = ({ status, correctAnswer }: AnswerFeedbackProps) => {
       }}
       className={[
         'glass-panel relative mx-auto w-fit max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.05rem]',
-        'px-4 py-2 backdrop-blur-md',
+        'px-3.5 py-1 backdrop-blur-md',
         isCorrect
           ? 'text-success shadow-[0_10px_28px_-20px_hsl(var(--success)/0.55)]'
           : 'text-destructive shadow-[0_10px_28px_-20px_hsl(var(--destructive)/0.5)]',
