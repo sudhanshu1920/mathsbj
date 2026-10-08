@@ -452,6 +452,7 @@ jobs:
           EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
         run: |
           set -euo pipefail
+          EXPECTED_VERSION_CODE="$(git rev-list --count HEAD)"
 
           sdk_apksigner="${ANDROID_HOME}/build-tools/35.0.0/apksigner"
           if [ ! -x "$sdk_apksigner" ]; then
