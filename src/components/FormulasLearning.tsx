@@ -100,7 +100,7 @@ const ShapeCard = ({ shape }: { shape: ShapeGroup }) => {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-card border border-border rounded-2xl overflow-hidden"
+      className="glass rounded-2xl overflow-hidden"
     >
       {/* Diagram */}
       {shape.diagram && (
@@ -254,7 +254,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
                         setShapeIndex(i);
                         setShapeListMode(false);
                       }}
-                      className="flex items-center gap-4 w-full bg-card border border-border rounded-2xl px-4 py-3 hover:border-primary transition-colors"
+                      className="flex items-center gap-4 w-full glass-lite border border-border rounded-2xl px-4 py-3 hover:border-primary transition-colors"
                     >
                       <span className="w-14 h-14 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0">
                         {shape.diagram ? (
@@ -345,7 +345,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.03 }}
-            className="bg-card border border-border rounded-xl px-4 py-3 overflow-x-auto"
+            className="glass-lite border border-border rounded-xl px-4 py-3 overflow-x-auto"
           >
             <KaTeXBlock latex={f.latex} />
           </motion.div>
@@ -401,7 +401,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
                 transition={{ delay: i * 0.04, duration: 0.3 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => onNavigate(sectionIndex, i)}
-                className="flex items-center gap-4 w-full bg-card border border-border rounded-2xl px-5 py-4 hover:border-primary transition-colors"
+                className="flex items-center gap-4 w-full glass-lite border border-border rounded-2xl px-5 py-4 hover:border-primary transition-colors"
               >
                 <span className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
                   {cat.symbol}
@@ -429,7 +429,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
           transition={{ delay: i * 0.04, duration: 0.3 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => onNavigate(i, null)}
-          className="flex items-center gap-4 w-full bg-card border border-border rounded-2xl px-5 py-4 hover:border-primary transition-colors"
+          className="flex items-center gap-4 w-full glass-lite border border-border rounded-2xl px-5 py-4 hover:border-primary transition-colors"
         >
           <span className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-lg shrink-0">
             {sec.symbol}
