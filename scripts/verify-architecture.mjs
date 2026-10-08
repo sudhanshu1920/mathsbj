@@ -75,8 +75,15 @@ const bottomNavUi = read('src/components/BottomNav.tsx');
 if (!bottomNavUi.includes("aria-current={isActive ? 'page' : undefined}")) {
   fail('floating-bar active navigation semantics are missing');
 }
-if (!index.includes("getHorizontalSwipeDirection") || !index.includes("direction === 'left'")) {
-  fail('Learning app-level left swipe navigation is missing');
+if (!index.includes("getHorizontalSwipeDirection") ||
+    !index.includes("direction === 'left'") ||
+    !index.includes("direction === 'right'")) {
+  fail('Top-level horizontal swipe navigation must support both directions');
+}
+if (!index.includes("handleTabChange('practice')") ||
+    !index.includes("handleTabChange('progress')") ||
+    !index.includes("handleTabChange('learn')")) {
+  fail('Top-level swipe navigation does not preserve Learn/Practice/Progress flow');
 }
 if (!index.includes("tab === 'learn' && learningState.activeTopic === null")) {
   fail('Learning swipe is not restricted to the top-level Learning screen');
