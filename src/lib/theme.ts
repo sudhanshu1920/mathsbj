@@ -4,6 +4,7 @@ const KEY = 'math-app-theme-v5';
 const MODE_KEY = 'math-app-mode-v1';
 
 export type ThemeId =
+  | 'professional-slate'
   | 'dark-gaming'
   | 'light-minimal'
   | 'midnight-blue'
@@ -26,6 +27,7 @@ export interface ThemeMeta {
 }
 
 export const THEMES: ThemeMeta[] = [
+  { id: 'professional-slate', name: 'Professional Slate', tagline: 'Calm blue + teal', swatch: ['#0f172a', '#2563eb', '#0f766e'] },
   { id: 'dark-gaming',    name: 'Dark Gaming',    tagline: 'Neon cyan + magenta', swatch: ['#0a0a0f', '#00d4ff', '#ff006e'] },
   { id: 'light-minimal',  name: 'Light Minimal',  tagline: 'Soft & clean',        swatch: ['#f5f5f5', '#2563eb', '#7c3aed'] },
   { id: 'midnight-blue',  name: 'Midnight Blue',  tagline: 'Indigo + cyan',       swatch: ['#0f172a', '#6366f1', '#06b6d4'] },
@@ -38,7 +40,7 @@ export const THEMES: ThemeMeta[] = [
   { id: 'void-black',     name: 'Void Black',     tagline: 'Pure dark + white',   swatch: ['#000000', '#ffffff', '#888888'], premium: true },
 ];
 
-export const DEFAULT_THEME: ThemeId = 'dark-gaming';
+export const DEFAULT_THEME: ThemeId = 'professional-slate';
 export const DEFAULT_MODE: ModeId = 'dark';
 
 const listeners = new Set<() => void>();
