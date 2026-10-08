@@ -29,6 +29,7 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col gap-5 py-4"
+      data-swipe-ignore-app-section="true"
     >
       <div>
         <label className="text-sm text-muted-foreground mb-2 block">Answer Mode</label>
