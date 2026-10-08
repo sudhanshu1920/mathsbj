@@ -19,7 +19,7 @@ describe("Periodic Table ranges", () => {
       "81–90",
       "91–100",
       "101–110",
-      "110–118",
+      "111–118",
     ]);
   });
 
@@ -28,7 +28,7 @@ describe("Periodic Table ranges", () => {
       Array.from({ length: 10 }, (_, i) => i + 1),
     );
     expect(getPeriodicRangeElements(11).map((el) => el.number)).toEqual(
-      Array.from({ length: 9 }, (_, i) => i + 110),
+      Array.from({ length: 8 }, (_, i) => i + 111),
     );
   });
 
