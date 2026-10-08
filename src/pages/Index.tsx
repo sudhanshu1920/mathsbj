@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
@@ -580,9 +581,17 @@ const Index = () => {
 
           </div>
         </div>
-        {showBottomNav && (
-          <BottomNav ref={bottomNavRef} active={tab} onChange={handleTabChange} onDoubleTap={handleDoubleTap} />
-        )}
+        {showBottomNav && typeof document !== 'undefined'
+          ? createPortal(
+              <BottomNav
+                ref={bottomNavRef}
+                active={tab}
+                onChange={handleTabChange}
+                onDoubleTap={handleDoubleTap}
+              />,
+              document.body,
+            )
+          : null}
       </div>
 
       <CommandPalette
