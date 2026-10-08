@@ -30,8 +30,8 @@ const OfflinePrep = () => {
       const id = window.requestIdleCallback(startPreparation, { timeout: 2500 });
       cancelIdle = () => window.cancelIdleCallback(id);
     } else {
-      const id = window.setTimeout(startPreparation, 1200);
-      cancelIdle = () => window.clearTimeout(id);
+      const id = globalThis.setTimeout(startPreparation, 1200);
+      cancelIdle = () => globalThis.clearTimeout(id);
     }
 
     return () => {
