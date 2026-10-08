@@ -192,7 +192,6 @@ describe('PracticePage question generation', () => {
     expect(questions).toHaveLength(10);
     expect(questions.every((question) => question.text.endsWith('² = ?'))).toBe(true);
   });
-});
 
   it('generates square-root questions from every integer in the selected range', () => {
     const questions = generateQuestions({
