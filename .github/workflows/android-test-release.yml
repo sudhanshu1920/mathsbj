@@ -1,0 +1,135 @@
+name: MathMaster Test Release APK
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mathmaster-test-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-release:
+    if: github.event_name == 'push' && startsWith(github.event.head_commit.message, '[TEST_APK]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Install Capacitor Android build tooling
+        run: npm install --no-save @capacitor/cli@8.5.2 @capacitor/android@8.5.2
+
+      - name: Generate Android project from repository source
+        run: npx cap add android
+
+      - name: Sync web build into Android project
+        run: npx cap sync android
+
+      - name: Configure temporary test signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/mathmaster-test-release.jks"
+          keytool -genkeypair -v             -storetype JKS             -keystore "$keystore"             -storepass "test-store-password"             -keypass "test-key-password"             -alias "MathMasterTest"             -keyalg RSA             -keysize 2048             -validity 3650             -dname "CN=Math Master Test,O=SBJ Sigma,C=IN"
+
+          {
+            echo "TEST_KEYSTORE_PATH=$keystore"
+            echo "TEST_KEYSTORE_PASSWORD=test-store-password"
+            echo "TEST_KEY_ALIAS=MathMasterTest"
+            echo "TEST_KEY_PASSWORD=test-key-password"
+          } >> "$GITHUB_ENV"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/app/build.gradle")
+          text = path.read_text(encoding="utf-8")
+          marker = "android {"
+          signing = """android {
+              signingConfigs {
+                  testRelease {
+                      storeFile file(System.getenv("TEST_KEYSTORE_PATH"))
+                      storePassword System.getenv("TEST_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("TEST_KEY_ALIAS")
+                      keyPassword System.getenv("TEST_KEY_PASSWORD")
+                  }
+              }
+          """
+          if text.count(marker) != 1:
+              raise SystemExit("Expected exactly one android block")
+
+          text = text.replace(marker, signing, 1)
+          target = "buildTypes {\n        release {"
+          replacement = """buildTypes {
+                  release {
+                      signingConfig signingConfigs.testRelease"""
+          if target not in text:
+              raise SystemExit("Expected release buildTypes block not found")
+          text = text.replace(target, replacement, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          grep -q "signingConfigs.testRelease" android/app/build.gradle
+
+      - name: Build signed test release APK
+        working-directory: android
+        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
+
+      - name: Verify test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          apksigner="$build_tools/apksigner"
+          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
+          test -x "$apksigner"
+          test -n "$apk"
+          "$apksigner" verify --verbose "$apk"
+          cp "$apk" MathMaster-settings-fix-test-release.apk
+          sha256sum MathMaster-settings-fix-test-release.apk
+          ls -lh MathMaster-settings-fix-test-release.apk
+
+      - name: Upload test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MathMaster-settings-fix-test-release
+          path: MathMaster-settings-fix-test-release.apk
+          if-no-files-found: error
+          retention-days: 7
