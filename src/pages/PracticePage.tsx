@@ -29,6 +29,7 @@ import {
 import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect } from '@/lib/trigData';
 import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
+import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -93,18 +94,23 @@ interface Question {
   optionPool?: (number | string)[];
 }
 
-const TOPICS = [
-  { id: 'tables', label: 'Tables', icon: '×', defaultRange: { from: 1, to: 20 } },
-  { id: 'squares', label: 'Squares', icon: '²', defaultRange: { from: 1, to: 50 } },
-  { id: 'roots', label: 'Square Roots', icon: '√', defaultRange: { from: 1, to: 30 } },
-  { id: 'cubes', label: 'Cubes', icon: '³', defaultRange: { from: 1, to: 30 } },
-  { id: 'cube-roots', label: 'Cube Roots', icon: '∛', defaultRange: { from: 1, to: 20 } },
-  { id: 'powers', label: 'Powers', icon: 'xⁿ', defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
-  { id: 'percentage', label: 'Percentage', icon: '%', defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
-  { id: 'addition-subtraction-digits', label: '+/-', icon: '±', defaultRange: { from: 2, to: 2, operand1DigitCount: 2, operand2DigitCount: 2, arithmeticOperations: ['addition', 'subtraction'] as ArithmeticOperation[] } },
-  { id: 'trig', label: 'Trigonometry', icon: '△', defaultRange: { from: 0, to: 90 } },
-  { id: 'periodic-table', label: 'Periodic Table', icon: '⚛', defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
+const TOPIC_DEFAULTS = [
+  { id: 'tables' as AppTopicId, defaultRange: { from: 1, to: 20 } },
+  { id: 'squares' as AppTopicId, defaultRange: { from: 1, to: 50 } },
+  { id: 'roots' as AppTopicId, defaultRange: { from: 1, to: 30 } },
+  { id: 'cubes' as AppTopicId, defaultRange: { from: 1, to: 30 } },
+  { id: 'cube-roots' as AppTopicId, defaultRange: { from: 1, to: 20 } },
+  { id: 'powers' as AppTopicId, defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
+  { id: 'percentage' as AppTopicId, defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
+  { id: 'addition-subtraction-digits' as AppTopicId, defaultRange: { from: 2, to: 2, operand1DigitCount: 2, operand2DigitCount: 2, arithmeticOperations: ['addition', 'subtraction'] as ArithmeticOperation[] } },
+  { id: 'trig' as AppTopicId, defaultRange: { from: 0, to: 90 } },
+  { id: 'periodic-table' as AppTopicId, defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
 ];
+
+const TOPICS = TOPIC_DEFAULTS.map((topic) => ({
+  ...topic,
+  label: TOPIC_ICON_MAP[topic.id].label,
+}));
 
 const COUNTS = [10, 20, 25, 50];
 const REPETITION_OPTIONS = [1, 2, 3, 5, 10] as const;
@@ -534,6 +540,25 @@ interface PracticePageProps {
   onQuizStart?: (mode: PracticeMode) => void;
   onQuizFinish?: () => void;
 }
+
+const TopicIconForTopic = ({ topicId }: { topicId: AppTopicId }) => {
+  const config = TOPIC_ICON_MAP[topicId];
+  if (config.symbol) {
+    return <span className="inline-flex min-w-[1.25rem] items-center justify-center font-display text-base font-black leading-none" aria-hidden="true">{config.symbol}</span>;
+  }
+  if (!config.icon) return null;
+  const Icon = config.icon;
+  return (
+    <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden="true">
+      <Icon size={17} strokeWidth={2.3} />
+      {config.badge && (
+        <span className="absolute -right-1 -top-1 rounded-sm bg-current/15 px-0.5 font-display text-[7px] font-black leading-none">
+          {config.badge}
+        </span>
+      )}
+    </span>
+  );
+};
 
 const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, onExitCancelled, externalBackRequest, fromLearning, onQuizStart, onQuizFinish }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
@@ -1387,7 +1412,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 }`}
               >
                 <span className="relative z-10 flex items-center gap-2">
-                  <span className="text-base">{t.icon}</span>
+                  <TopicIconForTopic topicId={t.id} />
                   {t.label}
                 </span>
                 {isSelected && (
@@ -1420,7 +1445,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   className="w-full flex items-center justify-between px-4 py-3"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-base">{topicInfo.icon}</span>
+                    <TopicIconForTopic topicId={tid as AppTopicId} />
                     <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
                     <span className="text-xs text-muted-foreground">
                       {isTrig
