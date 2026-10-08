@@ -33,10 +33,9 @@ const SQUARE_ROOTS_ICON: TopicIconConfig = {
 };
 
 const CUBE_ROOTS_ICON: TopicIconConfig = {
-  icon: Radical,
   toneClass: 'text-primary',
   label: 'Cube Roots',
-  badge: '3',
+  symbol: '∛',
 };
 
 const ADDITION_SUBTRACTION_ICON: TopicIconConfig = {
