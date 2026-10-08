@@ -22,6 +22,14 @@ export interface StreakState {
 
 const MAX_FREEZE_PER_MONTH = 3;
 
+// Hot-path cache: Practice time tracking calls getStreak once per second.
+// Keep the normalized state in memory while still persisting every tick.
+let cache: StreakState | null = null;
+
+export const invalidateStreakCache = () => {
+  cache = null;
+};
+
 const today = (): string => {
   const d = new Date();
   const y = d.getFullYear();
@@ -95,18 +103,27 @@ const normalizeStreak = (value: unknown): StreakState => {
 };
 
 export const getStreak = (): StreakState => {
+  if (cache) return cache;
   try {
     const raw = localStorage.getItem(KEY);
-    return normalizeStreak(raw ? JSON.parse(raw) : null);
+    cache = normalizeStreak(raw ? JSON.parse(raw) : null);
   } catch {
-    return defaults();
+    cache = defaults();
   }
+  return cache;
 };
 
-const save = (s: StreakState) => {
+const save = (s: StreakState, notify = true) => {
+  cache = s;
   localStorage.setItem(KEY, JSON.stringify(s));
-  window.dispatchEvent(new CustomEvent('streak-updated'));
+  if (notify) window.dispatchEvent(new CustomEvent('streak-updated'));
 };
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === KEY) invalidateStreakCache();
+  });
+}
 
 /**
  * Roll forward through any missed days since lastEvalDate.
@@ -124,9 +141,15 @@ const countMonthFreezes = (state: StreakState, month: string): number =>
 export const evaluateStreak = (state?: StreakState, evaluationDate = today()): StreakState => {
   const s = state ? { ...state, days: { ...state.days } } : getStreak();
   const t = evaluationDate;
+  let dirty = false;
+  const beforeCurrent = s.current;
+
   if (!s.enabled) {
-    s.lastEvalDate = t;
-    save(s);
+    if (s.lastEvalDate !== t) {
+      s.lastEvalDate = t;
+      dirty = true;
+    }
+    if (dirty) save(s, false);
     return s;
   }
 
@@ -137,8 +160,10 @@ export const evaluateStreak = (state?: StreakState, evaluationDate = today()): S
   if (s.freezeUsedMonth !== currentMonth) {
     s.freezeUsedMonth = currentMonth;
     s.freezesUsed = currentMonthFreezes;
-  } else {
-    s.freezesUsed = Math.max(s.freezesUsed, currentMonthFreezes);
+    dirty = true;
+  } else if (s.freezesUsed < currentMonthFreezes) {
+    s.freezesUsed = currentMonthFreezes;
+    dirty = true;
   }
 
   // Walk from day after lastEvalDate up to (but not including) today.
@@ -161,6 +186,7 @@ export const evaluateStreak = (state?: StreakState, evaluationDate = today()): S
         if (cursorMonth === currentMonth) {
           s.freezesUsed = freezesUsed + 1;
         }
+        dirty = true;
       } else {
         // Streak resets when that calendar month's freeze allowance is exhausted.
         s.current = 0;
@@ -169,13 +195,17 @@ export const evaluateStreak = (state?: StreakState, evaluationDate = today()): S
           seconds: rec?.seconds || 0,
           completed: false,
         };
+        dirty = true;
       }
     }
     cursor = addDays(cursor, 1);
   }
 
-  s.lastEvalDate = t;
-  save(s);
+  if (s.lastEvalDate !== t) {
+    s.lastEvalDate = t;
+    dirty = true;
+  }
+  if (dirty) save(s, s.current !== beforeCurrent);
   return s;
 };
 
@@ -219,7 +249,10 @@ export const addSeconds = (seconds: number): StreakState => {
   }
 
   s.days[t] = rec;
-  save(s);
+  // The current streak UI only changes when a daily target is completed or the
+  // streak resets. Avoid notifying every component on every second.
+  const notify = !wasCompleted && rec.completed;
+  save(s, notify);
   return s;
 };
 
