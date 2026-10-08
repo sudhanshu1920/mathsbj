@@ -1,6 +1,6 @@
 import { BookOpen, ListChecks, BarChart3 } from 'lucide-react';
 import { m as motion } from 'framer-motion';
-import { forwardRef, useRef, useCallback, useState } from 'react';
+import { forwardRef, useRef, useCallback, useEffect, useState } from 'react';
 import { playClick } from '@/lib/sound';
 
 interface BottomNavProps {
@@ -21,6 +21,14 @@ const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, o
   const lastTapTime = useRef<Record<string, number>>({});
   const tapTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [bouncingTab, setBouncingTab] = useState<string | null>(null);
+  const bounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      Object.values(tapTimers.current).forEach((timer) => clearTimeout(timer));
+      if (bounceTimerRef.current) clearTimeout(bounceTimerRef.current);
+    };
+  }, []);
 
   const handleTap = useCallback((tabId: 'learn' | 'practice' | 'progress') => {
     const now = Date.now();
@@ -34,7 +42,11 @@ const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, o
     if (now - lastTap < DOUBLE_TAP_DELAY) {
       lastTapTime.current[tabId] = 0;
       setBouncingTab(tabId);
-      setTimeout(() => setBouncingTab(null), 300);
+      if (bounceTimerRef.current) clearTimeout(bounceTimerRef.current);
+      bounceTimerRef.current = setTimeout(() => {
+        bounceTimerRef.current = null;
+        setBouncingTab(null);
+      }, 300);
       if (navigator.vibrate) {
         navigator.vibrate(10);
       }
