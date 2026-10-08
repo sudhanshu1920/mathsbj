@@ -111,7 +111,7 @@ if (!index.includes("const MAIN_SECTION_ORDER: readonly Tab[] = ['learn', 'pract
   fail('Three-section swipe navigation must use one shared Learning/Quiz/Progress section order');
 }
 if (!index.includes("!settingsOpen") ||
-    !index.includes("tab === 'progress')) {
+    !index.includes("tab === 'progress');")) {
   fail('Progress/settings swipe root guards are missing');
 }
 if (!index.includes("direction === 'left' ? 1 : -1")) {
