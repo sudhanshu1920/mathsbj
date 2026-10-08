@@ -219,7 +219,19 @@ const BasicTrigonometricFunctionsLearning = () => {
 
       <section className="rounded-2xl border border-border/70 bg-card/60 p-4 sm:p-5">
         <h2 className="font-display text-base font-black text-foreground sm:text-lg">3–4–5 Example</h2>
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {[
+            { label: 'Opposite', value: '3' },
+            { label: 'Adjacent', value: '4' },
+            { label: 'Hypotenuse', value: '5' },
+          ].map((side) => (
+            <div key={side.label} className="rounded-xl border border-border/70 bg-background/35 px-2.5 py-2 text-center">
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{side.label}</div>
+              <div className="mt-0.5 font-display text-lg font-black text-primary">{side.value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
           {BASIC_TRIG_EXAMPLE.map((item) => (
             <div key={item.label} className="min-w-0 overflow-x-auto rounded-xl border border-border/70 bg-background/35 px-3 py-2.5">
               <KaTeXBlock latex={item.latex} className="min-w-max text-[1.05rem] sm:text-[1.1rem]" />
