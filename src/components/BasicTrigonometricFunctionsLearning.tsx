@@ -33,20 +33,21 @@ const RightTriangleDiagram = () => (
     >
       <title id="basic-trig-diagram-title">Right triangle for trigonometric ratios</title>
       <desc id="basic-trig-diagram-desc">
-        A right triangle with theta at the lower-right angle. The vertical side is Opposite, the bottom side is Adjacent, and the sloping side opposite the 90 degree angle is Hypotenuse.
+        A right triangle with theta at the lower-right angle. The left vertical side is Opposite, the lower horizontal side is Adjacent, and the sloping side opposite the 90 degree angle is Hypotenuse.
       </desc>
 
+      {/* Triangle: the right angle is at the lower-left vertex. */}
       <line
-        x1="88"
+        x1="92"
         y1="238"
-        x2="88"
+        x2="92"
         y2="68"
         stroke="hsl(var(--primary))"
         strokeWidth="4"
         strokeLinecap="round"
       />
       <line
-        x1="88"
+        x1="92"
         y1="238"
         x2="334"
         y2="238"
@@ -55,7 +56,7 @@ const RightTriangleDiagram = () => (
         strokeLinecap="round"
       />
       <line
-        x1="88"
+        x1="92"
         y1="68"
         x2="334"
         y2="238"
@@ -64,22 +65,34 @@ const RightTriangleDiagram = () => (
         strokeLinecap="round"
       />
 
+      {/* 90° marker at the exact right-angle vertex. */}
       <polyline
-        points="88,213 113,213 113,238"
+        points="92,212 118,212 118,238"
         fill="none"
         stroke="hsl(var(--accent))"
         strokeWidth="3.5"
+        strokeLinejoin="round"
       />
+      <text
+        x="126"
+        y="207"
+        fill="hsl(var(--accent))"
+        fontSize="12"
+        fontWeight="800"
+      >
+        90°
+      </text>
 
+      {/* θ is at the lower-right acute angle, between Adjacent and Hypotenuse. */}
       <path
-        d="M 334 238 A 42 42 0 0 0 299 209"
+        d="M 292 238 A 42 42 0 0 1 300 215"
         fill="none"
         stroke="hsl(var(--primary))"
         strokeWidth="3"
       />
       <text
-        x="302"
-        y="214"
+        x="309"
+        y="228"
         fill="hsl(var(--primary))"
         fontSize="22"
         fontWeight="700"
@@ -88,21 +101,22 @@ const RightTriangleDiagram = () => (
         θ
       </text>
 
+      {/* Side labels are outside the triangle so they never sit on a line. */}
       <text
         x="48"
-        y="154"
+        y="153"
         fill="hsl(var(--primary))"
         fontSize="16"
         fontWeight="700"
         textAnchor="middle"
-        transform="rotate(-90 48 154)"
+        transform="rotate(-90 48 153)"
       >
         Opposite
       </text>
 
       <text
-        x="211"
-        y="266"
+        x="213"
+        y="269"
         fill="hsl(var(--primary))"
         fontSize="16"
         fontWeight="700"
@@ -112,29 +126,19 @@ const RightTriangleDiagram = () => (
       </text>
 
       <text
-        x="222"
-        y="134"
+        x="214"
+        y="121"
         fill="hsl(var(--foreground))"
         fontSize="15"
         fontWeight="700"
         textAnchor="middle"
-        transform="rotate(35 222 134)"
+        transform="rotate(35 214 121)"
         paintOrder="stroke"
         stroke="hsl(var(--background))"
-        strokeWidth="7"
+        strokeWidth="8"
         strokeLinejoin="round"
       >
         Hypotenuse
-      </text>
-
-      <text
-        x="126"
-        y="228"
-        fill="hsl(var(--accent))"
-        fontSize="12"
-        fontWeight="800"
-      >
-        90°
       </text>
     </svg>
   </div>
