@@ -59,16 +59,12 @@ export async function checkAndInstallAndroidUpdate(): Promise<NativeUpdateResult
       throw new Error("A signed update APK is not available.");
     }
 
-    const url = new URL(`${DOWNLOAD_BASE_URL}/${release.apk}`);
-    if (
-      url.protocol !== "https:" ||
-      url.hostname !== "sudhanshu1920.github.io" ||
-      url.pathname !== "/mathsbj/MathMaster-release.apk"
-    ) {
+    const url = new URL(asset.browser_download_url);
+    if (url.protocol !== "https:" || url.hostname !== "github.com") {
       throw new Error("Update APK source is not trusted.");
     }
 
-    await AppUpdater.downloadAndInstall({ url: url.toString() });
+    await AppUpdater.downloadAndInstall({ url: asset.browser_download_url });
     return { status: "updated", versionCode: remoteVersionCode };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Update failed.";
