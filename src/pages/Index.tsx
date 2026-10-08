@@ -120,12 +120,21 @@ const Index = () => {
 
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const measuredHeight = bottomNavRef.current?.getBoundingClientRect().height ?? 0;
-        if (Math.abs(measuredHeight - lastHeight) < 0.01) return;
-        lastHeight = measuredHeight;
+        const nav = bottomNavRef.current;
+        if (!nav) {
+          scrollElement.style.setProperty('--floating-bar-height', '0px');
+          lastHeight = 0;
+          return;
+        }
+
+        const rect = nav.getBoundingClientRect();
+        const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+        const occupiedBottomSpace = Math.max(0, viewportHeight - rect.top);
+        if (Math.abs(occupiedBottomSpace - lastHeight) < 0.01) return;
+        lastHeight = occupiedBottomSpace;
         scrollElement.style.setProperty(
           '--floating-bar-height',
-          measuredHeight > 0 ? measuredHeight + 'px' : '0px',
+          occupiedBottomSpace > 0 ? occupiedBottomSpace + 'px' : '0px',
         );
       });
     };
