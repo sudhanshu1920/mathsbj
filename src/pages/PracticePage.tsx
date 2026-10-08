@@ -117,6 +117,13 @@ const REPETITION_OPTIONS = [1, 2, 3, 5, 10] as const;
 const DIGIT_COUNT_OPTIONS = Array.from({ length: 10 }, (_, index) => index + 1);
 const DIGIT_ARITHMETIC_POOL_SIZE = 100;
 
+function shuffleInPlace<T>(items: T[]): void {
+  for (let i = items.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+}
+
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
@@ -405,7 +412,9 @@ export function generateQuestions(config: PracticeConfig): Question[] {
 
       if (q.optionPool) {
         if (q.optionPool.length > 1) {
-          for (const candidate of [...q.optionPool].sort(() => Math.random() - 0.5)) {
+          const candidates = [...q.optionPool];
+          shuffleInPlace(candidates);
+          for (const candidate of candidates) {
             if (opts.size >= 4) break;
             if (String(candidate) !== String(correct)) opts.add(String(candidate));
           }
@@ -439,7 +448,8 @@ export function generateQuestions(config: PracticeConfig): Question[] {
         }
       }
 
-      const shuffled = Array.from(opts).sort(() => Math.random() - 0.5);
+      const shuffled = Array.from(opts);
+      shuffleInPlace(shuffled);
       const optionsMixed: (MixedPct | null)[] = shuffled.map((opt) => {
         if (q.answerType === 'mixed-pct') {
           const match = opt.match(/^(\d+)\s+(\d+)\/(\d+)%$/);
@@ -644,7 +654,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       };
       startPractice(cfg);
     }
-  }, [initialTopic, initialMode]);
+  }, [
+    initialTopic,
+    initialMode,
+    initialContext?.from,
+    initialContext?.to,
+    initialContext?.number,
+    initialExtras?.timerEnabled,
+    initialExtras?.timerSeconds,
+    initialExtras?.infinite,
+    startPractice,
+  ]);
 
   const toggleTopic = (id: string) => {
     setSelectedTopics(prev => {
@@ -674,7 +694,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     updateRange('periodic-table', 'periodicQuestionTypes', next);
   };
 
-  const startPractice = (cfg: PracticeConfig) => {
+  const startPractice = useCallback((cfg: PracticeConfig) => {
     const normalizedConfig: PracticeConfig = {
       ...cfg,
       // Repetition mode is finite and owns quiz length. The legacy Questions
