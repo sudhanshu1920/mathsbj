@@ -1,4 +1,5 @@
 import { m as motion } from 'framer-motion';
+import { MOTION } from '@/lib/motion';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import katex from 'katex';
@@ -248,8 +249,8 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
                       key={i}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.04, duration: 0.3 }}
-                      whileTap={{ scale: 0.97 }}
+                      transition={{ delay: i * MOTION.stagger.standard, duration: MOTION.duration.slow, ease: MOTION.ease.enter }}
+                      whileTap={{ scale: MOTION.scale.press }}
                       onClick={() => {
                         setShapeIndex(i);
                         setShapeListMode(false);
@@ -344,7 +345,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
             key={i}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.03 }}
+            transition={{ delay: i * MOTION.stagger.micro, duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
             className="glass-lite border border-border rounded-xl px-4 py-3 overflow-x-auto"
           >
             <KaTeXBlock latex={f.latex} />
@@ -398,8 +399,8 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
                 key={cat.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.04, duration: 0.3 }}
-                whileTap={{ scale: 0.97 }}
+                transition={{ delay: i * MOTION.stagger.standard, duration: MOTION.duration.slow, ease: MOTION.ease.enter }}
+                whileTap={{ scale: MOTION.scale.press }}
                 onClick={() => onNavigate(sectionIndex, i)}
                 className="flex items-center gap-4 w-full glass-lite border border-border rounded-2xl px-5 py-4 hover:border-primary transition-colors"
               >
@@ -426,8 +427,8 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
           key={sec.id}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: i * 0.04, duration: 0.3 }}
-          whileTap={{ scale: 0.97 }}
+          transition={{ delay: i * MOTION.stagger.standard, duration: MOTION.duration.slow, ease: MOTION.ease.enter }}
+          whileTap={{ scale: MOTION.scale.press }}
           onClick={() => onNavigate(i, null)}
           className="flex items-center gap-4 w-full glass-lite border border-border rounded-2xl px-5 py-4 hover:border-primary transition-colors"
         >

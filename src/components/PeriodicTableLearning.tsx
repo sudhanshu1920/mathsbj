@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Atom, Check, Circle, MoreVertical, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
+import { MOTION } from '@/lib/motion';
 import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
 import {
@@ -312,7 +313,12 @@ const ElementDetails = ({ element, massMode, onBack, onClose }: { element: ChemE
           </button>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="glass overflow-hidden rounded-3xl shadow-[0_0_40px_hsl(var(--primary)/0.12)]">
+        <motion.div
+          initial={{ opacity: 0, y: MOTION.distance.small }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
+          className="glass overflow-hidden rounded-3xl shadow-[0_0_40px_hsl(var(--primary)/0.12)]"
+        >
           <div className="grid gap-5 p-5 sm:grid-cols-[180px_1fr] sm:p-7">
             <div className={`flex min-h-[190px] flex-col items-center justify-center rounded-2xl border-2 ${CATEGORY_STYLES[element.category]}`}>
               <span className="self-start px-4 pt-3 text-sm font-bold text-muted-foreground">{element.number}</span>

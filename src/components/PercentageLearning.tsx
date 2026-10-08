@@ -1,4 +1,5 @@
 import { m as motion } from 'framer-motion';
+import { MOTION } from '@/lib/motion';
 import { ChevronRight } from 'lucide-react';
 import StackedFraction from './StackedFraction';
 import SwipeContainer from './SwipeContainer';
@@ -65,8 +66,8 @@ const PercentageLearning = ({ groupIndex, onGroupIndexChange, onExpandFraction }
               key={row.denominator}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.03 }}
-              whileTap={{ scale: 0.98 }}
+              transition={{ delay: i * MOTION.stagger.micro, duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
+              whileTap={{ scale: MOTION.scale.press }}
               onClick={() => onExpandFraction(row.denominator)}
               className="w-full glass rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center min-h-[58px] hover:border-primary/60 transition-colors"
             >
@@ -133,7 +134,7 @@ export const PercentageExpanded = ({ denominator, onDenominatorChange }: Percent
               key={i}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.03 }}
+              transition={{ delay: i * MOTION.stagger.micro, duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
               className="glass rounded-xl px-3 py-3 grid grid-cols-3 gap-2 text-center text-sm items-center min-h-[58px]"
             >
               <span className="flex justify-center">

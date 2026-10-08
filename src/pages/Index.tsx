@@ -60,13 +60,13 @@ type SectionTransitionDirection = 'left' | 'right';
 
 const sectionPageVariants = {
   enter: (direction: SectionTransitionDirection) => ({
-    x: direction === 'left' ? '100%' : '-100%',
+    x: direction === 'left' ? MOTION.distance.page : '-100%',
   }),
   center: {
     x: '0%',
   },
   exit: (direction: SectionTransitionDirection) => ({
-    x: direction === 'left' ? '-100%' : '100%',
+    x: direction === 'left' ? '-100%' : MOTION.distance.page,
   }),
 };
 

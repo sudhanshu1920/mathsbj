@@ -1,4 +1,5 @@
 import { m as motion } from 'framer-motion';
+import { MOTION } from '@/lib/motion';
 import katex from 'katex';
 import { useEffect, useRef } from 'react';
 import { BASIC_TRIG_EXAMPLE, BASIC_TRIG_FUNCTIONS, RECIPROCAL_TRIG_FUNCTIONS, SOH_CAH_TOA } from '@/lib/basicTrigonometricFunctions';
@@ -161,8 +162,9 @@ const BasicTrigonometricFunctionsLearning = () => {
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: MOTION.distance.small }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
       className="space-y-4 pb-6 sm:space-y-5"
     >
       <section className="glass-panel rounded-2xl p-4 sm:p-5">

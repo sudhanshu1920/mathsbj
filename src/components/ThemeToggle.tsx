@@ -2,6 +2,7 @@ import { Sun, Moon, Check } from 'lucide-react';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { m as motion, AnimatePresence } from 'framer-motion';
+import { MOTION } from '@/lib/motion';
 import { THEMES, useMode, useTheme, toggleMode, setTheme, type ThemeId } from '@/lib/theme';
 
 interface ThemeToggleProps {
@@ -119,7 +120,7 @@ const ThemeToggle = ({ compact = false }: ThemeToggleProps) => {
         onPointerLeave={cancelHold}
         onContextMenu={(event) => event.preventDefault()}
         onClick={handleClick}
-        className="h-7 w-7 rounded-full glass p-1.5 text-primary hover:text-primary-foreground hover:gradient-primary transition-all duration-300 glow-primary"
+        className="motion-press h-7 w-7 rounded-full glass p-1.5 text-primary hover:text-primary-foreground hover:gradient-primary transition-all duration-300 glow-primary"
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         aria-expanded={paletteOpen}
         aria-haspopup="dialog"
@@ -138,7 +139,7 @@ const ThemeToggle = ({ compact = false }: ThemeToggleProps) => {
               initial={{ opacity: 0, y: -5, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -5, scale: 0.97 }}
-              transition={{ duration: 0.16 }}
+              transition={{ duration: MOTION.duration.fast, ease: MOTION.ease.standard }}
               style={{ position: 'fixed', top: position.top, right: position.right }}
               className="glass-panel z-[9999] w-[min(280px,calc(100vw-1rem))] rounded-2xl p-2.5 shadow-2xl"
             >

@@ -3,6 +3,7 @@ import { m as motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon, ArrowLeft } from 'lucide-react';
 import { getProgress, ProgressData } from '@/lib/progress';
 import { getStreak, StreakState } from '@/lib/streak';
+import { MOTION } from '@/lib/motion';
 import ProgressAnalytics from '@/components/ProgressAnalytics';
 import XPBar from '@/components/XPBar';
 import SettingsPanel from '@/components/SettingsPanel';
@@ -82,17 +83,13 @@ const ProgressPage = ({ onSettingsVisibilityChange }: ProgressPageProps) => {
             className={`flex items-center gap-1 px-2 py-0.5 rounded-full glass ${streak.current > 0 ? 'shadow-[0_0_18px_hsl(var(--warning)/0.45)] border-warning/40' : ''}`}
             aria-label={`Current streak ${streak.current}`}
           >
-            <motion.span
-              animate={streak.current > 0 ? { scale: [1, 1.15, 1] } : {}}
-              transition={{ repeat: Infinity, duration: 1.6 }}
-              className="inline-flex"
-            >
+            <span className="inline-flex">
               <Flame size={13} className={streak.current > 0 ? 'text-warning' : 'text-muted-foreground'} />
-            </motion.span>
+            </span>
             <span className="font-display font-bold text-[11px] text-foreground">{streak.current}</span>
           </motion.div>
           <motion.button
-            whileTap={{ scale: 0.92 }}
+            whileTap={{ scale: MOTION.scale.press }}
             whileHover={{ rotate: 35 }}
             onClick={() => setShowSettings(true)}
             aria-label="Settings"
@@ -116,7 +113,7 @@ const ProgressPage = ({ onSettingsVisibilityChange }: ProgressPageProps) => {
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 120, damping: 14 }}
+        transition={MOTION.springGentle}
         className="flex justify-center mb-8"
       >
         <div className="relative w-40 h-40 rounded-full overflow-visible">
@@ -140,7 +137,7 @@ const ProgressPage = ({ onSettingsVisibilityChange }: ProgressPageProps) => {
               strokeDasharray="264"
               initial={{ strokeDashoffset: 264 }}
               animate={{ strokeDashoffset: 264 - accuracy * 2.64 }}
-              transition={{ duration: 1.1, ease: 'easeOut' }}
+              transition={{ duration: 0.7, ease: MOTION.ease.easeOut }}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -158,8 +155,8 @@ const ProgressPage = ({ onSettingsVisibilityChange }: ProgressPageProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ delay: i * 0.1 }}
+            whileTap={{ scale: MOTION.scale.press }}
+            transition={{ delay: i * MOTION.stagger.standard, duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
             className="glass rounded-2xl p-4 text-center shadow-[0_0_18px_-6px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_20px_-6px_hsl(var(--primary)/0.4)] transition-shadow"
           >
             <s.icon size={20} className={`mx-auto mb-2 ${s.color}`} />
@@ -205,7 +202,7 @@ const ProgressPage = ({ onSettingsVisibilityChange }: ProgressPageProps) => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            transition={{ duration: MOTION.duration.standard, ease: MOTION.ease.easeOut }}
             className="settings-glass-shell fixed inset-0 z-50 bg-background/72 flex flex-col overflow-hidden"
           >
             <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/40 glass-panel">

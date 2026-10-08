@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { m as motion } from 'framer-motion';
 import { ListChecks, Keyboard, Timer, Infinity as InfinityIcon } from 'lucide-react';
+import { MOTION } from '@/lib/motion';
 import { Switch } from '@/components/ui/switch';
 
 export interface PracticeSettings {
@@ -26,8 +27,9 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: MOTION.distance.small }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
       className="flex flex-col gap-5 py-4"
       data-swipe-ignore-app-section="true"
     >
@@ -35,7 +37,7 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
         <label className="text-sm text-muted-foreground mb-2 block">Answer Mode</label>
         <div className="flex gap-3">
           <motion.button
-            whileTap={{ scale: 0.95 }}
+            whileTap={{ scale: MOTION.scale.press }}
             onClick={() => setMode('mcq')}
             className={`flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl font-semibold shadow-lg transition-colors ${mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'glass border border-border text-foreground'}`}
           >
@@ -43,7 +45,7 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
             <span className="text-sm">MCQ</span>
           </motion.button>
           <motion.button
-            whileTap={{ scale: 0.95 }}
+            whileTap={{ scale: MOTION.scale.press }}
             onClick={() => setMode('input')}
             className={`flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl font-semibold shadow-lg transition-colors ${mode === 'input' ? 'bg-accent text-accent-foreground' : 'glass border border-border text-foreground'}`}
           >
@@ -96,7 +98,7 @@ const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
       </div>
 
       <motion.button
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: MOTION.scale.press }}
         onClick={handleStart}
         className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-display font-bold text-lg shadow-lg"
       >

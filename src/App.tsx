@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { LazyMotion } from "framer-motion";
+import { LazyMotion, MotionConfig } from "framer-motion";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -50,7 +50,8 @@ const Gate = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <LazyMotion features={loadMotionFeatures} strict>
-      <TooltipProvider>
+      <MotionConfig reducedMotion="user">
+        <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -66,7 +67,8 @@ const App = () => (
             </AppErrorBoundary>
           </AuthProvider>
         </BrowserRouter>
-      </TooltipProvider>
+        </TooltipProvider>
+      </MotionConfig>
     </LazyMotion>
   </QueryClientProvider>
 );

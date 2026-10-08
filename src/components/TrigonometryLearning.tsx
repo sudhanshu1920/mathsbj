@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { m as motion } from 'framer-motion';
+import { MOTION } from '@/lib/motion';
 import { TRIG_ANGLES, TRIG_FUNCTIONS, TRIG_RADIANS, NOT_DEFINED, trigValue } from '@/lib/trigData';
 
 /**
@@ -15,7 +16,7 @@ const TrigonometryLearning = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: MOTION.distance.small }}
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-2xl overflow-hidden"
     >
@@ -51,7 +52,7 @@ const TrigonometryLearning = () => {
                 key={fn}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: rowIdx * 0.04 }}
+                transition={{ delay: rowIdx * MOTION.stagger.standard, duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
               >
                 <td
                   className={`${cellBase} text-left bg-card sticky left-0 z-10 font-display font-bold text-foreground`}

@@ -7,6 +7,14 @@
 @layer base {
   :root {
     --radius: 0.75rem;
+    --motion-duration-fast: 140ms;
+    --motion-duration-standard: 220ms;
+    --motion-duration-slow: 320ms;
+    --motion-duration-page: 280ms;
+    --motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+    --motion-ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-ease-exit: cubic-bezier(0.7, 0, 0.84, 1);
+    --motion-scale-press: 0.985;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
@@ -693,8 +701,8 @@ html.light .neon-text {
   .bg-secondary,
   .border-border {
     transition-property: background-color, border-color, color, box-shadow;
-    transition-duration: 200ms;
-    transition-timing-function: ease;
+    transition-duration: var(--motion-duration-standard);
+    transition-timing-function: var(--motion-ease-standard);
   }
   /* Generic dark backdrop using current theme tokens */
   html.dark body {
@@ -2629,4 +2637,31 @@ select,
 #root svg {
   -webkit-user-drag: none;
   user-drag: none;
+}
+
+/* Shared motion tokens: fast, compositor-friendly feedback without layout animation. */
+@layer components {
+  .motion-press {
+    -webkit-tap-highlight-color: transparent;
+    transform: translate3d(0, 0, 0);
+    transition:
+      transform var(--motion-duration-fast) var(--motion-ease-standard),
+      opacity var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  .motion-press:active:not(:disabled) {
+    transform: translate3d(0, 0, 0) scale(var(--motion-scale-press));
+    opacity: 0.94;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-press {
+    transition: none !important;
+  }
+
+  .motion-press:active:not(:disabled) {
+    transform: none;
+    opacity: 1;
+  }
 }

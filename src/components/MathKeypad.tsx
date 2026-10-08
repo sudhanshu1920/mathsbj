@@ -1,4 +1,3 @@
-import { m as motion } from 'framer-motion';
 import { Delete, Check, Plus } from 'lucide-react';
 import { playClick } from '@/lib/sound';
 
@@ -90,16 +89,16 @@ const MathKeypad = ({ value, onChange, onSubmit, variant = 'full', disabled, hid
   return (
     <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto select-none">
       {rows.flat().map((k, i) => (
-        <motion.button
+        <button
           key={`${i}-${k.key}`}
           type="button"
           whileTap={{ scale: 0.92 }}
           onClick={(e) => { e.currentTarget.blur(); press(k.key); }}
           style={k.span ? { gridColumn: `span ${k.span} / span ${k.span}` } : undefined}
-          className={`keypad-key ${k.tone === 'back' ? 'keypad-key-danger' : ''} h-12 rounded-2xl font-display font-bold text-xl flex items-center justify-center transition-all border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${toneClass(k.tone)}`}
+          className={`motion-press keypad-key ${k.tone === 'back' ? 'keypad-key-danger' : ''} h-12 rounded-2xl font-display font-bold text-xl flex items-center justify-center transition-all border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${toneClass(k.tone)}`}
         >
           {k.label}
-        </motion.button>
+        </button>
       ))}
     </div>
   );

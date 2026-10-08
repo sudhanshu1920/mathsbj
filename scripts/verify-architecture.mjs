@@ -129,6 +129,29 @@ if (!index.includes("tab === 'practice' && practicePhase === 'setup'")) {
 if (!index.includes("appSectionSwipeEnabled =")) {
   fail('Page-level swipe enablement guard is missing');
 }
+if (!index.includes("MOTION.duration.page") ||
+    !index.includes("MOTION.ease.standard") ||
+    !index.includes("startTransition(applyNavigation)") ||
+    !index.includes("AnimatePresence") ||
+    !index.includes("mode=\"sync\"")) {
+  fail('Unified page motion system is missing from the app shell');
+}
+if (!index.includes("prefersReducedMotion ? MOTION.duration.instant : MOTION.duration.page")) {
+  fail('Page transitions are not reduced-motion aware');
+}
+const motion = read('src/lib/motion.ts');
+for (const token of [
+  "duration", "stagger", "distance", "scale", "ease", "springGentle",
+]) {
+  if (!motion.includes(token)) fail(`shared motion token missing: ${token}`);
+}
+const button = read('src/components/ui/button.tsx');
+if (!button.includes('motion-press')) {
+  fail('Base Button does not use shared press feedback');
+}
+if (arch.includes("whileTap={{ scale: 0.92 }}")) {
+  fail('Aggressive 0.92 tap scale should not be reintroduced');
+}
 if (!index.includes("AnimatePresence") ||
     !index.includes('mode="sync"') ||
     !index.includes('variants={sectionPageVariants}') ||

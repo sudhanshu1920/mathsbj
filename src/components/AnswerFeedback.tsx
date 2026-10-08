@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { m as motion, useReducedMotion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
+import { MOTION } from '@/lib/motion';
 
 interface AnswerFeedbackProps {
   status: 'correct' | 'wrong';
@@ -26,7 +27,7 @@ const AnswerFeedback = ({ status, correctAnswer }: AnswerFeedbackProps) => {
       }
       exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -3, scale: 0.99 }}
       transition={{
-        duration: reducedMotion ? 0.1 : isCorrect ? 0.2 : 0.22,
+        duration: reducedMotion ? MOTION.duration.instant : MOTION.duration.fast,
         ease: 'easeOut',
       }}
       className={[
@@ -54,7 +55,7 @@ const AnswerFeedback = ({ status, correctAnswer }: AnswerFeedbackProps) => {
         aria-hidden="true"
         initial={reducedMotion ? { opacity: 0.08 } : { x: '-90%', opacity: 0 }}
         animate={reducedMotion ? { opacity: 0.08 } : { x: '190%', opacity: [0, 0.35, 0] }}
-        transition={{ duration: 0.55, delay: 0.03, ease: 'easeInOut' }}
+        transition={{ duration: MOTION.duration.feedbackShine, delay: MOTION.stagger.micro, ease: MOTION.ease.easeInOut }}
         className="pointer-events-none absolute -top-1/2 h-[220%] w-1/5 rotate-[18deg] bg-gradient-to-r from-transparent via-foreground/[0.09] to-transparent"
       />
 

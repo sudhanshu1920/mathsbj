@@ -10,6 +10,7 @@ import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
 import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
 import { triggerUpdate } from '@/pwa';
+import { MOTION } from '@/lib/motion';
 import { checkAndInstallAndroidUpdate, isAndroidNativeUpdaterAvailable } from '@/nativeAppUpdater';
 
 type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline' | 'error';
@@ -142,7 +143,7 @@ const SettingsPanel = () => {
             </p>
           </div>
           <motion.button
-            whileTap={{ scale: 0.92 }}
+            whileTap={{ scale: MOTION.scale.press }}
             onClick={() => void signOut()}
             aria-label="Sign out"
             className="p-2 rounded-full text-muted-foreground hover:text-destructive transition-colors"
@@ -163,7 +164,7 @@ const SettingsPanel = () => {
             <p className="text-xs text-muted-foreground truncate">Local only — sign in to back up</p>
           </div>
           <motion.button
-            whileTap={{ scale: 0.92 }}
+            whileTap={{ scale: MOTION.scale.press }}
             onClick={() => setGuest(false)}
             aria-label="Sign in"
             className="p-2 rounded-full text-muted-foreground hover:text-primary transition-colors"
@@ -210,7 +211,7 @@ const SettingsPanel = () => {
           {PRESET_MINUTES.map((m) => (
             <motion.button
               key={m}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: MOTION.scale.press }}
               onClick={() => setStreak(setTarget(m))}
               className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
                 streak.targetMinutes === m
@@ -239,7 +240,7 @@ const SettingsPanel = () => {
               <motion.button
                 key={font.id}
                 type="button"
-                whileTap={{ scale: 0.97 }}
+                whileTap={{ scale: MOTION.scale.press }}
                 onClick={() => setSettingsState(setFont(font.id))}
                 aria-pressed={selected}
                 data-font-selector
@@ -278,7 +279,7 @@ const SettingsPanel = () => {
             return (
               <motion.button
                 key={m}
-                whileTap={{ scale: 0.96 }}
+                whileTap={{ scale: MOTION.scale.press }}
                 onClick={() => setMode(m)}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-2xl px-3 py-2 border text-sm font-semibold transition-all ${
                   active
@@ -298,7 +299,7 @@ const SettingsPanel = () => {
             return (
               <motion.button
                 key={t.id}
-                whileTap={{ scale: 0.96 }}
+                whileTap={{ scale: MOTION.scale.press }}
                 onClick={() => setAppTheme(t.id)}
                 className={`relative shrink-0 snap-start w-[108px] rounded-2xl p-3 border text-left transition-all duration-200 ${
                   selected
@@ -343,7 +344,7 @@ const SettingsPanel = () => {
 
       {/* Update */}
       <motion.button
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: MOTION.scale.press }}
         onClick={checkForUpdates}
         disabled={isBusy}
         className={"w-full flex items-center justify-between rounded-2xl px-4 py-3 border glass transition-all " + (
@@ -353,7 +354,7 @@ const SettingsPanel = () => {
         <span className="text-sm font-medium text-foreground">{updateLabel[updateState]}</span>
         <AnimatePresence mode="wait" initial={false}>
           {updateState === 'done' ? (
-            <motion.span key="d" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+            <motion.span key="d" initial={{ scale: MOTION.scale.subtle }} animate={{ scale: 1 }} exit={{ scale: MOTION.scale.subtle }}>
               <Check size={18} className="text-success" />
             </motion.span>
           ) : (

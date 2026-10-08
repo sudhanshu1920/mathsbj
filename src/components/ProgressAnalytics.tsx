@@ -3,6 +3,7 @@ import { m as motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { getAnalytics, getDay, todayStr, AnalyticsState, DayAnalytics } from '@/lib/analytics';
 import { getStreak } from '@/lib/streak';
+import { MOTION } from '@/lib/motion';
 
 type Tab = 'day' | 'week' | 'month';
 const TABS: Tab[] = ['day', 'week', 'month'];
@@ -166,10 +167,10 @@ const ProgressAnalytics = () => {
       <AnimatePresence mode="wait">
         <motion.div
           key={tab + dstr(anchor)}
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: MOTION.distance.small }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.25 }}
+          transition={{ duration: MOTION.duration.standard, ease: MOTION.ease.standard }}
         >
           {tab === 'day' && (
             <div>
@@ -185,7 +186,7 @@ const ProgressAnalytics = () => {
                       <motion.div
                         initial={{ height: 0 }}
                         animate={{ height: `${pct}%` }}
-                        transition={{ duration: 0.5, delay: h * 0.01 }}
+                        transition={{ duration: MOTION.duration.data, delay: h * MOTION.stagger.micro, ease: MOTION.ease.easeOut }}
                         className={`w-full rounded-sm ${v > 0 ? 'bg-success shadow-[0_0_8px_hsl(var(--success)/0.6)]' : 'bg-muted/40'}`}
                       />
                     </button>
@@ -220,7 +221,7 @@ const ProgressAnalytics = () => {
                       <motion.div
                         initial={{ height: 0 }}
                         animate={{ height: `${pct}%` }}
-                        transition={{ duration: 0.6, delay: i * 0.05 }}
+                        transition={{ duration: MOTION.duration.data, delay: i * MOTION.stagger.standard, ease: MOTION.ease.easeOut }}
                         className={`w-full rounded-md relative ${day.points > 0 ? 'bg-success shadow-[0_0_10px_hsl(var(--success)/0.5)]' : 'bg-muted/40'}`}
                       >
                         {completed && (
@@ -263,7 +264,7 @@ const ProgressAnalytics = () => {
                         <motion.div
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          transition={{ delay: i * 0.01, type: 'spring', stiffness: 200, damping: 18 }}
+                          transition={{ ...MOTION.springGentle, delay: i * MOTION.stagger.micro }}
                           className="rounded-full bg-success/85 text-background font-bold text-[11px] flex items-center justify-center shadow-[0_0_12px_hsl(var(--success)/0.5)]"
                           style={{ width: size, height: size }}
                         >
@@ -289,7 +290,7 @@ const ProgressAnalytics = () => {
       <AnimatePresence>
         {tooltip && (
           <motion.div
-            initial={{ opacity: 0, y: 4 }}
+            initial={{ opacity: 0, y: MOTION.distance.micro }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             className="text-center text-xs text-muted-foreground mt-3"

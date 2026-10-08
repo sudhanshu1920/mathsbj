@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { m as motion } from 'framer-motion';
+import { MOTION } from '@/lib/motion';
 import { Zap } from 'lucide-react';
 import { getXP, levelFromXP, xpInLevel, XP_PER_LEVEL } from '@/lib/xp';
 
@@ -26,7 +27,7 @@ const XPBar = ({ compact = false }: XPBarProps) => {
         key={level}
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 16 }}
+        transition={MOTION.springGentle}
         className="flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full gradient-primary text-primary-foreground font-display font-bold text-xs"
       >
         {level}
@@ -36,7 +37,7 @@ const XPBar = ({ compact = false }: XPBarProps) => {
           className="h-full gradient-primary rounded-full"
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
+          transition={{ duration: MOTION.duration.data, ease: MOTION.ease.easeOut }}
         />
       </div>
       <span className="flex items-center gap-0.5 text-xs font-bold text-foreground tabular-nums">

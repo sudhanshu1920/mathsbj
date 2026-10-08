@@ -10,6 +10,7 @@ import { recordAnswer } from '@/lib/analytics';
 import { getSettings, isActive, markInteraction, getTablesProMode } from '@/lib/settings';
 import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
 import { playClick, playSuccess, playWrong, playLevelUp, playStreak } from '@/lib/sound';
+import { MOTION } from '@/lib/motion';
 import XPBar from '@/components/XPBar';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
@@ -1925,7 +1926,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
       {/* Start Button */}
       <motion.button
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: MOTION.scale.press }}
         disabled={!canStart}
         onClick={() => {
           const topics = Array.from(selectedTopics).map(tid => {

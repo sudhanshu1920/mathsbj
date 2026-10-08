@@ -2,6 +2,7 @@ import { BookOpen, ListChecks, BarChart3 } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import { forwardRef, useRef, useCallback, useEffect, useState } from 'react';
 import { playClick } from '@/lib/sound';
+import { MOTION } from '@/lib/motion';
 
 interface BottomNavProps {
   active: 'learn' | 'practice' | 'progress';
@@ -46,7 +47,7 @@ const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, o
       bounceTimerRef.current = setTimeout(() => {
         bounceTimerRef.current = null;
         setBouncingTab(null);
-      }, 220);
+      }, MOTION.duration.standard * 1000);
       if (navigator.vibrate) {
         navigator.vibrate(10);
       }
@@ -80,7 +81,7 @@ const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, o
             >
               <motion.div
                 animate={isBouncing ? { scale: [1, 1.06, 1] } : { scale: 1 }}
-                transition={{ duration: 0.22, ease: 'easeOut' }}
+                transition={{ duration: MOTION.duration.standard, ease: MOTION.ease.easeOut }}
                 className={`bottom-nav-item relative flex items-center justify-center w-12 h-7 rounded-xl border ${isActive
                   ? 'is-active'
                   : ''}`}
