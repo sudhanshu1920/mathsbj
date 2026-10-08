@@ -28,6 +28,7 @@ const dispatchUpdated = () => {
 };
 
 let pushTimer: number | undefined;
+let pushTimerUserId: string | undefined;
 let syncing = false;
 
 const setSyncing = (v: boolean) => {
@@ -59,10 +60,21 @@ export async function pullFromCloud(userId: string, canApply?: () => boolean): P
 
     if (switchedUser || remoteTs >= localTs) {
       if (canApply && !canApply()) return;
-      if (data.progress && Object.keys(data.progress as object).length) writeJSON(KEYS.progress, data.progress);
-      if (data.analytics && Object.keys(data.analytics as object).length) writeJSON(KEYS.analytics, data.analytics);
-      if (data.streak && Object.keys(data.streak as object).length) writeJSON(KEYS.streak, data.streak);
-      if (data.xp && Object.keys(data.xp as object).length) writeJSON(KEYS.xp, data.xp);
+
+      // A new account must never inherit the previous account's local data,
+      // including when the remote record is empty or partially populated.
+      if (switchedUser) {
+        writeJSON(KEYS.progress, data.progress ?? {});
+        writeJSON(KEYS.analytics, data.analytics ?? {});
+        writeJSON(KEYS.streak, data.streak ?? {});
+        writeJSON(KEYS.xp, data.xp ?? {});
+      } else {
+        if (data.progress && Object.keys(data.progress as object).length) writeJSON(KEYS.progress, data.progress);
+        if (data.analytics && Object.keys(data.analytics as object).length) writeJSON(KEYS.analytics, data.analytics);
+        if (data.streak && Object.keys(data.streak as object).length) writeJSON(KEYS.streak, data.streak);
+        if (data.xp && Object.keys(data.xp as object).length) writeJSON(KEYS.xp, data.xp);
+      }
+
       setMeta({ ...localMeta, userId, lastPulledAt: new Date().toISOString(), lastPushAt: remoteTs });
       dispatchUpdated();
     } else {
@@ -100,7 +112,12 @@ export async function pushToCloud(userId: string): Promise<void> {
 
 export function schedulePush(userId: string, delayMs = 1500) {
   if (pushTimer) window.clearTimeout(pushTimer);
-  pushTimer = window.setTimeout(() => { void pushToCloud(userId); }, delayMs);
+  pushTimerUserId = userId;
+  pushTimer = window.setTimeout(() => {
+    pushTimer = undefined;
+    pushTimerUserId = undefined;
+    void pushToCloud(userId);
+  }, delayMs);
 }
 
 export function clearLocalUserData() {
@@ -114,6 +131,7 @@ export function clearLocalUserData() {
   if (pushTimer) {
     window.clearTimeout(pushTimer);
     pushTimer = undefined;
+    pushTimerUserId = undefined;
   }
   dispatchUpdated();
 }
@@ -156,9 +174,10 @@ export function startSync(userId: string): () => void {
     window.removeEventListener('xp-updated', onLocalChange);
     window.removeEventListener('online', onOnline);
     window.clearInterval(interval);
-    if (pushTimer) {
+    if (pushTimer && pushTimerUserId === userId) {
       window.clearTimeout(pushTimer);
       pushTimer = undefined;
+      pushTimerUserId = undefined;
     }
   };
 }
