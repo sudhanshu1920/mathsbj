@@ -9,7 +9,11 @@ import SettingsPanel from '@/components/SettingsPanel';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 
-const ProgressPage = () => {
+interface ProgressPageProps {
+  onSettingsVisibilityChange?: (visible: boolean) => void;
+}
+
+const ProgressPage = ({ onSettingsVisibilityChange }: ProgressPageProps) => {
   const [data, setData] = useState<ProgressData>(getProgress());
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
   const [showSettings, setShowSettings] = useState(false);
@@ -27,6 +31,16 @@ const ProgressPage = () => {
       window.removeEventListener('analytics-updated', refreshAll);
     };
   }, []);
+
+  useEffect(() => {
+    onSettingsVisibilityChange?.(showSettings);
+  }, [showSettings, onSettingsVisibilityChange]);
+
+  useEffect(() => {
+    return () => {
+      onSettingsVisibilityChange?.(false);
+    };
+  }, [onSettingsVisibilityChange]);
 
   useEffect(() => {
     if (!showSettings) return;
