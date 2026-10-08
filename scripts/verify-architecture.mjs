@@ -132,7 +132,8 @@ if (!index.includes("appSectionSwipeEnabled =")) {
 if (!index.includes("AnimatePresence") ||
     !index.includes('mode="sync"') ||
     !index.includes('variants={sectionPageVariants}') ||
-    !index.includes("translate3d") && !index.includes("translateX")) {
+    !index.includes("x: direction === 'left'") ||
+    !index.includes("willChange: sectionTransitionDirection ? 'transform' : 'auto'")) {
   fail('Directional page transition architecture is missing');
 }
 if (!index.includes("useReducedMotion") ||
