@@ -155,7 +155,6 @@ html.light {
   --bottom-nav-surface-strong: var(--glass-background-strong);
   --bottom-nav-border: var(--glass-border-strong);
   --bottom-nav-highlight: var(--glass-highlight);
-  position: relative;
   isolation: isolate;
   background:
     linear-gradient(
@@ -179,7 +178,7 @@ html.light {
   content: "";
   position: absolute;
   inset: 1px;
-  z-index: -1;
+  z-index: 0;
   border-radius: inherit;
   pointer-events: none;
   background:
@@ -274,11 +273,11 @@ html.light {
   transition: opacity 180ms ease, color 180ms ease;
 }
 
-.bottom-nav-item-button:has(.bottom-nav-item.is-active) > span {
+.bottom-nav-item-button.is-active > span {
   opacity: 1;
 }
 
-.bottom-nav-item-button:has(.bottom-nav-item.is-active) {
+.bottom-nav-item-button.is-active {
   color: hsl(var(--primary));
 }
 
