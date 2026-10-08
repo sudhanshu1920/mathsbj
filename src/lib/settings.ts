@@ -1,12 +1,20 @@
+import { applyFont, DEFAULT_FONT, normalizeFont, type FontId } from '@/lib/font';
+
 const KEY = 'math-app-settings-v1';
 
 export interface AppSettings {
   sound: boolean;
   vibration: boolean;
   keyboardShortcuts: boolean;
+  font: FontId;
 }
 
-const defaults = (): AppSettings => ({ sound: true, vibration: true, keyboardShortcuts: true });
+const defaults = (): AppSettings => ({
+  sound: true,
+  vibration: true,
+  keyboardShortcuts: true,
+  font: DEFAULT_FONT,
+});
 
 // In-memory cache: getSettings() runs on every sound/haptic call, so parsing
 // JSON from localStorage each time is wasteful.
@@ -17,6 +25,7 @@ export const getSettings = (): AppSettings => {
   try {
     const raw = localStorage.getItem(KEY);
     cache = raw ? { ...defaults(), ...JSON.parse(raw) } : defaults();
+    cache.font = normalizeFont(cache.font);
   } catch {
     cache = defaults();
   }
@@ -39,6 +48,18 @@ export const setKeyboardShortcuts = (v: boolean) => {
   const s = { ...getSettings(), keyboardShortcuts: v };
   save(s);
   return s;
+};
+
+export const setFont = (font: FontId) => {
+  const next = normalizeFont(font);
+  const s = { ...getSettings(), font: next };
+  save(s);
+  applyFont(next);
+  return s;
+};
+
+export const initFont = () => {
+  applyFont(getSettings().font);
 };
 
 // --- Tables Pro Mode (×1..×20 instead of ×1..×10) ---
