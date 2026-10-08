@@ -89,6 +89,10 @@ describe('PracticePage question generation', () => {
         const left = Number(match?.[1]);
         const right = Number(match?.[3]);
 
+        expect(typeof question.answer).toBe('number');
+
+        if (typeof question.answer !== 'number') continue;
+
         if (question.operation === '+') {
           expect(left).toBe(question.operand1);
           expect(right).toBe(question.operand2);
