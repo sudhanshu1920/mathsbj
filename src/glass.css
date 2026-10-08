@@ -148,16 +148,215 @@ html.light {
   -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.14);
 }
 
+/* Premium floating navigation surface. Layout/position remain owned by
+   index.css; this layer owns only the reusable glass treatment. */
 .bottom-nav {
+  --bottom-nav-surface: var(--glass-background);
+  --bottom-nav-surface-strong: var(--glass-background-strong);
+  --bottom-nav-border: var(--glass-border-strong);
+  --bottom-nav-highlight: var(--glass-highlight);
+  position: relative;
+  isolation: isolate;
   background:
-    linear-gradient(180deg, hsl(var(--primary) / 0.10), hsl(var(--accent) / 0.035) 54%, transparent 84%),
-    var(--glass-background-strong) !important;
-  border: 1px solid var(--glass-border-strong) !important;
+    linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.085),
+      hsl(var(--accent) / 0.035) 46%,
+      transparent 78%
+    ),
+    var(--bottom-nav-surface) !important;
+  border: 1px solid var(--bottom-nav-border) !important;
   box-shadow:
-    0 22px 50px -20px hsl(220 35% 4% / 0.58),
-    inset 0 1px 0 var(--glass-highlight) !important;
-  backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.16);
-  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.16);
+    0 18px 42px -22px hsl(220 35% 4% / 0.64),
+    0 7px 18px -12px hsl(var(--primary) / 0.16),
+    inset 0 1px 0 var(--bottom-nav-highlight) !important;
+  backdrop-filter: blur(calc(var(--glass-blur) + 2px)) saturate(1.18);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 2px)) saturate(1.18);
+  background-clip: padding-box;
+}
+
+.bottom-nav::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      hsl(0 0% 100% / 0.08),
+      transparent 34%,
+      hsl(var(--primary) / 0.025) 100%
+    );
+}
+
+.bottom-nav::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 18%;
+  right: 18%;
+  height: 1px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(0 0% 100% / 0.45),
+    transparent
+  );
+  opacity: 0.7;
+}
+
+.bottom-nav > div {
+  position: relative;
+  z-index: 1;
+}
+
+.bottom-nav-item-button {
+  border-radius: 1rem;
+  color: hsl(var(--foreground) / 0.76);
+  transition:
+    color 180ms ease,
+    opacity 180ms ease,
+    transform 140ms ease;
+}
+
+.bottom-nav-item-button:hover {
+  color: hsl(var(--foreground));
+}
+
+.bottom-nav-item-button:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.bottom-nav-item-button:focus-visible {
+  outline: 2px solid hsl(var(--primary) / 0.42);
+  outline-offset: -2px;
+  box-shadow: none !important;
+}
+
+.bottom-nav-item {
+  border-color: transparent !important;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.bottom-nav-item.is-active {
+  background:
+    linear-gradient(
+      145deg,
+      hsl(var(--primary) / 0.13),
+      hsl(var(--accent) / 0.045)
+    ),
+    hsl(var(--card) / 0.20);
+  border-color: hsl(var(--primary) / 0.30) !important;
+  color: hsl(var(--primary));
+  box-shadow:
+    0 5px 16px -12px hsl(var(--primary) / 0.44),
+    inset 0 1px 0 hsl(0 0% 100% / 0.10);
+}
+
+.bottom-nav-item-button:hover .bottom-nav-item:not(.is-active) {
+  border-color: hsl(var(--foreground) / 0.08) !important;
+  background: hsl(var(--foreground) / 0.035);
+}
+
+.bottom-nav-item-button > span {
+  opacity: 0.82;
+  transition: opacity 180ms ease, color 180ms ease;
+}
+
+.bottom-nav-item-button:has(.bottom-nav-item.is-active) > span {
+  opacity: 1;
+}
+
+.bottom-nav-item-button:has(.bottom-nav-item.is-active) {
+  color: hsl(var(--primary));
+}
+
+html.light .bottom-nav {
+  --bottom-nav-surface: hsl(var(--card) / 0.58);
+  --bottom-nav-border: hsl(var(--border) / 0.72);
+  --bottom-nav-highlight: hsl(0 0% 100% / 0.76);
+  box-shadow:
+    0 18px 38px -22px hsl(220 25% 22% / 0.30),
+    0 7px 18px -12px hsl(var(--primary) / 0.13),
+    inset 0 1px 0 var(--bottom-nav-highlight) !important;
+}
+
+html.light .bottom-nav::before {
+  background:
+    linear-gradient(
+      180deg,
+      hsl(0 0% 100% / 0.26),
+      transparent 42%,
+      hsl(var(--primary) / 0.022) 100%
+    );
+}
+
+html.light .bottom-nav-item.is-active {
+  background:
+    linear-gradient(
+      145deg,
+      hsl(var(--primary) / 0.10),
+      hsl(var(--accent) / 0.035)
+    ),
+    hsl(0 0% 100% / 0.22);
+  border-color: hsl(var(--primary) / 0.24) !important;
+  box-shadow:
+    0 5px 14px -12px hsl(var(--primary) / 0.25),
+    inset 0 1px 0 hsl(0 0% 100% / 0.70);
+}
+
+@media (max-width: 360px) {
+  .bottom-nav {
+    width: min(calc(100% - 1rem), 31rem) !important;
+  }
+
+  .bottom-nav > div {
+    padding-inline: 2px !important;
+  }
+
+  .bottom-nav button {
+    min-width: 0 !important;
+    padding-inline: 3px !important;
+  }
+
+  .bottom-nav-item {
+    width: 2.35rem !important;
+  }
+
+  .bottom-nav-item-button > span {
+    font-size: 8.5px !important;
+    letter-spacing: 0.07em !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .bottom-nav {
+    border-radius: 1.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav,
+  .bottom-nav-item-button,
+  .bottom-nav-item,
+  .bottom-nav-item-button > span {
+    transition: none !important;
+  }
+
+  .bottom-nav-item-button:active {
+    transform: none;
+  }
 }
 
 [data-radix-popper-content-wrapper] > div,
