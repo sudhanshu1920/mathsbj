@@ -305,7 +305,7 @@ const ElementDetails = ({ element, massMode, onBack, onClose }: { element: ChemE
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 backdrop-blur-md">
       <div className="mx-auto min-h-screen w-full max-w-4xl px-4 py-4 sm:px-6 sm:py-6">
-        <div className="sticky top-0 z-10 mb-4 flex items-center justify-between rounded-2xl border border-border bg-card/90 px-2 py-2 backdrop-blur">
+        <div className="sticky top-0 z-10 mb-4 flex items-center justify-between glass rounded-2xl px-2 py-2">
           <button type="button" onClick={onBack} className="inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/10">
             <ArrowLeft size={18} /> Back to Table
           </button>
@@ -314,7 +314,7 @@ const ElementDetails = ({ element, massMode, onBack, onClose }: { element: ChemE
           </button>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-3xl border border-primary/20 bg-card shadow-[0_0_40px_hsl(var(--primary)/0.12)]">
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="glass overflow-hidden rounded-3xl shadow-[0_0_40px_hsl(var(--primary)/0.12)]">
           <div className="grid gap-5 p-5 sm:grid-cols-[180px_1fr] sm:p-7">
             <div className={`flex min-h-[190px] flex-col items-center justify-center rounded-2xl border-2 ${CATEGORY_STYLES[element.category]}`}>
               <span className="self-start px-4 pt-3 text-sm font-bold text-muted-foreground">{element.number}</span>
