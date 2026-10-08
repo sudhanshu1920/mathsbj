@@ -18,10 +18,39 @@ const defaultProgress: ProgressData = {
   byTopic: {},
 };
 
+const asNonNegativeInt = (value: unknown, fallback = 0): number => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : fallback;
+};
+
+const normalizeProgress = (value: unknown): ProgressData => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { ...defaultProgress };
+
+  const raw = value as Record<string, unknown>;
+  const correct = asNonNegativeInt(raw.correct);
+  const wrong = asNonNegativeInt(raw.wrong);
+  const totalAttempts = Math.max(asNonNegativeInt(raw.totalAttempts), correct + wrong);
+  const streak = asNonNegativeInt(raw.streak);
+  const bestStreak = Math.max(asNonNegativeInt(raw.bestStreak), streak);
+  const byTopic: ProgressData['byTopic'] = {};
+
+  if (raw.byTopic && typeof raw.byTopic === 'object' && !Array.isArray(raw.byTopic)) {
+    for (const [topic, entry] of Object.entries(raw.byTopic as Record<string, unknown>)) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+      const item = entry as Record<string, unknown>;
+      const itemCorrect = asNonNegativeInt(item.correct);
+      const itemAttempts = Math.max(asNonNegativeInt(item.attempts), itemCorrect);
+      byTopic[topic] = { attempts: itemAttempts, correct: itemCorrect };
+    }
+  }
+
+  return { totalAttempts, correct, wrong, streak, bestStreak, byTopic };
+};
+
 export const getProgress = (): ProgressData => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { ...defaultProgress };
+    return normalizeProgress(raw ? JSON.parse(raw) : null);
   } catch {
     return { ...defaultProgress };
   }
