@@ -678,6 +678,45 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     Object.fromEntries(TOPICS.map((topic) => [topic.id, 1]))
   ));
 
+  const startPractice = useCallback((cfg: PracticeConfig) => {
+    const normalizedConfig: PracticeConfig = {
+      ...cfg,
+      // Repetition mode is finite and owns quiz length. The legacy Questions
+      // ∞ flag must never leak into this mode.
+      infinite: cfg.repetitionEnabled ? false : cfg.infinite,
+      topics: cfg.topics.map((topic) => ({
+        ...topic,
+        range: { ...topic.range },
+      })),
+      repetitionByTopic: Object.fromEntries(
+        cfg.topics.map((topic) => [
+          topic.id,
+          sanitizeRepetition(cfg.repetitionByTopic[topic.id]),
+        ]),
+      ),
+    };
+    const qs = generateQuestions(normalizedConfig);
+    if (qs.length === 0) return;
+    setConfig(normalizedConfig);
+    setQuestions(qs);
+    setCurrentQ(0);
+    onQuizStart?.(normalizedConfig.mode);
+    setScore({ correct: 0, wrong: 0 });
+    setFinished(false);
+    setFeedback(null);
+    setInputValue('');
+    setSelectedOption(null);
+    setElapsedTime(0);
+    setSessionXP(0);
+    setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
+    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    answerAdvanceTimerRef.current = undefined;
+    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    autoSubmitTimerRef.current = undefined;
+    answerLockRef.current = false;
+    finishLockRef.current = false;
+  };
+
   useEffect(() => {
     if (initialTopic && initialMode) {
       const mappedTopic = initialTopic === 'square-roots' ? 'roots' : initialTopic;
@@ -740,44 +779,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     updateRange('periodic-table', 'periodicQuestionTypes', next);
   };
 
-  const startPractice = useCallback((cfg: PracticeConfig) => {
-    const normalizedConfig: PracticeConfig = {
-      ...cfg,
-      // Repetition mode is finite and owns quiz length. The legacy Questions
-      // ∞ flag must never leak into this mode.
-      infinite: cfg.repetitionEnabled ? false : cfg.infinite,
-      topics: cfg.topics.map((topic) => ({
-        ...topic,
-        range: { ...topic.range },
-      })),
-      repetitionByTopic: Object.fromEntries(
-        cfg.topics.map((topic) => [
-          topic.id,
-          sanitizeRepetition(cfg.repetitionByTopic[topic.id]),
-        ]),
-      ),
-    };
-    const qs = generateQuestions(normalizedConfig);
-    if (qs.length === 0) return;
-    setConfig(normalizedConfig);
-    setQuestions(qs);
-    setCurrentQ(0);
-    onQuizStart?.(normalizedConfig.mode);
-    setScore({ correct: 0, wrong: 0 });
-    setFinished(false);
-    setFeedback(null);
-    setInputValue('');
-    setSelectedOption(null);
-    setElapsedTime(0);
-    setSessionXP(0);
-    setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
-    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
-    answerAdvanceTimerRef.current = undefined;
-    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
-    autoSubmitTimerRef.current = undefined;
-    answerLockRef.current = false;
-    finishLockRef.current = false;
-  };
+
 
   useEffect(() => {
     if (!config || finished || !config.infinite) {
