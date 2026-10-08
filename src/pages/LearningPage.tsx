@@ -529,7 +529,7 @@ const TopStatBar = () => {
   return (
     <div className="app-topbar-stats flex items-center justify-between gap-2" data-app-topbar>
       <div>
-        <h1 className="font-display font-black text-base text-foreground leading-none">Math Quest</h1>
+        <h1 className="font-display font-black text-base text-foreground leading-none">Math Master</h1>
         <p className="text-[9px] text-muted-foreground font-display font-bold uppercase tracking-wider mt-px leading-none">
           Level {levelFromXP(xp)}
         </p>
