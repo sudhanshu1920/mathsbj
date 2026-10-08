@@ -155,7 +155,7 @@ const DesktopModeToggle = () => {
               exit={{ opacity: 0, y: -6, scale: 0.95 }}
               transition={{ duration: 0.18 }}
               style={{ position: 'fixed', top: pos.top, right: pos.right }}
-              className="z-[9999] flex flex-col items-center gap-2 rounded-2xl border-2 border-border bg-popover px-3 py-2.5 shadow-2xl"
+              className="glass-panel z-[9999] flex flex-col items-center gap-2 rounded-2xl px-3 py-2.5 shadow-2xl"
               onMouseEnter={() => closeTimer.current && window.clearTimeout(closeTimer.current)}
               onMouseLeave={scheduleAutoClose}
             >
