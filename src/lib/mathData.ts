@@ -1,5 +1,7 @@
 // All math data generated locally - fully offline
 
+import { getSquareRootAnswer, getCubeRootAnswer } from '@/lib/rootMath';
+
 export const getTable = (num: number, max = 10): { expression: string; answer: number }[] => {
   return Array.from({ length: max }, (_, i) => ({
     expression: `${num} × ${i + 1}`,
@@ -16,12 +18,11 @@ export const getSquares = (from: number, to: number) =>
 export const getSquareRoots = (from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, i) => {
     const n = from + i;
-    const root = Math.sqrt(n);
-    const isPerfect = Number.isInteger(root);
+    const root = getSquareRootAnswer(n);
     return {
       expression: `√${n}`,
-      answer: isPerfect ? root : parseFloat(root.toFixed(1)),
-      approximate: !isPerfect,
+      answer: root.answer,
+      approximate: root.approximate,
     };
   });
 
@@ -34,12 +35,11 @@ export const getCubes = (from: number, to: number) =>
 export const getCubeRoots = (from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, i) => {
     const n = from + i;
-    const root = Math.cbrt(n);
-    const isPerfect = Math.abs(root - Math.round(root)) < 1e-9;
+    const root = getCubeRootAnswer(n);
     return {
       expression: `∛${n}`,
-      answer: isPerfect ? Math.round(root) : parseFloat(root.toFixed(1)),
-      approximate: !isPerfect,
+      answer: root.answer,
+      approximate: root.approximate,
     };
   });
 

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateQuestions, isValidPracticeRange } from '@/pages/PracticePage';
+import { getSquareRoots, getCubeRoots } from '@/lib/mathData';
+import { isRootAnswerCorrect } from '@/lib/rootMath';
 
 const baseConfig = {
   count: 10,
@@ -191,6 +193,76 @@ describe('PracticePage question generation', () => {
     expect(questions.every((question) => question.text.endsWith('² = ?'))).toBe(true);
   });
 });
+
+  it('generates square-root questions from every integer in the selected range', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 20,
+      topics: [{ id: 'roots', label: 'Square Roots', range: { from: 1, to: 20 } }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    expect(questions).toHaveLength(20);
+    expect(questions.map((question) => question.text)).toEqual(
+      Array.from({ length: 20 }, (_, index) => `√${index + 1} = ?`),
+    );
+
+    const sqrt2 = questions.find((question) => question.text === '√2 = ?');
+    const sqrt4 = questions.find((question) => question.text === '√4 = ?');
+    const sqrt10 = questions.find((question) => question.text === '√10 = ?');
+
+    expect(sqrt2?.answer).toBe(1.41);
+    expect(sqrt2?.validationAnswer).toBe(Math.sqrt(2));
+    expect(sqrt2?.answerPrecision).toBe(2);
+    expect(sqrt4?.answer).toBe(2);
+    expect(sqrt4?.answerPrecision).toBe(0);
+    expect(sqrt10?.answer).toBe(3.16);
+  });
+
+  it('generates cube-root questions from every integer in the selected range', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 30,
+      topics: [{ id: 'cube-roots', label: 'Cube Roots', range: { from: 1, to: 30 } }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    expect(questions).toHaveLength(30);
+    expect(questions[0]?.text).toBe('∛1 = ?');
+    expect(questions[1]?.text).toBe('∛2 = ?');
+    expect(questions[7]?.text).toBe('∛8 = ?');
+    expect(questions[9]?.text).toBe('∛10 = ?');
+    expect(questions.find((question) => question.text === '∛2 = ?')?.answer).toBe(1.26);
+    expect(questions.find((question) => question.text === '∛10 = ?')?.answer).toBe(2.15);
+    expect(questions.find((question) => question.text === '∛27 = ?')?.answer).toBe(3);
+  });
+
+  it('rounds root answers to at most two decimals while keeping perfect roots as integers', () => {
+    const squareRoots = getSquareRoots(1, 20);
+    const cubeRoots = getCubeRoots(1, 30);
+
+    expect(squareRoots.find((item) => item.expression === '√2')?.answer).toBe(1.41);
+    expect(squareRoots.find((item) => item.expression === '√7')?.answer).toBe(2.65);
+    expect(squareRoots.find((item) => item.expression === '√10')?.answer).toBe(3.16);
+    expect(squareRoots.find((item) => item.expression === '√4')?.answer).toBe(2);
+
+    expect(cubeRoots.find((item) => item.expression === '∛2')?.answer).toBe(1.26);
+    expect(cubeRoots.find((item) => item.expression === '∛6')?.answer).toBe(1.82);
+    expect(cubeRoots.find((item) => item.expression === '∛10')?.answer).toBe(2.15);
+    expect(cubeRoots.find((item) => item.expression === '∛8')?.answer).toBe(2);
+  });
+
+  it('validates decimal root answers using the same two-decimal display precision', () => {
+    expect(isRootAnswerCorrect(1.41, Math.sqrt(2), 2)).toBe(true);
+    expect(isRootAnswerCorrect(1.409, Math.sqrt(2), 2)).toBe(true);
+    expect(isRootAnswerCorrect(1.42, Math.sqrt(2), 2)).toBe(false);
+    expect(isRootAnswerCorrect(1.30, Math.sqrt(2), 2)).toBe(false);
+    expect(isRootAnswerCorrect(2, Math.sqrt(4), 0)).toBe(true);
+    expect(isRootAnswerCorrect(2.004, Math.sqrt(4), 0)).toBe(false);
+  });
+}
 
 // Production APK build requested by user after independent operand digit selection and logo fix.
 // APK build rerun after self-contained app logo repair.

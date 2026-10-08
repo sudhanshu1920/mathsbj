@@ -31,6 +31,7 @@ import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect } from '@/li
 import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
+import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -93,6 +94,10 @@ interface Question {
   questionFraction?: { n: number; d: number };
   topicLabel?: string;
   optionPool?: (number | string)[];
+  // Root questions keep the exact mathematical value separately so display
+  // precision never becomes the internal source of truth.
+  validationAnswer?: number;
+  answerPrecision?: number;
 }
 
 const TOPIC_DEFAULTS = [
@@ -298,7 +303,14 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
     }
   } else if (topicId === 'roots' || topicId === 'square-roots') {
     for (const n of nums) {
-      questions.push({ text: `√${n * n} = ?`, answer: n, topicLabel: label });
+      const root = getSquareRootAnswer(n);
+      questions.push({
+        text: `√${n} = ?`,
+        answer: root.answer,
+        validationAnswer: root.exact,
+        answerPrecision: root.precision,
+        topicLabel: label,
+      });
     }
   } else if (topicId === 'cubes') {
     for (const n of nums) {
@@ -306,7 +318,14 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
     }
   } else if (topicId === 'cube-roots') {
     for (const n of nums) {
-      questions.push({ text: `∛${n * n * n} = ?`, answer: n, topicLabel: label });
+      const root = getCubeRootAnswer(n);
+      questions.push({
+        text: `∛${n} = ?`,
+        answer: root.answer,
+        validationAnswer: root.exact,
+        answerPrecision: root.precision,
+        topicLabel: label,
+      });
     }
   } else if (topicId === 'powers') {
     const expFrom = clampQuizValue(range.exponentFrom ?? 1, 1, MAX_POWER_EXPONENT, 1);
@@ -848,7 +867,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           const normalizeText = (value: string) => value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
           isCorrect = normalizeText(String(answer)) === normalizeText(String(q.answer));
         } else if (typeof q.answer === 'number') {
-          isCorrect = Number(answer) === q.answer;
+          if (q.validationAnswer !== undefined && q.answerPrecision !== undefined) {
+            isCorrect = isRootAnswerCorrect(Number(answer), q.validationAnswer, q.answerPrecision);
+          } else {
+            isCorrect = Number(answer) === q.answer;
+          }
         } else {
           isCorrect = normalizeAnswer(String(answer), String(q.answer));
         }
@@ -961,7 +984,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         if (isTrigAnswerCorrect(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
       } else if (typeof q.answer === 'number') {
         const numVal = parseMathValue(inputValue);
-        if (numVal !== null && Math.abs(numVal - q.answer) < 1e-9) handleAnswer(numVal);
+        if (numVal !== null) {
+          const matches = q.validationAnswer !== undefined && q.answerPrecision !== undefined
+            ? isRootAnswerCorrect(numVal, q.validationAnswer, q.answerPrecision)
+            : Math.abs(numVal - q.answer) < 1e-9;
+          if (matches) handleAnswer(numVal);
+        }
       } else {
         if (normalizeAnswer(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
       }
