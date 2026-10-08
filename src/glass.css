@@ -116,6 +116,15 @@ html.light {
   -webkit-backdrop-filter: blur(var(--glass-blur-subtle)) saturate(1.06);
 }
 
+/* Lightweight glass-adjacent surface: translucency + depth, no backdrop blur. */
+.glass-lite {
+  background:
+    linear-gradient(145deg, hsl(var(--primary) / 0.045), hsl(var(--accent) / 0.018) 58%, transparent 84%),
+    hsl(var(--card) / 0.68) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: 0 8px 22px -20px hsl(220 35% 4% / 0.34), inset 0 1px 0 var(--glass-highlight);
+}
+
 /* Generic card tokens become intentionally translucent but stay inexpensive.
    Important surfaces opt into real blur through .glass/.glass-panel. */
 .bg-card,
