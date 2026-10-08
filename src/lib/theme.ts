@@ -4,17 +4,21 @@ const KEY = 'math-app-theme-v5';
 const MODE_KEY = 'math-app-mode-v1';
 
 export type ThemeId =
-  | 'professional-slate'
-  | 'dark-gaming'
-  | 'light-minimal'
-  | 'midnight-blue'
-  | 'golden-premium'
-  | 'cyber-purple'
-  | 'blood-fire'
-  | 'matrix-green'
-  | 'rose-sakura'
-  | 'arctic-ice'
-  | 'void-black';
+  | 'arctic-blue'
+  | 'deep-space'
+  | 'titanium-silver'
+  | 'midnight-violet'
+  | 'sapphire'
+  | 'ocean-cyan'
+  | 'emerald-glass'
+  | 'aurora'
+  | 'soft-rose'
+  | 'sunset-gold'
+  | 'graphite'
+  | 'pearl-white'
+  | 'indigo'
+  | 'forest'
+  | 'mint';
 
 export type ModeId = 'dark' | 'light';
 
@@ -27,20 +31,24 @@ export interface ThemeMeta {
 }
 
 export const THEMES: ThemeMeta[] = [
-  { id: 'professional-slate', name: 'Professional Slate', tagline: 'Calm blue + teal', swatch: ['#0f172a', '#2563eb', '#0f766e'] },
-  { id: 'dark-gaming',    name: 'Dark Gaming',    tagline: 'Neon cyan + magenta', swatch: ['#0a0a0f', '#00d4ff', '#ff006e'] },
-  { id: 'light-minimal',  name: 'Light Minimal',  tagline: 'Soft & clean',        swatch: ['#f5f5f5', '#2563eb', '#7c3aed'] },
-  { id: 'midnight-blue',  name: 'Midnight Blue',  tagline: 'Indigo + cyan',       swatch: ['#0f172a', '#6366f1', '#06b6d4'] },
-  { id: 'golden-premium', name: 'Golden Premium', tagline: 'Luxury gold',         swatch: ['#0d0a00', '#f5c518', '#ff9500'], premium: true },
-  { id: 'cyber-purple',   name: 'Cyber Purple',   tagline: 'Neon violet + pink',  swatch: ['#0d0014', '#bf00ff', '#ff00aa'], premium: true },
-  { id: 'blood-fire',     name: 'Blood Fire',     tagline: 'Crimson + inferno',   swatch: ['#0f0000', '#ff1a1a', '#ff6600'], premium: true },
-  { id: 'matrix-green',   name: 'Matrix Green',   tagline: 'Hacker neon green',   swatch: ['#000a00', '#00ff41', '#00cc33'], premium: true },
-  { id: 'rose-sakura',    name: 'Rose Sakura',    tagline: 'Soft pink + blush',   swatch: ['#1a0010', '#ff4fa1', '#ff9ecb'] },
-  { id: 'arctic-ice',     name: 'Arctic Ice',     tagline: 'Glacier + frost',     swatch: ['#020e1a', '#00cfff', '#80ffee'] },
-  { id: 'void-black',     name: 'Void Black',     tagline: 'Pure dark + white',   swatch: ['#000000', '#ffffff', '#888888'], premium: true },
+  { id: 'arctic-blue',     name: 'Arctic Blue',     tagline: 'Crisp blue + cyan',      swatch: ['#07111f', '#3b82f6', '#22d3ee'] },
+  { id: 'deep-space',      name: 'Deep Space',      tagline: 'Indigo + midnight',       swatch: ['#070b16', '#6366f1', '#38bdf8'] },
+  { id: 'titanium-silver', name: 'Titanium Silver', tagline: 'Silver + cool gray',      swatch: ['#11151b', '#cbd5e1', '#94a3b8'] },
+  { id: 'midnight-violet', name: 'Midnight Violet', tagline: 'Violet + indigo',          swatch: ['#120d1f', '#8b5cf6', '#6366f1'] },
+  { id: 'sapphire',        name: 'Sapphire',        tagline: 'Royal blue + azure',      swatch: ['#071426', '#2563eb', '#0ea5e9'] },
+  { id: 'ocean-cyan',      name: 'Ocean Cyan',      tagline: 'Blue + sea glass',        swatch: ['#06151a', '#0891b2', '#14b8a6'] },
+  { id: 'emerald-glass',   name: 'Emerald Glass',   tagline: 'Emerald + teal',          swatch: ['#071611', '#10b981', '#14b8a6'] },
+  { id: 'aurora',          name: 'Aurora',          tagline: 'Cyan + violet',            swatch: ['#0a101c', '#22d3ee', '#8b5cf6'] },
+  { id: 'soft-rose',      name: 'Soft Rose',      tagline: 'Rose + blush',              swatch: ['#1b1016', '#f472b6', '#fb7185'] },
+  { id: 'sunset-gold',    name: 'Sunset Gold',    tagline: 'Gold + warm coral',         swatch: ['#1b1208', '#f59e0b', '#fb7185'] },
+  { id: 'graphite',       name: 'Graphite',       tagline: 'Charcoal + steel',           swatch: ['#0e1115', '#a1a1aa', '#64748b'] },
+  { id: 'pearl-white',    name: 'Pearl White',    tagline: 'Pearl + ocean blue',         swatch: ['#f6f8fb', '#2563eb', '#0f766e'] },
+  { id: 'indigo',         name: 'Indigo',         tagline: 'Indigo + periwinkle',         swatch: ['#111329', '#4f46e5', '#818cf8'] },
+  { id: 'forest',         name: 'Forest',         tagline: 'Pine + moss',                swatch: ['#0b1510', '#15803d', '#84cc16'] },
+  { id: 'mint',           name: 'Mint',           tagline: 'Mint + eucalyptus',           swatch: ['#071713', '#0d9488', '#34d399'] },
 ];
 
-export const DEFAULT_THEME: ThemeId = 'professional-slate';
+export const DEFAULT_THEME: ThemeId = 'arctic-blue';
 export const DEFAULT_MODE: ModeId = 'dark';
 
 const listeners = new Set<() => void>();
@@ -48,8 +56,23 @@ const listeners = new Set<() => void>();
 const isThemeId = (value: string | null): value is ThemeId =>
   !!value && THEMES.some((theme) => theme.id === value);
 
+const LEGACY_THEME_MAP: Record<string, ThemeId> = {
+  'professional-slate': 'arctic-blue',
+  'dark-gaming': 'deep-space',
+  'light-minimal': 'pearl-white',
+  'midnight-blue': 'sapphire',
+  'golden-premium': 'sunset-gold',
+  'cyber-purple': 'midnight-violet',
+  'blood-fire': 'sunset-gold',
+  'matrix-green': 'forest',
+  'rose-sakura': 'soft-rose',
+  'arctic-ice': 'arctic-blue',
+  'void-black': 'graphite',
+};
+
 const normalizeTheme = (value: string | null): ThemeId => {
   if (isThemeId(value)) return value;
+  if (value && LEGACY_THEME_MAP[value]) return LEGACY_THEME_MAP[value];
   return DEFAULT_THEME;
 };
 
