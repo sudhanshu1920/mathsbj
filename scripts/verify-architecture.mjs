@@ -47,6 +47,14 @@ if (practice.includes('sort(() => Math.random() - 0.5)')) {
 if (!index.includes('const showBottomNav = !settingsOpen;')) {
   fail('floating-bar visibility is not controlled by the shared Settings state');
 }
+if (!practice.includes('practice-exit-dialog')) {
+  fail('Practice exit dialog is missing its viewport positioning class');
+}
+const glass = read('src/glass.css');
+if (!glass.includes('.glass:not(.fixed):not(.absolute):not(.sticky)') ||
+    !glass.includes('.glass-panel:not(.fixed):not(.absolute):not(.sticky)')) {
+  fail('glass utilities can override fixed/absolute/sticky positioning');
+}
 if (!index.includes('createPortal(') || !index.includes('document.body')) {
   fail('floating-bar is not portalled to the viewport root');
 }
