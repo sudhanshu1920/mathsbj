@@ -1244,7 +1244,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </AnimatePresence>
 
         {config.mode === 'mcq' && q.options && (
-          <div className="mcq-options-grid grid gap-3 mt-5">
+          <div className="mcq-options-grid grid gap-3 mt-[30px]">
             {q.options.map((opt, i) => {
               let optStyle = 'glass text-foreground shadow-[0_0_14px_-6px_hsl(var(--primary)/0.3)] active:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
               if (feedback && selectedOption === i) {
