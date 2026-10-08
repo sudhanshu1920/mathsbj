@@ -129,7 +129,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
       {items.map((item, i) => (
         <div
           key={i}
-          className="bg-card rounded-xl px-5 py-3 flex items-center justify-center text-center border border-border"
+          className="glass-lite rounded-xl px-5 py-3 flex items-center justify-center text-center border border-border"
         >
           <span className="text-foreground text-base">
             {item.expression}
@@ -148,7 +148,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
         <button
           key={n}
           onClick={() => onSelect(n)}
-          className="bg-card border border-border rounded-xl py-3 text-center font-display font-semibold text-foreground hover:border-primary/60 active:scale-95"
+          className="glass-lite border border-border rounded-xl py-3 text-center font-display font-semibold text-foreground hover:border-primary/60 active:scale-95"
         >
           {n}
         </button>
@@ -401,7 +401,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
                 transition={{ delay: i * 0.03 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => updateState({ percentageGroup: { from: g.from, to: g.to } })}
-                className="bg-card border border-border rounded-xl py-4 text-center font-display font-semibold text-foreground hover:border-primary transition-colors"
+                className="glass-lite border border-border rounded-xl py-4 text-center font-display font-semibold text-foreground hover:border-primary transition-colors"
               >
                 {g.label}
               </motion.button>
@@ -444,7 +444,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
     <div>
       <TopStatBar />
 
-      <section className="mb-5 rounded-[1.35rem] border border-border/70 bg-card/75 p-4 sm:p-5 shadow-[var(--ds-shadow-card)]">
+      <section className="mb-5 glass rounded-[1.35rem] p-4 sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary">Study dashboard</p>
@@ -485,7 +485,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
               whileTap={{ scale: 0.985 }}
               onClick={() => setActiveTopic(t.id)}
               aria-label={`Open ${TOPIC_ICON_MAP[t].label} learning topic`}
-              className="group relative flex min-h-[132px] w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-[1.15rem] border border-border/70 bg-card/80 px-3.5 py-4 text-center shadow-[var(--ds-shadow-card)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:bg-card hover:shadow-[var(--ds-shadow-elevated)] focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0"
+              className="group glass relative flex min-h-[132px] w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-[1.15rem] px-3.5 py-4 text-center outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[var(--ds-shadow-elevated)] focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0"
             >
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-accent/[0.05] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <span className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/40 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)] backdrop-blur-sm transition-all duration-200 group-hover:border-primary/25 group-hover:bg-primary/[0.08] group-hover:-translate-y-px ${toneClass}`}>
