@@ -17,6 +17,7 @@ import OfflinePrep from '@/components/OfflinePrep';
 import { getSettings } from '@/lib/settings';
 import { getPracticeNavDepth, isUnsavedPracticePhase, type PracticePhase } from '@/lib/practiceNavigation';
 import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
+import { MOTION } from '@/lib/motion';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 type Tab = 'learn' | 'practice' | 'progress';
