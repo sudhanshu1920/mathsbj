@@ -71,7 +71,7 @@ describe('PeriodicTableLearning', () => {
     expect(screen.getByRole('heading', { name: 'Elements 1–10' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
-    fireEvent.click(screen.getByRole('button', { name: /111–118 9 elements/i }));
+    fireEvent.click(screen.getByRole('button', { name: /111–118 8 elements/i }));
 
     expect(screen.getByRole('button', { name: /Next →/i })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: /← Prev/i }));
