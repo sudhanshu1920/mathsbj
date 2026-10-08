@@ -182,8 +182,8 @@ html.light {
     0 18px 42px -22px hsl(220 35% 4% / 0.64),
     0 7px 18px -12px hsl(var(--primary) / 0.16),
     inset 0 1px 0 var(--bottom-nav-highlight) !important;
-  backdrop-filter: blur(calc(var(--glass-blur) + 2px)) saturate(1.18);
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 2px)) saturate(1.18);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.16);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.16);
   background-clip: padding-box;
 }
 
@@ -254,11 +254,10 @@ html.light {
   background: transparent;
   color: hsl(var(--muted-foreground));
   transition:
-    background-color var(--motion-duration-standard) var(--motion-ease-standard),
-    border-color var(--motion-duration-standard) var(--motion-ease-standard),
-    color var(--motion-duration-standard) var(--motion-ease-standard),
-    box-shadow var(--motion-duration-standard) var(--motion-ease-standard),
-    transform var(--motion-duration-standard) var(--motion-ease-standard);
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    border-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .bottom-nav-item.is-active {

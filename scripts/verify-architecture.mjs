@@ -132,9 +132,21 @@ if (!index.includes("appSectionSwipeEnabled =")) {
 if (!index.includes("MOTION.duration.page") ||
     !index.includes("MOTION.ease.standard") ||
     !index.includes("startTransition(applyNavigation)") ||
+    !index.includes("applyNavigation();") ||
     !index.includes("AnimatePresence") ||
     !index.includes("mode=\"sync\"")) {
   fail('Unified page motion system is missing from the app shell');
+}
+if (!index.includes("if (transitionDirection)") ||
+    !index.includes("Primary navigation taps are discrete UI actions")) {
+  fail('Primary navigation taps must bypass concurrent transition scheduling');
+}
+if (!index.includes("startTransition(applyNavigation)") ||
+    !index.includes("applyNavigation();")) {
+  fail('Navigation lifecycle must retain both swipe-concurrent and direct-immediate paths');
+}
+if (!bottomNavUi.includes("memo(BottomNavBase)")) {
+  fail('Floating Bar should be memoized against unrelated parent renders');
 }
 if (!index.includes("prefersReducedMotion ? MOTION.duration.instant : MOTION.duration.page")) {
   fail('Page transitions are not reduced-motion aware');

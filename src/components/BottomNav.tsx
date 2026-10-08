@@ -1,5 +1,5 @@
 import { BookOpen, ListChecks, BarChart3 } from 'lucide-react';
-import { forwardRef, useCallback, useRef } from 'react';
+import { forwardRef, memo, useCallback, useRef } from 'react';
 import { playClick } from '@/lib/sound';
 
 interface BottomNavProps {
@@ -16,7 +16,7 @@ const tabs = [
 
 const DOUBLE_TAP_DELAY = 280;
 
-const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, onDoubleTap }, ref) => {
+const BottomNavBase = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, onDoubleTap }, ref) => {
   const lastTapTime = useRef<Record<string, number>>({});
 
   const handleTap = useCallback((tabId: 'learn' | 'practice' | 'progress') => {
@@ -81,6 +81,9 @@ const BottomNav = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, o
   );
 });
 
+BottomNavBase.displayName = 'BottomNav';
+
+const BottomNav = memo(BottomNavBase);
 BottomNav.displayName = 'BottomNav';
 
 export default BottomNav;

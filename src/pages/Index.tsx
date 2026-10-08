@@ -469,9 +469,15 @@ const Index = () => {
       setTab(newTab);
     };
 
-    // Keep the current screen visible while lazy chunks resolve. The transition
-    // starts only once the destination screen is ready, preventing blank flashes.
-    startTransition(applyNavigation);
+    if (transitionDirection) {
+      // Swipe transitions stay concurrent so a lazy destination cannot blank the
+      // current screen while its chunk resolves.
+      startTransition(applyNavigation);
+    } else {
+      // Primary navigation taps are discrete UI actions: commit immediately so
+      // the Floating Bar never waits on a low-priority render.
+      applyNavigation();
+    }
   }, [tab, practicePhase, sectionTransitionDirection, requestPracticeNavigation, clearPracticeState]);
 
   const handleDoubleTap = useCallback((targetTab: Tab) => {
