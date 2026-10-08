@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette, Sun, Moon, Crown, Keyboard } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette, Sun, Moon, Crown, Keyboard, Type } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSettings, setSound, setVibration, setKeyboardShortcuts, AppSettings } from '@/lib/settings';
+import { getSettings, setSound, setVibration, setKeyboardShortcuts, setFont, AppSettings } from '@/lib/settings';
+import { FONT_OPTIONS } from '@/lib/font';
 import { getStreak, setTarget, StreakState } from '@/lib/streak';
 import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
@@ -110,7 +111,7 @@ const SettingsPanel = () => {
     <div className="space-y-5 min-w-0">
       {/* Profile */}
       {user && (
-        <div className="bg-secondary/40 rounded-2xl p-3 flex items-center gap-3">
+        <div className="glass rounded-2xl p-3 flex items-center gap-3">
           <div className="h-11 w-11 rounded-full gradient-primary text-primary-foreground font-display font-bold flex items-center justify-center text-lg">
             {initial}
           </div>
@@ -204,6 +205,47 @@ const SettingsPanel = () => {
         </div>
       </div>
 
+      {/* Font */}
+      <div>
+        <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+          <Type size={16} className="text-muted-foreground" /> Font
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {FONT_OPTIONS.map((font) => {
+            const selected = settings.font === font.id;
+            const optionClass = selected
+              ? 'border-primary bg-primary/10 text-primary shadow-[0_10px_28px_-18px_hsl(var(--primary)/0.7)]'
+              : 'border-border/70 bg-transparent text-foreground hover:border-primary/40';
+            return (
+              <motion.button
+                key={font.id}
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setSettingsState(setFont(font.id))}
+                aria-pressed={selected}
+                data-font-selector
+                className={"relative min-w-0 rounded-2xl border px-3 py-2.5 text-left transition-all " + optionClass}
+              >
+                <span
+                  className="block truncate text-[15px] font-semibold leading-tight"
+                  style={{ fontFamily: font.family }}
+                >
+                  {font.name}
+                </span>
+                <span className="mt-1 block truncate text-[10px] text-muted-foreground">
+                  {font.tagline}
+                </span>
+                {selected && (
+                  <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <Check size={12} />
+                  </span>
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Appearance — Themes */}
       <div>
         <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
@@ -222,7 +264,7 @@ const SettingsPanel = () => {
                 className={`flex-1 flex items-center justify-center gap-2 rounded-2xl px-3 py-2 border text-sm font-semibold transition-all ${
                   active
                     ? 'border-primary bg-primary/10 text-primary glow-primary'
-                    : 'border-border bg-card text-muted-foreground hover:border-primary/40'
+                    : 'border-border glass text-muted-foreground hover:border-primary/40'
                 }`}
               >
                 <Icon size={15} />
@@ -242,7 +284,7 @@ const SettingsPanel = () => {
                 className={`relative shrink-0 snap-start w-[108px] rounded-2xl p-3 border text-left transition-all duration-200 ${
                   selected
                     ? 'border-primary glow-primary'
-                    : 'border-border/70 bg-card hover:border-primary/40'
+                    : 'border-border/70 glass hover:border-primary/40'
                 }`}
               >
                 {/* Color preview: 3 circular dots (bg / primary / accent) */}
@@ -285,9 +327,9 @@ const SettingsPanel = () => {
         whileTap={{ scale: 0.97 }}
         onClick={checkForUpdates}
         disabled={isBusy}
-        className={`w-full flex items-center justify-between rounded-2xl px-4 py-3 border transition-all ${
-          isBusy ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/40'
-        }`}
+        className={"w-full flex items-center justify-between rounded-2xl px-4 py-3 border glass transition-all " + (
+          isBusy ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-primary/40'
+        )}
       >
         <span className="text-sm font-medium text-foreground">{updateLabel[updateState]}</span>
         <AnimatePresence mode="wait" initial={false}>
