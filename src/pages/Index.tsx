@@ -392,6 +392,9 @@ const Index = () => {
         window.history.pushState({ __mathsbj: true, depth: 'practice-active' }, '');
         lastDepth.current = 'practice-active';
         setPracticeBackRequest((value) => value + 1);
+        // No route-phase dependency changes for this popstate. Release the
+        // suppression flag here so later finish/retry updates still sync history.
+        isHandlingPopstate.current = false;
         return;
       }
 

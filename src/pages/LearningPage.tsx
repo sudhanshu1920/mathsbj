@@ -139,6 +139,9 @@ const LearningPage = ({
     const ctx: { from?: number; to?: number; number?: number } = {};
     if (selectedNumber) ctx.number = selectedNumber;
     if (selectedRange) { ctx.from = selectedRange.from; ctx.to = selectedRange.to; }
+    if (activeTopic === 'periodic-table' && periodicSelectedElement) {
+      ctx.number = periodicSelectedElement;
+    }
     if (activeTopic === 'percentage') {
       const { expandedDenominator, percentageGroup } = learningState || {};
       if (expandedDenominator) {
