@@ -560,4 +560,45 @@ if (!tableQuestionTests.includes('uses the shared Tables Standard/Pro mode for t
   fail('Quiz Tables Pro Mode must cover both actual generated question ranges and UI setting synchronization');
 }
 
+// Release versioning must be centralized, idempotent, and shared by both APK workflows.
+const releaseVersion = read('scripts/release-version.mjs');
+const releaseVersionTests = read('scripts/release-version.test.mjs');
+const releaseWorkflow = read('.github/workflows/android-release.yml');
+const manualApkWorkflow = read('.github/workflows/android-apk.yml');
+const viteConfig = read('vite.config.ts');
+const settingsPanel = read('src/components/SettingsPanel.tsx');
+if (!releaseVersion.includes('parsePublishedRelease') ||
+    !releaseVersion.includes('resolveNextReleaseVersion') ||
+    !releaseVersion.includes('reusedForSameCommit') ||
+    !releaseVersion.includes('merge-base') ||
+    !releaseVersionTests.includes('re-running the same commit reuses its published version') ||
+    !releaseVersionTests.includes('refuses to overwrite a newer release with an older or divergent source commit')) {
+  fail('Automatic release versioning must preserve the real published baseline, handle retries idempotently, and reject stale source commits');
+}
+for (const [label, workflow] of [
+  ['Android Release APK', releaseWorkflow],
+  ['Android APK', manualApkWorkflow],
+]) {
+  if (!workflow.includes('node scripts/release-version.mjs') ||
+      !workflow.includes('node --test scripts/release-version.test.mjs') ||
+      workflow.includes('VERSION_NAME: "1.0"') ||
+      workflow.includes('EXPECTED_VERSION_CODE="$(git rev-list --count HEAD)"')) {
+    fail(label + ' must use the shared tested release version resolver rather than hardcoded or commit-count versions');
+  }
+}
+if (!releaseWorkflow.includes('versionName: %s') ||
+    !releaseWorkflow.includes('sourceCommit: %s') ||
+    !releaseWorkflow.includes('signingCertificateSHA256: %s') ||
+    !releaseWorkflow.includes('681A1EEB65E63DB5CCDF01748A27AA0045033E5C3C5D0C29ED16EE0D35769B64') ||
+    releaseWorkflow.indexOf('Verify APK identity, version, signature and installability') >
+      releaseWorkflow.indexOf('Publish latest GitHub Release APK')) {
+  fail('Published APK metadata must record its source/version/certificate and only publish after successful signature verification');
+}
+if (!viteConfig.includes('process.env.VITE_APP_VERSION_CODE') ||
+    !viteConfig.includes('process.env.VITE_APP_VERSION_NAME') ||
+    !settingsPanel.includes("import { APP_VERSION_NAME } from '@/lib/appVersion';") ||
+    !settingsPanel.includes('App Version {APP_VERSION_NAME}')) {
+  fail('Settings must display the same versionName injected into Vite and the Android release');
+}
+
 console.log('Architecture regression checks passed.');
