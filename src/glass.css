@@ -162,6 +162,8 @@ html.light {
 /* Premium floating navigation surface. Layout/position remain owned by
    index.css; this layer owns only the reusable glass treatment. */
 .bottom-nav {
+  box-sizing: border-box;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   --bottom-nav-surface: var(--glass-background);
   --bottom-nav-border: var(--glass-border-strong);
   --bottom-nav-highlight: var(--glass-highlight);
@@ -330,6 +332,12 @@ html.light .bottom-nav-item.is-active {
 @media (max-width: 360px) {
   .bottom-nav {
     width: min(calc(100% - 1rem), 31rem) !important;
+    /* A constrained width cannot keep both left:0 and right:0. Center the
+       fixed bar explicitly instead of letting the LTR over-constraint pin it
+       to the left edge on narrow phones. */
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
   }
 
   .bottom-nav > div {
