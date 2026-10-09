@@ -47,8 +47,10 @@ if (!icons.includes('Grid3x3') || !icons.includes('Radical') || !icons.includes(
 if (practice.includes('sort(() => Math.random() - 0.5)')) {
   fail('biased random sort shuffle reintroduced');
 }
-if (!index.includes('const showBottomNav = !settingsOpen;')) {
-  fail('floating-bar visibility is not controlled by the shared Settings state');
+if (!index.includes('const showBottomNav = !settingsOpen && !hideFloatingBarForQuiz;') ||
+    !index.includes("tab === 'practice' && isPracticeSessionInProgress(practicePhase)") ||
+    !index.includes('const mountBottomNav = !hideFloatingBarForQuiz;')) {
+  fail('Floating Bar visibility must centrally respect Settings and active/result quiz phases');
 }
 if (index.includes("data-current-theme={currentTheme}") || index.includes("data-current-mode={currentMode}")) {
   fail('app shell still subscribes to theme/mode only for redundant data attributes');
@@ -76,6 +78,17 @@ if (!streak.includes("let cache: StreakState | null = null") || !streak.includes
 }
 if (!practice.includes('practice-exit-dialog')) {
   fail('Practice exit dialog is missing its viewport positioning class');
+}
+if (!practice.includes('onQuizReset?: () => void;') ||
+    !practice.includes('onQuizReset?.();') ||
+    !index.includes('onQuizReset={handlePracticeReset}')) {
+  fail('Exiting/resetting a quiz must restore the parent Practice phase and Floating Bar');
+}
+const practiceNavigationTests = read('src/test/practiceNavigation.test.ts');
+if (!practiceNavigationTests.includes("isPracticeSessionInProgress('setup')") ||
+    !practiceNavigationTests.includes("isPracticeSessionInProgress('active')") ||
+    !practiceNavigationTests.includes("isPracticeSessionInProgress('finished')")) {
+  fail('Quiz setup/active/result Floating Bar visibility phase tests are missing');
 }
 const glass = read('src/glass.css');
 if (!glass.includes('.glass:not(.fixed):not(.absolute):not(.sticky)') ||
