@@ -1,14 +1,22 @@
 /*
- * Opaque pinned angle cells for the horizontally scrollable textbook table.
- * Keep the first column solid so values never show through while scrolling.
+ * Sticky function labels use a fully opaque, theme-aware surface. Scrolling
+ * angle values can never bleed through the pinned first column.
  */
 .trig-table-grid {
   border-top: 1px solid hsl(var(--border));
   border-left: 1px solid hsl(var(--border));
+  table-layout: fixed;
 }
 
 .trig-table-grid .trig-table-cell {
   border-width: 0 1px 1px 0 !important;
+  vertical-align: middle;
+}
+
+.trig-table-scroll {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
 }
 
 .trig-table-sticky {
@@ -23,12 +31,34 @@
 }
 
 .trig-table-sticky-header {
-  z-index: 30;
   background-color: hsl(var(--muted)) !important;
 }
 
 .trig-table-sticky-corner {
   z-index: 40;
+}
+
+.trig-table-angle-header {
+  background-color: hsl(var(--muted) / 0.92);
+}
+
+.trig-table-radian-row th {
+  background-color: hsl(var(--card));
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.trig-table-function-label {
+  box-shadow: 1px 0 0 hsl(var(--border));
+}
+
+.trig-table-grid .trig-math-value {
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.trig-table-grid .katex {
+  font-size: 1em;
 }
 
 .trig-table-grid tbody tr:nth-child(even) td:not(.trig-table-sticky) {
@@ -37,4 +67,14 @@
 
 .trig-table-grid tbody tr:hover td:not(.trig-table-sticky) {
   background-color: hsl(var(--primary) / 0.08);
+}
+
+@media (max-width: 640px) {
+  .trig-table-grid .trig-table-cell {
+    padding: 0.5rem 0.35rem;
+  }
+
+  .trig-table-grid .katex {
+    font-size: 0.95em;
+  }
 }
