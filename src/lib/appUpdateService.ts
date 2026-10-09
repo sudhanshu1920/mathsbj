@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { isAndroidNativeUpdaterAvailable, getInstalledAndroidVersion, startAndroidUpdate } from "@/nativeAppUpdater";
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "@/lib/appVersion";
 import { fetchLatestRelease, validateReleaseManifest, type ReleaseManifest } from "@/lib/updateFeed";
@@ -66,6 +67,17 @@ export async function installAppUpdate(candidate: ReleaseManifest): Promise<AppU
   }
   const result = await applyPwaUpdate();
   if (result === "applying") return { status: "applying", platform: "web" };
+
+  // A normal browser tab (or a browser where service-worker registration was
+  // unavailable during startup) can still apply a published web deployment by
+  // reloading after the user explicitly chose Update Now. Native platforms
+  // must never take this path because reloading cannot install a native APK.
+  if (result === "unsupported" && !Capacitor.isNativePlatform()) {
+    if (typeof window === "undefined") return { status: "unsupported" };
+    window.location.reload();
+    return { status: "applying", platform: "web" };
+  }
+
   if (result === "offline" || result === "unsupported" || result === "error") return { status: result };
   return { status: "error" };
 }
