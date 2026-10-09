@@ -12,6 +12,7 @@ import ShapeDiagram from '@/components/ShapeDiagram';
 const TrigonometryLearning = lazy(() => import('@/components/TrigonometryLearning'));
 const BasicTrigonometricFunctionsLearning = lazy(() => import('@/components/BasicTrigonometricFunctionsLearning'));
 import { FORMULA_SECTIONS, type FormulaItem } from '@/lib/formulaData';
+import type { TrigFunction } from '@/lib/trigData';
 
 const KaTeXBlock = ({ latex }: { latex: string }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -159,9 +160,10 @@ interface FormulasLearningProps {
   sectionIndex: number | null;
   categoryIndex: number | null;
   onNavigate: (section: number | null, category: number | null) => void;
+  onPracticeTrigFunctions?: (functions: TrigFunction[]) => void;
 }
 
-const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasLearningProps) => {
+const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeTrigFunctions }: FormulasLearningProps) => {
   const [shapeIndex, setShapeIndex] = useState(0);
   const [shapeListMode, setShapeListMode] = useState(true);
 
@@ -214,7 +216,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate }: FormulasL
               </h2>
               <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
             </div>
-            <Suspense fallback={<div className="h-40" />}><TrigonometryLearning /></Suspense>
+            <Suspense fallback={<div className="h-40" />}><TrigonometryLearning onPracticeFunctions={onPracticeTrigFunctions} /></Suspense>
           </div>
         </SwipeBack>
       );
