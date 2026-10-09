@@ -32,7 +32,7 @@ import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
-import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
+import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerModeFromToggle, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -2114,7 +2114,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           <Switch
             checked={timerMode === 'perQuestion'}
             aria-label="Per-question timer"
-            onCheckedChange={(enabled) => setTimerMode(enabled ? 'perQuestion' : 'off')}
+            onCheckedChange={(enabled) => setTimerMode(getTimerModeFromToggle('perQuestion', enabled))}
           />
         </div>
         <AnimatePresence>
@@ -2142,7 +2142,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             <Switch
               checked={timerMode === 'challenge'}
               aria-label="Challenge timer"
-              onCheckedChange={(enabled) => setTimerMode(enabled ? 'challenge' : 'off')}
+              onCheckedChange={(enabled) => setTimerMode(getTimerModeFromToggle('challenge', enabled))}
             />
           </div>
           <AnimatePresence>
