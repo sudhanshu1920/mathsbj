@@ -168,8 +168,14 @@ const Index = () => {
         }
 
         const rect = nav.getBoundingClientRect();
-        const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-        const occupiedBottomSpace = Math.max(0, viewportHeight - rect.top);
+        const visualViewport = window.visualViewport;
+        // rect.top uses viewport coordinates. Include offsetTop when using the
+        // visual viewport so keyboard/zoom/pan changes do not mix coordinate
+        // systems and incorrectly collapse or inflate the content reserve.
+        const viewportBottom = visualViewport
+          ? visualViewport.offsetTop + visualViewport.height
+          : window.innerHeight;
+        const occupiedBottomSpace = Math.max(0, viewportBottom - rect.top);
         if (Math.abs(occupiedBottomSpace - lastHeight) < 0.01) return;
         lastHeight = occupiedBottomSpace;
         scrollElement.style.setProperty(
