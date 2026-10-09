@@ -48,8 +48,13 @@ const BottomNavBase = forwardRef<HTMLElement, BottomNavProps>(({ active, hidden 
       onChange(tabId);
     }
 
-    // Non-critical feedback stays after the navigation request.
-    playClick();
+    // Audio synthesis can allocate WebAudio nodes. Let React commit the
+    // navigation/pressed state before doing this non-critical feedback work.
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => playClick());
+    } else {
+      playClick();
+    }
   }, [active, onChange, onDoubleTap]);
 
   return (

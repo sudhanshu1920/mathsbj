@@ -151,45 +151,60 @@ const Index = () => {
     let frame = 0;
     let lastHeight = -1;
 
+    const clearBottomReserve = () => {
+      if (lastHeight !== 0 || scrollElement.style.getPropertyValue('--floating-bar-height') !== '0px') {
+        scrollElement.style.setProperty('--floating-bar-height', '0px');
+      }
+      lastHeight = 0;
+    };
+
+    const measureBottomReserve = () => {
+      if (!showBottomNav) {
+        clearBottomReserve();
+        return;
+      }
+
+      const nav = bottomNavRef.current;
+      if (!nav) {
+        clearBottomReserve();
+        return;
+      }
+
+      const rect = nav.getBoundingClientRect();
+      const visualViewport = window.visualViewport;
+      // Measure in viewport coordinates, including the floating gap/safe-area
+      // offset so content never scrolls behind the rendered navigation surface.
+      const viewportBottom = visualViewport
+        ? visualViewport.offsetTop + visualViewport.height
+        : window.innerHeight;
+      const occupiedBottomSpace = Math.max(0, viewportBottom - rect.top);
+      if (Math.abs(occupiedBottomSpace - lastHeight) < 0.01) return;
+
+      lastHeight = occupiedBottomSpace;
+      scrollElement.style.setProperty(
+        '--floating-bar-height',
+        occupiedBottomSpace > 0 ? occupiedBottomSpace + 'px' : '0px',
+      );
+    };
+
     const syncBottomReserve = () => {
       if (!showBottomNav) {
         cancelAnimationFrame(frame);
-        lastHeight = 0;
-        // Clear the reserve synchronously in the same layout pass in which the
-        // floating bar is removed from the DOM. This prevents stale bar space
-        // from surviving into the Settings overlay.
-        scrollElement.style.setProperty('--floating-bar-height', '0px');
+        frame = 0;
+        clearBottomReserve();
         return;
       }
 
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const nav = bottomNavRef.current;
-        if (!nav) {
-          scrollElement.style.setProperty('--floating-bar-height', '0px');
-          lastHeight = 0;
-          return;
-        }
-
-        const rect = nav.getBoundingClientRect();
-        const visualViewport = window.visualViewport;
-        // rect.top uses viewport coordinates. Include offsetTop when using the
-        // visual viewport so keyboard/zoom/pan changes do not mix coordinate
-        // systems and incorrectly collapse or inflate the content reserve.
-        const viewportBottom = visualViewport
-          ? visualViewport.offsetTop + visualViewport.height
-          : window.innerHeight;
-        const occupiedBottomSpace = Math.max(0, viewportBottom - rect.top);
-        if (Math.abs(occupiedBottomSpace - lastHeight) < 0.01) return;
-        lastHeight = occupiedBottomSpace;
-        scrollElement.style.setProperty(
-          '--floating-bar-height',
-          occupiedBottomSpace > 0 ? occupiedBottomSpace + 'px' : '0px',
-        );
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        measureBottomReserve();
       });
     };
 
-    syncBottomReserve();
+    // Measure in this layout pass when the bar appears/disappears. Only later
+    // viewport/resize notifications are coalesced to the next animation frame.
+    measureBottomReserve();
 
     const observer = bottomNavRef.current && typeof ResizeObserver !== 'undefined'
       ? new ResizeObserver(syncBottomReserve)
@@ -207,9 +222,7 @@ const Index = () => {
       observer?.disconnect();
       window.removeEventListener('resize', syncBottomReserve);
       window.visualViewport?.removeEventListener('resize', syncBottomReserve);
-      if (!showBottomNav) {
-        scrollElement.style.setProperty('--floating-bar-height', '0px');
-      }
+      if (!showBottomNav) clearBottomReserve();
     };
   }, [showBottomNav]);
   const lastBackPress = useRef(0);
@@ -462,7 +475,18 @@ const Index = () => {
   }, []);
 
   const handleTabChange = useCallback((newTab: Tab, transitionDirection?: SectionTransitionDirection) => {
-    if (newTab === tab || sectionTransitionDirection) return;
+    // A Floating Bar tap is an explicit navigation action and must be able to
+    // supersede a swipe animation immediately instead of waiting for its exit.
+    if (newTab === tab) {
+      if (!transitionDirection && sectionTransitionDirection) {
+        setSectionTransitionDirection(null);
+      }
+      return;
+    }
+
+    if (!transitionDirection && sectionTransitionDirection) {
+      setSectionTransitionDirection(null);
+    }
 
     if (newTab !== 'practice' && tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
       requestPracticeNavigation(newTab);
@@ -492,6 +516,8 @@ const Index = () => {
   }, [tab, practicePhase, sectionTransitionDirection, requestPracticeNavigation, clearPracticeState]);
 
   const handleDoubleTap = useCallback((targetTab: Tab) => {
+    if (sectionTransitionDirection) setSectionTransitionDirection(null);
+
     if (tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
       requestPracticeNavigation(targetTab, targetTab === 'learn');
       return;
@@ -508,7 +534,7 @@ const Index = () => {
       clearPracticeState();
       setTab('progress');
     }
-  }, [tab, practicePhase, requestPracticeNavigation, clearPracticeState]);
+  }, [tab, practicePhase, sectionTransitionDirection, requestPracticeNavigation, clearPracticeState]);
 
   const handlePracticeExit = useCallback(() => {
     const pending = pendingPracticeNavigation.current;
@@ -600,11 +626,12 @@ const Index = () => {
     while (element && element !== root) {
       if (element.dataset.swipeIgnoreAppSection === 'true') return true;
 
-      const style = window.getComputedStyle(element);
-      const canScrollHorizontally =
-        element.scrollWidth > element.clientWidth + 1 &&
-        (style.overflowX === 'auto' || style.overflowX === 'scroll');
-      if (canScrollHorizontally) return true;
+      // Most ancestors are not horizontally overflowing. Avoid forcing a
+      // computed-style read for each one on every touch/pointer down.
+      if (element.scrollWidth > element.clientWidth + 1) {
+        const overflowX = window.getComputedStyle(element).overflowX;
+        if (overflowX === 'auto' || overflowX === 'scroll') return true;
+      }
 
       element = element.parentElement;
     }

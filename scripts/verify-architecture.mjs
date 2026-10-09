@@ -91,6 +91,7 @@ if (!practiceNavigationTests.includes("isPracticeSessionInProgress('setup')") ||
   fail('Quiz setup/active/result Floating Bar visibility phase tests are missing');
 }
 const glass = read('src/glass.css');
+const device = read('src/lib/device.ts');
 if (!glass.includes('.glass:not(.fixed):not(.absolute):not(.sticky)') ||
     !glass.includes('.glass-panel:not(.fixed):not(.absolute):not(.sticky)')) {
   fail('glass utilities can override fixed/absolute/sticky positioning');
@@ -98,6 +99,37 @@ if (!glass.includes('.glass:not(.fixed):not(.absolute):not(.sticky)') ||
 if (!index.includes('createPortal(') || !index.includes('document.body')) {
   fail('floating-bar is not portalled to the viewport root');
 }
+if (index.includes("if (newTab === tab || sectionTransitionDirection) return;") ||
+    !index.includes("if (!transitionDirection && sectionTransitionDirection) {")) {
+  fail('primary Floating Bar taps must be able to supersede in-flight swipe animations');
+}
+if (!index.includes('if (element.scrollWidth > element.clientWidth + 1) {') ||
+    !index.includes("const overflowX = window.getComputedStyle(element).overflowX;")) {
+  fail('swipe exclusion must avoid unnecessary computed-style reads on non-overflowing ancestors');
+}
+if (!bottomNavUi.includes('window.requestAnimationFrame(() => playClick())') ||
+    !bottomNavTest.includes('requests navigation synchronously before click sound work')) {
+  fail('non-critical click sound work must not block Floating Bar navigation');
+}
+if (glass.includes('padding-bottom: env(safe-area-inset-bottom, 0px);') ||
+    !css.includes('bottom: calc(10px + env(safe-area-inset-bottom, 0px))')) {
+  fail('Floating Bar safe-area clearance must be accounted for exactly once through its fixed offset');
+}
+if (!glass.includes('--bottom-nav-blur: 8px;') ||
+    !glass.includes('--bottom-nav-blur: 12px;') ||
+    !glass.includes('hsl(var(--card) / 0.94)') ||
+    !glass.includes('@supports not (backdrop-filter: blur(1px))')) {
+  fail('Floating Bar needs tuned real blur and a readable no-blur fallback');
+}
+const navLayoutRule = css.match(/\.bottom-nav \{\n([\s\S]*?)\n\}/)?.[1] ?? '';
+if (/background:|backdrop-filter|box-shadow/.test(navLayoutRule)) {
+  fail('Floating Bar layout and glass-surface styling must have a single CSS owner each');
+}
+if (css.includes('/* Low-power / reduced-motion devices: drop the expensive blur entirely. */') ||
+    device.includes('matchMedia("(prefers-reduced-motion: reduce)")')) {
+  fail('reduced-motion preference must not be misclassified as low-power or remove static glass');
+}
+
 if ((index.match(/<BottomNav\b/g) ?? []).length !== 1) {
   fail('exactly one Floating Bar component instance must be declared in the app shell');
 }

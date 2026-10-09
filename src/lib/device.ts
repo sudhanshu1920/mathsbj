@@ -1,12 +1,11 @@
 // Low-end device detection. Adds `low-power` to <html> so CSS can drop
-// blur/glow/shadow cost, and lets JS skip heavy effects (particles).
+// expensive effects on constrained devices. Motion preference is handled separately by CSS.
 
 let lowPower: boolean | null = null;
 
 function detect(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
     const nav = navigator as Navigator & {
       deviceMemory?: number;
       connection?: { saveData?: boolean };

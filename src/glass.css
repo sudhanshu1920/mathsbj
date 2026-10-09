@@ -163,7 +163,8 @@ html.light {
    index.css; this layer owns only the reusable glass treatment. */
 .bottom-nav {
   box-sizing: border-box;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Safe-area clearance is already included in the fixed bottom offset. */
+  --bottom-nav-blur: 8px;
   --bottom-nav-surface: var(--glass-background);
   --bottom-nav-border: var(--glass-border-strong);
   --bottom-nav-highlight: var(--glass-highlight);
@@ -184,8 +185,8 @@ html.light {
     0 18px 42px -22px hsl(220 35% 4% / 0.64),
     0 7px 18px -12px hsl(var(--primary) / 0.16),
     inset 0 1px 0 var(--bottom-nav-highlight) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(1.16);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.16);
+  backdrop-filter: blur(var(--bottom-nav-blur)) saturate(1.12);
+  -webkit-backdrop-filter: blur(var(--bottom-nav-blur)) saturate(1.12);
   background-clip: padding-box;
 }
 
@@ -362,6 +363,7 @@ html.light .bottom-nav-item.is-active {
 @media (min-width: 768px) {
   .bottom-nav {
     border-radius: 1.15rem;
+    --bottom-nav-blur: 12px;
   }
 }
 
@@ -502,5 +504,23 @@ html.low-power .app-frame::after {
   .app-topbar-stats,
   .bottom-nav {
     transition: none !important;
+  }
+}
+
+
+/* Browsers without either backdrop-filter implementation get a stable,
+   readable translucent card rather than an unexpectedly washed-out surface. */
+@supports not (backdrop-filter: blur(1px)) {
+  @supports not (-webkit-backdrop-filter: blur(1px)) {
+    .bottom-nav {
+      background:
+        linear-gradient(
+          135deg,
+          hsl(var(--primary) / 0.06),
+          hsl(var(--accent) / 0.025) 46%,
+          transparent 78%
+        ),
+        hsl(var(--card) / 0.94) !important;
+    }
   }
 }

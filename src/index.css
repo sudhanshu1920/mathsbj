@@ -1012,13 +1012,8 @@ nav.glass-panel:not(.bottom-nav) {
   will-change: transform;
   transform: translateZ(0);
 }
-/* Low-power / reduced-motion devices: drop the expensive blur entirely. */
+/* Reduced motion shortens animation without removing static glass treatment. */
 @media (prefers-reduced-motion: reduce) {
-  .glass,
-  .glass-panel {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
@@ -1240,16 +1235,6 @@ html.low-power .bottom-nav-panel {
   max-width: 31rem !important;
   border-radius: 1.35rem !important;
   overflow: visible !important;
-  background:
-    linear-gradient(
-      180deg,
-      hsl(var(--primary) / 0.13) 0%,
-      hsl(var(--card) / 0.46) 52%,
-      hsl(var(--background) / 0.20) 100%
-    ) !important;
-  backdrop-filter: blur(12px) saturate(1.04);
-  -webkit-backdrop-filter: blur(12px) saturate(1.04);
-  box-shadow: 0 8px 24px -14px hsl(var(--primary) / 0.42);
 }
 
 .bottom-nav > div {
@@ -2502,17 +2487,6 @@ html.light {
   -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.16);
 }
 
-.bottom-nav {
-  background:
-    linear-gradient(180deg, hsl(var(--primary) / 0.09), hsl(var(--accent) / 0.03) 56%, transparent 80%),
-    var(--glass-surface-strong) !important;
-  border-color: var(--glass-border) !important;
-  box-shadow:
-    0 20px 44px -18px hsl(220 35% 4% / 0.62),
-    inset 0 1px 0 var(--glass-highlight) !important;
-  backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.18);
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.18);
-}
 
 [data-radix-popper-content-wrapper] > div,
 [role="dialog"] {
