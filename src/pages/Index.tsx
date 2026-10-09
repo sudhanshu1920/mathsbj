@@ -541,6 +541,11 @@ const Index = () => {
   }, [tab, practicePhase, sectionTransitionDirection, requestPracticeNavigation, clearPracticeState]);
 
   const handlePracticeExit = useCallback(() => {
+    // Quiz exit is a lifecycle boundary: discard any interrupted main-section
+    // swipe transition before restoring the originating screen. Otherwise the
+    // destination can inherit the old page's transform/AnimatePresence state.
+    setSectionTransitionDirection(null);
+
     const pending = pendingPracticeNavigation.current;
     pendingPracticeNavigation.current = null;
 
