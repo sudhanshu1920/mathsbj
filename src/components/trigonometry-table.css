@@ -1,22 +1,44 @@
 /*
- * Sticky function labels use a fully opaque, theme-aware surface. Scrolling
- * angle values can never bleed through the pinned first column.
+ * Native table layout with an explicit colgroup keeps every function label and
+ * angle/value pair in the same fixed column. Horizontal overflow belongs only
+ * to the scroll region, never the page or the table card.
  */
 .trig-table-grid {
   border-top: 1px solid hsl(var(--border));
   border-left: 1px solid hsl(var(--border));
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+  margin-inline: auto;
+}
+
+.trig-table-function-column {
+  width: 108px;
+}
+
+.trig-table-angle-column {
+  width: 76px;
 }
 
 .trig-table-grid .trig-table-cell {
-  border-width: 0 1px 1px 0 !important;
+  box-sizing: border-box;
+  height: 3.5rem;
   vertical-align: middle;
+  border-width: 0 1px 1px 0 !important;
+  white-space: nowrap;
 }
 
 .trig-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
+  touch-action: pan-x pan-y;
 }
 
 .trig-table-sticky {
@@ -43,6 +65,7 @@
 }
 
 .trig-table-radian-row th {
+  height: 3rem;
   background-color: hsl(var(--card));
   font-size: 0.75rem;
   font-weight: 500;
@@ -53,8 +76,13 @@
 }
 
 .trig-table-grid .trig-math-value {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
   line-height: 1.25;
+  vertical-align: middle;
 }
 
 .trig-table-grid .katex {
@@ -70,11 +98,19 @@
 }
 
 @media (max-width: 640px) {
+  .trig-table-function-column {
+    width: 92px;
+  }
+
+  .trig-table-angle-column {
+    width: 68px;
+  }
+
   .trig-table-grid .trig-table-cell {
     padding: 0.5rem 0.35rem;
   }
 
   .trig-table-grid .katex {
-    font-size: 0.95em;
+    font-size: 0.94em;
   }
 }
