@@ -27,7 +27,7 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
-import { getAllTrigQuestions, buildTrigOptions, isTrigAnswerCorrect } from '@/lib/trigData';
+import { getTrigQuestions, buildTrigOptions, isTrigAnswerCorrect, TRIG_FUNCTIONS, type TrigFunction, type TrigAngle } from '@/lib/trigData';
 import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
@@ -52,6 +52,7 @@ interface TopicRange {
   pctDenTo?: number;
   periodicQuestionTypes?: PeriodicQuestionType[];
   periodicMassMode?: PeriodicMassMode;
+  trigFunctions?: TrigFunction[];
 }
 
 interface PracticeConfig {
@@ -78,6 +79,9 @@ interface MixedPct {
 
 interface Question {
   topicId?: string;
+  questionId?: string;
+  trigFunctionId?: TrigFunction;
+  trigAngle?: TrigAngle;
   text: string;
   operation?: '+' | '−';
   operand1?: number;
@@ -109,7 +113,7 @@ const TOPIC_DEFAULTS = [
   { id: 'powers' as AppTopicId, defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
   { id: 'percentage' as AppTopicId, defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
   { id: 'addition-subtraction-digits' as AppTopicId, defaultRange: { from: 2, to: 2, operand1DigitCount: 2, operand2DigitCount: 2, arithmeticOperations: ['addition', 'subtraction'] as ArithmeticOperation[] } },
-  { id: 'trig' as AppTopicId, defaultRange: { from: 0, to: 90 } },
+  { id: 'trig' as AppTopicId, defaultRange: { from: 0, to: 360, trigFunctions: [...TRIG_FUNCTIONS] } },
   { id: 'periodic-table' as AppTopicId, defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
 ];
 
@@ -162,7 +166,12 @@ export function isValidPracticeRange(topicId: string, range: TopicRange | undefi
   const integerInRange = (value: unknown, min: number, max: number) =>
     typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max;
 
-  if (topicId === 'trig') return true;
+  if (topicId === 'trig') {
+    const functions = range.trigFunctions;
+    return Array.isArray(functions) &&
+      functions.length > 0 &&
+      functions.every((fn): fn is TrigFunction => TRIG_FUNCTIONS.includes(fn as TrigFunction));
+  }
 
   if (!integerInRange(range.from, 1, MAX_QUIZ_RANGE_VALUE) ||
       !integerInRange(range.to, 1, MAX_QUIZ_RANGE_VALUE)) {
@@ -337,8 +346,11 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       }
     }
   } else if (topicId === 'trig') {
-    for (const tq of getAllTrigQuestions()) {
+    for (const tq of getTrigQuestions(range.trigFunctions ?? TRIG_FUNCTIONS)) {
       questions.push({
+        questionId: tq.id,
+        trigFunctionId: tq.fn,
+        trigAngle: tq.angle,
         text: tq.text,
         answer: tq.answer,
         answerType: 'trig',
@@ -464,9 +476,12 @@ export function generateQuestions(config: PracticeConfig): Question[] {
     return allQuestions.map((q) => {
       // Trig: build options from the standard trig value pool
       if (q.answerType === 'trig') {
+        // Keep the source function/angle identity intact so selection, display,
+        // correct answer and distractors all describe the same question.
         const opts = buildTrigOptions({
-          fn: 'sin',
-          angle: 0,
+          id: q.questionId!,
+          fn: q.trigFunctionId!,
+          angle: q.trigAngle!,
           text: q.text,
           answer: String(q.answer),
         });
@@ -609,7 +624,7 @@ interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
   initialMode?: 'mcq' | 'input';
-  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean };
+  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[] };
   onExit?: () => void;
   onExitCancelled?: () => void;
   externalBackRequest?: number;
@@ -743,8 +758,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       const topicInfo = TOPICS.find(t => t.id === mappedTopic);
       const timerOn = initialExtras?.timerEnabled ?? false;
       const range: TopicRange = {
-        from: initialContext?.from || initialContext?.number || 1,
-        to: initialContext?.to || initialContext?.number || (initialTopic === 'percentage' ? 50 : 10),
+        from: initialContext?.from ?? initialContext?.number ?? (mappedTopic === 'trig' ? 0 : 1),
+        to: initialContext?.to ?? initialContext?.number ?? (mappedTopic === 'trig' ? 360 : initialTopic === 'percentage' ? 50 : 10),
+        ...(mappedTopic === 'trig'
+          ? { trigFunctions: initialExtras?.trigFunctions?.length ? [...initialExtras.trigFunctions] : [...TRIG_FUNCTIONS] }
+          : {}),
       };
       const cfg: PracticeConfig = {
         topics: [{ id: mappedTopic, label: topicInfo?.label || mappedTopic, range }],
@@ -780,7 +798,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         if (expandedTopic === id) setExpandedTopic(null);
       } else {
         next.add(id);
-        if (id === 'periodic-table' || id === 'addition-subtraction-digits') setExpandedTopic(id);
+        if (id === 'periodic-table' || id === 'addition-subtraction-digits' || id === 'trig') setExpandedTopic(id);
       }
       return next;
     });
@@ -789,7 +807,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const updateRange = (
     topicId: string,
     field: string,
-    value: number | string | PeriodicQuestionType[] | ArithmeticOperation[],
+    value: number | string | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[],
   ) => {
     setTopicRanges(prev => ({
       ...prev,
@@ -1549,7 +1567,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             return (
               <div key={tid} className="glass-lite rounded-2xl overflow-hidden">
                 <button
-                  onClick={() => { if (!isTrig) setExpandedTopic(isExpanded ? null : tid); }}
+                  type="button"
+                  aria-expanded={isExpanded}
+                  onClick={() => setExpandedTopic(isExpanded ? null : tid)}
                   className="w-full flex items-center justify-between px-4 py-3"
                 >
                   <div className="flex items-center gap-2">
@@ -1565,7 +1585,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     : `(${range.from}–${range.to})`}
                     </span>
                   </div>
-                  {!isTrig && (isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />)}
+                  {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
                 </button>
 
                 <AnimatePresence>
@@ -1577,7 +1597,51 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                       className="border-t border-border"
                     >
                       <div className="p-4 space-y-3">
-                        {tid === 'periodic-table' ? (
+                        {isTrig ? (
+                          <div>
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Select Trigonometric Functions</p>
+                              <button
+                                type="button"
+                                onClick={() => updateRange(tid, 'trigFunctions', [...TRIG_FUNCTIONS])}
+                                className="rounded-full bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary hover:bg-primary/15"
+                              >
+                                Select All
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                              {TRIG_FUNCTIONS.map((fn) => {
+                                const functions = range.trigFunctions ?? TRIG_FUNCTIONS;
+                                const selected = functions.includes(fn);
+                                return (
+                                  <button
+                                    key={fn}
+                                    type="button"
+                                    aria-pressed={selected}
+                                    onClick={() => updateRange(
+                                      tid,
+                                      'trigFunctions',
+                                      selected ? functions.filter((item) => item !== fn) : [...functions, fn],
+                                    )}
+                                    className={
+                                      'min-h-10 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ' +
+                                      (selected
+                                        ? 'gradient-primary border-primary text-primary-foreground'
+                                        : 'bg-secondary border-border text-secondary-foreground hover:border-primary/50')
+                                    }
+                                  >
+                                    <span className="mr-2" aria-hidden="true">{selected ? '✓' : '○'}</span>
+                                    {fn} θ
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {!(range.trigFunctions ?? TRIG_FUNCTIONS).length && (
+                              <p className="mt-2 text-[11px] font-semibold text-destructive">Select at least one trigonometric function.</p>
+                            )}
+                            <p className="mt-2 text-[11px] text-muted-foreground">Each selected function includes all standard angles from 0° to 360°, including Undefined answers.</p>
+                          </div>
+                        ) : tid === 'periodic-table' ? (
                           <>
                             <div>
                               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Choose Topics</p>
