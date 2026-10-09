@@ -84,6 +84,13 @@ if (!glass.includes('.glass:not(.fixed):not(.absolute):not(.sticky)') ||
 if (!index.includes('createPortal(') || !index.includes('document.body')) {
   fail('floating-bar is not portalled to the viewport root');
 }
+if ((index.match(/<BottomNav\\b/g) ?? []).length !== 1) {
+  fail('exactly one Floating Bar component instance must be declared in the app shell');
+}
+if (!index.includes('hidden={!showBottomNav}')) {
+  fail('Floating Bar must stay mounted and hide without remounting in Settings');
+}
+
 const bottomNav = read('src/components/BottomNav.tsx');
 if (!bottomNav.includes('bottom-nav fixed bottom-0')) {
   fail('floating-bar is not fixed to the viewport');
@@ -207,6 +214,49 @@ if (!sync.includes('switchedUser') || !sync.includes('data.progress ?? {}')) {
 }
 if (!auth.includes('syncStartTimerRef') || !auth.includes('syncUserIdRef')) {
   fail('auth sync lifecycle guard is missing');
+}
+
+const updateFeed = read('src/lib/updateFeed.ts');
+const updateService = read('src/lib/appUpdateService.ts');
+const updateManager = read('src/components/AppUpdateManager.tsx');
+const nativeUpdater = read('src/nativeAppUpdater.ts');
+const pwaUpdater = read('src/pwa.ts');
+const appVersion = read('src/lib/appVersion.ts');
+const viteConfig = read('vite.config.ts');
+const releaseWorkflow = read('.github/workflows/android-release.yml');
+if (!bottomNav.includes('data-app-floating-nav="true"') || !bottomNav.includes('z-40')) {
+  fail('Floating Bar must have one stable identity and remain below dialog overlays');
+}
+if (nativeUpdater.includes('/releases/tags/latest')) {
+  fail('native updater must not rely on anonymous access to a private GitHub Releases API');
+}
+if (!updateFeed.includes('https://sudhanshu1920.github.io/mathsbj/updates/update.json') ||
+    !updateFeed.includes('EXPECTED_APK_URL') ||
+    !updateFeed.includes('SHA256_PATTERN')) {
+  fail('public update feed, APK destination, and checksum validation are required');
+}
+if (!updateService.includes('checkForAppUpdate') || !updateService.includes('isNewerRelease')) {
+  fail('manual and automatic update checks must use validated metadata and numeric version comparison');
+}
+if (!updateManager.includes('DISMISSED_VERSION_KEY') ||
+    !updateManager.includes('Update Now') ||
+    !updateManager.includes('Later')) {
+  fail('update dialog must expose Update Now/Later and persist dismissal by version');
+}
+if (!pwaUpdater.includes('PWA_UPDATE_DISCOVERED_EVENT') ||
+    !pwaUpdater.includes('applyPwaUpdate') ||
+    !viteConfig.includes('registerType: "prompt"')) {
+  fail('PWA updates must wait for explicit user confirmation');
+}
+if (!appVersion.includes('__APP_VERSION_CODE__') || !viteConfig.includes('__APP_VERSION_CODE__')) {
+  fail('installed app build version must be embedded from the actual build');
+}
+if (!releaseWorkflow.includes('actions/configure-pages@v5') ||
+    !releaseWorkflow.includes('actions/upload-pages-artifact@v3') ||
+    !releaseWorkflow.includes('actions/deploy-pages@v4') ||
+    !releaseWorkflow.includes('updates/update.json') ||
+    !releaseWorkflow.includes('expectedSha256.equalsIgnoreCase')) {
+  fail('signed APK and checksummed update feed must be published through GitHub Pages');
 }
 
 // Periodic ranges must be contiguous, non-overlapping, and end exactly at 118.
