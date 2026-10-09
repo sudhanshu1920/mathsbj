@@ -1,34 +1,35 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import TrigonometryLearning from '@/components/TrigonometryLearning';
-import { TRIG_FUNCTIONS } from '@/lib/trigData';
+import { TRIG_ANGLES, TRIG_FUNCTIONS } from '@/lib/trigData';
 
-describe('Table of Angles practice controls', () => {
-  it('keeps the reference table and exposes six individual practice actions', () => {
-    const onPracticeFunctions = vi.fn();
-    render(<TrigonometryLearning onPracticeFunctions={onPracticeFunctions} />);
-
-    expect(screen.getByRole('table', { name: /exact values of sine, cosine/i })).toBeInTheDocument();
-    for (const fn of TRIG_FUNCTIONS) {
-      expect(screen.getByRole('button', { name: `Practice ${fn} θ` })).toBeInTheDocument();
-    }
-
-    fireEvent.click(screen.getByRole('button', { name: 'Practice cos θ' }));
-    expect(onPracticeFunctions).toHaveBeenCalledWith(['cos']);
-  });
-
-  it('starts combined practice with every supported function', () => {
-    const onPracticeFunctions = vi.fn();
-    render(<TrigonometryLearning onPracticeFunctions={onPracticeFunctions} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Practice All Functions' }));
-    expect(onPracticeFunctions).toHaveBeenCalledWith([...TRIG_FUNCTIONS]);
-  });
-
-  it('keeps the table usable without requiring practice-navigation props', () => {
+describe('transposed Table of Angles', () => {
+  it('places each supported angle horizontally and each function vertically', () => {
     render(<TrigonometryLearning />);
 
-    expect(screen.getByRole('table', { name: /exact values of sine, cosine/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Practice All Functions' })).not.toBeInTheDocument();
+    expect(screen.getByRole('table', { name: /trigonometric ratios for standard angles/i })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Function' })).toBeInTheDocument();
+
+    for (const angle of TRIG_ANGLES) {
+      expect(screen.getByRole('columnheader', { name: `${angle} degrees` })).toBeInTheDocument();
+    }
+
+    for (const fn of TRIG_FUNCTIONS) {
+      expect(screen.getByRole('rowheader', { name: `${fn} θ` })).toBeInTheDocument();
+    }
+
+    // Two header rows followed by one row for each of the six functions.
+    expect(screen.getAllByRole('row')).toHaveLength(TRIG_FUNCTIONS.length + 2);
+  });
+
+  it('keeps values attached to the correct function/angle cell', () => {
+    render(<TrigonometryLearning />);
+
+    expect(screen.getByRole('cell', { name: 'sin at 30 degrees: 1/2' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'cos at 30 degrees: √3/2' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'tan at 90 degrees: Undefined' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'cot at 0 degrees: Undefined' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'sec at 90 degrees: Undefined' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'cosec at 30 degrees: 2' })).toBeInTheDocument();
   });
 });
