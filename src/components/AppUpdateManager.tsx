@@ -28,6 +28,7 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
   const [installing, setInstalling] = useState(false);
   const queuedUpdate = useRef<ReleaseManifest | null>(null);
   const lastAutomaticCheckAt = useRef(0);
+  const lastAutomaticCheckSucceeded = useRef(false);
   const mounted = useRef(true);
 
   const showUpdate = useCallback((candidate: unknown, force = false) => {
@@ -84,16 +85,23 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     setUpdate(null);
   }, [update]);
 
-  const runCheck = useCallback(async (manual = false, pwaSignal = false) => {
+  const runCheck = useCallback(async (manual = false, pwaSignal = false, force = false) => {
     const now = Date.now();
-    if (!manual && !pwaSignal) {
-      if (now - lastAutomaticCheckAt.current < AUTO_CHECK_COOLDOWN_MS) return;
+    if (!manual && !pwaSignal && !force) {
+      const cooldown = lastAutomaticCheckSucceeded.current
+        ? AUTO_CHECK_COOLDOWN_MS
+        : 30_000;
+      if (now - lastAutomaticCheckAt.current < cooldown) return;
       lastAutomaticCheckAt.current = now;
-    } else if (pwaSignal) lastAutomaticCheckAt.current = now;
+    } else if (pwaSignal || force) {
+      lastAutomaticCheckAt.current = now;
+    }
 
     try {
       const result = await checkForAppUpdate();
       if (!mounted.current) return;
+      lastAutomaticCheckSucceeded.current =
+        result.status === "available" || result.status === "current";
       if (result.status === "available") showUpdate(result.update);
       else if (pwaSignal && result.status === "current") showUpdate(result.latest);
       else if (manual && result.status === "current") toast("You're using the latest version.");
@@ -101,6 +109,7 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
         toast.error("Unable to check for updates. Please try again.");
       }
     } catch {
+      lastAutomaticCheckSucceeded.current = false;
       // A failed automatic network check must never become an unhandled
       // rejection. Manual checks get explicit feedback; startup stays silent.
       if (mounted.current && manual) {
@@ -118,17 +127,20 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     };
     const onPwaUpdate = () => { void runCheck(false, true); };
     const onForeground = () => { if (document.visibilityState === "visible") void runCheck(false); };
+    const onOnline = () => {
+      if (document.visibilityState === "visible") void runCheck(false, false, true);
+    };
     window.addEventListener(UPDATE_AVAILABLE_EVENT, onUpdateAvailable);
     window.addEventListener(PWA_UPDATE_DISCOVERED_EVENT, onPwaUpdate);
     window.addEventListener("focus", onForeground);
-    window.addEventListener("online", onForeground);
+    window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onForeground);
     return () => {
       mounted.current = false;
       window.removeEventListener(UPDATE_AVAILABLE_EVENT, onUpdateAvailable);
       window.removeEventListener(PWA_UPDATE_DISCOVERED_EVENT, onPwaUpdate);
       window.removeEventListener("focus", onForeground);
-      window.removeEventListener("online", onForeground);
+      window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onForeground);
     };
   }, [runCheck, showUpdate]);
