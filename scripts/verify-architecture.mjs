@@ -50,6 +50,14 @@ if (!icons.includes('Grid3x3') || !icons.includes('Radical') || !icons.includes(
 if (practice.includes('sort(() => Math.random() - 0.5)')) {
   fail('biased random sort shuffle reintroduced');
 }
+const practiceExitStart = index.indexOf('const handlePracticeExit = useCallback(() => {');
+const practiceExitEnd = index.indexOf('const handlePracticeExitCancelled = useCallback', practiceExitStart);
+const practiceExitHandler = index.slice(practiceExitStart, practiceExitEnd);
+if (practiceExitStart < 0 || practiceExitEnd < 0 ||
+    !practiceExitHandler.includes('setSectionTransitionDirection(null);')) {
+  fail('Quiz exit must clear stale main-section transition state before restoring its destination');
+}
+
 if (!index.includes('getFloatingBarVisibility({') ||
     !index.includes('activeTopic: learningState.activeTopic') ||
     !index.includes('quizInProgress: isPracticeSessionInProgress(practicePhase)') ||
