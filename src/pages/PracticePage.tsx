@@ -858,9 +858,23 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
 
 
-  // One shared 1 Hz session clock handles elapsed time, daily streak time and
-  // the per-question timer. Keeping one interval avoids timer duplication and
-  // prevents timer recreation on every question.
+  const finishQuiz = useCallback(() => {
+    if (finishLockRef.current) return;
+    finishLockRef.current = true;
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    sessionIntervalRef.current = undefined;
+    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    answerAdvanceTimerRef.current = undefined;
+    autoSubmitTimerRef.current = undefined;
+    challengeDeadlineRef.current = null;
+    onQuizFinish?.();
+    setFinished(true);
+  }, [onQuizFinish]);
+
+  // One session clock owns elapsed/streak accounting and whichever timer mode
+  // was selected. Challenge remaining time is derived from a monotonic deadline
+  // so delayed interval ticks cannot extend the configured duration.
   useEffect(() => {
     if (!config || finished) {
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
@@ -870,6 +884,18 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = setInterval(() => {
+      if (config.timerMode === 'challenge') {
+        const deadline = challengeDeadlineRef.current;
+        const remaining = deadline === null
+          ? 0
+          : getRemainingSeconds(deadline, performance.now());
+        setChallengeTimeLeft((previous) => previous === remaining ? previous : remaining);
+        if (remaining === 0) {
+          finishQuiz();
+          return;
+        }
+      }
+
       if (config.infinite) {
         setElapsedTime((prev) => prev + 1);
       }
@@ -878,7 +904,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         addStreakSeconds(1);
       }
 
-      if (config.timerEnabled && config.timerSeconds < 9999) {
+      // Per-question timeout behavior is only active in this mode. A Challenge
+      // expiry finishes the session without submitting the current unanswered
+      // question or recording it as wrong.
+      if (config.timerMode === 'perQuestion' && config.timerSeconds < 9999) {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             handleAnswerRef.current(null);
@@ -893,16 +922,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
       sessionIntervalRef.current = undefined;
     };
-  }, [config, finished]);
-
-  const finishQuiz = useCallback(() => {
-    if (finishLockRef.current) return;
-    finishLockRef.current = true;
-    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
-    sessionIntervalRef.current = undefined;
-    onQuizFinish?.();
-    setFinished(true);
-  }, [onQuizFinish]);
+  }, [config, finished, finishQuiz]);
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
