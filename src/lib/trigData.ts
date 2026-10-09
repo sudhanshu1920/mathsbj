@@ -17,6 +17,13 @@ export type TrigAngle = (typeof TRIG_ANGLES)[number];
 
 export const TRIG_FUNCTIONS: TrigFunction[] = ['sin', 'cos', 'tan', 'cot', 'sec', 'cosec'];
 
+/** Canonical angle range used by both the Table of Angles and Quiz mode. */
+const STANDARD_TRIG_ANGLES: readonly TrigAngle[] = TRIG_ANGLES.filter((angle) => angle <= 90);
+
+export function getTrigAngles(proMode = false): readonly TrigAngle[] {
+  return proMode ? TRIG_ANGLES : STANDARD_TRIG_ANGLES;
+}
+
 /** Exact radian representation for every standard angle in the table. */
 export const TRIG_RADIANS: Record<TrigAngle, string> = {
   0: '0',
@@ -106,11 +113,15 @@ export interface TrigQuestion {
  * Generate questions for only the selected functions, using the same exact
  * values as the reference table. Undefined table cells remain valid questions.
  */
-export function getTrigQuestions(functions: readonly TrigFunction[] = TRIG_FUNCTIONS): TrigQuestion[] {
+export function getTrigQuestions(
+  functions: readonly TrigFunction[] = TRIG_FUNCTIONS,
+  angles: readonly TrigAngle[] = TRIG_ANGLES,
+): TrigQuestion[] {
   const selectedFunctions = TRIG_FUNCTIONS.filter((fn) => functions.includes(fn));
+  const selectedAngles = TRIG_ANGLES.filter((angle) => angles.includes(angle));
   const out: TrigQuestion[] = [];
   for (const fn of selectedFunctions) {
-    for (const angle of TRIG_ANGLES) {
+    for (const angle of selectedAngles) {
       out.push({
         id: `trig-${fn}-${angle}`,
         fn,
