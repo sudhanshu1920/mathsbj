@@ -72,6 +72,11 @@ if (!floatingBarVisibility.includes("tab === 'learn' && activeTopic !== null") |
     !floatingBarVisibilityTests.includes('keeps Settings hidden without changing its existing mount behavior')) {
   fail('Floating Bar topic-depth, auto-restore, Settings, and Quiz regression tests are missing');
 }
+if (index.includes("custom={sectionTransitionDirection ?? 'left'}") ||
+    !index.includes("direction === null ? '0%'") ||
+    !index.includes("transition: { duration: direction === null ? 0 : duration")) {
+  fail('Main-section exits must immediately clear stale swipe transforms when Quiz restores its originating screen');
+}
 if (index.includes("data-current-theme={currentTheme}") || index.includes("data-current-mode={currentMode}")) {
   fail('app shell still subscribes to theme/mode only for redundant data attributes');
 }

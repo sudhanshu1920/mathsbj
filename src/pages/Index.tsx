@@ -61,16 +61,32 @@ function getAdjacentMainSection(
 }
 
 type SectionTransitionDirection = 'left' | 'right';
+type SectionTransition = {
+  direction: SectionTransitionDirection | null;
+  duration: number;
+};
 
 const sectionPageVariants = {
-  enter: (direction: SectionTransitionDirection) => ({
-    x: direction === 'left' ? MOTION.distance.page : '-100%',
+  enter: ({ direction }: SectionTransition) => ({
+    x: direction === 'left'
+      ? MOTION.distance.page
+      : direction === 'right'
+        ? '-100%'
+        : '0%',
   }),
   center: {
     x: '0%',
   },
-  exit: (direction: SectionTransitionDirection) => ({
-    x: direction === 'left' ? '-100%' : MOTION.distance.page,
+  exit: ({ direction, duration }: SectionTransition) => ({
+    // When navigation is not an intentional swipe (notably Quiz Exit back to
+    // Learning), immediately neutralize the exiting page instead of leaving a
+    // translated sliver behind the restored screen.
+    x: direction === null
+      ? '0%'
+      : direction === 'left'
+        ? '-100%'
+        : MOTION.distance.page,
+    transition: { duration: direction === null ? 0 : duration, ease: MOTION.ease.standard },
   }),
 };
 
@@ -132,6 +148,12 @@ const Index = () => {
     replacementPracticeTopic?: string;
   } | null>(null);
   const wideDesktop = useWideDesktop();
+  const sectionTransition: SectionTransition = {
+    direction: sectionTransitionDirection,
+    duration: sectionTransitionDirection
+      ? (prefersReducedMotion ? MOTION.duration.instant : MOTION.duration.page)
+      : 0,
+  };
 
   // A single shared policy handles Learning topic depth, Settings, and Quiz phase.
   // activeTopic remains set throughout selections and nested detail screens.
@@ -820,14 +842,14 @@ const Index = () => {
               : 'max-w-lg mx-auto px-4 pt-0 relative z-10 flex-1 grid grid-cols-1'}>
             <AnimatePresence
               initial={false}
-              custom={sectionTransitionDirection ?? 'left'}
+              custom={sectionTransition}
               mode="sync"
               onExitComplete={() => setSectionTransitionDirection(null)}
             >
               {tab === 'learn' && (
                 <motion.div
                   key="learn"
-                  custom={sectionTransitionDirection ?? 'left'}
+                  custom={sectionTransition}
                   variants={sectionPageVariants}
                   initial={sectionTransitionDirection ? 'enter' : false}
                   animate="center"
@@ -850,7 +872,7 @@ const Index = () => {
               {tab === 'practice' && (
                 <motion.div
                   key="practice"
-                  custom={sectionTransitionDirection ?? 'left'}
+                  custom={sectionTransition}
                   variants={sectionPageVariants}
                   initial={sectionTransitionDirection ? 'enter' : false}
                   animate="center"
@@ -882,7 +904,7 @@ const Index = () => {
               {tab === 'progress' && (
                 <motion.div
                   key="progress"
-                  custom={sectionTransitionDirection ?? 'left'}
+                  custom={sectionTransition}
                   variants={sectionPageVariants}
                   initial={sectionTransitionDirection ? 'enter' : false}
                   animate="center"
