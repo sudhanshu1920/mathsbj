@@ -91,13 +91,21 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
       lastAutomaticCheckAt.current = now;
     } else if (pwaSignal) lastAutomaticCheckAt.current = now;
 
-    const result = await checkForAppUpdate();
-    if (!mounted.current) return;
-    if (result.status === "available") showUpdate(result.update);
-    else if (pwaSignal && result.status === "current") showUpdate(result.latest);
-    else if (manual && result.status === "current") toast("You're using the latest version.");
-    else if (manual && (result.status === "offline" || result.status === "error")) {
-      toast.error("Unable to check for updates. Please try again.");
+    try {
+      const result = await checkForAppUpdate();
+      if (!mounted.current) return;
+      if (result.status === "available") showUpdate(result.update);
+      else if (pwaSignal && result.status === "current") showUpdate(result.latest);
+      else if (manual && result.status === "current") toast("You're using the latest version.");
+      else if (manual && (result.status === "offline" || result.status === "error")) {
+        toast.error("Unable to check for updates. Please try again.");
+      }
+    } catch {
+      // A failed automatic network check must never become an unhandled
+      // rejection. Manual checks get explicit feedback; startup stays silent.
+      if (mounted.current && manual) {
+        toast.error("Unable to check for updates. Please try again.");
+      }
     }
   }, [showUpdate]);
 
