@@ -77,6 +77,9 @@ if (index.includes("custom={sectionTransitionDirection ?? 'left'}") ||
     !index.includes("transition: { duration: direction === null ? 0 : duration")) {
   fail('Main-section exits must immediately clear stale swipe transforms when Quiz restores its originating screen');
 }
+if (!index.includes("opacity: direction === null ? 0 : 1")) {
+  fail('Non-swipe exits must hide the outgoing screen immediately to prevent overlap with the restored destination');
+}
 if (index.includes("data-current-theme={currentTheme}") || index.includes("data-current-mode={currentMode}")) {
   fail('app shell still subscribes to theme/mode only for redundant data attributes');
 }

@@ -78,14 +78,16 @@ const sectionPageVariants = {
     x: '0%',
   },
   exit: ({ direction, duration }: SectionTransition) => ({
-    // When navigation is not an intentional swipe (notably Quiz Exit back to
-    // Learning), immediately neutralize the exiting page instead of leaving a
-    // translated sliver behind the restored screen.
+    // Non-swipe navigation (notably Quiz Exit) can briefly keep both page
+    // wrappers in the same Grid cell while AnimatePresence mode="sync" removes
+    // the outgoing one. Hide it immediately so its controls cannot paint over
+    // the restored Learning selector or originating screen.
     x: direction === null
       ? '0%'
       : direction === 'left'
         ? '-100%'
         : MOTION.distance.page,
+    opacity: direction === null ? 0 : 1,
     transition: { duration: direction === null ? 0 : duration, ease: MOTION.ease.standard },
   }),
 };
