@@ -232,7 +232,8 @@ if (!trigTable.includes('trig-table-sticky') ||
     !trigTable.includes('trig-table-sticky-corner')) {
   fail('Table of Angles is missing the dedicated sticky first-column layers');
 }
-if (/sticky left-0 bg-primary\\/(?:5|15)/.test(trigTable)) {
+if (trigTable.includes('sticky left-0 bg-primary/15') ||
+    trigTable.includes('sticky left-0 bg-primary/5')) {
   fail('Table of Angles sticky headers must not use translucent primary backgrounds');
 }
 if (!trigTableCss.includes('background-color: hsl(var(--card)) !important') ||
