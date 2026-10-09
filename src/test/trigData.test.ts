@@ -6,6 +6,7 @@ import {
   TRIG_RADIANS,
   buildTrigOptions,
   getAllTrigQuestions,
+  getTrigQuestions,
   isTrigAnswerCorrect,
   trigValue,
   type TrigAngle,
@@ -61,8 +62,29 @@ describe('trigonometry practice data', () => {
     expect(questions.every((question) => question.answer !== NOT_DEFINED)).toBe(true);
   });
 
-  it('provides four unique options including the correct answer', () => {
-    for (const question of getAllTrigQuestions().slice(0, 12)) {
+  it('generates only selected functions and keeps undefined table cells answerable', () => {
+    const sineQuestions = getTrigQuestions(['sin']);
+    expect(sineQuestions).toHaveLength(17);
+    expect(sineQuestions.every((question) => question.fn === 'sin')).toBe(true);
+    expect(sineQuestions.every((question) => question.id === `trig-sin-${question.angle}`)).toBe(true);
+
+    const tangentQuestions = getTrigQuestions(['tan']);
+    expect(tangentQuestions).toHaveLength(17);
+    expect(tangentQuestions.find((question) => question.angle === 90)?.answer).toBe(NOT_DEFINED);
+    expect(tangentQuestions.find((question) => question.angle === 270)?.answer).toBe(NOT_DEFINED);
+
+    const allQuestions = getTrigQuestions();
+    expect(allQuestions).toHaveLength(102);
+    expect(allQuestions.filter((question) => question.answer === NOT_DEFINED)).toHaveLength(10);
+    expect(new Set(allQuestions.map((question) => question.id)).size).toBe(102);
+  });
+
+  it('provides four unique options including the correct answer even for undefined values', () => {
+    const questions = [
+      ...getAllTrigQuestions().slice(0, 12),
+      ...getTrigQuestions(['tan']).filter((question) => question.answer === NOT_DEFINED),
+    ];
+    for (const question of questions) {
       const options = buildTrigOptions(question);
       expect(options).toHaveLength(4);
       expect(new Set(options).size).toBe(4);
@@ -70,7 +92,14 @@ describe('trigonometry practice data', () => {
     }
   });
 
-  it('accepts equivalent positive and negative exact-value notation', () => {
+  it('accepts decimal, fraction, radical and undefined aliases without changing meaning', () => {
+    expect(isTrigAnswerCorrect('0.5', '1/2')).toBe(true);
+    expect(isTrigAnswerCorrect('-0.5', '-1/2')).toBe(true);
+    expect(isTrigAnswerCorrect('0.8660254', '√3/2')).toBe(true);
+    expect(isTrigAnswerCorrect('Undefined', NOT_DEFINED)).toBe(true);
+    expect(isTrigAnswerCorrect('not defined', NOT_DEFINED)).toBe(true);
+    expect(isTrigAnswerCorrect('infinity', NOT_DEFINED)).toBe(false);
+    expect(isTrigAnswerCorrect('0.51', '1/2')).toBe(false);
     expect(isTrigAnswerCorrect('√2/2', '1/√2')).toBe(true);
     expect(isTrigAnswerCorrect('-√2/2', '-1/√2')).toBe(true);
     expect(isTrigAnswerCorrect('√3/3', '1/√3')).toBe(true);
