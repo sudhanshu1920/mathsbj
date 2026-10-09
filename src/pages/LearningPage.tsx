@@ -18,12 +18,13 @@ const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearn
 import { getStreak } from '@/lib/streak';
 import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
+import type { TrigFunction } from '@/lib/trigData';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table';
 
 interface LearningPageProps {
   onBack?: () => void;
-  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => void;
+  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[] }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
 }
@@ -46,6 +47,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   const selectedRange = learningState?.selectedRange ?? null;
   const periodicSelectedElement = learningState?.periodicSelectedElement ?? null;
   const [showPracticeMode, setShowPracticeMode] = useState(false);
+  const [pendingTrigFunctions, setPendingTrigFunctions] = useState<TrigFunction[] | null>(null);
   const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
 
   useEffect(() => {
@@ -77,7 +79,21 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   const rangeGroups = RANGE_GROUPS;
 
   const handlePracticeSelect = (settings: PracticeSettings) => {
-    if (!onStartPractice || !activeTopic) return;
+    if (!onStartPractice) return;
+
+    if (pendingTrigFunctions?.length) {
+      onStartPractice('trig', {}, settings.mode, {
+        timerEnabled: settings.timerEnabled,
+        timerSeconds: settings.timerSeconds,
+        infinite: settings.infinite,
+        trigFunctions: [...pendingTrigFunctions],
+      });
+      setPendingTrigFunctions(null);
+      setShowPracticeMode(false);
+      return;
+    }
+
+    if (!activeTopic) return;
     const ctx: { from?: number; to?: number; number?: number } = {};
     if (selectedNumber) ctx.number = selectedNumber;
     if (selectedRange) { ctx.from = selectedRange.from; ctx.to = selectedRange.to; }
@@ -432,6 +448,10 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
               sectionIndex={secIdx}
               categoryIndex={catIdx}
               onNavigate={(s, c) => updateState({ formulaSectionIndex: s, formulaCategoryIndex: c })}
+              onPracticeTrigFunctions={(functions) => {
+                setPendingTrigFunctions([...functions]);
+                setShowPracticeMode(true);
+              }}
             />
           </Suspense>
         </div>
