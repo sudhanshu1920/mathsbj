@@ -1026,6 +1026,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
       answerAdvanceTimerRef.current = setTimeout(() => {
         answerAdvanceTimerRef.current = undefined;
+        if (
+          config.timerMode === 'challenge' &&
+          challengeDeadlineRef.current !== null &&
+          performance.now() >= challengeDeadlineRef.current
+        ) {
+          setChallengeTimeLeft(0);
+          finishQuiz();
+          return;
+        }
         setFeedback(null);
         setInputValue('');
         setSelectedOption(null);
