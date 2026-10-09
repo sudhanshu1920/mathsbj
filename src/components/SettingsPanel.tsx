@@ -28,8 +28,12 @@ const SettingsPanel = () => {
   const mode = useMode();
   const guest = !user && isGuest();
 
+  const mountedRef = useRef(true);
+
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (updateResetTimerRef.current) {
         clearTimeout(updateResetTimerRef.current);
         updateResetTimerRef.current = null;
@@ -38,10 +42,11 @@ const SettingsPanel = () => {
   }, []);
 
   const scheduleUpdateReset = (delay: number) => {
+    if (!mountedRef.current) return;
     if (updateResetTimerRef.current) clearTimeout(updateResetTimerRef.current);
     updateResetTimerRef.current = setTimeout(() => {
       updateResetTimerRef.current = null;
-      setUpdateState('idle');
+      if (mountedRef.current) setUpdateState('idle');
     }, delay);
   };
 
@@ -76,22 +81,30 @@ const SettingsPanel = () => {
     try {
       const result = await checkForAppUpdate();
       if (result.status === 'available') {
-        setUpdateState('available');
+        // The global updater may still show its popup even if Settings was
+        // closed while the shared network request was in flight.
         announceUpdateAvailable(result.update, true);
+        if (!mountedRef.current) return;
+        setUpdateState('available');
         scheduleUpdateReset(8000);
-      } else if (result.status === 'current') {
-        setUpdateState('done');
-        scheduleUpdateReset(2500);
-      } else if (result.status === 'offline') {
-        setUpdateState('offline');
-        scheduleUpdateReset(2500);
       } else {
+        if (!mountedRef.current) return;
+        if (result.status === 'current') {
+          setUpdateState('done');
+          scheduleUpdateReset(2500);
+        } else if (result.status === 'offline') {
+          setUpdateState('offline');
+          scheduleUpdateReset(2500);
+        } else {
+          setUpdateState('error');
+          scheduleUpdateReset(4000);
+        }
+      }
+    } catch {
+      if (mountedRef.current) {
         setUpdateState('error');
         scheduleUpdateReset(4000);
       }
-    } catch {
-      setUpdateState('error');
-      scheduleUpdateReset(4000);
     } finally {
       updateCheckInFlightRef.current = false;
     }
