@@ -12,18 +12,28 @@ concurrency:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build-android:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, '[BUILD_APK]'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      - name: Configure GitHub Pages for the public update feed
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -144,6 +154,9 @@ jobs:
           import android.os.Build;
           import android.os.Environment;
           import android.provider.Settings;
+          import android.widget.Toast;
+          import java.io.InputStream;
+          import java.security.MessageDigest;
 
           import com.getcapacitor.JSObject;
           import com.getcapacitor.Plugin;
@@ -173,7 +186,16 @@ jobs:
               @PluginMethod
               public void downloadAndInstall(PluginCall call) {
                   String url = call.getString("url");
-                  if (url == null || !url.startsWith("https://sudhanshu1920.github.io/mathsbj/")) {
+                  Uri updateUri = url == null ? null : Uri.parse(url);
+                  String expectedSha256 = call.getString("sha256");
+                  if (updateUri == null
+                      || !"https".equalsIgnoreCase(updateUri.getScheme())
+                      || !"sudhanshu1920.github.io".equalsIgnoreCase(updateUri.getHost())
+                      || !"/mathsbj/updates/MathMaster-release.apk".equals(updateUri.getPath())
+                      || updateUri.getQuery() != null
+                      || updateUri.getFragment() != null
+                      || expectedSha256 == null
+                      || !expectedSha256.matches("(?i)[a-f0-9]{64}")) {
                       call.reject("Update APK source is not trusted.");
                       return;
                   }
@@ -223,20 +245,42 @@ jobs:
                                       if (status == DownloadManager.STATUS_SUCCESSFUL) {
                                           Uri apkUri = manager.getUriForDownloadedFile(downloadId);
                                           if (apkUri != null) {
+                                              StringBuilder actualSha256 = new StringBuilder();
+                                              try (InputStream input = getContext().getContentResolver().openInputStream(apkUri)) {
+                                                  if (input == null) {
+                                                      manager.remove(downloadId);
+                                                      Toast.makeText(getContext(), "Update verification failed.", Toast.LENGTH_LONG).show();
+                                                      return;
+                                                  }
+                                                  MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                                                  byte[] buffer = new byte[8192];
+                                                  int length;
+                                                  while ((length = input.read(buffer)) != -1) digest.update(buffer, 0, length);
+                                                  for (byte value : digest.digest()) actualSha256.append(String.format(java.util.Locale.ROOT, "%02x", value));
+                                              } catch (Exception verificationError) {
+                                                  manager.remove(downloadId);
+                                                  Toast.makeText(getContext(), "Update verification failed.", Toast.LENGTH_LONG).show();
+                                                  return;
+                                              }
+                                              if (!expectedSha256.equalsIgnoreCase(actualSha256.toString())) {
+                                                  manager.remove(downloadId);
+                                                  Toast.makeText(getContext(), "Update verification failed.", Toast.LENGTH_LONG).show();
+                                                  return;
+                                              }
                                               Intent install = new Intent(Intent.ACTION_VIEW);
-                                              install.setDataAndType(
-                                                  apkUri,
-                                                  "application/vnd.android.package-archive"
-                                              );
+                                              install.setDataAndType(apkUri, "application/vnd.android.package-archive");
                                               install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                                               install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                                               getContext().startActivity(install);
                                               return;
                                           }
-                                      } else if (
-                                          status == DownloadManager.STATUS_FAILED
-                                          || attempts++ > 600
-                                      ) {
+                                      } else if (status == DownloadManager.STATUS_FAILED) {
+                                          manager.remove(downloadId);
+                                          Toast.makeText(getContext(), "Update download failed.", Toast.LENGTH_LONG).show();
+                                          return;
+                                      } else if (attempts++ > 600) {
+                                          manager.remove(downloadId);
+                                          Toast.makeText(getContext(), "Update download timed out.", Toast.LENGTH_LONG).show();
                                           return;
                                       }
                                   }
@@ -523,6 +567,50 @@ jobs:
           fi
 
           gh release upload "${release_tag}" MathMaster-release.apk --clobber
+
+      - name: Prepare public update manifest and APK
+        shell: bash
+        env:
+          VERSION_NAME: "1.0"
+          EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
+        run: |
+          set -euo pipefail
+          VERSION_CODE="$(git rev-list --count HEAD)"
+          mkdir -p dist/updates
+          cp MathMaster-release.apk dist/updates/MathMaster-release.apk
+          APK_SHA256="$(sha256sum dist/updates/MathMaster-release.apk | awk '{print $1}')"
+          export VERSION_CODE APK_SHA256 VERSION_NAME EXPECTED_APPLICATION_ID
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          version_code = int(os.environ["VERSION_CODE"])
+          manifest = {
+              "packageName": os.environ["EXPECTED_APPLICATION_ID"],
+              "versionCode": version_code,
+              "versionName": os.environ["VERSION_NAME"],
+              "apkUrl": "https://sudhanshu1920.github.io/mathsbj/updates/MathMaster-release.apk",
+              "sha256": os.environ["APK_SHA256"].lower(),
+              "releaseNotes": f"MathMaster build {version_code}",
+              "publishedAt": datetime.now(timezone.utc).isoformat(),
+          }
+          if version_code <= 0 or len(manifest["sha256"]) != 64:
+              raise SystemExit("Update manifest version or checksum is invalid")
+          Path("dist/updates/update.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+          test -s dist/updates/update.json
+          test -s dist/updates/MathMaster-release.apk
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy public app and update feed
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
