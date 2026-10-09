@@ -747,6 +747,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     };
     const qs = generateQuestions(normalizedConfig);
     if (qs.length === 0) return;
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    sessionIntervalRef.current = undefined;
+    challengeDeadlineRef.current = null;
     setConfig(normalizedConfig);
     setQuestions(qs);
     setCurrentQ(0);
@@ -932,6 +935,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         challengeDeadlineRef.current !== null &&
         performance.now() >= challengeDeadlineRef.current
       ) {
+        setChallengeTimeLeft(0);
         finishQuiz();
         return;
       }
@@ -1099,6 +1103,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
     if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
     sessionIntervalRef.current = undefined;
+    challengeDeadlineRef.current = null;
     answerAdvanceTimerRef.current = undefined;
     autoSubmitTimerRef.current = undefined;
     levelUpTimerRef.current = undefined;
@@ -1120,6 +1125,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setSelectedOption(null);
     setElapsedTime(0);
     setTimeLeft(0);
+    setChallengeTimeLeft(0);
     setXpPop(null);
     setLevelUp(null);
     setSessionXP(0);
