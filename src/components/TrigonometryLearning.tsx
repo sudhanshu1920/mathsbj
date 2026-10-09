@@ -22,7 +22,7 @@ const TrigonometryLearning = () => {
       className="glass rounded-2xl overflow-hidden"
     >
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse min-w-[640px]">
+        <table className="trig-table-grid trig-table w-full border-separate border-spacing-0 min-w-[640px]">
           {/* Header — Degrees */}
           <thead>
             <tr className="bg-primary/15">
@@ -51,8 +51,8 @@ const TrigonometryLearning = () => {
             {TRIG_FUNCTIONS.map((fn, rowIdx) => (
               <motion.tr
                 key={fn}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ delay: rowIdx * MOTION.stagger.standard, duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
               >
                 <td

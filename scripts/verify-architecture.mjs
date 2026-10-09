@@ -236,6 +236,16 @@ if (trigTable.includes('sticky left-0 bg-primary/15') ||
     trigTable.includes('sticky left-0 bg-primary/5')) {
   fail('Table of Angles sticky headers must not use translucent primary backgrounds');
 }
+if (!trigTable.includes('border-separate border-spacing-0') ||
+    trigTable.includes('initial={{ opacity: 0, x: -10 }}') ||
+    trigTable.includes('animate={{ opacity: 1, x: 0 }}')) {
+  fail('Table of Angles must avoid collapsed-border/translated-row sticky paint conflicts');
+}
+if (!trigTableCss.includes('.trig-table-grid .trig-table-cell') ||
+    !trigTableCss.includes('border-width: 0 1px 1px 0 !important') ||
+    !trigTableCss.includes('border-top: 1px solid hsl(var(--border))')) {
+  fail('Table of Angles must preserve single-line borders with separated sticky-compatible cells');
+}
 if (!trigTableCss.includes('background-color: hsl(var(--card)) !important') ||
     !trigTableCss.includes('background-color: hsl(var(--muted)) !important') ||
     !trigTableCss.includes('isolation: isolate') ||

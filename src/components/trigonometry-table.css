@@ -3,6 +3,15 @@
  * Surface colors come from theme tokens, but deliberately use no alpha so
  * scrolling data cells cannot bleed through the pinned first column.
  */
+.trig-table-grid {
+  border-top: 1px solid hsl(var(--border));
+  border-left: 1px solid hsl(var(--border));
+}
+
+.trig-table-grid .trig-table-cell {
+  border-width: 0 1px 1px 0 !important;
+}
+
 .trig-table-sticky {
   position: sticky;
   left: 0;
