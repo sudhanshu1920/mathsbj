@@ -287,7 +287,8 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeT
                       sideOffset={8}
                       collisionPadding={8}
                       data-swipe-ignore-app-section="true"
-                      className="w-[min(19rem,calc(100vw-1rem))] max-h-[min(72dvh,calc(100dvh-5rem))] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card p-3 text-card-foreground shadow-xl backdrop-blur-xl sm:p-4"
+                      style={{ maxHeight: "min(72dvh, calc(100dvh - 5rem))" }}
+                      className="w-[min(19rem,calc(100vw-1rem))] max-h-[72dvh] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card p-3 text-card-foreground shadow-xl backdrop-blur-xl sm:p-4"
                     >
                       <div className="mb-3">
                         <p className="text-sm font-bold text-foreground">Practice Table of Angles</p>
