@@ -20,6 +20,7 @@ import { getPracticeNavDepth, isPracticeSessionInProgress, isUnsavedPracticePhas
 import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
 import { MOTION } from '@/lib/motion';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { TrigFunction } from '@/lib/trigData';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -103,7 +104,7 @@ const Index = () => {
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
   const [practiceContext, setPracticeContext] = useState<{ from?: number; to?: number; number?: number } | undefined>();
   const [practiceMode, setPracticeMode] = useState<'mcq' | 'input' | undefined>();
-  const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean } | undefined>();
+  const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[] } | undefined>();
   const [returnToLearn, setReturnToLearn] = useState(false);
   const [learningState, setLearningState] = useState<LearningState>(INITIAL_LEARNING_STATE);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -437,7 +438,7 @@ const Index = () => {
     return () => window.removeEventListener('popstate', handlePopstate);
   }, [tab, learningState, returnToLearn, practicePhase]);
 
-  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean }) => {
+  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[] }) => {
     setPracticeTopic(topic);
     setPracticeContext(context);
     setPracticeMode(mode);
