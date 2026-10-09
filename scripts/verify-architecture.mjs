@@ -102,8 +102,13 @@ if (!index.includes("scrollElement.style.setProperty('--floating-bar-height', '0
 if (!index.includes('--floating-bar-height') || !index.includes('ResizeObserver')) {
   fail('runtime floating-bar measurement architecture is missing');
 }
-if (!index.includes('window.visualViewport?.height ?? window.innerHeight') || !index.includes('viewportHeight - rect.top')) {
-  fail('floating-bar reserve does not account for the actual viewport footprint');
+if (!index.includes("visualViewport.offsetTop + visualViewport.height") || !index.includes("viewportBottom - rect.top")) {
+  fail('floating-bar reserve does not use a consistent visual-viewport coordinate system');
+}
+if (!glass.includes("env(safe-area-inset-bottom") ||
+    !glass.includes("left: 50% !important;") ||
+    !glass.includes("transform: translateX(-50%)")) {
+  fail('Floating Bar safe-area padding or narrow-screen centering regression detected');
 }
 const bottomNavUi = read('src/components/BottomNav.tsx');
 if (!bottomNavUi.includes("aria-current={isActive ? 'page' : undefined}")) {
@@ -256,6 +261,14 @@ if (!updateFeed.includes('https://sudhanshu1920.github.io/mathsbj/updates/update
 }
 if (!updateService.includes('checkForAppUpdate') || !updateService.includes('isNewerRelease')) {
   fail('manual and automatic update checks must use validated metadata and numeric version comparison');
+}
+if (!updateService.includes('result === "unsupported" && !Capacitor.isNativePlatform()') ||
+    !updateService.includes('window.location.reload()')) {
+  fail('web Update Now must have a supported reload fallback when no service worker is available');
+}
+if (!settingsPanel.includes('mountedRef.current = false') ||
+    !settingsPanel.includes('if (!mountedRef.current) return;')) {
+  fail('Settings updater must guard async UI state/timers after unmount');
 }
 if (!updateManager.includes('DISMISSED_VERSION_KEY') ||
     !updateManager.includes('Update Now') ||
