@@ -19,3 +19,11 @@ export function formatChallengeTime(seconds: number): string {
   const secondsPart = remaining % 60;
   return `${String(minutes).padStart(2, '0')}:${String(secondsPart).padStart(2, '0')}`;
 }
+
+/** A timer toggle selects exactly one mode; switching modes replaces the old one. */
+export function getTimerModeFromToggle(
+  target: Exclude<QuizTimerMode, 'off'>,
+  enabled: boolean,
+): QuizTimerMode {
+  return enabled ? target : 'off';
+}
