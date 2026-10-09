@@ -30,9 +30,8 @@ export function validateReleaseManifest(value: unknown): ReleaseManifest {
   try { apkUrl = new URL(data.apkUrl); }
   catch { throw new Error("Update download URL is invalid."); }
   if (
+    apkUrl.toString() !== EXPECTED_APK_URL ||
     apkUrl.protocol !== "https:" ||
-    apkUrl.hostname !== "sudhanshu1920.github.io" ||
-    apkUrl.pathname !== "/mathsbj/updates/MathMaster-release.apk" ||
     apkUrl.username || apkUrl.password || apkUrl.search || apkUrl.hash
   ) throw new Error("Update download URL is not trusted.");
 
