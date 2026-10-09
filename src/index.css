@@ -1467,19 +1467,7 @@ textarea {
   text-rendering: optimizeLegibility;
 }
 
-/* Bottom navigation is intentionally floating and compact on every viewport. */
-.bottom-nav {
-  border-color: hsl(var(--border) / 0.82) !important;
-  background: hsl(var(--card) / 0.90) !important;
-  box-shadow: 0 16px 34px -18px hsl(220 30% 10% / 0.45) !important;
-  backdrop-filter: blur(18px) saturate(1.06);
-  -webkit-backdrop-filter: blur(18px) saturate(1.06);
-}
-
-html.dark .bottom-nav {
-  background: hsl(var(--card) / 0.84) !important;
-  box-shadow: 0 18px 34px -18px hsl(0 0% 0% / 0.78) !important;
-}
+/* Bottom navigation surface styling is centralized in glass.css. */
 
 /* Respect reduced-motion and existing low-power safeguards. */
 @media (prefers-reduced-motion: reduce) {
