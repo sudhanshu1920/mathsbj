@@ -1,19 +1,22 @@
-import { useState } from 'react';
-import './trigonometry-table.css';
 import { m as motion } from 'framer-motion';
 import { MOTION } from '@/lib/motion';
-import { TRIG_ANGLES, TRIG_FUNCTIONS, TRIG_RADIANS, NOT_DEFINED, trigValue } from '@/lib/trigData';
+import {
+  TRIG_ANGLES,
+  TRIG_FUNCTIONS,
+  TRIG_RADIANS,
+  NOT_DEFINED,
+  trigValue,
+} from '@/lib/trigData';
+import './trigonometry-table.css';
 
 /**
- * Full textbook-style table of standard trigonometric angles.
- * Rows: Angle (°), Angle (rad), sin, cos, tan, cot, sec, cosec.
- * Horizontally scrollable on small screens.
+ * Textbook-style trigonometric ratios table.
+ * Each standard angle is a row; exact ratios and radians are columns.
+ * The table scrolls horizontally on narrow screens and keeps angle labels visible.
  */
 const TrigonometryLearning = () => {
-  const [active, setActive] = useState<string | null>(null);
-
   const cellBase =
-    'trig-table-cell border border-border px-3 py-2.5 text-center font-semibold whitespace-nowrap text-sm';
+    'trig-table-cell border border-border px-3 py-2.5 text-center whitespace-nowrap text-sm';
 
   return (
     <motion.div
@@ -21,67 +24,77 @@ const TrigonometryLearning = () => {
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-2xl overflow-hidden"
     >
-      <div className="overflow-x-auto">
-        <table className="trig-table-grid trig-table w-full border-separate border-spacing-0 min-w-[640px]">
-          {/* Header — Degrees */}
+      <div className="border-b border-border px-4 py-3">
+        <p className="font-semibold text-foreground">Standard angles (0°–360°)</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Exact trigonometric ratios in degrees and radians.
+        </p>
+      </div>
+
+      <div
+        className="overflow-x-auto"
+        role="region"
+        aria-label="Table of standard trigonometric ratios"
+        tabIndex={0}
+      >
+        <table className="trig-table-grid w-full border-separate border-spacing-0 min-w-[780px]">
+          <caption className="sr-only">
+            Exact values of sine, cosine, tangent, cotangent, secant and cosecant for standard
+            angles from zero to 360 degrees.
+          </caption>
           <thead>
             <tr className="bg-primary/15">
-              <th className={`${cellBase} text-primary text-left trig-table-sticky trig-table-sticky-header trig-table-sticky-corner`}>
+              <th
+                scope="col"
+                className={`${cellBase} text-primary text-left trig-table-sticky trig-table-sticky-header trig-table-sticky-corner`}
+              >
                 Angle (°)
               </th>
-              {TRIG_ANGLES.map((a) => (
-                <th key={a} className={`${cellBase} text-primary`}>
-                  {a}°
-                </th>
-              ))}
-            </tr>
-            {/* Radians row */}
-            <tr className="bg-primary/5">
-              <th className={`${cellBase} text-primary text-left trig-table-sticky trig-table-sticky-header`}>
+              <th scope="col" className={`${cellBase} text-primary`}>
                 Angle (rad)
               </th>
-              {TRIG_ANGLES.map((a) => (
-                <th key={a} className={`${cellBase} text-foreground font-medium`}>
-                  {TRIG_RADIANS[a]}
+              {TRIG_FUNCTIONS.map((fn) => (
+                <th key={fn} scope="col" className={`${cellBase} text-primary font-bold`}>
+                  {fn} θ
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {TRIG_FUNCTIONS.map((fn, rowIdx) => (
-              <motion.tr
-                key={fn}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: rowIdx * MOTION.stagger.standard, duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
-              >
-                <td
+            {TRIG_ANGLES.map((angle) => (
+              <tr key={angle}>
+                <th
+                  scope="row"
                   className={`${cellBase} text-left trig-table-sticky font-display font-bold text-foreground`}
                 >
-                  {fn} θ
-                </td>
-                {TRIG_ANGLES.map((a) => {
-                  const v = trigValue(fn, a);
-                  const isND = v === NOT_DEFINED;
-                  const key = `${fn}-${a}`;
-                  const isActive = active === key;
+                  {angle}°
+                </th>
+                <td className={`${cellBase} text-foreground`}>{TRIG_RADIANS[angle]}</td>
+                {TRIG_FUNCTIONS.map((fn) => {
+                  const value = trigValue(fn, angle);
+                  const isUndefined = value === NOT_DEFINED;
                   return (
                     <td
-                      key={a}
-                      onClick={() => setActive(isActive ? null : key)}
-                      className={`${cellBase} cursor-pointer transition-colors ${
-                        isND ? 'text-destructive text-xs' : 'text-foreground'
-                      } ${isActive ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-muted/50'}`}
+                      key={fn}
+                      className={`${cellBase} font-semibold ${
+                        isUndefined ? 'text-destructive text-xs' : 'text-foreground'
+                      }`}
+                      aria-label={isUndefined ? `${fn} at ${angle} degrees: not defined` : undefined}
                     >
-                      {v}
+                      {value}
                     </td>
                   );
                 })}
-              </motion.tr>
+              </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
+        <span className="font-semibold">Not Defined</span> means the ratio has no finite value at
+        that angle; it does not equal zero.
+      </p>
     </motion.div>
   );
 };
