@@ -30,11 +30,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure GitHub Pages for the public update feed
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -548,6 +543,14 @@ jobs:
           cp "$apk" MathMaster-release.apk
           ls -lh MathMaster-release.apk
 
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MathMaster-release
+          path: MathMaster-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Publish latest GitHub Release APK
         env:
           GH_TOKEN: ${{ github.token }}
@@ -601,6 +604,11 @@ jobs:
           test -s dist/updates/update.json
           test -s dist/updates/MathMaster-release.apk
 
+      - name: Configure GitHub Pages for the public update feed
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -610,13 +618,6 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: MathMaster-release
-          path: MathMaster-release.apk
-          if-no-files-found: error
-          retention-days: 14
 
 # [BUILD_APK] Native updater registration is kept in the final MainActivity.
 # [BUILD_APK] Release build requested after runtime crash fix.
