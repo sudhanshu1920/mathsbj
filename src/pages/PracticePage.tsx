@@ -32,7 +32,7 @@ import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
-import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerModeFromToggle, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
+import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -731,9 +731,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       challengeDurationSeconds: cfg.timerMode === 'challenge'
         ? Math.max(1, Math.floor(cfg.challengeDurationSeconds ?? 60))
         : undefined,
-      // Repetition mode is finite and owns quiz length. The legacy Questions
-      // ∞ flag must never leak into this mode.
-      infinite: cfg.repetitionEnabled ? false : cfg.infinite,
+      // Challenge owns session length by time, never by the saved Questions
+      // selector. Generate a recyclable full pool for the entire time window.
+      // Outside Challenge, preserve the existing repetition/count semantics.
+      infinite: shouldUseInfiniteQuestionPool(cfg.timerMode, cfg.repetitionEnabled, cfg.infinite),
       topics: cfg.topics.map((topic) => ({
         ...topic,
         range: { ...topic.range },
@@ -1038,7 +1039,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         setFeedback(null);
         setInputValue('');
         setSelectedOption(null);
-        const isFiniteQuiz = config.repetitionEnabled || !config.infinite;
+        // The Challenge deadline, not the finite question pool, ends a
+        // Challenge. When a pool runs out it is regenerated below.
+        const isFiniteQuiz = config.timerMode !== 'challenge' &&
+          (config.repetitionEnabled || !config.infinite);
         if (isFiniteQuiz && currentQ + 1 >= questions.length) {
           finishQuiz();
         } else if (config.infinite && currentQ + 1 >= questions.length) {
@@ -1300,7 +1304,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     const isTimerHidden = config.timerMode === 'off';
     const isPctQuestion = q.answerType === 'decimal-pct' || q.answerType === 'mixed-pct' || q.answerType === 'fraction' || q.answerType === 'trig';
     const totalAttempts = score.correct + score.wrong;
-    const isFiniteQuiz = config.repetitionEnabled || !config.infinite;
+    const isFiniteQuiz = config.timerMode !== 'challenge' &&
+      (config.repetitionEnabled || !config.infinite);
 
     const renderQuestionText = () => {
       if (isPctQuestion && q.questionFraction) {
@@ -1613,6 +1618,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   });
   const rangesValid = Array.from(selectedTopics).every((tid) => isValidPracticeRange(tid, topicRanges[tid]));
   const canStart = selectedTopics.size > 0 && validPeriodicRange && arithmeticValid && repetitionValid && rangesValid;
+  const questionCountDisabled = isQuestionCountSelectionDisabled(repetitionEnabled, timerMode);
 
   return (
     <div className="pb-24 md:pb-6">
@@ -2004,14 +2010,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       )}
 
       {/* Questions Count */}
-      <div className={`mb-5 rounded-2xl border p-4 ${repetitionEnabled ? 'border-border bg-muted/30' : 'border-transparent bg-transparent p-0'}`}>
+      <div className={`mb-5 rounded-2xl border p-4 ${questionCountDisabled ? 'border-border bg-muted/30' : 'border-transparent bg-transparent p-0'}`}>
         <div className="flex items-center justify-between gap-2">
-          <label className={`text-sm font-semibold ${repetitionEnabled ? 'text-muted-foreground' : 'text-foreground'}`}>
+          <label className={`text-sm font-semibold ${questionCountDisabled ? 'text-muted-foreground' : 'text-foreground'}`}>
             Questions
           </label>
-          {repetitionEnabled && (
+          {questionCountDisabled && (
             <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              Disabled while Repetition is ON
+              {timerMode === 'challenge' ? 'Time-based Challenge' : 'Disabled while Repetition is ON'}
             </span>
           )}
         </div>
@@ -2020,14 +2026,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             <button
               key={c}
               type="button"
-              disabled={repetitionEnabled}
+              disabled={questionCountDisabled}
               onClick={() => {
-                if (repetitionEnabled) return;
+                if (questionCountDisabled) return;
                 setCount(c);
                 setInfinite(false);
               }}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                repetitionEnabled
+                questionCountDisabled
                   ? 'cursor-not-allowed bg-muted/60 text-muted-foreground opacity-60'
                   : !infinite && count === c
                     ? 'gradient-primary text-primary-foreground'
@@ -2039,13 +2045,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           ))}
           <button
             type="button"
-            disabled={repetitionEnabled}
+            disabled={questionCountDisabled}
             onClick={() => {
-              if (repetitionEnabled) return;
+              if (questionCountDisabled) return;
               setInfinite(true);
             }}
             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-              repetitionEnabled
+              questionCountDisabled
                 ? 'cursor-not-allowed bg-muted/60 text-muted-foreground opacity-60'
                 : infinite
                   ? 'gradient-primary text-primary-foreground'

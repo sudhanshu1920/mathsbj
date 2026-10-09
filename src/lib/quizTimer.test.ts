@@ -5,6 +5,8 @@ import {
   getChallengeDurationSeconds,
   getRemainingSeconds,
   getTimerModeFromToggle,
+  isQuestionCountSelectionDisabled,
+  shouldUseInfiniteQuestionPool,
   type QuizTimerMode,
 } from './quizTimer';
 
@@ -33,6 +35,24 @@ describe('Quiz Challenge timer configuration', () => {
 
     expect(modes).toEqual(['perQuestion', 'challenge', 'off', 'off']);
     expect(modes.every((mode) => mode === 'off' || mode === 'perQuestion' || mode === 'challenge')).toBe(true);
+  });
+
+  it('disables every fixed question-count option only while Challenge or Repetition is active', () => {
+    expect(isQuestionCountSelectionDisabled(false, 'off')).toBe(false);
+    expect(isQuestionCountSelectionDisabled(false, 'perQuestion')).toBe(false);
+    expect(isQuestionCountSelectionDisabled(false, 'challenge')).toBe(true);
+    expect(isQuestionCountSelectionDisabled(true, 'off')).toBe(true);
+    expect(isQuestionCountSelectionDisabled(true, 'challenge')).toBe(true);
+  });
+
+  it('uses a recyclable question pool for Challenge regardless of the saved count or infinity selection', () => {
+    expect(shouldUseInfiniteQuestionPool('challenge', false, false)).toBe(true);
+    expect(shouldUseInfiniteQuestionPool('challenge', false, true)).toBe(true);
+    expect(shouldUseInfiniteQuestionPool('challenge', true, false)).toBe(true);
+    expect(shouldUseInfiniteQuestionPool('off', false, false)).toBe(false);
+    expect(shouldUseInfiniteQuestionPool('perQuestion', false, false)).toBe(false);
+    expect(shouldUseInfiniteQuestionPool('off', true, true)).toBe(false);
+    expect(shouldUseInfiniteQuestionPool('perQuestion', false, true)).toBe(true);
   });
 
   it('calculates remaining time from the deadline rather than accumulated ticks', () => {
