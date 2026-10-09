@@ -64,7 +64,6 @@ export async function triggerUpdate(): Promise<UpdateResult> {
   if (installing) {
     const state = await new Promise<"available" | "current">((resolve) => {
       let finished = false;
-      let timeoutId: ReturnType<typeof setTimeout>;
       const finish = () => {
         if (finished) return;
         finished = true;
@@ -75,7 +74,7 @@ export async function triggerUpdate(): Promise<UpdateResult> {
       const onStateChange = () => {
         if (["installed", "activated", "redundant"].includes(installing.state)) finish();
       };
-      timeoutId = setTimeout(finish, 6000);
+      const timeoutId = setTimeout(finish, 6000);
       installing.addEventListener("statechange", onStateChange);
     });
     if (state === "available" || swRegistration.waiting) return "available";
