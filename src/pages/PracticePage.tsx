@@ -32,7 +32,7 @@ import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
-import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerModeFromToggle, isQuestionCountSelectionDisabled, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
+import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -734,11 +734,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       // Challenge owns session length by time, never by the saved Questions
       // selector. Generate a recyclable full pool for the entire time window.
       // Outside Challenge, preserve the existing repetition/count semantics.
-      infinite: cfg.timerMode === 'challenge'
-        ? true
-        : cfg.repetitionEnabled
-          ? false
-          : cfg.infinite,
+      infinite: shouldUseInfiniteQuestionPool(cfg.timerMode, cfg.repetitionEnabled, cfg.infinite),
       topics: cfg.topics.map((topic) => ({
         ...topic,
         range: { ...topic.range },
@@ -1308,7 +1304,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     const isTimerHidden = config.timerMode === 'off';
     const isPctQuestion = q.answerType === 'decimal-pct' || q.answerType === 'mixed-pct' || q.answerType === 'fraction' || q.answerType === 'trig';
     const totalAttempts = score.correct + score.wrong;
-    const isFiniteQuiz = config.repetitionEnabled || !config.infinite;
+    const isFiniteQuiz = config.timerMode !== 'challenge' &&
+      (config.repetitionEnabled || !config.infinite);
 
     const renderQuestionText = () => {
       if (isPctQuestion && q.questionFraction) {
