@@ -598,8 +598,9 @@ jobs:
           release_notes="$(printf 'Automated signed Android release.\nversionCode: %s\nversionName: %s\nsourceCommit: %s\napplicationId: %s\nsigningCertificateSHA256: %s\n' "$VERSION_CODE" "$VERSION_NAME" "$GITHUB_SHA" "com.sudhanshu.mathsbj" "$CERT_SHA256")"
 
           if gh release view "$release_tag" >/dev/null 2>&1; then
-            gh release edit "$release_tag" --title "$release_title" --notes "$release_notes"
+            # Replace the APK first; only commit the new version/source metadata after upload succeeds.
             gh release upload "$release_tag" MathMaster-release.apk --clobber
+            gh release edit "$release_tag" --title "$release_title" --notes "$release_notes"
           else
             gh release create "$release_tag" MathMaster-release.apk --title "$release_title" --notes "$release_notes" --target "$GITHUB_SHA"
           fi
