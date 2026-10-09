@@ -624,7 +624,7 @@ interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
   initialMode?: 'mcq' | 'input';
-  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[] };
+  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; count?: number };
   onExit?: () => void;
   onExitCancelled?: () => void;
   externalBackRequest?: number;
@@ -766,7 +766,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       };
       const cfg: PracticeConfig = {
         topics: [{ id: mappedTopic, label: topicInfo?.label || mappedTopic, range }],
-        count: 10,
+        count: initialExtras?.count ?? 10,
         infinite: initialExtras?.infinite ?? false,
         mode: initialMode,
         timerEnabled: timerOn,
@@ -787,6 +787,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     initialExtras?.timerSeconds,
     initialExtras?.infinite,
     initialExtras?.trigFunctions,
+    initialExtras?.count,
     startPractice,
   ]);
 
