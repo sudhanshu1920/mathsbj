@@ -369,6 +369,12 @@ describe('PracticePage question generation', () => {
     expect(emptySelection).toHaveLength(0);
     expect(isValidPracticeRange('trig', { from: 0, to: 360, trigFunctions: ['sin', 'bad'] as TrigFunction[] })).toBe(false);
     expect(isValidPracticeRange('trig', { from: 0, to: 360, trigFunctions: ['tan'] })).toBe(true);
+    expect(isValidPracticeRange('trig', {
+      from: 0,
+      to: 360,
+      trigProMode: 'true' as unknown as boolean,
+      trigFunctions: ['sin'],
+    })).toBe(false);
   });
 
   it('rejects malformed numeric ranges before quiz start', () => {
