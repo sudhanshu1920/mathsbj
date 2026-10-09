@@ -209,6 +209,18 @@ if (bottomNavUi.includes('tapTimers') ||
     bottomNavUi.includes('setTimeout(() => {\n        onChange(tabId);')) {
   fail('floating-bar navigation must not defer first-tap navigation');
 }
+if (!bottomNavUi.includes('previousTap?.tabId === tabId') ||
+    !bottomNavUi.includes('previousTap.wasActive')) {
+  fail('rapid taps on inactive/different tabs must not trigger a section reset');
+}
+if (!progressPage.includes('useLayoutEffect') ||
+    !progressPage.includes('onSettingsVisibilityChange?.(showSettings)')) {
+  fail('Settings visibility must synchronize before paint to keep nav visibility/reserve atomic');
+}
+if (!css.includes('.glass-panel:not(.bottom-nav)') ||
+    !css.includes('nav.glass-panel:not(.bottom-nav)')) {
+  fail('Floating Bar must not inherit the generic glass-surface compositor transform');
+}
 if (!sync.includes('switchedUser') || !sync.includes('data.progress ?? {}')) {
   fail('cross-account sync isolation guard is missing');
 }
@@ -257,6 +269,14 @@ if (!releaseWorkflow.includes('actions/configure-pages@v5') ||
     !releaseWorkflow.includes('updates/update.json') ||
     !releaseWorkflow.includes('expectedSha256.equalsIgnoreCase')) {
   fail('signed APK and checksummed update feed must be published through GitHub Pages');
+}
+const collectApkAt = releaseWorkflow.indexOf('name: Collect release APK');
+const uploadApkAt = releaseWorkflow.indexOf('name: Upload release APK');
+const publishReleaseAt = releaseWorkflow.indexOf('name: Publish latest GitHub Release APK');
+const configurePagesAt = releaseWorkflow.indexOf('name: Configure GitHub Pages for the public update feed');
+if (!(collectApkAt >= 0 && uploadApkAt > collectApkAt &&
+      publishReleaseAt > uploadApkAt && configurePagesAt > publishReleaseAt)) {
+  fail('APK build and release artifacts must not be blocked by Pages-site setup');
 }
 if (!releaseWorkflow.includes('request.setMimeType("application/octet-stream");') ||
     !releaseWorkflow.includes('DownloadManager.Request.VISIBILITY_VISIBLE') ||
