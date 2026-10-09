@@ -18,27 +18,39 @@ const tabs = [
 const DOUBLE_TAP_DELAY = 280;
 
 const BottomNavBase = forwardRef<HTMLElement, BottomNavProps>(({ active, hidden = false, onChange, onDoubleTap }, ref) => {
-  const lastTapTime = useRef<Record<string, number>>({});
+  const lastTap = useRef<{
+    tabId: 'learn' | 'practice' | 'progress';
+    at: number;
+    wasActive: boolean;
+  } | null>(null);
 
   const handleTap = useCallback((tabId: 'learn' | 'practice' | 'progress') => {
     const now = Date.now();
-    const lastTap = lastTapTime.current[tabId] || 0;
-    const isDoubleTap = now - lastTap < DOUBLE_TAP_DELAY;
+    const previousTap = lastTap.current;
+    const isDoubleTap =
+      previousTap?.tabId === tabId &&
+      now - previousTap.at < DOUBLE_TAP_DELAY &&
+      previousTap.wasActive;
 
-    // First tap navigates immediately. Double-tap detection is independent of
-    // navigation so the old 280ms deferral no longer adds tap latency.
+    // A double tap is a deliberate reset only when the *first* tap was on
+    // the already-active tab. Rapidly selecting an inactive tab, or tapping
+    // different tabs in quick succession, must never reset the wrong section.
     if (isDoubleTap) {
-      lastTapTime.current[tabId] = 0;
+      lastTap.current = null;
       onDoubleTap?.(tabId);
-      if (navigator.vibrate) navigator.vibrate(10);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     } else {
-      lastTapTime.current[tabId] = now;
+      lastTap.current = {
+        tabId,
+        at: now,
+        wasActive: active === tabId,
+      };
       onChange(tabId);
     }
 
     // Non-critical feedback stays after the navigation request.
     playClick();
-  }, [onChange, onDoubleTap]);
+  }, [active, onChange, onDoubleTap]);
 
   return (
     <nav
