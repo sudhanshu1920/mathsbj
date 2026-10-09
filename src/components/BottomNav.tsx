@@ -4,6 +4,7 @@ import { playClick } from '@/lib/sound';
 
 interface BottomNavProps {
   active: 'learn' | 'practice' | 'progress';
+  hidden?: boolean;
   onChange: (tab: 'learn' | 'practice' | 'progress') => void;
   onDoubleTap?: (tab: 'learn' | 'practice' | 'progress') => void;
 }
@@ -16,7 +17,7 @@ const tabs = [
 
 const DOUBLE_TAP_DELAY = 280;
 
-const BottomNavBase = forwardRef<HTMLElement, BottomNavProps>(({ active, onChange, onDoubleTap }, ref) => {
+const BottomNavBase = forwardRef<HTMLElement, BottomNavProps>(({ active, hidden = false, onChange, onDoubleTap }, ref) => {
   const lastTapTime = useRef<Record<string, number>>({});
 
   const handleTap = useCallback((tabId: 'learn' | 'practice' | 'progress') => {
@@ -42,8 +43,12 @@ const BottomNavBase = forwardRef<HTMLElement, BottomNavProps>(({ active, onChang
   return (
     <nav
       ref={ref}
+      data-app-floating-nav="true"
       aria-label="Primary navigation"
-      className="bottom-nav fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-b-0 border-x-0"
+      aria-hidden={hidden || undefined}
+      hidden={hidden}
+      style={hidden ? { display: "none" } : undefined}
+      className="bottom-nav fixed bottom-0 left-0 right-0 z-40 glass-panel border-t border-b-0 border-x-0"
     >
       <div className="flex h-full max-w-lg mx-auto items-center justify-around px-1">
         {tabs.map((tab) => {
