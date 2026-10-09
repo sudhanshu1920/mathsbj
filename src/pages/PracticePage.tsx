@@ -1155,6 +1155,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, [clearSessionTimers, fromLearning, onExit, resetToPracticeHome]);
 
   const handleExitRequest = useCallback(() => {
+    if (
+      config?.timerMode === 'challenge' &&
+      challengeDeadlineRef.current !== null &&
+      performance.now() >= challengeDeadlineRef.current
+    ) {
+      setChallengeTimeLeft(0);
+      finishQuiz();
+      return;
+    }
     if (showExitDialog) return;
     if (config && !finished) {
       setShowExitDialog(true);
@@ -1165,7 +1174,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       return;
     }
     resetToPracticeHome();
-  }, [config, finished, resetToPracticeHome, showExitDialog, fromLearning, onExit]);
+  }, [config, finished, finishQuiz, resetToPracticeHome, showExitDialog, fromLearning, onExit]);
 
   const handleBackToPractice = useCallback(() => {
     // Used from results screen swipe-back
