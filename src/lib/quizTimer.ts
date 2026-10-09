@@ -35,3 +35,17 @@ export function isQuestionCountSelectionDisabled(
 ): boolean {
   return repetitionEnabled || timerMode === 'challenge';
 }
+
+/**
+ * Resolve the pool lifetime policy independently from the saved Questions
+ * selector. Challenge always cycles a full pool until its deadline; existing
+ * timer-off/per-question and repetition semantics remain unchanged.
+ */
+export function shouldUseInfiniteQuestionPool(
+  timerMode: QuizTimerMode,
+  repetitionEnabled: boolean,
+  selectedInfinite: boolean,
+): boolean {
+  if (timerMode === 'challenge') return true;
+  return repetitionEnabled ? false : selectedInfinite;
+}
