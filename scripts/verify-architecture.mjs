@@ -258,6 +258,11 @@ if (!releaseWorkflow.includes('actions/configure-pages@v5') ||
     !releaseWorkflow.includes('expectedSha256.equalsIgnoreCase')) {
   fail('signed APK and checksummed update feed must be published through GitHub Pages');
 }
+if (!releaseWorkflow.includes('request.setMimeType("application/octet-stream");') ||
+    !releaseWorkflow.includes('DownloadManager.Request.VISIBILITY_VISIBLE') ||
+    releaseWorkflow.includes('DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED')) {
+  fail('APK downloads must be verified before the installer can be opened from a completion notification');
+}
 
 // Periodic ranges must be contiguous, non-overlapping, and end exactly at 118.
 const rangesText = read('src/lib/periodicRanges.ts');
