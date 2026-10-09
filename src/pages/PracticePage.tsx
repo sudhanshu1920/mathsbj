@@ -1832,12 +1832,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                               <div>
-                                <label className="text-xs text-muted-foreground mb-1 block">From Table</label>
+                                <label className="text-xs text-muted-foreground mb-1 block">From</label>
                                 <input
                                   type="number"
-                                  min={1}
-                                  max={MAX_QUIZ_RANGE_VALUE}
-                                  step={1}
                                   inputMode="numeric"
                                   value={range.from}
                                   onChange={(e) => updateRange(tid, 'from', Number(e.target.value))}
@@ -1845,12 +1842,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                                 />
                               </div>
                               <div>
-                                <label className="text-xs text-muted-foreground mb-1 block">To Table</label>
+                                <label className="text-xs text-muted-foreground mb-1 block">To</label>
                                 <input
                                   type="number"
-                                  min={1}
-                                  max={MAX_QUIZ_RANGE_VALUE}
-                                  step={1}
                                   inputMode="numeric"
                                   value={range.to}
                                   onChange={(e) => updateRange(tid, 'to', Number(e.target.value))}
