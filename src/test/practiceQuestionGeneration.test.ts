@@ -3,6 +3,7 @@ import { generateQuestions, isValidPracticeRange } from '@/pages/PracticePage';
 import { getSquareRoots, getCubeRoots } from '@/lib/mathData';
 import { isRootAnswerCorrect } from '@/lib/rootMath';
 import { getTrigAngles, TRIG_ANGLES, TRIG_FUNCTIONS, trigValue, type TrigFunction } from '@/lib/trigData';
+import { getTablesProMode, setTablesProMode } from '@/lib/settings';
 
 const baseConfig = {
   count: 10,
@@ -427,6 +428,57 @@ describe('PracticePage question generation', () => {
 
     expect(questions).toHaveLength(10);
     expect(questions.every((question) => question.text.endsWith('² = ?'))).toBe(true);
+  });
+
+  it('uses the shared Tables Standard/Pro mode for the exact selected table range', () => {
+    const previousProMode = getTablesProMode();
+
+    try {
+      setTablesProMode(false);
+      const standard = generateQuestions({
+        ...baseConfig,
+        count: 100,
+        mode: 'input',
+        topics: [{ id: 'tables', label: 'Tables', range: { from: 4, to: 4 } }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+
+      expect(standard).toHaveLength(10);
+      expect(standard.map((question) => question.text)).toEqual(
+        Array.from({ length: 10 }, (_, index) => `4 × ${index + 1} = ?`),
+      );
+
+      setTablesProMode(true);
+      const pro = generateQuestions({
+        ...baseConfig,
+        count: 100,
+        mode: 'input',
+        topics: [{ id: 'tables', label: 'Tables', range: { from: 4, to: 4 } }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+
+      expect(pro).toHaveLength(20);
+      expect(pro[9]?.text).toBe('4 × 10 = ?');
+      expect(pro[10]?.text).toBe('4 × 11 = ?');
+      expect(pro[19]?.text).toBe('4 × 20 = ?');
+
+      const selectedRange = generateQuestions({
+        ...baseConfig,
+        count: 100,
+        mode: 'input',
+        topics: [{ id: 'tables', label: 'Tables', range: { from: 4, to: 7 } }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+      expect(selectedRange).toHaveLength(80);
+      expect(new Set(selectedRange.map((question) => Number(question.text.split(' × ')[0]))))
+        .toEqual(new Set([4, 5, 6, 7]));
+      expect(selectedRange.every((question) => /^[4-7] × (?:[1-9]|1\d|20) = \?$/.test(question.text))).toBe(true);
+    } finally {
+      setTablesProMode(previousProMode);
+    }
   });
 
   it('generates square-root questions from every integer in the selected range', () => {
