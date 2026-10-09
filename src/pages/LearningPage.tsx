@@ -18,13 +18,13 @@ const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearn
 import { getStreak } from '@/lib/streak';
 import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
-import type { TrigFunction } from '@/lib/trigData';
+import { TRIG_ANGLES, type TrigFunction } from '@/lib/trigData';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table';
 
 interface LearningPageProps {
   onBack?: () => void;
-  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[] }) => void;
+  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; count?: number }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
 }
@@ -87,6 +87,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
         timerSeconds: settings.timerSeconds,
         infinite: settings.infinite,
         trigFunctions: [...pendingTrigFunctions],
+        count: pendingTrigFunctions.length * TRIG_ANGLES.length,
       });
       setPendingTrigFunctions(null);
       setShowPracticeMode(false);
