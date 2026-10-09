@@ -56,7 +56,37 @@ jobs:
 
       - name: Unit tests
         run: npm test
+      - name: Release versioning unit tests
+        run: node --test scripts/release-version.test.mjs
 
+      - name: Resolve automatic release version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/release-version.mjs > "$RUNNER_TEMP/release-version.json"
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+          data = json.loads(Path(os.environ["RUNNER_TEMP"] + "/release-version.json").read_text(encoding="utf-8"))
+          version_code = data.get("versionCode")
+          version_name = data.get("versionName")
+          if not isinstance(version_code, int) or version_code < 1 or version_code > 2100000000:
+              raise SystemExit("Resolved Android versionCode is invalid")
+          if not isinstance(version_name, str) or not re.fullmatch(r"\d+\.\d+\.\d+", version_name):
+              raise SystemExit("Resolved Android versionName must be semantic X.Y.Z")
+          if data.get("sourceCommit") != os.environ["GITHUB_SHA"].lower():
+              raise SystemExit("Resolved version is not associated with the checked-out source commit")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+              env_file.write(f"VERSION_CODE={version_code}\n")
+              env_file.write(f"VERSION_NAME={version_name}\n")
+              env_file.write(f"VITE_APP_VERSION_CODE={version_code}\n")
+              env_file.write(f"VITE_APP_VERSION_NAME={version_name}\n")
+          print(f"Resolved release version: {version_name} (versionCode {version_code})")
+          PY
       - name: Build web assets
         run: npm run build
 
@@ -66,32 +96,30 @@ jobs:
       - name: Configure Android application identity and version
         shell: bash
         env:
-          VERSION_NAME: "1.0"
           EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
         run: |
           set -euo pipefail
-          VERSION_CODE="$(git rev-list --count HEAD)"
-          export VERSION_CODE
-          test "$VERSION_CODE" -gt 1
+          VERSION_CODE="${VERSION_CODE:?Missing resolved versionCode}"
+          VERSION_NAME="${VERSION_NAME:?Missing resolved versionName}"
+          export VERSION_CODE VERSION_NAME
           python3 - <<'PY'
           import os
+          import re
           from pathlib import Path
-
           path = Path("android/app/build.gradle")
           lines = path.read_text(encoding="utf-8").splitlines()
           expected_id = os.environ["EXPECTED_APPLICATION_ID"]
-          version_code = os.environ["VERSION_CODE"]
+          version_code = int(os.environ["VERSION_CODE"])
           version_name = os.environ["VERSION_NAME"]
-
-          app_id_ok = any(line.strip() == f'applicationId "{expected_id}"' for line in lines)
-          namespace_ok = any(line.strip().startswith("namespace ") for line in lines)
-          if not app_id_ok:
+          if version_code < 1 or version_code > 2100000000:
+              raise SystemExit("Android versionCode is out of range")
+          if not re.fullmatch(r"\d+\.\d+\.\d+", version_name):
+              raise SystemExit("Android versionName must be semantic X.Y.Z")
+          if not any(line.strip() == f'applicationId "{expected_id}"' for line in lines):
               raise SystemExit(f"Production applicationId mismatch; expected {expected_id}")
-          if not namespace_ok:
+          if not any(line.strip().startswith("namespace ") for line in lines):
               raise SystemExit("Android namespace is missing")
-
-          code_updated = False
-          name_updated = False
+          code_updated = name_updated = False
           for i, line in enumerate(lines):
               stripped = line.strip()
               indent = line[:len(line) - len(line.lstrip())]
@@ -101,12 +129,8 @@ jobs:
               elif stripped.startswith("versionName ") and not name_updated:
                   lines[i] = f'{indent}versionName "{version_name}"'
                   name_updated = True
-
-          if not code_updated:
-              raise SystemExit("versionCode declaration not found")
-          if not name_updated:
-              raise SystemExit("versionName declaration not found")
-
+          if not code_updated: raise SystemExit("versionCode declaration not found")
+          if not name_updated: raise SystemExit("versionName declaration not found")
           path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
       - name: Sync Capacitor
@@ -192,11 +216,12 @@ jobs:
       - name: Verify APK identity, version, signature and installability
         shell: bash
         env:
-          EXPECTED_VERSION_NAME: "1.0"
           EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
+          EXPECTED_RELEASE_CERT_SHA256: "681A1EEB65E63DB5CCDF01748A27AA0045033E5C3C5D0C29ED16EE0D35769B64"
         run: |
           set -euo pipefail
-          EXPECTED_VERSION_CODE="$(git rev-list --count HEAD)"
+          EXPECTED_VERSION_CODE="${VERSION_CODE:?Missing resolved versionCode}"
+          EXPECTED_VERSION_NAME="${VERSION_NAME:?Missing resolved versionName}"
           export EXPECTED_VERSION_CODE
 
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
@@ -231,6 +256,7 @@ jobs:
           test -n "$expected_fp"
           test -n "$actual_fp"
           test "$expected_fp" = "$actual_fp"
+          test "$actual_fp" = "$EXPECTED_RELEASE_CERT_SHA256"
 
           sha256sum "$apk"
           ls -lh "$apk"
