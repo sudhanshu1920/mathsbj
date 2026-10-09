@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getPracticeNavDepth, isUnsavedPracticePhase, type PracticePhase } from '@/lib/practiceNavigation';
+import { getPracticeNavDepth, isPracticeSessionInProgress, isUnsavedPracticePhase, type PracticePhase } from '@/lib/practiceNavigation';
 
 describe('Practice navigation lifecycle', () => {
   it('only treats the active phase as having unsaved progress', () => {
@@ -8,6 +8,12 @@ describe('Practice navigation lifecycle', () => {
     expect(phases.filter(isUnsavedPracticePhase)).toEqual(['active']);
     expect(isUnsavedPracticePhase('setup')).toBe(false);
     expect(isUnsavedPracticePhase('finished')).toBe(false);
+  });
+
+  it('hides the Floating Bar only after a quiz starts, including its result screen', () => {
+    expect(isPracticeSessionInProgress('setup')).toBe(false);
+    expect(isPracticeSessionInProgress('active')).toBe(true);
+    expect(isPracticeSessionInProgress('finished')).toBe(true);
   });
 
   it('keeps setup, active, and result navigation states distinct', () => {
