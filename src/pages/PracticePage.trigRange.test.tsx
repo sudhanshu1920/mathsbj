@@ -14,7 +14,7 @@ describe('Learning Table of Angles practice generator range', () => {
       count: trigFunctions.length * (trigProMode ? TRIG_ANGLES.length : 5),
       infinite: false,
       mode: 'input',
-      timerEnabled: false,
+      timerMode: 'off',
       timerSeconds: 9999,
       sequential: false,
       repetitionEnabled: false,
