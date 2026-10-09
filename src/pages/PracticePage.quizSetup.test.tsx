@@ -13,11 +13,11 @@ describe('Quiz Arena trigonometric function selection', () => {
     expect(screen.getByText('Select Trigonometric Functions')).toBeInTheDocument();
 
     for (const fn of TRIG_FUNCTIONS) {
-      expect(screen.getByRole('button', { name: new RegExp(`${fn} θ`) })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: `${fn} θ`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     }
 
     for (const fn of TRIG_FUNCTIONS) {
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(`${fn} θ`) }));
+      fireEvent.click(screen.getByRole('button', { name: `${fn} θ`, exact: true }));
     }
 
     expect(screen.getByText('Select at least one trigonometric function.')).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe('Quiz Arena trigonometric function selection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Select All' }));
     for (const fn of TRIG_FUNCTIONS) {
-      expect(screen.getByRole('button', { name: new RegExp(`${fn} θ`) })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: `${fn} θ`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     }
   });
 });
