@@ -616,6 +616,7 @@ interface PracticePageProps {
   fromLearning?: boolean;
   onQuizStart?: (mode: PracticeMode) => void;
   onQuizFinish?: () => void;
+  onQuizReset?: () => void;
 }
 
 const TopicIconForTopic = ({ topicId }: { topicId: AppTopicId }) => {
@@ -637,7 +638,7 @@ const TopicIconForTopic = ({ topicId }: { topicId: AppTopicId }) => {
   );
 };
 
-const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, onExitCancelled, externalBackRequest, fromLearning, onQuizStart, onQuizFinish }: PracticePageProps) => {
+const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, onExitCancelled, externalBackRequest, fromLearning, onQuizStart, onQuizFinish, onQuizReset }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -1028,7 +1029,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setXpPop(null);
     setLevelUp(null);
     setSessionXP(0);
-  }, []);
+    onQuizReset?.();
+  }, [onQuizReset]);
 
   const handleExitConfirmed = useCallback(() => {
     // Fully dispose the temporary session before changing routes. This also
