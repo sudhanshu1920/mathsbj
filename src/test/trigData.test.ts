@@ -6,6 +6,7 @@ import {
   TRIG_RADIANS,
   buildTrigOptions,
   getAllTrigQuestions,
+  getTrigAngles,
   getTrigQuestions,
   isTrigAnswerCorrect,
   trigValue,
@@ -43,6 +44,11 @@ const expectedRows: ExpectedRow[] = [
 describe('textbook table of standard angles', () => {
   it('lists all standard angles in increasing degree order', () => {
     expect(TRIG_ANGLES).toEqual(expectedRows.map(({ angle }) => angle));
+  });
+
+  it('provides one canonical Standard/Pro range selector for Table and Quiz', () => {
+    expect(getTrigAngles(false)).toEqual([0, 30, 45, 60, 90]);
+    expect(getTrigAngles(true)).toEqual(TRIG_ANGLES);
   });
 
   it('matches the correct radians and all six exact ratios at every angle', () => {
