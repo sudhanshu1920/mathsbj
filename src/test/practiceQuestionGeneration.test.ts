@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { generateQuestions, isValidPracticeRange } from '@/pages/PracticePage';
 import { getSquareRoots, getCubeRoots } from '@/lib/mathData';
 import { isRootAnswerCorrect } from '@/lib/rootMath';
+import { TRIG_FUNCTIONS, trigValue, type TrigFunction } from '@/lib/trigData';
 
 const baseConfig = {
   count: 10,
@@ -145,6 +146,100 @@ describe('PracticePage question generation', () => {
   });
 
 
+
+  it('generates isolated practice pools for each trigonometric function', () => {
+    for (const fn of TRIG_FUNCTIONS) {
+      const questions = generateQuestions({
+        ...baseConfig,
+        count: 17,
+        mode: 'input',
+        sequential: true,
+        topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: [fn] } }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+
+      expect(questions).toHaveLength(17);
+      expect(questions.every((question) => question.trigFunctionId === fn)).toBe(true);
+      expect(questions.every((question) => question.text.startsWith(`${fn} `))).toBe(true);
+      expect(questions.every((question) =>
+        question.questionId === `trig-${fn}-${question.trigAngle}`
+      )).toBe(true);
+
+      for (const question of questions) {
+        expect(question.answer).toBe(trigValue(fn, question.trigAngle!));
+      }
+    }
+  });
+
+  it('supports multi-function and all-function quizzes without cross-function leakage', () => {
+    const makeConfig = (functions: TrigFunction[], mode: 'mcq' | 'input' = 'input') => ({
+      ...baseConfig,
+      count: functions.length * 17,
+      mode,
+      sequential: true,
+      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: functions } }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    const twoFunctions = generateQuestions(makeConfig(['sin', 'cos']));
+    expect(twoFunctions).toHaveLength(34);
+    expect(new Set(twoFunctions.map((question) => question.trigFunctionId))).toEqual(new Set(['sin', 'cos']));
+    expect(twoFunctions.slice(0, 17).every((question) => question.trigFunctionId === 'sin')).toBe(true);
+    expect(twoFunctions.slice(17).every((question) => question.trigFunctionId === 'cos')).toBe(true);
+
+    const allFunctions = generateQuestions(makeConfig([...TRIG_FUNCTIONS]));
+    expect(allFunctions).toHaveLength(102);
+    expect(new Set(allFunctions.map((question) => question.questionId)).size).toBe(102);
+    expect(new Set(allFunctions.map((question) => question.trigFunctionId))).toEqual(new Set(TRIG_FUNCTIONS));
+  });
+
+  it('builds MCQ options from the actual trig question and includes undefined as a valid answer', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 17,
+      mode: 'mcq',
+      sequential: true,
+      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: ['tan'] } }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    expect(questions).toHaveLength(17);
+    expect(questions.every((question) => question.trigFunctionId === 'tan')).toBe(true);
+    for (const question of questions) {
+      expect(question.options).toHaveLength(4);
+      expect(question.options).toContain(String(question.answer));
+      expect(new Set(question.options).size).toBe(4);
+    }
+    expect(questions.find((question) => question.trigAngle === 90)?.options).toContain('Not Defined');
+    expect(questions.find((question) => question.trigAngle === 270)?.answer).toBe('Not Defined');
+  });
+
+  it('keeps the selected trig subset isolated when repetition is enabled', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 10,
+      mode: 'input',
+      sequential: true,
+      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: ['cos'] } }],
+      repetitionEnabled: true,
+      repetitionByTopic: { trig: 3 },
+    });
+
+    expect(questions).toHaveLength(51);
+    expect(questions.every((question) => question.trigFunctionId === 'cos')).toBe(true);
+    for (const questionId of new Set(questions.map((question) => question.questionId))) {
+      expect(questions.filter((question) => question.questionId === questionId)).toHaveLength(3);
+    }
+  });
+
+  it('requires at least one recognized trig function in quiz setup', () => {
+    expect(isValidPracticeRange('trig', { from: 0, to: 360, trigFunctions: [] })).toBe(false);
+    expect(isValidPracticeRange('trig', { from: 0, to: 360, trigFunctions: ['sin', 'bad'] as TrigFunction[] })).toBe(false);
+    expect(isValidPracticeRange('trig', { from: 0, to: 360, trigFunctions: ['tan'] })).toBe(true);
+  });
 
   it('rejects malformed numeric ranges before quiz start', () => {
     expect(isValidPracticeRange('squares', { from: 0, to: 10 })).toBe(false);
