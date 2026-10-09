@@ -34,8 +34,8 @@ describe('Quiz Arena trigonometry angle-range control', () => {
     const rangeGroup = screen.getByRole('group', { name: 'Trigonometry quiz angle range' });
     fireEvent.click(within(rangeGroup).getByRole('button', { name: /Pro Mode.*0°–360°/ }));
 
-    const sinButton = screen.getByRole('button', { name: '○ sin θ' });
-    const cosButton = screen.getByRole('button', { name: '○ cos θ' });
+    const sinButton = screen.getByRole('button', { name: 'sin θ' });
+    const cosButton = screen.getByRole('button', { name: 'cos θ' });
     fireEvent.click(sinButton);
     fireEvent.click(cosButton);
 
