@@ -546,4 +546,18 @@ if (!practice.includes('shouldUseInfiniteQuestionPool(cfg.timerMode, cfg.repetit
   fail('Challenge must use a recyclable question pool and finish by its timer, not fixed question count');
 }
 
+// Quiz Tables Pro Mode must reuse Learning's persistent setting and question generator.
+const tableQuestionTests = read('src/test/practiceQuestionGeneration.test.ts');
+const tableRangeUiTests = read('src/pages/PracticePage.trigRange.test.tsx');
+if (!practice.includes('getTablesProMode, setTablesProMode') ||
+    !practice.includes('aria-label="Tables Pro Mode"') ||
+    !practice.includes("const proMax = getTablesProMode() ? 20 : 10") ||
+    !practice.includes("window.addEventListener('tables-pro-updated', syncTablesProMode)")) {
+  fail('Quiz Tables Pro Mode must reuse the shared persisted setting and keep its compact range toggle synchronized');
+}
+if (!tableQuestionTests.includes('uses the shared Tables Standard/Pro mode for the exact selected table range') ||
+    !tableRangeUiTests.includes('uses the shared Learning/Quiz Pro Mode setting from the Tables range panel')) {
+  fail('Quiz Tables Pro Mode must cover both actual generated question ranges and UI setting synchronization');
+}
+
 console.log('Architecture regression checks passed.');

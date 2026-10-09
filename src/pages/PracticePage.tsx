@@ -7,7 +7,7 @@ import Particles from '@/components/Particles';
 import { saveResult } from '@/lib/progress';
 import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
-import { getSettings, isActive, markInteraction, getTablesProMode } from '@/lib/settings';
+import { getSettings, isActive, markInteraction, getTablesProMode, setTablesProMode } from '@/lib/settings';
 import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
 import { playClick, playSuccess, playWrong, playLevelUp, playStreak } from '@/lib/sound';
 import { MOTION } from '@/lib/motion';
@@ -710,6 +710,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     return defaults;
   });
   const [expandedTopic, setExpandedTopic] = useState<string | null>(() => initialTopic === 'periodic-table' ? 'periodic-table' : null);
+  const [tablesProMode, setTablesProModeState] = useState<boolean>(() => getTablesProMode());
   const [count, setCount] = useState(10);
   const [infinite, setInfinite] = useState(false);
   const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
@@ -721,6 +722,23 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [topicRepetitions, setTopicRepetitions] = useState<Record<string, number>>(() => (
     Object.fromEntries(TOPICS.map((topic) => [topic.id, 1]))
   ));
+
+  // Reuse the canonical Tables Pro Mode setting shared with Learning Mode.
+  // The question generator reads the same setting when a new Quiz starts.
+  useEffect(() => {
+    const syncTablesProMode = () => setTablesProModeState(getTablesProMode());
+    window.addEventListener('tables-pro-updated', syncTablesProMode);
+    window.addEventListener('storage', syncTablesProMode);
+    return () => {
+      window.removeEventListener('tables-pro-updated', syncTablesProMode);
+      window.removeEventListener('storage', syncTablesProMode);
+    };
+  }, []);
+
+  const handleTablesProModeChange = useCallback((enabled: boolean) => {
+    setTablesProMode(enabled);
+    setTablesProModeState(enabled);
+  }, []);
 
   const startPractice = useCallback((cfg: PracticeConfig) => {
     const normalizedConfig: PracticeConfig = {
@@ -1696,6 +1714,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     ? (range.operand1DigitCount ?? 2) + '-digit + ' + (range.operand2DigitCount ?? 2) + '-digit • ' + ((range.arithmeticOperations || ['addition', 'subtraction']).map((operation) => operation === 'addition' ? '+' : '−').join(' / '))
   : tid === 'periodic-table'
     ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''})`
+  : tid === 'tables'
+    ? `(${range.from}–${range.to} · ${tablesProMode ? 'Pro ×1–×20' : 'Standard ×1–×10'})`
     : `(${range.from}–${range.to})`}
                     </span>
                   </div>
@@ -1793,6 +1813,44 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                               <p className="mt-2 text-[11px] font-semibold text-destructive">Select at least one trigonometric function.</p>
                             )}
                             <p className="mt-2 text-[11px] text-muted-foreground">Each selected function uses the active angle range, including Not Defined answers where applicable.</p>
+                            </div>
+                          </div>
+                        ) : tid === 'tables' ? (
+                          <div className="space-y-3">
+                            <div className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${tablesProMode ? 'border-primary/50 bg-primary/5' : 'border-border bg-secondary/50'}`}>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground">Pro Mode</p>
+                                <p className="mt-0.5 text-[11px] text-muted-foreground" aria-live="polite">
+                                  {tablesProMode ? '×1 – ×20 per table' : '×1 – ×10 per table'}
+                                </p>
+                              </div>
+                              <Switch
+                                checked={tablesProMode}
+                                aria-label="Tables Pro Mode"
+                                onCheckedChange={handleTablesProModeChange}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-xs text-muted-foreground mb-1 block">From</label>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  value={range.from}
+                                  onChange={(e) => updateRange(tid, 'from', Number(e.target.value))}
+                                  className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-center text-sm font-bold text-foreground focus:border-primary outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-muted-foreground mb-1 block">To</label>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  value={range.to}
+                                  onChange={(e) => updateRange(tid, 'to', Number(e.target.value))}
+                                  className={`w-full bg-secondary border rounded-xl px-3 py-2 text-center text-sm font-bold text-foreground focus:border-primary outline-none ${range.to < range.from ? 'border-destructive' : 'border-border'}`}
+                                />
+                              </div>
                             </div>
                           </div>
                         ) : tid === 'periodic-table' ? (
