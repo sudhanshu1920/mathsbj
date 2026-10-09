@@ -926,7 +926,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
-      if (!config || finished || feedback || answerLockRef.current) return;
+      if (!config || finished || feedback || answerLockRef.current || finishLockRef.current) return;
+      if (
+        config.timerMode === 'challenge' &&
+        challengeDeadlineRef.current !== null &&
+        performance.now() >= challengeDeadlineRef.current
+      ) {
+        finishQuiz();
+        return;
+      }
       const q = questions[currentQ];
       if (!q) return;
       answerLockRef.current = true;
@@ -1030,11 +1038,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             // of appending another full pool on every cycle.
             setQuestions(nextPool);
             setCurrentQ(0);
-            if (config.timerEnabled) setTimeLeft(config.timerSeconds);
+            if (config.timerMode === 'perQuestion') setTimeLeft(config.timerSeconds);
           }
         } else {
           setCurrentQ(currentQ + 1);
-          if (config.timerEnabled) setTimeLeft(config.timerSeconds);
+          if (config.timerMode === 'perQuestion') setTimeLeft(config.timerSeconds);
         }
         answerLockRef.current = false;
       }, isCorrect ? 350 : 700);
@@ -1234,9 +1242,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               </div>
               <div className="text-center">
                 <p className="text-3xl font-bold text-foreground">{totalAttempts}</p>
-                <p className="text-xs text-muted-foreground">Attempted</p>
+                <p className="text-xs text-muted-foreground">{config.timerMode === 'challenge' ? 'Solved' : 'Attempted'}</p>
               </div>
             </div>
+            {config.timerMode === 'challenge' && (
+              <p className="text-sm text-muted-foreground mb-4">
+                Challenge · {Math.round((config.challengeDurationSeconds ?? 60) / 60)}m
+              </p>
+            )}
             {config.infinite && <p className="text-sm text-muted-foreground mb-4">Time: {formatTime(elapsedTime)}</p>}
             <div className="flex gap-3">
               <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-[0_0_24px_hsl(var(--primary)/0.5)]">Retry</button>
@@ -1257,8 +1270,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   if (config && questions.length > 0) {
     const q = questions[currentQ];
     if (!q) return null;
-    const isLowTime = timeLeft <= 3 && config.timerEnabled;
-    const isTimerHidden = !config.timerEnabled;
+    const isLowTime = config.timerMode === 'perQuestion'
+      ? timeLeft <= 3
+      : config.timerMode === 'challenge' && challengeTimeLeft <= 5;
+    const isTimerHidden = config.timerMode === 'off';
     const isPctQuestion = q.answerType === 'decimal-pct' || q.answerType === 'mixed-pct' || q.answerType === 'fraction' || q.answerType === 'trig';
     const totalAttempts = score.correct + score.wrong;
     const isFiniteQuiz = config.repetitionEnabled || !config.infinite;
