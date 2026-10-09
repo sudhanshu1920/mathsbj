@@ -23,10 +23,10 @@ describe('Quiz Arena trigonometric function selection', () => {
     expect(screen.getByText('Select at least one trigonometric function.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('button', { name: /sin θ/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'sin θ', exact: true }));
     expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeEnabled();
     expect(screen.getByRole('button', { name: /sin θ/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /cos θ/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'cos θ', exact: true })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('provides a Select All control for multi-function quiz setup', () => {
