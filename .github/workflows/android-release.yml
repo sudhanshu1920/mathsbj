@@ -561,12 +561,10 @@ jobs:
 
           if gh release view "${release_tag}" >/dev/null 2>&1; then
             gh release edit "${release_tag}" --title "${release_title}" --notes "${release_notes}"
+            gh release upload "${release_tag}" MathMaster-release.apk --clobber
           else
             gh release create "${release_tag}" MathMaster-release.apk --title "${release_title}" --notes "${release_notes}" --target "${GITHUB_SHA}"
-            exit 0
           fi
-
-          gh release upload "${release_tag}" MathMaster-release.apk --clobber
 
       - name: Prepare public update manifest and APK
         shell: bash
