@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import PracticePage, { generateQuestions } from '@/pages/PracticePage';
 import { TRIG_ANGLES, type TrigFunction } from '@/lib/trigData';
+import { getTablesProMode, setTablesProMode } from '@/lib/settings';
 
 describe('Learning Table of Angles practice generator range', () => {
   const makeQuestions = (trigProMode: boolean, trigFunctions: TrigFunction[]) =>
@@ -95,6 +96,35 @@ describe('Quiz Arena trigonometry angle-range control', () => {
   });
 });
 
+
+describe('Quiz Arena Tables Pro Mode', () => {
+  it('uses the shared Learning/Quiz Pro Mode setting from the Tables range panel', () => {
+    const previousProMode = getTablesProMode();
+    setTablesProMode(false);
+    const { unmount } = render(<PracticePage />);
+
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /Tables (/ }));
+
+      const proModeSwitch = screen.getByRole('switch', { name: 'Tables Pro Mode' });
+      expect(proModeSwitch).not.toBeChecked();
+      expect(screen.getByText('×1 – ×10 per table')).toBeInTheDocument();
+
+      fireEvent.click(proModeSwitch);
+      expect(proModeSwitch).toBeChecked();
+      expect(screen.getByText('×1 – ×20 per table')).toBeInTheDocument();
+      expect(getTablesProMode()).toBe(true);
+
+      fireEvent.click(proModeSwitch);
+      expect(proModeSwitch).not.toBeChecked();
+      expect(screen.getByText('×1 – ×10 per table')).toBeInTheDocument();
+      expect(getTablesProMode()).toBe(false);
+    } finally {
+      unmount();
+      setTablesProMode(previousProMode);
+    }
+  });
+});
 
 describe('Quiz Arena Challenge timer controls', () => {
   it('keeps Challenge and the per-question Timer mutually exclusive', () => {
