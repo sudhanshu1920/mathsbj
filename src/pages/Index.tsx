@@ -134,6 +134,7 @@ const Index = () => {
   const wideDesktop = useWideDesktop();
 
   // A single shared policy handles Learning topic depth, Settings, and Quiz phase.
+  // activeTopic remains set throughout selections and nested detail screens.
   // Topic detail/nested states unmount the nav; the existing measured reserve then
   // clears to 0px. Returning to the landing state restores it without stale state.
   const { show: showBottomNav, mount: mountBottomNav } = getFloatingBarVisibility({
