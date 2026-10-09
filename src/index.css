@@ -1004,10 +1004,9 @@ main { transition: opacity 0.4s ease; }
   content-visibility: auto;
   contain-intrinsic-size: auto 64px;
 }
-/* Promote ordinary glass surfaces, but leave the Floating Bar's
-   centering transform as its single source of truth. Applying a second
-   translateZ transform to a fixed, horizontally centered nav can create
-   inconsistent stacking/positioning in embedded Android WebViews. */
+/* Promote ordinary glass surfaces, but leave the Floating Bar's fixed,
+   centered navigation surface out of generic will-change promotion. Its own
+   centering transform and z-index already define the required layer. */
 .glass-panel:not(.bottom-nav),
 nav.glass-panel:not(.bottom-nav) {
   will-change: transform;
