@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Timer, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame, Plus, Minus } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
@@ -762,7 +762,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     finishLockRef.current = false;
   }, [onQuizStart]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (initialTopic && initialMode) {
       const mappedTopic = initialTopic === 'square-roots' ? 'roots' : initialTopic;
       const topicInfo = TOPICS.find(t => t.id === mappedTopic);
@@ -1047,7 +1047,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (config?.mode === 'input' && inputRef.current) inputRef.current.focus();
   }, [currentQ, config]);
 
-  const resetToPracticeHome = useCallback(() => {
+  const clearSessionTimers = useCallback(() => {
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
@@ -1060,6 +1060,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     xpPopTimerRef.current = undefined;
     answerLockRef.current = false;
     finishLockRef.current = false;
+  }, []);
+
+  const resetToPracticeHome = useCallback(() => {
+    clearSessionTimers();
     setShowExitDialog(false);
     setConfig(null);
     setQuestions([]);
@@ -1075,17 +1079,20 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setLevelUp(null);
     setSessionXP(0);
     onQuizReset?.();
-  }, [onQuizReset]);
+  }, [clearSessionTimers, onQuizReset]);
 
   const handleExitConfirmed = useCallback(() => {
-    // Fully dispose the temporary session before changing routes. This also
-    // clears pending answer/auto-submit work so nothing can fire after exit.
-    resetToPracticeHome();
-    if (fromLearning) {
-      // Return to the same Learning screen the user came from.
-      onExit?.();
+    if (fromLearning && onExit) {
+      // Keep the active question branch mounted until the parent switches
+      // directly to the originating Learning context. Resetting config to null
+      // first would render the Quiz Arena setup branch for an intermediate frame.
+      clearSessionTimers();
+      onExit();
+      return;
     }
-  }, [fromLearning, onExit, resetToPracticeHome]);
+
+    resetToPracticeHome();
+  }, [clearSessionTimers, fromLearning, onExit, resetToPracticeHome]);
 
   const handleExitRequest = useCallback(() => {
     if (showExitDialog) return;
@@ -1111,19 +1118,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   // Safety net for route changes/unmounts: release every session timer/timeout.
   useEffect(() => {
-    return () => {
-      if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
-      if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
-      if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
-      if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
-      if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
-      sessionIntervalRef.current = undefined;
-      answerAdvanceTimerRef.current = undefined;
-      autoSubmitTimerRef.current = undefined;
-      levelUpTimerRef.current = undefined;
-      xpPopTimerRef.current = undefined;
-    };
-  }, []);
+    return () => clearSessionTimers();
+  }, [clearSessionTimers]);
 
   // Index.tsx owns browser/native navigation history and signals this page
   // through externalBackRequest for an active-quiz back action. Treat it as
@@ -1132,10 +1128,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   useEffect(() => {
     const request = externalBackRequest ?? 0;
     if (request <= lastExternalBackRequestRef.current) return;
-
-    lastExternalBackRequestRef.current = request;
     if (!config || finished) return;
 
+    lastExternalBackRequestRef.current = request;
     setShowExitDialog(true);
   }, [externalBackRequest, config, finished]);
 

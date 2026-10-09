@@ -9,21 +9,24 @@ import {
 } from '@/lib/practiceNavigation';
 
 describe('Practice navigation lifecycle', () => {
-  it('only treats the active phase as having unsaved progress', () => {
-    const phases: PracticePhase[] = ['setup', 'active', 'finished'];
-    expect(phases.filter(isUnsavedPracticePhase)).toEqual(['active']);
+  it('protects the startup handoff and active quiz as in-progress navigation', () => {
+    const phases: PracticePhase[] = ['setup', 'starting', 'active', 'finished'];
+    expect(phases.filter(isUnsavedPracticePhase)).toEqual(['starting', 'active']);
     expect(isUnsavedPracticePhase('setup')).toBe(false);
+    expect(isUnsavedPracticePhase('starting')).toBe(true);
     expect(isUnsavedPracticePhase('finished')).toBe(false);
   });
 
   it('hides the Floating Bar only after a quiz starts, including its result screen', () => {
     expect(isPracticeSessionInProgress('setup')).toBe(false);
+    expect(isPracticeSessionInProgress('starting')).toBe(true);
     expect(isPracticeSessionInProgress('active')).toBe(true);
     expect(isPracticeSessionInProgress('finished')).toBe(true);
   });
 
   it('keeps setup, active, and result navigation states distinct', () => {
     expect(getPracticeNavDepth('setup')).toBe('practice-setup');
+    expect(getPracticeNavDepth('starting')).toBe('practice-active');
     expect(getPracticeNavDepth('active')).toBe('practice-active');
     expect(getPracticeNavDepth('finished')).toBe('practice-result');
   });

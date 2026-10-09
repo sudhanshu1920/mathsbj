@@ -472,4 +472,36 @@ if (!trigTableCss.includes('background-color: hsl(var(--card)) !important') ||
   fail('Table of Angles sticky cells must keep opaque theme surfaces and correct z-index layering');
 }
 
+// Quiz startup/exit transition invariants.
+const learningLaunchStart = index.indexOf('const handleStartPractice = useCallback(');
+const learningLaunchEnd = index.indexOf('const clearPracticeState =', learningLaunchStart);
+const learningLaunchHandler = index.slice(learningLaunchStart, learningLaunchEnd);
+if (learningLaunchStart < 0 || learningLaunchEnd < 0 ||
+    learningLaunchHandler.indexOf("setPracticePhase('starting');") < 0 ||
+    learningLaunchHandler.indexOf("setPracticePhase('starting');") > learningLaunchHandler.indexOf("setTab('practice');")) {
+  fail('Learning-origin Start Quiz must enter the startup phase before mounting PracticePage');
+}
+if (!practiceNavigation.includes("phase === 'starting' || phase === 'active'") ||
+    !practiceNavigation.includes("phase === 'starting' || phase === 'active' || phase === 'finished'") ||
+    !practiceNavigation.includes("if (phase === 'starting' || phase === 'active') return 'practice-active';")) {
+  fail('Quiz startup must hide the Floating Bar and keep startup/active history depth stable');
+}
+if (!practice.includes("useLayoutEffect(() => {\n    if (initialTopic && initialMode) {")) {
+  fail('Learning-origin Quiz session must initialize before paint to prevent setup screen flash');
+}
+const exitConfirmStart = practice.indexOf('const handleExitConfirmed = useCallback(() => {');
+const exitConfirmEnd = practice.indexOf('const handleExitRequest = useCallback', exitConfirmStart);
+const exitConfirmHandler = practice.slice(exitConfirmStart, exitConfirmEnd);
+if (exitConfirmStart < 0 || exitConfirmEnd < 0 ||
+    !exitConfirmHandler.includes('if (fromLearning && onExit)') ||
+    !exitConfirmHandler.includes('clearSessionTimers();\n      onExit();')) {
+  fail('Learning-origin Quiz exit must clean timers and navigate directly without rendering Quiz setup first');
+}
+const backRequestEffectStart = practice.indexOf('const request = externalBackRequest ?? 0;');
+const backRequestEffect = practice.slice(backRequestEffectStart, practice.indexOf('}, [externalBackRequest, config, finished]);', backRequestEffectStart));
+if (backRequestEffect.indexOf('if (!config || finished) return;') < 0 ||
+    backRequestEffect.indexOf('if (!config || finished) return;') > backRequestEffect.indexOf('lastExternalBackRequestRef.current = request;')) {
+  fail('Back requests during Quiz startup must remain pending until the active session can show confirmation');
+}
+
 console.log('Architecture regression checks passed.');

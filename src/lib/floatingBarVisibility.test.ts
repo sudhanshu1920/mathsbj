@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getFloatingBarVisibility } from './floatingBarVisibility';
+import { isPracticeSessionInProgress } from './practiceNavigation';
 
 describe('central Floating Bar visibility policy', () => {
   it('shows and reserves the bar on the Learning Mode landing screen', () => {
@@ -58,6 +59,15 @@ describe('central Floating Bar visibility policy', () => {
       settingsOpen: true,
       quizInProgress: false,
     })).toEqual({ show: false, mount: true });
+  });
+
+  it('unmounts the bar during the Learning-origin Quiz startup handoff before questions mount', () => {
+    expect(getFloatingBarVisibility({
+      tab: 'practice',
+      activeTopic: null,
+      settingsOpen: false,
+      quizInProgress: isPracticeSessionInProgress('starting'),
+    })).toEqual({ show: false, mount: false });
   });
 
   it('unmounts the bar during an active or finished Quiz session', () => {

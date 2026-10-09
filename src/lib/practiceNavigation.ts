@@ -1,6 +1,6 @@
 import type { TrigFunction } from '@/lib/trigData';
 
-export type PracticePhase = 'setup' | 'active' | 'finished';
+export type PracticePhase = 'setup' | 'starting' | 'active' | 'finished';
 
 export interface PracticeLaunchContext {
   topic: string;
@@ -18,10 +18,15 @@ export interface PracticeLaunchContext {
 
 export const LEARNING_PRACTICE_SELECTOR_DEPTH = 'learn-practice-selector';
 
-export const isUnsavedPracticePhase = (phase: PracticePhase): boolean => phase === 'active';
+// Treat the handoff to a Learning-origin quiz as an in-progress navigation so
+// Back cannot expose the setup screen before the session is initialized.
+export const isUnsavedPracticePhase = (phase: PracticePhase): boolean =>
+  phase === 'starting' || phase === 'active';
 
 export const getPracticeNavDepth = (phase: PracticePhase): string => {
-  if (phase === 'active') return 'practice-active';
+  // Startup and active phases intentionally share one history depth, avoiding
+  // a transient extra navigation entry when the question session mounts.
+  if (phase === 'starting' || phase === 'active') return 'practice-active';
   if (phase === 'finished') return 'practice-result';
   return 'practice-setup';
 };
@@ -36,4 +41,4 @@ export const getPracticeReturnDepth = (
 };
 
 export const isPracticeSessionInProgress = (phase: PracticePhase): boolean =>
-  phase === 'active' || phase === 'finished';
+  phase === 'starting' || phase === 'active' || phase === 'finished';
