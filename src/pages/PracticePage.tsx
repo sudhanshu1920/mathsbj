@@ -761,7 +761,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         from: initialContext?.from ?? initialContext?.number ?? (mappedTopic === 'trig' ? 0 : 1),
         to: initialContext?.to ?? initialContext?.number ?? (mappedTopic === 'trig' ? 360 : initialTopic === 'percentage' ? 50 : 10),
         ...(mappedTopic === 'trig'
-          ? { trigFunctions: initialExtras?.trigFunctions?.length ? [...initialExtras.trigFunctions] : [...TRIG_FUNCTIONS] }
+          ? { trigFunctions: [...(initialExtras?.trigFunctions ?? TRIG_FUNCTIONS)] }
           : {}),
       };
       const cfg: PracticeConfig = {
