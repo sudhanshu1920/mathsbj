@@ -27,7 +27,7 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
-import { getTrigQuestions, buildTrigOptions, isTrigAnswerCorrect, TRIG_FUNCTIONS, type TrigFunction, type TrigAngle } from '@/lib/trigData';
+import { getTrigQuestions, getTrigAngles, buildTrigOptions, isTrigAnswerCorrect, TRIG_FUNCTIONS, type TrigFunction, type TrigAngle } from '@/lib/trigData';
 import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
@@ -53,6 +53,7 @@ interface TopicRange {
   periodicQuestionTypes?: PeriodicQuestionType[];
   periodicMassMode?: PeriodicMassMode;
   trigFunctions?: TrigFunction[];
+  trigProMode?: boolean;
 }
 
 interface PracticeConfig {
@@ -113,7 +114,7 @@ const TOPIC_DEFAULTS = [
   { id: 'powers' as AppTopicId, defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
   { id: 'percentage' as AppTopicId, defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
   { id: 'addition-subtraction-digits' as AppTopicId, defaultRange: { from: 2, to: 2, operand1DigitCount: 2, operand2DigitCount: 2, arithmeticOperations: ['addition', 'subtraction'] as ArithmeticOperation[] } },
-  { id: 'trig' as AppTopicId, defaultRange: { from: 0, to: 360, trigFunctions: [...TRIG_FUNCTIONS] } },
+  { id: 'trig' as AppTopicId, defaultRange: { from: 0, to: 360, trigFunctions: [...TRIG_FUNCTIONS], trigProMode: false } },
   { id: 'periodic-table' as AppTopicId, defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
 ];
 
@@ -168,7 +169,8 @@ export function isValidPracticeRange(topicId: string, range: TopicRange | undefi
 
   if (topicId === 'trig') {
     const functions = range.trigFunctions;
-    return Array.isArray(functions) &&
+    return (range.trigProMode === undefined || typeof range.trigProMode === 'boolean') &&
+      Array.isArray(functions) &&
       functions.length > 0 &&
       functions.every((fn): fn is TrigFunction => TRIG_FUNCTIONS.includes(fn as TrigFunction));
   }
@@ -346,7 +348,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       }
     }
   } else if (topicId === 'trig') {
-    for (const tq of getTrigQuestions(range.trigFunctions ?? TRIG_FUNCTIONS)) {
+    for (const tq of getTrigQuestions(range.trigFunctions ?? TRIG_FUNCTIONS, getTrigAngles(range.trigProMode === true))) {
       questions.push({
         questionId: tq.id,
         trigFunctionId: tq.fn,
@@ -761,7 +763,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         from: initialContext?.from ?? initialContext?.number ?? (mappedTopic === 'trig' ? 0 : 1),
         to: initialContext?.to ?? initialContext?.number ?? (mappedTopic === 'trig' ? 360 : initialTopic === 'percentage' ? 50 : 10),
         ...(mappedTopic === 'trig'
-          ? { trigFunctions: [...(initialExtras?.trigFunctions ?? TRIG_FUNCTIONS)] }
+          ? {
+              trigFunctions: [...(initialExtras?.trigFunctions ?? TRIG_FUNCTIONS)],
+              // Learning → Practice historically covers the complete table; keep
+              // that flow unchanged. Quiz Arena has its own Standard/Pro control.
+              trigProMode: true,
+            }
           : {}),
       };
       const cfg: PracticeConfig = {
@@ -809,7 +816,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const updateRange = (
     topicId: string,
     field: string,
-    value: number | string | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[],
+    value: number | string | boolean | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[],
   ) => {
     setTopicRanges(prev => ({
       ...prev,
@@ -1579,7 +1586,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                     <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
                     <span className="text-xs text-muted-foreground">
                       {isTrig
-  ? '(Standard angles)'
+  ? (range.trigProMode ? '(Pro · 0°–360°)' : '(Standard · 0°–90°)')
   : tid === 'addition-subtraction-digits'
     ? (range.operand1DigitCount ?? 2) + '-digit + ' + (range.operand2DigitCount ?? 2) + '-digit • ' + ((range.arithmeticOperations || ['addition', 'subtraction']).map((operation) => operation === 'addition' ? '+' : '−').join(' / '))
   : tid === 'periodic-table'
@@ -1600,7 +1607,46 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                     >
                       <div className="p-4 space-y-3">
                         {isTrig ? (
-                          <div>
+                          <div className="space-y-4">
+                            <div>
+                              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Trigonometry Quiz – Angle Range</p>
+                              <div role="group" aria-label="Trigonometry quiz angle range" className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  aria-pressed={!range.trigProMode}
+                                  onClick={() => updateRange(tid, 'trigProMode', false)}
+                                  className={
+                                    'min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors sm:text-sm ' +
+                                    (!range.trigProMode
+                                      ? 'gradient-primary border-primary text-primary-foreground'
+                                      : 'bg-secondary border-border text-secondary-foreground hover:border-primary/50')
+                                  }
+                                >
+                                  <span className="block">Standard Mode</span>
+                                  <span className="mt-0.5 block text-[11px] font-medium opacity-85">0°–90°</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-pressed={!!range.trigProMode}
+                                  onClick={() => updateRange(tid, 'trigProMode', true)}
+                                  className={
+                                    'min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors sm:text-sm ' +
+                                    (range.trigProMode
+                                      ? 'gradient-primary border-primary text-primary-foreground'
+                                      : 'bg-secondary border-border text-secondary-foreground hover:border-primary/50')
+                                  }
+                                >
+                                  <span className="block">Pro Mode</span>
+                                  <span className="mt-0.5 block text-[11px] font-medium opacity-85">0°–360°</span>
+                                </button>
+                              </div>
+                              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground" aria-live="polite">
+                                {range.trigProMode
+                                  ? 'Quiz includes all 17 supported angles through 360°.'
+                                  : 'Quiz includes only supported angles through 90°.'}
+                              </p>
+                            </div>
+                            <div>
                             <div className="mb-2 flex items-center justify-between gap-2">
                               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Select Trigonometric Functions</p>
                               <button
@@ -1641,7 +1687,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                             {!(range.trigFunctions ?? TRIG_FUNCTIONS).length && (
                               <p className="mt-2 text-[11px] font-semibold text-destructive">Select at least one trigonometric function.</p>
                             )}
-                            <p className="mt-2 text-[11px] text-muted-foreground">Each selected function includes all standard angles from 0° to 360°, including Not Defined answers.</p>
+                            <p className="mt-2 text-[11px] text-muted-foreground">Each selected function uses the active angle range, including Not Defined answers where applicable.</p>
+                            </div>
                           </div>
                         ) : tid === 'periodic-table' ? (
                           <>
