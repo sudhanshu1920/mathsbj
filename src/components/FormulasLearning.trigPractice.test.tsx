@@ -33,7 +33,7 @@ describe('Table of Angles top-bar controls', () => {
     const appearanceButton = screen.getByRole('button', { name: /Switch to (light|dark) mode/ });
     expect(proButton).toHaveAttribute('aria-pressed', 'false');
     expect(proButton.compareDocumentPosition(appearanceButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: '90 degrees' })).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: '90 degrees' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: '120 degrees' })).not.toBeInTheDocument();
 
     const appearanceLabelBefore = appearanceButton.getAttribute('aria-label');
@@ -57,7 +57,7 @@ describe('Table of Angles top-bar controls', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Practice' }));
     const dialog = await screen.findByRole('dialog', { name: 'Choose trigonometric functions to practice' });
-    const tableScrollRegion = screen.getByRole('region', { name: 'Table of standard trigonometric ratios' });
+    const tableScrollRegion = await screen.findByRole('region', { name: 'Table of standard trigonometric ratios' });
 
     expect(document.body.contains(dialog)).toBe(true);
     expect(tableScrollRegion.contains(dialog)).toBe(false);
