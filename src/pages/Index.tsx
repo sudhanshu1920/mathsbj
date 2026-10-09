@@ -21,6 +21,7 @@ import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
 import { MOTION } from '@/lib/motion';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TrigFunction } from '@/lib/trigData';
+import { getFloatingBarVisibility } from '@/lib/floatingBarVisibility';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -132,14 +133,15 @@ const Index = () => {
   } | null>(null);
   const wideDesktop = useWideDesktop();
 
-  // Central visibility rule: Settings hides the existing bar, and an
-  // active quiz keeps the viewport entirely free of the bar and its container.
-  // The result screen remains part of that quiz session until the user exits
-  // or returns to setup. Setup alone never hides the bar.
-  const hideFloatingBarForQuiz =
-    tab === 'practice' && isPracticeSessionInProgress(practicePhase);
-  const showBottomNav = !settingsOpen && !hideFloatingBarForQuiz;
-  const mountBottomNav = !hideFloatingBarForQuiz;
+  // A single shared policy handles Learning topic depth, Settings, and Quiz phase.
+  // Topic detail/nested states unmount the nav; the existing measured reserve then
+  // clears to 0px. Returning to the landing state restores it without stale state.
+  const { show: showBottomNav, mount: mountBottomNav } = getFloatingBarVisibility({
+    tab,
+    activeTopic: learningState.activeTopic,
+    settingsOpen,
+    quizInProgress: isPracticeSessionInProgress(practicePhase),
+  });
 
   // Keep the content reserve synchronized with the floating bar's actual
   // rendered border-box height. This is layout-only state: it writes a CSS
