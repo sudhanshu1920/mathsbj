@@ -151,10 +151,10 @@ if (!index.includes('--floating-bar-height') || !index.includes('ResizeObserver'
 if (!index.includes("visualViewport.offsetTop + visualViewport.height") || !index.includes("viewportBottom - rect.top")) {
   fail('floating-bar reserve does not use a consistent visual-viewport coordinate system');
 }
-if (!glass.includes("env(safe-area-inset-bottom") ||
+if (!css.includes("env(safe-area-inset-bottom") ||
     !glass.includes("left: 50% !important;") ||
     !glass.includes("transform: translateX(-50%)")) {
-  fail('Floating Bar safe-area padding or narrow-screen centering regression detected');
+  fail('Floating Bar safe-area offset or narrow-screen centering regression detected');
 }
 
 if (!bottomNavUi.includes("aria-current={isActive ? 'page' : undefined}")) {
