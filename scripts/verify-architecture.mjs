@@ -531,4 +531,19 @@ if (!practice.includes('Solved {totalAttempts}') ||
   fail('Challenge solved count, result labeling, and timer deadline cleanup are required');
 }
 
+// Challenge mode disables fixed question-count controls and overrides their pool lifetime.
+if (!quizTimer.includes('isQuestionCountSelectionDisabled') ||
+    !quizTimer.includes('shouldUseInfiniteQuestionPool')) {
+  fail('Challenge question-count availability and time-based pool lifetime must use shared helpers');
+}
+if (!practice.includes('const questionCountDisabled = isQuestionCountSelectionDisabled(repetitionEnabled, timerMode);') ||
+    (practice.match(/disabled={questionCountDisabled}/g) || []).length < 2 ||
+    !practice.includes('if (questionCountDisabled) return;')) {
+  fail('All fixed Questions buttons must be natively disabled and protected by click guards during Challenge');
+}
+if (!practice.includes('shouldUseInfiniteQuestionPool(cfg.timerMode, cfg.repetitionEnabled, cfg.infinite)') ||
+    !practice.includes("const isFiniteQuiz = config.timerMode !== 'challenge' &&")) {
+  fail('Challenge must use a recyclable question pool and finish by its timer, not fixed question count');
+}
+
 console.log('Architecture regression checks passed.');
