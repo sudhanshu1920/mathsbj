@@ -1,11 +1,32 @@
 import { defineConfig } from "vite";
+import { execFileSync } from "node:child_process";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
+const readBuildVersionCode = (): number => {
+  const configured = Number(process.env.VITE_APP_VERSION_CODE);
+  if (Number.isSafeInteger(configured) && configured > 0) return configured;
+  try {
+    const count = Number(execFileSync("git", ["rev-list", "--count", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim());
+    return Number.isSafeInteger(count) && count > 0 ? count : 1;
+  } catch {
+    return 1;
+  }
+};
+
+const buildVersionName = process.env.VITE_APP_VERSION_NAME?.trim() || "1.0";
+
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_VERSION_CODE__: JSON.stringify(readBuildVersionCode()),
+    __APP_VERSION_NAME__: JSON.stringify(buildVersionName),
+  },
   server: {
     host: "::",
     port: 8080,
@@ -17,7 +38,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       injectRegister: false,
       devOptions: {
         enabled: false,
