@@ -786,6 +786,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     initialExtras?.timerEnabled,
     initialExtras?.timerSeconds,
     initialExtras?.infinite,
+    initialExtras?.trigFunctions,
     startPractice,
   ]);
 
