@@ -123,9 +123,14 @@ describe('Quiz Arena Challenge timer controls', () => {
   it('disables fixed Questions choices during Challenge and restores them when Challenge is turned off', () => {
     render(<PracticePage />);
 
-    const fixedOptions = ['10', '20', '25', '50', '∞'].map((name) =>
-      screen.getByRole('button', { name, exact: true }),
-    );
+    const allButtons = screen.getAllByRole('button');
+    const fixedOptions = ['10', '20', '25', '50', '∞'].map((name) => {
+      const button = allButtons.find((candidate) => candidate.textContent?.trim() === name);
+      if (!(button instanceof HTMLButtonElement)) {
+        throw new Error(`Question-count button "${name}" did not render.`);
+      }
+      return button;
+    });
     expect(fixedOptions.every((button) => !button.disabled)).toBe(true);
 
     const challengeTimer = screen.getByRole('switch', { name: 'Challenge timer' });
