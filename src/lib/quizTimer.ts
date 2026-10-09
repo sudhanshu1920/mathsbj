@@ -27,3 +27,11 @@ export function getTimerModeFromToggle(
 ): QuizTimerMode {
   return enabled ? target : 'off';
 }
+
+/** Challenge owns quiz duration, so fixed question-count selectors are inactive. */
+export function isQuestionCountSelectionDisabled(
+  repetitionEnabled: boolean,
+  timerMode: QuizTimerMode,
+): boolean {
+  return repetitionEnabled || timerMode === 'challenge';
+}
