@@ -6,6 +6,7 @@ import { App } from '@capacitor/app';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
+import AppUpdateManager from '@/components/AppUpdateManager';
 import Watermark from '@/components/Watermark';
 import LearningPage from '@/pages/LearningPage';
 const PracticePage = lazyWithRetry(() => import('@/pages/PracticePage'));
@@ -852,11 +853,12 @@ const Index = () => {
 
           </div>
         </div>
-        {showBottomNav && typeof document !== 'undefined'
+        {typeof document !== 'undefined'
           ? createPortal(
               <BottomNav
                 ref={bottomNavRef}
                 active={tab}
+                hidden={!showBottomNav}
                 onChange={handleTabChange}
                 onDoubleTap={handleDoubleTap}
               />,
@@ -874,6 +876,7 @@ const Index = () => {
       />
       <ShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <OfflinePrep />
+      <AppUpdateManager isQuizActive={tab === 'practice' && practicePhase === 'active'} />
     </div>
   );
 
