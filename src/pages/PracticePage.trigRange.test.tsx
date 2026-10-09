@@ -34,13 +34,20 @@ describe('Quiz Arena trigonometry angle-range control', () => {
     const rangeGroup = screen.getByRole('group', { name: 'Trigonometry quiz angle range' });
     fireEvent.click(within(rangeGroup).getByRole('button', { name: /Pro Mode.*0°–360°/ }));
 
+    // All six functions are selected by default. Keep sin/cos selected and
+    // deselect the other four while Pro Mode is active.
     const sinButton = screen.getByRole('button', { name: 'sin θ' });
     const cosButton = screen.getByRole('button', { name: 'cos θ' });
-    fireEvent.click(sinButton);
-    fireEvent.click(cosButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Select All' }));
+    for (const fn of ['tan', 'cot', 'sec', 'cosec']) {
+      fireEvent.click(screen.getByRole('button', { name: `${fn} θ` }));
+    }
 
     expect(sinButton).toHaveAttribute('aria-pressed', 'true');
     expect(cosButton).toHaveAttribute('aria-pressed', 'true');
+    for (const fn of ['tan', 'cot', 'sec', 'cosec']) {
+      expect(screen.getByRole('button', { name: `${fn} θ` })).toHaveAttribute('aria-pressed', 'false');
+    }
     expect(within(rangeGroup).getByRole('button', { name: /Pro Mode.*0°–360°/ })).toHaveAttribute('aria-pressed', 'true');
   });
 });
