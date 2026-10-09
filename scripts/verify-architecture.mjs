@@ -374,6 +374,8 @@ if (ranges.at(-1)?.to !== 118) fail('periodic ranges do not end at element 118')
 const trigTable = read('src/components/TrigonometryLearning.tsx');
 const trigTableCss = read('src/components/trigonometry-table.css');
 const trigData = read('src/lib/trigData.ts');
+const trigPracticeMenu = read('src/components/FormulasLearning.tsx');
+const trigPracticeTests = read('src/pages/PracticePage.trigRange.test.tsx');
 const quizPage = read('src/pages/PracticePage.tsx');
 
 if (!trigData.includes('export function getTrigAngles(proMode = false)') ||
@@ -389,9 +391,13 @@ if (!quizPage.includes('getTrigQuestions(range.trigFunctions ?? TRIG_FUNCTIONS, 
     !quizPage.includes("trigProMode: false")) {
   fail('Quiz setup range selection must drive the real generated question pool and default to Standard Mode');
 }
-if (!quizPage.includes("trigProMode: true") ||
-    !quizPage.includes('active angle range, including Not Defined answers')) {
-  fail('Existing Learning → Practice trig workflow must preserve its full-range behavior and range-aware guidance');
+if (!quizPage.includes('trigProMode: initialExtras?.trigProMode ?? false') ||
+    !learning.includes('trigProMode: pendingTrigProMode') ||
+    !learning.includes('count: pendingTrigFunctions.length * getTrigAngles(pendingTrigProMode).length') ||
+    !trigPracticeMenu.includes('onPracticeTrigFunctions(selectedFunctions, trigProMode)') ||
+    !trigPracticeMenu.includes('aria-label="Practice angle range"') ||
+    !trigPracticeTests.includes('enforces Standard 0°–90° and Pro 0°–360° inside generated question pools')) {
+  fail('Learning → Practice must carry the selected angle range from the popup into the real generator');
 }
 if (!trigTable.includes('trig-table-sticky') ||
     !trigTable.includes('trig-table-sticky-header') ||
