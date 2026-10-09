@@ -17,6 +17,7 @@ const sync = read('src/lib/sync.ts');
 const auth = read('src/contexts/AuthContext.tsx');
 const practiceSelector = read('src/components/PracticeModeSelector.tsx');
 const bottomNavTest = read('src/components/BottomNav.test.tsx');
+const bottomNavUi = read('src/components/BottomNav.tsx');
 const offlineReady = read('src/lib/offlineReady.ts');
 const streak = read('src/lib/streak.ts');
 
@@ -155,7 +156,7 @@ if (!glass.includes("env(safe-area-inset-bottom") ||
     !glass.includes("transform: translateX(-50%)")) {
   fail('Floating Bar safe-area padding or narrow-screen centering regression detected');
 }
-const bottomNavUi = read('src/components/BottomNav.tsx');
+
 if (!bottomNavUi.includes("aria-current={isActive ? 'page' : undefined}")) {
   fail('floating-bar active navigation semantics are missing');
 }

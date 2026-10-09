@@ -1273,12 +1273,6 @@ html.low-power .bottom-nav-panel {
   white-space: nowrap;
 }
 
-@media (max-width: 767px), (min-width: 768px) {
-  .bottom-nav {
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-}
-
 @media (min-width: 1024px) {
   html.desktop-mode .bottom-nav {
     width: min(31rem, calc(100vw - 2rem)) !important;
