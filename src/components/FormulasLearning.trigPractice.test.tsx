@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import FormulasLearning from '@/components/FormulasLearning';
 import { FORMULA_SECTIONS } from '@/lib/formulaData';
@@ -25,13 +25,50 @@ function renderTrigTable(onPracticeTrigFunctions = vi.fn()) {
 
 const functionOption = (fn: string) => screen.getByRole('button', { name: new RegExp('^' + fn + ' θ$') });
 
-describe('Table of Angles top-bar Practice menu', () => {
-  it('opens beside the appearance controls and starts the selected function only', async () => {
+describe('Table of Angles top-bar controls', () => {
+  it('places Pro Mode immediately before appearance and switches between standard/full angle ranges', async () => {
+    renderTrigTable();
+
+    const proButton = screen.getByRole('button', { name: 'Pro Mode' });
+    const appearanceButton = screen.getByRole('button', { name: /Switch to (light|dark) mode/ });
+    expect(proButton).toHaveAttribute('aria-pressed', 'false');
+    expect(proButton.compareDocumentPosition(appearanceButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: '90 degrees' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: '120 degrees' })).not.toBeInTheDocument();
+
+    const appearanceLabelBefore = appearanceButton.getAttribute('aria-label');
+    fireEvent.click(proButton);
+
+    expect(proButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('columnheader', { name: '120 degrees' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '360 degrees' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'cos at 120 degrees: -1/2' })).toBeInTheDocument();
+    expect(appearanceButton).toHaveAttribute('aria-label', appearanceLabelBefore);
+
+    fireEvent.click(proButton);
+    expect(proButton).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('columnheader', { name: '120 degrees' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: '360 degrees' })).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '90 degrees' })).toBeInTheDocument();
+  });
+
+  it('opens the Practice panel in the overlay portal, above and outside the table scroll region', async () => {
+    renderTrigTable();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Practice' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Choose trigonometric functions to practice' });
+    const tableScrollRegion = screen.getByRole('region', { name: 'Table of standard trigonometric ratios' });
+
+    expect(document.body.contains(dialog)).toBe(true);
+    expect(tableScrollRegion.contains(dialog)).toBe(false);
+    expect(dialog.closest('[data-radix-popper-content-wrapper]')).not.toBeNull();
+    expect(dialog).toHaveAttribute('data-swipe-ignore-app-section', 'true');
+  });
+
+  it('starts only the selected function and closes the panel', async () => {
     const onPractice = renderTrigTable();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Practice' }));
-    expect(screen.getByRole('dialog', { name: 'Choose trigonometric functions to practice' })).toBeInTheDocument();
-
     fireEvent.click(functionOption('sin'));
     expect(functionOption('sin')).toHaveAttribute('aria-pressed', 'true');
     expect(functionOption('cos')).toHaveAttribute('aria-pressed', 'false');
@@ -39,9 +76,10 @@ describe('Table of Angles top-bar Practice menu', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Start Practice' }));
     expect(onPractice).toHaveBeenCalledWith(['sin']);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Choose trigonometric functions to practice' })).not.toBeInTheDocument());
   });
 
-  it('supports multi-select and the Practice All Functions shortcut', async () => {
+  it('supports selecting multiple functions and Practice All Functions', async () => {
     const onPractice = renderTrigTable();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Practice' }));
@@ -53,13 +91,21 @@ describe('Table of Angles top-bar Practice menu', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Practice' }));
     fireEvent.click(screen.getByRole('button', { name: 'Practice All Functions' }));
     expect(onPractice).toHaveBeenLastCalledWith([...TRIG_FUNCTIONS]);
+    expect(screen.queryByRole('dialog', { name: 'Choose trigonometric functions to practice' })).not.toBeInTheDocument();
   });
 
-  it('disables Start Practice until a function is selected', async () => {
+  it('disables Start Practice until a function is selected and clears selections when dismissed', async () => {
     renderTrigTable();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Practice' }));
+    const practiceButton = await screen.findByRole('button', { name: 'Practice' });
+    fireEvent.click(practiceButton);
     expect(screen.getByRole('button', { name: 'Start Practice' })).toBeDisabled();
     expect(screen.getByText('Select at least one function.')).toBeInTheDocument();
+
+    fireEvent.click(functionOption('sin'));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Choose trigonometric functions to practice' })).not.toBeInTheDocument());
+    fireEvent.click(practiceButton);
+    expect(functionOption('sin')).toHaveAttribute('aria-pressed', 'false');
   });
 });
