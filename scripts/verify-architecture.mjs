@@ -125,7 +125,8 @@ if (!index.includes('setLearningPracticeReturn(launchContext)') ||
     !practiceSelector.includes('initialSettings?.timerEnabled ?? false') ||
     !practiceNavigation.includes('LEARNING_PRACTICE_SELECTOR_DEPTH') ||
     !practiceNavigationTests.includes('returns a Learning-origin quiz to the Practice selector') ||
-    !index.includes('setPracticeBackRequest((value) => value + 1);\n        isHandlingPopstate.current = false;') ||
+    !index.includes('setPracticeBackRequest((value) => value + 1);') ||
+    !index.includes('isHandlingPopstate.current = false;') ||
     !learning.includes("if (activeTopic === 'periodic-table' && periodicSelectedElement)")) {
   fail('Learning topic → Practice selector → Quiz → selector → topic restoration contract is incomplete');
 }
