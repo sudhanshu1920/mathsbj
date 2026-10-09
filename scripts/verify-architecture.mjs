@@ -16,6 +16,7 @@ const index = read('src/pages/Index.tsx');
 const sync = read('src/lib/sync.ts');
 const auth = read('src/contexts/AuthContext.tsx');
 const practiceSelector = read('src/components/PracticeModeSelector.tsx');
+const bottomNavTest = read('src/components/BottomNav.test.tsx');
 const offlineReady = read('src/lib/offlineReady.ts');
 const streak = read('src/lib/streak.ts');
 
@@ -204,6 +205,12 @@ if (!bottomNavUi.includes('motion-press') ||
     !bottomNavUi.includes('const DOUBLE_TAP_DELAY = 280;') ||
     !bottomNavUi.includes('onChange(tabId);')) {
   fail('floating-bar fast tap interaction architecture regressed');
+}
+if (!bottomNavTest.includes('renders exactly one navigation surface') ||
+    !bottomNavTest.includes('newly selected section as a reset gesture') ||
+    !bottomNavTest.includes('consecutive double taps') ||
+    !bottomNavTest.includes('another section is tapped between')) {
+  fail('Floating Bar uniqueness and rapid-tap regression tests are missing');
 }
 if (bottomNavUi.includes('tapTimers') ||
     bottomNavUi.includes('setTimeout(() => {\n        onChange(tabId);')) {
