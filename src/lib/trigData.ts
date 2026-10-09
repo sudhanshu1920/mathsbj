@@ -93,6 +93,8 @@ export function trigLabel(fn: TrigFunction): string {
 }
 
 export interface TrigQuestion {
+  /** Stable identity shared by the reference table, Practice and Quiz. */
+  id: string;
   fn: TrigFunction;
   angle: TrigAngle;
   text: string;
@@ -100,22 +102,30 @@ export interface TrigQuestion {
   options?: string[];
 }
 
-/** Generate practice questions only for angles where the ratio is defined. */
-export function getAllTrigQuestions(): TrigQuestion[] {
+/**
+ * Generate questions for only the selected functions, using the same exact
+ * values as the reference table. Undefined table cells remain valid questions.
+ */
+export function getTrigQuestions(functions: readonly TrigFunction[] = TRIG_FUNCTIONS): TrigQuestion[] {
+  const selectedFunctions = TRIG_FUNCTIONS.filter((fn) => functions.includes(fn));
   const out: TrigQuestion[] = [];
-  for (const fn of TRIG_FUNCTIONS) {
+  for (const fn of selectedFunctions) {
     for (const angle of TRIG_ANGLES) {
-      const answer = trigValue(fn, angle);
-      if (answer === NOT_DEFINED) continue;
       out.push({
+        id: `trig-${fn}-${angle}`,
         fn,
         angle,
         text: `${fn} ${angle}° = ?`,
-        answer,
+        answer: trigValue(fn, angle),
       });
     }
   }
   return out;
+}
+
+/** Backward-compatible pool of defined values for callers that need finite ratios only. */
+export function getAllTrigQuestions(): TrigQuestion[] {
+  return getTrigQuestions().filter((question) => question.answer !== NOT_DEFINED);
 }
 
 /** Build 4 unique MCQ options around the correct value, drawn from this table. */
@@ -151,8 +161,50 @@ export function normalizeTrigInput(input: string): string {
     .trim()
     .replace(/\s+/g, '')
     .replace(/sqrt/gi, '√')
-    .replace(/infinity|infty|inf|∞/gi, 'NOTDEFINED')
     .replace(/notdefined|undefined|undef|nd/gi, 'NOTDEFINED');
+}
+
+function parseTrigNumericValue(input: string): number | null {
+  const value = normalizeTrigInput(input);
+  if (!value || value === 'NOTDEFINED') return null;
+
+  const numericLiteral = Number(value);
+  if (Number.isFinite(numericLiteral) && /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)) {
+    return numericLiteral;
+  }
+
+  // Simple numeric fractions (including signed numerator/denominator) are
+  // parsed without eval or arbitrary expression execution.
+  const fraction = value.match(/^([-+]?\d+)\/(\d+)$/);
+  if (fraction) {
+    const denominator = Number(fraction[2]);
+    if (denominator === 0) return null;
+    return Number(fraction[1]) / denominator;
+  }
+
+  const root2 = Math.sqrt(2);
+  const root3 = Math.sqrt(3);
+  const exactValues: Record<string, number> = {
+    '√2': root2,
+    '-√2': -root2,
+    '√3': root3,
+    '-√3': -root3,
+    '1/√2': 1 / root2,
+    '√2/2': root2 / 2,
+    '-1/√2': -1 / root2,
+    '-√2/2': -root2 / 2,
+    '√3/2': root3 / 2,
+    '-√3/2': -root3 / 2,
+    '1/√3': 1 / root3,
+    '√3/3': root3 / 3,
+    '-1/√3': -1 / root3,
+    '-√3/3': -root3 / 3,
+    '2/√3': 2 / root3,
+    '2√3/3': 2 / root3,
+    '-2/√3': -2 / root3,
+    '-2√3/3': -2 / root3,
+  };
+  return exactValues[value] ?? null;
 }
 
 const equivalentExactForms: ReadonlyArray<readonly [string, string]> = [
@@ -170,11 +222,11 @@ export function isTrigAnswerCorrect(input: string, expected: string): boolean {
 
   if (answer === correct) return true;
 
-  const numericAnswer = Number(answer);
-  const numericCorrect = Number(correct);
+  const numericAnswer = parseTrigNumericValue(answer);
+  const numericCorrect = parseTrigNumericValue(correct);
   if (
-    !Number.isNaN(numericAnswer) &&
-    !Number.isNaN(numericCorrect) &&
+    numericAnswer !== null &&
+    numericCorrect !== null &&
     Math.abs(numericAnswer - numericCorrect) < 1e-6
   ) {
     return true;
