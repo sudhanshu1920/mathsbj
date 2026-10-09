@@ -504,4 +504,31 @@ if (backRequestEffect.indexOf('if (!config || finished) return;') < 0 ||
   fail('Back requests during Quiz startup must remain pending until the active session can show confirmation');
 }
 
+// Challenge Timer must share one exclusive mode and one lifecycle-controlled clock.
+const practiceConfigStart = practice.indexOf('interface PracticeConfig {');
+const practiceConfigEnd = practice.indexOf('type PeriodicQuestionType', practiceConfigStart);
+const practiceConfig = practice.slice(practiceConfigStart, practiceConfigEnd);
+if (practiceConfigStart < 0 || practiceConfigEnd < 0 ||
+    !practiceConfig.includes('timerMode: QuizTimerMode;') ||
+    practiceConfig.includes('timerEnabled: boolean;')) {
+  fail('Quiz timer configuration must use one mutually exclusive timerMode source of truth');
+}
+const quizTimer = read('src/lib/quizTimer.ts');
+if (!quizTimer.includes('CHALLENGE_MINUTES = [1, 2, 3, 4, 5, 10]') ||
+    !quizTimer.includes('getRemainingSeconds') ||
+    !quizTimer.includes('getTimerModeFromToggle')) {
+  fail('Challenge durations, deadline calculation, and timer-mode switching must use shared tested helpers');
+}
+if (!practice.includes("config.timerMode === 'challenge'") ||
+    !practice.includes("config.timerMode === 'perQuestion' && config.timerSeconds < 9999") ||
+    !practice.includes('getRemainingSeconds(deadline, performance.now())') ||
+    !practice.includes('performance.now() >= challengeDeadlineRef.current')) {
+  fail('Challenge expiry and per-question timeout must be isolated within the shared session clock');
+}
+if (!practice.includes('Solved {totalAttempts}') ||
+    !practice.includes("config.timerMode === 'challenge' ? 'Solved' : 'Attempted'") ||
+    !practice.includes('challengeDeadlineRef.current = null;')) {
+  fail('Challenge solved count, result labeling, and timer deadline cleanup are required');
+}
+
 console.log('Architecture regression checks passed.');
