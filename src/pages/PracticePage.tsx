@@ -32,6 +32,7 @@ import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
+import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -61,8 +62,9 @@ interface PracticeConfig {
   count: number;
   infinite: boolean;
   mode: PracticeMode;
-  timerEnabled: boolean;
+  timerMode: QuizTimerMode;
   timerSeconds: number;
+  challengeDurationSeconds?: number;
   sequential: boolean;
   repetitionEnabled: boolean;
   repetitionByTopic: Record<string, number>;
@@ -665,6 +667,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [challengeTimeLeft, setChallengeTimeLeft] = useState(0);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [xpPop, setXpPop] = useState<{ id: number; amount: number; bonus: number } | null>(null);
@@ -680,6 +683,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const finishLockRef = useRef(false);
   const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const sessionIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const challengeDeadlineRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
   // externalBackRequest is an edge-triggered signal from the app shell.
@@ -709,8 +713,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [count, setCount] = useState(10);
   const [infinite, setInfinite] = useState(false);
   const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
-  const [timerEnabled, setTimerEnabled] = useState(true);
+  const [timerMode, setTimerMode] = useState<QuizTimerMode>('perQuestion');
   const [timerSeconds, setTimerSeconds] = useState(10);
+  const [challengeMinutes, setChallengeMinutes] = useState<ChallengeMinutes>(1);
   const [sequential, setSequential] = useState(false);
   const [repetitionEnabled, setRepetitionEnabled] = useState(false);
   const [topicRepetitions, setTopicRepetitions] = useState<Record<string, number>>(() => (
@@ -720,6 +725,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const startPractice = useCallback((cfg: PracticeConfig) => {
     const normalizedConfig: PracticeConfig = {
       ...cfg,
+      // Timer mode is a single source of truth; a Challenge can never leave
+      // the per-question countdown enabled in the underlying session config.
+      timerMode: cfg.timerMode,
+      challengeDurationSeconds: cfg.timerMode === 'challenge'
+        ? Math.max(1, Math.floor(cfg.challengeDurationSeconds ?? 60))
+        : undefined,
       // Repetition mode is finite and owns quiz length. The legacy Questions
       // ∞ flag must never leak into this mode.
       infinite: cfg.repetitionEnabled ? false : cfg.infinite,
@@ -747,7 +758,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setSelectedOption(null);
     setElapsedTime(0);
     setSessionXP(0);
-    setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
+    setTimeLeft(normalizedConfig.timerMode === 'perQuestion' ? normalizedConfig.timerSeconds : 9999);
+    challengeDeadlineRef.current = normalizedConfig.timerMode === 'challenge'
+      ? performance.now() + (normalizedConfig.challengeDurationSeconds ?? 60) * 1000
+      : null;
+    setChallengeTimeLeft(normalizedConfig.timerMode === 'challenge'
+      ? (normalizedConfig.challengeDurationSeconds ?? 60)
+      : 0);
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     answerAdvanceTimerRef.current = undefined;
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
@@ -784,8 +801,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         count: initialExtras?.count ?? 10,
         infinite: initialExtras?.infinite ?? false,
         mode: initialMode,
-        timerEnabled: timerOn,
-        timerSeconds: timerOn ? (initialExtras?.timerSeconds ?? 10) : 9999,
+        timerMode: timerOn ? 'perQuestion' : 'off',
+        timerSeconds: initialExtras?.timerSeconds ?? 10,
         sequential: false,
         repetitionEnabled: false,
         repetitionByTopic: {},
