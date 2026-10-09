@@ -1,80 +1,45 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { validateReleaseManifest, type ReleaseManifest } from "@/lib/updateFeed";
 
 type NativeUpdater = {
   getVersion(): Promise<{ versionCode: number; versionName: string }>;
-  downloadAndInstall(options: { url: string }): Promise<{ downloadId: number }>;
+  downloadAndInstall(options: { url: string; sha256: string }): Promise<{ downloadId: number }>;
 };
 
 const AppUpdater = registerPlugin<NativeUpdater>("AppUpdater");
 
-const RELEASE_API = "https://api.github.com/repos/sudhanshu1920/mathsbj/releases/tags/latest";
-
-export type NativeUpdateResult =
-  | { status: "updated"; versionCode: number }
-  | { status: "current"; versionCode: number }
-  | { status: "unsupported" }
+export interface InstalledAppVersion { versionCode: number; versionName: string; }
+export type NativeInstallResult =
+  | { status: "started"; downloadId: number }
   | { status: "offline" }
-  | { status: "error"; message: string };
+  | { status: "unsupported" };
 
 function isNativeAndroid() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 }
 
-export async function checkAndInstallAndroidUpdate(): Promise<NativeUpdateResult> {
-  if (!isNativeAndroid()) return { status: "unsupported" };
-  if (!navigator.onLine) return { status: "offline" };
-
-  try {
-    const current = await AppUpdater.getVersion();
-
-    const response = await fetch(RELEASE_API, {
-      headers: { Accept: "application/vnd.github+json" },
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) return { status: "current", versionCode: current.versionCode };
-      throw new Error(`Update server returned HTTP ${response.status}`);
-    }
-
-    const release = (await response.json()) as {
-      body?: string | null;
-      assets?: Array<{ name?: string; browser_download_url?: string }>;
-    };
-
-    const versionMatch = release.body?.match(/versionCode:\s*(\d+)/i);
-    const remoteVersionCode = versionMatch ? Number(versionMatch[1]) : NaN;
-
-    if (!Number.isSafeInteger(remoteVersionCode) || remoteVersionCode <= current.versionCode) {
-      return { status: "current", versionCode: current.versionCode };
-    }
-
-    const asset = release.assets?.find(
-      (item) =>
-        item.name === "MathMaster-release.apk" &&
-        typeof item.browser_download_url === "string",
-    );
-
-    if (!asset?.browser_download_url) {
-      throw new Error("A signed update APK is not available.");
-    }
-
-    const url = new URL(asset.browser_download_url);
-    if (url.protocol !== "https:" || url.hostname !== "github.com") {
-      throw new Error("Update APK source is not trusted.");
-    }
-
-    await AppUpdater.downloadAndInstall({ url: asset.browser_download_url });
-    return { status: "updated", versionCode: remoteVersionCode };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Update failed.";
-    if (message === "INSTALL_PERMISSION_REQUIRED") {
-      return { status: "error", message };
-    }
-    return { status: "error", message };
-  }
-}
-
 export function isAndroidNativeUpdaterAvailable() {
   return isNativeAndroid();
+}
+
+export async function getInstalledAndroidVersion(): Promise<InstalledAppVersion> {
+  if (!isNativeAndroid()) throw new Error("Android updater is not available.");
+  const version = await AppUpdater.getVersion();
+  if (
+    !Number.isSafeInteger(version.versionCode) || version.versionCode <= 0 ||
+    typeof version.versionName !== "string" ||
+    !/^\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/.test(version.versionName)
+  ) throw new Error("Installed app version is invalid.");
+  return { versionCode: version.versionCode, versionName: version.versionName };
+}
+
+export async function startAndroidUpdate(candidate: ReleaseManifest): Promise<NativeInstallResult> {
+  if (!isNativeAndroid()) return { status: "unsupported" };
+  if (!navigator.onLine) return { status: "offline" };
+  const update = validateReleaseManifest(candidate);
+  const result = await AppUpdater.downloadAndInstall({ url: update.apkUrl, sha256: update.sha256 });
+  if (!Number.isSafeInteger(result.downloadId) || result.downloadId <= 0) {
+    throw new Error("The update download could not be started.");
+  }
+  return { status: "started", downloadId: result.downloadId };
 }
