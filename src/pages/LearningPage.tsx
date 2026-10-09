@@ -112,11 +112,12 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
       timerSeconds: settings.timerSeconds,
       infinite: settings.infinite,
     });
+    setPendingTrigFunctions(null);
     setShowPracticeMode(false);
   };
 
-  const renderHeader = (title: string, localBack: () => void, showPractice = true) => {
-    const goBack = onBack ?? localBack;
+  const renderHeader = (title: string, localBack: () => void, showPractice = true, preferLocalBack = false) => {
+    const goBack = preferLocalBack ? localBack : onBack ?? localBack;
     return (
     <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
       <button onClick={goBack} className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-full text-primary" aria-label="Back">
@@ -190,7 +191,10 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   if (showPracticeMode) {
     return (
       <div>
-        {renderHeader('Choose Practice Mode', () => setShowPracticeMode(false), false)}
+        {renderHeader('Choose Practice Mode', () => {
+          setPendingTrigFunctions(null);
+          setShowPracticeMode(false);
+        }, false, true)}
         <PracticeModeSelector onSelect={handlePracticeSelect} />
       </div>
     );
