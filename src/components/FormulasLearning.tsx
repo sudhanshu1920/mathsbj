@@ -174,6 +174,8 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeT
   useEffect(() => {
     setShapeIndex(0);
     setShapeListMode(true);
+    setShowTrigPracticeMenu(false);
+    setSelectedTrigFunctions([]);
   }, [categoryIndex]);
 
   // Close the compact Practice menu on an outside tap or Escape.
@@ -251,6 +253,8 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeT
                 {category.title}
               </h2>
               <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-1.5">
+                <ThemeToggle compact />
+                <DesktopModeToggle compact />
                 {onPracticeTrigFunctions && (
                   <div className="relative" ref={trigPracticeMenuRef}>
                     <button
@@ -330,8 +334,6 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeT
                     )}
                   </div>
                 )}
-                <ThemeToggle compact />
-                <DesktopModeToggle compact />
               </div>
             </div>
             <Suspense fallback={<div className="h-40" />}><TrigonometryLearning /></Suspense>
