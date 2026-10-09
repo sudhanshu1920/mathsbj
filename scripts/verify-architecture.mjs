@@ -84,7 +84,7 @@ if (!glass.includes('.glass:not(.fixed):not(.absolute):not(.sticky)') ||
 if (!index.includes('createPortal(') || !index.includes('document.body')) {
   fail('floating-bar is not portalled to the viewport root');
 }
-if ((index.match(/<BottomNav\\b/g) ?? []).length !== 1) {
+if ((index.match(/<BottomNav\b/g) ?? []).length !== 1) {
   fail('exactly one Floating Bar component instance must be declared in the app shell');
 }
 if (!index.includes('hidden={!showBottomNav}')) {
