@@ -185,9 +185,10 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeT
 
   const startTrigPractice = (functions: TrigFunction[]) => {
     if (!functions.length || !onPracticeTrigFunctions) return;
-    setSelectedTrigFunctions([...functions]);
+    const selectedFunctions = [...functions];
+    setSelectedTrigFunctions([]);
     setShowTrigPracticeMenu(false);
-    onPracticeTrigFunctions([...functions]);
+    onPracticeTrigFunctions(selectedFunctions);
   };
 
   // Level 3: Formula detail view
