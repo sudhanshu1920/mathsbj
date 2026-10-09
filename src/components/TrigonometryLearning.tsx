@@ -6,22 +6,17 @@ import {
   TRIG_RADIANS,
   NOT_DEFINED,
   trigValue,
-  type TrigFunction,
 } from '@/lib/trigData';
+import TrigMathValue from '@/components/TrigMathValue';
 import './trigonometry-table.css';
 
 /**
- * Textbook-style trigonometric ratios table.
- * Each standard angle is a row; exact ratios and radians are columns.
- * The table scrolls horizontally on narrow screens and keeps angle labels visible.
+ * Reference table with one row per function and one column per standard angle.
+ * The first column stays pinned during horizontal scrolling on mobile.
  */
-interface TrigonometryLearningProps {
-  onPracticeFunctions?: (functions: TrigFunction[]) => void;
-}
-
-const TrigonometryLearning = ({ onPracticeFunctions }: TrigonometryLearningProps) => {
+const TrigonometryLearning = () => {
   const cellBase =
-    'trig-table-cell border border-border px-3 py-2.5 text-center whitespace-nowrap text-sm';
+    'trig-table-cell border border-border px-2 py-2 text-center whitespace-nowrap text-sm';
 
   return (
     <motion.div
@@ -32,89 +27,77 @@ const TrigonometryLearning = ({ onPracticeFunctions }: TrigonometryLearningProps
       <div className="border-b border-border px-4 py-3">
         <p className="font-semibold text-foreground">Standard angles (0°–360°)</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Exact trigonometric ratios in degrees and radians.
+          Angles run across the columns; trigonometric functions run down the rows.
         </p>
       </div>
 
-      {onPracticeFunctions && (
-        <section className="border-b border-border px-3 py-4 sm:px-4" aria-label="Practice trigonometric functions">
-          <div className="mb-2">
-            <p className="text-sm font-bold text-foreground">Practice a Function</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Choose one function or practice all six together.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {TRIG_FUNCTIONS.map((fn) => (
-              <button
-                key={fn}
-                type="button"
-                onClick={() => onPracticeFunctions([fn])}
-                className="min-h-10 rounded-xl border border-border bg-secondary/60 px-3 py-2 text-sm font-bold text-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.98]"
-              >
-                Practice {fn} θ
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => onPracticeFunctions([...TRIG_FUNCTIONS])}
-            className="mt-2 min-h-10 w-full rounded-xl gradient-primary px-3 py-2 text-sm font-bold text-primary-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.99]"
-          >
-            Practice All Functions
-          </button>
-        </section>
-      )}
-
       <div
-        className="overflow-x-auto"
+        className="trig-table-scroll overflow-x-auto"
         role="region"
         aria-label="Table of standard trigonometric ratios"
         tabIndex={0}
       >
-        <table className="trig-table-grid w-full border-separate border-spacing-0 min-w-[780px]">
+        <table className="trig-table-grid w-full border-separate border-spacing-0 min-w-[1320px]">
           <caption className="sr-only">
-            Exact values of sine, cosine, tangent, cotangent, secant and cosecant for standard
-            angles from zero to 360 degrees.
+            Trigonometric ratios for standard angles from zero to 360 degrees and their radians.
+            Each function is a row and each angle is a column.
           </caption>
           <thead>
-            <tr className="bg-primary/15">
+            <tr>
               <th
                 scope="col"
-                className={`${cellBase} text-primary text-left trig-table-sticky trig-table-sticky-header trig-table-sticky-corner`}
+                rowSpan={2}
+                className={`${cellBase} text-primary text-left font-bold trig-table-sticky trig-table-sticky-header trig-table-sticky-corner min-w-[88px]`}
               >
-                Angle (°)
+                Function
               </th>
-              <th scope="col" className={`${cellBase} text-primary`}>
-                Angle (rad)
-              </th>
-              {TRIG_FUNCTIONS.map((fn) => (
-                <th key={fn} scope="col" className={`${cellBase} text-primary font-bold`}>
-                  {fn} θ
+              {TRIG_ANGLES.map((angle) => (
+                <th
+                  key={angle}
+                  scope="col"
+                  className={`${cellBase} text-primary font-bold trig-table-angle-header min-w-[68px]`}
+                  aria-label={`${angle} degrees`}
+                >
+                  {angle}°
+                </th>
+              ))}
+            </tr>
+            <tr className="trig-table-radian-row">
+              {TRIG_ANGLES.map((angle) => (
+                <th
+                  key={angle}
+                  scope="col"
+                  className={`${cellBase} text-muted-foreground font-medium trig-table-radian-header min-w-[68px]`}
+                  aria-label={`${angle} degrees in radians: ${TRIG_RADIANS[angle]}`}
+                >
+                  <TrigMathValue value={TRIG_RADIANS[angle]} />
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {TRIG_ANGLES.map((angle) => (
-              <tr key={angle}>
+            {TRIG_FUNCTIONS.map((fn) => (
+              <tr key={fn}>
                 <th
                   scope="row"
-                  className={`${cellBase} text-left trig-table-sticky font-display font-bold text-foreground`}
+                  className={`${cellBase} text-left font-display font-bold text-foreground trig-table-sticky trig-table-function-label min-w-[88px]`}
                 >
-                  {angle}°
+                  {fn} θ
                 </th>
-                <td className={`${cellBase} text-foreground`}>{TRIG_RADIANS[angle]}</td>
-                {TRIG_FUNCTIONS.map((fn) => {
+                {TRIG_ANGLES.map((angle) => {
                   const value = trigValue(fn, angle);
                   const isUndefined = value === NOT_DEFINED;
                   return (
                     <td
-                      key={fn}
-                      className={`${cellBase} font-semibold ${
-                        isUndefined ? 'text-destructive text-xs' : 'text-foreground'
-                      }`}
-                      aria-label={isUndefined ? `${fn} at ${angle} degrees: not defined` : undefined}
+                      key={angle}
+                      className={`${cellBase} min-w-[68px] font-semibold ${isUndefined ? 'text-destructive text-xs' : 'text-foreground'}`}
+                      aria-label={`${fn} at ${angle} degrees: ${isUndefined ? 'Undefined' : value}`}
                     >
-                      {value}
+                      {isUndefined ? (
+                        <span className="font-medium">Undefined</span>
+                      ) : (
+                        <TrigMathValue value={value} />
+                      )}
                     </td>
                   );
                 })}
@@ -125,7 +108,7 @@ const TrigonometryLearning = ({ onPracticeFunctions }: TrigonometryLearningProps
       </div>
 
       <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
-        <span className="font-semibold">Not Defined</span> means the ratio has no finite value at
+        <span className="font-semibold">Undefined</span> means the ratio has no finite value at
         that angle; it does not equal zero.
       </p>
     </motion.div>
