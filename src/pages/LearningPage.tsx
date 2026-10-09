@@ -24,7 +24,7 @@ type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'p
 
 interface LearningPageProps {
   onBack?: () => void;
-  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; count?: number }) => void;
+  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
 }
