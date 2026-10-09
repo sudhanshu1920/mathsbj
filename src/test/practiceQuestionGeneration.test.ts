@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { generateQuestions, isValidPracticeRange } from '@/pages/PracticePage';
 import { getSquareRoots, getCubeRoots } from '@/lib/mathData';
 import { isRootAnswerCorrect } from '@/lib/rootMath';
-import { TRIG_FUNCTIONS, trigValue, type TrigFunction } from '@/lib/trigData';
+import { getTrigAngles, TRIG_ANGLES, TRIG_FUNCTIONS, trigValue, type TrigFunction } from '@/lib/trigData';
 
 const baseConfig = {
   count: 10,
@@ -14,6 +14,127 @@ const baseConfig = {
 };
 
 describe('PracticePage question generation', () => {
+  it('defaults Quiz Arena to Standard Mode and excludes every angle above 90°', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 100,
+      mode: 'input',
+      sequential: true,
+      topics: [{
+        id: 'trig',
+        label: 'Trigonometry',
+        range: { from: 0, to: 360, trigProMode: false, trigFunctions: ['sin'] },
+      }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    expect(getTrigAngles(false)).toEqual([0, 30, 45, 60, 90]);
+    expect(questions).toHaveLength(5);
+    expect(questions.map((question) => question.trigAngle)).toEqual([...getTrigAngles(false)]);
+    expect(questions.every((question) => question.trigAngle! <= 90)).toBe(true);
+    expect(questions.every((question) => question.trigFunctionId === 'sin')).toBe(true);
+    expect(new Set(questions.map((question) => question.questionId)).size).toBe(5);
+  });
+
+  it('uses the complete shared 0°–360° dataset in Pro Mode with verified quadrant values', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 100,
+      mode: 'input',
+      sequential: true,
+      topics: [{
+        id: 'trig',
+        label: 'Trigonometry',
+        range: { from: 0, to: 360, trigProMode: true, trigFunctions: ['sin'] },
+      }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    expect(questions).toHaveLength(TRIG_ANGLES.length);
+    expect(questions.map((question) => question.trigAngle)).toEqual([...getTrigAngles(true)]);
+    expect(questions.some((question) => question.trigAngle === 120)).toBe(true);
+    expect(questions.some((question) => question.trigAngle === 360)).toBe(true);
+    for (const question of questions) {
+      expect(question.answer).toBe(trigValue(question.trigFunctionId!, question.trigAngle!));
+    }
+
+    const byIdentity = new Map(questions.map((question) => [question.questionId, question]));
+    expect(byIdentity.get('trig-sin-120')?.answer).toBe('√3/2');
+    expect(byIdentity.get('trig-sin-180')?.answer).toBe('0');
+    expect(byIdentity.get('trig-sin-270')?.answer).toBe('-1');
+    expect(byIdentity.get('trig-sin-360')?.answer).toBe('0');
+  });
+
+  it('combines Pro Mode with multiple/all function selection without leaking questions', () => {
+    const makeConfig = (functions: TrigFunction[], trigProMode: boolean) => ({
+      ...baseConfig,
+      count: 102,
+      mode: 'input' as const,
+      sequential: true,
+      topics: [{
+        id: 'trig',
+        label: 'Trigonometry',
+        range: { from: 0, to: 360, trigProMode, trigFunctions: functions },
+      }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    const standardPair = generateQuestions(makeConfig(['sin', 'cos'], false));
+    expect(standardPair).toHaveLength(10);
+    expect(new Set(standardPair.map((question) => question.trigFunctionId))).toEqual(new Set(['sin', 'cos']));
+    expect(standardPair.every((question) => question.trigAngle! <= 90)).toBe(true);
+
+    const proPair = generateQuestions(makeConfig(['sin', 'cos'], true));
+    expect(proPair).toHaveLength(34);
+    expect(proPair.every((question) => question.trigAngle! >= 0 && question.trigAngle! <= 360)).toBe(true);
+    expect(new Set(proPair.map((question) => question.trigFunctionId))).toEqual(new Set(['sin', 'cos']));
+
+    const proAll = generateQuestions(makeConfig([...TRIG_FUNCTIONS], true));
+    expect(proAll).toHaveLength(102);
+    expect(new Set(proAll.map((question) => question.trigFunctionId))).toEqual(new Set(TRIG_FUNCTIONS));
+    expect(new Set(proAll.map((question) => question.questionId)).size).toBe(102);
+  });
+
+  it('keeps the selected range bounded in random mode and preserves configured repetition', () => {
+    const randomStandard = generateQuestions({
+      ...baseConfig,
+      count: 4,
+      mode: 'input',
+      sequential: false,
+      topics: [{
+        id: 'trig',
+        label: 'Trigonometry',
+        range: { from: 0, to: 360, trigProMode: false, trigFunctions: ['cos'] },
+      }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+    expect(randomStandard).toHaveLength(4);
+    expect(randomStandard.every((question) => question.trigAngle! <= 90)).toBe(true);
+
+    const repeatedStandard = generateQuestions({
+      ...baseConfig,
+      count: 1,
+      mode: 'input',
+      sequential: true,
+      topics: [{
+        id: 'trig',
+        label: 'Trigonometry',
+        range: { from: 0, to: 360, trigProMode: false, trigFunctions: ['tan'] },
+      }],
+      repetitionEnabled: true,
+      repetitionByTopic: { trig: 3 },
+    });
+    expect(repeatedStandard).toHaveLength(15);
+    expect(repeatedStandard.every((question) => question.trigAngle! <= 90)).toBe(true);
+    for (const questionId of new Set(repeatedStandard.map((question) => question.questionId))) {
+      expect(repeatedStandard.filter((question) => question.questionId === questionId)).toHaveLength(3);
+    }
+  });
+
   it('keeps every selected item when repetition expands the pool', () => {
     const questions = generateQuestions({
       ...baseConfig,
@@ -154,7 +275,7 @@ describe('PracticePage question generation', () => {
         count: 17,
         mode: 'input',
         sequential: true,
-        topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: [fn] } }],
+        topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigProMode: true, trigFunctions: [fn] } }],
         repetitionEnabled: false,
         repetitionByTopic: {},
       });
@@ -178,7 +299,7 @@ describe('PracticePage question generation', () => {
       count: functions.length * 17,
       mode,
       sequential: true,
-      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: functions } }],
+      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigProMode: true, trigFunctions: functions } }],
       repetitionEnabled: false,
       repetitionByTopic: {},
     });
@@ -201,7 +322,7 @@ describe('PracticePage question generation', () => {
       count: 17,
       mode: 'mcq',
       sequential: true,
-      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: ['tan'] } }],
+      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigProMode: true, trigFunctions: ['tan'] } }],
       repetitionEnabled: false,
       repetitionByTopic: {},
     });
@@ -223,7 +344,7 @@ describe('PracticePage question generation', () => {
       count: 10,
       mode: 'input',
       sequential: true,
-      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: ['cos'] } }],
+      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigProMode: true, trigFunctions: ['cos'] } }],
       repetitionEnabled: true,
       repetitionByTopic: { trig: 3 },
     });
@@ -241,7 +362,7 @@ describe('PracticePage question generation', () => {
       ...baseConfig,
       count: 102,
       mode: 'input',
-      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: [] } }],
+      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigProMode: true, trigFunctions: [] } }],
       repetitionEnabled: false,
       repetitionByTopic: {},
     });
