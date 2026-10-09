@@ -11,6 +11,7 @@ import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/l
 import { checkForAppUpdate } from '@/lib/appUpdateService';
 import { announceUpdateAvailable } from '@/lib/appUpdateEvents';
 import { MOTION } from '@/lib/motion';
+import { APP_VERSION_NAME } from '@/lib/appVersion';
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
 
@@ -366,6 +367,7 @@ const SettingsPanel = () => {
           )}
         </AnimatePresence>
       </motion.button>
+      <p className="text-center text-[11px] text-muted-foreground">App Version {APP_VERSION_NAME}</p>
     </div>
   );
 };
