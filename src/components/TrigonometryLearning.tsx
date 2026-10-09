@@ -2,7 +2,7 @@ import { m as motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import { MOTION } from '@/lib/motion';
 import {
-  TRIG_ANGLES,
+  getTrigAngles,
   TRIG_FUNCTIONS,
   TRIG_RADIANS,
   NOT_DEFINED,
@@ -22,9 +22,7 @@ interface TrigonometryLearningProps {
  */
 const TrigonometryLearning = ({ showFullRange = false }: TrigonometryLearningProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const displayedAngles = showFullRange
-    ? TRIG_ANGLES
-    : TRIG_ANGLES.filter((angle) => angle <= 90);
+  const displayedAngles = getTrigAngles(showFullRange);
   const rangeLabel = showFullRange ? '0°–360°' : '0°–90°';
   const cellBase =
     'trig-table-cell border border-border px-2 py-2 text-center whitespace-nowrap text-sm';
