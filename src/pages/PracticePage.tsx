@@ -1358,12 +1358,20 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           >
             <ArrowLeft size={18} />
           </button>
-          <div className="flex-1 px-3 max-w-[180px]">
+          <div className={`min-w-0 flex-1 px-2 sm:px-3 ${config.timerMode === 'challenge' ? 'max-w-[110px] sm:max-w-[180px]' : 'max-w-[180px]'}`}>
             <XPBar />
           </div>
           {!isTimerHidden && (
-            <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
-              <Timer size={14} />{timeLeft}s
+            <div className={`flex shrink-0 items-center gap-1.5 rounded-full py-1 ${config.timerMode === 'challenge' ? 'px-2 text-[11px] sm:text-xs' : 'px-3 text-sm'} font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
+              <Timer size={14} className="shrink-0" />
+              {config.timerMode === 'challenge' ? (
+                <>
+                  <span className="tabular-nums">{formatChallengeTime(challengeTimeLeft)}</span>
+                  <span className="border-l border-current/20 pl-1.5 whitespace-nowrap">Solved {totalAttempts}</span>
+                </>
+              ) : (
+                <span>{timeLeft}s</span>
+              )}
             </div>
           )}
           {config.infinite && !config.repetitionEnabled ? (
@@ -2096,27 +2104,68 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </div>
       </div>
 
-      {/* Timer Toggle */}
+      {/* Mutually exclusive per-question Timer / full-session Challenge */}
       <div className="mb-5 bg-card border border-border rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Timer size={18} className="text-primary" />
             <span className="font-semibold text-sm text-foreground">Timer</span>
           </div>
-          <Switch checked={timerEnabled} onCheckedChange={setTimerEnabled} />
+          <Switch
+            checked={timerMode === 'perQuestion'}
+            aria-label="Per-question timer"
+            onCheckedChange={(enabled) => setTimerMode(enabled ? 'perQuestion' : 'off')}
+          />
         </div>
         <AnimatePresence>
-          {timerEnabled && (
+          {timerMode === 'perQuestion' && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
               <div className="flex gap-2 mt-2">
                 {[5, 10, 15, 30].map((s) => (
-                  <button key={s} onClick={() => setTimerSeconds(s)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${timerSeconds === s ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground'}`}>{s}s</button>
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={timerSeconds === s}
+                    onClick={() => setTimerSeconds(s)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${timerSeconds === s ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground'}`}
+                  >
+                    {s}s
+                  </button>
                 ))}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+        <div className="mt-3 border-t border-border pt-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-sm text-foreground">Challenge</span>
+            <Switch
+              checked={timerMode === 'challenge'}
+              aria-label="Challenge timer"
+              onCheckedChange={(enabled) => setTimerMode(enabled ? 'challenge' : 'off')}
+            />
+          </div>
+          <AnimatePresence>
+            {timerMode === 'challenge' && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                <div className="mt-2 grid grid-cols-6 gap-1.5">
+                  {CHALLENGE_MINUTES.map((minutes) => (
+                    <button
+                      key={minutes}
+                      type="button"
+                      disabled={timerMode !== 'challenge'}
+                      aria-pressed={challengeMinutes === minutes}
+                      onClick={() => setChallengeMinutes(minutes)}
+                      className={`min-w-0 rounded-lg px-1 py-2 text-xs font-bold transition-colors ${challengeMinutes === minutes ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
+                    >
+                      {minutes}m
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Order */}
@@ -2145,8 +2194,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           });
           const cfg: PracticeConfig = {
             topics, count, infinite, mode,
-            timerEnabled,
-            timerSeconds: timerEnabled ? timerSeconds : 9999,
+            timerMode,
+            timerSeconds,
+            challengeDurationSeconds: timerMode === 'challenge'
+              ? getChallengeDurationSeconds(challengeMinutes)
+              : undefined,
             sequential,
              repetitionEnabled,
              repetitionByTopic: repetitionEnabled
