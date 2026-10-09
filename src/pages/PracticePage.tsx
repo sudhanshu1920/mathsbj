@@ -1640,7 +1640,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                             {!(range.trigFunctions ?? TRIG_FUNCTIONS).length && (
                               <p className="mt-2 text-[11px] font-semibold text-destructive">Select at least one trigonometric function.</p>
                             )}
-                            <p className="mt-2 text-[11px] text-muted-foreground">Each selected function includes all standard angles from 0° to 360°, including Undefined answers.</p>
+                            <p className="mt-2 text-[11px] text-muted-foreground">Each selected function includes all standard angles from 0° to 360°, including Not Defined answers.</p>
                           </div>
                         ) : tid === 'periodic-table' ? (
                           <>
