@@ -6,14 +6,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, setKeyboardShortcuts, setFont, AppSettings } from '@/lib/settings';
 import { FONT_OPTIONS } from '@/lib/font';
 import { getStreak, setTarget, StreakState } from '@/lib/streak';
-import { pullFromCloud, pushToCloud, isSyncing } from '@/lib/sync';
 import { isGuest, setGuest } from '@/lib/guest';
 import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
-import { triggerUpdate } from '@/pwa';
+import { checkForAppUpdate } from '@/lib/appUpdateService';
+import { announceUpdateAvailable } from '@/lib/appUpdateEvents';
 import { MOTION } from '@/lib/motion';
-import { checkAndInstallAndroidUpdate, isAndroidNativeUpdaterAvailable } from '@/nativeAppUpdater';
 
-type UpdateState = 'idle' | 'checking' | 'updating' | 'done' | 'offline' | 'error';
+type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
 
 const PRESET_MINUTES = [5, 10, 15, 30, 60];
 
@@ -24,6 +23,7 @@ const SettingsPanel = () => {
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
   const updateResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const updateCheckInFlightRef = useRef(false);
   const theme = useTheme();
   const mode = useMode();
   const guest = !user && isGuest();
@@ -65,67 +65,49 @@ const SettingsPanel = () => {
   const displayName = user?.user_metadata?.display_name || 'Account';
 
   const checkForUpdates = async () => {
-    if (!navigator.onLine) {
-      setUpdateState('offline');
-      scheduleUpdateReset(1800);
-      return;
+    if (updateCheckInFlightRef.current) return;
+    updateCheckInFlightRef.current = true;
+    if (updateResetTimerRef.current) {
+      clearTimeout(updateResetTimerRef.current);
+      updateResetTimerRef.current = null;
     }
 
     setUpdateState('checking');
-    scheduleUpdateReset(15000);
-
     try {
-      if (user) {
-        await pullFromCloud(user.id);
-        await pushToCloud(user.id);
-      }
-
-      if (isAndroidNativeUpdaterAvailable()) {
-        const result = await checkAndInstallAndroidUpdate();
-
-        if (result.status === 'offline') {
-          setUpdateState('offline');
-        } else if (result.status === 'updated') {
-          setUpdateState('updating');
-        } else if (result.status === 'current') {
-          setUpdateState('done');
-        } else if (result.status === 'error') {
-          setUpdateState('error');
-          scheduleUpdateReset(3000);
-        } else {
-          setUpdateState('done');
-        }
+      const result = await checkForAppUpdate();
+      if (result.status === 'available') {
+        setUpdateState('available');
+        announceUpdateAvailable(result.update, true);
+        scheduleUpdateReset(8000);
+      } else if (result.status === 'current') {
+        setUpdateState('done');
+        scheduleUpdateReset(2500);
+      } else if (result.status === 'offline') {
+        setUpdateState('offline');
+        scheduleUpdateReset(2500);
       } else {
-        const result = await triggerUpdate();
-        if (result === 'offline') {
-          setUpdateState('offline');
-          setTimeout(() => setUpdateState('idle'), 1800);
-        } else if (result === 'updated') {
-          setUpdateState('updating');
-        } else {
-          setUpdateState('done');
-          scheduleUpdateReset(1600);
-        }
+        setUpdateState('error');
+        scheduleUpdateReset(4000);
       }
     } catch {
       setUpdateState('error');
-      setTimeout(() => setUpdateState('idle'), 3000);
+      scheduleUpdateReset(4000);
     } finally {
-      // The shared reset timer is cleaned up on unmount and replaced by any
-      // shorter success/error timer scheduled above.
+      updateCheckInFlightRef.current = false;
     }
   };
 
   const updateLabel: Record<UpdateState, string> = {
     idle: 'Check for updates',
     checking: 'Checking…',
+    available: 'New update available — tap to check',
     updating: 'Downloading update…',
-    done: 'Up to date',
-    offline: 'You are offline',
-    error: 'Update failed — try again',
+    done: "You're using the latest version",
+    offline: 'You are offline — tap to retry',
+    error: 'Unable to check — tap to retry',
   };
 
-  const isBusy = updateState === 'checking' || updateState === 'updating' || isSyncing();
+  const isBusy = updateState === 'checking' || updateState === 'updating';
 
   return (
     <div className="space-y-5 min-w-0">
