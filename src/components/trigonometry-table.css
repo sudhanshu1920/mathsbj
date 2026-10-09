@@ -1,7 +1,6 @@
 /*
- * Opaque sticky cells for the horizontally scrollable Table of Angles.
- * Surface colors come from theme tokens, but deliberately use no alpha so
- * scrolling data cells cannot bleed through the pinned first column.
+ * Opaque pinned angle cells for the horizontally scrollable textbook table.
+ * Keep the first column solid so values never show through while scrolling.
  */
 .trig-table-grid {
   border-top: 1px solid hsl(var(--border));
@@ -30,4 +29,12 @@
 
 .trig-table-sticky-corner {
   z-index: 40;
+}
+
+.trig-table-grid tbody tr:nth-child(even) td:not(.trig-table-sticky) {
+  background-color: hsl(var(--muted) / 0.28);
+}
+
+.trig-table-grid tbody tr:hover td:not(.trig-table-sticky) {
+  background-color: hsl(var(--primary) / 0.08);
 }
