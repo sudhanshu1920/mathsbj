@@ -4,6 +4,7 @@
 
 import { Capacitor } from "@capacitor/core";
 import { toast } from "@/hooks/use-toast";
+import { PWA_UPDATE_DISCOVERED_EVENT } from "@/lib/appUpdateEvents";
 
 const isInIframe = (() => {
   try {
@@ -45,51 +46,60 @@ export function isPWARegistered(): boolean {
   return !!swRegistration && !!updateSWFn;
 }
 
-export type UpdateResult = "updated" | "current" | "unsupported" | "offline";
+export type UpdateResult = "available" | "current" | "unsupported" | "offline" | "error";
+export type ApplyUpdateResult = "applying" | "unsupported" | "offline" | "error";
 
+/** Check for a waiting service worker without activating it. */
 export async function triggerUpdate(): Promise<UpdateResult> {
   if (typeof navigator !== "undefined" && !navigator.onLine) return "offline";
   if (!swRegistration || !updateSWFn) return "unsupported";
-  armControllerReload();
   try {
     await swRegistration.update();
   } catch {
-    return "current";
+    return "error";
   }
 
-  const start = Date.now();
-  while (Date.now() - start < 1500) {
-    if (swRegistration.waiting || swRegistration.installing) break;
-    await new Promise((r) => setTimeout(r, 150));
+  if (swRegistration.waiting) return "available";
+  const installing = swRegistration.installing;
+  if (installing) {
+    const state = await new Promise<"available" | "current">((resolve) => {
+      let finished = false;
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        installing.removeEventListener("statechange", onStateChange);
+        clearTimeout(timeoutId);
+        resolve(swRegistration?.waiting ? "available" : "current");
+      };
+      const onStateChange = () => {
+        if (["installed", "activated", "redundant"].includes(installing.state)) finish();
+      };
+      timeoutId = setTimeout(finish, 6000);
+      installing.addEventListener("statechange", onStateChange);
+    });
+    if (state === "available" || swRegistration.waiting) return "available";
   }
+  return "current";
+}
+
+/** Activate the waiting worker only after explicit user confirmation. */
+export async function applyPwaUpdate(): Promise<ApplyUpdateResult> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return "offline";
+  if (!swRegistration || !updateSWFn) return "unsupported";
+  const status = await triggerUpdate();
+  if (status === "offline" || status === "unsupported" || status === "error") return status;
 
   if (swRegistration.waiting) {
+    armControllerReload();
     updateSWFn(true).catch(() => {});
-    return "updated";
+    return "applying";
   }
 
-  if (swRegistration.installing) {
-    const installing = swRegistration.installing;
-    const becameWaiting = await new Promise<boolean>((resolve) => {
-      const done = () => resolve(!!swRegistration?.waiting);
-      installing.addEventListener("statechange", () => {
-        if (
-          installing.state === "installed" ||
-          installing.state === "activated" ||
-          installing.state === "redundant"
-        ) {
-          done();
-        }
-      });
-      setTimeout(done, 6000);
-    });
-    if (becameWaiting && swRegistration.waiting) {
-      updateSWFn(true).catch(() => {});
-      return "updated";
-    }
-  }
-
-  return "current";
+  // The user has confirmed this reload and the release manifest has already
+  // confirmed the deployed build version. Do not claim installation success.
+  window.location.reload();
+  return "applying";
 }
 
 export async function setupPWA() {
@@ -111,11 +121,8 @@ export async function setupPWA() {
     const updateSW = registerSW({
       immediate: true,
       onNeedRefresh() {
-        toast({
-          title: "Updating…",
-          description: "A new version is being installed.",
-        });
-        updateSW(true);
+        // Keep the waiting worker until the app's Update Now action is confirmed.
+        window.dispatchEvent(new Event(PWA_UPDATE_DISCOVERED_EVENT));
       },
       onOfflineReady() {
         toast({
