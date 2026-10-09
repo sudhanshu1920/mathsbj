@@ -14,7 +14,7 @@ describe('Learning Table of Angles practice generator range', () => {
       count: trigFunctions.length * (trigProMode ? TRIG_ANGLES.length : 5),
       infinite: false,
       mode: 'input',
-      timerEnabled: false,
+      timerMode: 'off',
       timerSeconds: 9999,
       sequential: false,
       repetitionEnabled: false,
@@ -92,5 +92,53 @@ describe('Quiz Arena trigonometry angle-range control', () => {
       expect(screen.getByRole('button', { name: `${fn} θ` })).toHaveAttribute('aria-pressed', 'false');
     }
     expect(within(rangeGroup).getByRole('button', { name: /Pro Mode.*0°–360°/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+
+describe('Quiz Arena Challenge timer controls', () => {
+  it('keeps Challenge and the per-question Timer mutually exclusive', () => {
+    render(<PracticePage />);
+
+    const perQuestionTimer = screen.getByRole('switch', { name: 'Per-question timer' });
+    const challengeTimer = screen.getByRole('switch', { name: 'Challenge timer' });
+
+    expect(perQuestionTimer).toBeChecked();
+    expect(challengeTimer).not.toBeChecked();
+
+    fireEvent.click(challengeTimer);
+    expect(challengeTimer).toBeChecked();
+    expect(perQuestionTimer).not.toBeChecked();
+
+    const tenMinuteOption = screen.getByRole('button', { name: '10m' });
+    expect(tenMinuteOption).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(tenMinuteOption);
+    expect(tenMinuteOption).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(perQuestionTimer);
+    expect(perQuestionTimer).toBeChecked();
+    expect(challengeTimer).not.toBeChecked();
+  });
+
+  it('starts the selected full-session countdown only with Start Quiz and counts submitted answers', () => {
+    render(<PracticePage />);
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Challenge timer' }));
+    fireEvent.click(screen.getByRole('button', { name: '10m' }));
+
+    expect(screen.queryByText('10:00')).not.toBeInTheDocument();
+    expect(screen.queryByText('Solved 0')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start Quiz' }));
+
+    expect(screen.getByText('10:00')).toBeInTheDocument();
+    expect(screen.getByText('Solved 0')).toBeInTheDocument();
+
+    const firstOption = document.querySelector<HTMLButtonElement>('.mcq-options-grid button');
+    expect(firstOption).not.toBeNull();
+    if (!firstOption) throw new Error('The first MCQ option did not render.');
+    fireEvent.click(firstOption);
+
+    expect(screen.getByText('Solved 1')).toBeInTheDocument();
   });
 });

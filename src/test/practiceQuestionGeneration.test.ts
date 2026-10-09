@@ -8,7 +8,7 @@ const baseConfig = {
   count: 10,
   infinite: false,
   mode: 'mcq' as const,
-  timerEnabled: false,
+  timerMode: 'off' as const,
   timerSeconds: 9999,
   sequential: true,
 };

@@ -32,6 +32,7 @@ import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
+import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerModeFromToggle, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -61,8 +62,9 @@ interface PracticeConfig {
   count: number;
   infinite: boolean;
   mode: PracticeMode;
-  timerEnabled: boolean;
+  timerMode: QuizTimerMode;
   timerSeconds: number;
+  challengeDurationSeconds?: number;
   sequential: boolean;
   repetitionEnabled: boolean;
   repetitionByTopic: Record<string, number>;
@@ -665,6 +667,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [challengeTimeLeft, setChallengeTimeLeft] = useState(0);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [xpPop, setXpPop] = useState<{ id: number; amount: number; bonus: number } | null>(null);
@@ -680,6 +683,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const finishLockRef = useRef(false);
   const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const sessionIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const challengeDeadlineRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
   // externalBackRequest is an edge-triggered signal from the app shell.
@@ -709,8 +713,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [count, setCount] = useState(10);
   const [infinite, setInfinite] = useState(false);
   const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
-  const [timerEnabled, setTimerEnabled] = useState(true);
+  const [timerMode, setTimerMode] = useState<QuizTimerMode>('perQuestion');
   const [timerSeconds, setTimerSeconds] = useState(10);
+  const [challengeMinutes, setChallengeMinutes] = useState<ChallengeMinutes>(1);
   const [sequential, setSequential] = useState(false);
   const [repetitionEnabled, setRepetitionEnabled] = useState(false);
   const [topicRepetitions, setTopicRepetitions] = useState<Record<string, number>>(() => (
@@ -720,6 +725,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const startPractice = useCallback((cfg: PracticeConfig) => {
     const normalizedConfig: PracticeConfig = {
       ...cfg,
+      // Timer mode is a single source of truth; a Challenge can never leave
+      // the per-question countdown enabled in the underlying session config.
+      timerMode: cfg.timerMode,
+      challengeDurationSeconds: cfg.timerMode === 'challenge'
+        ? Math.max(1, Math.floor(cfg.challengeDurationSeconds ?? 60))
+        : undefined,
       // Repetition mode is finite and owns quiz length. The legacy Questions
       // ∞ flag must never leak into this mode.
       infinite: cfg.repetitionEnabled ? false : cfg.infinite,
@@ -736,6 +747,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     };
     const qs = generateQuestions(normalizedConfig);
     if (qs.length === 0) return;
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    sessionIntervalRef.current = undefined;
+    challengeDeadlineRef.current = null;
     setConfig(normalizedConfig);
     setQuestions(qs);
     setCurrentQ(0);
@@ -747,7 +761,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setSelectedOption(null);
     setElapsedTime(0);
     setSessionXP(0);
-    setTimeLeft(cfg.timerEnabled ? cfg.timerSeconds : 9999);
+    setTimeLeft(normalizedConfig.timerMode === 'perQuestion' ? normalizedConfig.timerSeconds : 9999);
+    challengeDeadlineRef.current = normalizedConfig.timerMode === 'challenge'
+      ? performance.now() + (normalizedConfig.challengeDurationSeconds ?? 60) * 1000
+      : null;
+    setChallengeTimeLeft(normalizedConfig.timerMode === 'challenge'
+      ? (normalizedConfig.challengeDurationSeconds ?? 60)
+      : 0);
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     answerAdvanceTimerRef.current = undefined;
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
@@ -784,8 +804,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         count: initialExtras?.count ?? 10,
         infinite: initialExtras?.infinite ?? false,
         mode: initialMode,
-        timerEnabled: timerOn,
-        timerSeconds: timerOn ? (initialExtras?.timerSeconds ?? 10) : 9999,
+        timerMode: timerOn ? 'perQuestion' : 'off',
+        timerSeconds: initialExtras?.timerSeconds ?? 10,
         sequential: false,
         repetitionEnabled: false,
         repetitionByTopic: {},
@@ -841,9 +861,23 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
 
 
-  // One shared 1 Hz session clock handles elapsed time, daily streak time and
-  // the per-question timer. Keeping one interval avoids timer duplication and
-  // prevents timer recreation on every question.
+  const finishQuiz = useCallback(() => {
+    if (finishLockRef.current) return;
+    finishLockRef.current = true;
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    sessionIntervalRef.current = undefined;
+    if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    answerAdvanceTimerRef.current = undefined;
+    autoSubmitTimerRef.current = undefined;
+    challengeDeadlineRef.current = null;
+    onQuizFinish?.();
+    setFinished(true);
+  }, [onQuizFinish]);
+
+  // One session clock owns elapsed/streak accounting and whichever timer mode
+  // was selected. Challenge remaining time is derived from a monotonic deadline
+  // so delayed interval ticks cannot extend the configured duration.
   useEffect(() => {
     if (!config || finished) {
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
@@ -853,6 +887,18 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = setInterval(() => {
+      if (config.timerMode === 'challenge') {
+        const deadline = challengeDeadlineRef.current;
+        const remaining = deadline === null
+          ? 0
+          : getRemainingSeconds(deadline, performance.now());
+        setChallengeTimeLeft((previous) => previous === remaining ? previous : remaining);
+        if (remaining === 0) {
+          finishQuiz();
+          return;
+        }
+      }
+
       if (config.infinite) {
         setElapsedTime((prev) => prev + 1);
       }
@@ -861,7 +907,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         addStreakSeconds(1);
       }
 
-      if (config.timerEnabled && config.timerSeconds < 9999) {
+      // Per-question timeout behavior is only active in this mode. A Challenge
+      // expiry finishes the session without submitting the current unanswered
+      // question or recording it as wrong.
+      if (config.timerMode === 'perQuestion' && config.timerSeconds < 9999) {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             handleAnswerRef.current(null);
@@ -876,20 +925,20 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
       sessionIntervalRef.current = undefined;
     };
-  }, [config, finished]);
-
-  const finishQuiz = useCallback(() => {
-    if (finishLockRef.current) return;
-    finishLockRef.current = true;
-    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
-    sessionIntervalRef.current = undefined;
-    onQuizFinish?.();
-    setFinished(true);
-  }, [onQuizFinish]);
+  }, [config, finished, finishQuiz]);
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
-      if (!config || finished || feedback || answerLockRef.current) return;
+      if (!config || finished || feedback || answerLockRef.current || finishLockRef.current) return;
+      if (
+        config.timerMode === 'challenge' &&
+        challengeDeadlineRef.current !== null &&
+        performance.now() >= challengeDeadlineRef.current
+      ) {
+        setChallengeTimeLeft(0);
+        finishQuiz();
+        return;
+      }
       const q = questions[currentQ];
       if (!q) return;
       answerLockRef.current = true;
@@ -977,6 +1026,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
       answerAdvanceTimerRef.current = setTimeout(() => {
         answerAdvanceTimerRef.current = undefined;
+        if (
+          config.timerMode === 'challenge' &&
+          challengeDeadlineRef.current !== null &&
+          performance.now() >= challengeDeadlineRef.current
+        ) {
+          setChallengeTimeLeft(0);
+          finishQuiz();
+          return;
+        }
         setFeedback(null);
         setInputValue('');
         setSelectedOption(null);
@@ -993,11 +1051,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             // of appending another full pool on every cycle.
             setQuestions(nextPool);
             setCurrentQ(0);
-            if (config.timerEnabled) setTimeLeft(config.timerSeconds);
+            if (config.timerMode === 'perQuestion') setTimeLeft(config.timerSeconds);
           }
         } else {
           setCurrentQ(currentQ + 1);
-          if (config.timerEnabled) setTimeLeft(config.timerSeconds);
+          if (config.timerMode === 'perQuestion') setTimeLeft(config.timerSeconds);
         }
         answerLockRef.current = false;
       }, isCorrect ? 350 : 700);
@@ -1054,6 +1112,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
     if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
     sessionIntervalRef.current = undefined;
+    challengeDeadlineRef.current = null;
     answerAdvanceTimerRef.current = undefined;
     autoSubmitTimerRef.current = undefined;
     levelUpTimerRef.current = undefined;
@@ -1075,6 +1134,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setSelectedOption(null);
     setElapsedTime(0);
     setTimeLeft(0);
+    setChallengeTimeLeft(0);
     setXpPop(null);
     setLevelUp(null);
     setSessionXP(0);
@@ -1095,6 +1155,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, [clearSessionTimers, fromLearning, onExit, resetToPracticeHome]);
 
   const handleExitRequest = useCallback(() => {
+    if (
+      config?.timerMode === 'challenge' &&
+      challengeDeadlineRef.current !== null &&
+      performance.now() >= challengeDeadlineRef.current
+    ) {
+      setChallengeTimeLeft(0);
+      finishQuiz();
+      return;
+    }
     if (showExitDialog) return;
     if (config && !finished) {
       setShowExitDialog(true);
@@ -1105,7 +1174,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       return;
     }
     resetToPracticeHome();
-  }, [config, finished, resetToPracticeHome, showExitDialog, fromLearning, onExit]);
+  }, [config, finished, finishQuiz, resetToPracticeHome, showExitDialog, fromLearning, onExit]);
 
   const handleBackToPractice = useCallback(() => {
     // Used from results screen swipe-back
@@ -1197,9 +1266,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               </div>
               <div className="text-center">
                 <p className="text-3xl font-bold text-foreground">{totalAttempts}</p>
-                <p className="text-xs text-muted-foreground">Attempted</p>
+                <p className="text-xs text-muted-foreground">{config.timerMode === 'challenge' ? 'Solved' : 'Attempted'}</p>
               </div>
             </div>
+            {config.timerMode === 'challenge' && (
+              <p className="text-sm text-muted-foreground mb-4">
+                Challenge · {Math.round((config.challengeDurationSeconds ?? 60) / 60)}m
+              </p>
+            )}
             {config.infinite && <p className="text-sm text-muted-foreground mb-4">Time: {formatTime(elapsedTime)}</p>}
             <div className="flex gap-3">
               <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-[0_0_24px_hsl(var(--primary)/0.5)]">Retry</button>
@@ -1220,8 +1294,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   if (config && questions.length > 0) {
     const q = questions[currentQ];
     if (!q) return null;
-    const isLowTime = timeLeft <= 3 && config.timerEnabled;
-    const isTimerHidden = !config.timerEnabled;
+    const isLowTime = config.timerMode === 'perQuestion'
+      ? timeLeft <= 3
+      : config.timerMode === 'challenge' && challengeTimeLeft <= 5;
+    const isTimerHidden = config.timerMode === 'off';
     const isPctQuestion = q.answerType === 'decimal-pct' || q.answerType === 'mixed-pct' || q.answerType === 'fraction' || q.answerType === 'trig';
     const totalAttempts = score.correct + score.wrong;
     const isFiniteQuiz = config.repetitionEnabled || !config.infinite;
@@ -1306,12 +1382,20 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           >
             <ArrowLeft size={18} />
           </button>
-          <div className="flex-1 px-3 max-w-[180px]">
+          <div className={`min-w-0 flex-1 px-2 sm:px-3 ${config.timerMode === 'challenge' ? 'max-w-[110px] sm:max-w-[180px]' : 'max-w-[180px]'}`}>
             <XPBar />
           </div>
           {!isTimerHidden && (
-            <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
-              <Timer size={14} />{timeLeft}s
+            <div className={`flex shrink-0 items-center gap-1.5 rounded-full py-1 ${config.timerMode === 'challenge' ? 'px-2 text-[11px] sm:text-xs' : 'px-3 text-sm'} font-bold ${isLowTime ? 'bg-destructive/20 text-destructive animate-pulse' : 'bg-secondary text-secondary-foreground'}`}>
+              <Timer size={14} className="shrink-0" />
+              {config.timerMode === 'challenge' ? (
+                <>
+                  <span className="tabular-nums">{formatChallengeTime(challengeTimeLeft)}</span>
+                  <span className="border-l border-current/20 pl-1.5 whitespace-nowrap">Solved {totalAttempts}</span>
+                </>
+              ) : (
+                <span>{timeLeft}s</span>
+              )}
             </div>
           )}
           {config.infinite && !config.repetitionEnabled ? (
@@ -2044,27 +2128,68 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </div>
       </div>
 
-      {/* Timer Toggle */}
+      {/* Mutually exclusive per-question Timer / full-session Challenge */}
       <div className="mb-5 bg-card border border-border rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Timer size={18} className="text-primary" />
             <span className="font-semibold text-sm text-foreground">Timer</span>
           </div>
-          <Switch checked={timerEnabled} onCheckedChange={setTimerEnabled} />
+          <Switch
+            checked={timerMode === 'perQuestion'}
+            aria-label="Per-question timer"
+            onCheckedChange={(enabled) => setTimerMode(getTimerModeFromToggle('perQuestion', enabled))}
+          />
         </div>
         <AnimatePresence>
-          {timerEnabled && (
+          {timerMode === 'perQuestion' && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
               <div className="flex gap-2 mt-2">
                 {[5, 10, 15, 30].map((s) => (
-                  <button key={s} onClick={() => setTimerSeconds(s)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${timerSeconds === s ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground'}`}>{s}s</button>
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={timerSeconds === s}
+                    onClick={() => setTimerSeconds(s)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors ${timerSeconds === s ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground'}`}
+                  >
+                    {s}s
+                  </button>
                 ))}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+        <div className="mt-3 border-t border-border pt-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-sm text-foreground">Challenge</span>
+            <Switch
+              checked={timerMode === 'challenge'}
+              aria-label="Challenge timer"
+              onCheckedChange={(enabled) => setTimerMode(getTimerModeFromToggle('challenge', enabled))}
+            />
+          </div>
+          <AnimatePresence>
+            {timerMode === 'challenge' && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                <div className="mt-2 grid grid-cols-6 gap-1.5">
+                  {CHALLENGE_MINUTES.map((minutes) => (
+                    <button
+                      key={minutes}
+                      type="button"
+                      disabled={timerMode !== 'challenge'}
+                      aria-pressed={challengeMinutes === minutes}
+                      onClick={() => setChallengeMinutes(minutes)}
+                      className={`min-w-0 rounded-lg px-1 py-2 text-xs font-bold transition-colors ${challengeMinutes === minutes ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
+                    >
+                      {minutes}m
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Order */}
@@ -2093,8 +2218,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           });
           const cfg: PracticeConfig = {
             topics, count, infinite, mode,
-            timerEnabled,
-            timerSeconds: timerEnabled ? timerSeconds : 9999,
+            timerMode,
+            timerSeconds,
+            challengeDurationSeconds: timerMode === 'challenge'
+              ? getChallengeDurationSeconds(challengeMinutes)
+              : undefined,
             sequential,
              repetitionEnabled,
              repetitionByTopic: repetitionEnabled
