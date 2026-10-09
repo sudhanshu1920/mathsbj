@@ -110,10 +110,27 @@ if (!practice.includes('onQuizReset?: () => void;') ||
   fail('Exiting/resetting a quiz must restore the parent Practice phase and Floating Bar');
 }
 const practiceNavigationTests = read('src/test/practiceNavigation.test.ts');
+const practiceNavigation = read('src/lib/practiceNavigation.ts');
 if (!practiceNavigationTests.includes("isPracticeSessionInProgress('setup')") ||
     !practiceNavigationTests.includes("isPracticeSessionInProgress('active')") ||
     !practiceNavigationTests.includes("isPracticeSessionInProgress('finished')")) {
   fail('Quiz setup/active/result Floating Bar visibility phase tests are missing');
+}
+if (!index.includes('setLearningPracticeReturn(launchContext)') ||
+    !index.includes('setLearningPracticeSelectorOpen(restoreSelector)') ||
+    !index.includes('replaceNextNavigationEntry.current = true') ||
+    !index.includes("tab === 'learn' && learningPracticeSelectorOpen") ||
+    !learning.includes('practiceSelectorOpen = false') ||
+    !learning.includes('practiceReturn?.extras?.timerEnabled') ||
+    !practiceSelector.includes('initialSettings?.timerEnabled ?? false') ||
+    !practiceNavigation.includes('LEARNING_PRACTICE_SELECTOR_DEPTH') ||
+    !practiceNavigationTests.includes('returns a Learning-origin quiz to the Practice selector')) {
+  fail('Learning topic → Practice selector → Quiz → selector → topic restoration contract is incomplete');
+}
+if (!practice.includes('levelUpTimerRef') ||
+    !practice.includes('xpPopTimerRef') ||
+    /if \(sessionIntervalRef\.current\) clearInterval\(sessionIntervalRef\.current\);\n\s+if \(sessionIntervalRef\.current\) clearInterval/.test(practice)) {
+  fail('Practice exit must clear each unique interval and every deferred UI timeout without duplicate cleanup');
 }
 const glass = read('src/glass.css');
 const device = read('src/lib/device.ts');

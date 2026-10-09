@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { getPracticeNavDepth, isPracticeSessionInProgress, isUnsavedPracticePhase, type PracticePhase } from '@/lib/practiceNavigation';
+import {
+  getPracticeNavDepth,
+  getPracticeReturnDepth,
+  isPracticeSessionInProgress,
+  isUnsavedPracticePhase,
+  LEARNING_PRACTICE_SELECTOR_DEPTH,
+  type PracticePhase,
+} from '@/lib/practiceNavigation';
 
 describe('Practice navigation lifecycle', () => {
   it('only treats the active phase as having unsaved progress', () => {
     const phases: PracticePhase[] = ['setup', 'active', 'finished'];
-
     expect(phases.filter(isUnsavedPracticePhase)).toEqual(['active']);
     expect(isUnsavedPracticePhase('setup')).toBe(false);
     expect(isUnsavedPracticePhase('finished')).toBe(false);
@@ -22,10 +28,23 @@ describe('Practice navigation lifecycle', () => {
     expect(getPracticeNavDepth('finished')).toBe('practice-result');
   });
 
-  it('does not classify the Learning -> Practice transition as active', () => {
+  it('returns a Learning-origin quiz to the Practice selector before the topic parent', () => {
+    expect(getPracticeReturnDepth(true, true, 'learn-tables-4'))
+      .toBe(LEARNING_PRACTICE_SELECTOR_DEPTH);
+  });
+
+  it('returns directly to the exact originating topic when no selector state exists', () => {
+    expect(getPracticeReturnDepth(true, false, 'learn-tables-4')).toBe('learn-tables-4');
+  });
+
+  it('keeps global Practice exits in the Practice setup section', () => {
+    expect(getPracticeReturnDepth(false, false, 'learn-tables-4')).toBe('practice-setup');
+  });
+
+  it('does not classify the Learning → Practice transition as active', () => {
     expect(isUnsavedPracticePhase('setup')).toBe(false);
     expect(getPracticeNavDepth('setup')).not.toBe('practice-active');
   });
 });
 
-// [BUILD_APK] release build requested after navigation exit-guard root-cause fix.
+// [BUILD_APK] universal Learning topic practice-return stack.

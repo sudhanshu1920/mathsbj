@@ -19,6 +19,7 @@ import { getStreak } from '@/lib/streak';
 import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
 import { getTrigAngles, type TrigFunction } from '@/lib/trigData';
+import type { PracticeLaunchContext } from '@/lib/practiceNavigation';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table';
 
@@ -27,6 +28,9 @@ interface LearningPageProps {
   onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
+  practiceSelectorOpen?: boolean;
+  practiceReturn?: PracticeLaunchContext | null;
+  onPracticeSelectorVisibilityChange?: (open: boolean) => void;
 }
 
 const topics: LearningTopicId[] = [
@@ -41,15 +45,49 @@ const topics: LearningTopicId[] = [
   'periodic-table',
 ];
 
-const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateChange }: LearningPageProps) => {
+const LearningPage = ({
+  onBack,
+  onStartPractice,
+  learningState,
+  onLearningStateChange,
+  practiceSelectorOpen = false,
+  practiceReturn,
+  onPracticeSelectorVisibilityChange,
+}: LearningPageProps) => {
   const activeTopic = (learningState?.activeTopic as Topic | null) ?? null;
   const selectedNumber = learningState?.selectedNumber ?? null;
   const selectedRange = learningState?.selectedRange ?? null;
   const periodicSelectedElement = learningState?.periodicSelectedElement ?? null;
-  const [showPracticeMode, setShowPracticeMode] = useState(false);
-  const [pendingTrigFunctions, setPendingTrigFunctions] = useState<TrigFunction[] | null>(null);
-  const [pendingTrigProMode, setPendingTrigProMode] = useState(false);
+  const [showPracticeMode, setShowPracticeMode] = useState(practiceSelectorOpen);
+  const [pendingTrigFunctions, setPendingTrigFunctions] = useState<TrigFunction[] | null>(() => (
+    practiceReturn?.topic === 'trig' && practiceReturn.extras?.trigFunctions
+      ? [...practiceReturn.extras.trigFunctions]
+      : null
+  ));
+  const [pendingTrigProMode, setPendingTrigProMode] = useState(
+    practiceReturn?.topic === 'trig' ? practiceReturn.extras?.trigProMode ?? false : false,
+  );
   const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
+
+  useEffect(() => {
+    setShowPracticeMode(practiceSelectorOpen);
+    if (!practiceSelectorOpen) {
+      setPendingTrigFunctions(null);
+      setPendingTrigProMode(false);
+    }
+  }, [practiceSelectorOpen]);
+
+  const openPracticeMode = () => {
+    setShowPracticeMode(true);
+    onPracticeSelectorVisibilityChange?.(true);
+  };
+
+  const closePracticeMode = () => {
+    setShowPracticeMode(false);
+    setPendingTrigFunctions(null);
+    setPendingTrigProMode(false);
+    onPracticeSelectorVisibilityChange?.(false);
+  };
 
   useEffect(() => {
     const sync = () => setProModeState(getTablesProMode());
@@ -131,7 +169,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
       <div className="flex items-center gap-1.5 shrink-0">
         {showPractice && (
           <button
-            onClick={() => setShowPracticeMode(true)}
+            onClick={openPracticeMode}
             className="h-7 inline-flex items-center gap-1 px-2 rounded-full gradient-primary text-primary-foreground text-[10px] font-semibold"
           >
             <Dumbbell size={12} />
@@ -195,12 +233,16 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   if (showPracticeMode) {
     return (
       <div>
-        {renderHeader('Choose Practice Mode', () => {
-          setPendingTrigFunctions(null);
-          setPendingTrigProMode(false);
-          setShowPracticeMode(false);
-        }, false, true)}
-        <PracticeModeSelector onSelect={handlePracticeSelect} />
+        {renderHeader('Choose Practice Mode', closePracticeMode, false)}
+        <PracticeModeSelector
+          onSelect={handlePracticeSelect}
+          initialSettings={{
+            mode: practiceReturn?.mode ?? 'mcq',
+            timerEnabled: practiceReturn?.extras?.timerEnabled ?? false,
+            timerSeconds: practiceReturn?.extras?.timerSeconds ?? 10,
+            infinite: practiceReturn?.extras?.infinite ?? false,
+          }}
+        />
       </div>
     );
   }
@@ -460,7 +502,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
               onPracticeTrigFunctions={(functions, proMode) => {
                 setPendingTrigFunctions([...functions]);
                 setPendingTrigProMode(proMode);
-                setShowPracticeMode(true);
+                openPracticeMode();
               }}
             />
           </Suspense>

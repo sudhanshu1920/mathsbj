@@ -16,7 +16,7 @@ import CommandPalette from '@/components/CommandPalette';
 import ShortcutsHelp from '@/components/ShortcutsHelp';
 import OfflinePrep from '@/components/OfflinePrep';
 import { getSettings } from '@/lib/settings';
-import { getPracticeNavDepth, isPracticeSessionInProgress, isUnsavedPracticePhase, type PracticePhase } from '@/lib/practiceNavigation';
+import { getPracticeNavDepth, getPracticeReturnDepth, isPracticeSessionInProgress, isUnsavedPracticePhase, LEARNING_PRACTICE_SELECTOR_DEPTH, type PracticeLaunchContext, type PracticePhase } from '@/lib/practiceNavigation';
 import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
 import { MOTION } from '@/lib/motion';
 import type { PointerEvent as ReactPointerEvent } from 'react';
@@ -116,6 +116,17 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
   return `learn-${activeTopic}`;
 }
 
+function getCurrentNavigationDepth(
+  tab: Tab,
+  learningState: LearningState,
+  practiceTopic: string | undefined,
+  practicePhase: PracticePhase,
+  practiceSelectorOpen: boolean,
+): string {
+  if (tab === 'learn' && practiceSelectorOpen) return LEARNING_PRACTICE_SELECTOR_DEPTH;
+  return getNavDepth(tab, learningState, practiceTopic, practicePhase);
+}
+
 const Index = () => {
   const [tab, setTab] = useState<Tab>('learn');
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
@@ -123,6 +134,8 @@ const Index = () => {
   const [practiceMode, setPracticeMode] = useState<'mcq' | 'input' | undefined>();
   const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number } | undefined>();
   const [returnToLearn, setReturnToLearn] = useState(false);
+  const [learningPracticeSelectorOpen, setLearningPracticeSelectorOpen] = useState(false);
+  const [learningPracticeReturn, setLearningPracticeReturn] = useState<PracticeLaunchContext | null>(null);
   const [learningState, setLearningState] = useState<LearningState>(INITIAL_LEARNING_STATE);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -256,12 +269,15 @@ const Index = () => {
   const lastDepth = useRef('learn-home');
   const historyInitialized = useRef(false);
   const lastNavigationBack = useRef(0);
+  const replaceNextNavigationEntry = useRef(false);
+  const practiceExitHandled = useRef(false);
   const navigationStateRef = useRef({
     tab,
     learningState,
     practiceTopic,
     practiceMode,
     practicePhase,
+    learningPracticeSelectorOpen,
   });
   navigationStateRef.current = {
     tab,
@@ -269,6 +285,7 @@ const Index = () => {
     practiceTopic,
     practiceMode,
     practicePhase,
+    learningPracticeSelectorOpen,
   };
 
   // One shared back action for header arrows, in-app edge swipe, and native
@@ -298,13 +315,27 @@ const Index = () => {
 
   // Push history state when navigation depth changes
   useEffect(() => {
-    const depth = getNavDepth(tab, learningState, practiceTopic, practicePhase);
+    const depth = getCurrentNavigationDepth(
+      tab,
+      learningState,
+      practiceTopic,
+      practicePhase,
+      learningPracticeSelectorOpen,
+    );
     if (depth !== lastDepth.current && !isHandlingPopstate.current) {
-      window.history.pushState({ __mathsbj: true, depth }, '');
+      const historyState = { __mathsbj: true, depth };
+      if (replaceNextNavigationEntry.current) {
+        // Learning-origin setup, active, and result phases share one browser
+        // entry. Exit replaces it with the Practice selector for one-step Back.
+        window.history.replaceState(historyState, '');
+        replaceNextNavigationEntry.current = false;
+      } else {
+        window.history.pushState(historyState, '');
+      }
       lastDepth.current = depth;
     }
     isHandlingPopstate.current = false;
-  }, [tab, learningState, practiceTopic, practicePhase]);
+  }, [tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen]);
 
   // Handle native Android back button / system edge-back.
   // Capacitor owns the native event before Android finishes the Activity, so
@@ -316,8 +347,8 @@ const Index = () => {
     let listenerHandle: { remove: () => Promise<void> } | null = null;
 
     void App.addListener('backButton', () => {
-      const { tab, learningState, practiceTopic, practicePhase } = navigationStateRef.current;
-      const depth = getNavDepth(tab, learningState, practiceTopic, practicePhase);
+      const { tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen } = navigationStateRef.current;
+      const depth = getCurrentNavigationDepth(tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen);
 
       if (depth === 'learn-home') {
         const now = Date.now();
@@ -364,6 +395,16 @@ const Index = () => {
         return;
       }
 
+      // The Practice selector is a nested destination. Leaving it restores the
+      // exact Learning parent without also popping that parent in the same Back.
+      if (tab === 'learn' && learningPracticeSelectorOpen) {
+        setLearningPracticeSelectorOpen(false);
+        setLearningPracticeReturn(null);
+        replaceNextNavigationEntry.current = false;
+        lastDepth.current = getNavDepth('learn', learningState);
+        return;
+      }
+
       // Determine what to go back to
       if (tab === 'practice') {
         // Practice setup screen — leave to learn (or wherever we came from)
@@ -375,6 +416,9 @@ const Index = () => {
           setPracticeMode(undefined);
           setPracticeExtras(undefined);
           setPracticePhase('setup');
+          setLearningPracticeSelectorOpen(false);
+          setLearningPracticeReturn(null);
+          replaceNextNavigationEntry.current = false;
           setTab('learn');
         } else {
           pendingPracticeNavigation.current = null;
@@ -461,13 +505,28 @@ const Index = () => {
 
     window.addEventListener('popstate', handlePopstate);
     return () => window.removeEventListener('popstate', handlePopstate);
-  }, [tab, learningState, returnToLearn, practicePhase]);
+  }, [tab, learningState, returnToLearn, practicePhase, learningPracticeSelectorOpen]);
+
+  const handlePracticeSelectorVisibilityChange = useCallback((open: boolean) => {
+    setLearningPracticeSelectorOpen(open);
+    if (!open) setLearningPracticeReturn(null);
+  }, []);
 
   const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number }) => {
-    setPracticeTopic(topic);
-    setPracticeContext(context);
-    setPracticeMode(mode);
-    setPracticeExtras(extras);
+    const launchContext: PracticeLaunchContext = {
+      topic,
+      context: context ? { ...context } : undefined,
+      mode: mode ?? 'mcq',
+      extras: extras ? { ...extras, trigFunctions: extras.trigFunctions ? [...extras.trigFunctions] : undefined } : undefined,
+    };
+    practiceExitHandled.current = false;
+    replaceNextNavigationEntry.current = true;
+    setLearningPracticeReturn(launchContext);
+    setLearningPracticeSelectorOpen(true);
+    setPracticeTopic(launchContext.topic);
+    setPracticeContext(launchContext.context);
+    setPracticeMode(launchContext.mode);
+    setPracticeExtras(launchContext.extras);
     setPracticePhase('setup');
     setReturnToLearn(true);
     setTab('practice');
@@ -524,9 +583,10 @@ const Index = () => {
     }
 
     const applyNavigation = () => {
-      if (newTab !== 'practice') {
-        clearPracticeState();
-      }
+      if (newTab !== 'practice') clearPracticeState();
+      setLearningPracticeSelectorOpen(false);
+      setLearningPracticeReturn(null);
+      replaceNextNavigationEntry.current = false;
       setTab(newTab);
     };
 
@@ -549,6 +609,10 @@ const Index = () => {
       return;
     }
 
+    setLearningPracticeSelectorOpen(false);
+    setLearningPracticeReturn(null);
+    replaceNextNavigationEntry.current = false;
+
     if (targetTab === 'learn') {
       clearPracticeState();
       setLearningState(INITIAL_LEARNING_STATE);
@@ -563,11 +627,11 @@ const Index = () => {
   }, [tab, practicePhase, sectionTransitionDirection, requestPracticeNavigation, clearPracticeState]);
 
   const handlePracticeExit = useCallback(() => {
-    // Quiz exit is a lifecycle boundary: discard any interrupted main-section
-    // swipe transition before restoring the originating screen. Otherwise the
-    // destination can inherit the old page's transform/AnimatePresence state.
-    setSectionTransitionDirection(null);
+    if (practiceExitHandled.current) return;
+    practiceExitHandled.current = true;
 
+    setSectionTransitionDirection(null);
+    replaceNextNavigationEntry.current = false;
     const pending = pendingPracticeNavigation.current;
     pendingPracticeNavigation.current = null;
 
@@ -575,15 +639,13 @@ const Index = () => {
       const targetLearningState = pending.tab === 'learn' && pending.resetLearn
         ? INITIAL_LEARNING_STATE
         : learningState;
-
       const targetDepth = getNavDepth(pending.tab, targetLearningState, undefined, 'setup');
       window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
       lastDepth.current = targetDepth;
-
       clearPracticeState();
-      if (pending.tab === 'learn' && pending.resetLearn) {
-        setLearningState(INITIAL_LEARNING_STATE);
-      }
+      setLearningPracticeSelectorOpen(false);
+      setLearningPracticeReturn(null);
+      if (pending.tab === 'learn' && pending.resetLearn) setLearningState(INITIAL_LEARNING_STATE);
       if (pending.tab === 'practice') {
         setPracticeTopic(pending.replacementPracticeTopic);
         setPracticeContext(undefined);
@@ -596,32 +658,35 @@ const Index = () => {
       return;
     }
 
-    if (returnToLearn) {
-      const targetDepth = getNavDepth('learn', learningState);
-      window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
-      lastDepth.current = targetDepth;
-      clearPracticeState();
-      setTab('learn');
-    } else {
-      const targetDepth = 'practice-setup';
-      window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
-      lastDepth.current = targetDepth;
-      clearPracticeState();
-    }
-  }, [clearPracticeState, learningState, returnToLearn]);
+    const restoreSelector = returnToLearn && learningPracticeReturn !== null;
+    const targetDepth = getPracticeReturnDepth(
+      returnToLearn,
+      restoreSelector,
+      getNavDepth('learn', learningState),
+    );
+    window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
+    lastDepth.current = targetDepth;
+    clearPracticeState();
+    setLearningPracticeSelectorOpen(restoreSelector);
+    if (!restoreSelector) setLearningPracticeReturn(null);
+    if (returnToLearn) setTab('learn');
+  }, [clearPracticeState, learningState, learningPracticeReturn, returnToLearn]);
 
   const handlePracticeExitCancelled = useCallback(() => {
     pendingPracticeNavigation.current = null;
   }, []);
 
   const handlePracticeStarted = useCallback((mode: 'mcq' | 'input') => {
+    practiceExitHandled.current = false;
+    if (returnToLearn) replaceNextNavigationEntry.current = true;
     setPracticeMode(mode);
     setPracticePhase('active');
-  }, []);
+  }, [returnToLearn]);
 
   const handlePracticeFinished = useCallback(() => {
+    if (returnToLearn) replaceNextNavigationEntry.current = true;
     setPracticePhase('finished');
-  }, []);
+  }, [returnToLearn]);
 
   const handlePracticeReset = useCallback(() => {
     setPracticePhase('setup');
@@ -639,6 +704,9 @@ const Index = () => {
     setPracticeExtras(undefined);
     setPracticePhase('setup');
     setReturnToLearn(false);
+    setLearningPracticeSelectorOpen(false);
+    setLearningPracticeReturn(null);
+    replaceNextNavigationEntry.current = false;
     setTab('practice');
   }, [tab, practicePhase, requestPracticeNavigation]);
 
@@ -866,6 +934,9 @@ const Index = () => {
                     onStartPractice={handleStartPractice}
                     learningState={learningState}
                     onLearningStateChange={setLearningState}
+                    practiceSelectorOpen={learningPracticeSelectorOpen}
+                    practiceReturn={learningPracticeReturn}
+                    onPracticeSelectorVisibilityChange={handlePracticeSelectorVisibilityChange}
                   />
                 </motion.div>
               )}

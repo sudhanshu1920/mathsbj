@@ -671,6 +671,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [levelUp, setLevelUp] = useState<number | null>(null);
   const [sessionXP, setSessionXP] = useState(0);
   const xpPopId = useRef(0);
+  const levelUpTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const xpPopTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const answerLockRef = useRef(false);
   // Keep timer callbacks on the latest answer handler without recreating the interval.
   // Production APK build requested after Quiz crash fix.
@@ -749,6 +751,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     answerAdvanceTimerRef.current = undefined;
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
+    if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
+    levelUpTimerRef.current = undefined;
+    xpPopTimerRef.current = undefined;
+    setLevelUp(null);
+    setXpPop(null);
     autoSubmitTimerRef.current = undefined;
     answerLockRef.current = false;
     finishLockRef.current = false;
@@ -874,8 +882,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (finishLockRef.current) return;
     finishLockRef.current = true;
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
-    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
-    sessionIntervalRef.current = undefined;
     sessionIntervalRef.current = undefined;
     onQuizFinish?.();
     setFinished(true);
@@ -949,9 +955,18 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           } catch {
             // Audio/vibration feedback is non-critical.
           }
-          setTimeout(() => { setLevelUp(null); acknowledgeLevel(); }, 1400);
+          if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
+          levelUpTimerRef.current = setTimeout(() => {
+            levelUpTimerRef.current = undefined;
+            setLevelUp(null);
+            acknowledgeLevel();
+          }, 1400);
         }
-        setTimeout(() => setXpPop((p) => (p && p.id === xpPopId.current ? null : p)), 700);
+        if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
+        xpPopTimerRef.current = setTimeout(() => {
+          xpPopTimerRef.current = undefined;
+          setXpPop((p) => (p && p.id === xpPopId.current ? null : p));
+        }, 700);
       }
 
       const newScore = {
@@ -1034,13 +1049,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   const resetToPracticeHome = useCallback(() => {
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
-    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
-    sessionIntervalRef.current = undefined;
+    if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
+    if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
     sessionIntervalRef.current = undefined;
     answerAdvanceTimerRef.current = undefined;
     autoSubmitTimerRef.current = undefined;
+    levelUpTimerRef.current = undefined;
+    xpPopTimerRef.current = undefined;
     answerLockRef.current = false;
     finishLockRef.current = false;
     setShowExitDialog(false);
@@ -1096,13 +1113,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   useEffect(() => {
     return () => {
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
-      if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
       if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
       if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
-      sessionIntervalRef.current = undefined;
+      if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
+      if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
       sessionIntervalRef.current = undefined;
       answerAdvanceTimerRef.current = undefined;
       autoSubmitTimerRef.current = undefined;
+      levelUpTimerRef.current = undefined;
+      xpPopTimerRef.current = undefined;
     };
   }, []);
 

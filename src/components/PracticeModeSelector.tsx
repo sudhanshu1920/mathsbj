@@ -13,13 +13,14 @@ export interface PracticeSettings {
 
 interface PracticeModeSelectorProps {
   onSelect: (settings: PracticeSettings) => void;
+  initialSettings?: Partial<PracticeSettings>;
 }
 
-const PracticeModeSelector = ({ onSelect }: PracticeModeSelectorProps) => {
-  const [mode, setMode] = useState<'mcq' | 'input'>('mcq');
-  const [timerEnabled, setTimerEnabled] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(10);
-  const [infinite, setInfinite] = useState(false);
+const PracticeModeSelector = ({ onSelect, initialSettings }: PracticeModeSelectorProps) => {
+  const [mode, setMode] = useState<'mcq' | 'input'>(initialSettings?.mode ?? 'mcq');
+  const [timerEnabled, setTimerEnabled] = useState(initialSettings?.timerEnabled ?? false);
+  const [timerSeconds, setTimerSeconds] = useState(initialSettings?.timerSeconds ?? 10);
+  const [infinite, setInfinite] = useState(initialSettings?.infinite ?? false);
 
   const handleStart = () => {
     onSelect({ mode, timerEnabled, timerSeconds, infinite });
