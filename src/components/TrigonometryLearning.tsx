@@ -6,6 +6,7 @@ import {
   TRIG_RADIANS,
   NOT_DEFINED,
   trigValue,
+  type TrigFunction,
 } from '@/lib/trigData';
 import './trigonometry-table.css';
 
@@ -14,7 +15,11 @@ import './trigonometry-table.css';
  * Each standard angle is a row; exact ratios and radians are columns.
  * The table scrolls horizontally on narrow screens and keeps angle labels visible.
  */
-const TrigonometryLearning = () => {
+interface TrigonometryLearningProps {
+  onPracticeFunctions?: (functions: TrigFunction[]) => void;
+}
+
+const TrigonometryLearning = ({ onPracticeFunctions }: TrigonometryLearningProps) => {
   const cellBase =
     'trig-table-cell border border-border px-3 py-2.5 text-center whitespace-nowrap text-sm';
 
@@ -30,6 +35,34 @@ const TrigonometryLearning = () => {
           Exact trigonometric ratios in degrees and radians.
         </p>
       </div>
+
+      {onPracticeFunctions && (
+        <section className="border-b border-border px-3 py-4 sm:px-4" aria-label="Practice trigonometric functions">
+          <div className="mb-2">
+            <p className="text-sm font-bold text-foreground">Practice a Function</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Choose one function or practice all six together.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {TRIG_FUNCTIONS.map((fn) => (
+              <button
+                key={fn}
+                type="button"
+                onClick={() => onPracticeFunctions([fn])}
+                className="min-h-10 rounded-xl border border-border bg-secondary/60 px-3 py-2 text-sm font-bold text-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.98]"
+              >
+                Practice {fn} θ
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => onPracticeFunctions([...TRIG_FUNCTIONS])}
+            className="mt-2 min-h-10 w-full rounded-xl gradient-primary px-3 py-2 text-sm font-bold text-primary-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.99]"
+          >
+            Practice All Functions
+          </button>
+        </section>
+      )}
 
       <div
         className="overflow-x-auto"
