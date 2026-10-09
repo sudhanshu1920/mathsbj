@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Target, XCircle, Flame, Settings as SettingsIcon, ArrowLeft } from 'lucide-react';
 import { getProgress, ProgressData } from '@/lib/progress';
@@ -34,11 +34,14 @@ const ProgressPage = ({ onSettingsVisibilityChange }: ProgressPageProps) => {
     };
   }, []);
 
-  useEffect(() => {
+  // Synchronize the parent layout before paint. Settings must hide the
+  // portalled Floating Bar and clear its reserved space in the same visual
+  // frame, rather than one passive-effect frame later.
+  useLayoutEffect(() => {
     onSettingsVisibilityChange?.(showSettings);
   }, [showSettings, onSettingsVisibilityChange]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     return () => {
       onSettingsVisibilityChange?.(false);
     };
