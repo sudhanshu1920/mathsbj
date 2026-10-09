@@ -16,7 +16,7 @@ import CommandPalette from '@/components/CommandPalette';
 import ShortcutsHelp from '@/components/ShortcutsHelp';
 import OfflinePrep from '@/components/OfflinePrep';
 import { getSettings } from '@/lib/settings';
-import { getPracticeNavDepth, isUnsavedPracticePhase, type PracticePhase } from '@/lib/practiceNavigation';
+import { getPracticeNavDepth, isPracticeSessionInProgress, isUnsavedPracticePhase, type PracticePhase } from '@/lib/practiceNavigation';
 import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
 import { MOTION } from '@/lib/motion';
 import type { PointerEvent as ReactPointerEvent } from 'react';
@@ -131,10 +131,14 @@ const Index = () => {
   } | null>(null);
   const wideDesktop = useWideDesktop();
 
-  // The layout owns the floating-bar visibility. Settings is an overlay
-  // inside ProgressPage, so this single flag is the only condition that can
-  // remove the navigation from the DOM.
-  const showBottomNav = !settingsOpen;
+  // Central visibility rule: Settings hides the existing bar, and an
+  // active quiz keeps the viewport entirely free of the bar and its container.
+  // The result screen remains part of that quiz session until the user exits
+  // or returns to setup. Setup alone never hides the bar.
+  const hideFloatingBarForQuiz =
+    tab === 'practice' && isPracticeSessionInProgress(practicePhase);
+  const showBottomNav = !settingsOpen && !hideFloatingBarForQuiz;
+  const mountBottomNav = !hideFloatingBarForQuiz;
 
   // Keep the content reserve synchronized with the floating bar's actual
   // rendered border-box height. This is layout-only state: it writes a CSS
@@ -562,6 +566,10 @@ const Index = () => {
     setPracticePhase('finished');
   }, []);
 
+  const handlePracticeReset = useCallback(() => {
+    setPracticePhase('setup');
+  }, []);
+
   const quickPractice = useCallback((topic: string) => {
     if (tab === 'practice' && isUnsavedPracticePhase(practicePhase)) {
       requestPracticeNavigation('practice', false, topic);
@@ -829,6 +837,7 @@ const Index = () => {
                       fromLearning={returnToLearn}
                       onQuizStart={handlePracticeStarted}
                       onQuizFinish={handlePracticeFinished}
+                      onQuizReset={handlePracticeReset}
                       onExitCancelled={handlePracticeExitCancelled}
                     />
                   </Suspense>
@@ -859,7 +868,7 @@ const Index = () => {
 
           </div>
         </div>
-        {typeof document !== 'undefined'
+        {typeof document !== 'undefined' && mountBottomNav
           ? createPortal(
               <BottomNav
                 ref={bottomNavRef}
