@@ -13,6 +13,8 @@ const learning = read('src/pages/LearningPage.tsx');
 const icons = read('src/lib/topicIcons.ts');
 const practice = read('src/pages/PracticePage.tsx');
 const index = read('src/pages/Index.tsx');
+const floatingBarVisibility = read('src/lib/floatingBarVisibility.ts');
+const floatingBarVisibilityTests = read('src/lib/floatingBarVisibility.test.ts');
 const sync = read('src/lib/sync.ts');
 const auth = read('src/contexts/AuthContext.tsx');
 const practiceSelector = read('src/components/PracticeModeSelector.tsx');
@@ -48,10 +50,19 @@ if (!icons.includes('Grid3x3') || !icons.includes('Radical') || !icons.includes(
 if (practice.includes('sort(() => Math.random() - 0.5)')) {
   fail('biased random sort shuffle reintroduced');
 }
-if (!index.includes('const showBottomNav = !settingsOpen && !hideFloatingBarForQuiz;') ||
-    !index.includes("tab === 'practice' && isPracticeSessionInProgress(practicePhase)") ||
-    !index.includes('const mountBottomNav = !hideFloatingBarForQuiz;')) {
-  fail('Floating Bar visibility must centrally respect Settings and active/result quiz phases');
+if (!index.includes('getFloatingBarVisibility({') ||
+    !index.includes('activeTopic: learningState.activeTopic') ||
+    !index.includes('quizInProgress: isPracticeSessionInProgress(practicePhase)') ||
+    !index.includes('const { show: showBottomNav, mount: mountBottomNav } = getFloatingBarVisibility({')) {
+  fail('Floating Bar visibility must use the centralized policy with Learning topic and Quiz state');
+}
+if (!floatingBarVisibility.includes("tab === 'learn' && activeTopic !== null") ||
+    !floatingBarVisibility.includes("tab === 'practice' && quizInProgress") ||
+    !floatingBarVisibility.includes('show: mount && !settingsOpen') ||
+    !floatingBarVisibilityTests.includes('restores the bar when Back returns to the Learning landing state') ||
+    !floatingBarVisibilityTests.includes('unmounts the bar for the %s topic and its nested screens') ||
+    !floatingBarVisibilityTests.includes('keeps Settings hidden without changing its existing mount behavior')) {
+  fail('Floating Bar topic-depth, auto-restore, Settings, and Quiz regression tests are missing');
 }
 if (index.includes("data-current-theme={currentTheme}") || index.includes("data-current-mode={currentMode}")) {
   fail('app shell still subscribes to theme/mode only for redundant data attributes');
