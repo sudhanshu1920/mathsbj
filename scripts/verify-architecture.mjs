@@ -255,6 +255,12 @@ if (!updateManager.includes('DISMISSED_VERSION_KEY') ||
     !updateManager.includes('Later')) {
   fail('update dialog must expose Update Now/Later and persist dismissal by version');
 }
+if (!updateManager.includes('lastAutomaticCheckSucceeded') ||
+    !updateManager.includes('30_000') ||
+    !updateManager.includes('runCheck(false, false, true)') ||
+    !updateManager.includes('window.addEventListener("online", onOnline)')) {
+  fail('automatic updater must recover promptly after offline/failed checks and connectivity returns');
+}
 if (!pwaUpdater.includes('PWA_UPDATE_DISCOVERED_EVENT') ||
     !pwaUpdater.includes('applyPwaUpdate') ||
     !viteConfig.includes('registerType: "prompt"')) {
