@@ -104,7 +104,7 @@ describe('Quiz Arena Tables Pro Mode', () => {
     const { unmount } = render(<PracticePage />);
 
     try {
-      fireEvent.click(screen.getByRole('button', { name: /Tables (/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Tables \(/ }));
 
       const proModeSwitch = screen.getByRole('switch', { name: 'Tables Pro Mode' });
       expect(proModeSwitch).not.toBeChecked();
