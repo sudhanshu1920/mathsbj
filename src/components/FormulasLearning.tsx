@@ -1,6 +1,6 @@
 import { m as motion } from 'framer-motion';
 import { MOTION } from '@/lib/motion';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Dumbbell } from 'lucide-react';
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -12,7 +12,7 @@ import ShapeDiagram from '@/components/ShapeDiagram';
 const TrigonometryLearning = lazy(() => import('@/components/TrigonometryLearning'));
 const BasicTrigonometricFunctionsLearning = lazy(() => import('@/components/BasicTrigonometricFunctionsLearning'));
 import { FORMULA_SECTIONS, type FormulaItem } from '@/lib/formulaData';
-import type { TrigFunction } from '@/lib/trigData';
+import { TRIG_FUNCTIONS, type TrigFunction } from '@/lib/trigData';
 
 const KaTeXBlock = ({ latex }: { latex: string }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -166,12 +166,43 @@ interface FormulasLearningProps {
 const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeTrigFunctions }: FormulasLearningProps) => {
   const [shapeIndex, setShapeIndex] = useState(0);
   const [shapeListMode, setShapeListMode] = useState(true);
+  const [showTrigPracticeMenu, setShowTrigPracticeMenu] = useState(false);
+  const [selectedTrigFunctions, setSelectedTrigFunctions] = useState<TrigFunction[]>([]);
+  const trigPracticeMenuRef = useRef<HTMLDivElement>(null);
 
   // Reset shape index + list mode when category changes
   useEffect(() => {
     setShapeIndex(0);
     setShapeListMode(true);
   }, [categoryIndex]);
+
+  // Close the compact Practice menu on an outside tap or Escape.
+  useEffect(() => {
+    if (!showTrigPracticeMenu) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!trigPracticeMenuRef.current?.contains(event.target as Node)) {
+        setShowTrigPracticeMenu(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowTrigPracticeMenu(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showTrigPracticeMenu]);
+
+  const startTrigPractice = (functions: TrigFunction[]) => {
+    if (!functions.length || !onPracticeTrigFunctions) return;
+    setSelectedTrigFunctions([...functions]);
+    setShowTrigPracticeMenu(false);
+    onPracticeTrigFunctions([...functions]);
+  };
 
   // Level 3: Formula detail view
   if (sectionIndex !== null && categoryIndex !== null) {
@@ -207,16 +238,103 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeT
       return (
         <SwipeBack onBack={() => onNavigate(sectionIndex, null)}>
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <button onClick={() => onNavigate(sectionIndex, null)} className="p-2 -ml-2 text-primary">
+            <div className="app-topbar-page mb-4 flex items-center justify-between gap-2" data-app-topbar>
+              <button
+                type="button"
+                onClick={() => onNavigate(sectionIndex, null)}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-primary"
+                aria-label="Back"
+              >
                 <ArrowLeft size={20} />
               </button>
-              <h2 className="font-display font-bold text-lg text-foreground">
+              <h2 className="min-w-0 flex-1 truncate text-center font-display text-sm font-bold text-foreground sm:text-base">
                 {category.title}
               </h2>
-              <div className="flex items-center gap-2"><ThemeToggle /><DesktopModeToggle /></div>
+              <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-1.5">
+                {onPracticeTrigFunctions && (
+                  <div className="relative" ref={trigPracticeMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowTrigPracticeMenu((open) => !open)}
+                      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full gradient-primary px-2.5 text-xs font-bold text-primary-foreground shadow-sm transition-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-3"
+                      aria-label="Practice"
+                      aria-haspopup="dialog"
+                      aria-expanded={showTrigPracticeMenu}
+                      aria-controls="trig-practice-menu"
+                      title="Practice trigonometric functions"
+                    >
+                      <Dumbbell size={14} aria-hidden="true" />
+                      <span className="hidden sm:inline">Practice</span>
+                    </button>
+
+                    {showTrigPracticeMenu && (
+                      <div
+                        id="trig-practice-menu"
+                        role="dialog"
+                        aria-label="Choose trigonometric functions to practice"
+                        className="absolute right-0 top-full z-50 mt-2 w-[min(19rem,calc(100vw-1.5rem))] rounded-2xl border border-border bg-card p-3 text-card-foreground shadow-xl backdrop-blur-xl sm:p-4"
+                      >
+                        <div className="mb-3">
+                          <p className="text-sm font-bold text-foreground">Practice Table of Angles</p>
+                          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                            Select one or more functions, then start a practice session.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {TRIG_FUNCTIONS.map((fn) => {
+                            const selected = selectedTrigFunctions.includes(fn);
+                            return (
+                              <button
+                                key={fn}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() => setSelectedTrigFunctions((previous) =>
+                                  selected ? previous.filter((item) => item !== fn) : [...previous, fn]
+                                )}
+                                className={
+                                  'min-h-10 rounded-xl border px-3 py-2 text-left text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ' +
+                                  (selected
+                                    ? 'gradient-primary border-primary text-primary-foreground'
+                                    : 'border-border bg-secondary text-secondary-foreground hover:border-primary/50')
+                                }
+                              >
+                                <span className="mr-2" aria-hidden="true">{selected ? '✓' : '○'}</span>
+                                {fn} θ
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="mt-2 min-h-4 text-[11px] text-muted-foreground" aria-live="polite">
+                          {selectedTrigFunctions.length === 0
+                            ? 'Select at least one function.'
+                            : selectedTrigFunctions.length === 6
+                              ? 'All six functions selected.'
+                              : selectedTrigFunctions.map((fn) => fn + ' θ').join(' + ')}
+                        </p>
+                        <button
+                          type="button"
+                          disabled={selectedTrigFunctions.length === 0}
+                          onClick={() => startTrigPractice(selectedTrigFunctions)}
+                          className="mt-2 min-h-10 w-full rounded-xl gradient-primary px-3 py-2 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45"
+                        >
+                          Start Practice
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startTrigPractice([...TRIG_FUNCTIONS])}
+                          className="mt-2 min-h-10 w-full rounded-xl border border-border bg-secondary px-3 py-2 text-sm font-bold text-secondary-foreground transition-colors hover:border-primary/50"
+                        >
+                          Practice All Functions
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <ThemeToggle compact />
+                <DesktopModeToggle compact />
+              </div>
             </div>
-            <Suspense fallback={<div className="h-40" />}><TrigonometryLearning onPracticeFunctions={onPracticeTrigFunctions} /></Suspense>
+            <Suspense fallback={<div className="h-40" />}><TrigonometryLearning /></Suspense>
           </div>
         </SwipeBack>
       );
