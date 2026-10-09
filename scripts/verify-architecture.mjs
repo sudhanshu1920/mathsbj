@@ -289,20 +289,19 @@ if (!pwaUpdater.includes('PWA_UPDATE_DISCOVERED_EVENT') ||
 if (!appVersion.includes('__APP_VERSION_CODE__') || !viteConfig.includes('__APP_VERSION_CODE__')) {
   fail('installed app build version must be embedded from the actual build');
 }
-if (!releaseWorkflow.includes('actions/configure-pages@v5') ||
-    !releaseWorkflow.includes('actions/upload-pages-artifact@v3') ||
-    !releaseWorkflow.includes('actions/deploy-pages@v4') ||
+if (!releaseWorkflow.includes('actions/upload-artifact@v4') ||
+    !releaseWorkflow.includes('MathMaster-update-feed') ||
     !releaseWorkflow.includes('updates/update.json') ||
     !releaseWorkflow.includes('expectedSha256.equalsIgnoreCase')) {
-  fail('signed APK and checksummed update feed must be published through GitHub Pages');
+  fail('signed APK and checksummed update feed must be produced and uploaded without requiring private-repository Pages');
 }
 const collectApkAt = releaseWorkflow.indexOf('name: Collect release APK');
 const uploadApkAt = releaseWorkflow.indexOf('name: Upload release APK');
 const publishReleaseAt = releaseWorkflow.indexOf('name: Publish latest GitHub Release APK');
-const configurePagesAt = releaseWorkflow.indexOf('name: Configure GitHub Pages for the public update feed');
+const uploadFeedAt = releaseWorkflow.indexOf('name: Upload update feed bundle for hosting');
 if (!(collectApkAt >= 0 && uploadApkAt > collectApkAt &&
-      publishReleaseAt > uploadApkAt && configurePagesAt > publishReleaseAt)) {
-  fail('APK build and release artifacts must not be blocked by Pages-site setup');
+      publishReleaseAt > uploadApkAt && uploadFeedAt > publishReleaseAt)) {
+  fail('APK and update-feed artifacts must be uploaded after the GitHub Release');
 }
 if (!releaseWorkflow.includes('request.setMimeType("application/octet-stream");') ||
     !releaseWorkflow.includes('DownloadManager.Request.VISIBILITY_VISIBLE') ||
