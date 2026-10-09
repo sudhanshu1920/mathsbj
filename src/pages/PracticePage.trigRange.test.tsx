@@ -1,6 +1,49 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import PracticePage from '@/pages/PracticePage';
+import PracticePage, { generateQuestions } from '@/pages/PracticePage';
+import { TRIG_ANGLES, type TrigFunction } from '@/lib/trigData';
+
+describe('Learning Table of Angles practice generator range', () => {
+  const makeQuestions = (trigProMode: boolean, trigFunctions: TrigFunction[]) =>
+    generateQuestions({
+      topics: [{
+        id: 'trig',
+        label: 'Trigonometry',
+        range: { from: 0, to: 360, trigFunctions, trigProMode },
+      }],
+      count: trigFunctions.length * (trigProMode ? TRIG_ANGLES.length : 5),
+      infinite: false,
+      mode: 'input',
+      timerEnabled: false,
+      timerSeconds: 9999,
+      sequential: false,
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+  it('enforces Standard 0°–90° and Pro 0°–360° inside generated question pools', () => {
+    const standard = makeQuestions(false, ['sin']);
+    expect(standard).toHaveLength(5);
+    expect(standard.every((question) => question.trigFunctionId === 'sin')).toBe(true);
+    expect(standard.every((question) => question.trigAngle !== undefined && question.trigAngle <= 90)).toBe(true);
+
+    const pro = makeQuestions(true, ['sin']);
+    expect(pro).toHaveLength(TRIG_ANGLES.length);
+    expect(pro.every((question) => question.trigFunctionId === 'sin')).toBe(true);
+    expect(pro.some((question) => question.trigAngle !== undefined && question.trigAngle > 90)).toBe(true);
+    expect(pro.map((question) => question.trigAngle).sort((a, b) => Number(a) - Number(b)))
+      .toEqual([...TRIG_ANGLES]);
+  });
+
+  it('keeps an individual function isolated and supports multiple selected functions', () => {
+    const single = makeQuestions(true, ['cos']);
+    expect(single.every((question) => question.trigFunctionId === 'cos')).toBe(true);
+    const combined = makeQuestions(false, ['sin', 'cos']);
+    expect(combined).toHaveLength(10);
+    expect(new Set(combined.map((question) => question.trigFunctionId))).toEqual(new Set(['sin', 'cos']));
+    expect(combined.every((question) => question.trigAngle !== undefined && question.trigAngle <= 90)).toBe(true);
+  });
+});
 
 describe('Quiz Arena trigonometry angle-range control', () => {
   it('defaults to Standard Mode and switches the setup selection to Pro Mode', () => {

@@ -18,7 +18,7 @@ const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearn
 import { getStreak } from '@/lib/streak';
 import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
-import { TRIG_ANGLES, type TrigFunction } from '@/lib/trigData';
+import { getTrigAngles, type TrigFunction } from '@/lib/trigData';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table';
 
@@ -48,6 +48,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
   const periodicSelectedElement = learningState?.periodicSelectedElement ?? null;
   const [showPracticeMode, setShowPracticeMode] = useState(false);
   const [pendingTrigFunctions, setPendingTrigFunctions] = useState<TrigFunction[] | null>(null);
+  const [pendingTrigProMode, setPendingTrigProMode] = useState(false);
   const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
 
   useEffect(() => {
@@ -87,9 +88,11 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
         timerSeconds: settings.timerSeconds,
         infinite: settings.infinite,
         trigFunctions: [...pendingTrigFunctions],
-        count: pendingTrigFunctions.length * TRIG_ANGLES.length,
+        trigProMode: pendingTrigProMode,
+        count: pendingTrigFunctions.length * getTrigAngles(pendingTrigProMode).length,
       });
       setPendingTrigFunctions(null);
+      setPendingTrigProMode(false);
       setShowPracticeMode(false);
       return;
     }
@@ -194,6 +197,7 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
       <div>
         {renderHeader('Choose Practice Mode', () => {
           setPendingTrigFunctions(null);
+          setPendingTrigProMode(false);
           setShowPracticeMode(false);
         }, false, true)}
         <PracticeModeSelector onSelect={handlePracticeSelect} />
@@ -453,8 +457,9 @@ const LearningPage = ({ onBack, onStartPractice, learningState, onLearningStateC
               sectionIndex={secIdx}
               categoryIndex={catIdx}
               onNavigate={(s, c) => updateState({ formulaSectionIndex: s, formulaCategoryIndex: c })}
-              onPracticeTrigFunctions={(functions) => {
+              onPracticeTrigFunctions={(functions, proMode) => {
                 setPendingTrigFunctions([...functions]);
+                setPendingTrigProMode(proMode);
                 setShowPracticeMode(true);
               }}
             />

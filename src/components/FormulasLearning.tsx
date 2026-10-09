@@ -161,7 +161,7 @@ interface FormulasLearningProps {
   sectionIndex: number | null;
   categoryIndex: number | null;
   onNavigate: (section: number | null, category: number | null) => void;
-  onPracticeTrigFunctions?: (functions: TrigFunction[]) => void;
+  onPracticeTrigFunctions?: (functions: TrigFunction[], proMode: boolean) => void;
 }
 
 const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeTrigFunctions }: FormulasLearningProps) => {
@@ -188,7 +188,7 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeT
     const selectedFunctions = [...functions];
     setSelectedTrigFunctions([]);
     setShowTrigPracticeMenu(false);
-    onPracticeTrigFunctions(selectedFunctions);
+    onPracticeTrigFunctions(selectedFunctions, trigProMode);
   };
 
   // Level 3: Formula detail view
@@ -290,35 +290,78 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeT
                       style={{ maxHeight: "min(72dvh, calc(100dvh - 5rem))" }}
                       className="w-[min(19rem,calc(100vw-1rem))] max-h-[72dvh] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card p-3 text-card-foreground shadow-xl backdrop-blur-xl sm:p-4"
                     >
-                      <div className="mb-3">
-                        <p className="text-sm font-bold text-foreground">Practice Table of Angles</p>
+                      <div className="mb-2">
+                        <p className="text-sm font-bold text-foreground">Practice</p>
                         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                          Select one or more functions, then start a practice session.
+                          Choose an angle range and function(s).
                         </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {TRIG_FUNCTIONS.map((fn) => {
-                          const selected = selectedTrigFunctions.includes(fn);
-                          return (
-                            <button
-                              key={fn}
-                              type="button"
-                              aria-pressed={selected}
-                              onClick={() => setSelectedTrigFunctions((previous) =>
-                                selected ? previous.filter((item) => item !== fn) : [...previous, fn]
-                              )}
-                              className={
-                                'min-h-10 rounded-xl border px-3 py-2 text-left text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ' +
-                                (selected
-                                  ? 'gradient-primary border-primary text-primary-foreground'
-                                  : 'border-border bg-secondary text-secondary-foreground hover:border-primary/50')
-                              }
-                            >
-                              <span className="mr-2" aria-hidden="true">{selected ? '✓' : '○'}</span>
-                              {fn} θ
-                            </button>
-                          );
-                        })}
+
+                      <div className="mb-3">
+                        <p className="mb-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">
+                          Angle Range
+                        </p>
+                        <div role="group" aria-label="Practice angle range" className="grid grid-cols-2 gap-1 rounded-xl bg-secondary/60 p-1">
+                          <button
+                            type="button"
+                            aria-label="Standard 90°"
+                            aria-pressed={!trigProMode}
+                            onClick={() => setTrigProMode(false)}
+                            className={
+                              'inline-flex min-h-8 items-center justify-center rounded-lg border px-2 py-1.5 text-[11px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ' +
+                              (!trigProMode
+                                ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                                : 'border-transparent bg-transparent text-secondary-foreground hover:border-primary/40')
+                            }
+                          >
+                            Standard 90°
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Pro 360°"
+                            aria-pressed={trigProMode}
+                            onClick={() => setTrigProMode(true)}
+                            className={
+                              'inline-flex min-h-8 items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ' +
+                              (trigProMode
+                                ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                                : 'border-transparent bg-transparent text-secondary-foreground hover:border-primary/40')
+                            }
+                          >
+                            <Crown size={11} aria-hidden="true" />
+                            Pro 360°
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mb-1">
+                        <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">
+                          Select Function
+                        </p>
+                        <div className="mt-1 grid grid-cols-3 gap-1.5">
+                          {TRIG_FUNCTIONS.map((fn) => {
+                            const selected = selectedTrigFunctions.includes(fn);
+                            return (
+                              <button
+                                key={fn}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() => setSelectedTrigFunctions((previous) =>
+                                  selected ? previous.filter((item) => item !== fn) : [...previous, fn]
+                                )}
+                                className={
+                                  'min-h-9 rounded-lg border px-1.5 py-1.5 text-center text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ' +
+                                  (selected
+                                    ? 'gradient-primary border-primary text-primary-foreground'
+                                    : 'border-border bg-secondary text-secondary-foreground hover:border-primary/50')
+                                }
+                              >
+                                <span className="mr-1" aria-hidden="true">{selected ? '✓' : '○'}</span>
+                                {fn} θ
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                       <p className="mt-2 min-h-4 text-[11px] text-muted-foreground" aria-live="polite">
                         {selectedTrigFunctions.length === 0
@@ -329,18 +372,18 @@ const FormulasLearning = ({ sectionIndex, categoryIndex, onNavigate, onPracticeT
                       </p>
                       <button
                         type="button"
-                        disabled={selectedTrigFunctions.length === 0}
-                        onClick={() => startTrigPractice(selectedTrigFunctions)}
-                        className="mt-2 min-h-10 w-full rounded-xl gradient-primary px-3 py-2 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45"
+                        onClick={() => startTrigPractice([...TRIG_FUNCTIONS])}
+                        className="mt-2 min-h-9 w-full rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground transition-colors hover:border-primary/50"
                       >
-                        Start Practice
+                        Practice All Functions
                       </button>
                       <button
                         type="button"
-                        onClick={() => startTrigPractice([...TRIG_FUNCTIONS])}
-                        className="mt-2 min-h-10 w-full rounded-xl border border-border bg-secondary px-3 py-2 text-sm font-bold text-secondary-foreground transition-colors hover:border-primary/50"
+                        disabled={selectedTrigFunctions.length === 0}
+                        onClick={() => startTrigPractice(selectedTrigFunctions)}
+                        className="mt-1.5 min-h-9 w-full rounded-xl gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45"
                       >
-                        Practice All Functions
+                        Start Practice
                       </button>
                     </PopoverContent>
                   </Popover>

@@ -626,7 +626,7 @@ interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
   initialMode?: 'mcq' | 'input';
-  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; count?: number };
+  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number };
   onExit?: () => void;
   onExitCancelled?: () => void;
   externalBackRequest?: number;
@@ -765,9 +765,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         ...(mappedTopic === 'trig'
           ? {
               trigFunctions: [...(initialExtras?.trigFunctions ?? TRIG_FUNCTIONS)],
-              // Learning → Practice historically covers the complete table; keep
-              // that flow unchanged. Quiz Arena has its own Standard/Pro control.
-              trigProMode: true,
+              // The Learning popup explicitly owns this session's angle range.
+              // Standard is the safe default; Quiz Arena keeps its own range control.
+              trigProMode: initialExtras?.trigProMode ?? false,
             }
           : {}),
       };
@@ -794,6 +794,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     initialExtras?.timerSeconds,
     initialExtras?.infinite,
     initialExtras?.trigFunctions,
+    initialExtras?.trigProMode,
     initialExtras?.count,
     startPractice,
   ]);
