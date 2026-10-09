@@ -532,7 +532,7 @@ const Index = () => {
     setPracticeContext(launchContext.context);
     setPracticeMode(launchContext.mode);
     setPracticeExtras(launchContext.extras);
-    setPracticePhase('setup');
+    setPracticePhase('starting');
     setReturnToLearn(true);
     setTab('practice');
   }, []);
@@ -1025,7 +1025,7 @@ const Index = () => {
       />
       <ShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <OfflinePrep />
-      <AppUpdateManager isQuizActive={tab === 'practice' && practicePhase === 'active'} />
+      <AppUpdateManager isQuizActive={tab === 'practice' && (practicePhase === 'starting' || practicePhase === 'active')} />
     </div>
   );
 
