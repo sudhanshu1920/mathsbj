@@ -120,6 +120,28 @@ describe('Quiz Arena Challenge timer controls', () => {
     expect(challengeTimer).not.toBeChecked();
   });
 
+  it('disables fixed Questions choices during Challenge and restores them when Challenge is turned off', () => {
+    render(<PracticePage />);
+
+    const fixedOptions = ['10', '20', '25', '50', '∞'].map((name) =>
+      screen.getByRole('button', { name, exact: true }),
+    );
+    expect(fixedOptions.every((button) => !button.disabled)).toBe(true);
+
+    const challengeTimer = screen.getByRole('switch', { name: 'Challenge timer' });
+    fireEvent.click(challengeTimer);
+
+    expect(fixedOptions.every((button) => button.disabled)).toBe(true);
+    for (const button of fixedOptions) {
+      expect(button).toHaveClass('cursor-not-allowed');
+      fireEvent.click(button);
+      expect(button).toBeDisabled();
+    }
+
+    fireEvent.click(challengeTimer);
+    expect(fixedOptions.every((button) => !button.disabled)).toBe(true);
+  });
+
   it('starts the selected full-session countdown only with Start Quiz and counts submitted answers', () => {
     render(<PracticePage />);
 
