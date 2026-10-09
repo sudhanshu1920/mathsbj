@@ -237,6 +237,15 @@ describe('PracticePage question generation', () => {
 
   it('requires at least one recognized trig function in quiz setup', () => {
     expect(isValidPracticeRange('trig', { from: 0, to: 360, trigFunctions: [] })).toBe(false);
+    const emptySelection = generateQuestions({
+      ...baseConfig,
+      count: 102,
+      mode: 'input',
+      topics: [{ id: 'trig', label: 'Trigonometry', range: { from: 0, to: 360, trigFunctions: [] } }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+    expect(emptySelection).toHaveLength(0);
     expect(isValidPracticeRange('trig', { from: 0, to: 360, trigFunctions: ['sin', 'bad'] as TrigFunction[] })).toBe(false);
     expect(isValidPracticeRange('trig', { from: 0, to: 360, trigFunctions: ['tan'] })).toBe(true);
   });
