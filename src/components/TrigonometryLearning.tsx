@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import './trigonometry-table.css';
 import { m as motion } from 'framer-motion';
 import { MOTION } from '@/lib/motion';
 import { TRIG_ANGLES, TRIG_FUNCTIONS, TRIG_RADIANS, NOT_DEFINED, trigValue } from '@/lib/trigData';
@@ -25,7 +26,7 @@ const TrigonometryLearning = () => {
           {/* Header — Degrees */}
           <thead>
             <tr className="bg-primary/15">
-              <th className={`${cellBase} text-primary text-left sticky left-0 bg-primary/15 z-10`}>
+              <th className={`${cellBase} text-primary text-left trig-table-sticky trig-table-sticky-header trig-table-sticky-corner`}>
                 Angle (°)
               </th>
               {TRIG_ANGLES.map((a) => (
@@ -36,7 +37,7 @@ const TrigonometryLearning = () => {
             </tr>
             {/* Radians row */}
             <tr className="bg-primary/5">
-              <th className={`${cellBase} text-primary text-left sticky left-0 bg-primary/5 z-10`}>
+              <th className={`${cellBase} text-primary text-left trig-table-sticky trig-table-sticky-header`}>
                 Angle (rad)
               </th>
               {TRIG_ANGLES.map((a) => (
@@ -55,7 +56,7 @@ const TrigonometryLearning = () => {
                 transition={{ delay: rowIdx * MOTION.stagger.standard, duration: MOTION.duration.standard, ease: MOTION.ease.enter }}
               >
                 <td
-                  className={`${cellBase} text-left bg-card sticky left-0 z-10 font-display font-bold text-foreground`}
+                  className={`${cellBase} text-left trig-table-sticky font-display font-bold text-foreground`}
                 >
                   {fn} θ
                 </td>

@@ -224,4 +224,22 @@ for (let i = 0; i < ranges.length; i += 1) {
 }
 if (ranges.at(-1)?.to !== 118) fail('periodic ranges do not end at element 118');
 
+
+const trigTable = read('src/components/TrigonometryLearning.tsx');
+const trigTableCss = read('src/components/trigonometry-table.css');
+if (!trigTable.includes('trig-table-sticky') ||
+    !trigTable.includes('trig-table-sticky-header') ||
+    !trigTable.includes('trig-table-sticky-corner')) {
+  fail('Table of Angles is missing the dedicated sticky first-column layers');
+}
+if (/sticky left-0 bg-primary\\/(?:5|15)/.test(trigTable)) {
+  fail('Table of Angles sticky headers must not use translucent primary backgrounds');
+}
+if (!trigTableCss.includes('background-color: hsl(var(--card)) !important') ||
+    !trigTableCss.includes('background-color: hsl(var(--muted)) !important') ||
+    !trigTableCss.includes('isolation: isolate') ||
+    !trigTableCss.includes('z-index: 40')) {
+  fail('Table of Angles sticky cells must keep opaque theme surfaces and correct z-index layering');
+}
+
 console.log('Architecture regression checks passed.');

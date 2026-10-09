@@ -1,0 +1,24 @@
+/*
+ * Opaque sticky cells for the horizontally scrollable Table of Angles.
+ * Surface colors come from theme tokens, but deliberately use no alpha so
+ * scrolling data cells cannot bleed through the pinned first column.
+ */
+.trig-table-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  isolation: isolate;
+  opacity: 1;
+  background-color: hsl(var(--card)) !important;
+  background-image: none !important;
+  background-clip: padding-box;
+}
+
+.trig-table-sticky-header {
+  z-index: 30;
+  background-color: hsl(var(--muted)) !important;
+}
+
+.trig-table-sticky-corner {
+  z-index: 40;
+}
