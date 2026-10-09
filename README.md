@@ -1,8 +1,9 @@
-# Welcome to your Lovable project
+# MathMaster (SBJ)
 
-TODO: Document your project here
+Source code for the MathMaster Android math-learning app.
 
+## Android release APK
 
-<!-- [BUILD_APK] Manual release build trigger -->
-<!-- Android APK build request: 2026-10-09 -->
-<!-- [BUILD_APK] New APK build request: 2026-10-09 -->
+The signed release APK is built by the GitHub Actions workflow at `.github/workflows/android-release.yml`. The workflow verifies tests, APK identity, version, signature, and installability before publishing the release.
+
+<!-- [BUILD_APK] Build requested for the latest main branch changes -->
