@@ -110,8 +110,10 @@ export interface TrigQuestion {
 }
 
 /**
- * Generate questions for only the selected functions, using the same exact
- * values as the reference table. Undefined table cells remain valid questions.
+ * Generate questions for selected functions and canonical angles, using the
+ * exact values from the reference table. Undefined cells remain valid.
+ * Omitting angles preserves the full-range Learning → Practice behavior;
+ * Quiz Arena passes its selected Standard/Pro range explicitly.
  */
 export function getTrigQuestions(
   functions: readonly TrigFunction[] = TRIG_FUNCTIONS,
