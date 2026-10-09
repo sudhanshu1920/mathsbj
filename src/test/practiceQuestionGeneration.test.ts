@@ -87,6 +87,11 @@ describe('PracticePage question generation', () => {
     expect(new Set(standardPair.map((question) => question.trigFunctionId))).toEqual(new Set(['sin', 'cos']));
     expect(standardPair.every((question) => question.trigAngle! <= 90)).toBe(true);
 
+    const standardAll = generateQuestions(makeConfig([...TRIG_FUNCTIONS], false));
+    expect(standardAll).toHaveLength(30);
+    expect(standardAll.every((question) => question.trigAngle! <= 90)).toBe(true);
+    expect(new Set(standardAll.map((question) => question.trigFunctionId))).toEqual(new Set(TRIG_FUNCTIONS));
+
     const proPair = generateQuestions(makeConfig(['sin', 'cos'], true));
     expect(proPair).toHaveLength(34);
     expect(proPair.every((question) => question.trigAngle! >= 0 && question.trigAngle! <= 360)).toBe(true);
