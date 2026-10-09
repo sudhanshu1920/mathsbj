@@ -563,10 +563,10 @@ if (!tableQuestionTests.includes('uses the shared Tables Standard/Pro mode for t
 // Release versioning must be centralized, idempotent, and shared by both APK workflows.
 const releaseVersion = read('scripts/release-version.mjs');
 const releaseVersionTests = read('scripts/release-version.test.mjs');
-const releaseWorkflow = read('.github/workflows/android-release.yml');
+const releaseWorkflowVersion = read('.github/workflows/android-release.yml');
 const manualApkWorkflow = read('.github/workflows/android-apk.yml');
-const viteConfig = read('vite.config.ts');
-const settingsPanel = read('src/components/SettingsPanel.tsx');
+const viteConfigVersion = read('vite.config.ts');
+const settingsPanelVersion = read('src/components/SettingsPanel.tsx');
 if (!releaseVersion.includes('parsePublishedRelease') ||
     !releaseVersion.includes('resolveNextReleaseVersion') ||
     !releaseVersion.includes('reusedForSameCommit') ||
@@ -576,7 +576,7 @@ if (!releaseVersion.includes('parsePublishedRelease') ||
   fail('Automatic release versioning must preserve the real published baseline, handle retries idempotently, and reject stale source commits');
 }
 for (const [label, workflow] of [
-  ['Android Release APK', releaseWorkflow],
+  ['Android Release APK', releaseWorkflowVersion],
   ['Android APK', manualApkWorkflow],
 ]) {
   if (!workflow.includes('node scripts/release-version.mjs') ||
@@ -586,18 +586,18 @@ for (const [label, workflow] of [
     fail(label + ' must use the shared tested release version resolver rather than hardcoded or commit-count versions');
   }
 }
-if (!releaseWorkflow.includes('versionName: %s') ||
-    !releaseWorkflow.includes('sourceCommit: %s') ||
-    !releaseWorkflow.includes('signingCertificateSHA256: %s') ||
-    !releaseWorkflow.includes('681A1EEB65E63DB5CCDF01748A27AA0045033E5C3C5D0C29ED16EE0D35769B64') ||
-    releaseWorkflow.indexOf('Verify APK identity, version, signature and installability') >
-      releaseWorkflow.indexOf('Publish latest GitHub Release APK')) {
+if (!releaseWorkflowVersion.includes('versionName: %s') ||
+    !releaseWorkflowVersion.includes('sourceCommit: %s') ||
+    !releaseWorkflowVersion.includes('signingCertificateSHA256: %s') ||
+    !releaseWorkflowVersion.includes('681A1EEB65E63DB5CCDF01748A27AA0045033E5C3C5D0C29ED16EE0D35769B64') ||
+    releaseWorkflowVersion.indexOf('Verify APK identity, version, signature and installability') >
+      releaseWorkflowVersion.indexOf('Publish latest GitHub Release APK')) {
   fail('Published APK metadata must record its source/version/certificate and only publish after successful signature verification');
 }
-if (!viteConfig.includes('process.env.VITE_APP_VERSION_CODE') ||
-    !viteConfig.includes('process.env.VITE_APP_VERSION_NAME') ||
-    !settingsPanel.includes("import { APP_VERSION_NAME } from '@/lib/appVersion';") ||
-    !settingsPanel.includes('App Version {APP_VERSION_NAME}')) {
+if (!viteConfigVersion.includes('process.env.VITE_APP_VERSION_CODE') ||
+    !viteConfigVersion.includes('process.env.VITE_APP_VERSION_NAME') ||
+    !settingsPanelVersion.includes("import { APP_VERSION_NAME } from '@/lib/appVersion';") ||
+    !settingsPanelVersion.includes('App Version {APP_VERSION_NAME}')) {
   fail('Settings must display the same versionName injected into Vite and the Android release');
 }
 
