@@ -649,4 +649,17 @@ if (apkVerifierStart < 0 || apkHashCheck < apkVerifierStart || apkInstallerPost 
   fail('Downloaded APK checksum must run off the UI thread and the Android installer must only open after verification');
 }
 
+const nativeUpdaterSource = read('src/nativeAppUpdater.ts');
+const updateFeedSource = read('src/lib/updateFeed.ts');
+if (!nativeUpdaterSource.includes('versionCode: update.versionCode') ||
+    !releaseWorkflowVersion.includes('Integer expectedVersionCode = call.getInt("versionCode");') ||
+    !releaseWorkflowVersion.includes('getPackageArchiveInfo(destinationFile.getAbsolutePath(), 0)') ||
+    !releaseWorkflowVersion.includes('downloadedInfo.packageName') ||
+    !releaseWorkflowVersion.includes('downloadedVersionCode != expectedVersionCode.longValue()')) {
+  fail('Native updater must verify the downloaded APK package identity and expected versionCode before installation');
+}
+if (!updateFeedSource.includes('Number(data.versionCode) > 2100000000')) {
+  fail('Update metadata must reject versionCodes outside Android supported bounds');
+}
+
 console.log('Architecture regression checks passed.');
