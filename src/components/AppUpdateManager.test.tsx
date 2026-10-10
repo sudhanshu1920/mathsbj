@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AppUpdateManager from "./AppUpdateManager";
 import { UPDATE_AVAILABLE_EVENT } from "@/lib/appUpdateEvents";
 import { EXPECTED_APK_URL, EXPECTED_PACKAGE_NAME } from "@/lib/updateFeed";
@@ -44,6 +44,8 @@ function availableResult() {
 }
 
 describe("AppUpdateManager", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -82,6 +84,37 @@ describe("AppUpdateManager", () => {
     render(<AppUpdateManager isQuizActive={false} />);
     expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
     await waitFor(() => expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(2));
+  });
+
+  it("does not show an update alert when the installed version is current", async () => {
+    mocks.checkForAppUpdate.mockResolvedValue({
+      status: "current",
+      latest,
+      currentVersionCode: latest.versionCode,
+      currentVersionName: latest.versionName,
+      platform: "android",
+    });
+
+    render(<AppUpdateManager isQuizActive={false} />);
+    await waitFor(() => expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument();
+  });
+
+  it("rechecks on foreground return but does not reopen an update dismissed with Later in the same session", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(10_000);
+    render(<AppUpdateManager isQuizActive={false} />);
+
+    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Later" }));
+    now.mockReturnValue(12_000);
+
+    await act(async () => {
+      fireEvent.focus(window);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument();
   });
 
   it("starts the trusted APK update only after Update Now is clicked", async () => {
