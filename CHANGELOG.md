@@ -9,3 +9,14 @@
 - Add regression coverage for startup visibility, navigation phase and exit lifecycle.
 
 Validation completed before release: TypeScript typecheck, architecture regression checks, lint, unit tests, and production web build.
+
+## 2026-10-10 — Automatic in-app update alerts
+
+- Check the published update manifest at app launch and again when the native app resumes or the web app returns to the foreground.
+- Show installed and available version details and release notes in the existing update dialog.
+- Scope “Later” dismissal to the current running session so the next launch can notify again if that build is still available.
+- Recheck after returning from the Android installer, without suppressing an update if the user cancels installation.
+- Keep Android package/version checks and manifest validation, and hash the downloaded APK off the UI thread before opening the Android installer.
+- Add regression tests for version ordering, notification dismissal, displayed versions, and update initiation.
+
+Background notifications while the app is fully closed are not enabled because this repository has no Firebase Cloud Messaging or equivalent push-notification configuration.
