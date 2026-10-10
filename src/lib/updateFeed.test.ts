@@ -25,6 +25,11 @@ describe("validateReleaseManifest", () => {
     expect(() => validateReleaseManifest({ ...validManifest, apkUrl: "https://evil.example/MathMaster-release.apk" })).toThrow();
     expect(() => validateReleaseManifest({ ...validManifest, sha256: "not-a-checksum" })).toThrow();
   });
+  it("rejects versionCode values Android cannot install", () => {
+    expect(() => validateReleaseManifest({ ...validManifest, versionCode: 2_100_000_001 })).toThrow();
+    expect(() => validateReleaseManifest({ ...validManifest, versionCode: 0 })).toThrow();
+  });
+
   it("rejects null, arrays, and non-object release responses", () => {
     expect(() => validateReleaseManifest(null)).toThrow();
     expect(() => validateReleaseManifest([])).toThrow();
