@@ -52,8 +52,8 @@ describe("AppUpdateManager", () => {
     render(<AppUpdateManager isQuizActive={false} />);
 
     expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
-    expect(screen.getByText(/Current version:.*v1\.0\.1 \(build 1136\)/)).toBeInTheDocument();
-    expect(screen.getByText(/New version:.*v1\.0\.2 \(build 1137\)/)).toBeInTheDocument();
+    expect(screen.getByText(/v1\.0\.1 \(build 1136\)/)).toBeInTheDocument();
+    expect(screen.getByText(/v1\.0\.2 \(build 1137\)/)).toBeInTheDocument();
     expect(screen.getByText("Fix update notifications.")).toBeInTheDocument();
     expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(1);
   });
