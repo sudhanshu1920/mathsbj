@@ -101,12 +101,12 @@ describe("AppUpdateManager", () => {
   });
 
   it("rechecks on foreground return but does not reopen an update dismissed with Later in the same session", async () => {
-    const now = vi.spyOn(Date, "now").mockReturnValue(10_000);
+    const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     render(<AppUpdateManager isQuizActive={false} />);
 
     expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Later" }));
-    now.mockReturnValue(12_000);
+    now.mockReturnValue(102_000);
 
     await act(async () => {
       fireEvent.focus(window);
