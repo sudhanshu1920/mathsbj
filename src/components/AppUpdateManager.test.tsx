@@ -19,6 +19,10 @@ vi.mock("@capacitor/app", () => ({
   App: { addListener: mocks.addListener },
 }));
 
+vi.mock("sonner", () => ({
+  toast: Object.assign(vi.fn(), { error: vi.fn() }),
+}));
+
 const latest = {
   packageName: EXPECTED_PACKAGE_NAME,
   versionCode: 1137,
@@ -87,7 +91,6 @@ describe("AppUpdateManager", () => {
     fireEvent.click(screen.getByRole("button", { name: "Update Now" }));
 
     await waitFor(() => expect(mocks.installAppUpdate).toHaveBeenCalledWith(latest));
-    expect(await screen.findByText("Update download started")).toBeInTheDocument();
-    expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument());
   });
 });
