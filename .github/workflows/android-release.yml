@@ -180,6 +180,7 @@ jobs:
           import android.os.Environment;
           import android.provider.Settings;
           import android.widget.Toast;
+          import java.io.File;
           import java.io.InputStream;
           import java.security.MessageDigest;
 
@@ -213,6 +214,7 @@ jobs:
                   String url = call.getString("url");
                   Uri updateUri = url == null ? null : Uri.parse(url);
                   String expectedSha256 = call.getString("sha256");
+                  Integer expectedVersionCode = call.getInt("versionCode");
                   if (updateUri == null
                       || !"https".equalsIgnoreCase(updateUri.getScheme())
                       || !"github.com".equalsIgnoreCase(updateUri.getHost())
@@ -222,8 +224,27 @@ jobs:
                       || updateUri.getQuery() != null
                       || updateUri.getFragment() != null
                       || expectedSha256 == null
-                      || !expectedSha256.matches("(?i)[a-f0-9]{64}")) {
-                      call.reject("Update APK source is not trusted.");
+                      || !expectedSha256.matches("(?i)[a-f0-9]{64}")
+                      || expectedVersionCode == null
+                      || expectedVersionCode <= 0
+                      || expectedVersionCode > 2100000000) {
+                      call.reject("Update APK source or version is not trusted.");
+                      return;
+                  }
+
+                  long installedVersionCode;
+                  try {
+                      PackageInfo installedInfo = getContext().getPackageManager()
+                          .getPackageInfo(getContext().getPackageName(), 0);
+                      installedVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                          ? installedInfo.getLongVersionCode()
+                          : installedInfo.versionCode;
+                  } catch (Exception versionError) {
+                      call.reject("Unable to verify the installed app version.", versionError);
+                      return;
+                  }
+                  if (expectedVersionCode.longValue() <= installedVersionCode) {
+                      call.reject("The update is not newer than the installed app.");
                       return;
                   }
 
@@ -246,10 +267,22 @@ jobs:
                       request.setNotificationVisibility(
                           DownloadManager.Request.VISIBILITY_VISIBLE
                       );
+                      File destinationDirectory = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                      if (destinationDirectory == null
+                          || (!destinationDirectory.exists() && !destinationDirectory.mkdirs())) {
+                          call.reject("Unable to prepare the update download location.");
+                          return;
+                      }
+                      String destinationName = "MathMaster-update-" + expectedVersionCode + ".apk";
+                      File destinationFile = new File(destinationDirectory, destinationName);
+                      if (destinationFile.exists() && !destinationFile.delete()) {
+                          call.reject("Unable to replace a previous incomplete update download.");
+                          return;
+                      }
                       request.setDestinationInExternalFilesDir(
                           getContext(),
                           Environment.DIRECTORY_DOWNLOADS,
-                          "MathMaster-update.apk"
+                          destinationName
                       );
 
                       DownloadManager manager =
@@ -302,6 +335,26 @@ jobs:
                                                   if (!expectedSha256.equalsIgnoreCase(actualSha256)) {
                                                       manager.remove(downloadId);
                                                       mainHandler.post(() -> Toast.makeText(getContext(), "Update verification failed.", Toast.LENGTH_LONG).show());
+                                                      return;
+                                                  }
+
+                                                  try {
+                                                      PackageInfo downloadedInfo = getContext().getPackageManager()
+                                                          .getPackageArchiveInfo(destinationFile.getAbsolutePath(), 0);
+                                                      if (downloadedInfo == null
+                                                          || !getContext().getPackageName().equals(downloadedInfo.packageName)) {
+                                                          throw new java.io.IOException("Downloaded APK package name is invalid.");
+                                                      }
+                                                      long downloadedVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                                                          ? downloadedInfo.getLongVersionCode()
+                                                          : downloadedInfo.versionCode;
+                                                      if (downloadedVersionCode != expectedVersionCode.longValue()
+                                                          || downloadedVersionCode <= installedVersionCode) {
+                                                          throw new java.io.IOException("Downloaded APK version does not match release metadata.");
+                                                      }
+                                                  } catch (Exception packageVerificationError) {
+                                                      manager.remove(downloadId);
+                                                      mainHandler.post(() -> Toast.makeText(getContext(), "Update package verification failed.", Toast.LENGTH_LONG).show());
                                                       return;
                                                   }
 
