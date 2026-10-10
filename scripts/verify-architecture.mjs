@@ -368,10 +368,11 @@ if (!settingsPanel.includes('mountedRef.current = false') ||
     !settingsPanel.includes('if (!mountedRef.current) return;')) {
   fail('Settings updater must guard async UI state/timers after unmount');
 }
-if (!updateManager.includes('DISMISSED_VERSION_KEY') ||
+if (!updateManager.includes('dismissedVersionCode = useRef(0)') ||
+    updateManager.includes('localStorage.getItem("mathmaster.dismissed-update-version-code")') ||
     !updateManager.includes('Update Now') ||
     !updateManager.includes('Later')) {
-  fail('update dialog must expose Update Now/Later and persist dismissal by version');
+  fail('update dialog must expose Update Now/Later and keep dismissal scoped to the current app session');
 }
 if (!updateManager.includes('lastAutomaticCheckSucceeded') ||
     !updateManager.includes('30_000') ||
