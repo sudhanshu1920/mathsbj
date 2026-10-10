@@ -20,7 +20,7 @@ export function validateReleaseManifest(value: unknown): ReleaseManifest {
   const data = value as Record<string, unknown>;
   if (
     data.packageName !== EXPECTED_PACKAGE_NAME ||
-    !Number.isSafeInteger(data.versionCode) || Number(data.versionCode) <= 0 ||
+    !Number.isSafeInteger(data.versionCode) || Number(data.versionCode) <= 0 || Number(data.versionCode) > 2100000000 ||
     typeof data.versionName !== "string" || !VERSION_NAME_PATTERN.test(data.versionName) ||
     typeof data.apkUrl !== "string" ||
     typeof data.sha256 !== "string" || !SHA256_PATTERN.test(data.sha256)
