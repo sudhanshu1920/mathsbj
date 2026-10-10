@@ -1,6 +1,6 @@
-export const UPDATE_MANIFEST_URL = "https://sudhanshu1920.github.io/mathsbj/updates/update.json";
+export const UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/sudhanshu1920/mathsbj-updates/main/updates/update.json";
 export const EXPECTED_PACKAGE_NAME = "com.sudhanshu.mathsbj";
-export const EXPECTED_APK_URL = "https://sudhanshu1920.github.io/mathsbj/updates/MathMaster-release.apk";
+export const EXPECTED_APK_URL = "https://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk";
 
 export interface ReleaseManifest {
   packageName: string;
