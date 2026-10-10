@@ -33,10 +33,17 @@ export function compareVersions(left: string, right: string): number {
   return 0;
 }
 
-export interface VersionIdentity { versionCode: number; versionName: string; }
+export interface VersionIdentity { versionCode?: number; versionName: string; }
 
 export function isNewerRelease(latest: VersionIdentity, current: VersionIdentity): boolean {
-  if (latest.versionCode !== current.versionCode) return latest.versionCode > current.versionCode;
+  // Android versionCode is authoritative whenever both builds expose one.
+  // Do not let mismatched versionName text override an equal/lower build code.
+  const latestCodeValid = Number.isSafeInteger(latest.versionCode) && (latest.versionCode ?? 0) > 0;
+  const currentCodeValid = Number.isSafeInteger(current.versionCode) && (current.versionCode ?? 0) > 0;
+  if (latestCodeValid && currentCodeValid) return latest.versionCode! > current.versionCode!;
+
+  // Semantic comparison is a compatibility fallback only for environments
+  // where one side genuinely has no usable numeric build code.
   try { return compareVersions(latest.versionName, current.versionName) > 0; }
   catch { return false; }
 }

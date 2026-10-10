@@ -368,10 +368,11 @@ if (!settingsPanel.includes('mountedRef.current = false') ||
     !settingsPanel.includes('if (!mountedRef.current) return;')) {
   fail('Settings updater must guard async UI state/timers after unmount');
 }
-if (!updateManager.includes('DISMISSED_VERSION_KEY') ||
+if (!updateManager.includes('dismissedVersionCode = useRef(0)') ||
+    updateManager.includes('localStorage.getItem("mathmaster.dismissed-update-version-code")') ||
     !updateManager.includes('Update Now') ||
     !updateManager.includes('Later')) {
-  fail('update dialog must expose Update Now/Later and persist dismissal by version');
+  fail('update dialog must expose Update Now/Later and keep dismissal scoped to the current app session');
 }
 if (!updateManager.includes('lastAutomaticCheckSucceeded') ||
     !updateManager.includes('30_000') ||
@@ -609,6 +610,57 @@ if (!viteConfigVersion.includes('process.env.VITE_APP_VERSION_CODE') ||
     !settingsPanelVersion.includes("import { APP_VERSION_NAME } from '@/lib/appVersion';") ||
     !settingsPanelVersion.includes('App Version {APP_VERSION_NAME}')) {
   fail('Settings must display the same versionName injected into Vite and the Android release');
+}
+
+// Automatic update alert lifecycle and safe APK verification.
+const updateManagerSource = read('src/components/AppUpdateManager.tsx');
+const updateManagerTests = read('src/components/AppUpdateManager.test.tsx');
+const updateOrderingSource = read('src/lib/updateVersion.ts');
+if (!updateManagerSource.includes('dismissedVersionCode = useRef(0)') ||
+    !updateManagerSource.includes('safeCandidate.versionCode <= dismissedVersionCode.current') ||
+    updateManagerSource.includes('localStorage.getItem("mathmaster.dismissed-update-version-code")')) {
+  fail('"Later" must suppress duplicate alerts only for the current app session, not permanently across launches');
+}
+if (!updateManagerSource.includes('App.addListener("resume", checkOnForeground)') ||
+    !updateManagerSource.includes('document.addEventListener("visibilitychange", checkOnForeground)') ||
+    !updateManagerSource.includes('runCheck(false, false, true)') ||
+    !updateManagerSource.includes('FOREGROUND_EVENT_DEDUPE_MS')) {
+  fail('Update checks must refresh on native resume/web foreground while deduplicating one lifecycle transition');
+}
+if (!updateManagerSource.includes('Current version:') ||
+    !updateManagerSource.includes('New version:') ||
+    !updateManagerSource.includes('installAttemptInFlight.current')) {
+  fail('Update alert must show installed/latest versions and guard repeated Update Now actions');
+}
+if (!updateManagerTests.includes('dismisses only for the current app session') ||
+    !updateManagerTests.includes('starts the trusted APK update only after Update Now is clicked') ||
+    !updateManagerTests.includes('shows the actual installed and latest versions')) {
+  fail('Update alert needs tests for actual version display, session dismissal, and explicit install action');
+}
+if (!updateOrderingSource.includes('latestCodeValid && currentCodeValid) return latest.versionCode! > current.versionCode!') ||
+    !updateOrderingSource.includes('Semantic comparison is a compatibility fallback only')) {
+  fail('versionCode must be authoritative when available, with semantic version fallback only when build codes are missing');
+}
+const apkVerifierStart = releaseWorkflowVersion.indexOf('new Thread(() -> {');
+const apkHashCheck = releaseWorkflowVersion.indexOf('expectedSha256.equalsIgnoreCase(actualSha256)', apkVerifierStart);
+const apkInstallerPost = releaseWorkflowVersion.indexOf('mainHandler.post(() -> {', apkHashCheck);
+if (apkVerifierStart < 0 || apkHashCheck < apkVerifierStart || apkInstallerPost < apkHashCheck ||
+    !releaseWorkflowVersion.includes('"MathMaster-APK-verifier"') ||
+    !releaseWorkflowVersion.includes('if (apkUri == null)')) {
+  fail('Downloaded APK checksum must run off the UI thread and the Android installer must only open after verification');
+}
+
+const nativeUpdaterSource = read('src/nativeAppUpdater.ts');
+const updateFeedSource = read('src/lib/updateFeed.ts');
+if (!nativeUpdaterSource.includes('versionCode: update.versionCode') ||
+    !releaseWorkflowVersion.includes('Integer expectedVersionCode = call.getInt("versionCode");') ||
+    !releaseWorkflowVersion.includes('getPackageArchiveInfo(destinationFile.getAbsolutePath(), 0)') ||
+    !releaseWorkflowVersion.includes('downloadedInfo.packageName') ||
+    !releaseWorkflowVersion.includes('downloadedVersionCode != expectedVersionCode.longValue()')) {
+  fail('Native updater must verify the downloaded APK package identity and expected versionCode before installation');
+}
+if (!updateFeedSource.includes('Number(data.versionCode) > 2100000000')) {
+  fail('Update metadata must reject versionCodes outside Android supported bounds');
 }
 
 console.log('Architecture regression checks passed.');

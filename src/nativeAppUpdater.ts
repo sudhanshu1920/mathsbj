@@ -3,7 +3,7 @@ import { validateReleaseManifest, type ReleaseManifest } from "@/lib/updateFeed"
 
 type NativeUpdater = {
   getVersion(): Promise<{ versionCode: number; versionName: string }>;
-  downloadAndInstall(options: { url: string; sha256: string }): Promise<{ downloadId: number }>;
+  downloadAndInstall(options: { url: string; sha256: string; versionCode: number }): Promise<{ downloadId: number }>;
 };
 
 const AppUpdater = registerPlugin<NativeUpdater>("AppUpdater");
@@ -37,7 +37,11 @@ export async function startAndroidUpdate(candidate: ReleaseManifest): Promise<Na
   if (!isNativeAndroid()) return { status: "unsupported" };
   if (!navigator.onLine) return { status: "offline" };
   const update = validateReleaseManifest(candidate);
-  const result = await AppUpdater.downloadAndInstall({ url: update.apkUrl, sha256: update.sha256 });
+  const result = await AppUpdater.downloadAndInstall({
+    url: update.apkUrl,
+    sha256: update.sha256,
+    versionCode: update.versionCode,
+  });
   if (!Number.isSafeInteger(result.downloadId) || result.downloadId <= 0) {
     throw new Error("The update download could not be started.");
   }

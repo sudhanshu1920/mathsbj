@@ -15,6 +15,18 @@ describe("compareVersions", () => {
     expect(isNewerRelease({ versionCode: 1010, versionName: "1.0" }, { versionCode: 1009, versionName: "1.0" })).toBe(true);
     expect(isNewerRelease({ versionCode: 1009, versionName: "9.0.0" }, { versionCode: 1010, versionName: "1.0.0" })).toBe(false);
   });
+  it("does not treat a higher versionName as an update when versionCode is equal", () => {
+    expect(isNewerRelease(
+      { versionCode: 1010, versionName: "9.0.0" },
+      { versionCode: 1010, versionName: "1.0.0" },
+    )).toBe(false);
+  });
+
+  it("falls back to semantic comparison only when a build code is unavailable", () => {
+    expect(isNewerRelease({ versionName: "1.0.10" }, { versionName: "1.0.9" })).toBe(true);
+    expect(isNewerRelease({ versionName: "1.0.0-beta.2" }, { versionName: "1.0.0" })).toBe(false);
+  });
+
   it("rejects malformed versions", () => {
     expect(() => compareVersions("latest", "1.0.0")).toThrow("Invalid version string");
   });
