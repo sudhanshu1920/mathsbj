@@ -215,8 +215,10 @@ jobs:
                   String expectedSha256 = call.getString("sha256");
                   if (updateUri == null
                       || !"https".equalsIgnoreCase(updateUri.getScheme())
-                      || !"sudhanshu1920.github.io".equalsIgnoreCase(updateUri.getHost())
-                      || !"/mathsbj/updates/MathMaster-release.apk".equals(updateUri.getPath())
+                      || !"github.com".equalsIgnoreCase(updateUri.getHost())
+                      || updateUri.getPort() != -1
+                      || updateUri.getUserInfo() != null
+                      || !"/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk".equals(updateUri.getPath())
                       || updateUri.getQuery() != null
                       || updateUri.getFragment() != null
                       || expectedSha256 == null
@@ -628,7 +630,7 @@ jobs:
               "packageName": os.environ["EXPECTED_APPLICATION_ID"],
               "versionCode": version_code,
               "versionName": os.environ["VERSION_NAME"],
-              "apkUrl": "https://sudhanshu1920.github.io/mathsbj/updates/MathMaster-release.apk",
+              "apkUrl": "https://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk",
               "sha256": os.environ["APK_SHA256"].lower(),
               "releaseNotes": f"MathMaster build {version_code}",
               "publishedAt": datetime.now(timezone.utc).isoformat(),
@@ -647,6 +649,56 @@ jobs:
           path: dist/updates/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish APK and update manifest to public update host
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.MATHMASTER_UPDATES_TOKEN }}
+          UPDATES_REPO: sudhanshu1920/mathsbj-updates
+        run: |
+          set -euo pipefail
+          : "${GH_TOKEN:?Missing MATHMASTER_UPDATES_TOKEN secret. Add a fine-grained token limited to the updates repo with Contents read/write permission.}"
+          VERSION_CODE="${VERSION_CODE:?Missing resolved versionCode}"
+          VERSION_NAME="${VERSION_NAME:?Missing resolved versionName}"
+          release_tag="latest"
+          release_title="MathMaster ${VERSION_NAME} (${VERSION_CODE})"
+          release_notes="Automated signed Android release; versionCode=${VERSION_CODE}; versionName=${VERSION_NAME}; sourceCommit=${GITHUB_SHA}; applicationId=com.sudhanshu.mathsbj; signingCertificateSHA256=${MATHMASTER_RELEASE_CERT_SHA256:?Missing verified release certificate fingerprint}"
+
+          # Publish the signed APK first. The manifest changes only after the asset upload succeeds.
+          if gh release view "$release_tag" --repo "$UPDATES_REPO" >/dev/null 2>&1; then
+            gh release upload "$release_tag" MathMaster-release.apk --clobber --repo "$UPDATES_REPO"
+            gh release edit "$release_tag" --repo "$UPDATES_REPO" --title "$release_title" --notes "$release_notes"
+          else
+            gh release create "$release_tag" MathMaster-release.apk --repo "$UPDATES_REPO" --title "$release_title" --notes "$release_notes" --target main
+          fi
+
+          # Update the public JSON with the checksum of this exact APK.
+          manifest_base64="$(base64 -w 0 dist/updates/update.json)"
+          existing_sha="$(gh api "repos/${UPDATES_REPO}/contents/updates/update.json?ref=main" --jq .sha 2>/dev/null || true)"
+          manifest_message="Publish MathMaster update manifest v${VERSION_NAME} (build ${VERSION_CODE})"
+          if [ -n "$existing_sha" ] && [ "$existing_sha" != "null" ]; then
+            gh api --method PUT "repos/${UPDATES_REPO}/contents/updates/update.json" \
+              -f message="$manifest_message" -f content="$manifest_base64" -f branch=main -f sha="$existing_sha" >/dev/null
+          else
+            gh api --method PUT "repos/${UPDATES_REPO}/contents/updates/update.json" \
+              -f message="$manifest_message" -f content="$manifest_base64" -f branch=main >/dev/null
+          fi
+
+          # Verify the public endpoint without relying on a potentially cached CDN response.
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "https://raw.githubusercontent.com/${UPDATES_REPO}/main/updates/update.json?cacheBust=${GITHUB_SHA}" -o "$RUNNER_TEMP/published-update.json"
+          python3 - "$VERSION_CODE" "$VERSION_NAME" "$RUNNER_TEMP/published-update.json" <<'PY'
+          import json, sys
+          with open(sys.argv[3], encoding="utf-8") as manifest_file:
+              manifest = json.load(manifest_file)
+          if manifest.get("packageName") != "com.sudhanshu.mathsbj":
+              raise SystemExit("Published update manifest has an unexpected package name")
+          if manifest.get("versionCode") != int(sys.argv[1]) or manifest.get("versionName") != sys.argv[2]:
+              raise SystemExit("Published update manifest does not match this APK build")
+          if manifest.get("apkUrl") != "https://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk":
+              raise SystemExit("Published update manifest has an unexpected APK URL")
+          if not isinstance(manifest.get("sha256"), str) or len(manifest["sha256"]) != 64:
+              raise SystemExit("Published update manifest has an invalid APK checksum")
+          PY
 
 
 # [BUILD_APK] Native updater registration is kept in the final MainActivity.
