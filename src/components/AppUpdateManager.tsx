@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,36 +9,30 @@ import { PWA_UPDATE_DISCOVERED_EVENT, UPDATE_AVAILABLE_EVENT } from "@/lib/appUp
 import { validateReleaseManifest, type ReleaseManifest } from "@/lib/updateFeed";
 
 interface AppUpdateManagerProps { isQuizActive: boolean; }
-const DISMISSED_VERSION_KEY = "mathmaster.dismissed-update-version-code";
+interface InstalledVersion { versionCode: number; versionName: string; }
 const AUTO_CHECK_COOLDOWN_MS = 5 * 60 * 1000;
-
-function readDismissedVersion(): number {
-  try {
-    const value = Number(localStorage.getItem(DISMISSED_VERSION_KEY));
-    return Number.isSafeInteger(value) && value > 0 ? value : 0;
-  } catch { return 0; }
-}
-
-function rememberDismissedVersion(versionCode: number): void {
-  try {
-    localStorage.setItem(DISMISSED_VERSION_KEY, String(Math.max(readDismissedVersion(), versionCode)));
-  } catch { /* Keep the current app session functional if storage is blocked. */ }
-}
+const FOREGROUND_EVENT_DEDUPE_MS = 1500;
 
 const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
   const [update, setUpdate] = useState<ReleaseManifest | null>(null);
+  const [installedVersion, setInstalledVersion] = useState<InstalledVersion | null>(null);
   const [installing, setInstalling] = useState(false);
   const queuedUpdate = useRef<ReleaseManifest | null>(null);
+  // "Later" is scoped to the current running app session. A fresh app launch
+  // rechecks the published manifest and can notify again if the update remains.
+  const dismissedVersionCode = useRef(0);
+  const installAttemptInFlight = useRef(false);
   const lastAutomaticCheckAt = useRef(0);
   const lastAutomaticCheckSucceeded = useRef(false);
+  const lastForegroundCheckAt = useRef(0);
   const mounted = useRef(true);
 
-  const showUpdate = useCallback((candidate: unknown, force = false) => {
+  const showUpdate = useCallback((candidate: unknown) => {
     let safeCandidate: ReleaseManifest;
     try { safeCandidate = validateReleaseManifest(candidate); }
     catch { return; }
     if (queuedUpdate.current?.versionCode === safeCandidate.versionCode) return;
-    if (!force && safeCandidate.versionCode <= readDismissedVersion()) return;
+    if (safeCandidate.versionCode <= dismissedVersionCode.current) return;
     setUpdate((current) => current && current.versionCode >= safeCandidate.versionCode ? current : safeCandidate);
   }, []);
 
@@ -50,17 +46,19 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
       return;
     }
 
+    if (installAttemptInFlight.current) return;
+    installAttemptInFlight.current = true;
     setInstalling(true);
     try {
       const result = await installAppUpdate(candidate);
       if (result.status === "started") {
-        rememberDismissedVersion(candidate.versionCode);
+        // Do not persist dismissal here. If installation is cancelled or fails,
+        // the next foreground check should offer the same update again.
         setUpdate(null);
         toast("Update download started", {
           description: "Android will ask you to install the update when the download finishes.",
         });
       } else if (result.status === "applying") {
-        rememberDismissedVersion(candidate.versionCode);
         setUpdate(null);
         toast("Applying update…", { description: "The app will reload to use the updated version." });
       } else if (result.status === "offline") {
@@ -77,11 +75,14 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
       } else {
         toast.error("Unable to start the update. Please try again.");
       }
-    } finally { setInstalling(false); }
+    } finally {
+      installAttemptInFlight.current = false;
+      if (mounted.current) setInstalling(false);
+    }
   }, [isQuizActive]);
 
   const dismissCurrentUpdate = useCallback(() => {
-    if (update) rememberDismissedVersion(update.versionCode);
+    if (update) dismissedVersionCode.current = Math.max(dismissedVersionCode.current, update.versionCode);
     setUpdate(null);
   }, [update]);
 
@@ -100,6 +101,12 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     try {
       const result = await checkForAppUpdate();
       if (!mounted.current) return;
+      if (result.status === "available" || result.status === "current") {
+        setInstalledVersion({
+          versionCode: result.currentVersionCode,
+          versionName: result.currentVersionName,
+        });
+      }
       lastAutomaticCheckSucceeded.current =
         result.status === "available" || result.status === "current";
       if (result.status === "available") showUpdate(result.update);
@@ -118,32 +125,56 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     }
   }, [showUpdate]);
 
+  const checkOnForeground = useCallback(() => {
+    if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+    const now = Date.now();
+    // Native resume can also fire focus/visibility events. Coalesce that one
+    // foreground transition while still forcing a fresh manifest read.
+    if (now - lastForegroundCheckAt.current < FOREGROUND_EVENT_DEDUPE_MS) return;
+    lastForegroundCheckAt.current = now;
+    void runCheck(false, false, true);
+  }, [runCheck]);
+
   useEffect(() => {
     mounted.current = true;
+    // Avoid repeating the startup check for the focus event that commonly
+    // follows the initial page load.
+    lastForegroundCheckAt.current = Date.now();
     void runCheck(false);
     const onUpdateAvailable = (event: Event) => {
-      const detail = (event as CustomEvent<{ update?: unknown; force?: boolean }>).detail;
-      if (detail?.update) showUpdate(detail.update, detail.force === true);
+      const detail = (event as CustomEvent<{ update?: unknown }>).detail;
+      if (detail?.update) showUpdate(detail.update);
     };
     const onPwaUpdate = () => { void runCheck(false, true); };
-    const onForeground = () => { if (document.visibilityState === "visible") void runCheck(false); };
     const onOnline = () => {
       if (document.visibilityState === "visible") void runCheck(false, false, true);
     };
+    let disposed = false;
+    let resumeListener: { remove: () => Promise<void> } | null = null;
+    if (Capacitor.isNativePlatform()) {
+      void App.addListener("resume", checkOnForeground).then((handle) => {
+        if (disposed) void handle.remove();
+        else resumeListener = handle;
+      }).catch(() => {
+        // Visibility/focus events remain a fallback if the native listener fails.
+      });
+    }
     window.addEventListener(UPDATE_AVAILABLE_EVENT, onUpdateAvailable);
     window.addEventListener(PWA_UPDATE_DISCOVERED_EVENT, onPwaUpdate);
-    window.addEventListener("focus", onForeground);
+    window.addEventListener("focus", checkOnForeground);
     window.addEventListener("online", onOnline);
-    document.addEventListener("visibilitychange", onForeground);
+    document.addEventListener("visibilitychange", checkOnForeground);
     return () => {
+      disposed = true;
       mounted.current = false;
+      if (resumeListener) void resumeListener.remove();
       window.removeEventListener(UPDATE_AVAILABLE_EVENT, onUpdateAvailable);
       window.removeEventListener(PWA_UPDATE_DISCOVERED_EVENT, onPwaUpdate);
-      window.removeEventListener("focus", onForeground);
+      window.removeEventListener("focus", checkOnForeground);
       window.removeEventListener("online", onOnline);
-      document.removeEventListener("visibilitychange", onForeground);
+      document.removeEventListener("visibilitychange", checkOnForeground);
     };
-  }, [runCheck, showUpdate]);
+  }, [runCheck, showUpdate, checkOnForeground]);
 
   useEffect(() => {
     if (isQuizActive || !queuedUpdate.current) return;
@@ -168,7 +199,16 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
         </DialogHeader>
         {update && (
           <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/40 p-3">
-            <p className="text-sm font-bold text-foreground">Version v{update.versionName} (build {update.versionCode})</p>
+            <div className="space-y-1 text-sm">
+              {installedVersion && (
+                <p className="text-muted-foreground">
+                  Current version: <span className="font-semibold text-foreground">v{installedVersion.versionName} (build {installedVersion.versionCode})</span>
+                </p>
+              )}
+              <p className="text-foreground">
+                New version: <span className="font-bold">v{update.versionName} (build {update.versionCode})</span>
+              </p>
+            </div>
             {update.releaseNotes && <p className="text-xs leading-relaxed text-muted-foreground">{update.releaseNotes}</p>}
           </div>
         )}
