@@ -19,7 +19,9 @@ describe("validateReleaseManifest", () => {
     expect(() => validateReleaseManifest({ ...validManifest, versionName: "latest" })).toThrow();
   });
   it("rejects untrusted or malformed artifact URLs and checksums", () => {
-    expect(() => validateReleaseManifest({ ...validManifest, apkUrl: "http://sudhanshu1920.github.io/mathsbj/updates/MathMaster-release.apk" })).toThrow();
+    expect(() => validateReleaseManifest({ ...validManifest, apkUrl: "http://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk" })).toThrow();
+    expect(() => validateReleaseManifest({ ...validManifest, apkUrl: "https://github.com/sudhanshu1920/mathsbj-updates/releases/download/untrusted/MathMaster-release.apk" })).toThrow();
+    expect(() => validateReleaseManifest({ ...validManifest, apkUrl: "https://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk?source=untrusted" })).toThrow();
     expect(() => validateReleaseManifest({ ...validManifest, apkUrl: "https://evil.example/MathMaster-release.apk" })).toThrow();
     expect(() => validateReleaseManifest({ ...validManifest, sha256: "not-a-checksum" })).toThrow();
   });
