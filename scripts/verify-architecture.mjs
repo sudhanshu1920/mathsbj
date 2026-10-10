@@ -351,8 +351,11 @@ const expectedUpdateManifestUrl = 'https://raw.githubusercontent.com/sudhanshu19
 const expectedUpdateApkUrl = 'https://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk';
 if (!updateFeed.includes(expectedUpdateManifestUrl) ||
     !updateFeed.includes(`export const EXPECTED_APK_URL = \"${expectedUpdateApkUrl}\";`) ||
-    !updateFeed.includes('SHA256_PATTERN')) {
-  fail('public update feed, exact trusted APK destination, and checksum validation are required');
+    !updateFeed.includes('SHA256_PATTERN') ||
+    !releaseWorkflow.includes(`\"apkUrl\": \"${expectedUpdateApkUrl}\",`) ||
+    !releaseWorkflow.includes('\"github.com\".equalsIgnoreCase(updateUri.getHost())') ||
+    !releaseWorkflow.includes('\"/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk\".equals(updateUri.getPath())')) {
+  fail('manifest URL, manifest APK URL, native APK allowlist, and checksum validation must use one trusted public release location');
 }
 if (!updateService.includes('checkForAppUpdate') || !updateService.includes('isNewerRelease')) {
   fail('manual and automatic update checks must use validated metadata and numeric version comparison');
