@@ -347,10 +347,12 @@ if (!bottomNav.includes('data-app-floating-nav="true"') || !bottomNav.includes('
 if (nativeUpdater.includes('/releases/tags/latest')) {
   fail('native updater must not rely on anonymous access to a private GitHub Releases API');
 }
-if (!updateFeed.includes('https://sudhanshu1920.github.io/mathsbj/updates/update.json') ||
-    !updateFeed.includes('EXPECTED_APK_URL') ||
+const expectedUpdateManifestUrl = 'https://raw.githubusercontent.com/sudhanshu1920/mathsbj-updates/main/updates/update.json';
+const expectedUpdateApkUrl = 'https://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk';
+if (!updateFeed.includes(expectedUpdateManifestUrl) ||
+    !updateFeed.includes(`export const EXPECTED_APK_URL = \"${expectedUpdateApkUrl}\";`) ||
     !updateFeed.includes('SHA256_PATTERN')) {
-  fail('public update feed, APK destination, and checksum validation are required');
+  fail('public update feed, exact trusted APK destination, and checksum validation are required');
 }
 if (!updateService.includes('checkForAppUpdate') || !updateService.includes('isNewerRelease')) {
   fail('manual and automatic update checks must use validated metadata and numeric version comparison');
@@ -385,16 +387,21 @@ if (!appVersion.includes('__APP_VERSION_CODE__') || !viteConfig.includes('__APP_
 if (!releaseWorkflow.includes('actions/upload-artifact@v4') ||
     !releaseWorkflow.includes('MathMaster-update-feed') ||
     !releaseWorkflow.includes('updates/update.json') ||
-    !releaseWorkflow.includes('expectedSha256.equalsIgnoreCase')) {
-  fail('signed APK and checksummed update feed must be produced and uploaded without requiring private-repository Pages');
+    !releaseWorkflow.includes('expectedSha256.equalsIgnoreCase') ||
+    !releaseWorkflow.includes('MATHMASTER_UPDATES_TOKEN') ||
+    !releaseWorkflow.includes('name: Publish APK and update manifest to public update host') ||
+    !releaseWorkflow.includes('https://raw.githubusercontent.com/${UPDATES_REPO}/main/updates/update.json?cacheBust=${GITHUB_SHA}')) {
+  fail('signed APK and checksummed manifest must be published and verified on the separate public update host');
 }
 const collectApkAt = releaseWorkflow.indexOf('name: Collect release APK');
 const uploadApkAt = releaseWorkflow.indexOf('name: Upload release APK');
 const publishReleaseAt = releaseWorkflow.indexOf('name: Publish latest GitHub Release APK');
 const uploadFeedAt = releaseWorkflow.indexOf('name: Upload update feed bundle for hosting');
+const publishPublicUpdateAt = releaseWorkflow.indexOf('name: Publish APK and update manifest to public update host');
 if (!(collectApkAt >= 0 && uploadApkAt > collectApkAt &&
-      publishReleaseAt > uploadApkAt && uploadFeedAt > publishReleaseAt)) {
-  fail('APK and update-feed artifacts must be uploaded after the GitHub Release');
+      publishReleaseAt > uploadApkAt && uploadFeedAt > publishReleaseAt &&
+      publishPublicUpdateAt > uploadFeedAt)) {
+  fail('APK, checksum manifest, and public update-host publication must run in the required order');
 }
 if (!releaseWorkflow.includes('request.setMimeType("application/octet-stream");') ||
     !releaseWorkflow.includes('DownloadManager.Request.VISIBILITY_VISIBLE') ||
