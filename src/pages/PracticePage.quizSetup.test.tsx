@@ -49,6 +49,35 @@ describe('Quiz Arena question timer progress', () => {
     }
   });
 
+  it('tracks Challenge session time across question changes instead of resetting per question', () => {
+    vi.useFakeTimers();
+    const { unmount } = render(<PracticePage />);
+
+    try {
+      fireEvent.click(screen.getByRole('switch', { name: 'Challenge timer' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Start Quiz' }));
+
+      act(() => { vi.advanceTimersByTime(10_000); });
+      const timerBar = screen.getByRole('progressbar', { name: 'Question timer' });
+      expect(Number(timerBar.getAttribute('aria-valuenow'))).toBeCloseTo(83, 0);
+      expect(screen.getByText('00:50')).toBeInTheDocument();
+
+      const firstOption = document.querySelector<HTMLButtonElement>('.mcq-options-grid button');
+      expect(firstOption).not.toBeNull();
+      if (!firstOption) throw new Error('The first MCQ option did not render.');
+      fireEvent.click(firstOption);
+      act(() => { vi.advanceTimersByTime(800); });
+
+      expect(screen.getByText(/Solved 1/)).toBeInTheDocument();
+      expect(Number(screen.getByRole('progressbar', { name: 'Question timer' }).getAttribute('aria-valuenow')))
+        .toBeLessThan(83);
+      expect(Number(screen.getByRole('progressbar', { name: 'Question timer' }).getAttribute('aria-valuenow')))
+        .toBeGreaterThan(80);
+    } finally {
+      unmount();
+    }
+  });
+
   it('does not render a countdown bar when the timer mode is off', () => {
     render(
       <PracticePage
