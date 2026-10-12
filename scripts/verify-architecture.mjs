@@ -701,6 +701,7 @@ const themeModule = read('src/lib/theme.ts');
 const themeHtml = read('index.html');
 const themeBootstrapCss = read('src/index.css');
 const themeTests = read('src/lib/theme.test.ts');
+const themeHydrationTests = read('src/lib/themeHydration.test.ts');
 const themeTypeBlock = themeModule.match(/export type ThemeId =([\s\S]*?);/)?.[1] ?? '';
 const bootstrapThemeBlock = themeHtml.match(/const themeIds = \[([\s\S]*?)\];/)?.[1] ?? '';
 const declaredThemeIds = [...themeTypeBlock.matchAll(/'([a-z-]+)'/g)].map((match) => match[1]);
@@ -735,10 +736,15 @@ for (const testName of [
   'applies mode and selected theme atomically before persistence completes',
   'keeps only the latest choice after rapid repeated switches',
   'continues switching when localStorage writes throw',
-  'restores valid persisted preferences and falls back for invalid values',
+  'falls back to safe defaults for unsupported runtime values',
   'keeps theme subscribers isolated from mode-only updates',
 ]) {
   if (!themeTests.includes(testName)) fail('Missing theme-switch regression case: ' + testName);
+}
+
+
+if (!themeHydrationTests.includes('hydrates saved premium theme and appearance before app initialization')) {
+  fail('Saved appearance and selected premium theme need first-load hydration coverage');
 }
 
 console.log('Architecture regression checks passed.');
