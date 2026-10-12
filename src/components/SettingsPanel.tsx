@@ -277,7 +277,7 @@ const SettingsPanel = () => {
                 key={m}
                 whileTap={{ scale: MOTION.scale.press }}
                 onClick={() => setMode(m)}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl px-3 py-2 border text-sm font-semibold transition-all ${
+                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl px-3 py-2 border text-sm font-semibold transition-colors duration-100 ${
                   active
                     ? 'border-primary bg-primary/10 text-primary glow-primary'
                     : 'border-border glass text-muted-foreground hover:border-primary/40'
