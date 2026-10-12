@@ -663,4 +663,37 @@ if (!updateFeedSource.includes('Number(data.versionCode) > 2100000000')) {
   fail('Update metadata must reject versionCodes outside Android supported bounds');
 }
 
+// Quiz countdown progress must use the active timer deadline and leave the overall quiz bar intact.
+const questionTimerPage = read('src/pages/PracticePage.tsx');
+const questionTimerHelpers = read('src/lib/quizTimer.ts');
+const questionTimerTests = read('src/lib/quizTimer.test.ts');
+const questionTimerUiTests = read('src/pages/PracticePage.quizSetup.test.tsx');
+const questionTimerStyles = read('src/index.css');
+if (!questionTimerPage.includes('questionDeadlineRef') ||
+    !questionTimerPage.includes('getTimerProgressPercent(') ||
+    !questionTimerPage.includes('aria-label="Question timer"') ||
+    !questionTimerPage.includes('transformOrigin: \'right center\'') ||
+    !questionTimerPage.includes('animationDuration: `${countdownDurationSeconds}s`') ||
+    !questionTimerPage.includes('questionDeadlineRef.current = config.timerSeconds < 9999') ||
+    !questionTimerPage.includes('const isCountdownProgressVisible = isQuestionTimerActive || config.timerMode === \'challenge\'') ||
+    !questionTimerPage.includes('data-testid="quiz-overall-progress"')) {
+  fail('Quiz countdown must follow the existing per-question/challenge deadline, shrink from the right, reset with each question, and preserve overall progress');
+}
+if (!questionTimerHelpers.includes('export function getTimerProgressPercent(') ||
+    !questionTimerTests.includes('converts the active timer deadline into a clamped percentage') ||
+    !questionTimerTests.includes('safely handles missing deadlines and invalid duration values') ||
+    !questionTimerTests.includes('expect(getTimerProgressPercent(deadline, 10_000, 8_000)).toBe(20)')) {
+  fail('Countdown percentage calculation needs deadline-based 100/80/50/20/0 and invalid-input regression tests');
+}
+if (!questionTimerUiTests.includes('uses the active countdown deadline, retains overall quiz progress, and resets on the next question') ||
+    !questionTimerUiTests.includes('does not render a countdown bar when the timer mode is off') ||
+    !questionTimerUiTests.includes('animationDuration: \'10s\'')) {
+  fail('Quiz timer UI needs timer-sync, question-reset, original progress bar, and timer-off coverage');
+}
+if (!questionTimerStyles.includes('@media (prefers-reduced-motion: no-preference)') ||
+    !questionTimerStyles.includes('transform-origin: right center') ||
+    !questionTimerStyles.includes('question-timer-progress-shrink')) {
+  fail('Countdown animation must shrink from the right and respect reduced-motion settings');
+}
+
 console.log('Architecture regression checks passed.');
