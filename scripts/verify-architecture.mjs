@@ -718,7 +718,7 @@ const parseLegacyThemeMap = (source, pattern) => {
     .join('|');
 };
 if (parseLegacyThemeMap(themeModule, /const LEGACY_THEME_MAP: Record<string, ThemeId> = \{([\s\S]*?)\n\};/) !==
-    parseLegacyThemeMap(themeHtml, /const legacyThemes = \\{([\\s\\S]*?)\\n        \\};/)) {
+    parseLegacyThemeMap(themeHtml, /const legacyThemes = \{([\s\S]*?)\n        \};/)) {
   fail('Legacy saved-theme aliases must resolve identically before first paint and at runtime');
 }
 if (!themeHtml.includes('class="theme-arctic-blue dark"') ||
