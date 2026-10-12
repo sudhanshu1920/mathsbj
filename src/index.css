@@ -2624,3 +2624,24 @@ select,
     opacity: 1;
   }
 }
+
+/* Quiz countdown: shrink from the right edge without changing layout dimensions.
+   The fill animation shares its lifetime with the active monotonic timer deadline. */
+.question-timer-progress__fill {
+  display: block;
+  transform-origin: right center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .question-timer-progress__fill {
+    animation-name: question-timer-progress-shrink;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+  }
+
+  @keyframes question-timer-progress-shrink {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+  }
+}
+
