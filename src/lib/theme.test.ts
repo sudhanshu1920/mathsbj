@@ -107,14 +107,16 @@ describe('appearance switching', () => {
     expect(document.documentElement.classList.contains('light')).toBe(false);
   });
 
-  it('notifies mode subscribers only when the mode actually changes', () => {
+  it('keeps theme subscribers isolated from mode-only updates', () => {
     const listener = vi.fn();
     const unsubscribe = theme.subscribeTheme(listener);
 
     theme.setMode('light');
     theme.setMode('light');
-
     expect(listener).not.toHaveBeenCalled();
+
+    theme.setTheme('forest');
+    expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
   });
 });
