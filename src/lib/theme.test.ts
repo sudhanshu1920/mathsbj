@@ -26,7 +26,8 @@ describe('appearance switching', () => {
     vi.advanceTimersByTime(0);
 
     const storageWrite = vi.spyOn(Storage.prototype, 'setItem').mockClear();
-    const observer = new MutationObserver(() => undefined);
+    const observedRecords: MutationRecord[] = [];
+    const observer = new MutationObserver((records) => observedRecords.push(...records));
     observer.observe(document.documentElement, { attributes: true });
 
     theme.setMode('light');
@@ -42,7 +43,8 @@ describe('appearance switching', () => {
     expect(storageWrite).not.toHaveBeenCalled();
 
     return Promise.resolve().then(() => {
-      const classMutations = observer.takeRecords().filter((record) => record.attributeName === 'class');
+      const classMutations = [...observedRecords, ...observer.takeRecords()]
+        .filter((record) => record.attributeName === 'class');
       expect(classMutations).toHaveLength(1);
       observer.disconnect();
       vi.advanceTimersByTime(0);
