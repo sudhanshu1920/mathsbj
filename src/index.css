@@ -731,6 +731,16 @@ html.light .neon-text {
   }
 }
 
+/* Theme tokens must apply as one visual state. Temporarily skip CSS property
+   transitions during the atomic root update; keyframe/JS-driven animations
+   continue normally and normal hover/press transitions resume immediately after. */
+html.theme-appearance-updating *,
+html.theme-appearance-updating *::before,
+html.theme-appearance-updating *::after {
+  transition-duration: 0ms !important;
+  transition-delay: 0ms !important;
+}
+
 @layer utilities {
   .gradient-primary { background: var(--gradient-primary); }
   .gradient-success { background: var(--gradient-success); }
