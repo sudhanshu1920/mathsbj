@@ -104,7 +104,7 @@ let themeWriteRevision = 0;
 let modeWriteRevision = 0;
 let persistedThemeRevision = 0;
 let persistedModeRevision = 0;
-let transitionResetTimer: ReturnType<typeof setTimeout> | null = null;
+let transitionResetTimer: ReturnType<typeof window.setTimeout> | null = null;
 
 const writeStoredPreference = (key: string, value: string): boolean => {
   try {
