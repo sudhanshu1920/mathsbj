@@ -701,8 +701,8 @@ const themeModule = read('src/lib/theme.ts');
 const themeHtml = read('index.html');
 const themeBootstrapCss = read('src/index.css');
 const themeTests = read('src/lib/theme.test.ts');
-const themeTypeBlock = themeModule.match(/export type ThemeId =([\\s\\S]*?);/)?.[1] ?? '';
-const bootstrapThemeBlock = themeHtml.match(/const themeIds = \\[([\\s\\S]*?)\\];/)?.[1] ?? '';
+const themeTypeBlock = themeModule.match(/export type ThemeId =([\s\S]*?);/)?.[1] ?? '';
+const bootstrapThemeBlock = themeHtml.match(/const themeIds = \[([\s\S]*?)\];/)?.[1] ?? '';
 const declaredThemeIds = [...themeTypeBlock.matchAll(/'([a-z-]+)'/g)].map((match) => match[1]);
 const bootstrapThemeIds = [...bootstrapThemeBlock.matchAll(/'([a-z-]+)'/g)].map((match) => match[1]);
 if (declaredThemeIds.length === 0 ||
@@ -717,7 +717,7 @@ const parseLegacyThemeMap = (source, pattern) => {
     .sort()
     .join('|');
 };
-if (parseLegacyThemeMap(themeModule, /const LEGACY_THEME_MAP: Record<string, ThemeId> = \\{([\\s\\S]*?)\\n\\};/) !==
+if (parseLegacyThemeMap(themeModule, /const LEGACY_THEME_MAP: Record<string, ThemeId> = \{([\s\S]*?)\n\};/) !==
     parseLegacyThemeMap(themeHtml, /const legacyThemes = \\{([\\s\\S]*?)\\n        \\};/)) {
   fail('Legacy saved-theme aliases must resolve identically before first paint and at runtime');
 }
