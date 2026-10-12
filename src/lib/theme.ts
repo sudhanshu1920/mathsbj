@@ -51,8 +51,6 @@ export const THEMES: ThemeMeta[] = [
 export const DEFAULT_THEME: ThemeId = 'arctic-blue';
 export const DEFAULT_MODE: ModeId = 'dark';
 
-const listeners = new Set<() => void>();
-
 const isThemeId = (value: string | null): value is ThemeId =>
   !!value && THEMES.some((theme) => theme.id === value);
 
@@ -79,99 +77,194 @@ const normalizeTheme = (value: string | null): ThemeId => {
 const normalizeMode = (value: string | null): ModeId =>
   value === 'light' || value === 'dark' ? value : DEFAULT_MODE;
 
-export const getTheme = (): ThemeId => {
+const readStoredTheme = (): ThemeId => {
   try {
     return normalizeTheme(localStorage.getItem(KEY));
   } catch {
-    // Local storage may be unavailable.
+    return DEFAULT_THEME;
   }
-  return DEFAULT_THEME;
 };
 
-export const getMode = (): ModeId => {
+const readStoredMode = (): ModeId => {
   try {
     return normalizeMode(localStorage.getItem(MODE_KEY));
   } catch {
-    // Local storage may be unavailable.
+    return DEFAULT_MODE;
   }
-  return DEFAULT_MODE;
 };
 
-export const applyTheme = (id: ThemeId) => {
+// React snapshots are memory-backed. Reading localStorage in every
+// useSyncExternalStore snapshot can block repeated renders on slower WebViews.
+let currentTheme: ThemeId = readStoredTheme();
+let currentMode: ModeId = readStoredMode();
+
+const themeListeners = new Set<() => void>();
+const modeListeners = new Set<() => void>();
+let themeWriteRevision = 0;
+let modeWriteRevision = 0;
+let persistedThemeRevision = 0;
+let persistedModeRevision = 0;
+let transitionResetTimer: ReturnType<typeof setTimeout> | null = null;
+
+const writeStoredPreference = (key: string, value: string): boolean => {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    // Appearance must remain usable for this session when storage is unavailable.
+    return false;
+  }
+};
+
+const flushPendingPreferenceWrites = () => {
+  if (persistedThemeRevision !== themeWriteRevision &&
+      writeStoredPreference(KEY, currentTheme)) {
+    persistedThemeRevision = themeWriteRevision;
+  }
+  if (persistedModeRevision !== modeWriteRevision &&
+      writeStoredPreference(MODE_KEY, currentMode)) {
+    persistedModeRevision = modeWriteRevision;
+  }
+};
+
+// Defer synchronous Web Storage writes until after the tap handler has returned.
+// Revisions discard stale writes when the user changes appearance rapidly.
+const persistThemeSoon = () => {
+  const revision = ++themeWriteRevision;
+  window.setTimeout(() => {
+    if (revision !== themeWriteRevision) return;
+    if (writeStoredPreference(KEY, currentTheme)) persistedThemeRevision = revision;
+  }, 0);
+};
+
+const persistModeSoon = () => {
+  const revision = ++modeWriteRevision;
+  window.setTimeout(() => {
+    if (revision !== modeWriteRevision) return;
+    if (writeStoredPreference(MODE_KEY, currentMode)) persistedModeRevision = revision;
+  }, 0);
+};
+
+const applyAppearanceSnapshot = (
+  theme: ThemeId,
+  mode: ModeId,
+  suppressColorTransitions = false,
+) => {
   const root = document.documentElement;
-  Array.from(root.classList).forEach((className) => {
-    if (className.startsWith('theme-')) root.classList.remove(className);
-  });
-  root.classList.add(`theme-${id}`);
-  root.dataset.theme = id;
+  const classes = Array.from(root.classList).filter((className) =>
+    !className.startsWith('theme-') &&
+    className !== 'dark' &&
+    className !== 'light' &&
+    className !== 'theme-appearance-updating'
+  );
+
+  // A single class-attribute update applies the theme tokens and appearance
+  // together, avoiding an intermediate DOM state with both .dark and .light.
+  classes.push(`theme-${theme}`, mode);
+  if (suppressColorTransitions) classes.push('theme-appearance-updating');
+  root.className = classes.join(' ');
+  root.dataset.theme = theme;
+  root.dataset.mode = mode;
+  root.style.colorScheme = mode;
+
+  if (transitionResetTimer !== null) {
+    clearTimeout(transitionResetTimer);
+    transitionResetTimer = null;
+  }
+  if (suppressColorTransitions) {
+    // Skip only CSS property transitions for the switch itself. Framer Motion,
+    // keyframe animations, and later hover/press transitions remain untouched.
+    transitionResetTimer = window.setTimeout(() => {
+      document.documentElement.classList.remove('theme-appearance-updating');
+      transitionResetTimer = null;
+    }, 100);
+  }
+};
+
+export const getTheme = (): ThemeId => currentTheme;
+export const getMode = (): ModeId => currentMode;
+
+export const applyTheme = (id: ThemeId) => {
+  applyAppearanceSnapshot(normalizeTheme(String(id)), currentMode, true);
 };
 
 export const applyMode = (mode: ModeId) => {
-  const root = document.documentElement;
-  if (mode === 'light') {
-    root.classList.add('light');
-    root.classList.remove('dark');
-    root.style.colorScheme = 'light';
-  } else {
-    root.classList.add('dark');
-    root.classList.remove('light');
-    root.style.colorScheme = 'dark';
-  }
-  root.dataset.mode = mode;
+  applyAppearanceSnapshot(currentTheme, normalizeMode(mode), true);
 };
 
-const notifyListeners = () => {
+const publishThemeUpdate = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('theme-updated', { detail: currentTheme }));
+  }
+};
+
+const notify = (listeners: Set<() => void>) => {
   listeners.forEach((listener) => listener());
-  window.dispatchEvent(new CustomEvent('theme-updated', { detail: getTheme() }));
 };
 
 export const setTheme = (id: ThemeId) => {
-  try { localStorage.setItem(KEY, id); } catch {
-    // Storage may be unavailable; theme still applies for this session.
-  }
-  applyTheme(id);
-  notifyListeners();
+  const nextTheme = normalizeTheme(String(id));
+  if (nextTheme === currentTheme) return;
+
+  currentTheme = nextTheme;
+  applyAppearanceSnapshot(currentTheme, currentMode, true);
+  notify(themeListeners);
+  publishThemeUpdate();
+  persistThemeSoon();
 };
 
 export const setMode = (mode: ModeId) => {
-  try { localStorage.setItem(MODE_KEY, mode); } catch {
-    // Storage may be unavailable; mode still applies for this session.
-  }
-  applyMode(mode);
-  notifyListeners();
+  const nextMode = normalizeMode(mode);
+  if (nextMode === currentMode) return;
+
+  currentMode = nextMode;
+  applyAppearanceSnapshot(currentTheme, currentMode, true);
+  notify(modeListeners);
+  publishThemeUpdate();
+  persistModeSoon();
 };
 
 export const toggleMode = () => setMode(getMode() === 'dark' ? 'light' : 'dark');
 
 export const initTheme = () => {
-  const theme = getTheme();
-  const mode = getMode();
-  try { localStorage.setItem(KEY, theme); } catch {
-    // Ignore storage failures during initialization.
-  }
-  try { localStorage.setItem(MODE_KEY, mode); } catch {
-    // Ignore storage failures during initialization.
-  }
-  applyTheme(theme);
-  applyMode(mode);
+  // The head bootstrap applies this same saved state before CSS can paint.
+  // Keep the in-app initialization idempotent and free of startup storage writes.
+  applyAppearanceSnapshot(currentTheme, currentMode);
 };
 
 export const subscribeTheme = (listener: () => void) => {
-  listeners.add(listener);
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === KEY || event.key === MODE_KEY) {
-      applyTheme(getTheme());
-      applyMode(getMode());
-      listener();
-    }
-  };
-  window.addEventListener('storage', onStorage);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener('storage', onStorage);
-  };
+  themeListeners.add(listener);
+  return () => themeListeners.delete(listener);
 };
 
+const subscribeMode = (listener: () => void) => {
+  modeListeners.add(listener);
+  return () => modeListeners.delete(listener);
+};
+
+const onStorage = (event: StorageEvent) => {
+  if (event.key !== null && event.key !== KEY && event.key !== MODE_KEY) return;
+
+  const previousTheme = currentTheme;
+  const previousMode = currentMode;
+  if (event.key === null || event.key === KEY) currentTheme = readStoredTheme();
+  if (event.key === null || event.key === MODE_KEY) currentMode = readStoredMode();
+
+  const themeChanged = previousTheme !== currentTheme;
+  const modeChanged = previousMode !== currentMode;
+  if (!themeChanged && !modeChanged) return;
+
+  applyAppearanceSnapshot(currentTheme, currentMode, true);
+  if (themeChanged) notify(themeListeners);
+  if (modeChanged) notify(modeListeners);
+  publishThemeUpdate();
+};
+
+if (typeof window !== 'undefined') {
+  // One cross-tab listener is shared by all React theme/mode consumers.
+  window.addEventListener('storage', onStorage);
+  window.addEventListener('pagehide', flushPendingPreferenceWrites);
+}
+
 export const useTheme = () => useSyncExternalStore(subscribeTheme, getTheme, () => DEFAULT_THEME);
-export const useMode = () => useSyncExternalStore(subscribeTheme, getMode, () => DEFAULT_MODE);
-    
+export const useMode = () => useSyncExternalStore(subscribeMode, getMode, () => DEFAULT_MODE);
