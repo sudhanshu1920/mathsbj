@@ -1,6 +1,55 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="theme-arctic-blue dark" data-theme="arctic-blue" data-mode="dark" style="color-scheme: dark">
   <head>
+    <!-- Apply the saved palette before stylesheets load, so the first visible frame
+         never starts with a default/light canvas while React initializes. -->
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const themeKey = 'math-app-theme-v5';
+        const modeKey = 'math-app-mode-v1';
+        const themeIds = [
+          'arctic-blue', 'deep-space', 'titanium-silver', 'midnight-violet',
+          'sapphire', 'ocean-cyan', 'emerald-glass', 'aurora', 'soft-rose',
+          'sunset-gold', 'graphite', 'pearl-white', 'indigo', 'forest', 'mint'
+        ];
+        const legacyThemes = {
+          'professional-slate': 'arctic-blue',
+          'dark-gaming': 'deep-space',
+          'light-minimal': 'pearl-white',
+          'midnight-blue': 'sapphire',
+          'golden-premium': 'sunset-gold',
+          'cyber-purple': 'midnight-violet',
+          'blood-fire': 'sunset-gold',
+          'matrix-green': 'forest',
+          'rose-sakura': 'soft-rose',
+          'arctic-ice': 'arctic-blue',
+          'void-black': 'graphite'
+        };
+        let theme = 'arctic-blue';
+        let mode = 'dark';
+
+        try {
+          const savedTheme = localStorage.getItem(themeKey);
+          if (savedTheme) {
+            if (themeIds.includes(savedTheme)) theme = savedTheme;
+            else if (legacyThemes[savedTheme]) theme = legacyThemes[savedTheme];
+          }
+          const savedMode = localStorage.getItem(modeKey);
+          if (savedMode === 'light' || savedMode === 'dark') mode = savedMode;
+        } catch {
+          // Restricted storage uses the same safe default as the runtime store.
+        }
+
+        const preservedClasses = Array.from(root.classList).filter((name) =>
+          !name.startsWith('theme-') && name !== 'light' && name !== 'dark'
+        );
+        root.className = [...preservedClasses, `theme-${theme}`, mode].join(' ');
+        root.dataset.theme = theme;
+        root.dataset.mode = mode;
+        root.style.colorScheme = mode;
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <title>Math Master - Learn &amp; Practice Math</title>

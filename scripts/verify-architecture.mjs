@@ -696,4 +696,55 @@ if (!questionTimerStyles.includes('@media (prefers-reduced-motion: no-preference
   fail('Countdown animation must shrink from the right and respect reduced-motion settings');
 }
 
+// Theme boot/switch must apply one validated appearance before first paint.
+const themeModule = read('src/lib/theme.ts');
+const themeHtml = read('index.html');
+const themeBootstrapCss = read('src/index.css');
+const themeTests = read('src/lib/theme.test.ts');
+const themeHydrationTests = read('src/lib/themeHydration.test.ts');
+const themeTypeBlock = themeModule.match(/export type ThemeId =([\s\S]*?);/)?.[1] ?? '';
+const bootstrapThemeBlock = themeHtml.match(/const themeIds = \[([\s\S]*?)\];/)?.[1] ?? '';
+const declaredThemeIds = [...themeTypeBlock.matchAll(/'([a-z-]+)'/g)].map((match) => match[1]);
+const bootstrapThemeIds = [...bootstrapThemeBlock.matchAll(/'([a-z-]+)'/g)].map((match) => match[1]);
+if (declaredThemeIds.length === 0 ||
+    declaredThemeIds.some((id) => !bootstrapThemeIds.includes(id)) ||
+    bootstrapThemeIds.some((id) => !declaredThemeIds.includes(id))) {
+  fail('First-paint theme bootstrap IDs must exactly match the runtime theme union');
+}
+const parseLegacyThemeMap = (source, pattern) => {
+  const block = source.match(pattern)?.[1] ?? '';
+  return [...block.matchAll(/'([^']+)': '([^']+)'/g)]
+    .map((match) => match[1] + ':' + match[2])
+    .sort()
+    .join('|');
+};
+if (parseLegacyThemeMap(themeModule, /const LEGACY_THEME_MAP: Record<string, ThemeId> = \{([\s\S]*?)\n\};/) !==
+    parseLegacyThemeMap(themeHtml, /const legacyThemes = \{([\s\S]*?)\n        \};/)) {
+  fail('Legacy saved-theme aliases must resolve identically before first paint and at runtime');
+}
+if (!themeHtml.includes('class="theme-arctic-blue dark"') ||
+    themeHtml.indexOf('const themeIds = [') > themeHtml.indexOf('<script type="module" src="/src/main.tsx"></script>') ||
+    !themeHtml.includes('root.dataset.mode = mode') ||
+    !themeModule.includes('getMode = (): ModeId => currentMode') ||
+    !themeModule.includes('persistModeSoon();') ||
+    !themeModule.includes('applyAppearanceSnapshot(currentTheme, currentMode, true)') ||
+    !themeBootstrapCss.includes('html.theme-appearance-updating *::before') ||
+    !themeBootstrapCss.includes('transition-duration: 0ms !important;')) {
+  fail('Theme switching must be memory-backed, atomic, pre-bootstrapped, and suppress color transitions only during the switch');
+}
+for (const testName of [
+  'applies mode and selected theme atomically before persistence completes',
+  'keeps only the latest choice after rapid repeated switches',
+  'continues switching when localStorage writes throw',
+  'falls back to safe defaults for unsupported runtime values',
+  'keeps theme subscribers isolated from mode-only updates',
+]) {
+  if (!themeTests.includes(testName)) fail('Missing theme-switch regression case: ' + testName);
+}
+
+
+if (!themeHydrationTests.includes('hydrates saved premium theme and appearance before app initialization')) {
+  fail('Saved appearance and selected premium theme need first-load hydration coverage');
+}
+
 console.log('Architecture regression checks passed.');
