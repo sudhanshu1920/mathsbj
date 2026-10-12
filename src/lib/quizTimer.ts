@@ -7,6 +7,27 @@ export function getChallengeDurationSeconds(minutes: ChallengeMinutes): number {
   return minutes * 60;
 }
 
+/**
+ * Calculate the remaining timer fraction from the same monotonic deadline used
+ * by the countdown engine. Durations use milliseconds throughout.
+ */
+export function getTimerProgressPercent(
+  deadline: number | null,
+  totalDurationMs: number,
+  now: number,
+): number {
+  if (
+    deadline === null ||
+    !Number.isFinite(deadline) ||
+    !Number.isFinite(totalDurationMs) ||
+    totalDurationMs <= 0 ||
+    !Number.isFinite(now)
+  ) return 0;
+
+  const percent = ((deadline - now) / totalDurationMs) * 100;
+  return Math.min(100, Math.max(0, percent));
+}
+
 /** Derive remaining seconds from a monotonic deadline to avoid interval drift. */
 export function getRemainingSeconds(deadline: number, now: number): number {
   if (!Number.isFinite(deadline) || !Number.isFinite(now)) return 0;

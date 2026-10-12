@@ -32,7 +32,7 @@ import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
-import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
+import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerProgressPercent, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 
 type PracticeMode = 'mcq' | 'input';
 
@@ -668,6 +668,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [challengeTimeLeft, setChallengeTimeLeft] = useState(0);
+  const [timerRunId, setTimerRunId] = useState(0);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [xpPop, setXpPop] = useState<{ id: number; amount: number; bonus: number } | null>(null);
@@ -683,6 +684,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const finishLockRef = useRef(false);
   const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const sessionIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const questionDeadlineRef = useRef<number | null>(null);
   const challengeDeadlineRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -769,6 +771,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = undefined;
     challengeDeadlineRef.current = null;
+    questionDeadlineRef.current = normalizedConfig.timerMode === 'perQuestion' && normalizedConfig.timerSeconds < 9999
+      ? performance.now() + normalizedConfig.timerSeconds * 1000
+      : null;
+    setTimerRunId((previous) => previous + 1);
     setConfig(normalizedConfig);
     setQuestions(qs);
     setCurrentQ(0);
@@ -890,6 +896,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     answerAdvanceTimerRef.current = undefined;
     autoSubmitTimerRef.current = undefined;
     challengeDeadlineRef.current = null;
+    questionDeadlineRef.current = null;
     onQuizFinish?.();
     setFinished(true);
   }, [onQuizFinish]);
@@ -926,17 +933,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         addStreakSeconds(1);
       }
 
-      // Per-question timeout behavior is only active in this mode. A Challenge
-      // expiry finishes the session without submitting the current unanswered
-      // question or recording it as wrong.
+      // Derive both the header countdown and timeout from one monotonic
+      // deadline. Delayed/background ticks cannot extend the selected duration,
+      // and answerLockRef makes a zero-time submission idempotent.
       if (config.timerMode === 'perQuestion' && config.timerSeconds < 9999) {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            handleAnswerRef.current(null);
-            return config.timerSeconds;
-          }
-          return prev - 1;
-        });
+        const deadline = questionDeadlineRef.current;
+        const remaining = deadline === null ? 0 : getRemainingSeconds(deadline, performance.now());
+        setTimeLeft((previous) => previous === remaining ? previous : remaining);
+        if (remaining === 0 && !answerLockRef.current) {
+          handleAnswerRef.current(null);
+        }
       }
     }, 1000);
 
@@ -1073,11 +1079,21 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             // of appending another full pool on every cycle.
             setQuestions(nextPool);
             setCurrentQ(0);
-            if (config.timerMode === 'perQuestion') setTimeLeft(config.timerSeconds);
+            if (config.timerMode === 'perQuestion') {
+              questionDeadlineRef.current = config.timerSeconds < 9999
+                ? performance.now() + config.timerSeconds * 1000
+                : null;
+              setTimeLeft(config.timerSeconds);
+            }
           }
         } else {
           setCurrentQ(currentQ + 1);
-          if (config.timerMode === 'perQuestion') setTimeLeft(config.timerSeconds);
+          if (config.timerMode === 'perQuestion') {
+            questionDeadlineRef.current = config.timerSeconds < 9999
+              ? performance.now() + config.timerSeconds * 1000
+              : null;
+            setTimeLeft(config.timerSeconds);
+          }
         }
         answerLockRef.current = false;
       }, isCorrect ? 350 : 700);
@@ -1135,6 +1151,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
     sessionIntervalRef.current = undefined;
     challengeDeadlineRef.current = null;
+    questionDeadlineRef.current = null;
     answerAdvanceTimerRef.current = undefined;
     autoSubmitTimerRef.current = undefined;
     levelUpTimerRef.current = undefined;
@@ -1320,6 +1337,22 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       ? timeLeft <= 3
       : config.timerMode === 'challenge' && challengeTimeLeft <= 5;
     const isTimerHidden = config.timerMode === 'off';
+    const isQuestionTimerActive = config.timerMode === 'perQuestion' && config.timerSeconds < 9999;
+    const isCountdownProgressVisible = isQuestionTimerActive || config.timerMode === 'challenge';
+    const countdownDurationSeconds = config.timerMode === 'challenge'
+      ? (config.challengeDurationSeconds ?? 60)
+      : config.timerSeconds;
+    const countdownDeadline = config.timerMode === 'challenge'
+      ? challengeDeadlineRef.current
+      : questionDeadlineRef.current;
+    const countdownProgressPercent = getTimerProgressPercent(
+      countdownDeadline,
+      countdownDurationSeconds * 1000,
+      performance.now(),
+    );
+    const countdownAnimationKey = config.timerMode === 'challenge'
+      ? `${timerRunId}-challenge`
+      : `${timerRunId}-${currentQ}`;
     const isPctQuestion = q.answerType === 'decimal-pct' || q.answerType === 'mixed-pct' || q.answerType === 'fraction' || q.answerType === 'trig';
     const totalAttempts = score.correct + score.wrong;
     const isFiniteQuiz = config.timerMode !== 'challenge' &&
@@ -1442,7 +1475,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         )}
 
         {isFiniteQuiz && (
-          <div className="h-1 bg-secondary rounded-full mb-6 overflow-hidden">
+          <div
+            data-testid="quiz-overall-progress"
+            className={`h-1 bg-secondary rounded-full overflow-hidden ${isCountdownProgressVisible ? 'mb-2' : 'mb-6'}`}
+          >
             <motion.div className="h-full gradient-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }} />
           </div>
         )}
@@ -1451,6 +1487,28 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           <div className="flex items-center justify-between mb-4 px-1">
             <span className="text-xs text-muted-foreground">∞ Infinite Mode</span>
             <span className="text-xs text-muted-foreground">{formatTime(elapsedTime)}</span>
+          </div>
+        )}
+
+        {isCountdownProgressVisible && (
+          <div
+            role="progressbar"
+            aria-label="Question timer"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(countdownProgressPercent)}
+            data-testid="question-timer-progress"
+            className="question-timer-progress mb-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary/80"
+          >
+            <div
+              key={countdownAnimationKey}
+              className={`question-timer-progress__fill h-full w-full rounded-full ${isLowTime ? 'bg-destructive' : 'gradient-success'}`}
+              style={{
+                transform: `scaleX(${countdownProgressPercent / 100})`,
+                transformOrigin: 'right center',
+                animationDuration: `${countdownDurationSeconds}s`,
+              }}
+            />
           </div>
         )}
 

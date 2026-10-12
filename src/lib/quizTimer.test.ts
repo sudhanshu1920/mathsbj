@@ -4,6 +4,7 @@ import {
   formatChallengeTime,
   getChallengeDurationSeconds,
   getRemainingSeconds,
+  getTimerProgressPercent,
   getTimerModeFromToggle,
   isQuestionCountSelectionDisabled,
   shouldUseInfiniteQuestionPool,
@@ -62,6 +63,23 @@ describe('Quiz Challenge timer configuration', () => {
     expect(getRemainingSeconds(deadline, 60_999)).toBe(1);
     expect(getRemainingSeconds(deadline, 61_000)).toBe(0);
     expect(getRemainingSeconds(deadline, 90_000)).toBe(0);
+  });
+
+  it('converts the active timer deadline into a clamped percentage', () => {
+    const deadline = 10_000;
+    expect(getTimerProgressPercent(deadline, 10_000, 0)).toBe(100);
+    expect(getTimerProgressPercent(deadline, 10_000, 2_000)).toBe(80);
+    expect(getTimerProgressPercent(deadline, 10_000, 5_000)).toBe(50);
+    expect(getTimerProgressPercent(deadline, 10_000, 8_000)).toBe(20);
+    expect(getTimerProgressPercent(deadline, 10_000, 10_000)).toBe(0);
+    expect(getTimerProgressPercent(deadline, 10_000, 12_000)).toBe(0);
+  });
+
+  it('safely handles missing deadlines and invalid duration values', () => {
+    expect(getTimerProgressPercent(null, 10_000, 0)).toBe(0);
+    expect(getTimerProgressPercent(10_000, 0, 0)).toBe(0);
+    expect(getTimerProgressPercent(10_000, -1, 0)).toBe(0);
+    expect(getTimerProgressPercent(Number.NaN, 10_000, 0)).toBe(0);
   });
 
   it('formats countdown values compactly without going negative', () => {
