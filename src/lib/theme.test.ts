@@ -86,6 +86,8 @@ describe('appearance switching', () => {
   });
 
   it('falls back to safe defaults for unsupported runtime values', () => {
+    theme.setTheme('forest');
+    theme.setMode('light');
     theme.setTheme('not-a-theme' as theme.ThemeId);
     theme.setMode('sepia' as theme.ModeId);
 
