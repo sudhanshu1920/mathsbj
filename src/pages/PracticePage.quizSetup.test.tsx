@@ -87,8 +87,6 @@ describe('Quiz Arena question timer progress', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start Quiz' }));
-
     expect(screen.queryByRole('progressbar', { name: 'Question timer' })).not.toBeInTheDocument();
     expect(screen.getByTestId('quiz-overall-progress')).toBeInTheDocument();
   });
