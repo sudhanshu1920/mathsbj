@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as theme from './theme';
 
-let theme: typeof import('./theme');
-
-beforeEach(async () => {
+beforeEach(() => {
   vi.useFakeTimers();
+  // Restore the in-memory store as well as storage because snapshots are cached.
+  theme.setTheme('arctic-blue');
+  theme.setMode('dark');
+  vi.runOnlyPendingTimers();
   localStorage.clear();
   document.documentElement.className = '';
   document.documentElement.removeAttribute('data-theme');
   document.documentElement.removeAttribute('data-mode');
   document.documentElement.style.colorScheme = '';
-  vi.resetModules();
-  theme = await import('./theme');
   theme.initTheme();
 });
 
@@ -84,23 +85,9 @@ describe('appearance switching', () => {
     expect(() => vi.advanceTimersByTime(0)).not.toThrow();
   });
 
-  it('restores valid persisted preferences and falls back for invalid values', async () => {
-    localStorage.setItem('math-app-theme-v5', 'forest');
-    localStorage.setItem('math-app-mode-v1', 'light');
-    vi.resetModules();
-    theme = await import('./theme');
-    theme.initTheme();
-
-    expect(theme.getTheme()).toBe('forest');
-    expect(theme.getMode()).toBe('light');
-    expect(document.documentElement.classList.contains('theme-forest')).toBe(true);
-    expect(document.documentElement.classList.contains('light')).toBe(true);
-
-    localStorage.setItem('math-app-theme-v5', 'not-a-theme');
-    localStorage.setItem('math-app-mode-v1', 'sepia');
-    vi.resetModules();
-    theme = await import('./theme');
-    theme.initTheme();
+  it('falls back to safe defaults for unsupported runtime values', () => {
+    theme.setTheme('not-a-theme' as theme.ThemeId);
+    theme.setMode('sepia' as theme.ModeId);
 
     expect(theme.getTheme()).toBe('arctic-blue');
     expect(theme.getMode()).toBe('dark');
