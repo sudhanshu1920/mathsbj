@@ -238,6 +238,83 @@ describe('PracticePage question generation', () => {
     }
   });
 
+  it('validates and generates every selected digit-count combination for both operands', () => {
+    const range = {
+      from: 2,
+      to: 3,
+      operand1DigitCounts: [2, 3],
+      operand2DigitCounts: [1, 2],
+      arithmeticOperations: ['addition', 'subtraction'] as ('addition' | 'subtraction')[],
+    };
+    expect(isValidPracticeRange('addition-subtraction-digits', range)).toBe(true);
+
+    for (const sequential of [true, false]) {
+      const questions = generateQuestions({
+        ...baseConfig,
+        count: 100,
+        sequential,
+        topics: [{
+          id: 'addition-subtraction-digits',
+          label: 'Addition / Subtraction – Digit Numbers',
+          range,
+        }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+
+      expect(questions).toHaveLength(100);
+      const combinations = new Set(questions.map((question) =>
+        question.operation + ':' + question.operand1DigitCount + ':' + question.operand2DigitCount,
+      ));
+      expect(combinations).toEqual(new Set([
+        '+:2:1', '−:2:1', '+:2:2', '−:2:2',
+        '+:3:1', '−:3:1', '+:3:2', '−:3:2',
+      ]));
+
+      for (const question of questions) {
+        expect([2, 3]).toContain(question.operand1DigitCount);
+        expect([1, 2]).toContain(question.operand2DigitCount);
+        expect(String(question.operand1)).toHaveLength(question.operand1DigitCount!);
+        expect(String(question.operand2)).toHaveLength(question.operand2DigitCount!);
+        expect(String(question.operand1)).not.toMatch(/^0/);
+        expect(String(question.operand2)).not.toMatch(/^0/);
+
+        const match = question.text.match(/^(\\d+) ([+−]) (\\d+) = \\?$/);
+        expect(match).not.toBeNull();
+        const left = Number(match?.[1]);
+        const right = Number(match?.[3]);
+        if (question.operation === '+') {
+          expect(left).toBe(question.operand1);
+          expect(right).toBe(question.operand2);
+          expect(question.answer).toBe(left + right);
+        } else {
+          expect(left).toBeGreaterThanOrEqual(right);
+          expect(question.answer).toBe(left - right);
+        }
+      }
+    }
+  });
+
+  it('rejects empty digit selections while keeping legacy single-count configs compatible', () => {
+    expect(isValidPracticeRange('addition-subtraction-digits', {
+      from: 2,
+      to: 2,
+      operand1DigitCounts: [],
+      operand2DigitCounts: [2],
+      operand1DigitCount: 2,
+      operand2DigitCount: 2,
+      arithmeticOperations: ['addition'],
+    })).toBe(false);
+
+    expect(isValidPracticeRange('addition-subtraction-digits', {
+      from: 2,
+      to: 2,
+      operand1DigitCount: 2,
+      operand2DigitCount: 3,
+      arithmeticOperations: ['addition'],
+    })).toBe(true);
+  });
+
   it('supports selecting addition only, subtraction only, or both operations', () => {
     const makeConfig = (operations: ('addition' | 'subtraction')[]) => ({
       ...baseConfig,
