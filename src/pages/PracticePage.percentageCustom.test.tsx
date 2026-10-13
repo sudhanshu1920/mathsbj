@@ -61,7 +61,8 @@ describe('Quiz Arena Percentage Custom range startup', () => {
       target: { value: '8' },
     });
     fireEvent.click(screen.getByRole('button', { name: /^Preset$/ }));
-    fireEvent.click(screen.getByRole('button', { name: /1\/1/ }));
+    const presetGroup = screen.getByRole('group', { name: 'Percentage preset ranges' });
+    fireEvent.click(within(presetGroup).getByRole('button', { name: /^1\/1 – 1\/10$/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Custom$/ }));
 
     expect(screen.getByLabelText('Percentage custom end numerator')).toHaveValue(8);
