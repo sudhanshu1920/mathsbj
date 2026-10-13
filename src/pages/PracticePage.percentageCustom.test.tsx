@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import PracticePage from '@/pages/PracticePage';
 
@@ -7,8 +7,10 @@ function openCustomPercentageRange() {
 
   // Percentage-only fixture avoids the default Tables topic consuming the
   // finite question-count selection before Percentage questions are reached.
-  fireEvent.click(screen.getByRole('button', { name: /Tables/ }));
-  fireEvent.click(screen.getByRole('button', { name: /^Percentage$/ }));
+  const topicSelector = screen.getByText('Select Topics').parentElement;
+  if (!topicSelector) throw new Error('Topic selector did not render.');
+  fireEvent.click(within(topicSelector).getByRole('button', { name: /Tables/ }));
+  fireEvent.click(within(topicSelector).getByRole('button', { name: /^Percentage$/ }));
 
   const percentageAccordion = screen.getAllByRole('button').find((button) =>
     button.hasAttribute('aria-expanded') && button.textContent?.includes('Percentage'),
