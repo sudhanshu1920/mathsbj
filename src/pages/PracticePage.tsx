@@ -2385,6 +2385,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                               )}
                               </>
                             ) : (
+                              <>
                               <div className="flex items-center gap-3 justify-center">
                                 <div className="flex flex-col items-center">
                                   <input type="number" min={0} max={MAX_QUIZ_RANGE_VALUE} step={1} inputMode="numeric"
@@ -2416,6 +2417,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                                   Keep the range ascending; when denominators differ, use 1 as both numerators.
                                 </p>
                               )}
+                              </>
                             )}
                           </>
                         ) : (
