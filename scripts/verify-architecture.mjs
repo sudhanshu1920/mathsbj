@@ -764,9 +764,9 @@ if (!practice.includes('resolvePercentagePresets(range).length > 0') ||
     !practice.includes('percentagePresetId?: PercentagePresetId')) {
   fail('Percentage preset validation and question-source identities are missing');
 }
-if (!practice.includes('selectQuestionsAcrossPresetRanges(baseQuestions, config.count)') ||
-    !practice.includes("config.topics[0]?.id === 'percentage'")) {
-  fail('Finite Percentage-only quizzes must allocate questions across selected presets');
+if (!practice.includes('selectQuestionsAcrossPresetRanges(baseQuestions, config.count, config.sequential)') ||
+    !practice.includes('selectQuestionsWithPresetCoverage(baseQuestions, config.count, selectedPresetIds, config.sequential)')) {
+  fail('Finite quizzes must retain question coverage for every selected Percentage preset');
 }
 if (!percentagePresets.includes('normalizePercentagePresetIds') ||
     !percentagePresets.includes('togglePercentagePresetIds') ||

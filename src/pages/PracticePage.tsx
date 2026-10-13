@@ -477,7 +477,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
   return questions;
 }
 
-function selectQuestionsAcrossPresetRanges(questions: Question[], count: number): Question[] {
+function selectQuestionsAcrossPresetRanges(questions: Question[], count: number, sequential: boolean): Question[] {
   const groups = PERCENTAGE_PRESETS
     .map((preset) => ({
       id: preset.id,
@@ -485,6 +485,7 @@ function selectQuestionsAcrossPresetRanges(questions: Question[], count: number)
     }))
     .filter((group) => group.questions.length > 0);
   if (groups.length === 0) return [];
+  if (!sequential) groups.forEach((group) => shuffleInPlace(group.questions));
 
   const targetCount = clampQuizValue(count, 0, questions.length, 0);
   const quotas = groups.map(() => 0);
@@ -504,6 +505,40 @@ function selectQuestionsAcrossPresetRanges(questions: Question[], count: number)
   return groups.flatMap((group, index) => group.questions.slice(0, quotas[index]));
 }
 
+
+function selectQuestionsWithPresetCoverage(
+  questions: Question[],
+  count: number,
+  presetIds: PercentagePresetId[],
+  sequential: boolean,
+): Question[] {
+  const targetCount = clampQuizValue(count, 0, questions.length, 0);
+  if (targetCount === 0) return [];
+
+  const selected = new Set<Question>();
+  for (const preset of PERCENTAGE_PRESETS) {
+    if (!presetIds.includes(preset.id)) continue;
+    const eligible = questions.filter((question) => question.percentagePresetId === preset.id);
+    if (eligible.length === 0) continue;
+    const required = sequential
+      ? eligible[0]
+      : eligible[Math.floor(Math.random() * eligible.length)];
+    selected.add(required);
+    if (selected.size >= targetCount) break;
+  }
+
+  const remaining = questions.filter((question) => !selected.has(question));
+  if (!sequential) shuffleInPlace(remaining);
+  for (const question of remaining) {
+    if (selected.size >= targetCount) break;
+    selected.add(question);
+  }
+
+  // For Sequential, filter the original sequence to retain each topic's
+  // existing order. Random mode is shuffled by buildQuestionPool afterwards.
+  return questions.filter((question) => selected.has(question));
+}
+
 export function generateQuestions(config: PracticeConfig): Question[] {
   const baseQuestions: Question[] = [];
 
@@ -513,16 +548,19 @@ export function generateQuestions(config: PracticeConfig): Question[] {
     baseQuestions.push(...qs);
   }
 
-  const isFinitePercentagePresetOnly =
-    config.topics.length === 1 &&
-    config.topics[0]?.id === 'percentage' &&
-    config.topics[0].range.pctRangeMode === 'preset' &&
+  const isFiniteQuestionSelection =
     !config.repetitionEnabled &&
     !config.infinite &&
     config.timerMode !== 'challenge';
-  const questionSource = isFinitePercentagePresetOnly
-    ? selectQuestionsAcrossPresetRanges(baseQuestions, config.count)
-    : baseQuestions;
+  const selectedPresetIds = config.topics
+    .filter((topic) => topic.id === 'percentage' && topic.range.pctRangeMode === 'preset')
+    .flatMap((topic) => resolvePercentagePresets(topic.range).map((preset) => preset.id));
+  let questionSource = baseQuestions;
+  if (isFiniteQuestionSelection && selectedPresetIds.length > 0) {
+    questionSource = config.topics.length === 1 && config.topics[0]?.id === 'percentage'
+      ? selectQuestionsAcrossPresetRanges(baseQuestions, config.count, config.sequential)
+      : selectQuestionsWithPresetCoverage(baseQuestions, config.count, selectedPresetIds, config.sequential);
+  }
 
   const allQuestions = buildQuestionPool(questionSource, {
     enabled: config.repetitionEnabled,

@@ -130,6 +130,33 @@ describe('Percentage preset multi-selection', () => {
     expect(new Set(questions.map((question) => question.percentagePresetId).filter(Boolean)).size).toBe(3);
   });
 
+
+  it('keeps every selected preset represented when other topics are also selected', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 10,
+      sequential: true,
+      topics: [
+        { id: 'squares', label: 'Squares', range: { from: 3, to: 30 } },
+        {
+          id: 'percentage',
+          label: 'Percentage',
+          range: {
+            from: 1,
+            to: 50,
+            pctRangeMode: 'preset',
+            pctPresetIds: selectedThree,
+          },
+        },
+      ],
+    });
+
+    expect(questions).toHaveLength(10);
+    expect(new Set(questions.filter((question) => question.topicId === 'percentage')
+      .map((question) => question.percentagePresetId))).toEqual(new Set(selectedThree));
+    expect(questions.some((question) => question.topicId === 'squares')).toBe(true);
+  });
+
   it('keeps Custom mode separate from preset selections', () => {
     const questions = generateQuestions({
       ...baseConfig,
