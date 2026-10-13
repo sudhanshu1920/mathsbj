@@ -43,6 +43,9 @@ type ArithmeticOperation = 'addition' | 'subtraction';
 interface TopicRange {
   from: number;
   to: number;
+  operand1DigitCounts?: number[];
+  operand2DigitCounts?: number[];
+  // Legacy single-value fields remain supported for existing callers/configs.
   operand1DigitCount?: number;
   operand2DigitCount?: number;
   arithmeticOperations?: ArithmeticOperation[];
@@ -121,7 +124,7 @@ const TOPIC_DEFAULTS = [
   { id: 'cube-roots' as AppTopicId, defaultRange: { from: 1, to: 20 } },
   { id: 'powers' as AppTopicId, defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
   { id: 'percentage' as AppTopicId, defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const, pctPresetIds: [] as string[] } },
-  { id: 'addition-subtraction-digits' as AppTopicId, defaultRange: { from: 2, to: 2, operand1DigitCount: 2, operand2DigitCount: 2, arithmeticOperations: ['addition', 'subtraction'] as ArithmeticOperation[] } },
+  { id: 'addition-subtraction-digits' as AppTopicId, defaultRange: { from: 2, to: 2, operand1DigitCounts: [2], operand2DigitCounts: [2], operand1DigitCount: 2, operand2DigitCount: 2, arithmeticOperations: ['addition', 'subtraction'] as ArithmeticOperation[] } },
   { id: 'trig' as AppTopicId, defaultRange: { from: 0, to: 360, trigFunctions: [...TRIG_FUNCTIONS], trigProMode: false } },
   { id: 'periodic-table' as AppTopicId, defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
 ];
@@ -169,6 +172,14 @@ function mixedToString(m: MixedPct): string {
 const MAX_QUIZ_RANGE_VALUE = 200;
 const MAX_POWER_EXPONENT = 20;
 
+function getSelectedDigitCounts(range: TopicRange, operand: 1 | 2): number[] {
+  const selected = operand === 1 ? range.operand1DigitCounts : range.operand2DigitCounts;
+  if (Array.isArray(selected)) return selected;
+
+  const legacy = operand === 1 ? range.operand1DigitCount : range.operand2DigitCount;
+  return [legacy ?? 2];
+}
+
 export function isValidPracticeRange(topicId: string, range: TopicRange | undefined): boolean {
   if (!range) return false;
 
@@ -200,11 +211,18 @@ export function isValidPracticeRange(topicId: string, range: TopicRange | undefi
 
   if (topicId === 'addition-subtraction-digits') {
     const operations = range.arithmeticOperations;
+    const operand1Digits = getSelectedDigitCounts(range, 1);
+    const operand2Digits = getSelectedDigitCounts(range, 2);
+    const validDigitSelections = (digits: number[]) =>
+      digits.length > 0 &&
+      new Set(digits).size === digits.length &&
+      digits.every((value) => integerInRange(value, 1, 10));
+
     return Array.isArray(operations) &&
       operations.length > 0 &&
       operations.every((operation) => operation === 'addition' || operation === 'subtraction') &&
-      integerInRange(range.operand1DigitCount, 1, 10) &&
-      integerInRange(range.operand2DigitCount, 1, 10);
+      validDigitSelections(operand1Digits) &&
+      validDigitSelections(operand2Digits);
   }
 
   if (topicId === 'powers') {
@@ -261,51 +279,99 @@ function randomDigitNumber(digits: number): number {
 
 function generateDigitArithmeticQuestions(
   label: string,
-  operand1DigitCount: number,
-  operand2DigitCount: number,
+  operand1DigitCounts: number[],
+  operand2DigitCounts: number[],
   selectedOperations: ArithmeticOperation[] = ['addition', 'subtraction'],
 ): Question[] {
-  const safeOperand1Digits = clampQuizValue(operand1DigitCount, 1, 10, 1);
-  const safeOperand2Digits = clampQuizValue(operand2DigitCount, 1, 10, 1);
+  const normalizeDigits = (counts: number[]) => [...new Set(
+    counts.filter((digits) => Number.isInteger(digits) && digits >= 1 && digits <= 10),
+  )].sort((a, b) => a - b);
+  const firstDigits = normalizeDigits(operand1DigitCounts);
+  const secondDigits = normalizeDigits(operand2DigitCounts);
+  if (firstDigits.length === 0 || secondDigits.length === 0) return [];
+
   const operations = selectedOperations.filter(
     (operation): operation is ArithmeticOperation => operation === 'addition' || operation === 'subtraction',
   );
   const activeOperations: ArithmeticOperation[] = operations.length > 0 ? operations : ['addition', 'subtraction'];
-  const questions: Question[] = [];
-  const seen = new Set<string>();
-  let attempts = 0;
-  const maxAttempts = DIGIT_ARITHMETIC_POOL_SIZE * 50;
-
-  while (questions.length < DIGIT_ARITHMETIC_POOL_SIZE && attempts < maxAttempts) {
-    const operand1 = randomDigitNumber(safeOperand1Digits);
-    const operand2 = randomDigitNumber(safeOperand2Digits);
-    const operation = activeOperations[questions.length % activeOperations.length];
-    const subtraction = operation === 'subtraction';
-
-    // For subtraction, place the larger generated value first so answers
-    // remain non-negative while both generated operands retain their own
-    // independent digit-count configuration.
-    const left = subtraction ? Math.max(operand1, operand2) : operand1;
-    const right = subtraction ? Math.min(operand1, operand2) : operand2;
-    const operator = subtraction ? '−' : '+';
-    const key = left + operator + right;
-    attempts += 1;
-
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    questions.push({
-      text: left + ' ' + operator + ' ' + right + ' = ?',
-      answer: subtraction ? left - right : left + right,
-      topicLabel: label,
-      operation: operator,
-      operand1: operand1,
-      operand2: operand2,
-      operand1DigitCount: safeOperand1Digits,
-      operand2DigitCount: safeOperand2Digits,
-    });
+  const digitPairs: { first: number; second: number }[] = [];
+  for (const first of firstDigits) {
+    for (const second of secondDigits) digitPairs.push({ first, second });
   }
+  const digitPairKeys = new Set(digitPairs.map(({ first, second }) => first + ':' + second));
+  const groups: {
+    firstDigits: number;
+    secondDigits: number;
+    operation: ArithmeticOperation;
+    questions: Question[];
+  }[] = [];
 
+  for (const pair of digitPairs) {
+    for (const operation of activeOperations) {
+      // A mirrored subtraction pair produces the same displayed equations;
+      // keep one canonical group when both operand selections contain it.
+      if (
+        operation === 'subtraction' &&
+        pair.first > pair.second &&
+        digitPairKeys.has(pair.second + ':' + pair.first)
+      ) continue;
+      groups.push({
+        firstDigits: pair.first,
+        secondDigits: pair.second,
+        operation,
+        questions: [],
+      });
+    }
+  }
+  if (groups.length === 0) return [];
+
+  // Keep the historical pool size for common configurations while ensuring
+  // every selected digit/operation combination contributes at least one item.
+  const targetPoolSize = Math.max(DIGIT_ARITHMETIC_POOL_SIZE, groups.length);
+  const baseQuota = Math.floor(targetPoolSize / groups.length);
+  const extraQuota = targetPoolSize % groups.length;
+  const seen = new Set<string>();
+
+  groups.forEach((group, groupIndex) => {
+    const quota = baseQuota + (groupIndex < extraQuota ? 1 : 0);
+    let attempts = 0;
+    const maxAttempts = Math.max(250, quota * 80);
+
+    while (group.questions.length < quota && attempts < maxAttempts) {
+      const operand1 = randomDigitNumber(group.firstDigits);
+      const operand2 = randomDigitNumber(group.secondDigits);
+      const subtraction = group.operation === 'subtraction';
+      // Subtraction retains the established non-negative displayed result.
+      const left = subtraction ? Math.max(operand1, operand2) : operand1;
+      const right = subtraction ? Math.min(operand1, operand2) : operand2;
+      const operator = subtraction ? '−' : '+';
+      const key = left + operator + right;
+      attempts += 1;
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+      group.questions.push({
+        text: left + ' ' + operator + ' ' + right + ' = ?',
+        answer: subtraction ? left - right : left + right,
+        topicLabel: label,
+        operation: operator,
+        operand1,
+        operand2,
+        operand1DigitCount: group.firstDigits,
+        operand2DigitCount: group.secondDigits,
+      });
+    }
+  });
+
+  // Interleave combinations so Sequential quizzes include broad digit-range
+  // coverage before filling a second question from any one combination.
+  const questions: Question[] = [];
+  for (let index = 0; groups.some((group) => index < group.questions.length); index += 1) {
+    for (const group of groups) {
+      const question = group.questions[index];
+      if (question) questions.push(question);
+    }
+  }
   return questions;
 }
 function generateQuestionsForTopic(topicId: string, range: TopicRange, label: string): Question[] {
@@ -318,8 +384,8 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
   if (topicId === 'addition-subtraction-digits') {
     return generateDigitArithmeticQuestions(
       label,
-      range.operand1DigitCount ?? 2,
-      range.operand2DigitCount ?? 2,
+      getSelectedDigitCounts(range, 1),
+      getSelectedDigitCounts(range, 2),
       range.arithmeticOperations,
     );
   }
@@ -1026,7 +1092,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const updateRange = (
     topicId: string,
     field: string,
-    value: number | string | boolean | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[] | string[] | undefined,
+    value: number | number[] | string | boolean | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[] | string[] | undefined,
   ) => {
     setStartError(null);
     setTopicRanges(prev => ({
@@ -1984,12 +2050,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const arithmeticValid = !selectedTopics.has('addition-subtraction-digits') || (() => {
     const range = topicRanges['addition-subtraction-digits'];
     const operations = range?.arithmeticOperations || ['addition', 'subtraction'];
-    const digit1 = range?.operand1DigitCount ?? 2;
-    const digit2 = range?.operand2DigitCount ?? 2;
+    if (!range) return false;
+    const digit1 = getSelectedDigitCounts(range, 1);
+    const digit2 = getSelectedDigitCounts(range, 2);
+    const validSelections = (digits: number[]) =>
+      digits.length > 0 &&
+      new Set(digits).size === digits.length &&
+      digits.every((value) => Number.isInteger(value) && value >= 1 && value <= 10);
     return operations.length > 0
       && operations.every((operation) => operation === 'addition' || operation === 'subtraction')
-      && Number.isInteger(digit1) && digit1 >= 1 && digit1 <= 10
-      && Number.isInteger(digit2) && digit2 >= 1 && digit2 <= 10;
+      && validSelections(digit1)
+      && validSelections(digit2);
   })();
 
   const repetitionValid = !repetitionEnabled || Array.from(selectedTopics).every((tid) => {
@@ -2273,13 +2344,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                             )}
                           </>
                         ) : tid === 'addition-subtraction-digits' ? (
-                          <div className="space-y-3">
+                          <div className="space-y-2.5">
                             <div>
-                              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Operation</p>
-                              <div className="grid grid-cols-2 gap-2">
+                              <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Operation</p>
+                              <div className="grid grid-cols-2 gap-1.5">
                                 {([
-                                  ['addition', '✓ Addition'],
-                                  ['subtraction', '✓ Subtraction'],
+                                  ['addition', 'Addition'],
+                                  ['subtraction', 'Subtraction'],
                                 ] as const).map(([operation, title]) => {
                                   const selected = (range.arithmeticOperations || ['addition', 'subtraction']).includes(operation);
                                   return (
@@ -2294,12 +2365,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                                           : [...current, operation];
                                         updateRange(tid, 'arithmeticOperations', next);
                                       }}
-                                      className={selected
-                                        ? 'rounded-xl border px-3 py-2 text-xs font-bold transition-colors gradient-primary border-primary text-primary-foreground'
-                                        : 'rounded-xl border px-3 py-2 text-xs font-bold transition-colors bg-secondary border-border text-secondary-foreground hover:border-primary/50'}
+                                      className={
+                                        'min-h-9 rounded-lg border px-2 py-1.5 text-[11px] sm:text-xs font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ' +
+                                        (selected
+                                          ? 'bg-primary border-primary text-primary-foreground'
+                                          : 'bg-secondary/70 border-border text-secondary-foreground hover:bg-secondary hover:border-primary/50')
+                                      }
                                     >
-                                      <span className="inline-flex items-center gap-1.5">
-                                        {operation === 'addition' ? <Plus size={14} strokeWidth={2.8} /> : <Minus size={14} strokeWidth={2.8} />}
+                                      <span className="inline-flex items-center justify-center gap-1.5">
+                                        {operation === 'addition' ? <Plus size={13} strokeWidth={2.6} /> : <Minus size={13} strokeWidth={2.6} />}
                                         {title}
                                       </span>
                                     </button>
@@ -2307,33 +2381,54 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                                 })}
                               </div>
                               {!(range.arithmeticOperations || ['addition', 'subtraction']).length && (
-                                <p className="mt-1.5 text-[11px] font-semibold text-destructive">Select Addition, Subtraction, or both.</p>
+                                <p className="mt-1 text-[11px] font-semibold text-destructive">Select Addition, Subtraction, or both.</p>
                               )}
                             </div>
                             {([
-                              ['Number 1', 'operand1DigitCount'],
-                              ['Number 2', 'operand2DigitCount'],
-                            ] as const).map(([labelText, field]) => (
-                              <div key={field}>
-                                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{labelText} · Digit Count</p>
-                                <div className="grid grid-cols-5 gap-1.5">
-                                  {DIGIT_COUNT_OPTIONS.map((digits) => (
-                                    <button
-                                      key={digits}
-                                      type="button"
-                                      aria-pressed={(range[field] ?? 2) === digits}
-                                      onClick={() => updateRange(tid, field, digits)}
-                                      className={(range[field] ?? 2) === digits
-                                        ? 'rounded-lg border px-1 py-2 text-[10px] font-bold leading-none transition-colors gradient-primary border-primary text-primary-foreground'
-                                        : 'rounded-lg border px-1 py-2 text-[10px] font-bold leading-none transition-colors bg-secondary border-border text-secondary-foreground hover:border-primary/50'}
-                                    >
-                                      {digits} Digit
-                                    </button>
-                                  ))}
+                              ['Number 1', 'operand1DigitCounts', 1, 'operand1DigitCount'],
+                              ['Number 2', 'operand2DigitCounts', 2, 'operand2DigitCount'],
+                            ] as const).map(([labelText, field, operand, legacyField]) => {
+                              const selectedDigits = getSelectedDigitCounts(range, operand);
+                              return (
+                                <div key={field} className="space-y-1.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{labelText} · Digit Count</p>
+                                    <span className="shrink-0 text-[10px] font-medium tabular-nums text-muted-foreground">{selectedDigits.length} selected</span>
+                                  </div>
+                                  <div role="group" aria-label={labelText + ' digit counts'} className="grid grid-cols-5 gap-1 sm:gap-1.5">
+                                    {DIGIT_COUNT_OPTIONS.map((digits) => {
+                                      const selected = selectedDigits.includes(digits);
+                                      return (
+                                        <button
+                                          key={digits}
+                                          type="button"
+                                          aria-pressed={selected}
+                                          onClick={() => {
+                                            const next = selected
+                                              ? selectedDigits.filter((value) => value !== digits)
+                                              : [...selectedDigits, digits].sort((a, b) => a - b);
+                                            updateRange(tid, field, next);
+                                            updateRange(tid, legacyField, next[0]);
+                                          }}
+                                          className={
+                                            'min-h-9 min-w-0 rounded-md sm:rounded-lg border px-1 py-1.5 text-[11px] sm:text-xs font-bold leading-none tabular-nums transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ' +
+                                            (selected
+                                              ? 'bg-primary border-primary text-primary-foreground'
+                                              : 'bg-secondary/70 border-border text-secondary-foreground hover:bg-secondary hover:border-primary/50')
+                                          }
+                                        >
+                                          {digits}D
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  {selectedDigits.length === 0 && (
+                                    <p role="alert" className="text-[11px] font-semibold text-destructive">Select at least one digit count.</p>
+                                  )}
                                 </div>
-                              </div>
-                            ))}
-                            <p className="text-[10px] leading-snug font-semibold text-muted-foreground">
+                              );
+                            })}
+                            <p className="text-[11px] leading-snug font-medium text-muted-foreground">
                               Number 1 and Number 2 are independent. Subtraction keeps the displayed result non-negative.
                             </p>
                           </div>
