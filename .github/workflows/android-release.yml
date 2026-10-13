@@ -101,10 +101,9 @@ jobs:
           identify -format '%wx%h' public/app-icon.png | grep -qx '1024x1024'
           test -s public/app-icon.png
 
-      - name: Build web application
+      - name: Build web application (offline guest mode)
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_OFFLINE_MODE: "true"
         run: npm run build
 
       - name: Install Capacitor Android build tooling
