@@ -2139,6 +2139,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             return (
               <button
                 key={t.id}
+                type="button"
+                aria-pressed={isSelected}
                 onClick={() => toggleTopic(t.id)}
                 className={`quiz-topic-card flex min-w-0 items-center justify-center gap-2 rounded-2xl px-2 py-2.5 text-xs sm:text-sm font-bold transition-colors relative overflow-hidden ${
                   isSelected
