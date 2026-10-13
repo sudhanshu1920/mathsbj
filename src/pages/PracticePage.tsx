@@ -32,6 +32,7 @@ import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
+import { PERCENTAGE_PRESETS, type PercentagePresetId, resolvePercentagePresets, togglePercentagePresetIds } from '@/lib/percentagePresets';
 import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerProgressPercent, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 
 type PracticeMode = 'mcq' | 'input';
@@ -47,6 +48,7 @@ interface TopicRange {
   exponentFrom?: number;
   exponentTo?: number;
   pctRangeMode?: 'preset' | 'custom';
+  pctPresetIds?: PercentagePresetId[];
   pctNumFrom?: number;
   pctDenFrom?: number;
   pctNumTo?: number;
@@ -83,6 +85,7 @@ interface MixedPct {
 interface Question {
   topicId?: string;
   questionId?: string;
+  percentagePresetId?: PercentagePresetId;
   trigFunctionId?: TrigFunction;
   trigAngle?: TrigAngle;
   text: string;
@@ -114,7 +117,7 @@ const TOPIC_DEFAULTS = [
   { id: 'cubes' as AppTopicId, defaultRange: { from: 1, to: 30 } },
   { id: 'cube-roots' as AppTopicId, defaultRange: { from: 1, to: 20 } },
   { id: 'powers' as AppTopicId, defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
-  { id: 'percentage' as AppTopicId, defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const } },
+  { id: 'percentage' as AppTopicId, defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const, pctPresetIds: [] as PercentagePresetId[] } },
   { id: 'addition-subtraction-digits' as AppTopicId, defaultRange: { from: 2, to: 2, operand1DigitCount: 2, operand2DigitCount: 2, arithmeticOperations: ['addition', 'subtraction'] as ArithmeticOperation[] } },
   { id: 'trig' as AppTopicId, defaultRange: { from: 0, to: 360, trigFunctions: [...TRIG_FUNCTIONS], trigProMode: false } },
   { id: 'periodic-table' as AppTopicId, defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
@@ -204,6 +207,10 @@ export function isValidPracticeRange(topicId: string, range: TopicRange | undefi
   if (topicId === 'powers') {
     return integerInRange(range.exponentFrom ?? 1, 1, MAX_POWER_EXPONENT) &&
       integerInRange(range.exponentTo ?? 10, 1, MAX_POWER_EXPONENT);
+  }
+
+  if (topicId === 'percentage' && range.pctRangeMode === 'preset') {
+    return resolvePercentagePresets(range).length > 0;
   }
 
   if (topicId === 'percentage' && range.pctRangeMode === 'custom') {
@@ -405,8 +412,18 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       }
     }
   } else if (topicId === 'percentage') {
-    const pairs: { n: number; d: number }[] = [];
-    if (range.pctRangeMode === 'custom' && range.pctNumFrom !== undefined && range.pctDenFrom !== undefined && range.pctNumTo !== undefined && range.pctDenTo !== undefined) {
+    const pairs: { n: number; d: number; presetId?: PercentagePresetId }[] = [];
+    if (range.pctRangeMode === 'preset') {
+      const seenPairs = new Set<string>();
+      for (const preset of resolvePercentagePresets(range)) {
+        for (const d of rangeArray(preset.from, preset.to)) {
+          const key = `1/${d}`;
+          if (seenPairs.has(key)) continue;
+          seenPairs.add(key);
+          pairs.push({ n: 1, d, presetId: preset.id });
+        }
+      }
+    } else if (range.pctRangeMode === 'custom' && range.pctNumFrom !== undefined && range.pctDenFrom !== undefined && range.pctNumTo !== undefined && range.pctDenTo !== undefined) {
       if (range.pctDenFrom === range.pctDenTo) {
         const d = range.pctDenFrom;
         const safeNumFrom = clampQuizValue(range.pctNumFrom, 0, MAX_QUIZ_RANGE_VALUE, 0);
@@ -442,21 +459,49 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       }
     }
 
-    for (const { n, d } of pairs) {
+    for (const { n, d, presetId } of pairs) {
       const decPct = toDecimalPct(n, d);
       const mixed = toMixed(n, d);
-      questions.push({ text: `fraction-to-decimal`, questionFraction: { n, d }, answer: decPct, answerType: 'decimal-pct', topicLabel: label });
+      const presetMetadata = presetId ? { percentagePresetId: presetId } : {};
+      questions.push({ ...presetMetadata, text: `fraction-to-decimal`, questionFraction: { n, d }, answer: decPct, answerType: 'decimal-pct', topicLabel: label });
       if (mixed) {
-        questions.push({ text: `fraction-to-mixed`, questionFraction: { n, d }, answer: mixedToString(mixed), answerType: 'mixed-pct', mixedPctAnswer: mixed, topicLabel: label });
+        questions.push({ ...presetMetadata, text: `fraction-to-mixed`, questionFraction: { n, d }, answer: mixedToString(mixed), answerType: 'mixed-pct', mixedPctAnswer: mixed, topicLabel: label });
       }
-      questions.push({ text: `${decPct} = ? (fraction)`, answer: `${n}/${d}`, answerType: 'fraction', topicLabel: label });
+      questions.push({ ...presetMetadata, text: `${decPct} = ? (fraction)`, answer: `${n}/${d}`, answerType: 'fraction', topicLabel: label });
       if (mixed) {
-        questions.push({ text: `mixed-to-fraction`, questionMixed: mixed, answer: `${n}/${d}`, answerType: 'fraction', topicLabel: label });
+        questions.push({ ...presetMetadata, text: `mixed-to-fraction`, questionMixed: mixed, answer: `${n}/${d}`, answerType: 'fraction', topicLabel: label });
       }
     }
   }
 
   return questions;
+}
+
+function selectQuestionsAcrossPresetRanges(questions: Question[], count: number): Question[] {
+  const groups = PERCENTAGE_PRESETS
+    .map((preset) => ({
+      id: preset.id,
+      questions: questions.filter((question) => question.percentagePresetId === preset.id),
+    }))
+    .filter((group) => group.questions.length > 0);
+  if (groups.length === 0) return [];
+
+  const targetCount = clampQuizValue(count, 0, questions.length, 0);
+  const quotas = groups.map(() => 0);
+  let selectedCount = 0;
+  // Allocate the finite question budget round-robin so each chosen range is
+  // represented, while preserving the sequence within each range's own pool.
+  while (selectedCount < targetCount) {
+    let addedInPass = false;
+    for (let index = 0; index < groups.length && selectedCount < targetCount; index += 1) {
+      if (quotas[index] >= groups[index].questions.length) continue;
+      quotas[index] += 1;
+      selectedCount += 1;
+      addedInPass = true;
+    }
+    if (!addedInPass) break;
+  }
+  return groups.flatMap((group, index) => group.questions.slice(0, quotas[index]));
 }
 
 export function generateQuestions(config: PracticeConfig): Question[] {
@@ -468,7 +513,18 @@ export function generateQuestions(config: PracticeConfig): Question[] {
     baseQuestions.push(...qs);
   }
 
-  const allQuestions = buildQuestionPool(baseQuestions, {
+  const isFinitePercentagePresetOnly =
+    config.topics.length === 1 &&
+    config.topics[0]?.id === 'percentage' &&
+    config.topics[0].range.pctRangeMode === 'preset' &&
+    !config.repetitionEnabled &&
+    !config.infinite &&
+    config.timerMode !== 'challenge';
+  const questionSource = isFinitePercentagePresetOnly
+    ? selectQuestionsAcrossPresetRanges(baseQuestions, config.count)
+    : baseQuestions;
+
+  const allQuestions = buildQuestionPool(questionSource, {
     enabled: config.repetitionEnabled,
     repetitionByTopic: config.repetitionByTopic,
     sequential: config.sequential,
@@ -743,6 +799,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, []);
 
   const startPractice = useCallback((cfg: PracticeConfig) => {
+    // Guard programmatic starts as well as the disabled setup button.
+    if (cfg.topics.some((topic) =>
+      topic.id === 'percentage' &&
+      topic.range.pctRangeMode === 'preset' &&
+      resolvePercentagePresets(topic.range).length === 0
+    )) return;
+
     const normalizedConfig: PracticeConfig = {
       ...cfg,
       // Timer mode is a single source of truth; a Challenge can never leave
@@ -870,12 +933,40 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const updateRange = (
     topicId: string,
     field: string,
-    value: number | string | boolean | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[],
+    value: number | string | boolean | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[] | PercentagePresetId[],
   ) => {
     setTopicRanges(prev => ({
       ...prev,
       [topicId]: { ...prev[topicId], [field]: value },
     }));
+  };
+
+  const togglePercentagePresetRange = (topicId: string, presetId: PercentagePresetId) => {
+    const preset = PERCENTAGE_PRESETS.find((item) => item.id === presetId);
+    if (!preset) return;
+
+    // Functional update prevents rapid taps from toggling against stale state.
+    setTopicRanges((previous) => {
+      const current = previous[topicId];
+      if (!current) return previous;
+      const currentIds = Array.isArray(current.pctPresetIds)
+        ? current.pctPresetIds
+        : PERCENTAGE_PRESETS
+          .filter((item) => item.from === current.from && item.to === current.to)
+          .map((item) => item.id);
+      const nextIds = togglePercentagePresetIds(currentIds, presetId);
+      return {
+        ...previous,
+        [topicId]: {
+          ...current,
+          pctRangeMode: 'preset',
+          pctPresetIds: nextIds,
+          // Keep legacy scalar fields coherent, but do not use them as selection state.
+          from: preset.from,
+          to: preset.to,
+        },
+      };
+    });
   };
 
   const togglePeriodicQuestionType = (type: PeriodicQuestionType) => {
@@ -1750,6 +1841,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           {Array.from(selectedTopics).map((tid) => {
             const topicInfo = TOPICS.find(t => t.id === tid)!;
             const range = topicRanges[tid];
+            const selectedPercentagePresets = tid === 'percentage' ? resolvePercentagePresets(range) : [];
             const isExpanded = expandedTopic === tid;
 
             const isTrig = tid === 'trig';
@@ -1774,6 +1866,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''})`
   : tid === 'tables'
     ? `(${range.from}–${range.to} · ${tablesProMode ? 'Pro ×1–×20' : 'Standard ×1–×10'})`
+  : tid === 'percentage'
+    ? (range.pctRangeMode === 'custom' ? '(Custom range)' : `(${selectedPercentagePresets.length} preset range${selectedPercentagePresets.length === 1 ? '' : 's'} selected)`)
     : `(${range.from}–${range.to})`}
                     </span>
                   </div>
@@ -2034,29 +2128,47 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                           <>
                             <div className="flex gap-2 mb-2">
                               <button
-                                onClick={() => updateRange(tid, 'pctRangeMode', 'preset')}
+                                type="button"
+                                onClick={() => {
+                                  if (!Array.isArray(range.pctPresetIds)) {
+                                    const legacyPreset = PERCENTAGE_PRESETS.find((preset) => preset.from === range.from && preset.to === range.to);
+                                    updateRange(tid, 'pctPresetIds', legacyPreset ? [legacyPreset.id] : []);
+                                  }
+                                  updateRange(tid, 'pctRangeMode', 'preset');
+                                }}
                                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${(range.pctRangeMode || 'preset') === 'preset' ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
                               >Preset</button>
                               <button
+                                type="button"
                                 onClick={() => updateRange(tid, 'pctRangeMode', 'custom')}
                                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${range.pctRangeMode === 'custom' ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
                               >Custom</button>
                             </div>
                             {(range.pctRangeMode || 'preset') === 'preset' ? (
-                              <div className="grid grid-cols-1 gap-1.5">
-                                {[
-                                  { label: '1/1 – 1/10', f: 1, t: 10 },
-                                  { label: '1/11 – 1/20', f: 11, t: 20 },
-                                  { label: '1/21 – 1/30', f: 21, t: 30 },
-                                  { label: '1/31 – 1/40', f: 31, t: 40 },
-                                  { label: '1/41 – 1/50', f: 41, t: 50 },
-                                ].map((g) => (
-                                  <button key={g.label}
-                                    onClick={() => { updateRange(tid, 'from', g.f); updateRange(tid, 'to', g.t); }}
-                                    className={`py-2 rounded-xl text-xs font-semibold transition-colors ${range.from === g.f && range.to === g.t ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
-                                  >{g.label}</button>
-                                ))}
+                              <div role="group" aria-label="Percentage preset ranges" className="grid grid-cols-1 gap-1.5">
+                                {PERCENTAGE_PRESETS.map((preset) => {
+                                  const isSelected = selectedPercentagePresets.some((selected) => selected.id === preset.id);
+                                  return (
+                                    <button
+                                      key={preset.id}
+                                      type="button"
+                                      aria-pressed={isSelected}
+                                      onClick={() => togglePercentagePresetRange(tid, preset.id)}
+                                      className={`flex items-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition-colors text-left ${isSelected ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:border hover:border-primary/40'}`}
+                                    >
+                                      <span aria-hidden="true" className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border border-current text-[10px] leading-none">
+                                        {isSelected ? '✓' : ''}
+                                      </span>
+                                      <span>{preset.label}</span>
+                                    </button>
+                                  );
+                                })}
                               </div>
+                              {selectedPercentagePresets.length === 0 && (
+                                <p className="mt-1.5 text-[11px] font-semibold text-destructive" role="status">
+                                  Select at least one preset range to start.
+                                </p>
+                              )}
                             ) : (
                               <div className="flex items-center gap-3 justify-center">
                                 <div className="flex flex-col items-center">

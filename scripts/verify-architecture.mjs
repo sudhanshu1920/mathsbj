@@ -747,4 +747,31 @@ if (!themeHydrationTests.includes('hydrates saved premium theme and appearance b
   fail('Saved appearance and selected premium theme need first-load hydration coverage');
 }
 
+
+const percentagePresets = read('src/lib/percentagePresets.ts');
+if (!practice.includes('pctPresetIds?: PercentagePresetId[]') ||
+    !practice.includes('togglePercentagePresetRange') ||
+    !practice.includes('setTopicRanges((previous) => {')) {
+  fail('Percentage preset selection must use a collection and functional state updates');
+}
+if (!practice.includes('aria-pressed={isSelected}') ||
+    !practice.includes('PERCENTAGE_PRESETS.map((preset) =>') ||
+    !practice.includes('Select at least one preset range to start.')) {
+  fail('Percentage preset UI must expose independent pressed states and empty-selection guidance');
+}
+if (!practice.includes('resolvePercentagePresets(range).length > 0') ||
+    !practice.includes("range.pctRangeMode === 'preset'") ||
+    !practice.includes('percentagePresetId?: PercentagePresetId')) {
+  fail('Percentage preset validation and question-source identities are missing');
+}
+if (!practice.includes('selectQuestionsAcrossPresetRanges(baseQuestions, config.count)') ||
+    !practice.includes("config.topics[0]?.id === 'percentage'")) {
+  fail('Finite Percentage-only quizzes must allocate questions across selected presets');
+}
+if (!percentagePresets.includes('normalizePercentagePresetIds') ||
+    !percentagePresets.includes('togglePercentagePresetIds') ||
+    !percentagePresets.includes('resolvePercentagePresets')) {
+  fail('Shared Percentage preset normalization/toggle/resolve helpers are missing');
+}
+
 console.log('Architecture regression checks passed.');
