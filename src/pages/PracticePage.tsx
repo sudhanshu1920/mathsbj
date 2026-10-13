@@ -1643,7 +1643,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     const accuracy = totalAttempts > 0 ? Math.round((score.correct / totalAttempts) * 100) : 0;
     return (
       <SwipeBack onBack={handleBackToPractice}>
-        <div>
+        <div className="quiz-screen quiz-screen--results">
           <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
             <button onClick={handleBackToPractice} className="h-7 w-7 inline-flex items-center justify-center rounded-full text-primary" aria-label="Back">
               <ArrowLeft size={16} />
@@ -1654,26 +1654,26 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               <DesktopModeToggle compact />
             </div>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
+          <div className="quiz-results-layout flex flex-col items-center justify-center min-h-[60vh] px-1 py-3">
+          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="quiz-results-card text-center w-full max-w-md p-4 sm:p-6">
             <div className="mb-4 flex justify-center">
               {accuracy >= 80 ? (
-                <Trophy size={64} className="text-warning drop-shadow-[0_0_18px_hsl(var(--warning)/0.5)]" />
+                <Trophy size={52} className="text-warning" />
               ) : accuracy >= 50 ? (
-                <ThumbsUp size={64} className="text-primary drop-shadow-[0_0_18px_hsl(var(--primary)/0.5)]" />
+                <ThumbsUp size={52} className="text-primary" />
               ) : (
-                <Dumbbell size={64} className="text-muted-foreground" />
+                <Dumbbell size={52} className="text-muted-foreground" />
               )}
             </div>
-            <h2 className="font-display font-bold text-3xl text-foreground mb-2">
+            <h2 className="font-display font-bold text-2xl sm:text-3xl text-foreground mb-1.5">
               {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
             </h2>
-            <p className="text-muted-foreground mb-2">Score: {accuracy}%</p>
+            <p className="text-muted-foreground text-sm mb-2">Score: {accuracy}%</p>
             <motion.div
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 220, damping: 16, delay: 0.15 }}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-base mb-3 shadow-lg shadow-primary/30"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-sm mb-3"
             >
               <Zap size={16} className="text-warning" />
               +{sessionXP} XP
@@ -1683,7 +1683,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 Topics: {config.topics.map(t => t.label).join(', ')}
               </p>
             )}
-            <div className="flex gap-8 mb-4">
+            <div className="grid grid-cols-3 gap-3 sm:gap-6 mb-4 w-full max-w-xs">
               <div className="text-center">
                 <p className="text-3xl font-bold text-success">{score.correct}</p>
                 <p className="text-xs text-muted-foreground">Correct</p>
@@ -1725,11 +1725,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             )}
             {config.infinite && <p className="text-sm text-muted-foreground mb-4">Time: {formatTime(elapsedTime)}</p>}
             <div className="flex gap-3">
-              <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-[0_0_24px_hsl(var(--primary)/0.5)]">Retry</button>
+              <button onClick={() => startPractice(config)} className="quiz-result-action min-h-11 flex-1 rounded-xl gradient-primary text-primary-foreground text-sm font-semibold">Retry</button>
               {fromLearning ? (
-                <button onClick={() => onExit?.()} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">Back to Learning</button>
+                <button onClick={() => onExit?.()} className="quiz-result-action min-h-11 flex-1 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold">Back to Learning</button>
               ) : (
-                <button onClick={handleBackToPractice} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">Back to Practice</button>
+                <button onClick={handleBackToPractice} className="quiz-result-action min-h-11 flex-1 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold">Back to Practice</button>
               )}
             </div>
           </motion.div>
@@ -1776,10 +1776,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         return <div className="flex flex-col items-center gap-2"><RenderMixed mixed={q.questionMixed} size="lg" /><span className="text-muted-foreground text-lg">= ? (fraction)</span></div>;
       }
       if (isPctQuestion && q.text.includes('% = ?')) {
-        return <p className="font-display text-3xl font-bold text-foreground">{q.text}</p>;
+        return <p className="font-display text-2xl sm:text-3xl font-bold text-foreground break-words">{q.text}</p>;
       }
       return (
-        <p className="font-display text-4xl font-bold text-foreground">
+        <p className="font-display text-3xl sm:text-4xl font-bold text-foreground break-words">
           {q.text}
           {q.superscript && <sup className="text-primary text-2xl">{q.superscript}</sup>}
         </p>
@@ -1811,7 +1811,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     return (
       <>
       <SwipeBack onBack={handleExitRequest}>
-      <div className="pb-6">
+      <div className="quiz-screen quiz-screen--active pb-6">
         <AlertDialog
           open={showExitDialog}
           onOpenChange={(open) => {
@@ -1821,7 +1821,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             }
           }}
         >
-          <AlertDialogContent className="practice-exit-dialog rounded-2xl max-w-[320px]">
+          <AlertDialogContent className="practice-exit-dialog quiz-dialog-surface rounded-2xl max-w-[320px]">
             <AlertDialogHeader>
               <AlertDialogTitle>Exit Practice?</AlertDialogTitle>
               <AlertDialogDescription>Your progress will not be saved.</AlertDialogDescription>
@@ -1932,7 +1932,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -30 }}
-            className="relative text-center mb-2 rounded-2xl py-4"
+            className="quiz-question-panel relative text-center mb-2 rounded-2xl px-2 py-4 sm:px-4 sm:py-5"
           >
             {renderQuestionText()}
             <div className="mt-2">{renderAnswerHint()}</div>
@@ -1998,18 +1998,18 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </AnimatePresence>
 
         {config.mode === 'mcq' && q.options && (
-          <div className="mcq-options-grid grid gap-3 mt-[30px]">
+          <div className="mcq-options-grid grid gap-2 sm:gap-3 mt-5">
             {q.options.map((opt, i) => {
-              let optStyle = 'glass-lite text-foreground shadow-[0_0_14px_-6px_hsl(var(--primary)/0.3)] active:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
+              let optStyle = 'glass-lite text-foreground border border-border/70 hover:border-primary/50';
               if (feedback && selectedOption === i) {
                 optStyle = feedback === 'correct'
-                  ? 'bg-success/20 border-2 border-success text-success shadow-[0_0_28px_hsl(var(--success)/0.55)]'
-                  : 'bg-destructive/20 border-2 border-destructive text-destructive shadow-[0_0_24px_hsl(var(--destructive)/0.5)]';
+                  ? 'bg-success/15 border-2 border-success text-success'
+                  : 'bg-destructive/15 border-2 border-destructive text-destructive';
               }
               return (
                 <button key={`${currentQ}-${i}`}
                   onClick={() => { if (feedback) return; setSelectedOption(i); handleAnswer(opt); }}
-                  className={`w-full h-full rounded-2xl px-2 flex items-center justify-center text-center font-display font-bold text-base transition-all overflow-hidden ${optStyle}`}>
+                  className={`quiz-answer-option w-full min-h-12 rounded-xl px-3 py-3 flex items-center justify-center text-center font-display font-bold text-base transition-colors overflow-hidden ${optStyle}`}>
                   {renderOption(opt, i)}
                 </button>
               );
@@ -2018,7 +2018,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         )}
 
         {config.mode === 'input' && (
-          <div className="flex flex-col items-center gap-4 mt-4">
+          <div className="quiz-answer-input flex flex-col items-center gap-3 mt-3">
             {q.answerType === 'text' || q.answerType === 'trig' ? (
               <input
                 ref={inputRef}
@@ -2028,12 +2028,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={q.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Type symbol or element name'}
                 autoFocus
-                className="w-full max-w-xs glass-lite rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
+                className="w-full max-w-xs glass-lite rounded-xl px-3 py-3 text-center text-xl sm:text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-colors"
               />
             ) : (
               <>
                 <div
-                  className="w-full max-w-xs glass-lite rounded-2xl px-4 text-center text-2xl font-display font-bold text-foreground h-[64px] flex items-center justify-center overflow-hidden"
+                  className="w-full max-w-xs glass-lite rounded-xl px-3 text-center text-xl sm:text-2xl font-display font-bold text-foreground h-14 flex items-center justify-center overflow-hidden"
                   aria-live="polite"
                 >
                   {inputValue ? (
@@ -2064,7 +2064,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               type="button"
               disabled={!!feedback || !inputValue.trim()}
               onClick={() => handleAnswer(inputValue.trim())}
-              className="w-full max-w-[360px] min-w-[180px] min-h-12 rounded-2xl gradient-primary text-primary-foreground font-display font-extrabold tracking-wide text-base shadow-[0_0_24px_hsl(var(--primary)/0.45)] active:scale-[0.98] transition-transform disabled:opacity-60 disabled:pointer-events-none"
+              className="w-full max-w-[360px] min-w-[180px] min-h-11 rounded-xl gradient-primary text-primary-foreground font-display font-bold tracking-wide text-sm sm:text-base active:scale-[0.99] transition-transform disabled:opacity-60 disabled:pointer-events-none"
             >
               Submit
             </button>
@@ -2116,7 +2116,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const questionCountDisabled = isQuestionCountSelectionDisabled(repetitionEnabled, timerMode);
 
   return (
-    <div className="pb-24 md:pb-6">
+    <div className="quiz-screen quiz-screen--setup pb-24 md:pb-6">
       <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
         <h1 className="font-display font-bold text-base sm:text-lg text-foreground flex items-center gap-1.5">
           <Zap size={16} className="text-primary" /> Quiz Arena
@@ -2131,24 +2131,26 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Topic Chips - Multi Select */}
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-3 block font-semibold">Select Topics</label>
-        <div className="grid grid-cols-2 gap-3">
+      <div className="quiz-topic-section mb-4">
+        <label className="quiz-section-label text-sm text-muted-foreground mb-2 block font-semibold">Select Topics</label>
+        <div className="quiz-topic-grid grid grid-cols-2 gap-2 sm:gap-3">
           {TOPICS.map((t) => {
             const isSelected = selectedTopics.has(t.id);
             return (
               <button
                 key={t.id}
+                type="button"
+                aria-pressed={isSelected}
                 onClick={() => toggleTopic(t.id)}
-                className={`flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition-all relative overflow-hidden ${
+                className={`quiz-topic-card flex min-w-0 items-center justify-center gap-2 rounded-2xl px-2 py-2.5 text-xs sm:text-sm font-bold transition-colors relative overflow-hidden ${
                   isSelected
                     ? 'gradient-primary text-primary-foreground shadow-lg shadow-primary/30'
                     : 'bg-card border border-border text-foreground hover:border-primary/50'
                 }`}
               >
-                <span className="relative z-10 flex items-center gap-2">
-                  <TopicIconForTopic topicId={t.id} />
-                  {t.label}
+                <span className="quiz-topic-card__content relative z-10 flex min-w-0 items-center justify-center gap-2">
+                  <span className="shrink-0"><TopicIconForTopic topicId={t.id} /></span>
+                  <span className="quiz-topic-card__label min-w-0">{t.label}</span>
                 </span>
                 {isSelected && (
                   <motion.div layoutId="glow" className="absolute inset-0 bg-primary/10 rounded-2xl" initial={false} />
@@ -2164,8 +2166,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
       {/* Per-Topic Range Controls */}
       {selectedTopics.size > 0 && (
-        <div className="mb-5 space-y-2">
-          <label className="text-sm text-muted-foreground mb-2 block font-semibold">Range per Topic</label>
+        <div className="quiz-range-section mb-4 space-y-2">
+          <label className="quiz-section-label text-sm text-muted-foreground mb-2 block font-semibold">Range per Topic</label>
           {Array.from(selectedTopics).map((tid) => {
             const topicInfo = TOPICS.find(t => t.id === tid)!;
             const range = topicRanges[tid];
@@ -2175,21 +2177,21 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             const isTrig = tid === 'trig';
 
             return (
-              <div key={tid} className="glass-lite rounded-2xl overflow-hidden">
+              <div key={tid} className="quiz-range-card glass-lite rounded-2xl overflow-hidden">
                 <button
                   type="button"
                   aria-expanded={isExpanded}
                   onClick={() => setExpandedTopic(isExpanded ? null : tid)}
-                  className="w-full flex items-center justify-between px-4 py-3"
+                  className="quiz-range-header w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left"
                 >
-                  <div className="flex items-center gap-2">
-                    <TopicIconForTopic topicId={tid as AppTopicId} />
-                    <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
-                    <span className="text-xs text-muted-foreground">
+                  <div className="quiz-range-heading flex min-w-0 items-center gap-2">
+                    <span className="shrink-0"><TopicIconForTopic topicId={tid as AppTopicId} /></span>
+                    <span className="font-semibold text-sm text-foreground shrink-0">{topicInfo.label}</span>
+                    <span className="quiz-range-summary min-w-0 text-[11px] sm:text-xs text-muted-foreground">
                       {isTrig
   ? (range.trigProMode ? '(Pro · 0°–360°)' : '(Standard · 0°–90°)')
   : tid === 'addition-subtraction-digits'
-    ? (range.operand1DigitCount ?? 2) + '-digit + ' + (range.operand2DigitCount ?? 2) + '-digit • ' + ((range.arithmeticOperations || ['addition', 'subtraction']).map((operation) => operation === 'addition' ? '+' : '−').join(' / '))
+    ? getSelectedDigitCounts(range, 1).map((digits) => digits + 'D').join('/') + ' + ' + getSelectedDigitCounts(range, 2).map((digits) => digits + 'D').join('/') + ' • ' + ((range.arithmeticOperations || ['addition', 'subtraction']).map((operation) => operation === 'addition' ? '+' : '−').join(' / '))
   : tid === 'periodic-table'
     ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''})`
   : tid === 'tables'
@@ -2208,9 +2210,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="border-t border-border"
+                      className="quiz-range-accordion border-t border-border"
                     >
-                      <div className="p-4 space-y-3">
+                      <div className="quiz-range-body p-3 sm:p-4 space-y-3">
                         {isTrig ? (
                           <div className="space-y-4">
                             <div>
@@ -2498,7 +2500,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                             </div>
                             {(range.pctRangeMode || 'preset') === 'preset' ? (
                               <>
-                              <div role="group" aria-label="Percentage preset ranges" className="grid grid-cols-1 gap-1.5">
+                              <div role="group" aria-label="Percentage preset ranges" className="quiz-percentage-preset-grid grid grid-cols-1 gap-1.5">
                                 {PERCENTAGE_PRESETS.map((preset) => {
                                   const isSelected = selectedPercentagePresets.some((selected) => selected.id === preset.id);
                                   return (
@@ -2604,7 +2606,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       )}
 
       {/* Questions Count */}
-      <div className={`mb-5 rounded-2xl border p-4 ${questionCountDisabled ? 'border-border bg-muted/30' : 'border-transparent bg-transparent p-0'}`}>
+      <div className={`quiz-setting-block mb-4 rounded-2xl border p-3 sm:p-4 ${questionCountDisabled ? 'border-border bg-muted/30' : 'border-transparent bg-transparent p-0'}`}>
         <div className="flex items-center justify-between gap-2">
           <label className={`text-sm font-semibold ${questionCountDisabled ? 'text-muted-foreground' : 'text-foreground'}`}>
             Questions
@@ -2658,7 +2660,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Repetition */}
-      <div className="mb-5 glass rounded-2xl p-4">
+      <div className="quiz-setting-block mb-4 glass rounded-2xl p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="font-semibold text-sm text-foreground">Repetition</span>
@@ -2718,9 +2720,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Answer Mode */}
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Answer Mode</label>
-        <div className="flex gap-2">
+      <div className="quiz-setting-block mb-4">
+        <label className="quiz-section-label text-sm text-muted-foreground mb-2 block font-semibold">Answer Mode</label>
+        <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setMode('mcq')}
             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>MCQ</button>
           <button onClick={() => setMode('input')}
@@ -2729,7 +2731,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Mutually exclusive per-question Timer / full-session Challenge */}
-      <div className="mb-5 bg-card border border-border rounded-2xl p-4">
+      <div className="quiz-setting-block mb-4 bg-card border border-border rounded-2xl p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Timer size={18} className="text-primary" />
@@ -2793,8 +2795,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Order */}
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Order</label>
+      <div className="quiz-setting-block mb-4">
+        <label className="quiz-section-label text-sm text-muted-foreground mb-2 block font-semibold">Order</label>
         <div className="flex gap-2">
           <button onClick={() => setSequential(false)}
             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${!sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
@@ -2831,7 +2833,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
            };
           startPractice(cfg);
         }}
-        className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-2 transition-all flex items-center justify-center gap-2 ${
+        className={`quiz-start-cta w-full min-h-12 py-3 rounded-xl font-display font-bold text-base shadow-sm mt-2 transition-colors flex items-center justify-center gap-2 ${
           canStart
             ? 'gradient-primary text-primary-foreground shadow-primary/30'
             : 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -2841,7 +2843,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </motion.button>
 
       {startError && (
-        <p role="alert" className="mt-3 text-center text-xs font-semibold text-destructive">
+        <p role="alert" className="quiz-start-error mt-2 rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-2 text-center text-xs font-semibold text-destructive">
           {startError}
         </p>
       )}
