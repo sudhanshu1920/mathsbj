@@ -217,10 +217,22 @@ export function isValidPracticeRange(topicId: string, range: TopicRange | undefi
   }
 
   if (topicId === 'percentage' && range.pctRangeMode === 'custom') {
-    return integerInRange(range.pctNumFrom, 0, MAX_QUIZ_RANGE_VALUE) &&
-      integerInRange(range.pctNumTo, 0, MAX_QUIZ_RANGE_VALUE) &&
+    const validNumerators =
+      integerInRange(range.pctNumFrom, 0, MAX_QUIZ_RANGE_VALUE) &&
+      integerInRange(range.pctNumTo, 0, MAX_QUIZ_RANGE_VALUE);
+    const validDenominators =
       integerInRange(range.pctDenFrom, 1, MAX_QUIZ_RANGE_VALUE) &&
       integerInRange(range.pctDenTo, 1, MAX_QUIZ_RANGE_VALUE);
+    if (!validNumerators || !validDenominators) return false;
+
+    // The existing generator supports two custom forms: a numerator interval
+    // over one denominator, or a unit-fraction denominator interval.
+    if (range.pctDenFrom === range.pctDenTo) {
+      return range.pctNumFrom! <= range.pctNumTo!;
+    }
+    return range.pctNumFrom === 1 &&
+      range.pctNumTo === 1 &&
+      range.pctDenFrom <= range.pctDenTo;
   }
 
   return true;
@@ -757,6 +769,7 @@ const TopicIconForTopic = ({ topicId }: { topicId: AppTopicId }) => {
 const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, onExitCancelled, externalBackRequest, fromLearning, onQuizStart, onQuizFinish, onQuizReset }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [startError, setStartError] = useState<string | null>(null);
   const [originalQuestionCount, setOriginalQuestionCount] = useState(0);
   const [completedQuestionIds, setCompletedQuestionIds] = useState<Set<string>>(() => new Set());
   const [retriedQuestionIds, setRetriedQuestionIds] = useState<Set<string>>(() => new Set());
@@ -851,11 +864,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   const startPractice = useCallback((cfg: PracticeConfig) => {
     // Guard programmatic starts as well as the disabled setup button.
-    if (cfg.topics.some((topic) =>
-      topic.id === 'percentage' &&
-      topic.range.pctRangeMode === 'preset' &&
-      resolvePercentagePresets(topic.range).length === 0
-    )) return;
+    const invalidTopic = cfg.topics.find((topic) => !isValidPracticeRange(topic.id, topic.range));
+    if (invalidTopic) {
+      setStartError(
+        invalidTopic.id === 'percentage' && invalidTopic.range.pctRangeMode === 'custom'
+          ? 'Check the Percentage custom range: use whole numbers, valid denominators, and an ascending range.'
+          : invalidTopic.id === 'percentage'
+            ? 'Select at least one valid Percentage preset range.'
+            : `Check the selected range for ${invalidTopic.label}.`,
+      );
+      return;
+    }
 
     const normalizedConfig: PracticeConfig = {
       ...cfg,
@@ -881,7 +900,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       ),
     };
     const generatedQuestions = generateQuestions(normalizedConfig);
-    if (generatedQuestions.length === 0) return;
+    if (generatedQuestions.length === 0) {
+      const topicNames = normalizedConfig.topics.map((topic) => topic.label).join(', ');
+      setStartError(`No questions could be generated for ${topicNames}. Check the selected custom range and try again.`);
+      return;
+    }
+    setStartError(null);
     questionPoolGenerationRef.current += 1;
     const qs = identifyQuizQuestions(generatedQuestions, questionPoolGenerationRef.current);
     questionsRef.current = qs;
@@ -995,15 +1019,44 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const updateRange = (
     topicId: string,
     field: string,
-    value: number | string | boolean | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[] | string[],
+    value: number | string | boolean | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[] | string[] | undefined,
   ) => {
+    setStartError(null);
     setTopicRanges(prev => ({
       ...prev,
       [topicId]: { ...prev[topicId], [field]: value },
     }));
   };
 
+  const setPercentageRangeMode = (topicId: string, mode: 'preset' | 'custom') => {
+    setStartError(null);
+    setTopicRanges((previous) => {
+      const current = previous[topicId];
+      if (!current) return previous;
+
+      if (mode === 'preset') {
+        return { ...previous, [topicId]: { ...current, pctRangeMode: 'preset' } };
+      }
+
+      // The previous UI displayed these as fallback values without persisting
+      // them. Seed the canonical config in the same update that selects Custom,
+      // so validation and generation see exactly what the user sees.
+      return {
+        ...previous,
+        [topicId]: {
+          ...current,
+          pctRangeMode: 'custom',
+          pctNumFrom: current.pctNumFrom ?? 1,
+          pctDenFrom: current.pctDenFrom ?? 2,
+          pctNumTo: current.pctNumTo ?? 5,
+          pctDenTo: current.pctDenTo ?? 2,
+        },
+      };
+    });
+  };
+
   const togglePercentagePresetRange = (topicId: string, presetId: PercentagePresetId) => {
+    setStartError(null);
     const preset = PERCENTAGE_PRESETS.find((item) => item.id === presetId);
     if (!preset) return;
 
@@ -2293,7 +2346,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                               >Preset</button>
                               <button
                                 type="button"
-                                onClick={() => updateRange(tid, 'pctRangeMode', 'custom')}
+                                onClick={() => setPercentageRangeMode(tid, 'custom')}
                                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${range.pctRangeMode === 'custom' ? 'gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
                               >Custom</button>
                             </div>
@@ -2327,25 +2380,35 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                             ) : (
                               <div className="flex items-center gap-3 justify-center">
                                 <div className="flex flex-col items-center">
-                                  <input type="number" inputMode="numeric" value={range.pctNumFrom ?? 1}
-                                    onChange={(e) => updateRange(tid, 'pctNumFrom', Math.max(0, Number(e.target.value)))}
+                                  <input type="number" min={0} max={MAX_QUIZ_RANGE_VALUE} step={1} inputMode="numeric"
+                                    aria-label="Percentage custom start numerator" value={range.pctNumFrom ?? ''}
+                                    onChange={(e) => updateRange(tid, 'pctNumFrom', e.target.value === '' ? undefined : Number(e.target.value))}
                                     className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
                                   <div className="w-14 h-px bg-foreground/40 my-0.5" />
-                                  <input type="number" inputMode="numeric" value={range.pctDenFrom ?? 2}
-                                    onChange={(e) => updateRange(tid, 'pctDenFrom', Math.max(1, Number(e.target.value)))}
+                                  <input type="number" min={1} max={MAX_QUIZ_RANGE_VALUE} step={1} inputMode="numeric"
+                                    aria-label="Percentage custom start denominator" value={range.pctDenFrom ?? ''}
+                                    onChange={(e) => updateRange(tid, 'pctDenFrom', e.target.value === '' ? undefined : Number(e.target.value))}
                                     className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
                                 </div>
                                 <span className="text-muted-foreground text-xs font-semibold">to</span>
                                 <div className="flex flex-col items-center">
-                                  <input type="number" inputMode="numeric" value={range.pctNumTo ?? 5}
-                                    onChange={(e) => updateRange(tid, 'pctNumTo', Math.max(0, Number(e.target.value)))}
+                                  <input type="number" min={0} max={MAX_QUIZ_RANGE_VALUE} step={1} inputMode="numeric"
+                                    aria-label="Percentage custom end numerator" value={range.pctNumTo ?? ''}
+                                    onChange={(e) => updateRange(tid, 'pctNumTo', e.target.value === '' ? undefined : Number(e.target.value))}
                                     className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
                                   <div className="w-14 h-px bg-foreground/40 my-0.5" />
-                                  <input type="number" inputMode="numeric" value={range.pctDenTo ?? 2}
-                                    onChange={(e) => updateRange(tid, 'pctDenTo', Math.max(1, Number(e.target.value)))}
+                                  <input type="number" min={1} max={MAX_QUIZ_RANGE_VALUE} step={1} inputMode="numeric"
+                                    aria-label="Percentage custom end denominator" value={range.pctDenTo ?? ''}
+                                    onChange={(e) => updateRange(tid, 'pctDenTo', e.target.value === '' ? undefined : Number(e.target.value))}
                                     className="w-14 bg-secondary border border-border rounded-xl px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary outline-none" />
                                 </div>
                               </div>
+                              {!isValidPracticeRange('percentage', range) && (
+                                <p role="alert" className="mt-2 text-center text-[11px] font-semibold text-destructive">
+                                  Use whole-number fractions (numerator 0–{MAX_QUIZ_RANGE_VALUE}, denominator 1–{MAX_QUIZ_RANGE_VALUE}).
+                                  Keep the range ascending; when denominators differ, use 1 as both numerators.
+                                </p>
+                              )}
                             )}
                           </>
                         ) : (
@@ -2628,6 +2691,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       >
         <Play size={18} fill="currentColor" /> Start Quiz
       </motion.button>
+
+      {startError && (
+        <p role="alert" className="mt-3 text-center text-xs font-semibold text-destructive">
+          {startError}
+        </p>
+      )}
 
       {selectedTopics.size > 1 && (
         <p className="text-xs text-muted-foreground text-center mt-3">
