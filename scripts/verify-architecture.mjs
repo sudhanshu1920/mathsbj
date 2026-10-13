@@ -792,4 +792,20 @@ if (!quizRetryQueue.includes('at most one pending retry per identity') ||
   fail('Quiz retry lifecycle tests or core queue safeguards are missing');
 }
 
+const percentageCustomUiTests = read('src/pages/PracticePage.percentageCustom.test.tsx');
+const percentageCustomTests = read('src/test/percentagePresetSelection.test.ts');
+if (!practice.includes('pctNumFrom: current.pctNumFrom ?? 1') ||
+    !practice.includes('pctDenFrom: current.pctDenFrom ?? 2') ||
+    !practice.includes("e.target.value === '' ? undefined : Number(e.target.value)") ||
+    !practice.includes('No questions could be generated for') ||
+    !practice.includes('quizStartLockRef.current')) {
+  fail('Percentage Custom defaults must be canonicalized, empty inputs validated, empty-pool failures surfaced, and duplicate starts guarded');
+}
+if (!percentageCustomUiTests.includes('persists the displayed defaults, accepts a valid edit, and launches the quiz') ||
+    !percentageCustomUiTests.includes('treats a genuinely empty input as invalid') ||
+    !percentageCustomTests.includes('validates custom Percentage bounds, empties, and ascending semantics') ||
+    !percentageCustomTests.includes('generates all fractions for the selected custom range and ignores stale preset IDs')) {
+  fail('Percentage Custom range UI/generator regression coverage is missing');
+}
+
 console.log('Architecture regression checks passed.');
