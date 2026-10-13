@@ -1643,7 +1643,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     const accuracy = totalAttempts > 0 ? Math.round((score.correct / totalAttempts) * 100) : 0;
     return (
       <SwipeBack onBack={handleBackToPractice}>
-        <div>
+        <div className="quiz-screen quiz-screen--results">
           <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
             <button onClick={handleBackToPractice} className="h-7 w-7 inline-flex items-center justify-center rounded-full text-primary" aria-label="Back">
               <ArrowLeft size={16} />
@@ -1776,10 +1776,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         return <div className="flex flex-col items-center gap-2"><RenderMixed mixed={q.questionMixed} size="lg" /><span className="text-muted-foreground text-lg">= ? (fraction)</span></div>;
       }
       if (isPctQuestion && q.text.includes('% = ?')) {
-        return <p className="font-display text-3xl font-bold text-foreground">{q.text}</p>;
+        return <p className="font-display text-2xl sm:text-3xl font-bold text-foreground break-words">{q.text}</p>;
       }
       return (
-        <p className="font-display text-4xl font-bold text-foreground">
+        <p className="font-display text-3xl sm:text-4xl font-bold text-foreground break-words">
           {q.text}
           {q.superscript && <sup className="text-primary text-2xl">{q.superscript}</sup>}
         </p>
@@ -2000,11 +2000,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         {config.mode === 'mcq' && q.options && (
           <div className="mcq-options-grid grid grid-cols-1 gap-2 sm:gap-3 mt-5">
             {q.options.map((opt, i) => {
-              let optStyle = 'glass-lite text-foreground shadow-[0_0_14px_-6px_hsl(var(--primary)/0.3)] active:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
+              let optStyle = 'glass-lite text-foreground border border-border/70 hover:border-primary/50';
               if (feedback && selectedOption === i) {
                 optStyle = feedback === 'correct'
-                  ? 'bg-success/20 border-2 border-success text-success shadow-[0_0_28px_hsl(var(--success)/0.55)]'
-                  : 'bg-destructive/20 border-2 border-destructive text-destructive shadow-[0_0_24px_hsl(var(--destructive)/0.5)]';
+                  ? 'bg-success/15 border-2 border-success text-success'
+                  : 'bg-destructive/15 border-2 border-destructive text-destructive';
               }
               return (
                 <button key={`${currentQ}-${i}`}
@@ -2498,7 +2498,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                             </div>
                             {(range.pctRangeMode || 'preset') === 'preset' ? (
                               <>
-                              <div role="group" aria-label="Percentage preset ranges" className="grid grid-cols-1 gap-1.5">
+                              <div role="group" aria-label="Percentage preset ranges" className="quiz-percentage-preset-grid grid grid-cols-1 gap-1.5">
                                 {PERCENTAGE_PRESETS.map((preset) => {
                                   const isSelected = selectedPercentagePresets.some((selected) => selected.id === preset.id);
                                   return (
