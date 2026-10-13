@@ -181,6 +181,107 @@ describe('Percentage preset multi-selection', () => {
     expect(questions.every((question) => question.percentagePresetId === undefined)).toBe(true);
   });
 
+  it('validates custom Percentage bounds, empties, and ascending semantics', () => {
+    const customRange = (overrides: Record<string, unknown> = {}) => ({
+      from: 2,
+      to: 10,
+      pctRangeMode: 'custom' as const,
+      pctNumFrom: 1,
+      pctDenFrom: 2,
+      pctNumTo: 5,
+      pctDenTo: 2,
+      ...overrides,
+    });
+
+    expect(isValidPracticeRange('percentage', customRange())).toBe(true);
+    expect(isValidPracticeRange('percentage', customRange({
+      pctNumFrom: 0, pctNumTo: 200, pctDenFrom: 200, pctDenTo: 200,
+    }))).toBe(true);
+    expect(isValidPracticeRange('percentage', customRange({ pctNumFrom: undefined }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({ pctNumFrom: Number.NaN }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({ pctNumFrom: Number.POSITIVE_INFINITY }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({ pctNumFrom: 1.5 }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({ pctNumFrom: -1 }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({ pctNumTo: 201 }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({ pctDenFrom: 0 }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({ pctDenTo: 201 }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({ pctNumFrom: 6, pctNumTo: 2 }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({
+      pctNumFrom: 1, pctNumTo: 1, pctDenFrom: 5, pctDenTo: 2,
+    }))).toBe(false);
+    expect(isValidPracticeRange('percentage', customRange({
+      pctNumFrom: 1, pctNumTo: 5, pctDenFrom: 2, pctDenTo: 5,
+    }))).toBe(false);
+  });
+
+  it('generates all fractions for the selected custom range and ignores stale preset IDs', () => {
+    const customRange = {
+      from: 1,
+      to: 50,
+      pctRangeMode: 'custom' as const,
+      pctPresetIds: selectedThree,
+      pctNumFrom: 0,
+      pctDenFrom: 2,
+      pctNumTo: 4,
+      pctDenTo: 2,
+    };
+
+    for (const sequential of [true, false]) {
+      const questions = generateQuestions({
+        ...baseConfig,
+        count: 50,
+        sequential,
+        topics: [{ id: 'percentage', label: 'Percentage', range: customRange }],
+      });
+      const decimalQuestions = questions.filter((question) => question.answerType === 'decimal-pct');
+      expect(decimalQuestions.map((question) => question.questionFraction))
+        .toEqual(Array.from({ length: 5 }, (_, n) => ({ n, d: 2 })));
+      expect(questions.every((question) => question.percentagePresetId === undefined)).toBe(true);
+      for (const question of questions) {
+        const fraction = question.questionFraction;
+        if (!fraction) continue;
+        expect(fraction.d).toBe(2);
+        expect(fraction.n).toBeGreaterThanOrEqual(0);
+        expect(fraction.n).toBeLessThanOrEqual(4);
+        if (question.answerType === 'decimal-pct') {
+          const percentageAnswer = Number(question.answer);
+          expect(percentageAnswer).toBeCloseTo((fraction.n / fraction.d) * 100, 8);
+        }
+      }
+    }
+  });
+
+  it('supports the current custom unit-fraction denominator range and topic isolation', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 50,
+      topics: [
+        { id: 'squares', label: 'Squares', range: { from: 4, to: 5 } },
+        {
+          id: 'percentage',
+          label: 'Percentage',
+          range: {
+            from: 1,
+            to: 50,
+            pctRangeMode: 'custom',
+            pctNumFrom: 1,
+            pctDenFrom: 2,
+            pctNumTo: 1,
+            pctDenTo: 5,
+            pctPresetIds: selectedThree,
+          },
+        },
+      ],
+    });
+
+    const percentageQuestions = questions.filter((question) => question.topicId === 'percentage');
+    expect(percentageQuestions.length).toBeGreaterThan(0);
+    expect(new Set(percentageQuestions.map((question) => question.questionFraction?.d))).toEqual(new Set([2, 3, 4, 5]));
+    expect(percentageQuestions.every((question) => question.questionFraction?.n === 1)).toBe(true);
+    expect(percentageQuestions.every((question) => question.percentagePresetId === undefined)).toBe(true);
+    expect(questions.some((question) => question.topicId === 'squares')).toBe(true);
+  });
+
   it('does not change non-Percentage topic range generation', () => {
     const questions = generateQuestions({
       ...baseConfig,
