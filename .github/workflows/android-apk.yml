@@ -20,10 +20,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, '[BUILD_ANDROID_APK]'))
     runs-on: ubuntu-latest
 
+    # APK artifacts use local guest mode and do not require cloud-auth secrets.
     env:
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+      VITE_OFFLINE_MODE: "true"
 
     steps:
       - name: Checkout
