@@ -5,6 +5,9 @@ import PracticePage from '@/pages/PracticePage';
 function openCustomPercentageRange() {
   const rendered = render(<PracticePage />);
 
+  // Percentage-only fixture avoids the default Tables topic consuming the
+  // finite question-count selection before Percentage questions are reached.
+  fireEvent.click(screen.getByRole('button', { name: /Tables/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Percentage', exact: true }));
 
   const percentageAccordion = screen.getAllByRole('button').find((button) =>
