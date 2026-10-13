@@ -295,6 +295,39 @@ describe('PracticePage question generation', () => {
     }
   });
 
+  it('keeps mirrored Number 1 / Number 2 selections independently represented for subtraction', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 100,
+      sequential: true,
+      topics: [{
+        id: 'addition-subtraction-digits',
+        label: 'Addition / Subtraction – Digit Numbers',
+        range: {
+          from: 1,
+          to: 2,
+          operand1DigitCounts: [1, 2],
+          operand2DigitCounts: [1, 2],
+          arithmeticOperations: ['subtraction'],
+        },
+      }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    expect(questions).toHaveLength(100);
+    expect(new Set(questions.map((question) =>
+      question.operation + ':' + question.operand1DigitCount + ':' + question.operand2DigitCount,
+    ))).toEqual(new Set(['−:1:1', '−:1:2', '−:2:1', '−:2:2']));
+    for (const question of questions) {
+      expect(String(question.operand1)).toHaveLength(question.operand1DigitCount!);
+      expect(String(question.operand2)).toHaveLength(question.operand2DigitCount!);
+      const match = question.text.match(/^(\d+) − (\d+) = \?$/);
+      expect(match).not.toBeNull();
+      expect(Number(match?.[1])).toBeGreaterThanOrEqual(Number(match?.[2]));
+    }
+  });
+
   it('rejects empty digit selections while keeping legacy single-count configs compatible', () => {
     expect(isValidPracticeRange('addition-subtraction-digits', {
       from: 2,
