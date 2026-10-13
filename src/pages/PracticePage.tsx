@@ -1654,26 +1654,26 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               <DesktopModeToggle compact />
             </div>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
+          <div className="quiz-results-layout flex flex-col items-center justify-center min-h-[60vh] px-1 py-3">
+          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="quiz-results-card text-center w-full max-w-md p-4 sm:p-6">
             <div className="mb-4 flex justify-center">
               {accuracy >= 80 ? (
-                <Trophy size={64} className="text-warning drop-shadow-[0_0_18px_hsl(var(--warning)/0.5)]" />
+                <Trophy size={52} className="text-warning" />
               ) : accuracy >= 50 ? (
-                <ThumbsUp size={64} className="text-primary drop-shadow-[0_0_18px_hsl(var(--primary)/0.5)]" />
+                <ThumbsUp size={52} className="text-primary" />
               ) : (
-                <Dumbbell size={64} className="text-muted-foreground" />
+                <Dumbbell size={52} className="text-muted-foreground" />
               )}
             </div>
-            <h2 className="font-display font-bold text-3xl text-foreground mb-2">
+            <h2 className="font-display font-bold text-2xl sm:text-3xl text-foreground mb-1.5">
               {accuracy >= 80 ? 'Excellent!' : accuracy >= 50 ? 'Good Job!' : 'Keep Practicing!'}
             </h2>
-            <p className="text-muted-foreground mb-2">Score: {accuracy}%</p>
+            <p className="text-muted-foreground text-sm mb-2">Score: {accuracy}%</p>
             <motion.div
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 220, damping: 16, delay: 0.15 }}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-base mb-3 shadow-lg shadow-primary/30"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full gradient-primary text-primary-foreground font-display font-bold text-sm mb-3"
             >
               <Zap size={16} className="text-warning" />
               +{sessionXP} XP
@@ -1683,7 +1683,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 Topics: {config.topics.map(t => t.label).join(', ')}
               </p>
             )}
-            <div className="flex gap-8 mb-4">
+            <div className="grid grid-cols-3 gap-3 sm:gap-6 mb-4 w-full max-w-xs">
               <div className="text-center">
                 <p className="text-3xl font-bold text-success">{score.correct}</p>
                 <p className="text-xs text-muted-foreground">Correct</p>
@@ -1725,11 +1725,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             )}
             {config.infinite && <p className="text-sm text-muted-foreground mb-4">Time: {formatTime(elapsedTime)}</p>}
             <div className="flex gap-3">
-              <button onClick={() => startPractice(config)} className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-[0_0_24px_hsl(var(--primary)/0.5)]">Retry</button>
+              <button onClick={() => startPractice(config)} className="quiz-result-action min-h-11 flex-1 rounded-xl gradient-primary text-primary-foreground text-sm font-semibold">Retry</button>
               {fromLearning ? (
-                <button onClick={() => onExit?.()} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">Back to Learning</button>
+                <button onClick={() => onExit?.()} className="quiz-result-action min-h-11 flex-1 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold">Back to Learning</button>
               ) : (
-                <button onClick={handleBackToPractice} className="px-6 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold">Back to Practice</button>
+                <button onClick={handleBackToPractice} className="quiz-result-action min-h-11 flex-1 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold">Back to Practice</button>
               )}
             </div>
           </motion.div>
@@ -1811,7 +1811,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     return (
       <>
       <SwipeBack onBack={handleExitRequest}>
-      <div className="pb-6">
+      <div className="quiz-screen quiz-screen--active pb-6">
         <AlertDialog
           open={showExitDialog}
           onOpenChange={(open) => {
@@ -1821,7 +1821,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             }
           }}
         >
-          <AlertDialogContent className="practice-exit-dialog rounded-2xl max-w-[320px]">
+          <AlertDialogContent className="practice-exit-dialog quiz-dialog-surface rounded-2xl max-w-[320px]">
             <AlertDialogHeader>
               <AlertDialogTitle>Exit Practice?</AlertDialogTitle>
               <AlertDialogDescription>Your progress will not be saved.</AlertDialogDescription>
@@ -1932,7 +1932,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -30 }}
-            className="relative text-center mb-2 rounded-2xl py-4"
+            className="quiz-question-panel relative text-center mb-2 rounded-2xl px-2 py-4 sm:px-4 sm:py-5"
           >
             {renderQuestionText()}
             <div className="mt-2">{renderAnswerHint()}</div>
@@ -1998,7 +1998,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </AnimatePresence>
 
         {config.mode === 'mcq' && q.options && (
-          <div className="mcq-options-grid grid gap-3 mt-[30px]">
+          <div className="mcq-options-grid grid grid-cols-1 gap-2 sm:gap-3 mt-5">
             {q.options.map((opt, i) => {
               let optStyle = 'glass-lite text-foreground shadow-[0_0_14px_-6px_hsl(var(--primary)/0.3)] active:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:border-primary/60 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.45)]';
               if (feedback && selectedOption === i) {
@@ -2009,7 +2009,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               return (
                 <button key={`${currentQ}-${i}`}
                   onClick={() => { if (feedback) return; setSelectedOption(i); handleAnswer(opt); }}
-                  className={`w-full h-full rounded-2xl px-2 flex items-center justify-center text-center font-display font-bold text-base transition-all overflow-hidden ${optStyle}`}>
+                  className={`quiz-answer-option w-full min-h-12 rounded-xl px-3 py-3 flex items-center justify-center text-center font-display font-bold text-base transition-colors overflow-hidden ${optStyle}`}>
                   {renderOption(opt, i)}
                 </button>
               );
@@ -2018,7 +2018,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         )}
 
         {config.mode === 'input' && (
-          <div className="flex flex-col items-center gap-4 mt-4">
+          <div className="quiz-answer-input flex flex-col items-center gap-3 mt-3">
             {q.answerType === 'text' || q.answerType === 'trig' ? (
               <input
                 ref={inputRef}
@@ -2028,12 +2028,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={q.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Type symbol or element name'}
                 autoFocus
-                className="w-full max-w-xs glass-lite rounded-2xl px-4 py-4 text-center text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
+                className="w-full max-w-xs glass-lite rounded-xl px-3 py-3 text-center text-xl sm:text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-colors"
               />
             ) : (
               <>
                 <div
-                  className="w-full max-w-xs glass-lite rounded-2xl px-4 text-center text-2xl font-display font-bold text-foreground h-[64px] flex items-center justify-center overflow-hidden"
+                  className="w-full max-w-xs glass-lite rounded-xl px-3 text-center text-xl sm:text-2xl font-display font-bold text-foreground h-14 flex items-center justify-center overflow-hidden"
                   aria-live="polite"
                 >
                   {inputValue ? (
@@ -2064,7 +2064,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               type="button"
               disabled={!!feedback || !inputValue.trim()}
               onClick={() => handleAnswer(inputValue.trim())}
-              className="w-full max-w-[360px] min-w-[180px] min-h-12 rounded-2xl gradient-primary text-primary-foreground font-display font-extrabold tracking-wide text-base shadow-[0_0_24px_hsl(var(--primary)/0.45)] active:scale-[0.98] transition-transform disabled:opacity-60 disabled:pointer-events-none"
+              className="w-full max-w-[360px] min-w-[180px] min-h-11 rounded-xl gradient-primary text-primary-foreground font-display font-bold tracking-wide text-sm sm:text-base active:scale-[0.99] transition-transform disabled:opacity-60 disabled:pointer-events-none"
             >
               Submit
             </button>
