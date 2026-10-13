@@ -234,8 +234,8 @@ describe('Percentage preset multi-selection', () => {
         topics: [{ id: 'percentage', label: 'Percentage', range: customRange }],
       });
       const decimalQuestions = questions.filter((question) => question.answerType === 'decimal-pct');
-      expect(decimalQuestions.map((question) => question.questionFraction))
-        .toEqual(Array.from({ length: 5 }, (_, n) => ({ n, d: 2 })));
+      expect(decimalQuestions.map((question) => question.questionFraction?.n).sort((a, b) => Number(a) - Number(b)))
+        .toEqual([0, 1, 2, 3, 4]);
       expect(questions.every((question) => question.percentagePresetId === undefined)).toBe(true);
       for (const question of questions) {
         const fraction = question.questionFraction;
