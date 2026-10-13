@@ -749,7 +749,7 @@ if (!themeHydrationTests.includes('hydrates saved premium theme and appearance b
 
 
 const percentagePresets = read('src/lib/percentagePresets.ts');
-if (!practice.includes('pctPresetIds?: PercentagePresetId[]') ||
+if (!practice.includes('pctPresetIds?: string[]') ||
     !practice.includes('togglePercentagePresetRange') ||
     !practice.includes('setTopicRanges((previous) => {')) {
   fail('Percentage preset selection must use a collection and functional state updates');

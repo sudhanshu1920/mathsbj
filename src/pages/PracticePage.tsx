@@ -48,7 +48,7 @@ interface TopicRange {
   exponentFrom?: number;
   exponentTo?: number;
   pctRangeMode?: 'preset' | 'custom';
-  pctPresetIds?: PercentagePresetId[];
+  pctPresetIds?: string[];
   pctNumFrom?: number;
   pctDenFrom?: number;
   pctNumTo?: number;
@@ -117,7 +117,7 @@ const TOPIC_DEFAULTS = [
   { id: 'cubes' as AppTopicId, defaultRange: { from: 1, to: 30 } },
   { id: 'cube-roots' as AppTopicId, defaultRange: { from: 1, to: 20 } },
   { id: 'powers' as AppTopicId, defaultRange: { from: 2, to: 10, exponentFrom: 1, exponentTo: 5 } },
-  { id: 'percentage' as AppTopicId, defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const, pctPresetIds: [] as PercentagePresetId[] } },
+  { id: 'percentage' as AppTopicId, defaultRange: { from: 2, to: 10, pctRangeMode: 'preset' as const, pctPresetIds: [] as string[] } },
   { id: 'addition-subtraction-digits' as AppTopicId, defaultRange: { from: 2, to: 2, operand1DigitCount: 2, operand2DigitCount: 2, arithmeticOperations: ['addition', 'subtraction'] as ArithmeticOperation[] } },
   { id: 'trig' as AppTopicId, defaultRange: { from: 0, to: 360, trigFunctions: [...TRIG_FUNCTIONS], trigProMode: false } },
   { id: 'periodic-table' as AppTopicId, defaultRange: { from: 1, to: 30, periodicQuestionTypes: ['atomic-number', 'symbol', 'name', 'mass'] as PeriodicQuestionType[] } },
@@ -933,7 +933,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const updateRange = (
     topicId: string,
     field: string,
-    value: number | string | boolean | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[] | PercentagePresetId[],
+    value: number | string | boolean | PeriodicQuestionType[] | ArithmeticOperation[] | TrigFunction[] | string[],
   ) => {
     setTopicRanges(prev => ({
       ...prev,
