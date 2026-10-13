@@ -279,7 +279,7 @@ describe('PracticePage question generation', () => {
         expect(String(question.operand1)).not.toMatch(/^0/);
         expect(String(question.operand2)).not.toMatch(/^0/);
 
-        const match = question.text.match(/^(\\d+) ([+−]) (\\d+) = \\?$/);
+        const match = question.text.match(/^(\d+) ([+−]) (\d+) = \?$/);
         expect(match).not.toBeNull();
         const left = Number(match?.[1]);
         const right = Number(match?.[3]);
