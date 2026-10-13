@@ -18,7 +18,8 @@ function openDigitTopic() {
     button.hasAttribute('aria-expanded') && button.textContent?.includes('+/-'),
   );
   if (!digitAccordion) throw new Error('Digit range panel did not render.');
-  fireEvent.click(digitAccordion);
+  // Selecting this topic auto-expands its panel, so only click if it is closed.
+  if (digitAccordion.getAttribute('aria-expanded') !== 'true') fireEvent.click(digitAccordion);
 
   return rendered;
 }
