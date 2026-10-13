@@ -789,6 +789,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [levelUp, setLevelUp] = useState<number | null>(null);
   const [sessionXP, setSessionXP] = useState(0);
   const xpPopId = useRef(0);
+  const quizStartLockRef = useRef(false);
   const questionsRef = useRef<Question[]>([]);
   const originalQuestionsRef = useRef<Question[]>([]);
   const originalQuestionCountRef = useRef(0);
@@ -863,7 +864,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   }, []);
 
   const startPractice = useCallback((cfg: PracticeConfig) => {
-    // Guard programmatic starts as well as the disabled setup button.
+    // Guard rapid/programmatic duplicate starts as well as the disabled setup button.
+    if (quizStartLockRef.current) return;
     const invalidTopic = cfg.topics.find((topic) => !isValidPracticeRange(topic.id, topic.range));
     if (invalidTopic) {
       setStartError(
@@ -905,6 +907,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       setStartError(`No questions could be generated for ${topicNames}. Check the selected custom range and try again.`);
       return;
     }
+    quizStartLockRef.current = true;
     setStartError(null);
     questionPoolGenerationRef.current += 1;
     const qs = identifyQuizQuestions(generatedQuestions, questionPoolGenerationRef.current);
@@ -955,6 +958,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     answerLockRef.current = false;
     finishLockRef.current = false;
   }, [onQuizStart]);
+
+  useEffect(() => {
+    if (config && !finished) quizStartLockRef.current = false;
+  }, [config, finished]);
 
   useLayoutEffect(() => {
     if (initialTopic && initialMode) {
