@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { LazyMotion, MotionConfig } from "framer-motion";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext.tsx";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isGuest } from "./lib/guest";
+import { offlineOnlyMode, supabaseConfigured } from "./integrations/supabase/client.ts";
 
 const queryClient = new QueryClient();
 
@@ -49,7 +50,8 @@ const Gate = () => {
       </div>
     );
   }
-  if (user || guest) return <Index />;
+  // Offline-only builds must enter the local app directly, independent of storage availability.
+  if (offlineOnlyMode || user || guest) return <Index />;
   if (authMode) return <AuthPage initialMode={authMode} onBack={() => setAuthMode(null)} />;
   return <WelcomePage onAuthRequested={(m) => setAuthMode(m)} />;
 };
@@ -66,8 +68,8 @@ const App = () => (
             <AppErrorBoundary>
               <Routes>
               <Route path="/" element={<Gate />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/auth" element={supabaseConfigured ? <AuthPage /> : <Navigate to="/" replace />} />
+              <Route path="/reset-password" element={supabaseConfigured ? <ResetPasswordPage /> : <Navigate to="/" replace />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
               </Routes>
