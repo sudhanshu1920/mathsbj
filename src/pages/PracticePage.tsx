@@ -620,6 +620,50 @@ function selectQuestionsWithPresetCoverage(
   return questions.filter((question) => selected.has(question));
 }
 
+function selectQuestionsWithDigitCoverage(
+  questions: Question[],
+  count: number,
+  sequential: boolean,
+): Question[] {
+  const targetCount = clampQuizValue(count, 0, questions.length, 0);
+  if (targetCount === 0) return [];
+
+  const byCombination = new Map<string, Question[]>();
+  for (const question of questions) {
+    if (
+      question.operand1DigitCount === undefined ||
+      question.operand2DigitCount === undefined ||
+      !question.operation
+    ) continue;
+
+    const key = question.operation + ':' + question.operand1DigitCount + ':' + question.operand2DigitCount;
+    const group = byCombination.get(key) ?? [];
+    group.push(question);
+    byCombination.set(key, group);
+  }
+
+  const groups = [...byCombination.values()];
+  if (!sequential) shuffleInPlace(groups);
+  const selected = new Set<Question>();
+
+  // Reserve one question per available digit/operation combination when the
+  // finite question budget permits it, regardless of Sequential/Random mode.
+  for (const group of groups) {
+    const required = sequential ? group[0] : group[Math.floor(Math.random() * group.length)];
+    if (required) selected.add(required);
+    if (selected.size >= targetCount) break;
+  }
+
+  const remaining = questions.filter((question) => !selected.has(question));
+  if (!sequential) shuffleInPlace(remaining);
+  for (const question of remaining) {
+    if (selected.size >= targetCount) break;
+    selected.add(question);
+  }
+
+  return questions.filter((question) => selected.has(question));
+}
+
 export function generateQuestions(config: PracticeConfig): Question[] {
   const baseQuestions: Question[] = [];
 
@@ -641,6 +685,12 @@ export function generateQuestions(config: PracticeConfig): Question[] {
     questionSource = config.topics.length === 1 && config.topics[0]?.id === 'percentage'
       ? selectQuestionsAcrossPresetRanges(baseQuestions, config.count, config.sequential)
       : selectQuestionsWithPresetCoverage(baseQuestions, config.count, selectedPresetIds, config.sequential);
+  } else if (
+    isFiniteQuestionSelection &&
+    config.topics.length === 1 &&
+    config.topics[0]?.id === 'addition-subtraction-digits'
+  ) {
+    questionSource = selectQuestionsWithDigitCoverage(baseQuestions, config.count, config.sequential);
   }
 
   const allQuestions = buildQuestionPool(questionSource, {
