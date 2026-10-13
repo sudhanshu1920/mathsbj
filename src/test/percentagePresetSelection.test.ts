@@ -106,7 +106,7 @@ describe('Percentage preset multi-selection', () => {
         sequential,
       }));
       expect(questions).toHaveLength(10);
-      expect(new Set(questions.map((question) => question.percentagePresetId))
+      expect(new Set(questions.map((question) => question.percentagePresetId)))
         .toEqual(new Set(selectedThree));
     }
   });

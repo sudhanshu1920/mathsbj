@@ -2145,6 +2145,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                               >Custom</button>
                             </div>
                             {(range.pctRangeMode || 'preset') === 'preset' ? (
+                              <>
                               <div role="group" aria-label="Percentage preset ranges" className="grid grid-cols-1 gap-1.5">
                                 {PERCENTAGE_PRESETS.map((preset) => {
                                   const isSelected = selectedPercentagePresets.some((selected) => selected.id === preset.id);
@@ -2169,6 +2170,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                                   Select at least one preset range to start.
                                 </p>
                               )}
+                              </>
                             ) : (
                               <div className="flex items-center gap-3 justify-center">
                                 <div className="flex flex-col items-center">
