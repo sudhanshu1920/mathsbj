@@ -808,4 +808,17 @@ if (!percentageCustomUiTests.includes('persists the displayed defaults, accepts 
   fail('Percentage Custom range UI/generator regression coverage is missing');
 }
 
+const digitMultiSelectUiTests = read('src/pages/PracticePage.digitMultiSelect.test.tsx');
+const digitMultiSelectGeneratorTests = read('src/test/practiceQuestionGeneration.test.ts');
+if (!practice.includes('operand1DigitCounts?: number[]') ||
+    !practice.includes('getSelectedDigitCounts(range, 1)') ||
+    !practice.includes('selectQuestionsWithDigitCoverage(baseQuestions, config.count, config.sequential)') ||
+    !practice.includes('grid grid-cols-5 gap-1 sm:gap-1.5') ||
+    !practice.includes('{digits}D') ||
+    !digitMultiSelectUiTests.includes('selects multiple digits independently') ||
+    !digitMultiSelectUiTests.includes('requires at least one selected digit') ||
+    !digitMultiSelectGeneratorTests.includes('validates and generates every selected digit-count combination')) {
+  fail('Quiz +/- must keep compact multi-select controls, independent digit ranges, fair question coverage, and regression tests');
+}
+
 console.log('Architecture regression checks passed.');
