@@ -257,10 +257,22 @@ jobs:
             tr -d ':' | tr '[:lower:]' '[:upper:]'
           )"
 
-          test -n "$expected_fp"
-          test -n "$actual_fp"
-          test "$expected_fp" = "$actual_fp"
-          test "$actual_fp" = "$EXPECTED_RELEASE_CERT_SHA256"
+          printf 'Signing keystore certificate SHA-256: %s\n' "$expected_fp"
+          printf 'Built APK signer SHA-256: %s\n' "$actual_fp"
+          printf 'Pinned production certificate SHA-256: %s\n' "$EXPECTED_RELEASE_CERT_SHA256"
+
+          if [[ -z "$expected_fp" || -z "$actual_fp" ]]; then
+            echo "::error::Could not extract the release signing certificate fingerprint."
+            exit 1
+          fi
+          if [[ "$expected_fp" != "$actual_fp" ]]; then
+            echo "::error::The APK was not signed by the certificate in the configured release keystore."
+            exit 1
+          fi
+          if [[ "$actual_fp" != "$EXPECTED_RELEASE_CERT_SHA256" ]]; then
+            echo "::error::The configured release certificate does not match the pinned production certificate used by existing MathMaster installations."
+            exit 1
+          fi
 
           sha256sum "$apk"
           ls -lh "$apk"
