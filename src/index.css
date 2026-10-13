@@ -2930,3 +2930,46 @@ html.low-power .quiz-question-panel {
   background: hsl(var(--card) / 0.97);
   box-shadow: none;
 }
+
+
+/* Selected multi-select states carry a small glyph as well as an accent color. */
+.quiz-topic-card {
+  padding-top: 1rem;
+}
+
+.quiz-topic-card::after {
+  content: "○";
+  position: absolute;
+  top: 0.3rem;
+  right: 0.45rem;
+  z-index: 20;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.quiz-topic-card[aria-pressed="true"]::after {
+  content: "✓";
+  color: hsl(var(--primary));
+}
+
+.quiz-range-body [role="group"][aria-label$="digit counts"] button[aria-pressed="true"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+}
+
+.quiz-range-body [role="group"][aria-label$="digit counts"] button[aria-pressed="true"]::before {
+  content: "✓";
+  font-size: 0.58rem;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+@media (max-width: 359px) {
+  .quiz-topic-card {
+    padding-top: 0.9rem;
+  }
+}
