@@ -2116,7 +2116,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const questionCountDisabled = isQuestionCountSelectionDisabled(repetitionEnabled, timerMode);
 
   return (
-    <div className="pb-24 md:pb-6">
+    <div className="quiz-screen quiz-screen--setup pb-24 md:pb-6">
       <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
         <h1 className="font-display font-bold text-base sm:text-lg text-foreground flex items-center gap-1.5">
           <Zap size={16} className="text-primary" /> Quiz Arena
@@ -2131,24 +2131,24 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Topic Chips - Multi Select */}
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-3 block font-semibold">Select Topics</label>
-        <div className="grid grid-cols-2 gap-3">
+      <div className="quiz-topic-section mb-4">
+        <label className="quiz-section-label text-sm text-muted-foreground mb-2 block font-semibold">Select Topics</label>
+        <div className="quiz-topic-grid grid grid-cols-2 gap-2 sm:gap-3">
           {TOPICS.map((t) => {
             const isSelected = selectedTopics.has(t.id);
             return (
               <button
                 key={t.id}
                 onClick={() => toggleTopic(t.id)}
-                className={`flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition-all relative overflow-hidden ${
+                className={`quiz-topic-card flex min-w-0 items-center justify-center gap-2 rounded-2xl px-2 py-2.5 text-xs sm:text-sm font-bold transition-colors relative overflow-hidden ${
                   isSelected
                     ? 'gradient-primary text-primary-foreground shadow-lg shadow-primary/30'
                     : 'bg-card border border-border text-foreground hover:border-primary/50'
                 }`}
               >
-                <span className="relative z-10 flex items-center gap-2">
-                  <TopicIconForTopic topicId={t.id} />
-                  {t.label}
+                <span className="quiz-topic-card__content relative z-10 flex min-w-0 items-center justify-center gap-2">
+                  <span className="shrink-0"><TopicIconForTopic topicId={t.id} /></span>
+                  <span className="quiz-topic-card__label min-w-0">{t.label}</span>
                 </span>
                 {isSelected && (
                   <motion.div layoutId="glow" className="absolute inset-0 bg-primary/10 rounded-2xl" initial={false} />
@@ -2164,8 +2164,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
       {/* Per-Topic Range Controls */}
       {selectedTopics.size > 0 && (
-        <div className="mb-5 space-y-2">
-          <label className="text-sm text-muted-foreground mb-2 block font-semibold">Range per Topic</label>
+        <div className="quiz-range-section mb-4 space-y-2">
+          <label className="quiz-section-label text-sm text-muted-foreground mb-2 block font-semibold">Range per Topic</label>
           {Array.from(selectedTopics).map((tid) => {
             const topicInfo = TOPICS.find(t => t.id === tid)!;
             const range = topicRanges[tid];
@@ -2175,21 +2175,21 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             const isTrig = tid === 'trig';
 
             return (
-              <div key={tid} className="glass-lite rounded-2xl overflow-hidden">
+              <div key={tid} className="quiz-range-card glass-lite rounded-2xl overflow-hidden">
                 <button
                   type="button"
                   aria-expanded={isExpanded}
                   onClick={() => setExpandedTopic(isExpanded ? null : tid)}
-                  className="w-full flex items-center justify-between px-4 py-3"
+                  className="quiz-range-header w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left"
                 >
-                  <div className="flex items-center gap-2">
-                    <TopicIconForTopic topicId={tid as AppTopicId} />
-                    <span className="font-semibold text-sm text-foreground">{topicInfo.label}</span>
-                    <span className="text-xs text-muted-foreground">
+                  <div className="quiz-range-heading flex min-w-0 items-center gap-2">
+                    <span className="shrink-0"><TopicIconForTopic topicId={tid as AppTopicId} /></span>
+                    <span className="font-semibold text-sm text-foreground shrink-0">{topicInfo.label}</span>
+                    <span className="quiz-range-summary min-w-0 text-[11px] sm:text-xs text-muted-foreground">
                       {isTrig
   ? (range.trigProMode ? '(Pro · 0°–360°)' : '(Standard · 0°–90°)')
   : tid === 'addition-subtraction-digits'
-    ? (range.operand1DigitCount ?? 2) + '-digit + ' + (range.operand2DigitCount ?? 2) + '-digit • ' + ((range.arithmeticOperations || ['addition', 'subtraction']).map((operation) => operation === 'addition' ? '+' : '−').join(' / '))
+    ? getSelectedDigitCounts(range, 1).map((digits) => digits + 'D').join('/') + ' + ' + getSelectedDigitCounts(range, 2).map((digits) => digits + 'D').join('/') + ' • ' + ((range.arithmeticOperations || ['addition', 'subtraction']).map((operation) => operation === 'addition' ? '+' : '−').join(' / '))
   : tid === 'periodic-table'
     ? `(${range.from} → ${range.to} • ${(range.periodicQuestionTypes || []).length}/4 types${range.periodicQuestionTypes?.includes('mass') ? ` • ${range.periodicMassMode === 'exact' ? 'Exact' : range.periodicMassMode === 'round' ? 'Round' : 'Mass mode?'}` : ''})`
   : tid === 'tables'
@@ -2208,9 +2208,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="border-t border-border"
+                      className="quiz-range-accordion border-t border-border"
                     >
-                      <div className="p-4 space-y-3">
+                      <div className="quiz-range-body p-3 sm:p-4 space-y-3">
                         {isTrig ? (
                           <div className="space-y-4">
                             <div>
@@ -2604,7 +2604,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       )}
 
       {/* Questions Count */}
-      <div className={`mb-5 rounded-2xl border p-4 ${questionCountDisabled ? 'border-border bg-muted/30' : 'border-transparent bg-transparent p-0'}`}>
+      <div className={`quiz-setting-block mb-4 rounded-2xl border p-3 sm:p-4 ${questionCountDisabled ? 'border-border bg-muted/30' : 'border-transparent bg-transparent p-0'}`}>
         <div className="flex items-center justify-between gap-2">
           <label className={`text-sm font-semibold ${questionCountDisabled ? 'text-muted-foreground' : 'text-foreground'}`}>
             Questions
@@ -2658,7 +2658,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Repetition */}
-      <div className="mb-5 glass rounded-2xl p-4">
+      <div className="quiz-setting-block mb-4 glass rounded-2xl p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="font-semibold text-sm text-foreground">Repetition</span>
@@ -2718,9 +2718,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Answer Mode */}
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Answer Mode</label>
-        <div className="flex gap-2">
+      <div className="quiz-setting-block mb-4">
+        <label className="quiz-section-label text-sm text-muted-foreground mb-2 block font-semibold">Answer Mode</label>
+        <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setMode('mcq')}
             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>MCQ</button>
           <button onClick={() => setMode('input')}
@@ -2729,7 +2729,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Mutually exclusive per-question Timer / full-session Challenge */}
-      <div className="mb-5 bg-card border border-border rounded-2xl p-4">
+      <div className="quiz-setting-block mb-4 bg-card border border-border rounded-2xl p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Timer size={18} className="text-primary" />
@@ -2793,8 +2793,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </div>
 
       {/* Order */}
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground mb-2 block font-semibold">Order</label>
+      <div className="quiz-setting-block mb-4">
+        <label className="quiz-section-label text-sm text-muted-foreground mb-2 block font-semibold">Order</label>
         <div className="flex gap-2">
           <button onClick={() => setSequential(false)}
             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${!sequential ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
@@ -2831,7 +2831,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
            };
           startPractice(cfg);
         }}
-        className={`w-full py-4 rounded-2xl font-display font-bold text-lg shadow-lg mt-2 transition-all flex items-center justify-center gap-2 ${
+        className={`quiz-start-cta w-full min-h-12 py-3 rounded-xl font-display font-bold text-base shadow-sm mt-2 transition-colors flex items-center justify-center gap-2 ${
           canStart
             ? 'gradient-primary text-primary-foreground shadow-primary/30'
             : 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -2841,7 +2841,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       </motion.button>
 
       {startError && (
-        <p role="alert" className="mt-3 text-center text-xs font-semibold text-destructive">
+        <p role="alert" className="quiz-start-error mt-2 rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-2 text-center text-xs font-semibold text-destructive">
           {startError}
         </p>
       )}
