@@ -8,14 +8,14 @@ function openCustomPercentageRange() {
   // Percentage-only fixture avoids the default Tables topic consuming the
   // finite question-count selection before Percentage questions are reached.
   fireEvent.click(screen.getByRole('button', { name: /Tables/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Percentage', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: /^Percentage$/ }));
 
   const percentageAccordion = screen.getAllByRole('button').find((button) =>
     button.hasAttribute('aria-expanded') && button.textContent?.includes('Percentage'),
   );
   if (!percentageAccordion) throw new Error('Percentage range panel did not render.');
   fireEvent.click(percentageAccordion);
-  fireEvent.click(screen.getByRole('button', { name: 'Custom', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: /^Custom$/ }));
 
   return rendered;
 }
@@ -58,9 +58,9 @@ describe('Quiz Arena Percentage Custom range startup', () => {
     fireEvent.change(screen.getByLabelText('Percentage custom end numerator'), {
       target: { value: '8' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Preset', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: /^Preset$/ }));
     fireEvent.click(screen.getByRole('button', { name: /1\/1/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Custom', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: /^Custom$/ }));
 
     expect(screen.getByLabelText('Percentage custom end numerator')).toHaveValue(8);
     expect(screen.getByLabelText('Percentage custom start denominator')).toHaveValue(2);
