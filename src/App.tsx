@@ -35,6 +35,13 @@ const Gate = () => {
     };
   }, []);
 
+  // AuthProvider can enable guest mode before this child effect subscribes to
+  // guest-updated. Re-read persisted state when auth initialization completes
+  // so a fresh install enters the app without requiring a second launch.
+  useEffect(() => {
+    if (!loading) setGuestState(isGuest());
+  }, [loading]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
