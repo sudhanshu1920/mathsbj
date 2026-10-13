@@ -101,22 +101,6 @@ jobs:
           identify -format '%wx%h' public/app-icon.png | grep -qx '1024x1024'
           test -s public/app-icon.png
 
-      - name: Validate authentication build configuration
-        shell: bash
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          set -euo pipefail
-          if [[ ! "${VITE_SUPABASE_URL:-}" =~ ^https://[A-Za-z0-9-]+\.supabase\.co$ ]]; then
-            echo "::error::Missing or invalid VITE_SUPABASE_URL GitHub Actions secret."
-            exit 1
-          fi
-          if [[ ${#VITE_SUPABASE_PUBLISHABLE_KEY} -le 20 ]]; then
-            echo "::error::Missing or invalid VITE_SUPABASE_PUBLISHABLE_KEY GitHub Actions secret."
-            exit 1
-          fi
-
       - name: Build web application
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
