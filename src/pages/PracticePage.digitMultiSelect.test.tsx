@@ -52,7 +52,7 @@ describe('Quiz Arena +/- digit-count multi-selection', () => {
     expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Start Quiz' }));
-    expect(screen.getByText(/^\d+ [ +−] \d+ = \?$/)).toBeInTheDocument();
+    expect(screen.getByText(/^\d+ [+−] \d+ = \?$/)).toBeInTheDocument();
   });
 
   it('requires at least one selected digit for each operand', () => {
