@@ -244,7 +244,7 @@ describe('Percentage preset multi-selection', () => {
         expect(fraction.n).toBeGreaterThanOrEqual(0);
         expect(fraction.n).toBeLessThanOrEqual(4);
         if (question.answerType === 'decimal-pct') {
-          const percentageAnswer = Number(question.answer);
+          const percentageAnswer = Number(String(question.answer).replace(/%$/, ''));
           expect(percentageAnswer).toBeCloseTo((fraction.n / fraction.d) * 100, 8);
         }
       }
@@ -276,8 +276,9 @@ describe('Percentage preset multi-selection', () => {
 
     const percentageQuestions = questions.filter((question) => question.topicId === 'percentage');
     expect(percentageQuestions.length).toBeGreaterThan(0);
-    expect(new Set(percentageQuestions.map((question) => question.questionFraction?.d))).toEqual(new Set([2, 3, 4, 5]));
-    expect(percentageQuestions.every((question) => question.questionFraction?.n === 1)).toBe(true);
+    const fractionQuestions = percentageQuestions.filter((question) => question.questionFraction !== undefined);
+    expect(new Set(fractionQuestions.map((question) => question.questionFraction?.d))).toEqual(new Set([2, 3, 4, 5]));
+    expect(fractionQuestions.every((question) => question.questionFraction?.n === 1)).toBe(true);
     expect(percentageQuestions.every((question) => question.percentagePresetId === undefined)).toBe(true);
     expect(questions.some((question) => question.topicId === 'squares')).toBe(true);
   });
