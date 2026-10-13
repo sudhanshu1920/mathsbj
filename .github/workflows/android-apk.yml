@@ -251,10 +251,13 @@ jobs:
             sed 's/.*=//' | tr -d ':' | tr '[:lower:]' '[:upper:]'
           )"
 
+          certificate_output="$("$APKSIGNER" verify --print-certs "$apk" 2>&1)"
           actual_fp="$(
-            "$APKSIGNER" verify --print-certs "$apk" 2>&1 |
-            awk -F': ' '/certificate SHA-256 digest/ { print $2; exit }' |
-            tr -d ':' | tr '[:lower:]' '[:upper:]'
+            printf '%s\n' "$certificate_output" |
+            grep -i 'certificate SHA-256 digest' |
+            grep -Eo '[[:xdigit:]]{64}' |
+            head -n 1 |
+            tr '[:lower:]' '[:upper:]' || true
           )"
 
           printf 'Signing keystore certificate SHA-256: %s\n' "$expected_fp"
