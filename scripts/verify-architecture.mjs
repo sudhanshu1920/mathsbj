@@ -774,4 +774,22 @@ if (!percentagePresets.includes('normalizePercentagePresetIds') ||
   fail('Shared Percentage preset normalization/toggle/resolve helpers are missing');
 }
 
+const quizRetryQueue = read('src/lib/quizRetryQueue.ts');
+const quizRetryTests = read('src/test/quizRetryQueue.test.ts');
+if (!practice.includes('questionsRef.current = nextQueue') ||
+    !practice.includes('ensureOutstandingQuestionRetries') ||
+    !practice.includes('shouldFinishQuestionQueue') ||
+    !practice.includes('getQuizCompletionPercent(completedQuestionIds.size, originalQuestionCount)') ||
+    !practice.includes('data-testid="quiz-repetition-results"')) {
+  fail('Quiz Repetition must retry wrong identities, keep completion progress stable, and wait for completion');
+}
+if (!quizRetryQueue.includes('at most one pending retry per identity') ||
+    !quizRetryQueue.includes('ensureOutstandingQuestionRetries') ||
+    !quizRetryQueue.includes('getQuizCompletionPercent') ||
+    !quizRetryQueue.includes('completedCount >= originalQuestionCount') ||
+    !quizRetryTests.includes('does not create duplicate pending retry entries') ||
+    !quizRetryTests.includes('requeues a retry after another wrong attempt')) {
+  fail('Quiz retry lifecycle tests or core queue safeguards are missing');
+}
+
 console.log('Architecture regression checks passed.');

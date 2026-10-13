@@ -30,6 +30,7 @@ import {
 import { getTrigQuestions, getTrigAngles, buildTrigOptions, isTrigAnswerCorrect, TRIG_FUNCTIONS, type TrigFunction, type TrigAngle } from '@/lib/trigData';
 import { ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
+import { enqueueQuestionRetry, ensureOutstandingQuestionRetries, getQuizCompletionPercent, identifyQuizQuestions, shouldFinishQuestionQueue } from '@/lib/quizRetryQueue';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
 import { PERCENTAGE_PRESETS, type PercentagePresetId, resolvePercentagePresets, togglePercentagePresetIds } from '@/lib/percentagePresets';
@@ -84,6 +85,8 @@ interface MixedPct {
 
 interface Question {
   topicId?: string;
+  quizQuestionId?: string;
+  quizIsRetry?: boolean;
   questionId?: string;
   percentagePresetId?: PercentagePresetId;
   trigFunctionId?: TrigFunction;
@@ -754,6 +757,10 @@ const TopicIconForTopic = ({ topicId }: { topicId: AppTopicId }) => {
 const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, onExitCancelled, externalBackRequest, fromLearning, onQuizStart, onQuizFinish, onQuizReset }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [originalQuestionCount, setOriginalQuestionCount] = useState(0);
+  const [completedQuestionIds, setCompletedQuestionIds] = useState<Set<string>>(() => new Set());
+  const [retriedQuestionIds, setRetriedQuestionIds] = useState<Set<string>>(() => new Set());
+  const [retryAttempts, setRetryAttempts] = useState(0);
   const [currentQ, setCurrentQ] = useState(0);
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
   const [finished, setFinished] = useState(false);
@@ -769,6 +776,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [levelUp, setLevelUp] = useState<number | null>(null);
   const [sessionXP, setSessionXP] = useState(0);
   const xpPopId = useRef(0);
+  const questionsRef = useRef<Question[]>([]);
+  const originalQuestionsRef = useRef<Question[]>([]);
+  const originalQuestionCountRef = useRef(0);
+  const completedQuestionIdsRef = useRef<Set<string>>(new Set());
+  const retriedQuestionIdsRef = useRef<Set<string>>(new Set());
+  const questionPoolGenerationRef = useRef(0);
   const levelUpTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const xpPopTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const answerLockRef = useRef(false);
@@ -867,8 +880,19 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         ]),
       ),
     };
-    const qs = generateQuestions(normalizedConfig);
-    if (qs.length === 0) return;
+    const generatedQuestions = generateQuestions(normalizedConfig);
+    if (generatedQuestions.length === 0) return;
+    questionPoolGenerationRef.current += 1;
+    const qs = identifyQuizQuestions(generatedQuestions, questionPoolGenerationRef.current);
+    questionsRef.current = qs;
+    originalQuestionsRef.current = qs;
+    originalQuestionCountRef.current = qs.length;
+    completedQuestionIdsRef.current = new Set();
+    retriedQuestionIdsRef.current = new Set();
+    setOriginalQuestionCount(qs.length);
+    setCompletedQuestionIds(new Set());
+    setRetriedQuestionIds(new Set());
+    setRetryAttempts(0);
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = undefined;
     challengeDeadlineRef.current = null;
@@ -1115,6 +1139,30 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         }
       }
 
+      const questionId = q.quizQuestionId;
+      if (q.quizIsRetry) setRetryAttempts((previous) => previous + 1);
+
+      if (isCorrect && questionId) {
+        const nextCompleted = new Set(completedQuestionIdsRef.current);
+        nextCompleted.add(questionId);
+        completedQuestionIdsRef.current = nextCompleted;
+        setCompletedQuestionIds(nextCompleted);
+      } else if (config.repetitionEnabled && questionId) {
+        const nextRetried = new Set(retriedQuestionIdsRef.current);
+        nextRetried.add(questionId);
+        retriedQuestionIdsRef.current = nextRetried;
+        setRetriedQuestionIds(nextRetried);
+
+        const currentQueue = questionsRef.current;
+        const nextQueue = enqueueQuestionRetry(currentQueue, currentQ, q, completedQuestionIdsRef.current);
+        if (nextQueue.length > currentQueue.length) {
+          // Update the ref synchronously: the delayed advance below must see a
+          // retry queued by this very submission, not a stale React state value.
+          questionsRef.current = nextQueue;
+          setQuestions(nextQueue);
+        }
+      }
+
       setFeedback(isCorrect ? 'correct' : 'wrong');
       markInteraction();
       // Sound + vibration micro-feedback
@@ -1192,21 +1240,54 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         setFeedback(null);
         setInputValue('');
         setSelectedOption(null);
+        // A retry is appended synchronously to questionsRef, so always read
+        // the authoritative queue after the feedback delay rather than the
+        // questions array captured by this callback's render.
+        let latestQuestions = questionsRef.current;
+        if (config.repetitionEnabled) {
+          const reconciledQueue = ensureOutstandingQuestionRetries(
+            latestQuestions,
+            currentQ,
+            originalQuestionsRef.current,
+            completedQuestionIdsRef.current,
+          );
+          if (reconciledQueue.length > latestQuestions.length) {
+            latestQuestions = reconciledQueue;
+            questionsRef.current = reconciledQueue;
+            setQuestions(reconciledQueue);
+          }
+        }
+
         // The Challenge deadline, not the finite question pool, ends a
-        // Challenge. When a pool runs out it is regenerated below.
+        // Challenge. Pending retries must be resolved before its pool cycles.
         const isFiniteQuiz = config.timerMode !== 'challenge' &&
           (config.repetitionEnabled || !config.infinite);
-        if (isFiniteQuiz && currentQ + 1 >= questions.length) {
+        const shouldFinishCurrentPool = shouldFinishQuestionQueue(
+          latestQuestions.length,
+          currentQ,
+          config.repetitionEnabled,
+          completedQuestionIdsRef.current.size,
+          originalQuestionCountRef.current,
+        );
+        if (isFiniteQuiz && shouldFinishCurrentPool) {
           finishQuiz();
-        } else if (config.infinite && currentQ + 1 >= questions.length) {
-          const nextPool = generateQuestions(config);
-          if (nextPool.length === 0) {
+        } else if (config.infinite && currentQ + 1 >= latestQuestions.length) {
+          const generatedNextPool = generateQuestions(config);
+          if (generatedNextPool.length === 0) {
             setFinished(true);
             if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
           } else {
-            // Keep infinite mode memory-bounded: recycle a fresh pool instead
-            // of appending another full pool on every cycle.
+            // Keep infinite/Challenge mode memory-bounded. A pool receives new
+            // identities only after all retries from its previous round clear.
+            questionPoolGenerationRef.current += 1;
+            const nextPool = identifyQuizQuestions(generatedNextPool, questionPoolGenerationRef.current);
+            questionsRef.current = nextPool;
+            originalQuestionsRef.current = nextPool;
+            originalQuestionCountRef.current = nextPool.length;
+            completedQuestionIdsRef.current = new Set();
             setQuestions(nextPool);
+            setOriginalQuestionCount(nextPool.length);
+            setCompletedQuestionIds(new Set());
             setCurrentQ(0);
             if (config.timerMode === 'perQuestion') {
               questionDeadlineRef.current = config.timerSeconds < 9999
@@ -1293,7 +1374,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     clearSessionTimers();
     setShowExitDialog(false);
     setConfig(null);
+    questionsRef.current = [];
+    originalQuestionsRef.current = [];
+    originalQuestionCountRef.current = 0;
+    completedQuestionIdsRef.current = new Set();
+    retriedQuestionIdsRef.current = new Set();
     setQuestions([]);
+    setOriginalQuestionCount(0);
+    setCompletedQuestionIds(new Set());
+    setRetriedQuestionIds(new Set());
+    setRetryAttempts(0);
     setCurrentQ(0);
     setScore({ correct: 0, wrong: 0 });
     setFinished(false);
@@ -1437,6 +1527,27 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 <p className="text-xs text-muted-foreground">{config.timerMode === 'challenge' ? 'Solved' : 'Attempted'}</p>
               </div>
             </div>
+            {config.repetitionEnabled && config.timerMode !== 'challenge' && (
+              <div data-testid="quiz-repetition-results" className="mb-4 w-full max-w-sm rounded-xl border border-border/70 bg-muted/20 p-3 text-sm">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center">
+                    <p className="font-bold text-foreground">{originalQuestionCount}</p>
+                    <p className="text-[11px] text-muted-foreground">Questions</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-bold text-success">{completedQuestionIds.size}/{originalQuestionCount}</p>
+                    <p className="text-[11px] text-muted-foreground">Completed</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-bold text-foreground">{retriedQuestionIds.size}</p>
+                    <p className="text-[11px] text-muted-foreground">Repeated</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-center text-xs text-muted-foreground">
+                  Incorrect attempts: {score.wrong} · Retry attempts: {retryAttempts}
+                </p>
+              </div>
+            )}
             {config.timerMode === 'challenge' && (
               <p className="text-sm text-muted-foreground mb-4">
                 Challenge · {Math.round((config.challengeDurationSeconds ?? 60) / 60)}m
@@ -1591,6 +1702,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 Submit
               </button>
             </div>
+          ) : config.repetitionEnabled ? (
+            <span data-testid="quiz-completion-count" className="text-sm text-muted-foreground">
+              Completed {completedQuestionIds.size}/{originalQuestionCount}
+            </span>
           ) : (
             <span className="text-sm text-muted-foreground">{currentQ + 1}/{questions.length}</span>
           )}
@@ -1608,7 +1723,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             data-testid="quiz-overall-progress"
             className={`h-1 bg-secondary rounded-full overflow-hidden ${isCountdownProgressVisible ? 'mb-2' : 'mb-6'}`}
           >
-            <motion.div className="h-full gradient-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }} />
+            <motion.div className="h-full gradient-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${config.repetitionEnabled ? getQuizCompletionPercent(completedQuestionIds.size, originalQuestionCount) : ((currentQ + 1) / questions.length) * 100}%` }} />
           </div>
         )}
 
