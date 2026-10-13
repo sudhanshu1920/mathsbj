@@ -298,7 +298,6 @@ function generateDigitArithmeticQuestions(
   for (const first of firstDigits) {
     for (const second of secondDigits) digitPairs.push({ first, second });
   }
-  const digitPairKeys = new Set(digitPairs.map(({ first, second }) => first + ':' + second));
   const groups: {
     firstDigits: number;
     secondDigits: number;
@@ -308,13 +307,8 @@ function generateDigitArithmeticQuestions(
 
   for (const pair of digitPairs) {
     for (const operation of activeOperations) {
-      // A mirrored subtraction pair produces the same displayed equations;
-      // keep one canonical group when both operand selections contain it.
-      if (
-        operation === 'subtraction' &&
-        pair.first > pair.second &&
-        digitPairKeys.has(pair.second + ':' + pair.first)
-      ) continue;
+      // Keep ordered operand configurations distinct, including mirrored
+      // subtraction ranges; values are reordered only for display.
       groups.push({
         firstDigits: pair.first,
         secondDigits: pair.second,
