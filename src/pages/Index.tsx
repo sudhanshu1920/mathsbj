@@ -18,6 +18,7 @@ import OfflinePrep from '@/components/OfflinePrep';
 import { getSettings } from '@/lib/settings';
 import { getPracticeNavDepth, getPracticeReturnDepth, isPracticeSessionInProgress, isUnsavedPracticePhase, LEARNING_PRACTICE_SELECTOR_DEPTH, type PracticeLaunchContext, type PracticePhase } from '@/lib/practiceNavigation';
 import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
+import { getPeriodicRangeIndexFromDepth, isValidPeriodicRangeIndex } from '@/lib/periodicRangeNavigation';
 import { MOTION } from '@/lib/motion';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TrigFunction } from '@/lib/trigData';
@@ -103,7 +104,7 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
   if (!activeTopic) return 'learn-home';
   if (activeTopic === 'periodic-table') {
     if (periodicSelectedElement) return `learn-periodic-table-element-${periodicSelectedElement}`;
-    if (learningState.periodicSelectedRangeIndex !== null) {
+    if (isValidPeriodicRangeIndex(learningState.periodicSelectedRangeIndex ?? -1)) {
       return `learn-periodic-table-range-${learningState.periodicSelectedRangeIndex}`;
     }
     return 'learn-periodic-table';
@@ -450,19 +451,43 @@ const Index = () => {
 
       // Learn tab - go back step by step
       const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex, periodicSelectedElement, periodicSelectedRangeIndex } = learningState;
+      const targetDepth = typeof window.history.state?.depth === 'string' ? window.history.state.depth : '';
+      const targetPeriodicRangeIndex = getPeriodicRangeIndexFromDepth(targetDepth);
 
       if (activeTopic === 'periodic-table' && periodicSelectedElement) {
-        setLearningState(prev => ({ ...prev, periodicSelectedElement: null }));
-        lastDepth.current = periodicSelectedRangeIndex !== null
-          ? `learn-periodic-table-range-${periodicSelectedRangeIndex}`
-          : 'learn-periodic-table';
+        setLearningState(prev => ({
+          ...prev,
+          periodicSelectedElement: null,
+          periodicSelectedRangeIndex: targetDepth === 'learn-periodic-table'
+            ? null
+            : targetPeriodicRangeIndex ?? prev.periodicSelectedRangeIndex,
+        }));
+        lastDepth.current = targetDepth || (
+          periodicSelectedRangeIndex !== null
+            ? `learn-periodic-table-range-${periodicSelectedRangeIndex}`
+            : 'learn-periodic-table'
+        );
         return;
       }
 
       if (activeTopic === 'periodic-table' && periodicSelectedRangeIndex !== null) {
-        setLearningState(prev => ({ ...prev, periodicSelectedRangeIndex: null }));
-        lastDepth.current = 'learn-periodic-table';
-        return;
+        if (targetPeriodicRangeIndex !== null) {
+          // Range swipes are real navigable pages. Browser/system Back should
+          // restore the preceding range, not skip directly to the picker.
+          setLearningState(prev => ({
+            ...prev,
+            periodicSelectedRangeIndex: targetPeriodicRangeIndex,
+            periodicSelectedElement: null,
+          }));
+          lastDepth.current = targetDepth;
+          return;
+        }
+
+        if (targetDepth === 'learn-periodic-table' || targetDepth === '') {
+          setLearningState(prev => ({ ...prev, periodicSelectedRangeIndex: null }));
+          lastDepth.current = 'learn-periodic-table';
+          return;
+        }
       }
 
       if (activeTopic === 'formulas') {
