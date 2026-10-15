@@ -126,6 +126,36 @@ describe('PeriodicTableLearning', () => {
     expect(onSelectRange).toHaveBeenCalledWith(10);
   });
 
+  it('keeps Practice and the unchanged three-dot selector aligned on the dedicated page', () => {
+    const onOpenPractice = vi.fn();
+    const onSelectRange = vi.fn();
+    render(
+      <PeriodicTableLearning
+        selectedElement={null}
+        selectedRangeIndex={0}
+        onSelectRange={onSelectRange}
+        onSelectElement={vi.fn()}
+        onOpenPractice={onOpenPractice}
+      />,
+    );
+
+    const pageHeader = screen.getByRole('heading', { name: 'Elements 1–10' }).parentElement?.parentElement;
+    expect(pageHeader).toHaveAttribute('data-app-topbar');
+    const header = pageHeader as HTMLElement;
+    const practice = within(header).getByRole('button', { name: /practice/i });
+    const rangeButton = within(header).getByRole('button', { name: /open element range menu/i });
+    expect(practice).toBeInTheDocument();
+    expect(rangeButton).toHaveClass('h-10', 'w-10', 'rounded-xl');
+    expect(header.contains(practice)).toBe(true);
+    expect(header.contains(rangeButton)).toBe(true);
+
+    fireEvent.click(practice);
+    expect(onOpenPractice).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(rangeButton);
+    expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
+  });
+
   it('uses Cube Roots touch swipe navigation and isolates vertical/table scrolling', () => {
     const onSelectElement = vi.fn();
     render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
