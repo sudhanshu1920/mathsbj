@@ -276,7 +276,7 @@ const LearningPage = ({
         }}
       >
         <div>
-          {(!periodicSelectedElement || periodicSelectedElement === null) && (
+          {periodicSelectedElement === null && (
             <>{renderHeader(pageTitle, () => {
               if (onBack) onBack();
               else if (periodicSelectedElement !== null) setSelectedElement(null);
