@@ -13,8 +13,8 @@ describe('PeriodicTableLearning', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /21–30 10 elements/i }));
 
-    expect(screen.getByRole('heading', { name: 'Elements 21–30' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Periodic Table elements 21 to 30')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Elements 21–30 table' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Elements 21–30' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Periodic Table elements 1 to 10')).not.toBeInTheDocument();
   });
 
@@ -27,7 +27,7 @@ describe('PeriodicTableLearning', () => {
 
     const table = screen.getByRole('table', { name: 'Elements 21–30' });
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
-      'Atomic Number',
+      'Atomic No.',
       'Element',
       'Symbol',
       'Atomic Mass',
@@ -54,11 +54,11 @@ describe('PeriodicTableLearning', () => {
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
     fireEvent.click(screen.getByRole('button', { name: /1–10 10 elements/i }));
 
-    fireEvent.click(screen.getByRole('button', { name: /Next →/i }));
-    expect(screen.getByRole('heading', { name: 'Elements 11–20' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Next element range/i }));
+    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /← Prev/i }));
-    expect(screen.getByRole('heading', { name: 'Elements 1–10' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Previous element range/i }));
+    expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
   });
 
   it('keeps the range menu synchronized with the active range', () => {
@@ -72,7 +72,7 @@ describe('PeriodicTableLearning', () => {
     expect(screen.getByRole('button', { name: /21–30 10 elements/i })).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: /close element range menu/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Next →/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next element range/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
     expect(screen.getByRole('button', { name: /31–40 10 elements/i })).toHaveAttribute('aria-pressed', 'true');
@@ -85,24 +85,92 @@ describe('PeriodicTableLearning', () => {
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
     fireEvent.click(screen.getByRole('button', { name: /1–10 10 elements/i }));
 
-    expect(screen.getByRole('button', { name: /← Prev/i })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: /Next →/i }));
+    expect(screen.getByRole('button', { name: /Previous element range/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /Next element range/i }));
     expect(screen.getByRole('heading', { name: 'Elements 11–20' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /← Prev/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Previous element range/i }));
     expect(screen.getByRole('heading', { name: 'Elements 1–10' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
     fireEvent.click(screen.getByRole('button', { name: /111–118 8 elements/i }));
 
-    expect(screen.getByRole('button', { name: /Next →/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Next element range/i })).toBeDisabled();
     const finalTable = screen.getByRole('table', { name: 'Elements 111–118' });
     expect(within(finalTable).getAllByRole('row')).toHaveLength(9);
     expect(within(finalTable).getByRole('row', { name: /111.*Roentgenium.*Rg.*\[282\]/ })).toBeInTheDocument();
     expect(within(finalTable).getByRole('row', { name: /118.*Oganesson.*Og.*\[294\]/ })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /← Prev/i }));
-    expect(screen.getByRole('heading', { name: 'Elements 101–110' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Previous element range/i }));
+    expect(screen.getByRole('table', { name: 'Elements 101–110' })).toBeInTheDocument();
+  });
+
+  it('swipes between dedicated range pages and keeps interactive table gestures isolated', () => {
+    const onSelectElement = vi.fn();
+    render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /1–10 10 elements/i }));
+
+    const rangePage = screen.getByRole('region', { name: 'Periodic Table elements 1 to 10' });
+    fireEvent.pointerDown(rangePage, { pointerType: 'touch', button: 0, clientX: 220, clientY: 140, isPrimary: true });
+    fireEvent.pointerUp(rangePage, { pointerType: 'touch', button: 0, clientX: 130, clientY: 144, isPrimary: true });
+
+    const nextTable = screen.getByRole('table', { name: 'Elements 11–20' });
+    expect(nextTable).toBeInTheDocument();
+
+    const scrollRegion = screen.getByRole('region', { name: 'Elements 11–20 table' });
+    fireEvent.pointerDown(within(scrollRegion).getByRole('button', { name: /Sodium, atomic number 11/i }), {
+      pointerType: 'touch', button: 0, clientX: 220, clientY: 140, isPrimary: true,
+    });
+    fireEvent.pointerUp(within(scrollRegion).getByRole('button', { name: /Sodium, atomic number 11/i }), {
+      pointerType: 'touch', button: 0, clientX: 110, clientY: 143, isPrimary: true,
+    });
+    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
+  });
+
+  it('shows the selected element on its detail page and does not attach range swipes there', () => {
+    const onSelectElement = vi.fn();
+    const onSelectRange = vi.fn();
+    const onBack = vi.fn();
+    const props = {
+      selectedElement: null as number | null,
+      selectedRangeIndex: 2,
+      onSelectElement,
+      onSelectRange,
+      onBack,
+    };
+    const { rerender } = render(<PeriodicTableLearning {...props} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Scandium, atomic number 21/i }));
+    expect(onSelectElement).toHaveBeenCalledWith(21);
+
+    rerender(<PeriodicTableLearning {...props} selectedElement={21} />);
+    expect(screen.getByRole('heading', { name: 'Scandium' })).toBeInTheDocument();
+    expect(screen.getByText('44.956')).toBeInTheDocument();
+    expect(screen.getByText('Electron Configuration')).toBeInTheDocument();
+
+    const details = screen.getByLabelText('Scandium element details');
+    fireEvent.pointerDown(details, { pointerType: 'touch', button: 0, clientX: 230, clientY: 120, isPrimary: true });
+    fireEvent.pointerUp(details, { pointerType: 'touch', button: 0, clientX: 100, clientY: 123, isPrimary: true });
+    expect(onSelectRange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to previous Periodic Table page/i }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores the range picker when a controlled range page returns to the table', () => {
+    const onSelectElement = vi.fn();
+    const onSelectRange = vi.fn();
+    const baseProps = { selectedElement: null, onSelectElement, onSelectRange };
+    const { rerender } = render(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+    rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={1} />);
+    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
+
+    rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
+    expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
   });
 
   it('preserves element selection and the full-table two-axis scroll surface', () => {
