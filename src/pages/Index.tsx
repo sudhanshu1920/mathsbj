@@ -34,6 +34,7 @@ export interface LearningState {
   formulaSectionIndex: number | null;
   formulaCategoryIndex: number | null;
   periodicSelectedElement: number | null;
+  periodicSelectedRangeIndex: number | null;
 }
 
 const INITIAL_LEARNING_STATE: LearningState = {
@@ -45,6 +46,7 @@ const INITIAL_LEARNING_STATE: LearningState = {
   formulaSectionIndex: null,
   formulaCategoryIndex: null,
   periodicSelectedElement: null,
+  periodicSelectedRangeIndex: null,
 };
 
 const MAIN_SECTION_ORDER: readonly Tab[] = ['learn', 'practice', 'progress'];
@@ -101,6 +103,9 @@ function getNavDepth(tab: Tab, learningState: LearningState, practiceTopic?: str
   if (!activeTopic) return 'learn-home';
   if (activeTopic === 'periodic-table') {
     if (periodicSelectedElement) return `learn-periodic-table-element-${periodicSelectedElement}`;
+    if (learningState.periodicSelectedRangeIndex !== null) {
+      return `learn-periodic-table-range-${learningState.periodicSelectedRangeIndex}`;
+    }
     return 'learn-periodic-table';
   }
   if (activeTopic === 'percentage') {
@@ -444,10 +449,18 @@ const Index = () => {
       }
 
       // Learn tab - go back step by step
-      const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex, periodicSelectedElement } = learningState;
+      const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex, periodicSelectedElement, periodicSelectedRangeIndex } = learningState;
 
       if (activeTopic === 'periodic-table' && periodicSelectedElement) {
         setLearningState(prev => ({ ...prev, periodicSelectedElement: null }));
+        lastDepth.current = periodicSelectedRangeIndex !== null
+          ? `learn-periodic-table-range-${periodicSelectedRangeIndex}`
+          : 'learn-periodic-table';
+        return;
+      }
+
+      if (activeTopic === 'periodic-table' && periodicSelectedRangeIndex !== null) {
+        setLearningState(prev => ({ ...prev, periodicSelectedRangeIndex: null }));
         lastDepth.current = 'learn-periodic-table';
         return;
       }
