@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Atom, Check, Circle, Dumbbell, MoreVertical, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
 import SwipeContainer from '@/components/SwipeContainer';
@@ -195,14 +195,24 @@ const PeriodicRangeView = ({
   onSelectElement,
   onChangeRange,
   massMode,
+  initialScrollLeft,
+  onScrollLeftChange,
 }: {
   rangeIndex: number;
   onSelectElement: (number: number) => void;
   onChangeRange: (index: number) => void;
   massMode: AtomicMassMode;
+  initialScrollLeft: number;
+  onScrollLeftChange: (scrollLeft: number) => void;
 }) => {
+  const scrollRegionRef = useRef<HTMLDivElement>(null);
   const group = PERIODIC_GROUPS[rangeIndex] || PERIODIC_GROUPS[0];
   const elements = useMemo(() => getPeriodicRangeElements(rangeIndex), [rangeIndex]);
+  useLayoutEffect(() => {
+    if (scrollRegionRef.current) {
+      scrollRegionRef.current.scrollLeft = initialScrollLeft;
+    }
+  }, [initialScrollLeft, rangeIndex]);
   const hasPrevious = getAdjacentPeriodicRangeIndex(rangeIndex, 'previous') !== rangeIndex;
   const hasNext = getAdjacentPeriodicRangeIndex(rangeIndex, 'next') !== rangeIndex;
 
@@ -247,6 +257,8 @@ const PeriodicRangeView = ({
         role="region"
         aria-label={`Elements ${group.from}–${group.to} table`}
         data-periodic-table-scroll="true"
+        ref={scrollRegionRef}
+        onScroll={(event) => onScrollLeftChange(event.currentTarget.scrollLeft)}
         className="periodic-table-scroll w-full min-w-0 overflow-x-auto overscroll-x-contain"
         style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}
       >
@@ -411,6 +423,7 @@ const PeriodicTableLearning = ({
     : null;
   const previousRangeIndexRef = useRef<number | null>(activeRangeIndex);
   const lastSelectedRangeIndexRef = useRef<number | null>(activeRangeIndex);
+  const tableScrollLeftRef = useRef(0);
   const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
   const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
   const [massMenuOpen, setMassMenuOpen] = useState(false);
@@ -459,6 +472,7 @@ const PeriodicTableLearning = ({
 
   const changeRange = (index: number | null) => {
     if (index !== null && !isValidPeriodicRangeIndex(index)) return;
+    if (index !== null && index !== activeRangeIndex) tableScrollLeftRef.current = 0;
     if (index !== null) lastSelectedRangeIndexRef.current = index;
     if (hasControlledRange) {
       onSelectRange?.(index);
@@ -598,6 +612,8 @@ const PeriodicTableLearning = ({
               onSelectElement={onSelectElement}
               onChangeRange={changeRange}
               massMode={massMode}
+              initialScrollLeft={tableScrollLeftRef.current}
+              onScrollLeftChange={(scrollLeft) => { tableScrollLeftRef.current = scrollLeft; }}
             />
           )}
         />
