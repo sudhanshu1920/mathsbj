@@ -94,54 +94,61 @@ describe('PeriodicTableLearning', () => {
     expect(onSelectRange).toHaveBeenLastCalledWith(3);
   });
 
-  it('does not navigate beyond the first or last range', () => {
+  it('does not navigate beyond the first or last dedicated range page', () => {
     const onSelectElement = vi.fn();
-    render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
-    fireEvent.click(screen.getByRole('button', { name: /1–10 10 elements/i }));
+    const onSelectRange = vi.fn();
+    const baseProps = { selectedElement: null, onSelectElement, onSelectRange };
+    const { rerender } = render(<PeriodicTableLearning {...baseProps} selectedRangeIndex={0} />);
 
     expect(screen.getByRole('button', { name: /Previous element range/i })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: /Next element range/i }));
-    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Next element range/i })).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: /Previous element range/i }));
-    expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
+    expect(onSelectRange).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
-    fireEvent.click(screen.getByRole('button', { name: /111–118 8 elements/i }));
-
+    rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={11} />);
     expect(screen.getByRole('button', { name: /Next element range/i })).toBeDisabled();
     const finalTable = screen.getByRole('table', { name: 'Elements 111–118' });
     expect(within(finalTable).getAllByRole('row')).toHaveLength(9);
     expect(within(finalTable).getByRole('row', { name: /111.*Roentgenium.*Rg.*\[282\]/ })).toBeInTheDocument();
     expect(within(finalTable).getByRole('row', { name: /118.*Oganesson.*Og.*\[294\]/ })).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: /Next element range/i }));
+    expect(onSelectRange).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /Previous element range/i }));
-    expect(screen.getByRole('table', { name: 'Elements 101–110' })).toBeInTheDocument();
+    expect(onSelectRange).toHaveBeenCalledWith(10);
   });
 
   it('swipes between dedicated range pages and keeps interactive table gestures isolated', () => {
     const onSelectElement = vi.fn();
     render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
 
+    const dispatchTouchPointer = (target: Element, type: 'pointerdown' | 'pointerup', x: number, y: number) => {
+      // jsdom versions without PointerEvent silently discard pointer coordinate init fields.
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(event, {
+        pointerType: { value: 'touch' },
+        button: { value: 0 },
+        isPrimary: { value: true },
+        clientX: { value: x },
+        clientY: { value: y },
+      });
+      target.dispatchEvent(event);
+    };
+
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
     fireEvent.click(screen.getByRole('button', { name: /1–10 10 elements/i }));
 
     const rangePage = screen.getByRole('region', { name: 'Periodic Table elements 1 to 10' });
-    fireEvent.pointerDown(rangePage, { pointerType: 'touch', button: 0, clientX: 220, clientY: 140, isPrimary: true });
-    fireEvent.pointerUp(rangePage, { pointerType: 'touch', button: 0, clientX: 130, clientY: 144, isPrimary: true });
+    dispatchTouchPointer(rangePage, 'pointerdown', 220, 140);
+    dispatchTouchPointer(rangePage, 'pointerup', 130, 144);
 
-    const nextTable = screen.getByRole('table', { name: 'Elements 11–20' });
-    expect(nextTable).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
 
     const scrollRegion = screen.getByRole('region', { name: 'Elements 11–20 table' });
-    fireEvent.pointerDown(within(scrollRegion).getByRole('button', { name: /Sodium, atomic number 11/i }), {
-      pointerType: 'touch', button: 0, clientX: 220, clientY: 140, isPrimary: true,
-    });
-    fireEvent.pointerUp(within(scrollRegion).getByRole('button', { name: /Sodium, atomic number 11/i }), {
-      pointerType: 'touch', button: 0, clientX: 110, clientY: 143, isPrimary: true,
-    });
+    const sodium = within(scrollRegion).getByRole('button', { name: /Sodium, atomic number 11/i });
+    dispatchTouchPointer(sodium, 'pointerdown', 220, 140);
+    dispatchTouchPointer(sodium, 'pointerup', 110, 143);
     expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
   });
 
