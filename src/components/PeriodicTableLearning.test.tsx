@@ -139,8 +139,8 @@ describe('PeriodicTableLearning', () => {
       />,
     );
 
-    const pageHeader = screen.getByRole('heading', { name: 'Elements 1–10' }).parentElement?.parentElement;
-    expect(pageHeader).toHaveAttribute('data-app-topbar');
+    const pageHeader = screen.getByRole('heading', { name: 'Elements 1–10' }).closest('[data-app-topbar]');
+    expect(pageHeader).toBeInTheDocument();
     const header = pageHeader as HTMLElement;
     const practice = within(header).getByRole('button', { name: /practice/i });
     const rangeButton = within(header).getByRole('button', { name: /open element range menu/i });
