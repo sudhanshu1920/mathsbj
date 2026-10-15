@@ -443,6 +443,7 @@ const PeriodicTableLearning = ({
     ? requestedRangeIndex
     : null;
   const previousRangeIndexRef = useRef<number | null>(activeRangeIndex);
+  const lastSelectedRangeIndexRef = useRef<number | null>(activeRangeIndex);
   const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
   const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
   const [massMenuOpen, setMassMenuOpen] = useState(false);
@@ -483,11 +484,15 @@ const PeriodicTableLearning = ({
       setRangeMenuOpen(true);
       setMassMenuOpen(false);
     }
+    if (activeRangeIndex !== null) {
+      lastSelectedRangeIndexRef.current = activeRangeIndex;
+    }
     previousRangeIndexRef.current = activeRangeIndex;
   }, [activeRangeIndex]);
 
   const changeRange = (index: number | null) => {
     if (index !== null && !isValidPeriodicRangeIndex(index)) return;
+    if (index !== null) lastSelectedRangeIndexRef.current = index;
     if (hasControlledRange) {
       onSelectRange?.(index);
     } else {
@@ -544,9 +549,7 @@ const PeriodicTableLearning = ({
           <div>
             <h2 className="font-display text-lg font-black text-foreground">Periodic Table</h2>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {activeRangeIndex !== null
-                ? `Elements ${PERIODIC_GROUPS[activeRangeIndex].from}–${PERIODIC_GROUPS[activeRangeIndex].to} • ${massMode === 'exact' ? 'Exact mass' : 'Round mass' }`
-                : `18 groups • 7 periods • 118 elements • ${massMode === 'exact' ? 'Exact mass' : 'Round mass'}`}
+              {`18 groups • 7 periods • 118 elements • ${massMode === 'exact' ? 'Exact mass' : 'Round mass'}`}
             </p>
           </div>
         </div>
@@ -576,7 +579,7 @@ const PeriodicTableLearning = ({
 
         {rangeMenuOpen && (
           <PeriodicRangeMenu
-            selectedRangeIndex={activeRangeIndex}
+            selectedRangeIndex={activeRangeIndex ?? lastSelectedRangeIndexRef.current}
             onSelectRange={handleRangeChange}
             onClose={() => setRangeMenuOpen(false)}
           />
