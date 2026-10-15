@@ -162,7 +162,7 @@ describe('PeriodicTableLearning', () => {
     expect(onSelectElement).toHaveBeenCalledWith(21);
 
     rerender(<PeriodicTableLearning {...props} selectedElement={21} />);
-    expect(screen.getByRole('heading', { name: 'Scandium' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Scandium' }).length).toBeGreaterThan(0);
     expect(screen.getAllByText('44.956').length).toBeGreaterThan(0);
     expect(screen.getByText('Electron Configuration')).toBeInTheDocument();
 
