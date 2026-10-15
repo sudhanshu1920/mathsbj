@@ -4,6 +4,7 @@ import { m as motion } from 'framer-motion';
 import { MOTION } from '@/lib/motion';
 import type { ChemElement } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
+import { getPeriodicRangeElements } from '@/lib/periodicRanges';
 import {
   getAdjacentPeriodicRangeIndex,
   getPeriodicSwipeDirection,
@@ -136,11 +137,11 @@ const PeriodicRangeMenu = ({
   onClose: () => void;
 }) => (
   <div
-    className="absolute right-0 top-full z-40 mt-2 w-[min(22rem,calc(100vw-2rem))] border border-border/70 bg-popover/95 p-3 shadow-xl backdrop-blur-md"
+    className="absolute right-0 top-full z-40 mt-2 max-h-[min(70dvh,34rem)] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-2xl border border-border/70 bg-popover/95 p-3 shadow-xl backdrop-blur-md"
     role="dialog"
     aria-label="Element ranges"
   >
-    <div className="mb-2 flex items-start justify-between gap-2">
+    <div className="mb-3 flex items-start justify-between gap-2">
       <div>
         <p className="font-display text-xs font-black uppercase tracking-wider text-foreground">Element Range</p>
         <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">Choose a range to open its study chart.</p>
@@ -149,28 +150,31 @@ const PeriodicRangeMenu = ({
         type="button"
         onClick={onClose}
         aria-label="Close element range menu"
-        className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <X size={15} />
       </button>
     </div>
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {PERIODIC_GROUPS.map(({ from, to }, index) => {
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      {PERIODIC_GROUPS.map(({ from, to, label }, index) => {
         const active = selectedRangeIndex === index;
         return (
           <button
-            key={`${from}-${to}`}
+            key={label}
             type="button"
             onClick={() => onSelectRange(index)}
+            aria-label={`${label} ${to - from + 1} elements`}
             aria-pressed={active}
-            className={`min-h-12 rounded-xl border px-2 py-2 text-left transition-all hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            className={`min-h-12 rounded-xl border px-2 py-2 text-left transition-[border-color,background-color,box-shadow] hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               active
-                ? 'gradient-primary border-primary text-primary-foreground shadow-lg shadow-primary/20'
-                : 'bg-secondary/70 text-foreground'
+                ? 'gradient-primary border-primary text-primary-foreground shadow-md shadow-primary/20'
+                : 'border-border/70 bg-secondary/65 text-foreground hover:bg-secondary'
             }`}
           >
-            <span className="block font-display text-sm font-black">{from}–{to}</span>
-            <span className={`mt-0.5 block text-[9px] font-bold uppercase tracking-wider ${active ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+            <span className="block font-display text-sm font-black tabular-nums">{label}</span>
+            <span className={`mt-0.5 block text-[9px] font-bold uppercase tracking-wider ${
+              active ? 'text-primary-foreground/80' : 'text-muted-foreground'
+            }`}>
               {to - from + 1} elements
             </span>
           </button>
@@ -195,7 +199,7 @@ const PeriodicRangeView = ({
 }) => {
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const group = PERIODIC_GROUPS[rangeIndex] || PERIODIC_GROUPS[0];
-  const elements = useMemo(() => ELEMENTS.slice(group.from - 1, group.to), [group.from, group.to]);
+  const elements = useMemo(() => getPeriodicRangeElements(rangeIndex), [rangeIndex]);
   const hasPrevious = getAdjacentPeriodicRangeIndex(rangeIndex, 'previous') !== rangeIndex;
   const hasNext = getAdjacentPeriodicRangeIndex(rangeIndex, 'next') !== rangeIndex;
 
@@ -249,7 +253,9 @@ const PeriodicRangeView = ({
         </button>
         <div className="text-center">
           <h3 className="font-display text-lg font-black text-foreground">Elements {group.from}–{group.to}</h3>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{rangeIndex + 1}/{PERIODIC_GROUPS.length}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {elements.length} elements • {rangeIndex + 1}/{PERIODIC_GROUPS.length}
+          </p>
         </div>
         <button
           type="button"
@@ -260,25 +266,56 @@ const PeriodicRangeView = ({
           Next →
         </button>
       </div>
+
       <div className="mb-3 flex justify-center">
         <button
           type="button"
           onClick={onBackToGroups}
-          className="rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-bold text-primary hover:bg-primary/15"
+          className="rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-bold text-primary hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           ← Full Periodic Table
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-10">
-        {elements.map((el) => (
-          <ElementCell
-            key={el.number}
-            el={el}
-            massMode={massMode}
-            onClick={() => onSelectElement(el.number)}
-          />
-        ))}
+      <div
+        role="region"
+        aria-label={`Elements ${group.from}–${group.to} table`}
+        data-swipe-ignore-back="true"
+        className="max-h-[min(62dvh,34rem)] w-full overflow-auto overscroll-contain rounded-xl border border-border/65 bg-card/65 shadow-sm"
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}
+      >
+        <table
+          aria-label={`Elements ${group.from}–${group.to}`}
+          className="w-full min-w-[34rem] table-fixed border-collapse text-xs sm:text-sm"
+        >
+          <thead className="sticky top-0 z-10 bg-card text-foreground shadow-[0_1px_0_hsl(var(--border)/0.7)]">
+            <tr>
+              <th scope="col" className="w-28 px-3 py-3 text-center text-[10px] font-black uppercase tracking-wide sm:text-xs">Atomic Number</th>
+              <th scope="col" className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-wide sm:text-xs">Element</th>
+              <th scope="col" className="w-20 px-3 py-3 text-center text-[10px] font-black uppercase tracking-wide sm:text-xs">Symbol</th>
+              <th scope="col" className="w-32 px-3 py-3 text-right text-[10px] font-black uppercase tracking-wide sm:text-xs">Atomic Mass</th>
+            </tr>
+          </thead>
+          <tbody>
+            {elements.map((el) => (
+              <tr key={el.number} className="border-b border-border/50 last:border-b-0 hover:bg-primary/[0.035]">
+                <td className="px-3 py-2.5 text-center font-semibold tabular-nums text-muted-foreground">{el.number}</td>
+                <td className="px-3 py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onSelectElement(el.number)}
+                    aria-label={`${el.name}, atomic number ${el.number}`}
+                    className="min-h-9 w-full rounded-md py-1 text-left font-semibold text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    {el.name}
+                  </button>
+                </td>
+                <td className="px-3 py-2.5 text-center font-display font-black text-foreground">{el.symbol}</td>
+                <td className="px-3 py-2.5 text-right font-medium tabular-nums text-foreground">{formatMass(el, massMode)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <Legend />

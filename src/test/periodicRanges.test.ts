@@ -32,6 +32,33 @@ describe("Periodic Table ranges", () => {
     );
   });
 
+  it("covers atomic numbers 1–118 exactly once with no overlap or gaps", () => {
+    const allNumbers = PERIODIC_RANGES.flatMap((_, index) =>
+      getPeriodicRangeElements(index).map((element) => element.number),
+    );
+
+    expect(allNumbers).toEqual(Array.from({ length: 118 }, (_, index) => index + 1));
+    expect(new Set(allNumbers).size).toBe(118);
+    expect(getPeriodicRangeElements(10).map((element) => element.number)).toEqual(
+      Array.from({ length: 10 }, (_, index) => index + 101),
+    );
+    expect(getPeriodicRangeElements(11).map((element) => element.number)).toEqual(
+      Array.from({ length: 8 }, (_, index) => index + 111),
+    );
+  });
+
+  it("preserves known standard weights and isotope mass-number formatting", () => {
+    const hydrogen = getPeriodicRangeElements(0)[0];
+    const scandium = getPeriodicRangeElements(2)[0];
+    const oganesson = getPeriodicRangeElements(11).at(-1);
+
+    expect([hydrogen.name, hydrogen.symbol, hydrogen.mass]).toEqual(["Hydrogen", "H", 1.008]);
+    expect([scandium.name, scandium.symbol, scandium.mass]).toEqual(["Scandium", "Sc", 44.956]);
+    expect(oganesson && [oganesson.name, oganesson.symbol, oganesson.mass, oganesson.radioactive]).toEqual([
+      "Oganesson", "Og", 294, true,
+    ]);
+  });
+
   it("moves next and previous without crossing the boundaries", () => {
     expect(movePeriodicRangeIndex(0, -1)).toBe(0);
     expect(movePeriodicRangeIndex(0, 1)).toBe(1);
