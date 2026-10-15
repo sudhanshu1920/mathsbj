@@ -7,7 +7,10 @@ describe('PeriodicTableLearning', () => {
     const onSelectElement = vi.fn();
     render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+    const moreButton = screen.getByRole('button', { name: /open element range menu/i });
+    expect(moreButton).toHaveClass('h-10', 'w-10', 'rounded-xl');
+    expect(moreButton.querySelector('svg')).toBeInTheDocument();
+    fireEvent.click(moreButton);
 
     expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
 
@@ -70,21 +73,25 @@ describe('PeriodicTableLearning', () => {
     expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
   });
 
-  it('keeps the range menu synchronized with the active range', () => {
+  it('restores the previously selected range when returning from its dedicated page', () => {
     const onSelectElement = vi.fn();
-    render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
+    const onSelectRange = vi.fn();
+    const baseProps = { selectedElement: null, onSelectElement, onSelectRange };
+    const { rerender } = render(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
 
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
     fireEvent.click(screen.getByRole('button', { name: /21–30 10 elements/i }));
+    expect(onSelectRange).toHaveBeenCalledWith(2);
 
-    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+    rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={2} />);
+    expect(screen.getByRole('table', { name: 'Elements 21–30' })).toBeInTheDocument();
+
+    rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
+    expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /21–30 10 elements/i })).toHaveAttribute('aria-pressed', 'true');
 
-    fireEvent.click(screen.getByRole('button', { name: /close element range menu/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Next element range/i }));
-
-    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
-    expect(screen.getByRole('button', { name: /31–40 10 elements/i })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /31–40 10 elements/i }));
+    expect(onSelectRange).toHaveBeenLastCalledWith(3);
   });
 
   it('does not navigate beyond the first or last range', () => {
@@ -96,10 +103,10 @@ describe('PeriodicTableLearning', () => {
 
     expect(screen.getByRole('button', { name: /Previous element range/i })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: /Next element range/i }));
-    expect(screen.getByRole('heading', { name: 'Elements 11–20' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Previous element range/i }));
-    expect(screen.getByRole('heading', { name: 'Elements 1–10' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
     fireEvent.click(screen.getByRole('button', { name: /111–118 8 elements/i }));
@@ -168,19 +175,7 @@ describe('PeriodicTableLearning', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('restores the range picker when a controlled range page returns to the table', () => {
-    const onSelectElement = vi.fn();
-    const onSelectRange = vi.fn();
-    const baseProps = { selectedElement: null, onSelectElement, onSelectRange };
-    const { rerender } = render(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
-    rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={1} />);
-    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
-
-    rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
-    expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
-  });
 
   it('preserves element selection and the full-table two-axis scroll surface', () => {
     const onSelectElement = vi.fn();
