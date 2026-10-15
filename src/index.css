@@ -2973,3 +2973,49 @@ html.low-power .quiz-question-panel {
     padding-top: 0.9rem;
   }
 }
+
+
+/* Periodic Table range picker: keep its card layout independent from utility
+   generation/order and from styles applied to other topic grids. */
+.periodic-range-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  justify-items: stretch;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.periodic-range-grid > .periodic-range-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 3.5rem;
+  overflow-wrap: anywhere;
+}
+
+.periodic-range-card > span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.periodic-range-card > span + span {
+  line-height: 1.25;
+}
+
+@media (min-width: 420px) {
+  .periodic-range-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .periodic-range-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
