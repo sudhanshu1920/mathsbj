@@ -18,7 +18,7 @@ export function isValidPeriodicRangeIndex(index: number): boolean {
 /** Safely restores a range page from the app's in-memory browser history depth. */
 export function getPeriodicRangeIndexFromDepth(depth: unknown): number | null {
   if (typeof depth !== 'string') return null;
-  const match = /^learn-periodic-table-range-(\\d+)$/.exec(depth);
+  const match = /^learn-periodic-table-range-(\d+)$/.exec(depth);
   if (!match) return null;
   const index = Number(match[1]);
   return isValidPeriodicRangeIndex(index) ? index : null;
