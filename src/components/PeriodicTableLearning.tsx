@@ -364,7 +364,7 @@ const ElementDetails = ({
   return (
     <section
       data-periodic-element-detail="true"
-      className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background/96"
+      className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background/95"
       style={{ WebkitOverflowScrolling: 'touch' }}
       aria-label={`${element.name} element details`}
     >
