@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import PeriodicTableLearning from './PeriodicTableLearning';
 import { getPeriodicRangeIndexFromDepth, getPeriodicSwipeDirection } from '@/lib/periodicRangeNavigation';
 
@@ -140,15 +140,19 @@ describe('PeriodicTableLearning', () => {
     fireEvent.click(screen.getByRole('button', { name: /1–10 10 elements/i }));
 
     const rangePage = screen.getByRole('region', { name: 'Periodic Table elements 1 to 10' });
-    dispatchTouchPointer(rangePage, 'pointerdown', 220, 140);
-    dispatchTouchPointer(rangePage, 'pointerup', 130, 144);
+    act(() => {
+      dispatchTouchPointer(rangePage, 'pointerdown', 220, 140);
+      dispatchTouchPointer(rangePage, 'pointerup', 130, 144);
+    });
 
     expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
 
     const scrollRegion = screen.getByRole('region', { name: 'Elements 11–20 table' });
     const sodium = within(scrollRegion).getByRole('button', { name: /Sodium, atomic number 11/i });
-    dispatchTouchPointer(sodium, 'pointerdown', 220, 140);
-    dispatchTouchPointer(sodium, 'pointerup', 110, 143);
+    act(() => {
+      dispatchTouchPointer(sodium, 'pointerdown', 220, 140);
+      dispatchTouchPointer(sodium, 'pointerup', 110, 143);
+    });
     expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
   });
 
