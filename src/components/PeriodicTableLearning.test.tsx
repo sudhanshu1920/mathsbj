@@ -16,6 +16,7 @@ describe('PeriodicTableLearning', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /21–30 10 elements/i }));
 
+    expect(screen.getByRole('heading', { name: 'Elements 21–30' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Elements 21–30 table' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Elements 21–30' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Periodic Table elements 1 to 10')).not.toBeInTheDocument();
@@ -36,6 +37,12 @@ describe('PeriodicTableLearning', () => {
       'Atomic Mass',
     ]);
     expect(within(table).getAllByRole('row')).toHaveLength(11);
+    expect(table.querySelectorAll('col')).toHaveLength(4);
+    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '5.25rem' });
+    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '4.5rem' });
+    const tableRegion = screen.getByRole('region', { name: 'Elements 21–30 table' });
+    expect(tableRegion).not.toHaveClass('rounded-2xl', 'shadow-sm', 'border');
+    expect(tableRegion).not.toHaveClass('max-h-[min(64dvh,38rem)]');
     expect(within(table).getByRole('row', { name: /21.*Scandium.*Sc.*44\.956/ })).toBeInTheDocument();
     expect(within(table).getByRole('row', { name: /30.*Zinc.*Zn.*65\.38/ })).toBeInTheDocument();
 
@@ -119,19 +126,17 @@ describe('PeriodicTableLearning', () => {
     expect(onSelectRange).toHaveBeenCalledWith(10);
   });
 
-  it('swipes between dedicated range pages and keeps interactive table gestures isolated', () => {
+  it('uses Cube Roots touch swipe navigation and isolates vertical/table scrolling', () => {
     const onSelectElement = vi.fn();
     render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
 
-    const dispatchTouchPointer = (target: Element, type: 'pointerdown' | 'pointerup', x: number, y: number) => {
-      // jsdom versions without PointerEvent silently discard pointer coordinate init fields.
+    const dispatchTouch = (target: Element, type: 'touchstart' | 'touchmove' | 'touchend', x: number, y: number) => {
+      const point = { identifier: 1, target, clientX: x, clientY: y, pageX: x, pageY: y, screenX: x, screenY: y };
       const event = new Event(type, { bubbles: true, cancelable: true });
       Object.defineProperties(event, {
-        pointerType: { value: 'touch' },
-        button: { value: 0 },
-        isPrimary: { value: true },
-        clientX: { value: x },
-        clientY: { value: y },
+        touches: { value: type === 'touchend' ? [] : [point] },
+        targetTouches: { value: type === 'touchend' ? [] : [point] },
+        changedTouches: { value: [point] },
       });
       target.dispatchEvent(event);
     };
@@ -141,17 +146,25 @@ describe('PeriodicTableLearning', () => {
 
     const rangePage = screen.getByRole('region', { name: 'Periodic Table elements 1 to 10' });
     act(() => {
-      dispatchTouchPointer(rangePage, 'pointerdown', 220, 140);
-      dispatchTouchPointer(rangePage, 'pointerup', 130, 144);
+      dispatchTouch(rangePage, 'touchstart', 220, 140);
+      dispatchTouch(rangePage, 'touchmove', 130, 144);
+      dispatchTouch(rangePage, 'touchend', 130, 144);
     });
+    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
 
+    const nextRangePage = screen.getByRole('region', { name: 'Periodic Table elements 11 to 20' });
+    act(() => {
+      dispatchTouch(nextRangePage, 'touchstart', 220, 140);
+      dispatchTouch(nextRangePage, 'touchmove', 214, 220);
+      dispatchTouch(nextRangePage, 'touchend', 214, 220);
+    });
     expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
 
     const scrollRegion = screen.getByRole('region', { name: 'Elements 11–20 table' });
-    const sodium = within(scrollRegion).getByRole('button', { name: /Sodium, atomic number 11/i });
     act(() => {
-      dispatchTouchPointer(sodium, 'pointerdown', 220, 140);
-      dispatchTouchPointer(sodium, 'pointerup', 110, 143);
+      dispatchTouch(scrollRegion, 'touchstart', 220, 140);
+      dispatchTouch(scrollRegion, 'touchmove', 110, 143);
+      dispatchTouch(scrollRegion, 'touchend', 110, 143);
     });
     expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
   });
