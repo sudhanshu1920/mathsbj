@@ -606,7 +606,7 @@ const PeriodicTableLearning = ({
 
       </div>
 
-      {activeRangeIndex === null ? (
+      {activeRangeIndex === null && (
         <section className="periodic-chart-workspace w-full border-y border-border/40 bg-gradient-to-b from-primary/[0.02] via-background/[0.04] to-primary/[0.01] py-2">
           <div
             data-swipe-ignore-back="true"
