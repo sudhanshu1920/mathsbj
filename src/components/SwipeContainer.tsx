@@ -7,9 +7,11 @@ interface SwipeContainerProps {
   renderItem?: (index: number) => ReactNode;
   currentIndex: number;
   onIndexChange: (index: number) => void;
+  /** Ignore gestures that begin inside nested controls or scroll surfaces. */
+  ignoreSwipeSelector?: string;
 }
 
-const SwipeContainer = ({ items, itemCount, renderItem, currentIndex, onIndexChange }: SwipeContainerProps) => {
+const SwipeContainer = ({ items, itemCount, renderItem, currentIndex, onIndexChange, ignoreSwipeSelector }: SwipeContainerProps) => {
   const count = itemCount ?? items?.length ?? 0;
   const [direction, setDirection] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -17,11 +19,24 @@ const SwipeContainer = ({ items, itemCount, renderItem, currentIndex, onIndexCha
   const swiping = useRef(false);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
+    const target = e.target;
+    if (
+      ignoreSwipeSelector &&
+      target instanceof Element &&
+      target.closest(ignoreSwipeSelector)
+    ) {
+      touchStart.current = null;
+      axisLocked.current = null;
+      swiping.current = false;
+      return;
+    }
+
     const touch = e.touches[0];
+    if (!touch) return;
     touchStart.current = { x: touch.clientX, y: touch.clientY };
     axisLocked.current = null;
     swiping.current = false;
-  }, []);
+  }, [ignoreSwipeSelector]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!touchStart.current) return;
