@@ -39,6 +39,20 @@ describe("Periodic Table ranges", () => {
 
     expect(allNumbers).toEqual(Array.from({ length: 118 }, (_, index) => index + 1));
     expect(new Set(allNumbers).size).toBe(118);
+
+    const allElements = PERIODIC_RANGES.flatMap((_, index) => getPeriodicRangeElements(index));
+    expect(allElements).toHaveLength(118);
+    expect(new Set(allElements.map((element) => element.symbol)).size).toBe(118);
+    expect(new Set(allElements.map((element) => element.name)).size).toBe(118);
+    expect(allElements.every((element) =>
+      element.name.trim().length > 0 &&
+      element.symbol.trim().length > 0 &&
+      Number.isFinite(element.mass) &&
+      element.mass > 0
+    )).toBe(true);
+    expect(PERIODIC_RANGES.map((range, index) => getPeriodicRangeElements(index).length)).toEqual(
+      PERIODIC_RANGES.map((range) => range.to - range.from + 1),
+    );
     expect(getPeriodicRangeElements(10).map((element) => element.number)).toEqual(
       Array.from({ length: 10 }, (_, index) => index + 101),
     );
