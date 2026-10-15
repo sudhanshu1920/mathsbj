@@ -15,6 +15,7 @@ const FormulasLearning = lazy(() => import('@/components/FormulasLearning'));
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, RANGE_GROUPS } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
 const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearning'));
+import { PERIODIC_GROUPS, isValidPeriodicRangeIndex } from '@/lib/periodicRangeNavigation';
 import { getStreak } from '@/lib/streak';
 import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
@@ -58,6 +59,7 @@ const LearningPage = ({
   const selectedNumber = learningState?.selectedNumber ?? null;
   const selectedRange = learningState?.selectedRange ?? null;
   const periodicSelectedElement = learningState?.periodicSelectedElement ?? null;
+  const periodicSelectedRangeIndex = learningState?.periodicSelectedRangeIndex ?? null;
   const [showPracticeMode, setShowPracticeMode] = useState(practiceSelectorOpen);
   const [pendingTrigFunctions, setPendingTrigFunctions] = useState<TrigFunction[] | null>(() => (
     practiceReturn?.topic === 'trig' && practiceReturn.extras?.trigFunctions
@@ -110,7 +112,7 @@ const LearningPage = ({
     }
   };
 
-  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null, formulaSectionIndex: null, formulaCategoryIndex: null, periodicSelectedElement: null });
+  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null, formulaSectionIndex: null, formulaCategoryIndex: null, periodicSelectedElement: null, periodicSelectedRangeIndex: null });
   const setSelectedElement = (n: number | null) => updateState({ periodicSelectedElement: n });
   const setSelectedNumber = (n: number | null) => updateState({ selectedNumber: n });
   const setSelectedRange = (r: { from: number; to: number } | null) => updateState({ selectedRange: r });
@@ -250,23 +252,45 @@ const LearningPage = ({
     );
   }
 
-  // PERIODIC TABLE
+  // PERIODIC TABLE: the app-level navigation state distinguishes the table,
+  // each atomic-number range page, and each element detail destination.
   if (activeTopic === 'periodic-table') {
+    const validRangeIndex = isValidPeriodicRangeIndex(periodicSelectedRangeIndex ?? -1)
+      ? periodicSelectedRangeIndex
+      : null;
+    const activeRange = validRangeIndex === null ? null : PERIODIC_GROUPS[validRangeIndex];
+    const pageTitle = periodicSelectedElement !== null
+      ? 'Periodic Table'
+      : activeRange
+        ? `Elements ${activeRange.from}–${activeRange.to}`
+        : 'Periodic Table';
+
     return (
-      <SwipeBack onBack={() => {
-        if (onBack) onBack();
-        else if (periodicSelectedElement) setSelectedElement(null);
-        else setActiveTopic(null);
-      }}>
+      <SwipeBack
+        enabled={validRangeIndex === null && periodicSelectedElement === null}
+        onBack={() => {
+          if (onBack) onBack();
+          else if (periodicSelectedElement !== null) setSelectedElement(null);
+          else if (validRangeIndex !== null) updateState({ periodicSelectedRangeIndex: null });
+          else setActiveTopic(null);
+        }}
+      >
         <div>
-          {renderHeader('Periodic Table', () => {
-            if (periodicSelectedElement) setSelectedElement(null);
-            else setActiveTopic(null);
-          })}
+          {(!periodicSelectedElement || periodicSelectedElement === null) && (
+            <>{renderHeader(pageTitle, () => {
+              if (onBack) onBack();
+              else if (periodicSelectedElement !== null) setSelectedElement(null);
+              else if (validRangeIndex !== null) updateState({ periodicSelectedRangeIndex: null });
+              else setActiveTopic(null);
+            })}</>
+          )}
           <Suspense fallback={<div className="py-16 text-center text-sm font-semibold text-muted-foreground">Loading Periodic Table…</div>}>
             <PeriodicTableLearning
               selectedElement={periodicSelectedElement}
+              selectedRangeIndex={validRangeIndex}
+              onSelectRange={(index) => updateState({ periodicSelectedRangeIndex: index })}
               onSelectElement={(n) => setSelectedElement(n)}
+              onBack={onBack}
             />
           </Suspense>
         </div>
