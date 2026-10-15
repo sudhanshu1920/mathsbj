@@ -276,7 +276,7 @@ const LearningPage = ({
         }}
       >
         <div>
-          {periodicSelectedElement === null && (
+          {validRangeIndex === null && periodicSelectedElement === null && (
             <>{renderHeader(pageTitle, () => {
               if (onBack) onBack();
               else if (periodicSelectedElement !== null) setSelectedElement(null);
@@ -291,6 +291,7 @@ const LearningPage = ({
               onSelectRange={(index) => updateState({ periodicSelectedRangeIndex: index })}
               onSelectElement={(n) => setSelectedElement(n)}
               onBack={onBack}
+              onOpenPractice={openPracticeMode}
             />
           </Suspense>
         </div>
