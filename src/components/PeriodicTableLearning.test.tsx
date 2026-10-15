@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import PeriodicTableLearning from './PeriodicTableLearning';
-import { getPeriodicSwipeDirection } from '@/lib/periodicRangeNavigation';
+import { getPeriodicRangeIndexFromDepth, getPeriodicSwipeDirection } from '@/lib/periodicRangeNavigation';
 
 describe('PeriodicTableLearning', () => {
   it('opens the range grid from the three-dot menu and selects the requested range', () => {
@@ -38,6 +38,15 @@ describe('PeriodicTableLearning', () => {
 
     fireEvent.click(within(table).getByRole('button', { name: /Scandium, atomic number 21/i }));
     expect(onSelectElement).toHaveBeenCalledWith(21);
+  });
+
+  it('parses only valid Periodic Table range pages from navigation history', () => {
+    expect(getPeriodicRangeIndexFromDepth('learn-periodic-table-range-0')).toBe(0);
+    expect(getPeriodicRangeIndexFromDepth('learn-periodic-table-range-11')).toBe(11);
+    expect(getPeriodicRangeIndexFromDepth('learn-periodic-table-range-12')).toBeNull();
+    expect(getPeriodicRangeIndexFromDepth('learn-periodic-table-range--1')).toBeNull();
+    expect(getPeriodicRangeIndexFromDepth('learn-periodic-table')).toBeNull();
+    expect(getPeriodicRangeIndexFromDepth(null)).toBeNull();
   });
 
   it('uses the required horizontal swipe direction and ignores vertical gestures', () => {
@@ -147,7 +156,7 @@ describe('PeriodicTableLearning', () => {
 
     rerender(<PeriodicTableLearning {...props} selectedElement={21} />);
     expect(screen.getByRole('heading', { name: 'Scandium' })).toBeInTheDocument();
-    expect(screen.getByText('44.956')).toBeInTheDocument();
+    expect(screen.getAllByText('44.956').length).toBeGreaterThan(0);
     expect(screen.getByText('Electron Configuration')).toBeInTheDocument();
 
     const details = screen.getByLabelText('Scandium element details');
