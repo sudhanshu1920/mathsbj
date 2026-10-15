@@ -161,7 +161,7 @@ const PeriodicRangeMenu = ({
         <X size={15} />
       </button>
     </div>
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="periodic-range-grid" data-periodic-range-grid="true">
       {PERIODIC_GROUPS.map(({ from, to, label }, index) => {
         const active = selectedRangeIndex === index;
         return (
@@ -171,7 +171,7 @@ const PeriodicRangeMenu = ({
             onClick={() => onSelectRange(index)}
             aria-label={`${label} ${to - from + 1} elements`}
             aria-pressed={active}
-            className={`min-h-14 rounded-xl border px-2 py-2.5 text-left transition-[border-color,background-color,box-shadow,transform] hover:-translate-y-px hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            className={`periodic-range-card min-h-14 w-full min-w-0 rounded-xl border px-2 py-2.5 text-left transition-[border-color,background-color,box-shadow,transform] hover:-translate-y-px hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               active
                 ? 'gradient-primary border-primary text-primary-foreground shadow-md shadow-primary/20'
                 : 'border-border/70 bg-card/70 text-foreground hover:bg-secondary/80'
