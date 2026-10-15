@@ -212,6 +212,10 @@ describe('PeriodicTableLearning', () => {
     };
     const { rerender } = render(<PeriodicTableLearning {...props} />);
 
+    const beforeDetailsTable = screen.getByRole('region', { name: 'Elements 21–30 table' }) as HTMLDivElement;
+    beforeDetailsTable.scrollLeft = 140;
+    fireEvent.scroll(beforeDetailsTable);
+
     fireEvent.click(screen.getByRole('button', { name: /Scandium, atomic number 21/i }));
     expect(onSelectElement).toHaveBeenCalledWith(21);
 
@@ -227,6 +231,9 @@ describe('PeriodicTableLearning', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Back to previous Periodic Table page/i }));
     expect(onBack).toHaveBeenCalledTimes(1);
+
+    rerender(<PeriodicTableLearning {...props} />);
+    expect((screen.getByRole('region', { name: 'Elements 21–30 table' }) as HTMLDivElement).scrollLeft).toBe(140);
   });
 
 
