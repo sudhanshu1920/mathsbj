@@ -22,6 +22,35 @@ describe('PeriodicTableLearning', () => {
     expect(screen.queryByLabelText('Periodic Table elements 1 to 10')).not.toBeInTheDocument();
   });
 
+  it('renders all twelve range choices in a responsive grid with equal-width card hooks', () => {
+    render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Element ranges' });
+    const rangeGrid = dialog.querySelector<HTMLElement>('[data-periodic-range-grid="true"]');
+    expect(rangeGrid).not.toBeNull();
+    expect(rangeGrid).toHaveClass('periodic-range-grid');
+
+    const rangeButtons = within(rangeGrid as HTMLElement).getAllByRole('button');
+    expect(rangeButtons).toHaveLength(12);
+    expect(rangeButtons.map((button) => button.querySelector('span')?.textContent)).toEqual([
+      '1–10',
+      '11–20',
+      '21–30',
+      '31–40',
+      '41–50',
+      '51–60',
+      '61–70',
+      '71–80',
+      '81–90',
+      '91–100',
+      '101–110',
+      '111–118',
+    ]);
+    expect(rangeButtons.every((button) => button.classList.contains('periodic-range-card'))).toBe(true);
+  });
+
   it('renders the selected range in a four-column table with the shared element data', () => {
     const onSelectElement = vi.fn();
     render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
