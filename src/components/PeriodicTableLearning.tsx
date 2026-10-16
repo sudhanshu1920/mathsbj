@@ -434,10 +434,10 @@ const PeriodicTableLearning = ({
 }: PeriodicTableLearningProps) => {
   const morePressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
-  // Keep long-press and its synthetic click/contextmenu suppression separate:
-  // the browser can dispatch contextmenu after click on touch devices.
+  // A completed long-press may produce a delayed contextmenu and synthetic click.
   const longPressTriggeredRef = useRef(false);
   const suppressNextMoreClickRef = useRef(false);
+  const ignoreLateMoreContextMenuRef = useRef(false);
   const [rangeMenuPosition, setRangeMenuPosition] = useState<{
     top: number;
     left: number;
@@ -512,10 +512,11 @@ const PeriodicTableLearning = ({
 
   const openMassMenuFromGesture = () => {
     // A long-press and its follow-up contextmenu are one gesture, not two opens.
-    if (longPressTriggeredRef.current) return;
+    if (ignoreLateMoreContextMenuRef.current) return;
     clearMorePressTimer();
     longPressTriggeredRef.current = true;
     suppressNextMoreClickRef.current = true;
+    ignoreLateMoreContextMenuRef.current = true;
     setRangeMenuOpen(false);
     setRangeMenuPosition(null);
     setMassMenuOpen(true);
@@ -528,6 +529,7 @@ const PeriodicTableLearning = ({
     clearMorePressTimer();
     longPressTriggeredRef.current = false;
     suppressNextMoreClickRef.current = false;
+    ignoreLateMoreContextMenuRef.current = false;
     morePressTimerRef.current = setTimeout(() => {
       morePressTimerRef.current = null;
       openMassMenuFromGesture();
@@ -542,8 +544,8 @@ const PeriodicTableLearning = ({
     event.preventDefault();
     clearMorePressTimer();
     // Some browsers deliver contextmenu after the timer or even after click.
-    // The guard remains set until the next pointer-down starts a new gesture.
-    if (longPressTriggeredRef.current) return;
+    // Ignore it until a new pointer-down starts a distinct gesture.
+    if (ignoreLateMoreContextMenuRef.current) return;
     openMassMenuFromGesture();
   };
 
@@ -615,6 +617,12 @@ const PeriodicTableLearning = ({
         onPointerCancel={handleMorePointerUp}
         onPointerLeave={handleMorePointerUp}
         onClick={handleMoreClick}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            longPressTriggeredRef.current = false;
+            suppressNextMoreClickRef.current = false;
+          }
+        }}
         onContextMenu={handleMoreContextMenu}
         aria-label="Open element range menu; long press for atomic mass format"
         title="Choose element range • Long press for atomic mass format"
@@ -650,6 +658,8 @@ const PeriodicTableLearning = ({
               onClick={() => {
                 setMassMode(mode);
                 setMassMenuOpen(false);
+                longPressTriggeredRef.current = false;
+                suppressNextMoreClickRef.current = false;
               }}
               className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-bold text-foreground hover:bg-secondary"
               aria-pressed={massMode === mode}
