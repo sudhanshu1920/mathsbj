@@ -3130,19 +3130,19 @@ html.low-power .quiz-question-panel {
   width: clamp(7rem, 18vw, 8.5rem);
 }
 
-.periodic-range-table thead th {
+.periodic-range-table .periodic-range-header-cell {
   background: hsl(var(--background));
   border-top: 1px solid hsl(var(--border) / 0.75);
   border-bottom: 1px solid hsl(var(--border) / 0.75);
 }
 
-.periodic-range-table thead th:first-child {
+.periodic-range-table .periodic-range-header-cell:first-child {
   border-left: 1px solid hsl(var(--border) / 0.75);
   border-top-left-radius: 0.65rem;
   border-bottom-left-radius: 0.65rem;
 }
 
-.periodic-range-table thead th:last-child {
+.periodic-range-table .periodic-range-header-cell:last-child {
   border-right: 1px solid hsl(var(--border) / 0.75);
   border-top-right-radius: 0.65rem;
   border-bottom-right-radius: 0.65rem;
