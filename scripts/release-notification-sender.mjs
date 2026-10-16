@@ -80,7 +80,6 @@ export function createFcmMessage(release) {
           channel_id: 'app_updates',
           tag: 'mathmaster-update',
           sound: 'default',
-          click_action: 'MAIN',
         },
       },
     },
@@ -125,8 +124,9 @@ async function getGoogleAccessToken(serviceAccount) {
 }
 
 async function githubRequest(token, url, options = {}) {
+  const { allowNotFound = false, ...fetchOptions } = options;
   const response = await fetch(url, {
-    ...options,
+    ...fetchOptions,
     headers: {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${token}`,
@@ -135,7 +135,7 @@ async function githubRequest(token, url, options = {}) {
     },
     signal: AbortSignal.timeout(20000),
   });
-  if (response.status === 404 && options.allowNotFound) return null;
+  if (response.status === 404 && allowNotFound) return null;
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`GitHub update-notification state request failed (HTTP ${response.status}).`);
   return result;
