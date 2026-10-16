@@ -271,6 +271,7 @@ const PeriodicRangeView = ({
                     type="button"
                     onClick={() => onSelectElement(el.number)}
                     aria-label={`${el.name}, atomic number ${el.number}`}
+                    data-periodic-element-select="true"
                     className="block min-h-10 w-full whitespace-normal break-words rounded-md py-1 text-left text-sm font-semibold leading-snug text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-base"
                   >
                     {el.name}
@@ -281,6 +282,7 @@ const PeriodicRangeView = ({
                     type="button"
                     onClick={() => onSelectElement(el.number)}
                     aria-label={`Open ${el.name} details`}
+                    data-periodic-element-select="true"
                     className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md px-1 text-sm font-display font-black tabular-nums text-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-base"
                   >
                     {el.symbol}
@@ -711,7 +713,7 @@ const PeriodicTableLearning = ({
             if (activeRangeIndex === null || nextIndex === activeRangeIndex) return;
             navigateRange(nextIndex > activeRangeIndex ? 'next' : 'previous');
           }}
-          ignoreSwipeSelector="button, a, input, select, textarea, [data-periodic-table-scroll='true']"
+          ignoreSwipeSelector="button:not([data-periodic-element-select='true']), a, input, select, textarea, [role='dialog'], [data-app-topbar]"
           renderItem={(index) => (
             <PeriodicRangeView
               rangeIndex={index}
