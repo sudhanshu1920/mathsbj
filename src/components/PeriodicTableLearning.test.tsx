@@ -319,29 +319,21 @@ describe('PeriodicTableLearning', () => {
     expect(onSelectRange).toHaveBeenLastCalledWith(3);
   });
 
-  it('does not navigate beyond the first or last dedicated range page', () => {
-    const onSelectElement = vi.fn();
-    const onSelectRange = vi.fn();
-    const baseProps = { selectedElement: null, onSelectElement, onSelectRange };
+  it('preserves first/last range data without the removed arrow controls', () => {
+    const baseProps = { selectedElement: null, onSelectElement: vi.fn() };
     const { rerender } = render(<PeriodicTableLearning {...baseProps} selectedRangeIndex={0} />);
 
-    expect(screen.getByRole('button', { name: /Previous element range/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Next element range/i })).toBeEnabled();
-
-    fireEvent.click(screen.getByRole('button', { name: /Previous element range/i }));
-    expect(onSelectRange).not.toHaveBeenCalled();
+    expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Previous element range/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Next element range/i })).not.toBeInTheDocument();
 
     rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={11} />);
-    expect(screen.getByRole('button', { name: /Next element range/i })).toBeDisabled();
     const finalTable = screen.getByRole('table', { name: 'Elements 111–118' });
     expect(within(finalTable).getAllByRole('row')).toHaveLength(9);
     expect(within(finalTable).getByRole('row', { name: /111.*Roentgenium.*Rg.*\[282\]/ })).toBeInTheDocument();
     expect(within(finalTable).getByRole('row', { name: /118.*Oganesson.*Og.*\[294\]/ })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /Next element range/i }));
-    expect(onSelectRange).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: /Previous element range/i }));
-    expect(onSelectRange).toHaveBeenCalledWith(10);
+    expect(screen.queryByRole('button', { name: /Previous element range/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Next element range/i })).not.toBeInTheDocument();
   });
 
   it('keeps Practice and the unchanged three-dot selector aligned on the dedicated page', () => {
