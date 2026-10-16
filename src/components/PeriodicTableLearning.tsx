@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Atom, Check, Circle, Dumbbell, MoreVertical, X } from 'lucide-react';
 import { m as motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import SwipeContainer from '@/components/SwipeContainer';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
@@ -137,16 +138,32 @@ const PeriodicRangeMenu = ({
   selectedRangeIndex,
   onSelectRange,
   onClose,
+  menuPosition,
 }: {
   selectedRangeIndex: number | null;
   onSelectRange: (index: number) => void;
   onClose: () => void;
+  menuPosition: { top: number; left: number; width: number; maxHeight: number };
 }) => (
-  <div
-    className="periodic-range-menu absolute right-0 top-full z-40 mt-2 max-h-[min(70dvh,34rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-border/75 bg-popover/95 shadow-xl backdrop-blur-md"
-    role="dialog"
-    aria-label="Element ranges"
-  >
+  <>
+    <div
+      className="periodic-range-backdrop fixed inset-0 z-[90]"
+      aria-hidden="true"
+      onClick={onClose}
+    />
+    <div
+      className="periodic-range-menu fixed z-[100] max-h-[min(70dvh,34rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-border/75 shadow-xl"
+      style={{
+        position: 'fixed',
+        top: menuPosition.top,
+        left: menuPosition.left,
+        width: menuPosition.width,
+        maxHeight: menuPosition.maxHeight,
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Element ranges"
+    >
     <div className="mb-3 flex items-start justify-between gap-3 border-b border-border/60 pb-3">
       <div>
         <p className="font-display text-xs font-black uppercase tracking-[0.12em] text-foreground">Choose atomic range</p>
@@ -187,7 +204,8 @@ const PeriodicRangeMenu = ({
         );
       })}
     </div>
-  </div>
+    </div>
+  </>
 );
 
 const PeriodicRangeView = ({
@@ -264,47 +282,47 @@ const PeriodicRangeView = ({
       >
         <table
           aria-label={`Elements ${group.from}–${group.to}`}
-          className="w-full min-w-[32rem] table-fixed border-collapse text-xs sm:text-sm"
+          className="w-full min-w-[36rem] table-fixed border-collapse text-sm sm:text-base"
         >
           <colgroup>
-            <col style={{ width: '5.25rem' }} />
-            <col />
-            <col style={{ width: '4.5rem' }} />
-            <col style={{ width: '8rem' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '39%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '28%' }} />
           </colgroup>
           <thead className="border-b border-border/70 bg-background text-foreground">
             <tr>
-              <th scope="col" className="px-2 py-3 text-center text-[10px] font-black uppercase tracking-wide sm:px-3 sm:text-xs">Atomic No.</th>
-              <th scope="col" className="px-2 py-3 text-left text-[10px] font-black uppercase tracking-wide sm:px-3 sm:text-xs">Element</th>
-              <th scope="col" className="px-2 py-3 text-center text-[10px] font-black uppercase tracking-wide sm:px-3 sm:text-xs">Symbol</th>
-              <th scope="col" className="px-2 py-3 text-right text-[10px] font-black uppercase tracking-wide sm:px-3 sm:text-xs">Atomic Mass</th>
+              <th scope="col" className="px-3 py-3 text-center text-xs font-black uppercase tracking-wide sm:px-4 sm:py-3.5 sm:text-sm">ATOMIC NO.</th>
+              <th scope="col" className="px-3 py-3 text-left text-xs font-black uppercase tracking-wide sm:px-4 sm:py-3.5 sm:text-sm">ELEMENT</th>
+              <th scope="col" className="px-3 py-3 text-center text-xs font-black uppercase tracking-wide sm:px-4 sm:py-3.5 sm:text-sm">SYMBOL</th>
+              <th scope="col" className="px-3 py-3 text-right text-xs font-black uppercase tracking-wide sm:px-4 sm:py-3.5 sm:text-sm">ATOMIC MASS</th>
             </tr>
           </thead>
           <tbody>
             {elements.map((el) => (
               <tr key={el.number} className="border-b border-border/50 last:border-b-0 hover:bg-primary/[0.035]">
-                <td className="px-2 py-1.5 text-center font-semibold tabular-nums text-muted-foreground sm:px-3 sm:py-2.5">{el.number}</td>
-                <td className="px-2 py-1.5 sm:px-3">
+                <td className="px-3 py-2 text-center text-sm font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">{el.number}</td>
+                <td className="px-3 py-2 sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
                     aria-label={`${el.name}, atomic number ${el.number}`}
-                    className="block min-h-10 w-full whitespace-normal break-words rounded-md py-1 text-left font-semibold leading-snug text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="block min-h-10 w-full whitespace-normal break-words rounded-md py-1 text-left text-sm font-semibold leading-snug text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-base"
                   >
                     {el.name}
                   </button>
                 </td>
-                <td className="px-2 py-1.5 text-center">
+                <td className="px-3 py-2 text-center sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
                     aria-label={`Open ${el.name} details`}
-                    className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md px-1 font-display font-black tabular-nums text-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md px-1 text-sm font-display font-black tabular-nums text-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-base"
                   >
                     {el.symbol}
                   </button>
                 </td>
-                <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums text-foreground sm:px-3 sm:py-2.5">{formatMass(el, massMode)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right text-sm font-medium tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-base">{formatMass(el, massMode)}</td>
               </tr>
             ))}
           </tbody>
@@ -415,6 +433,14 @@ const PeriodicTableLearning = ({
   onOpenPractice,
 }: PeriodicTableLearningProps) => {
   const morePressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const longPressTriggeredRef = useRef(false);
+  const [rangeMenuPosition, setRangeMenuPosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
   const [internalSelectedRangeIndex, setInternalSelectedRangeIndex] = useState<number | null>(null);
   const hasControlledRange = selectedRangeIndex !== undefined;
   const requestedRangeIndex = hasControlledRange ? selectedRangeIndex : internalSelectedRangeIndex;
@@ -427,7 +453,51 @@ const PeriodicTableLearning = ({
   const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
   const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
   const [massMenuOpen, setMassMenuOpen] = useState(false);
-  const [longPressTriggered, setLongPressTriggered] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!rangeMenuOpen) return;
+
+    const updateMenuPosition = () => {
+      const anchor = moreButtonRef.current;
+      if (!anchor) return;
+
+      const rect = anchor.getBoundingClientRect();
+      const gutter = 12;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const width = Math.max(0, Math.min(672, viewportWidth - gutter * 2));
+      const desiredHeight = Math.min(544, Math.max(160, viewportHeight * 0.7), viewportHeight - gutter * 2);
+      const belowSpace = viewportHeight - rect.bottom - gutter - 8;
+      const aboveSpace = rect.top - gutter - 8;
+      const openAbove = belowSpace < Math.min(desiredHeight, 320) && aboveSpace > belowSpace;
+      const top = openAbove
+        ? Math.max(gutter, rect.top - desiredHeight - 8)
+        : Math.min(rect.bottom + 8, viewportHeight - desiredHeight - gutter);
+      const maxHeight = Math.max(120, Math.min(desiredHeight, viewportHeight - top - gutter));
+      const left = Math.max(gutter, Math.min(rect.right - width, viewportWidth - width - gutter));
+
+      setRangeMenuPosition({ top, left, width, maxHeight });
+    };
+
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [rangeMenuOpen]);
+
+  useEffect(() => {
+    if (!rangeMenuOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setRangeMenuOpen(false);
+      moreButtonRef.current?.focus();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [rangeMenuOpen]);
 
   const clearMorePressTimer = () => {
     if (morePressTimerRef.current) {
@@ -436,18 +506,33 @@ const PeriodicTableLearning = ({
     }
   };
 
-  const handleMorePointerDown = () => {
+  const handleMorePointerDown = (event: { button?: number }) => {
+    // Some synthetic/older touch PointerEvents omit button metadata; treat that as
+    // the primary gesture, while still ignoring an explicit secondary click.
+    if (event.button !== undefined && event.button !== 0) return;
     clearMorePressTimer();
-    setLongPressTriggered(false);
+    longPressTriggeredRef.current = false;
     morePressTimerRef.current = setTimeout(() => {
+      morePressTimerRef.current = null;
+      longPressTriggeredRef.current = true;
       setRangeMenuOpen(false);
-      setLongPressTriggered(true);
+      setRangeMenuPosition(null);
       setMassMenuOpen(true);
     }, 550);
   };
 
   const handleMorePointerUp = () => {
     clearMorePressTimer();
+  };
+
+  const handleMoreContextMenu = (event: { preventDefault: () => void }) => {
+    event.preventDefault();
+    clearMorePressTimer();
+    if (longPressTriggeredRef.current) return;
+    longPressTriggeredRef.current = true;
+    setRangeMenuOpen(false);
+    setRangeMenuPosition(null);
+    setMassMenuOpen(true);
   };
 
   useEffect(() => () => {
@@ -482,8 +567,8 @@ const PeriodicTableLearning = ({
   };
 
   const handleMoreClick = () => {
-    if (longPressTriggered) {
-      setLongPressTriggered(false);
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
       return;
     }
     setMassMenuOpen(false);
@@ -493,24 +578,21 @@ const PeriodicTableLearning = ({
   const handleRangeChange = (index: number) => {
     if (!isValidPeriodicRangeIndex(index)) return;
     setRangeMenuOpen(false);
+    setRangeMenuPosition(null);
     changeRange(index);
   };
 
   const renderRangeSelector = () => (
     <div className="relative shrink-0">
       <button
+        ref={moreButtonRef}
         type="button"
         onPointerDown={handleMorePointerDown}
         onPointerUp={handleMorePointerUp}
         onPointerCancel={handleMorePointerUp}
         onPointerLeave={handleMorePointerUp}
         onClick={handleMoreClick}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          setRangeMenuOpen(false);
-          setLongPressTriggered(true);
-          setMassMenuOpen(true);
-        }}
+        onContextMenu={handleMoreContextMenu}
         aria-label="Open element range menu; long press for atomic mass format"
         title="Choose element range • Long press for atomic mass format"
         aria-expanded={rangeMenuOpen || massMenuOpen}
@@ -521,12 +603,17 @@ const PeriodicTableLearning = ({
         <MoreVertical size={19} />
       </button>
 
-      {rangeMenuOpen && (
+      {rangeMenuOpen && rangeMenuPosition && typeof document !== 'undefined' && createPortal(
         <PeriodicRangeMenu
           selectedRangeIndex={activeRangeIndex ?? lastSelectedRangeIndexRef.current}
           onSelectRange={handleRangeChange}
-          onClose={() => setRangeMenuOpen(false)}
-        />
+          onClose={() => {
+            setRangeMenuOpen(false);
+            setRangeMenuPosition(null);
+          }}
+          menuPosition={rangeMenuPosition}
+        />,
+        document.body,
       )}
 
       {massMenuOpen && (
@@ -536,7 +623,11 @@ const PeriodicTableLearning = ({
             <button
               key={mode}
               type="button"
-              onClick={() => { setMassMode(mode); setMassMenuOpen(false); setLongPressTriggered(false); }}
+              onClick={() => {
+                setMassMode(mode);
+                setMassMenuOpen(false);
+                longPressTriggeredRef.current = false;
+              }}
               className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-bold text-foreground hover:bg-secondary"
               aria-pressed={massMode === mode}
             >
