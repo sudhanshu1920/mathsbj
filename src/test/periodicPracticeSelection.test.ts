@@ -29,7 +29,7 @@ describe('Periodic Table practice property selection', () => {
     const allowedNames = new Set(allowedElements.map((element) => element.name));
     const allowedNumbers = new Set<number>([
       ...allowedElements.map((element) => element.number),
-      ...allowedElements.map((element) => Number(formatMass(element, 'exact').replace(/[\[\]]/g, ''))),
+      ...allowedElements.map((element) => Number(formatMass(element, 'exact').replaceAll('[', '').replaceAll(']', ''))),
     ]);
 
     expect(isValidPracticeRange('periodic-table', {
