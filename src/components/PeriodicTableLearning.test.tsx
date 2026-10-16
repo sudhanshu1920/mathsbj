@@ -264,7 +264,12 @@ describe('PeriodicTableLearning', () => {
       'periodic-col-mass',
     ]);
     expect(table).toHaveClass('periodic-range-table', 'w-max', 'min-w-0', 'table-fixed');
-    expect(table.querySelector('thead th:last-child')).toHaveClass('whitespace-nowrap', 'text-right');
+    expect(table.querySelector('thead th:last-child')).toHaveClass('whitespace-nowrap', 'text-center', 'periodic-range-mass');
+    expect(table.querySelector('thead th:last-child')).not.toHaveClass('text-right');
+    const atomicMassCells = Array.from(table.querySelectorAll('tbody td.periodic-range-mass'));
+    expect(atomicMassCells).toHaveLength(10);
+    expect(atomicMassCells.every((cell) => cell.classList.contains('text-center'))).toBe(true);
+    expect(atomicMassCells.every((cell) => !cell.classList.contains('text-right'))).toBe(true);
     const headers = Array.from(table.querySelectorAll('thead th'));
     expect(headers.every((header) => header.classList.contains('periodic-range-column-heading'))).toBe(true);
     expect(headers.every((header) => header.classList.contains('periodic-range-header-cell'))).toBe(true);
