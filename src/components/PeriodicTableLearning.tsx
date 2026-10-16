@@ -152,7 +152,7 @@ const PeriodicRangeMenu = ({
       onClick={onClose}
     />
     <div
-      className="periodic-range-menu fixed z-[100] max-h-[min(70dvh,34rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-border/75 shadow-xl"
+      className="periodic-range-menu fixed z-[100] max-h-[min(70dvh,34rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-border/75 bg-popover shadow-xl"
       style={{
         position: 'fixed',
         top: menuPosition.top,
@@ -434,7 +434,10 @@ const PeriodicTableLearning = ({
 }: PeriodicTableLearningProps) => {
   const morePressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+  // Keep long-press and its synthetic click/contextmenu suppression separate:
+  // the browser can dispatch contextmenu after click on touch devices.
   const longPressTriggeredRef = useRef(false);
+  const suppressNextMoreClickRef = useRef(false);
   const [rangeMenuPosition, setRangeMenuPosition] = useState<{
     top: number;
     left: number;
@@ -493,6 +496,7 @@ const PeriodicTableLearning = ({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setRangeMenuOpen(false);
+      setRangeMenuPosition(null);
       moreButtonRef.current?.focus();
     };
     document.addEventListener('keydown', handleEscape);
@@ -506,18 +510,27 @@ const PeriodicTableLearning = ({
     }
   };
 
+  const openMassMenuFromGesture = () => {
+    // A long-press and its follow-up contextmenu are one gesture, not two opens.
+    if (longPressTriggeredRef.current) return;
+    clearMorePressTimer();
+    longPressTriggeredRef.current = true;
+    suppressNextMoreClickRef.current = true;
+    setRangeMenuOpen(false);
+    setRangeMenuPosition(null);
+    setMassMenuOpen(true);
+  };
+
   const handleMorePointerDown = (event: { button?: number }) => {
     // Some synthetic/older touch PointerEvents omit button metadata; treat that as
     // the primary gesture, while still ignoring an explicit secondary click.
     if (event.button !== undefined && event.button !== 0) return;
     clearMorePressTimer();
     longPressTriggeredRef.current = false;
+    suppressNextMoreClickRef.current = false;
     morePressTimerRef.current = setTimeout(() => {
       morePressTimerRef.current = null;
-      longPressTriggeredRef.current = true;
-      setRangeMenuOpen(false);
-      setRangeMenuPosition(null);
-      setMassMenuOpen(true);
+      openMassMenuFromGesture();
     }, 550);
   };
 
@@ -528,11 +541,10 @@ const PeriodicTableLearning = ({
   const handleMoreContextMenu = (event: { preventDefault: () => void }) => {
     event.preventDefault();
     clearMorePressTimer();
+    // Some browsers deliver contextmenu after the timer or even after click.
+    // The guard remains set until the next pointer-down starts a new gesture.
     if (longPressTriggeredRef.current) return;
-    longPressTriggeredRef.current = true;
-    setRangeMenuOpen(false);
-    setRangeMenuPosition(null);
-    setMassMenuOpen(true);
+    openMassMenuFromGesture();
   };
 
   useEffect(() => () => {
@@ -567,18 +579,29 @@ const PeriodicTableLearning = ({
   };
 
   const handleMoreClick = () => {
-    if (longPressTriggeredRef.current) {
-      longPressTriggeredRef.current = false;
+    if (suppressNextMoreClickRef.current) {
+      suppressNextMoreClickRef.current = false;
       return;
     }
+    // Do not clear longPressTriggeredRef here: a delayed contextmenu may still
+    // arrive after this click. The next pointer-down resets it for a new gesture.
+    if (longPressTriggeredRef.current) return;
+
     setMassMenuOpen(false);
-    setRangeMenuOpen((open) => !open);
+    if (rangeMenuOpen) {
+      setRangeMenuOpen(false);
+      setRangeMenuPosition(null);
+      return;
+    }
+    setRangeMenuPosition(null);
+    setRangeMenuOpen(true);
   };
 
   const handleRangeChange = (index: number) => {
     if (!isValidPeriodicRangeIndex(index)) return;
     setRangeMenuOpen(false);
     setRangeMenuPosition(null);
+    setMassMenuOpen(false);
     changeRange(index);
   };
 
@@ -610,6 +633,7 @@ const PeriodicTableLearning = ({
           onClose={() => {
             setRangeMenuOpen(false);
             setRangeMenuPosition(null);
+            setMassMenuOpen(false);
           }}
           menuPosition={rangeMenuPosition}
         />,
@@ -626,7 +650,6 @@ const PeriodicTableLearning = ({
               onClick={() => {
                 setMassMode(mode);
                 setMassMenuOpen(false);
-                longPressTriggeredRef.current = false;
               }}
               className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-bold text-foreground hover:bg-secondary"
               aria-pressed={massMode === mode}
