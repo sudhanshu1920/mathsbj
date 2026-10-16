@@ -91,8 +91,12 @@ test('configures FCM only for a matching Firebase Android app and remains idempo
   assert.match(appGradle, /com\.google\.gms\.google-services/);
   assert.match(manifest, /MathMasterMessagingService/);
   assert.match(manifest, /default_notification_channel_id/);
+  assert.match(mainActivity, /NotificationChannel updateChannel/);
+  assert.match(mainActivity, /"app_updates"/);
+  assert.match(mainActivity, /import android\.os\.Build;/);
   assert.equal((manifest.match(/android:name="\.DailyTargetReminderBootReceiver"/g) || []).length, 1);
   assert.equal((mainActivity.match(/registerPlugin\(DailyTargetReminderPlugin\.class\)/g) || []).length, 1);
+  assert.equal((mainActivity.match(/NotificationChannel updateChannel/g) || []).length, 1);
 });
 
 
