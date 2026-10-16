@@ -123,7 +123,11 @@ function registerNativePlugin(mainActivity) {
 
 async function configureForegroundAndBackgroundUpdateChannel(mainActivityPath) {
   let source = await readRequired(mainActivityPath, 'generated MainActivity.java');
-  for (const importLine of ['import android.app.NotificationChannel;', 'import android.app.NotificationManager;']) {
+  for (const importLine of [
+    'import android.app.NotificationChannel;',
+    'import android.app.NotificationManager;',
+    'import android.os.Build;',
+  ]) {
     if (!source.includes(importLine)) {
       const packageEnd = source.indexOf(';');
       source = source.slice(0, packageEnd + 1) + '\n\n' + importLine + source.slice(packageEnd + 1);
