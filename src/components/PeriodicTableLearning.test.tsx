@@ -599,17 +599,30 @@ describe('PeriodicTableLearning', () => {
 });
 
 describe('Periodic Table range edge-back gesture', () => {
+  const dispatchPointer = (
+    target: HTMLElement,
+    type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+    init: { pointerId: number; pointerType: string; clientX: number; clientY: number; button?: number },
+  ) => {
+    // jsdom versions without PointerEvent silently fall back to generic events.
+    // Define the pointer fields on a bubbling event so React receives the exact
+    // touch-pointer coordinates/types the gesture recognizer expects.
+    const event = new Event(type, { bubbles: true, cancelable: true });
+    Object.assign(event, init);
+    target.dispatchEvent(event);
+  };
+
   const fireRightPointerSwipe = (target: HTMLElement, pointerId: number, startX = 12) => {
-    fireEvent.pointerDown(target, {
+    dispatchPointer(target, 'pointerdown', {
       pointerId, pointerType: 'touch', button: 0, clientX: startX, clientY: 120,
     });
-    fireEvent.pointerMove(target, {
+    dispatchPointer(target, 'pointermove', {
       pointerId, pointerType: 'touch', clientX: startX + 24, clientY: 122,
     });
-    fireEvent.pointerMove(target, {
+    dispatchPointer(target, 'pointermove', {
       pointerId, pointerType: 'touch', clientX: startX + 84, clientY: 123,
     });
-    fireEvent.pointerUp(target, {
+    dispatchPointer(target, 'pointerup', {
       pointerId, pointerType: 'touch', clientX: startX + 84, clientY: 123,
     });
   };
@@ -657,14 +670,14 @@ describe('Periodic Table range edge-back gesture', () => {
     );
     const surface = getByTestId('cancel-range-swipe');
 
-    fireEvent.pointerDown(surface, { pointerId: 304, pointerType: 'touch', button: 0, clientX: 12, clientY: 100 });
-    fireEvent.pointerMove(surface, { pointerId: 304, pointerType: 'touch', clientX: 36, clientY: 102 });
-    fireEvent.pointerCancel(surface, { pointerId: 304, pointerType: 'touch', clientX: 100, clientY: 102 });
+    dispatchPointer(surface, 'pointerdown', { pointerId: 304, pointerType: 'touch', button: 0, clientX: 12, clientY: 100 });
+    dispatchPointer(surface, 'pointermove', { pointerId: 304, pointerType: 'touch', clientX: 36, clientY: 102 });
+    dispatchPointer(surface, 'pointercancel', { pointerId: 304, pointerType: 'touch', clientX: 100, clientY: 102 });
     expect(onBack).not.toHaveBeenCalled();
 
-    fireEvent.pointerDown(surface, { pointerId: 305, pointerType: 'touch', button: 0, clientX: 12, clientY: 100 });
-    fireEvent.pointerMove(surface, { pointerId: 305, pointerType: 'touch', clientX: 14, clientY: 140 });
-    fireEvent.pointerUp(surface, { pointerId: 305, pointerType: 'touch', clientX: 14, clientY: 145 });
+    dispatchPointer(surface, 'pointerdown', { pointerId: 305, pointerType: 'touch', button: 0, clientX: 12, clientY: 100 });
+    dispatchPointer(surface, 'pointermove', { pointerId: 305, pointerType: 'touch', clientX: 14, clientY: 140 });
+    dispatchPointer(surface, 'pointerup', { pointerId: 305, pointerType: 'touch', clientX: 14, clientY: 145 });
     expect(onBack).not.toHaveBeenCalled();
   });
 
