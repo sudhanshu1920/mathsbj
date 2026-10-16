@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE_NATIVE_DIR = path.resolve(SCRIPT_DIR, '../android-native/com/sudhanshu/mathsbj');
-const PACKAGE_PATH = 'com/sudhanshu.mathsbj';
+const PACKAGE_PATH = 'com.sudhanshu.mathsbj';
 const GOOGLE_SERVICES_PLUGIN_VERSION = '4.4.2';
 const FIREBASE_BOM_VERSION = '33.14.0';
 
