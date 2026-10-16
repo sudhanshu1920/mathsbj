@@ -275,6 +275,10 @@ const Index = () => {
   const lastBackPress = useRef(0);
   const isHandlingPopstate = useRef(false);
   const lastDepth = useRef('learn-home');
+  // After an explicit range-page toolbar Back, older swiped-range entries may
+  // remain behind the current browser entry. Skip those stale entries on the
+  // next system Back rather than unexpectedly reopening an old range.
+  const skipStalePeriodicRangeEntries = useRef(false);
   const historyInitialized = useRef(false);
   const lastNavigationBack = useRef(0);
   const replaceNextNavigationEntry = useRef(false);
@@ -304,6 +308,23 @@ const Index = () => {
     if (now - lastNavigationBack.current < 350) return;
     lastNavigationBack.current = now;
     if (window.history.length > 1) window.history.back();
+  }, []);
+
+  const handlePeriodicRangeBackToTable = useCallback(() => {
+    const current = navigationStateRef.current;
+    if (current.tab !== 'learn' || current.learningState.activeTopic !== 'periodic-table') return;
+
+    skipStalePeriodicRangeEntries.current = true;
+    const targetDepth = 'learn-periodic-table';
+    // Replace the active range entry rather than pushing another main-table
+    // entry. This keeps the visible destination and app history synchronized.
+    window.history.replaceState({ __mathsbj: true, depth: targetDepth }, '');
+    lastDepth.current = targetDepth;
+    setLearningState((previous) => ({
+      ...previous,
+      periodicSelectedElement: null,
+      periodicSelectedRangeIndex: null,
+    }));
   }, []);
 
   // Seed one in-app history entry so Android system back/edge-back can be
@@ -453,6 +474,22 @@ const Index = () => {
       const { activeTopic, selectedNumber, selectedRange, percentageGroup, expandedDenominator, formulaSectionIndex, formulaCategoryIndex, periodicSelectedElement, periodicSelectedRangeIndex } = learningState;
       const targetDepth = typeof window.history.state?.depth === 'string' ? window.history.state.depth : '';
       const targetPeriodicRangeIndex = getPeriodicRangeIndexFromDepth(targetDepth);
+
+      if (
+        tab === 'learn' &&
+        activeTopic === 'periodic-table' &&
+        periodicSelectedElement === null &&
+        periodicSelectedRangeIndex === null &&
+        skipStalePeriodicRangeEntries.current
+      ) {
+        if (targetPeriodicRangeIndex !== null || targetDepth === 'learn-periodic-table') {
+          // The toolbar navigated directly to the table. Drain the obsolete
+          // range entries without painting intermediate pages during system Back.
+          window.history.back();
+          return;
+        }
+        skipStalePeriodicRangeEntries.current = false;
+      }
 
       if (activeTopic === 'periodic-table' && periodicSelectedElement) {
         setLearningState(prev => ({
@@ -974,6 +1011,7 @@ const Index = () => {
                 >
                   <LearningPage
                     onBack={goBack}
+                    onBackToPeriodicTable={handlePeriodicRangeBackToTable}
                     onStartPractice={handleStartPractice}
                     learningState={learningState}
                     onLearningStateChange={setLearningState}
