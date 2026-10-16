@@ -3185,3 +3185,10 @@ html.low-power .quiz-question-panel {
   }
 }
 
+/* Keep the Atomic Mass header and every mass cell centered as one column;
+   this explicit rule prevents inherited/alignment utility styles from
+   pushing just the values to the right edge. */
+.periodic-range-table .periodic-range-mass {
+  text-align: center;
+}
+
