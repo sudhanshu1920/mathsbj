@@ -22,6 +22,7 @@ import { getPeriodicRangeIndexFromDepth, isValidPeriodicRangeIndex } from '@/lib
 import { MOTION } from '@/lib/motion';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TrigFunction } from '@/lib/trigData';
+import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
 import { getFloatingBarVisibility } from '@/lib/floatingBarVisibility';
 
 type Tab = 'learn' | 'practice' | 'progress';
@@ -140,7 +141,7 @@ const Index = () => {
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
   const [practiceContext, setPracticeContext] = useState<{ from?: number; to?: number; number?: number } | undefined>();
   const [practiceMode, setPracticeMode] = useState<'mcq' | 'input' | undefined>();
-  const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number } | undefined>();
+  const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode } | undefined>();
   const [returnToLearn, setReturnToLearn] = useState(false);
   const [learningPracticeSelectorOpen, setLearningPracticeSelectorOpen] = useState(false);
   const [learningPracticeReturn, setLearningPracticeReturn] = useState<PracticeLaunchContext | null>(null);
@@ -604,12 +605,16 @@ const Index = () => {
     if (!open) setLearningPracticeReturn(null);
   }, []);
 
-  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number }) => {
+  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode }) => {
     const launchContext: PracticeLaunchContext = {
       topic,
       context: context ? { ...context } : undefined,
       mode: mode ?? 'mcq',
-      extras: extras ? { ...extras, trigFunctions: extras.trigFunctions ? [...extras.trigFunctions] : undefined } : undefined,
+      extras: extras ? {
+        ...extras,
+        trigFunctions: extras.trigFunctions ? [...extras.trigFunctions] : undefined,
+        periodicQuestionTypes: extras.periodicQuestionTypes ? [...extras.periodicQuestionTypes] : undefined,
+      } : undefined,
     };
     practiceExitHandled.current = false;
     replaceNextNavigationEntry.current = true;
