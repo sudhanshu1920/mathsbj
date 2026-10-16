@@ -180,7 +180,8 @@ async function configureFirebase(root, encodedConfig) {
   try {
     config = validateGoogleServicesConfig(JSON.parse(Buffer.from(encodedConfig, 'base64').toString('utf8')));
   } catch (error) {
-    throw new Error('MATHMASTER_FIREBASE_GOOGLE_SERVICES_JSON_BASE64 is invalid or belongs to a different Android package.', { cause: error });
+    const reason = error instanceof Error ? error.message : 'unrecognized validation error';
+    throw new Error(`MATHMASTER_FIREBASE_GOOGLE_SERVICES_JSON_BASE64 is invalid or belongs to a different Android package: ${reason}`, { cause: error });
   }
 
   const rootGradlePath = path.join(root, 'build.gradle');
