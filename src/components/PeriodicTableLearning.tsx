@@ -211,14 +211,12 @@ const PeriodicRangeMenu = ({
 const PeriodicRangeView = ({
   rangeIndex,
   onSelectElement,
-  onChangeRange,
   massMode,
   initialScrollLeft,
   onScrollLeftChange,
 }: {
   rangeIndex: number;
   onSelectElement: (number: number) => void;
-  onChangeRange: (direction: 'previous' | 'next') => void;
   massMode: AtomicMassMode;
   initialScrollLeft: number;
   onScrollLeftChange: (scrollLeft: number) => void;
@@ -231,46 +229,12 @@ const PeriodicRangeView = ({
       scrollRegionRef.current.scrollLeft = initialScrollLeft;
     }
   }, [initialScrollLeft, rangeIndex]);
-  const hasPrevious = getAdjacentPeriodicRangeIndex(rangeIndex, 'previous') !== rangeIndex;
-  const hasNext = getAdjacentPeriodicRangeIndex(rangeIndex, 'next') !== rangeIndex;
-
   return (
     <section
       data-periodic-range-index={rangeIndex}
-      className="periodic-range-page w-full min-w-0 space-y-2 pb-4"
+      className="periodic-range-page w-full min-w-0 pb-4"
       aria-label={`Periodic Table elements ${group.from} to ${group.to}`}
     >
-      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-border/60 py-2">
-        <div className="min-w-0">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">Atomic number range</p>
-          <p className="mt-0.5 font-display text-sm font-bold text-foreground">
-            {group.from}–{group.to}
-            <span className="ml-2 text-xs font-medium text-muted-foreground">· {elements.length} elements</span>
-          </p>
-          <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">Range {rangeIndex + 1} of {PERIODIC_GROUPS.length}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onChangeRange('previous')}
-            disabled={!hasPrevious}
-            aria-label="Previous element range"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => onChangeRange('next')}
-            disabled={!hasNext}
-            aria-label="Next element range"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <ArrowLeft className="rotate-180" size={16} />
-          </button>
-        </div>
-      </div>
-
       <div
         role="region"
         aria-label={`Elements ${group.from}–${group.to} table`}
@@ -752,7 +716,6 @@ const PeriodicTableLearning = ({
             <PeriodicRangeView
               rangeIndex={index}
               onSelectElement={onSelectElement}
-              onChangeRange={navigateRange}
               massMode={massMode}
               initialScrollLeft={tableScrollLeftRef.current}
               onScrollLeftChange={(scrollLeft) => { tableScrollLeftRef.current = scrollLeft; }}
