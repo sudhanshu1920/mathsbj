@@ -257,15 +257,23 @@ describe('PeriodicTableLearning', () => {
     ]);
     expect(within(table).getAllByRole('row')).toHaveLength(11);
     expect(table.querySelectorAll('col')).toHaveLength(4);
-    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '14%' });
-    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '32%' });
-    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '28%' });
-    expect(table.querySelectorAll('col')[3]).toHaveStyle({ width: '26%' });
-    expect(table).toHaveClass('w-full', 'min-w-[460px]', 'table-fixed');
-    expect(table.querySelector('thead th:last-child')).toHaveClass('whitespace-nowrap');
+    expect(Array.from(table.querySelectorAll('col')).map((column) => column.className)).toEqual([
+      'periodic-col-number',
+      'periodic-col-element',
+      'periodic-col-symbol',
+      'periodic-col-mass',
+    ]);
+    expect(table).toHaveClass('periodic-range-table', 'w-max', 'min-w-0', 'table-fixed');
+    expect(table.querySelector('thead th:last-child')).toHaveClass('whitespace-nowrap', 'text-right');
+    expect(Array.from(table.querySelectorAll('thead th')).every((header) => header.classList.contains('periodic-range-column-heading'))).toBe(true);
+    expect(table.querySelectorAll('tbody td.periodic-range-cell')).toHaveLength(40);
     const tableRegion = screen.getByRole('region', { name: 'Elements 21–30 table' });
-    expect(tableRegion).not.toHaveClass('rounded-2xl', 'shadow-sm', 'border');
     expect(tableRegion).not.toHaveClass('max-h-[min(64dvh,38rem)]');
+    expect(tableRegion).toHaveClass('overflow-x-auto');
+    const tableFrame = table.closest('.periodic-range-table-frame');
+    expect(tableFrame).toHaveClass('periodic-range-table-frame', 'rounded-xl', 'overflow-hidden', 'border');
+    expect(table.querySelector('.periodic-range-element-name')).toBeInTheDocument();
+    expect(table.querySelector('.periodic-range-symbol')).toBeInTheDocument();
     expect(within(table).getByRole('row', { name: /21.*Scandium.*Sc.*44\.956/ })).toBeInTheDocument();
     expect(within(table).getByRole('row', { name: /30.*Zinc.*Zn.*65\.38/ })).toBeInTheDocument();
 
@@ -369,6 +377,28 @@ describe('PeriodicTableLearning', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /31–40 10 elements/i }));
     expect(onSelectRange).toHaveBeenLastCalledWith(3);
+  });
+
+
+  it('routes the range-page Back arrow directly to the main Periodic Table without reopening the range picker', () => {
+    const onSelectRange = vi.fn();
+    const onBackToTable = vi.fn();
+    const baseProps = {
+      selectedElement: null,
+      onSelectElement: vi.fn(),
+      onSelectRange,
+      onBackToTable,
+    };
+    const { rerender } = render(<PeriodicTableLearning {...baseProps} selectedRangeIndex={0} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(onBackToTable).toHaveBeenCalledTimes(1);
+    expect(onSelectRange).not.toHaveBeenCalled();
+
+    rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
+    expect(screen.getByRole('heading', { name: 'Periodic Table' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Hydrogen, atomic number 1/i })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
   });
 
   it('preserves first/last range data without the removed arrow controls', () => {
