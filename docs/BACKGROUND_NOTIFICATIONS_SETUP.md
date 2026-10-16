@@ -28,3 +28,7 @@ Users need to install a Firebase-enabled APK once and opt in before their instal
 - Android force-stop, revoked notifications, vendor battery restrictions, or a device that has not been unlocked after reboot can delay or prevent delivery. The app does not attempt to bypass these restrictions.
 - FCM acceptance confirms the server accepted a push, not that every device displayed it. Devices must have a recent app build containing the Firebase client configuration and must have opted into notifications.
 - The public release manifest is still checked by the existing in-app updater when the app opens/resumes; the push notification does not bypass APK signature/checksum validation or automatically install an APK.
+
+## Rebuild after enabling Firebase
+
+Firebase Messaging is injected into the Android APK at build time; adding GitHub secrets does not enable FCM in an APK that has already been published or installed. Once both `MATHMASTER_FIREBASE_GOOGLE_SERVICES_JSON_BASE64` and `MATHMASTER_FIREBASE_SERVICE_ACCOUNT_JSON` are configured, trigger a new production release from a new `main` commit (with a commit message beginning `[BUILD_APK]`) or use the release workflow's manual dispatch. A new source commit is important: the version resolver deliberately reuses the same version for the same source commit, so simply rerunning the already-published commit would not produce an installable newer Firebase-enabled APK.
