@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateQuestions, isValidPracticeRange } from '@/pages/PracticePage';
-import { ELEMENTS, formatMass } from '@/lib/periodicTable';
+import { ELEMENTS, formatMass, type PeriodicQuestionType } from '@/lib/periodicTable';
 
 const baseConfig = {
   count: 500,
@@ -84,7 +84,7 @@ describe('Periodic Table practice property selection', () => {
   });
 
   it('supports all four independently selected properties without duplicate question-type selections', () => {
-    const selected = [...new Set(['atomic-number', 'name', 'symbol', 'mass'])];
+    const selected: PeriodicQuestionType[] = [...new Set<PeriodicQuestionType>(['atomic-number', 'name', 'symbol', 'mass'])];
     const questions = generateQuestions({
       ...baseConfig,
       topics: [{
