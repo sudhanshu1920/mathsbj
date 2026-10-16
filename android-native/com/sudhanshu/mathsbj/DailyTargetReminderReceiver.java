@@ -64,7 +64,8 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         Calendar now = Calendar.getInstance();
         int currentMinute = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
         if (currentMinute > 22 * 60) {
-            cancelScheduled(context);
+            // Respect the 10 PM cutoff today while retaining tomorrow's noon alarm.
+            scheduleNext(context);
             return;
         }
 
@@ -113,26 +114,52 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             long triggerAt = candidate.getTimeInMillis();
             if (triggerAt <= nowMillis + 5000L) continue;
 
-            Intent alarmIntent = new Intent(context, DailyTargetReminderReceiver.class);
-            alarmIntent.setAction(ACTION_FIRE);
-            alarmIntent.putExtra("scheduledMinute", minuteOfDay);
-            alarmIntent.putExtra("scheduledDay", todayKey());
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(
-                context,
-                ALARM_REQUEST_CODE,
-                alarmIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
-            AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-            if (alarmManager == null) return;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                // Inexact allow-while-idle alarms need no special exact-alarm permission.
-                // Android/OEM power policies may still delay delivery.
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
-            } else {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
-            }
+            scheduleAlarm(context, candidate, minuteOfDay, todayKey());
             return;
+        }
+
+        // If today's 12 PM–10 PM slots are all past, keep one alarm pending for
+        // tomorrow's first slot. Otherwise the daily cycle would stop after 10 PM
+        // when the app remains closed overnight.
+        int firstMinute = -1;
+        for (int i = 0; i < slots.length(); i++) {
+            int candidateMinute = slots.optInt(i, -1);
+            if (candidateMinute >= 12 * 60 && candidateMinute <= 22 * 60) {
+                firstMinute = candidateMinute;
+                break;
+            }
+        }
+        if (firstMinute >= 12 * 60 && firstMinute <= 22 * 60) {
+            Calendar tomorrow = (Calendar) now.clone();
+            tomorrow.add(Calendar.DAY_OF_YEAR, 1);
+            tomorrow.set(Calendar.HOUR_OF_DAY, firstMinute / 60);
+            tomorrow.set(Calendar.MINUTE, firstMinute % 60);
+            tomorrow.set(Calendar.SECOND, 0);
+            tomorrow.set(Calendar.MILLISECOND, 0);
+            scheduleAlarm(context, tomorrow, firstMinute, todayKey(tomorrow.getTime()));
+        }
+    }
+
+    private static void scheduleAlarm(Context context, Calendar candidate, int minuteOfDay, String scheduledDay) {
+        Intent alarmIntent = new Intent(context, DailyTargetReminderReceiver.class);
+        alarmIntent.setAction(ACTION_FIRE);
+        alarmIntent.putExtra("scheduledMinute", minuteOfDay);
+        alarmIntent.putExtra("scheduledDay", scheduledDay);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+            context,
+            ALARM_REQUEST_CODE,
+            alarmIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager == null) return;
+        long triggerAt = candidate.getTimeInMillis();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Inexact allow-while-idle alarms need no special exact-alarm permission.
+            // Android/OEM power policies may still delay delivery.
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
+        } else {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
         }
     }
 
@@ -163,7 +190,11 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
     }
 
     private static String todayKey() {
-        return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+        return todayKey(new Date());
+    }
+
+    private static String todayKey(Date date) {
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date);
     }
 
     private static JSONArray parseArray(String value) {
