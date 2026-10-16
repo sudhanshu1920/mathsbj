@@ -207,8 +207,10 @@ describe('PeriodicTableLearning', () => {
       });
       target.dispatchEvent(event);
     };
-    const swipe = (direction: 'next' | 'previous') => {
-      const page = container.querySelector('[data-periodic-range-index]');
+    const swipe = (direction: 'next' | 'previous', currentIndex: number) => {
+      // AnimatePresence may retain the outgoing range briefly; target the
+      // currently active page explicitly instead of whichever node appears first.
+      const page = container.querySelector(`[data-periodic-range-index="${currentIndex}"]`);
       expect(page).not.toBeNull();
       const startX = direction === 'next' ? 220 : 130;
       const endX = direction === 'next' ? 130 : 220;
@@ -224,17 +226,17 @@ describe('PeriodicTableLearning', () => {
     expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
 
     for (let index = 1; index < ranges.length; index += 1) {
-      swipe('next');
+      swipe('next', index - 1);
       expect(screen.getByRole('table', { name: `Elements ${labels[index]}` })).toBeInTheDocument();
     }
-    swipe('next');
+    swipe('next', 11);
     expect(screen.getByRole('table', { name: 'Elements 111–118' })).toBeInTheDocument();
 
     for (let index = ranges.length - 2; index >= 0; index -= 1) {
-      swipe('previous');
+      swipe('previous', index + 1);
       expect(screen.getByRole('table', { name: `Elements ${labels[index]}` })).toBeInTheDocument();
     }
-    swipe('previous');
+    swipe('previous', 0);
     expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
   });
 
