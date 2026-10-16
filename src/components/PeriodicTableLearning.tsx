@@ -320,17 +320,17 @@ const PeriodicRangeView = ({
             </colgroup>
           <thead className="border-b border-border/70 bg-background text-foreground">
             <tr>
-              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC NO.</th>
-              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading px-1 py-2 text-left font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ELEMENT</th>
-              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">SYMBOL</th>
-              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading periodic-range-mass whitespace-nowrap px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC MASS</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading periodic-tint-number px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC NO.</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading periodic-tint-element px-1 py-2 text-left font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ELEMENT</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading periodic-tint-symbol px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">SYMBOL</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading periodic-range-mass periodic-tint-mass whitespace-nowrap px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC MASS</th>
             </tr>
           </thead>
           <tbody>
             {elements.map((el) => (
               <tr key={el.number} className="periodic-range-data-row">
-                <td className="periodic-range-cell periodic-range-row-cell px-1 py-1.5 text-center font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">{el.number}</td>
-                <td className="periodic-range-cell periodic-range-row-cell px-1 py-1.5 sm:px-4 sm:py-3">
+                <td className="periodic-range-cell periodic-range-row-cell periodic-tint-number px-1 py-1.5 text-center font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">{el.number}</td>
+                <td className="periodic-range-cell periodic-range-row-cell periodic-tint-element px-1 py-1.5 sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
@@ -341,7 +341,7 @@ const PeriodicRangeView = ({
                     {el.name}
                   </button>
                 </td>
-                <td className="periodic-range-cell periodic-range-row-cell px-1 py-1.5 text-center sm:px-4 sm:py-3">
+                <td className="periodic-range-cell periodic-range-row-cell periodic-tint-symbol px-1 py-1.5 text-center sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
@@ -352,7 +352,7 @@ const PeriodicRangeView = ({
                     {el.symbol}
                   </button>
                 </td>
-                <td className="periodic-range-cell periodic-range-row-cell periodic-range-mass whitespace-nowrap px-1 py-1.5 text-center font-semibold tabular-nums text-foreground sm:px-4 sm:py-3">{formatMass(el, massMode)}</td>
+                <td className="periodic-range-cell periodic-range-row-cell periodic-range-mass periodic-tint-mass whitespace-nowrap px-1 py-1.5 text-center font-semibold tabular-nums text-foreground sm:px-4 sm:py-3">{formatMass(el, massMode)}</td>
               </tr>
             ))}
           </tbody>
