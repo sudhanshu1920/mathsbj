@@ -398,7 +398,7 @@ if (!releaseWorkflow.includes('actions/upload-artifact@v4') ||
   fail('signed APK and checksummed manifest must be published and verified on the separate public update host');
 }
 const notificationSendStepAt = releaseWorkflow.indexOf('name: Send new-release push notification through Firebase');
-const notificationSendStepEnd = releaseWorkflow.indexOf('\\n# [BUILD_APK]', notificationSendStepAt);
+const notificationSendStepEnd = releaseWorkflow.indexOf('\n# [BUILD_APK]', notificationSendStepAt);
 const notificationSendStep = releaseWorkflow.slice(notificationSendStepAt, notificationSendStepEnd);
 if (!releaseWorkflow.includes('name: Verify published APK asset SHA-256 before push') ||
     !releaseWorkflow.includes('PUBLISHED_APK_URL}?cacheBust=${GITHUB_SHA}') ||
