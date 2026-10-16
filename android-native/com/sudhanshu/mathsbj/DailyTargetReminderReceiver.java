@@ -57,7 +57,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         long elapsedSeconds = Math.max(0L, prefs.getLong("elapsedSeconds", 0L));
         if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
             prefs.edit().putBoolean("completed", true).apply();
-            cancelScheduled(context);
+            scheduleNext(context);
             return;
         }
 
@@ -84,10 +84,6 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
 
         int targetMinutes = Math.max(1, prefs.getInt("targetMinutes", 5));
         long elapsedSeconds = Math.max(0L, prefs.getLong("elapsedSeconds", 0L));
-        if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
-            prefs.edit().putBoolean("completed", true).apply();
-            return;
-        }
 
         JSONArray slots = parseArray(prefs.getString("scheduleMinutesJson", "[]"));
         if (slots.length() == 0) {
@@ -98,6 +94,12 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             slots.put(18 * 60);
             slots.put(20 * 60);
             slots.put(22 * 60);
+        }
+
+        if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
+            prefs.edit().putBoolean("completed", true).apply();
+            scheduleTomorrow(context, slots);
+            return;
         }
 
         Calendar now = Calendar.getInstance();
@@ -118,26 +120,27 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             return;
         }
 
-        // If today's 12 PM–10 PM slots are all past, keep one alarm pending for
-        // tomorrow's first slot. Otherwise the daily cycle would stop after 10 PM
-        // when the app remains closed overnight.
+        // No eligible slot remains today; retain tomorrow's first reminder.
+        scheduleTomorrow(context, slots);
+    }
+
+    private static void scheduleTomorrow(Context context, JSONArray slots) {
+        Calendar now = Calendar.getInstance();
         int firstMinute = -1;
         for (int i = 0; i < slots.length(); i++) {
             int candidateMinute = slots.optInt(i, -1);
-            if (candidateMinute >= 12 * 60 && candidateMinute <= 22 * 60) {
-                firstMinute = candidateMinute;
-                break;
-            }
+            if (candidateMinute < 12 * 60 || candidateMinute > 22 * 60) continue;
+            if (firstMinute < 0 || candidateMinute < firstMinute) firstMinute = candidateMinute;
         }
-        if (firstMinute >= 12 * 60 && firstMinute <= 22 * 60) {
-            Calendar tomorrow = (Calendar) now.clone();
-            tomorrow.add(Calendar.DAY_OF_YEAR, 1);
-            tomorrow.set(Calendar.HOUR_OF_DAY, firstMinute / 60);
-            tomorrow.set(Calendar.MINUTE, firstMinute % 60);
-            tomorrow.set(Calendar.SECOND, 0);
-            tomorrow.set(Calendar.MILLISECOND, 0);
-            scheduleAlarm(context, tomorrow, firstMinute, todayKey(tomorrow.getTime()));
-        }
+        if (firstMinute < 12 * 60 || firstMinute > 22 * 60) return;
+
+        Calendar tomorrow = (Calendar) now.clone();
+        tomorrow.add(Calendar.DAY_OF_YEAR, 1);
+        tomorrow.set(Calendar.HOUR_OF_DAY, firstMinute / 60);
+        tomorrow.set(Calendar.MINUTE, firstMinute % 60);
+        tomorrow.set(Calendar.SECOND, 0);
+        tomorrow.set(Calendar.MILLISECOND, 0);
+        scheduleAlarm(context, tomorrow, firstMinute, todayKey(tomorrow.getTime()));
     }
 
     private static void scheduleAlarm(Context context, Calendar candidate, int minuteOfDay, String scheduledDay) {
