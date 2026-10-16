@@ -506,8 +506,10 @@ const PeriodicTableLearning = ({
     }
   };
 
-  const handleMorePointerDown = (event: { button: number }) => {
-    if (event.button !== 0) return;
+  const handleMorePointerDown = (event: { button?: number }) => {
+    // Some synthetic/older touch PointerEvents omit button metadata; treat that as
+    // the primary gesture, while still ignoring an explicit secondary click.
+    if (event.button !== undefined && event.button !== 0) return;
     clearMorePressTimer();
     longPressTriggeredRef.current = false;
     morePressTimerRef.current = setTimeout(() => {
