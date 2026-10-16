@@ -3101,38 +3101,51 @@ html.low-power .quiz-question-panel {
   word-break: normal;
 }
 
-/* The study-range table uses intrinsic, responsive column widths instead of
-   stretching every column across the full device width. The scroll viewport
-   can still reveal the full table on narrow screens without clipping clicks. */
-.periodic-range-table-frame {
-  box-sizing: border-box;
-  border-radius: 0.9rem;
-  overflow: hidden;
-  max-width: 100%;
-}
-
+/* The rows stay on the existing open page surface; only the heading row is
+   outlined and rounded. Intrinsic column widths keep content grouped instead
+   of distributing spare width between Element, Symbol, and Atomic Mass. */
 .periodic-range-table {
   width: max-content;
   min-width: 0;
   max-width: none;
+  margin-inline: auto;
   table-layout: fixed;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .periodic-range-table .periodic-col-number {
-  width: clamp(3.75rem, 9vw, 4.5rem);
+  width: clamp(3.5rem, 9vw, 4.25rem);
 }
 
 .periodic-range-table .periodic-col-element {
-  width: clamp(8.75rem, 30vw, 15rem);
+  width: clamp(8rem, 25vw, 13rem);
 }
 
 .periodic-range-table .periodic-col-symbol {
-  width: clamp(4rem, 11vw, 6rem);
+  width: clamp(3.5rem, 8vw, 5rem);
 }
 
 .periodic-range-table .periodic-col-mass {
-  width: clamp(7.5rem, 22vw, 9.5rem);
+  width: clamp(7rem, 18vw, 8.5rem);
+}
+
+.periodic-range-table thead th {
+  background: hsl(var(--background));
+  border-top: 1px solid hsl(var(--border) / 0.75);
+  border-bottom: 1px solid hsl(var(--border) / 0.75);
+}
+
+.periodic-range-table thead th:first-child {
+  border-left: 1px solid hsl(var(--border) / 0.75);
+  border-top-left-radius: 0.65rem;
+  border-bottom-left-radius: 0.65rem;
+}
+
+.periodic-range-table thead th:last-child {
+  border-right: 1px solid hsl(var(--border) / 0.75);
+  border-top-right-radius: 0.65rem;
+  border-bottom-right-radius: 0.65rem;
 }
 
 .periodic-range-table th,
