@@ -85,10 +85,11 @@ const getNativeState = (enabled = getBackgroundNotificationsEnabled()) => {
   const record = streak.days[date];
   const elapsedSeconds = Math.max(0, Math.floor(record?.seconds ?? 0));
   const completed = Boolean(record?.completed || elapsedSeconds >= streak.targetMinutes * 60);
-  const effectiveEnabled = enabled && streak.enabled && !completed;
 
   return {
-    enabled: effectiveEnabled,
+    // Preserve the user's opt-in separately from today's completion state so
+    // Android can cancel today's alarms and still retain tomorrow's noon alarm.
+    enabled: enabled && streak.enabled,
     targetMinutes: streak.targetMinutes,
     elapsedSeconds,
     completed,
@@ -165,9 +166,17 @@ export const initializeBackgroundNotifications = (): (() => void) => {
   if (listenersStarted || typeof window === 'undefined') return () => undefined;
   listenersStarted = true;
 
+  let lastPersistedDayKey = todayStr();
+  let lastMinuteBucket = -1;
+
   const onProgressPersisted = () => {
     if (!getBackgroundNotificationsEnabled()) return;
     const now = Date.now();
+    const currentDayKey = todayStr();
+    if (currentDayKey !== lastPersistedDayKey) {
+      lastPersistedDayKey = currentDayKey;
+      lastMinuteBucket = -1;
+    }
     // streak.ts persists every second. Sync the native preference only when the
     // completed-minute value changes; target completion also dispatches streak-updated.
     if (now - lastPersistedSyncAt < 900 && getBackgroundNotificationsEnabled()) return;
@@ -202,7 +211,6 @@ export const initializeBackgroundNotifications = (): (() => void) => {
   const onStorage = (event: StorageEvent) => {
     if (event.key === 'math-app-streak-v1' || event.key === ENABLED_KEY) onResume();
   };
-  let lastMinuteBucket = -1;
   let appResumeListener: { remove: () => Promise<void> } | null = null;
   let disposed = false;
   void dispatchNotificationAction();
