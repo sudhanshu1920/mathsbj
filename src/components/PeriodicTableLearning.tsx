@@ -285,24 +285,24 @@ const PeriodicRangeView = ({
           className="w-full min-w-0 table-fixed border-collapse text-sm sm:text-base"
         >
           <colgroup>
-            <col style={{ width: '16%' }} />
-            <col style={{ width: '38%' }} />
-            <col style={{ width: '24%' }} />
-            <col style={{ width: '22%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '36%' }} />
+            <col style={{ width: '25%' }} />
+            <col style={{ width: '21%' }} />
           </colgroup>
           <thead className="border-b border-border/70 bg-background text-foreground">
             <tr>
-              <th scope="col" className="px-1.5 py-2 text-center text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC NO.</th>
-              <th scope="col" className="px-1.5 py-2 text-left text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ELEMENT</th>
+              <th scope="col" className="px-1 py-2 text-center text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC NO.</th>
+              <th scope="col" className="px-1 py-2 text-left text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ELEMENT</th>
               <th scope="col" className="px-1.5 py-2 text-center text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">SYMBOL</th>
-              <th scope="col" className="px-1.5 py-2 text-right text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC MASS</th>
+              <th scope="col" className="px-1 py-2 text-right text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC MASS</th>
             </tr>
           </thead>
           <tbody>
             {elements.map((el) => (
               <tr key={el.number} className="border-b border-border/50 last:border-b-0 hover:bg-primary/[0.035]">
-                <td className="px-1.5 py-1.5 text-center text-sm font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">{el.number}</td>
-                <td className="px-1.5 py-1.5 sm:px-4 sm:py-3">
+                <td className="px-1 py-1.5 text-center text-sm font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">{el.number}</td>
+                <td className="px-1 py-1.5 sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
@@ -312,7 +312,7 @@ const PeriodicRangeView = ({
                     {el.name}
                   </button>
                 </td>
-                <td className="px-1.5 py-1.5 text-center sm:px-4 sm:py-3">
+                <td className="px-1 py-1.5 text-center sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
@@ -322,7 +322,7 @@ const PeriodicRangeView = ({
                     {el.symbol}
                   </button>
                 </td>
-                <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-xs font-semibold tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-base">{formatMass(el, massMode)}</td>
+                <td className="whitespace-nowrap px-1 py-1.5 text-right text-sm font-semibold tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-base">{formatMass(el, massMode)}</td>
               </tr>
             ))}
           </tbody>
