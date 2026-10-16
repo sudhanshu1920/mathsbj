@@ -169,6 +169,18 @@ const Index = () => {
     replacementPracticeTopic?: string;
   } | null>(null);
   const wideDesktop = useWideDesktop();
+
+  useEffect(() => {
+    const handleStudyReminderTap = () => {
+      // Notification tap returns the user to the existing Learning section.
+      // Don't interrupt an active practice/quiz session.
+      if (!isPracticeSessionInProgress(practicePhase)) setTab('learn');
+      setSettingsOpen(false);
+    };
+    window.addEventListener('study-reminder-tapped', handleStudyReminderTap);
+    return () => window.removeEventListener('study-reminder-tapped', handleStudyReminderTap);
+  }, [practicePhase]);
+
   const sectionTransition: SectionTransition = {
     direction: sectionTransitionDirection,
     duration: sectionTransitionDirection
