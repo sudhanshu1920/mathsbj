@@ -121,6 +121,41 @@ function registerNativePlugin(mainActivity) {
   return mainActivity;
 }
 
+async function configureForegroundAndBackgroundUpdateChannel(mainActivityPath) {
+  let source = await readRequired(mainActivityPath, 'generated MainActivity.java');
+  for (const importLine of ['import android.app.NotificationChannel;', 'import android.app.NotificationManager;']) {
+    if (!source.includes(importLine)) {
+      const packageEnd = source.indexOf(';');
+      source = source.slice(0, packageEnd + 1) + '\n\n' + importLine + source.slice(packageEnd + 1);
+    }
+  }
+
+  const anchor = 'super.onCreate(savedInstanceState);';
+  const channelSetup = `
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager notificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (notificationManager != null) {
+                NotificationChannel updateChannel = new NotificationChannel(
+                    "app_updates",
+                    "App Updates",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                );
+                updateChannel.setDescription("New Math Master release notifications.");
+                notificationManager.createNotificationChannel(updateChannel);
+            }
+        }`;
+  if (!source.includes('NotificationChannel updateChannel')) {
+    if (!source.includes(anchor)) throw new Error('MainActivity.java has no super.onCreate call for notification channel setup');
+    source = source.replace(anchor, anchor + channelSetup);
+  }
+  if (!source.includes('import android.content.Context;')) {
+    const packageEnd = source.indexOf(';');
+    source = source.slice(0, packageEnd + 1) + '\n\nimport android.content.Context;' + source.slice(packageEnd + 1);
+  }
+  await writeFile(mainActivityPath, source);
+}
+
 function validateGoogleServicesConfig(parsed) {
   if (!parsed || typeof parsed !== 'object' || !parsed.project_info?.project_id) {
     throw new Error('Firebase google-services.json has no project_info.project_id');
@@ -198,6 +233,7 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
       path.join(SOURCE_NATIVE_DIR, 'MathMasterMessagingService.java'),
       path.join(targetPackageDir, 'MathMasterMessagingService.java'),
     );
+    await configureForegroundAndBackgroundUpdateChannel(mainActivityPath);
   }
 
   const manifestPath = path.join(root, 'app/src/main/AndroidManifest.xml');
