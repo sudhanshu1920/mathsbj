@@ -3101,3 +3101,69 @@ html.low-power .quiz-question-panel {
   word-break: normal;
 }
 
+/* The study-range table uses intrinsic, responsive column widths instead of
+   stretching every column across the full device width. The scroll viewport
+   can still reveal the full table on narrow screens without clipping clicks. */
+.periodic-range-table-frame {
+  box-sizing: border-box;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.periodic-range-table {
+  width: max-content;
+  min-width: 0;
+  max-width: none;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.periodic-range-table .periodic-col-number {
+  width: clamp(3.25rem, 9vw, 4.5rem);
+}
+
+.periodic-range-table .periodic-col-element {
+  width: clamp(8.75rem, 33vw, 17rem);
+}
+
+.periodic-range-table .periodic-col-symbol {
+  width: clamp(4.5rem, 14vw, 7rem);
+}
+
+.periodic-range-table .periodic-col-mass {
+  width: clamp(7.75rem, 25vw, 10.5rem);
+}
+
+.periodic-range-table .periodic-range-column-heading {
+  box-sizing: border-box;
+  font-size: clamp(0.82rem, 2vw, 1rem);
+  padding-block: clamp(0.625rem, 1.5vw, 0.9rem);
+}
+
+.periodic-range-table .periodic-range-cell {
+  box-sizing: border-box;
+  font-size: clamp(0.9rem, 2.1vw, 1.075rem);
+  padding-block: clamp(0.625rem, 1.5vw, 0.9rem);
+}
+
+.periodic-range-table .periodic-range-element-name,
+.periodic-range-table .periodic-range-symbol {
+  font-size: clamp(0.9rem, 2.1vw, 1.075rem);
+  line-height: 1.3;
+}
+
+.periodic-range-table .periodic-range-element-name {
+  padding-inline: 0.125rem;
+}
+
+.periodic-range-table .periodic-range-symbol {
+  min-width: 2rem;
+}
+
+@media (max-width: 359px) {
+  .periodic-range-table .periodic-range-column-heading {
+    font-size: 0.8rem;
+  }
+}
+
