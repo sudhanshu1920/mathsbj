@@ -299,19 +299,18 @@ const PeriodicRangeView = ({
       className="periodic-range-page w-full min-w-0 pb-4"
       aria-label={`Periodic Table elements ${group.from} to ${group.to}`}
     >
-      <div className="periodic-range-table-frame mx-auto w-fit max-w-full min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/40">
-        <div
-          role="region"
-          aria-label={`Elements ${group.from}–${group.to} table`}
-          data-periodic-table-scroll="true"
-          ref={scrollRegionRef}
-          onScroll={(event) => onScrollLeftChange(event.currentTarget.scrollLeft)}
-          className="periodic-table-scroll w-full min-w-0 overflow-x-auto overscroll-x-contain"
+      <div
+        role="region"
+        aria-label={`Elements ${group.from}–${group.to} table`}
+        data-periodic-table-scroll="true"
+        ref={scrollRegionRef}
+        onScroll={(event) => onScrollLeftChange(event.currentTarget.scrollLeft)}
+        className="periodic-table-scroll w-full min-w-0 overflow-x-auto overscroll-x-contain"
           style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}
         >
           <table
             aria-label={`Elements ${group.from}–${group.to}`}
-            className="periodic-range-table w-max min-w-0 table-fixed border-collapse"
+            className="periodic-range-table mx-auto w-max min-w-0 table-fixed"
           >
             <colgroup>
               <col className="periodic-col-number" />
@@ -321,10 +320,10 @@ const PeriodicRangeView = ({
             </colgroup>
           <thead className="border-b border-border/70 bg-background text-foreground">
             <tr>
-              <th scope="col" className="periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC NO.</th>
-              <th scope="col" className="periodic-range-column-heading px-1 py-2 text-left font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ELEMENT</th>
-              <th scope="col" className="periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">SYMBOL</th>
-              <th scope="col" className="periodic-range-column-heading whitespace-nowrap px-1 py-2 text-right font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC MASS</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC NO.</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading px-1 py-2 text-left font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ELEMENT</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">SYMBOL</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading whitespace-nowrap px-1 py-2 text-right font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC MASS</th>
             </tr>
           </thead>
           <tbody>
@@ -358,7 +357,6 @@ const PeriodicRangeView = ({
             ))}
           </tbody>
         </table>
-        </div>
       </div>
     </section>
   );
