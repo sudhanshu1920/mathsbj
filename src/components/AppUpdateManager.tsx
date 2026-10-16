@@ -146,6 +146,7 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
       if (detail?.update) showUpdate(detail.update);
     };
     const onPwaUpdate = () => { void runCheck(false, true); };
+    const onUpdateNotificationTapped = () => { void runCheck(false, false, true); };
     const onOnline = () => {
       if (document.visibilityState === "visible") void runCheck(false, false, true);
     };
@@ -161,6 +162,7 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     }
     window.addEventListener(UPDATE_AVAILABLE_EVENT, onUpdateAvailable);
     window.addEventListener(PWA_UPDATE_DISCOVERED_EVENT, onPwaUpdate);
+    window.addEventListener("app-update-notification-tapped", onUpdateNotificationTapped);
     window.addEventListener("focus", checkOnForeground);
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", checkOnForeground);
@@ -170,6 +172,7 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
       if (resumeListener) void resumeListener.remove();
       window.removeEventListener(UPDATE_AVAILABLE_EVENT, onUpdateAvailable);
       window.removeEventListener(PWA_UPDATE_DISCOVERED_EVENT, onPwaUpdate);
+      window.removeEventListener("app-update-notification-tapped", onUpdateNotificationTapped);
       window.removeEventListener("focus", checkOnForeground);
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", checkOnForeground);
