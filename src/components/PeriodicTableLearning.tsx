@@ -816,6 +816,7 @@ const PeriodicTableLearning = ({
           </div>
         </div>
         <SwipeContainer
+          edgeBackEnabled
           itemCount={PERIODIC_GROUPS.length}
           currentIndex={activeRangeIndex}
           onIndexChange={(nextIndex) => {
