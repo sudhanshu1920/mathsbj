@@ -103,6 +103,46 @@ describe('PeriodicTableLearning', () => {
     }
   });
 
+  it('cancels pending long-press work and never renders both popup types at once', () => {
+    vi.useFakeTimers();
+    try {
+      render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
+      const moreButton = screen.getByRole('button', { name: /open element range menu/i });
+
+      fireEvent.pointerDown(moreButton, { button: 0, pointerId: 7, pointerType: 'touch' });
+      fireEvent.pointerCancel(moreButton, { button: 0, pointerId: 7, pointerType: 'touch' });
+      act(() => { vi.advanceTimersByTime(600); });
+
+      expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Atomic mass format' })).not.toBeInTheDocument();
+
+      // A fresh short press remains a normal range-menu click after cancellation.
+      fireEvent.pointerDown(moreButton, { button: 0, pointerId: 8, pointerType: 'touch' });
+      fireEvent.pointerUp(moreButton, { button: 0, pointerId: 8, pointerType: 'touch' });
+      fireEvent.click(moreButton);
+      expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Atomic mass format' })).not.toBeInTheDocument();
+
+      fireEvent.click(document.querySelector('.periodic-range-backdrop') as HTMLElement);
+      fireEvent.pointerDown(moreButton, { button: 0, pointerId: 9, pointerType: 'touch' });
+      act(() => { vi.advanceTimersByTime(550); });
+      expect(screen.getByRole('dialog', { name: 'Atomic mass format' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
+      expect(document.querySelectorAll(
+        '[role="dialog"][aria-label="Element ranges"], [role="dialog"][aria-label="Atomic mass format"]',
+      )).toHaveLength(1);
+
+      fireEvent.pointerUp(moreButton, { button: 0, pointerId: 9, pointerType: 'touch' });
+      fireEvent.click(moreButton);
+      fireEvent.contextMenu(moreButton);
+      expect(screen.getAllByRole('dialog', { name: 'Atomic mass format' })).toHaveLength(1);
+      expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
   it('treats early contextmenu and the following click as one long-press gesture', () => {
     vi.useFakeTimers();
     try {
@@ -166,11 +206,11 @@ describe('PeriodicTableLearning', () => {
     ]);
     expect(within(table).getAllByRole('row')).toHaveLength(11);
     expect(table.querySelectorAll('col')).toHaveLength(4);
-    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '18%' });
-    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '39%' });
-    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '15%' });
-    expect(table.querySelectorAll('col')[3]).toHaveStyle({ width: '28%' });
-    expect(table).toHaveClass('min-w-[36rem]', 'table-fixed');
+    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '16%' });
+    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '38%' });
+    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '24%' });
+    expect(table.querySelectorAll('col')[3]).toHaveStyle({ width: '22%' });
+    expect(table).toHaveClass('w-full', 'min-w-0', 'table-fixed');
     const tableRegion = screen.getByRole('region', { name: 'Elements 21–30 table' });
     expect(tableRegion).not.toHaveClass('rounded-2xl', 'shadow-sm', 'border');
     expect(tableRegion).not.toHaveClass('max-h-[min(64dvh,38rem)]');
