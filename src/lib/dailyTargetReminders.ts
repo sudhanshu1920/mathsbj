@@ -1,3 +1,4 @@
+import { App } from '@capacitor/app';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { getStreak, todayStr } from '@/lib/streak';
 
@@ -46,6 +47,12 @@ interface MathMasterNotificationsPlugin {
     hindiMessagesJson: string;
   }): Promise<{ scheduled: boolean }>;
   setUpdateAlerts(options: { enabled: boolean }): Promise<{ configured: boolean; subscribed?: boolean }>;
+  consumeNotificationAction(): Promise<{
+    action?: string;
+    versionName?: string | null;
+    versionCode?: string | null;
+    updateManifestUrl?: string | null;
+  }>;
 }
 
 const NativeNotifications = registerPlugin<MathMasterNotificationsPlugin>('MathMasterNotifications');
@@ -159,6 +166,7 @@ export const initializeBackgroundNotifications = (): (() => void) => {
   listenersStarted = true;
 
   const onProgressPersisted = () => {
+    if (!getBackgroundNotificationsEnabled()) return;
     const now = Date.now();
     // streak.ts persists every second. Sync the native preference only when the
     // completed-minute value changes; target completion also dispatches streak-updated.
@@ -173,12 +181,39 @@ export const initializeBackgroundNotifications = (): (() => void) => {
     void queueNativeSync();
   };
   const onStreakUpdated = () => { void queueNativeSync(true); };
-  const onResume = () => { void queueNativeSync(true); };
+  const dispatchNotificationAction = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      const notification = await NativeNotifications.consumeNotificationAction();
+      if (notification.action === 'study-reminder') {
+        window.dispatchEvent(new CustomEvent('study-reminder-tapped', { detail: notification }));
+      } else if (notification.action === 'app-update') {
+        window.dispatchEvent(new CustomEvent('app-update-notification-tapped', { detail: notification }));
+      }
+    } catch {
+      // Older installed APKs may not yet include the native notification bridge.
+    }
+  };
+  const onResume = () => {
+    void queueNativeSync(true);
+    void dispatchNotificationAction();
+  };
   const onVisibility = () => { if (document.visibilityState === 'visible') onResume(); };
   const onStorage = (event: StorageEvent) => {
     if (event.key === 'math-app-streak-v1' || event.key === ENABLED_KEY) onResume();
   };
   let lastMinuteBucket = -1;
+  let appResumeListener: { remove: () => Promise<void> } | null = null;
+  let disposed = false;
+  void dispatchNotificationAction();
+  if (Capacitor.isNativePlatform()) {
+    void App.addListener('resume', onResume).then((listener) => {
+      if (disposed) void listener.remove();
+      else appResumeListener = listener;
+    }).catch(() => {
+      // Focus/visibility listeners are used as a fallback.
+    });
+  }
 
   window.addEventListener('streak-persisted', onProgressPersisted);
   window.addEventListener('streak-updated', onStreakUpdated);
@@ -190,7 +225,9 @@ export const initializeBackgroundNotifications = (): (() => void) => {
   void queueNativeSync(true);
 
   return () => {
+    disposed = true;
     listenersStarted = false;
+    if (appResumeListener) void appResumeListener.remove();
     window.removeEventListener('streak-persisted', onProgressPersisted);
     window.removeEventListener('streak-updated', onStreakUpdated);
     window.removeEventListener('background-notifications-updated', onResume);
