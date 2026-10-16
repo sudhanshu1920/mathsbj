@@ -8,6 +8,9 @@ export type ElementCategory =
   | 'alkali-metal' | 'alkaline-earth' | 'transition-metal' | 'post-transition'
   | 'metalloid' | 'nonmetal' | 'halogen' | 'noble-gas' | 'lanthanide' | 'actinide' | 'unknown';
 
+export type PeriodicQuestionType = 'atomic-number' | 'symbol' | 'name' | 'mass';
+export type PeriodicMassMode = 'round' | 'exact';
+
 export interface ChemElement {
   number: number;
   symbol: string;
