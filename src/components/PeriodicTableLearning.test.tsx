@@ -206,10 +206,10 @@ describe('PeriodicTableLearning', () => {
     ]);
     expect(within(table).getAllByRole('row')).toHaveLength(11);
     expect(table.querySelectorAll('col')).toHaveLength(4);
-    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '16%' });
-    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '38%' });
-    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '24%' });
-    expect(table.querySelectorAll('col')[3]).toHaveStyle({ width: '22%' });
+    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '18%' });
+    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '36%' });
+    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '25%' });
+    expect(table.querySelectorAll('col')[3]).toHaveStyle({ width: '21%' });
     expect(table).toHaveClass('w-full', 'min-w-0', 'table-fixed');
     const tableRegion = screen.getByRole('region', { name: 'Elements 21–30 table' });
     expect(tableRegion).not.toHaveClass('rounded-2xl', 'shadow-sm', 'border');
