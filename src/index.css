@@ -3120,7 +3120,7 @@ html.low-power .quiz-question-panel {
 }
 
 .periodic-range-table .periodic-col-number {
-  width: clamp(3.25rem, 9vw, 4.5rem);
+  width: clamp(3.75rem, 9vw, 4.5rem);
 }
 
 .periodic-range-table .periodic-col-element {
@@ -3133,6 +3133,11 @@ html.low-power .quiz-question-panel {
 
 .periodic-range-table .periodic-col-mass {
   width: clamp(7.75rem, 25vw, 10.5rem);
+}
+
+.periodic-range-table th,
+.periodic-range-table td {
+  padding-inline: clamp(0.25rem, 0.8vw, 0.5rem);
 }
 
 .periodic-range-table .periodic-range-column-heading {
