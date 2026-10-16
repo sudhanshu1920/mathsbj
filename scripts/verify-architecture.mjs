@@ -397,6 +397,17 @@ if (!releaseWorkflow.includes('actions/upload-artifact@v4') ||
     !releaseWorkflow.includes('https://raw.githubusercontent.com/${UPDATES_REPO}/main/updates/update.json?cacheBust=${GITHUB_SHA}')) {
   fail('signed APK and checksummed manifest must be published and verified on the separate public update host');
 }
+const notificationSendStepAt = releaseWorkflow.indexOf('name: Send new-release push notification through Firebase');
+const notificationSendStepEnd = releaseWorkflow.indexOf('\\n# [BUILD_APK]', notificationSendStepAt);
+const notificationSendStep = releaseWorkflow.slice(notificationSendStepAt, notificationSendStepEnd);
+if (!releaseWorkflow.includes('name: Verify published APK asset SHA-256 before push') ||
+    !releaseWorkflow.includes('PUBLISHED_APK_URL}?cacheBust=${GITHUB_SHA}') ||
+    !releaseWorkflow.includes('actual_sha256') ||
+    !releaseWorkflow.includes('expected_sha256') ||
+    !notificationSendStep.includes('node scripts/release-notification-sender.mjs') ||
+    notificationSendStep.includes('continue-on-error: true')) {
+  fail('release push must verify the actually published APK checksum and expose configured FCM failures to Actions');
+}
 const collectApkAt = releaseWorkflow.indexOf('name: Collect release APK');
 const uploadApkAt = releaseWorkflow.indexOf('name: Upload release APK');
 const publishReleaseAt = releaseWorkflow.indexOf('name: Publish latest GitHub Release APK');
