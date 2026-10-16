@@ -175,7 +175,8 @@ describe('PeriodicTableLearning', () => {
       fireEvent.click(moreButton);
       fireEvent.click(screen.getByRole('button', { name: /11–20 10 elements/i }));
       const table = screen.getByRole('table', { name: 'Elements 11–20' });
-      expect(within(table).getByRole('row', { name: /17.*Chlorine.*Cl.*35\.45/ })).toBeInTheDocument();
+      const chlorineRow = within(table).getByRole('row', { name: /17.*Chlorine.*35\.45/ });
+      expect(chlorineRow.querySelectorAll('td')[2]).toHaveTextContent('Cl');
 
       const openMassMenu = (pointerId: number) => {
         // Selecting a range changes the dedicated page and remounts the toolbar.
@@ -203,12 +204,12 @@ describe('PeriodicTableLearning', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /Round Figure/ }));
       expect(screen.queryByRole('dialog', { name: 'Atomic mass format' })).not.toBeInTheDocument();
-      expect(within(table).getByRole('row', { name: /17.*Chlorine.*Cl.*35\.5/ })).toBeInTheDocument();
+      expect(within(table).getByRole('row', { name: /17.*Chlorine.*35\.5/ })).toBeInTheDocument();
 
       openMassMenu(102);
       fireEvent.click(screen.getByRole('button', { name: /Exact Figure/ }));
       expect(screen.queryByRole('dialog', { name: 'Atomic mass format' })).not.toBeInTheDocument();
-      expect(within(table).getByRole('row', { name: /17.*Chlorine.*Cl.*35\.45/ })).toBeInTheDocument();
+      expect(within(table).getByRole('row', { name: /17.*Chlorine.*35\.45/ })).toBeInTheDocument();
     } finally {
       vi.clearAllTimers();
       vi.useRealTimers();
