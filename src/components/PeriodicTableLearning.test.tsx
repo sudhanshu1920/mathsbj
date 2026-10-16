@@ -52,6 +52,48 @@ describe('PeriodicTableLearning', () => {
     expect(rangeButtons.every((button) => button.classList.contains('periodic-range-card'))).toBe(true);
   });
 
+  it('keeps the range picker as one opaque, fixed overlay and closes it on outside click', () => {
+    const { container } = render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Element ranges' });
+    expect(dialog).toHaveClass('periodic-range-menu', 'fixed', 'z-[100]');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog.style.position).toBe('fixed');
+    expect(container.querySelector('.periodic-range-menu')).toBeNull();
+    expect(document.querySelectorAll('[role="dialog"][aria-label="Element ranges"]')).toHaveLength(1);
+
+    const backdrop = document.querySelector('.periodic-range-backdrop');
+    expect(backdrop).not.toBeNull();
+    fireEvent.click(backdrop as HTMLElement);
+    expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
+  });
+
+  it('does not let a long press also trigger the normal range-menu click', () => {
+    vi.useFakeTimers();
+    try {
+      render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
+      const moreButton = screen.getByRole('button', { name: /open element range menu/i });
+
+      fireEvent.pointerDown(moreButton, { button: 0, pointerId: 1, pointerType: 'touch' });
+      act(() => { vi.advanceTimersByTime(550); });
+
+      expect(screen.getByRole('dialog', { name: 'Atomic mass format' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
+
+      fireEvent.pointerUp(moreButton, { button: 0, pointerId: 1, pointerType: 'touch' });
+      fireEvent.click(moreButton);
+
+      expect(screen.getByRole('dialog', { name: 'Atomic mass format' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
+      expect(document.querySelectorAll('[role="dialog"][aria-label="Element ranges"]')).toHaveLength(0);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
   it('opens the matching dedicated table from every range card', () => {
     render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
 
@@ -86,15 +128,18 @@ describe('PeriodicTableLearning', () => {
 
     const table = screen.getByRole('table', { name: 'Elements 21–30' });
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
-      'Atomic No.',
-      'Element',
-      'Symbol',
-      'Atomic Mass',
+      'ATOMIC NO.',
+      'ELEMENT',
+      'SYMBOL',
+      'ATOMIC MASS',
     ]);
     expect(within(table).getAllByRole('row')).toHaveLength(11);
     expect(table.querySelectorAll('col')).toHaveLength(4);
-    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '5.25rem' });
-    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '4.5rem' });
+    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '15%' });
+    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '43%' });
+    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '14%' });
+    expect(table.querySelectorAll('col')[3]).toHaveStyle({ width: '28%' });
+    expect(table).toHaveClass('min-w-[36rem]', 'table-fixed');
     const tableRegion = screen.getByRole('region', { name: 'Elements 21–30 table' });
     expect(tableRegion).not.toHaveClass('rounded-2xl', 'shadow-sm', 'border');
     expect(tableRegion).not.toHaveClass('max-h-[min(64dvh,38rem)]');
