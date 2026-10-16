@@ -110,7 +110,8 @@ test('native alarm rechecks completion and keeps tomorrow noon queued after the 
   );
   assert.match(receiver, /prefs\.getBoolean\("completed", false\)/);
   assert.match(receiver, /elapsedSeconds >= targetMinutes \* 60L/);
-  assert.match(receiver, /tomorrow's first slot/);
+  assert.match(receiver, /scheduleTomorrow\(context, slots\)/);
+  assert.match(receiver, /private static void scheduleTomorrow/);
   assert.match(receiver, /Calendar\.DAY_OF_YEAR, 1/);
   assert.match(receiver, /currentMinute > 22 \* 60/);
   assert.match(receiver, /DailyTargetReminderReceiver\.scheduleNext\(context\)/);
