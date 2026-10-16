@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, LogIn, Palette, Sun, Moon, Crown, Keyboard, Type } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, Type } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, setKeyboardShortcuts, setFont, AppSettings } from '@/lib/settings';
@@ -12,6 +12,10 @@ import { checkForAppUpdate } from '@/lib/appUpdateService';
 import { announceUpdateAvailable } from '@/lib/appUpdateEvents';
 import { MOTION } from '@/lib/motion';
 import { APP_VERSION_NAME } from '@/lib/appVersion';
+import {
+  getBackgroundNotificationsEnabled,
+  setBackgroundNotificationsEnabled,
+} from '@/lib/dailyTargetReminders';
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
 
@@ -21,6 +25,8 @@ const SettingsPanel = () => {
   const { user, signOut } = useAuth();
   const [settings, setSettingsState] = useState<AppSettings>(() => getSettings());
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
+  const [backgroundNotificationsEnabled, setBackgroundNotificationsEnabledState] = useState(() => getBackgroundNotificationsEnabled());
+  const [notificationToggleBusy, setNotificationToggleBusy] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
   const updateResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,16 +58,22 @@ const SettingsPanel = () => {
   };
 
   useEffect(() => {
-    const refresh = () => { setSettingsState(getSettings()); setStreak(getStreak()); };
+    const refresh = () => {
+      setSettingsState(getSettings());
+      setStreak(getStreak());
+      setBackgroundNotificationsEnabledState(getBackgroundNotificationsEnabled());
+    };
     const onOn = () => setOnline(true);
     const onOff = () => setOnline(false);
     window.addEventListener('settings-updated', refresh);
     window.addEventListener('streak-updated', refresh);
+    window.addEventListener('background-notifications-updated', refresh);
     window.addEventListener('online', onOn);
     window.addEventListener('offline', onOff);
     return () => {
       window.removeEventListener('settings-updated', refresh);
       window.removeEventListener('streak-updated', refresh);
+      window.removeEventListener('background-notifications-updated', refresh);
       window.removeEventListener('online', onOn);
       window.removeEventListener('offline', onOff);
     };
@@ -108,6 +120,17 @@ const SettingsPanel = () => {
       }
     } finally {
       updateCheckInFlightRef.current = false;
+    }
+  };
+
+  const handleBackgroundNotificationsToggle = async (enabled: boolean) => {
+    if (notificationToggleBusy) return;
+    setNotificationToggleBusy(true);
+    try {
+      const applied = await setBackgroundNotificationsEnabled(enabled);
+      setBackgroundNotificationsEnabledState(applied ? enabled : getBackgroundNotificationsEnabled());
+    } finally {
+      if (mountedRef.current) setNotificationToggleBusy(false);
     }
   };
 
@@ -220,6 +243,31 @@ const SettingsPanel = () => {
           ))}
         </div>
       </div>
+
+      {/* Background notifications: one contextual permission request opts into local
+          daily reminders and server-pushed version updates together. */}
+      <div className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-card/30 p-3">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Bell size={16} className="text-muted-foreground" />
+            Background notifications
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Daily study reminders at 12 PM, 2 PM, 4 PM, 6 PM, 8 PM and 10 PM. New-version push alerts require a Firebase-enabled build.
+          </p>
+        </div>
+        <Switch
+          checked={backgroundNotificationsEnabled}
+          disabled={notificationToggleBusy}
+          onCheckedChange={(value) => { void handleBackgroundNotificationsToggle(value); }}
+          aria-label="Enable background notifications"
+        />
+      </div>
+      {!backgroundNotificationsEnabled && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Enable to allow Android notifications. Permission is requested only when you turn this on.
+        </p>
+      )}
 
       {/* Font */}
       <div>

@@ -7,6 +7,7 @@ import { initDesktopMode } from "./components/DesktopModeToggle";
 import { initTheme } from "./lib/theme";
 import { initFont } from "./lib/settings";
 import { initDeviceProfile } from "./lib/device";
+import { initializeBackgroundNotifications } from "./lib/dailyTargetReminders";
 
 initDesktopMode();
 initTheme();
@@ -26,6 +27,9 @@ const idle = (cb: () => void) => {
     : window.setTimeout(cb, 300);
 };
 idle(() => {
+  // Native reminders are scheduled once after first paint; the Android alarm
+  // survives the WebView/process closing and is reconciled on progress changes.
+  initializeBackgroundNotifications();
   // Chunk warming happens once via the offline preparation pass (OfflinePrep).
   void setupPWA();
 });
