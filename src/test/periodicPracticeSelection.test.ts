@@ -44,13 +44,19 @@ describe('Periodic Table practice property selection', () => {
       if (typeof question.answer === 'number') return allowedNumbers.has(question.answer);
       return allowedNames.has(String(question.answer));
     })).toBe(true);
-    expect(questions.every((question) =>
-      allowedElements.some((element) =>
+    const allowedMassTexts = new Set(allowedElements.map((element) => formatMass(element, 'exact')));
+    expect(questions.every((question) => {
+      const questionType = question.topicLabel?.split(' • ').at(-1);
+      if (questionType === 'Atomic Mass') {
+        return allowedElements.some((element) => question.text.includes(element.name)) ||
+          [...allowedMassTexts].some((mass) => question.text.includes(mass));
+      }
+      return allowedElements.some((element) =>
         question.text.includes(element.name) ||
         question.text.includes(String(element.number)) ||
         question.text.includes(element.symbol),
-      ),
-    )).toBe(true);
+      );
+    })).toBe(true);
     expect(questions.some((question) => question.topicLabel?.endsWith(' • Symbol'))).toBe(false);
   });
 
