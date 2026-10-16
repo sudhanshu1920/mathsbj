@@ -100,15 +100,16 @@ const getNativeState = (enabled = getBackgroundNotificationsEnabled()) => {
   };
 };
 
-const queueNativeSync = (force = false): Promise<void> => {
-  if (!Capacitor.isNativePlatform()) return Promise.resolve();
+const queueNativeSync = (force = false): Promise<boolean> => {
+  if (!Capacitor.isNativePlatform()) return Promise.resolve(false);
 
   const backgroundEnabled = getBackgroundNotificationsEnabled();
   const state = getNativeState(backgroundEnabled);
   const signature = JSON.stringify(state);
-  if (!force && signature === lastPayloadSignature) return syncQueue;
+  if (!force && signature === lastPayloadSignature) return syncQueue.then(() => true);
   lastPayloadSignature = signature;
 
+  let succeeded = false;
   syncQueue = syncQueue
     .catch(() => undefined)
     .then(async () => {
@@ -117,13 +118,14 @@ const queueNativeSync = (force = false): Promise<void> => {
         await NativeNotifications.setUpdateAlerts({ enabled: backgroundEnabled });
         lastUpdateAlertsSetting = backgroundEnabled;
       }
+      succeeded = true;
     })
     .catch(() => {
       // A native bridge failure must not crash the web app. A later startup,
       // resume, target change, or progress update retries synchronization.
       lastPayloadSignature = '';
     });
-  return syncQueue;
+  return syncQueue.then(() => succeeded);
 };
 
 export const setBackgroundNotificationsEnabled = async (enabled: boolean): Promise<boolean> => {
@@ -146,19 +148,22 @@ export const setBackgroundNotificationsEnabled = async (enabled: boolean): Promi
 
   lastPayloadSignature = '';
   lastUpdateAlertsSetting = null;
-  window.dispatchEvent(new CustomEvent('background-notifications-updated', { detail: { enabled } }));
 
-  try {
-    await queueNativeSync(true);
+  const synchronized = await queueNativeSync(true);
+  if (synchronized) {
+    window.dispatchEvent(new CustomEvent('background-notifications-updated', { detail: { enabled } }));
     return true;
-  } catch {
-    try { localStorage.setItem(ENABLED_KEY, enabled ? '0' : '1'); } catch { /* Storage may be unavailable. */ }
-    lastPayloadSignature = '';
-    window.dispatchEvent(new CustomEvent('background-notifications-updated', {
-      detail: { enabled: !enabled },
-    }));
-    return false;
   }
+
+  // Revert the opt-in preference if the native permission/scheduling bridge
+  // failed; the UI must not claim reminders were enabled when no alarm exists.
+  try { localStorage.setItem(ENABLED_KEY, enabled ? '0' : '1'); } catch { /* Storage may be unavailable. */ }
+  lastPayloadSignature = '';
+  lastUpdateAlertsSetting = null;
+  window.dispatchEvent(new CustomEvent('background-notifications-updated', {
+    detail: { enabled: !enabled },
+  }));
+  return false;
 };
 
 /** Start one app-wide sync loop; the Android native alarm survives app closure/reboot. */
@@ -225,7 +230,6 @@ export const initializeBackgroundNotifications = (): (() => void) => {
 
   window.addEventListener('streak-persisted', onProgressPersisted);
   window.addEventListener('streak-updated', onStreakUpdated);
-  window.addEventListener('background-notifications-updated', onResume);
   window.addEventListener('focus', onResume);
   window.addEventListener('online', onResume);
   window.addEventListener('storage', onStorage);
@@ -238,7 +242,6 @@ export const initializeBackgroundNotifications = (): (() => void) => {
     if (appResumeListener) void appResumeListener.remove();
     window.removeEventListener('streak-persisted', onProgressPersisted);
     window.removeEventListener('streak-updated', onStreakUpdated);
-    window.removeEventListener('background-notifications-updated', onResume);
     window.removeEventListener('focus', onResume);
     window.removeEventListener('online', onResume);
     window.removeEventListener('storage', onStorage);
