@@ -470,9 +470,13 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
             ? { text: `Which element has the symbol ${el.symbol}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType }
             : { text: `What is the symbol of ${el.name}?`, answer: el.symbol, answerType: 'text', optionPool: optionPool.symbols, topicLabel: labelWithType });
         } else if (type === 'name') {
-          questions.push(reverse
-            ? { text: `What element has atomic number ${el.number}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType }
-            : { text: `Which element has the symbol ${el.symbol}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType });
+          questions.push({
+            text: `What is the name of element number ${el.number}?`,
+            answer: el.name,
+            answerType: 'text',
+            optionPool: optionPool.names,
+            topicLabel: labelWithType,
+          });
         } else {
           const massText = formatMass(el, massMode);
           const massValue = Number(massText.replace(/[\\[\\]]/g, ''));
