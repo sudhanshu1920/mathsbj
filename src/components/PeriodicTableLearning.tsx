@@ -218,7 +218,7 @@ const PeriodicRangeView = ({
 }: {
   rangeIndex: number;
   onSelectElement: (number: number) => void;
-  onChangeRange: (index: number) => void;
+  onChangeRange: (direction: 'previous' | 'next') => void;
   massMode: AtomicMassMode;
   initialScrollLeft: number;
   onScrollLeftChange: (scrollLeft: number) => void;
@@ -252,7 +252,7 @@ const PeriodicRangeView = ({
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={() => onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'previous'))}
+            onClick={() => onChangeRange('previous')}
             disabled={!hasPrevious}
             aria-label="Previous element range"
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -261,7 +261,7 @@ const PeriodicRangeView = ({
           </button>
           <button
             type="button"
-            onClick={() => onChangeRange(getAdjacentPeriodicRangeIndex(rangeIndex, 'next'))}
+            onClick={() => onChangeRange('next')}
             disabled={!hasNext}
             aria-label="Next element range"
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -282,27 +282,27 @@ const PeriodicRangeView = ({
       >
         <table
           aria-label={`Elements ${group.from}–${group.to}`}
-          className="w-full min-w-[36rem] table-fixed border-collapse text-sm sm:text-base"
+          className="w-full min-w-0 table-fixed border-collapse text-sm sm:text-base"
         >
           <colgroup>
             <col style={{ width: '18%' }} />
-            <col style={{ width: '39%' }} />
-            <col style={{ width: '15%' }} />
-            <col style={{ width: '28%' }} />
+            <col style={{ width: '36%' }} />
+            <col style={{ width: '25%' }} />
+            <col style={{ width: '21%' }} />
           </colgroup>
           <thead className="border-b border-border/70 bg-background text-foreground">
             <tr>
-              <th scope="col" className="px-3 py-3 text-center text-xs font-black uppercase tracking-wide sm:px-4 sm:py-3.5 sm:text-sm">ATOMIC NO.</th>
-              <th scope="col" className="px-3 py-3 text-left text-xs font-black uppercase tracking-wide sm:px-4 sm:py-3.5 sm:text-sm">ELEMENT</th>
-              <th scope="col" className="px-3 py-3 text-center text-xs font-black uppercase tracking-wide sm:px-4 sm:py-3.5 sm:text-sm">SYMBOL</th>
-              <th scope="col" className="px-3 py-3 text-right text-xs font-black uppercase tracking-wide sm:px-4 sm:py-3.5 sm:text-sm">ATOMIC MASS</th>
+              <th scope="col" className="px-1 py-2 text-center text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC NO.</th>
+              <th scope="col" className="px-1 py-2 text-left text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ELEMENT</th>
+              <th scope="col" className="px-1.5 py-2 text-center text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">SYMBOL</th>
+              <th scope="col" className="px-1 py-2 text-right text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC MASS</th>
             </tr>
           </thead>
           <tbody>
             {elements.map((el) => (
               <tr key={el.number} className="border-b border-border/50 last:border-b-0 hover:bg-primary/[0.035]">
-                <td className="px-3 py-2 text-center text-sm font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">{el.number}</td>
-                <td className="px-3 py-2 sm:px-4 sm:py-3">
+                <td className="px-1 py-1.5 text-center text-sm font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">{el.number}</td>
+                <td className="px-1 py-1.5 sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
@@ -312,7 +312,7 @@ const PeriodicRangeView = ({
                     {el.name}
                   </button>
                 </td>
-                <td className="px-3 py-2 text-center sm:px-4 sm:py-3">
+                <td className="px-1 py-1.5 text-center sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
@@ -322,7 +322,7 @@ const PeriodicRangeView = ({
                     {el.symbol}
                   </button>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right text-sm font-medium tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-base">{formatMass(el, massMode)}</td>
+                <td className="whitespace-nowrap px-1 py-1.5 text-right text-sm font-semibold tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-base">{formatMass(el, massMode)}</td>
               </tr>
             ))}
           </tbody>
@@ -433,6 +433,7 @@ const PeriodicTableLearning = ({
   onOpenPractice,
 }: PeriodicTableLearningProps) => {
   const morePressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const morePressGenerationRef = useRef(0);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   // A completed long-press may produce a delayed contextmenu and synthetic click.
   const longPressTriggeredRef = useRef(false);
@@ -454,8 +455,10 @@ const PeriodicTableLearning = ({
   const lastSelectedRangeIndexRef = useRef<number | null>(activeRangeIndex);
   const tableScrollLeftRef = useRef(0);
   const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
-  const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
-  const [massMenuOpen, setMassMenuOpen] = useState(false);
+  // One discriminated state makes the two popup surfaces mutually exclusive.
+  const [activePopup, setActivePopup] = useState<'ranges' | 'mass' | null>(null);
+  const rangeMenuOpen = activePopup === 'ranges';
+  const massMenuOpen = activePopup === 'mass';
 
   useLayoutEffect(() => {
     if (!rangeMenuOpen) return;
@@ -495,7 +498,7 @@ const PeriodicTableLearning = ({
     if (!rangeMenuOpen) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      setRangeMenuOpen(false);
+      setActivePopup(null);
       setRangeMenuPosition(null);
       moreButtonRef.current?.focus();
     };
@@ -504,6 +507,7 @@ const PeriodicTableLearning = ({
   }, [rangeMenuOpen]);
 
   const clearMorePressTimer = () => {
+    morePressGenerationRef.current += 1;
     if (morePressTimerRef.current) {
       clearTimeout(morePressTimerRef.current);
       morePressTimerRef.current = null;
@@ -517,9 +521,8 @@ const PeriodicTableLearning = ({
     longPressTriggeredRef.current = true;
     suppressNextMoreClickRef.current = true;
     ignoreLateMoreContextMenuRef.current = true;
-    setRangeMenuOpen(false);
     setRangeMenuPosition(null);
-    setMassMenuOpen(true);
+    setActivePopup('mass');
   };
 
   const handleMorePointerDown = (event: { button?: number }) => {
@@ -530,7 +533,9 @@ const PeriodicTableLearning = ({
     longPressTriggeredRef.current = false;
     suppressNextMoreClickRef.current = false;
     ignoreLateMoreContextMenuRef.current = false;
+    const pressGeneration = morePressGenerationRef.current;
     morePressTimerRef.current = setTimeout(() => {
+      if (morePressGenerationRef.current !== pressGeneration) return;
       morePressTimerRef.current = null;
       openMassMenuFromGesture();
     }, 550);
@@ -538,6 +543,14 @@ const PeriodicTableLearning = ({
 
   const handleMorePointerUp = () => {
     clearMorePressTimer();
+  };
+
+  const handleMorePointerCancel = () => {
+    clearMorePressTimer();
+    if (!longPressTriggeredRef.current) {
+      suppressNextMoreClickRef.current = false;
+      ignoreLateMoreContextMenuRef.current = false;
+    }
   };
 
   const handleMoreContextMenu = (event: { preventDefault: () => void }) => {
@@ -550,6 +563,7 @@ const PeriodicTableLearning = ({
   };
 
   useEffect(() => () => {
+    morePressGenerationRef.current += 1;
     if (morePressTimerRef.current) {
       clearTimeout(morePressTimerRef.current);
       morePressTimerRef.current = null;
@@ -560,8 +574,7 @@ const PeriodicTableLearning = ({
     if (previousRangeIndexRef.current !== null && activeRangeIndex === null) {
       // The app router has returned from a dedicated range page. Restore the
       // exact range picker context without adding another history entry.
-      setRangeMenuOpen(true);
-      setMassMenuOpen(false);
+      setActivePopup('ranges');
     }
     if (activeRangeIndex !== null) {
       lastSelectedRangeIndexRef.current = activeRangeIndex;
@@ -580,6 +593,11 @@ const PeriodicTableLearning = ({
     }
   };
 
+  const navigateRange = (direction: 'previous' | 'next') => {
+    if (activeRangeIndex === null) return;
+    changeRange(getAdjacentPeriodicRangeIndex(activeRangeIndex, direction));
+  };
+
   const handleMoreClick = () => {
     if (suppressNextMoreClickRef.current) {
       suppressNextMoreClickRef.current = false;
@@ -589,21 +607,19 @@ const PeriodicTableLearning = ({
     // arrive after this click. The next pointer-down resets it for a new gesture.
     if (longPressTriggeredRef.current) return;
 
-    setMassMenuOpen(false);
     if (rangeMenuOpen) {
-      setRangeMenuOpen(false);
+      setActivePopup(null);
       setRangeMenuPosition(null);
       return;
     }
     setRangeMenuPosition(null);
-    setRangeMenuOpen(true);
+    setActivePopup('ranges');
   };
 
   const handleRangeChange = (index: number) => {
     if (!isValidPeriodicRangeIndex(index)) return;
-    setRangeMenuOpen(false);
+    setActivePopup(null);
     setRangeMenuPosition(null);
-    setMassMenuOpen(false);
     changeRange(index);
   };
 
@@ -614,7 +630,7 @@ const PeriodicTableLearning = ({
         type="button"
         onPointerDown={handleMorePointerDown}
         onPointerUp={handleMorePointerUp}
-        onPointerCancel={handleMorePointerUp}
+        onPointerCancel={handleMorePointerCancel}
         onPointerLeave={handleMorePointerUp}
         onClick={handleMoreClick}
         onKeyDown={(event) => {
@@ -639,9 +655,8 @@ const PeriodicTableLearning = ({
           selectedRangeIndex={activeRangeIndex ?? lastSelectedRangeIndexRef.current}
           onSelectRange={handleRangeChange}
           onClose={() => {
-            setRangeMenuOpen(false);
+            setActivePopup(null);
             setRangeMenuPosition(null);
-            setMassMenuOpen(false);
           }}
           menuPosition={rangeMenuPosition}
         />,
@@ -657,7 +672,7 @@ const PeriodicTableLearning = ({
               type="button"
               onClick={() => {
                 setMassMode(mode);
-                setMassMenuOpen(false);
+                setActivePopup(null);
                 longPressTriggeredRef.current = false;
                 suppressNextMoreClickRef.current = false;
               }}
@@ -728,13 +743,16 @@ const PeriodicTableLearning = ({
         <SwipeContainer
           itemCount={PERIODIC_GROUPS.length}
           currentIndex={activeRangeIndex}
-          onIndexChange={changeRange}
+          onIndexChange={(nextIndex) => {
+            if (activeRangeIndex === null || nextIndex === activeRangeIndex) return;
+            navigateRange(nextIndex > activeRangeIndex ? 'next' : 'previous');
+          }}
           ignoreSwipeSelector="button, a, input, select, textarea, [data-periodic-table-scroll='true']"
           renderItem={(index) => (
             <PeriodicRangeView
               rangeIndex={index}
               onSelectElement={onSelectElement}
-              onChangeRange={changeRange}
+              onChangeRange={navigateRange}
               massMode={massMode}
               initialScrollLeft={tableScrollLeftRef.current}
               onScrollLeftChange={(scrollLeft) => { tableScrollLeftRef.current = scrollLeft; }}
