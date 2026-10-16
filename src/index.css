@@ -3119,11 +3119,11 @@ html.low-power .quiz-question-panel {
 }
 
 .periodic-range-table .periodic-col-element {
-  width: clamp(8rem, 25vw, 13rem);
+  width: clamp(8rem, 18vw, 10.5rem);
 }
 
 .periodic-range-table .periodic-col-symbol {
-  width: clamp(3.5rem, 8vw, 5rem);
+  width: clamp(3.5rem, 7vw, 4.5rem);
 }
 
 .periodic-range-table .periodic-col-mass {
@@ -3191,6 +3191,55 @@ html.low-power .quiz-question-panel {
 .periodic-range-table .periodic-range-mass {
   text-align: center;
 }
+
+/* Each column uses the active theme's existing semantic color tokens so the
+   tints follow Light, Dark, and premium theme palettes without fixed colors. */
+.periodic-range-table .periodic-range-header-cell.periodic-tint-number {
+  background-color: hsl(var(--primary) / 0.13);
+  border-color: hsl(var(--primary) / 0.28);
+}
+
+.periodic-range-table .periodic-range-header-cell.periodic-tint-element {
+  background-color: hsl(var(--success) / 0.13);
+  border-color: hsl(var(--success) / 0.28);
+}
+
+.periodic-range-table .periodic-range-header-cell.periodic-tint-symbol {
+  background-color: hsl(var(--accent) / 0.13);
+  border-color: hsl(var(--accent) / 0.28);
+}
+
+.periodic-range-table .periodic-range-header-cell.periodic-tint-mass {
+  background-color: hsl(var(--warning) / 0.14);
+  border-color: hsl(var(--warning) / 0.30);
+}
+
+.periodic-range-table tbody tr.periodic-range-data-row .periodic-range-row-cell.periodic-tint-number {
+  background-color: hsl(var(--primary) / 0.075);
+}
+
+.periodic-range-table tbody tr.periodic-range-data-row .periodic-range-row-cell.periodic-tint-element {
+  background-color: hsl(var(--success) / 0.075);
+}
+
+.periodic-range-table tbody tr.periodic-range-data-row .periodic-range-row-cell.periodic-tint-symbol {
+  background-color: hsl(var(--accent) / 0.075);
+}
+
+.periodic-range-table tbody tr.periodic-range-data-row .periodic-range-row-cell.periodic-tint-mass {
+  background-color: hsl(var(--warning) / 0.085);
+}
+
+@media (max-width: 420px) {
+  .periodic-range-table .periodic-col-element {
+    width: clamp(8rem, 26vw, 10rem);
+  }
+
+  .periodic-range-table .periodic-col-symbol {
+    width: 3.5rem;
+  }
+}
+
 
 /* Table of 13-inspired row cards. Horizontal borders are shared across the
    four cells, while the first/last cells round the outside corners so each
