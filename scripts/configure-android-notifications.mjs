@@ -75,6 +75,16 @@ function ensureManifestReceivers(manifest, firebaseEnabled) {
             </intent-filter>
         </service>`);
   }
+  if (firebaseEnabled && !manifest.includes('com.google.firebase.messaging.default_notification_channel_id')) {
+    entries.push(`        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="app_updates" />`);
+  }
+  if (firebaseEnabled && !manifest.includes('com.google.firebase.messaging.default_notification_icon')) {
+    entries.push(`        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />`);
+  }
   if (entries.length) {
     const applicationClose = manifest.lastIndexOf('</application>');
     if (applicationClose < 0) throw new Error('AndroidManifest.xml has no closing </application> tag');
