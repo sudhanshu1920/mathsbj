@@ -93,7 +93,7 @@ describe('PeriodicTableLearning', () => {
 
       // Selecting a mass mode ends the old gesture; a deliberate keyboard-like
       // click must then open the range menu normally.
-      fireEvent.click(screen.getByRole('button', { name: 'Exact' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Exact/ }));
       expect(screen.queryByRole('dialog', { name: 'Atomic mass format' })).not.toBeInTheDocument();
       fireEvent.click(moreButton);
       expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
