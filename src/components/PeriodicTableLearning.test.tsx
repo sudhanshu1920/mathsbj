@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import PeriodicTableLearning from './PeriodicTableLearning';
+import SwipeBack from './SwipeBack';
+import SwipeContainer from './SwipeContainer';
 import { getPeriodicRangeIndexFromDepth, getPeriodicSwipeDirection } from '@/lib/periodicRangeNavigation';
 
 describe('PeriodicTableLearning', () => {
@@ -595,3 +597,106 @@ describe('PeriodicTableLearning', () => {
     expect(firstRow).toHaveStyle({ minWidth: '1488px', width: '1488px', maxWidth: 'none' });
   });
 });
+
+describe('Periodic Table range edge-back gesture', () => {
+  const fireRightPointerSwipe = (target: HTMLElement, pointerId: number, startX = 12) => {
+    fireEvent.pointerDown(target, {
+      pointerId, pointerType: 'touch', button: 0, clientX: startX, clientY: 120,
+    });
+    fireEvent.pointerMove(target, {
+      pointerId, pointerType: 'touch', clientX: startX + 24, clientY: 122,
+    });
+    fireEvent.pointerMove(target, {
+      pointerId, pointerType: 'touch', clientX: startX + 84, clientY: 123,
+    });
+    fireEvent.pointerUp(target, {
+      pointerId, pointerType: 'touch', clientX: startX + 84, clientY: 123,
+    });
+  };
+
+  it('allows an edge-back swipe through the range page swipe-ignore surface when opted in', () => {
+    const onBackToTable = vi.fn();
+    render(
+      <SwipeBack enabled allowIgnoredEdgeSwipe onBack={onBackToTable}>
+        <div data-swipe-ignore-back="true" data-testid="range-swipe-surface">Range content</div>
+      </SwipeBack>,
+    );
+
+    fireRightPointerSwipe(screen.getByTestId('range-swipe-surface'), 301);
+
+    expect(onBackToTable).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps ignored surfaces protected by default and never captures a non-edge start', () => {
+    const defaultOnBack = vi.fn();
+    const { unmount } = render(
+      <SwipeBack enabled onBack={defaultOnBack}>
+        <div data-swipe-ignore-back="true" data-testid="default-ignored-surface">Range content</div>
+      </SwipeBack>,
+    );
+    fireRightPointerSwipe(screen.getByTestId('default-ignored-surface'), 302);
+    expect(defaultOnBack).not.toHaveBeenCalled();
+    unmount();
+
+    const allowEdgeOnBack = vi.fn();
+    render(
+      <SwipeBack enabled allowIgnoredEdgeSwipe onBack={allowEdgeOnBack}>
+        <div data-swipe-ignore-back="true" data-testid="non-edge-surface">Range content</div>
+      </SwipeBack>,
+    );
+    fireRightPointerSwipe(screen.getByTestId('non-edge-surface'), 303, 40);
+    expect(allowEdgeOnBack).not.toHaveBeenCalled();
+  });
+
+  it('cancels edge-back navigation when the gesture is cancelled or vertical', () => {
+    const onBack = vi.fn();
+    const { getByTestId } = render(
+      <SwipeBack enabled allowIgnoredEdgeSwipe onBack={onBack}>
+        <div data-swipe-ignore-back="true" data-testid="cancel-range-swipe">Range content</div>
+      </SwipeBack>,
+    );
+    const surface = getByTestId('cancel-range-swipe');
+
+    fireEvent.pointerDown(surface, { pointerId: 304, pointerType: 'touch', button: 0, clientX: 12, clientY: 100 });
+    fireEvent.pointerMove(surface, { pointerId: 304, pointerType: 'touch', clientX: 36, clientY: 102 });
+    fireEvent.pointerCancel(surface, { pointerId: 304, pointerType: 'touch', clientX: 100, clientY: 102 });
+    expect(onBack).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(surface, { pointerId: 305, pointerType: 'touch', button: 0, clientX: 12, clientY: 100 });
+    fireEvent.pointerMove(surface, { pointerId: 305, pointerType: 'touch', clientX: 14, clientY: 140 });
+    fireEvent.pointerUp(surface, { pointerId: 305, pointerType: 'touch', clientX: 14, clientY: 145 });
+    expect(onBack).not.toHaveBeenCalled();
+  });
+
+  it('reserves edge-origin touches for Back while middle swipes still change ranges', () => {
+    const onIndexChange = vi.fn();
+    const { container } = render(
+      <SwipeContainer
+        edgeBackEnabled
+        itemCount={12}
+        currentIndex={5}
+        onIndexChange={onIndexChange}
+        renderItem={(index) => <div>Range {index + 1}</div>}
+      />,
+    );
+    const surface = container.firstElementChild as HTMLElement;
+
+    fireEvent.touchStart(surface, { touches: [{ identifier: 306, clientX: 12, clientY: 100 }] });
+    fireEvent.touchMove(surface, { touches: [{ identifier: 306, clientX: 100, clientY: 102 }] });
+    fireEvent.touchEnd(surface, { changedTouches: [{ identifier: 306, clientX: 100, clientY: 102 }] });
+    expect(onIndexChange).not.toHaveBeenCalled();
+
+    fireEvent.touchStart(surface, { touches: [{ identifier: 307, clientX: 140, clientY: 100 }] });
+    fireEvent.touchMove(surface, { touches: [{ identifier: 307, clientX: 60, clientY: 102 }] });
+    fireEvent.touchEnd(surface, { changedTouches: [{ identifier: 307, clientX: 60, clientY: 102 }] });
+    expect(onIndexChange).toHaveBeenCalledTimes(1);
+    expect(onIndexChange).toHaveBeenCalledWith(6);
+
+    fireEvent.touchStart(surface, { touches: [{ identifier: 308, clientX: 60, clientY: 100 }] });
+    fireEvent.touchMove(surface, { touches: [{ identifier: 308, clientX: 140, clientY: 102 }] });
+    fireEvent.touchEnd(surface, { changedTouches: [{ identifier: 308, clientX: 140, clientY: 102 }] });
+    expect(onIndexChange).toHaveBeenCalledTimes(2);
+    expect(onIndexChange).toHaveBeenLastCalledWith(4);
+  });
+});
+
