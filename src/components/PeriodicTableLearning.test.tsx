@@ -58,7 +58,7 @@ describe('PeriodicTableLearning', () => {
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
 
     const dialog = screen.getByRole('dialog', { name: 'Element ranges' });
-    expect(dialog).toHaveClass('periodic-range-menu', 'fixed', 'z-[100]');
+    expect(dialog).toHaveClass('periodic-range-menu', 'fixed', 'z-[100]', 'bg-popover');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(dialog.style.position).toBe('fixed');
     expect(container.querySelector('.periodic-range-menu')).toBeNull();
@@ -84,10 +84,41 @@ describe('PeriodicTableLearning', () => {
 
       fireEvent.pointerUp(moreButton, { button: 0, pointerId: 1, pointerType: 'touch' });
       fireEvent.click(moreButton);
+      // Some mobile browsers dispatch contextmenu after the synthetic click.
+      fireEvent.contextMenu(moreButton);
 
       expect(screen.getByRole('dialog', { name: 'Atomic mass format' })).toBeInTheDocument();
       expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
       expect(document.querySelectorAll('[role="dialog"][aria-label="Element ranges"]')).toHaveLength(0);
+
+      // Selecting a mass mode ends the old gesture; a deliberate keyboard-like
+      // click must then open the range menu normally.
+      fireEvent.click(screen.getByRole('button', { name: /^Exact/ }));
+      expect(screen.queryByRole('dialog', { name: 'Atomic mass format' })).not.toBeInTheDocument();
+      fireEvent.click(moreButton);
+      expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it('treats early contextmenu and the following click as one long-press gesture', () => {
+    vi.useFakeTimers();
+    try {
+      render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
+      const moreButton = screen.getByRole('button', { name: /open element range menu/i });
+
+      fireEvent.pointerDown(moreButton, { button: 0, pointerId: 2, pointerType: 'touch' });
+      fireEvent.contextMenu(moreButton);
+      act(() => { vi.advanceTimersByTime(700); });
+      fireEvent.pointerUp(moreButton, { button: 0, pointerId: 2, pointerType: 'touch' });
+      fireEvent.click(moreButton);
+      fireEvent.contextMenu(moreButton);
+
+      expect(screen.getByRole('dialog', { name: 'Atomic mass format' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
+      expect(document.querySelectorAll('[role="dialog"][aria-label="Atomic mass format"]')).toHaveLength(1);
     } finally {
       vi.clearAllTimers();
       vi.useRealTimers();
@@ -164,6 +195,56 @@ describe('PeriodicTableLearning', () => {
     expect(getPeriodicSwipeDirection(140, 5)).toBe('previous');
     expect(getPeriodicSwipeDirection(-60, 80)).toBeNull();
     expect(getPeriodicSwipeDirection(-55, 0)).toBeNull();
+  });
+
+  it('swipes through all twelve ranges and stops at both sequence boundaries', () => {
+    const { container } = render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
+    const labels = ['1–10', '11–20', '21–30', '31–40', '41–50', '51–60', '61–70', '71–80', '81–90', '91–100', '101–110', '111–118'];
+    const ranges = [
+      [1, 10], [11, 20], [21, 30], [31, 40], [41, 50], [51, 60],
+      [61, 70], [71, 80], [81, 90], [91, 100], [101, 110], [111, 118],
+    ] as const;
+    const dispatchTouch = (target: Element, type: 'touchstart' | 'touchmove' | 'touchend', x: number, y: number) => {
+      const point = { identifier: 1, target, clientX: x, clientY: y, pageX: x, pageY: y, screenX: x, screenY: y };
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(event, {
+        touches: { value: type === 'touchend' ? [] : [point] },
+        targetTouches: { value: type === 'touchend' ? [] : [point] },
+        changedTouches: { value: [point] },
+      });
+      target.dispatchEvent(event);
+    };
+    const swipe = (direction: 'next' | 'previous', currentIndex: number) => {
+      // AnimatePresence may retain the outgoing range briefly; target the
+      // currently active page explicitly instead of whichever node appears first.
+      const page = container.querySelector(`[data-periodic-range-index="${currentIndex}"]`);
+      expect(page).not.toBeNull();
+      const startX = direction === 'next' ? 220 : 130;
+      const endX = direction === 'next' ? 130 : 220;
+      act(() => {
+        dispatchTouch(page as Element, 'touchstart', startX, 140);
+        dispatchTouch(page as Element, 'touchmove', endX, 144);
+        dispatchTouch(page as Element, 'touchend', endX, 144);
+      });
+    };
+
+    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /1–10 10 elements/i }));
+    expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
+
+    for (let index = 1; index < ranges.length; index += 1) {
+      swipe('next', index - 1);
+      expect(screen.getByRole('table', { name: `Elements ${labels[index]}` })).toBeInTheDocument();
+    }
+    swipe('next', 11);
+    expect(screen.getByRole('table', { name: 'Elements 111–118' })).toBeInTheDocument();
+
+    for (let index = ranges.length - 2; index >= 0; index -= 1) {
+      swipe('previous', index + 1);
+      expect(screen.getByRole('table', { name: `Elements ${labels[index]}` })).toBeInTheDocument();
+    }
+    swipe('previous', 0);
+    expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
   });
 
   it('moves between ranges with the accessible next/previous controls', () => {
@@ -285,8 +366,24 @@ describe('PeriodicTableLearning', () => {
     const nextRangePage = screen.getByRole('region', { name: 'Periodic Table elements 11 to 20' });
     act(() => {
       dispatchTouch(nextRangePage, 'touchstart', 220, 140);
-      dispatchTouch(nextRangePage, 'touchmove', 214, 220);
-      dispatchTouch(nextRangePage, 'touchend', 214, 220);
+      dispatchTouch(nextRangePage, 'touchmove', 310, 144);
+      dispatchTouch(nextRangePage, 'touchend', 310, 144);
+    });
+    expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
+
+    const restoredRangePage = screen.getByRole('region', { name: 'Periodic Table elements 1 to 10' });
+    act(() => {
+      dispatchTouch(restoredRangePage, 'touchstart', 220, 140);
+      dispatchTouch(restoredRangePage, 'touchmove', 130, 144);
+      dispatchTouch(restoredRangePage, 'touchend', 130, 144);
+    });
+    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
+
+    const verticalScrollPage = screen.getByRole('region', { name: 'Periodic Table elements 11 to 20' });
+    act(() => {
+      dispatchTouch(verticalScrollPage, 'touchstart', 220, 140);
+      dispatchTouch(verticalScrollPage, 'touchmove', 214, 220);
+      dispatchTouch(verticalScrollPage, 'touchend', 214, 220);
     });
     expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
 

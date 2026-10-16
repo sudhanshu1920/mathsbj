@@ -2994,11 +2994,11 @@ html.low-power .quiz-question-panel {
    allowing the Periodic Table underneath to show through and appear overlapped.
    Keep this one picker legible while still following each active theme. */
 .periodic-range-menu[role="dialog"] {
-  background: hsl(var(--popover) / 0.985) !important;
+  background: hsl(var(--popover)) !important;
   border: 1px solid hsl(var(--border) / 0.9) !important;
   color: hsl(var(--popover-foreground));
-  backdrop-filter: blur(8px) saturate(1.04);
-  -webkit-backdrop-filter: blur(8px) saturate(1.04);
+  opacity: 1;
+  isolation: isolate;
 }
 
 .periodic-range-menu .periodic-range-grid {
