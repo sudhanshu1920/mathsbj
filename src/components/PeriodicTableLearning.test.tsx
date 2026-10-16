@@ -284,7 +284,12 @@ describe('PeriodicTableLearning', () => {
     expect(tableRegion).toHaveClass('overflow-x-auto');
     expect(table.closest('.periodic-range-table-frame')).toBeNull();
     expect(table.parentElement).toBe(tableRegion);
-    expect(table.querySelector('tbody tr.rounded-xl, tbody tr.rounded-2xl')).toBeNull();
+    const dataRows = Array.from(table.querySelectorAll('tbody tr'));
+    expect(dataRows).toHaveLength(10);
+    expect(dataRows.every((row) => row.classList.contains('periodic-range-data-row'))).toBe(true);
+    expect(dataRows.every((row) => row.querySelectorAll('td.periodic-range-row-cell').length === 4)).toBe(true);
+    expect(table.querySelector('thead tr')).not.toHaveClass('periodic-range-data-row');
+    expect(table.closest('.periodic-range-table-frame')).toBeNull();
     expect(table.querySelector('.periodic-range-element-name')).toBeInTheDocument();
     expect(table.querySelector('.periodic-range-symbol')).toBeInTheDocument();
     expect(within(table).getByRole('row', { name: /21.*Scandium.*Sc.*44\.956/ })).toBeInTheDocument();
