@@ -103,13 +103,29 @@ describe('Periodic Table practice property selection', () => {
 
     expect(selected).toHaveLength(4);
     expect(generatedLabels).toEqual(new Set(['Atomic Number', 'Element Name', 'Symbol', 'Atomic Mass']));
+    const allowedElements = ELEMENTS.slice(20, 30);
+    const allowedNames = new Set(allowedElements.map((element) => element.name));
+    const allowedSymbols = new Set(allowedElements.map((element) => element.symbol));
+    const allowedNumbers = new Set(allowedElements.map((element) => element.number));
+    const allowedMasses = new Set(allowedElements.map((element) => formatMass(element, 'round')));
     expect(questions.every((question) => {
-      const element = ELEMENTS.slice(20, 30).find((entry) =>
-        question.text.includes(entry.name) ||
-        question.text.includes(entry.symbol) ||
-        question.text.includes(String(entry.number)),
+      const questionType = question.topicLabel?.split(' • ').at(-1);
+      if (questionType === 'Atomic Mass') {
+        return allowedElements.some((element) => question.text.includes(element.name)) ||
+          [...allowedMasses].some((mass) => question.text.includes(mass));
+      }
+      return allowedElements.some((element) =>
+        question.text.includes(element.name) ||
+        question.text.includes(element.symbol) ||
+        question.text.includes(String(element.number)),
       );
-      return element !== undefined;
+    })).toBe(true);
+    expect(questions.every((question) => {
+      const answer = String(question.answer);
+      return allowedNames.has(answer) ||
+        allowedSymbols.has(answer) ||
+        allowedNumbers.has(Number(answer)) ||
+        [...allowedMasses].some((mass) => Number(mass) === Number(answer));
     })).toBe(true);
   });
 });
