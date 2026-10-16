@@ -299,19 +299,18 @@ const PeriodicRangeView = ({
       className="periodic-range-page w-full min-w-0 pb-4"
       aria-label={`Periodic Table elements ${group.from} to ${group.to}`}
     >
-      <div className="periodic-range-table-frame mx-auto w-fit max-w-full min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/40">
-        <div
-          role="region"
-          aria-label={`Elements ${group.from}–${group.to} table`}
-          data-periodic-table-scroll="true"
-          ref={scrollRegionRef}
-          onScroll={(event) => onScrollLeftChange(event.currentTarget.scrollLeft)}
-          className="periodic-table-scroll w-full min-w-0 overflow-x-auto overscroll-x-contain"
+      <div
+        role="region"
+        aria-label={`Elements ${group.from}–${group.to} table`}
+        data-periodic-table-scroll="true"
+        ref={scrollRegionRef}
+        onScroll={(event) => onScrollLeftChange(event.currentTarget.scrollLeft)}
+        className="periodic-table-scroll w-full min-w-0 overflow-x-auto overscroll-x-contain"
           style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}
         >
           <table
             aria-label={`Elements ${group.from}–${group.to}`}
-            className="periodic-range-table w-max min-w-0 table-fixed border-collapse"
+            className="periodic-range-table mx-auto w-max min-w-0 table-fixed"
           >
             <colgroup>
               <col className="periodic-col-number" />
@@ -358,7 +357,6 @@ const PeriodicRangeView = ({
             ))}
           </tbody>
         </table>
-        </div>
       </div>
     </section>
   );
