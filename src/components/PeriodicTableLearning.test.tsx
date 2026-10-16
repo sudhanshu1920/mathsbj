@@ -278,6 +278,13 @@ describe('PeriodicTableLearning', () => {
     expect(headers[2]).toHaveClass('text-center');
     expect(headers[3]).toHaveClass('text-center', 'periodic-range-mass');
     expect(headers[3]).not.toHaveClass('text-right');
+    const columnTints = [
+      'periodic-tint-number',
+      'periodic-tint-element',
+      'periodic-tint-symbol',
+      'periodic-tint-mass',
+    ];
+    expect(headers.map((header) => columnTints.find((tint) => header.classList.contains(tint))).filter(Boolean)).toEqual(columnTints);
     expect(table.querySelectorAll('tbody td.periodic-range-cell')).toHaveLength(40);
     const tableRegion = screen.getByRole('region', { name: 'Elements 21–30 table' });
     expect(tableRegion).not.toHaveClass('max-h-[min(64dvh,38rem)]');
@@ -288,6 +295,9 @@ describe('PeriodicTableLearning', () => {
     expect(dataRows).toHaveLength(10);
     expect(dataRows.every((row) => row.classList.contains('periodic-range-data-row'))).toBe(true);
     expect(dataRows.every((row) => row.querySelectorAll('td.periodic-range-row-cell').length === 4)).toBe(true);
+    expect(dataRows.every((row) =>
+      Array.from(row.querySelectorAll('td')).every((cell, index) => cell.classList.contains(columnTints[index])),
+    )).toBe(true);
     expect(table.querySelector('thead tr')).not.toHaveClass('periodic-range-data-row');
     expect(table.closest('.periodic-range-table-frame')).toBeNull();
     expect(table.querySelector('.periodic-range-element-name')).toBeInTheDocument();
