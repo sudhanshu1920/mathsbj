@@ -287,18 +287,15 @@ describe('PeriodicTableLearning', () => {
     expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
   });
 
-  it('moves between ranges with the accessible next/previous controls', () => {
-    const onSelectElement = vi.fn();
-    render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
+  it('removes the entire range-information row and its previous/next arrows', () => {
+    render(<PeriodicTableLearning selectedElement={null} selectedRangeIndex={0} onSelectElement={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
-    fireEvent.click(screen.getByRole('button', { name: /1–10 10 elements/i }));
-
-    fireEvent.click(screen.getByRole('button', { name: /Next element range/i }));
-    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /Previous element range/i }));
+    expect(screen.getByRole('heading', { name: 'Elements 1–10' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Elements 1–10' })).toBeInTheDocument();
+    expect(screen.queryByText('Atomic number range')).not.toBeInTheDocument();
+    expect(screen.queryByText('Range 1 of 12')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Previous element range/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Next element range/i })).not.toBeInTheDocument();
   });
 
   it('restores the previously selected range when returning from its dedicated page', () => {
