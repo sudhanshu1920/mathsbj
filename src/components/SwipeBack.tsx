@@ -5,15 +5,17 @@ interface SwipeBackProps {
   onBack: () => void;
   children: React.ReactNode;
   enabled?: boolean;
+  /** Permit an edge-back gesture to start inside a swipe surface that normally opts out of back gestures. */
+  allowIgnoredEdgeSwipe?: boolean;
 }
 
-const EDGE_WIDTH = 28;
+export const SWIPE_BACK_EDGE_WIDTH = 28;
 const TRIGGER_DISTANCE = 72;
 const TRIGGER_VELOCITY = 700;
 const AXIS_LOCK_THRESHOLD = 10;
 const MAX_FOLLOW = 120;
 
-const SwipeBack = ({ onBack, children, enabled = true }: SwipeBackProps) => {
+const SwipeBack = ({ onBack, children, enabled = true, allowIgnoredEdgeSwipe = false }: SwipeBackProps) => {
   const start = useRef<{ x: number; y: number } | null>(null);
   const axis = useRef<'x' | 'y' | null>(null);
   const active = useRef(false);
@@ -34,7 +36,8 @@ const SwipeBack = ({ onBack, children, enabled = true }: SwipeBackProps) => {
 
   const handlePointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     if (!enabled || e.pointerType === 'mouse') return;
-    if (e.clientX > EDGE_WIDTH || (e.target as HTMLElement | null)?.closest('[data-swipe-ignore-back="true"]')) {
+    const startsInsideIgnoredSurface = Boolean((e.target as HTMLElement | null)?.closest('[data-swipe-ignore-back="true"]'));
+    if (e.clientX > SWIPE_BACK_EDGE_WIDTH || (startsInsideIgnoredSurface && !allowIgnoredEdgeSwipe)) {
       reset();
       return;
     }
@@ -46,7 +49,7 @@ const SwipeBack = ({ onBack, children, enabled = true }: SwipeBackProps) => {
     lastX.current = e.clientX;
     lastTime.current = performance.now();
     velocityX.current = 0;
-  }, [enabled, reset]);
+  }, [allowIgnoredEdgeSwipe, enabled, reset]);
 
   const handlePointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     if (!enabled || pointerId.current !== e.pointerId || !start.current) return;

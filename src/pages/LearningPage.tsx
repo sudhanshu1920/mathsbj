@@ -269,11 +269,22 @@ const LearningPage = ({
 
     return (
       <SwipeBack
-        enabled={validRangeIndex === null && periodicSelectedElement === null}
+        enabled={periodicSelectedElement === null}
+        allowIgnoredEdgeSwipe={validRangeIndex !== null}
         onBack={() => {
+          if (validRangeIndex !== null) {
+            // Match the range page's toolbar Back: return directly to the main
+            // table and replace the active history entry instead of opening the picker.
+            if (onBackToPeriodicTable) {
+              onBackToPeriodicTable();
+            } else {
+              updateState({ periodicSelectedElement: null, periodicSelectedRangeIndex: null });
+            }
+            return;
+          }
+
           if (onBack) onBack();
           else if (periodicSelectedElement !== null) setSelectedElement(null);
-          else if (validRangeIndex !== null) updateState({ periodicSelectedRangeIndex: null });
           else setActiveTopic(null);
         }}
       >
