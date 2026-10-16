@@ -402,6 +402,8 @@ const notificationSendStepEnd = releaseWorkflow.indexOf('\n# [BUILD_APK]', notif
 const notificationSendStep = releaseWorkflow.slice(notificationSendStepAt, notificationSendStepEnd);
 if (!releaseWorkflow.includes('name: Verify published APK asset SHA-256 before push') ||
     !releaseWorkflow.includes('PUBLISHED_APK_URL}?cacheBust=${GITHUB_SHA}') ||
+    !releaseWorkflow.includes('manifest["sha256"].lower() != sys.argv[4].lower()') ||
+    !releaseWorkflow.includes('published-update.json")') ||
     !releaseWorkflow.includes('actual_sha256') ||
     !releaseWorkflow.includes('expected_sha256') ||
     !notificationSendStep.includes('node scripts/release-notification-sender.mjs') ||
