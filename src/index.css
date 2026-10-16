@@ -3192,3 +3192,39 @@ html.low-power .quiz-question-panel {
   text-align: center;
 }
 
+/* Table of 13-inspired row cards. Horizontal borders are shared across the
+   four cells, while the first/last cells round the outside corners so each
+   element row reads as one full-width card without wrapping the whole table. */
+.periodic-range-table {
+  border-spacing: 0 0.45rem;
+}
+
+.periodic-range-table tbody tr.periodic-range-data-row .periodic-range-row-cell {
+  background: hsl(var(--card) / 0.42);
+  border-top: 1px solid hsl(var(--border) / 0.72);
+  border-bottom: 1px solid hsl(var(--border) / 0.72);
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.periodic-range-table tbody tr.periodic-range-data-row:hover .periodic-range-row-cell {
+  background: hsl(var(--primary) / 0.06);
+}
+
+.periodic-range-table tbody tr.periodic-range-data-row .periodic-range-row-cell:first-child {
+  border-left: 1px solid hsl(var(--border) / 0.72);
+  border-top-left-radius: 0.95rem;
+  border-bottom-left-radius: 0.95rem;
+}
+
+.periodic-range-table tbody tr.periodic-range-data-row .periodic-range-row-cell:last-child {
+  border-right: 1px solid hsl(var(--border) / 0.72);
+  border-top-right-radius: 0.95rem;
+  border-bottom-right-radius: 0.95rem;
+}
+
+/* Keep row heights uniform; element-name wrapping is still allowed on narrow screens. */
+.periodic-range-table tbody tr.periodic-range-data-row .periodic-range-row-cell {
+  vertical-align: middle;
+}
+
+
