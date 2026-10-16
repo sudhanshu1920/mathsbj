@@ -1,4 +1,5 @@
 import type { TrigFunction } from '@/lib/trigData';
+import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
 
 export type PracticePhase = 'setup' | 'starting' | 'active' | 'finished';
 
@@ -13,6 +14,8 @@ export interface PracticeLaunchContext {
     trigFunctions?: TrigFunction[];
     trigProMode?: boolean;
     count?: number;
+    periodicQuestionTypes?: PeriodicQuestionType[];
+    periodicMassMode?: PeriodicMassMode;
   };
 }
 
