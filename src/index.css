@@ -3124,15 +3124,15 @@ html.low-power .quiz-question-panel {
 }
 
 .periodic-range-table .periodic-col-element {
-  width: clamp(8.75rem, 33vw, 17rem);
+  width: clamp(8.75rem, 30vw, 15rem);
 }
 
 .periodic-range-table .periodic-col-symbol {
-  width: clamp(4.5rem, 14vw, 7rem);
+  width: clamp(4rem, 11vw, 6rem);
 }
 
 .periodic-range-table .periodic-col-mass {
-  width: clamp(7.75rem, 25vw, 10.5rem);
+  width: clamp(7.5rem, 22vw, 9.5rem);
 }
 
 .periodic-range-table th,
