@@ -498,7 +498,7 @@ describe('PeriodicTableLearning', () => {
     expect(onOpenPractice).toHaveBeenCalledWith({
       from: 1,
       to: 10,
-      questionTypes: ['atomic-number', 'name', 'mass'],
+      questionTypes: ['atomic-number', 'mass', 'name'],
       massMode: 'exact',
     });
     expect(screen.queryByRole('dialog', { name: 'Choose What to Practice' })).not.toBeInTheDocument();
