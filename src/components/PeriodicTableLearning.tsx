@@ -534,9 +534,12 @@ const PeriodicTableLearning = ({
       const belowSpace = viewportHeight - rect.bottom - gutter - 8;
       const aboveSpace = rect.top - gutter - 8;
       const openAbove = belowSpace < desiredHeight && aboveSpace > belowSpace;
-      const top = openAbove
-        ? Math.max(gutter, rect.top - desiredHeight - 8)
-        : Math.min(rect.bottom + 8, viewportHeight - desiredHeight - gutter);
+      const top = Math.max(
+        gutter,
+        openAbove
+          ? rect.top - desiredHeight - 8
+          : Math.min(rect.bottom + 8, viewportHeight - desiredHeight - gutter),
+      );
       const maxHeight = Math.max(80, Math.min(desiredHeight, viewportHeight - top - gutter));
       const left = Math.max(gutter, Math.min(rect.right - width, viewportWidth - width - gutter));
 
