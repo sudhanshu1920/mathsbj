@@ -154,6 +154,7 @@ const PeriodicRangeMenu = ({
     <div
       className="periodic-range-menu fixed z-[100] max-h-[min(70dvh,34rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-border/75 shadow-xl"
       style={{
+        position: 'fixed',
         top: menuPosition.top,
         left: menuPosition.left,
         width: menuPosition.width,
