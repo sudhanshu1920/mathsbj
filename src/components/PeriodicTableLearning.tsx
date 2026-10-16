@@ -458,6 +458,7 @@ const ElementDetails = ({
 const PeriodicTableLearning = ({
   selectedElement,
   onSelectElement,
+  initialPracticeQuestionTypes,
   selectedRangeIndex,
   onSelectRange,
   onBack,
@@ -485,7 +486,7 @@ const PeriodicTableLearning = ({
   const tableScrollLeftRef = useRef(0);
   const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
   const [practicePopupOpen, setPracticePopupOpen] = useState(false);
-  const [practiceQuestionTypes, setPracticeQuestionTypes] = useState<PeriodicQuestionType[]>(() => [...new Set(initialPracticeQuestionTypes ?? [])]);
+  const [practiceQuestionTypes, setPracticeQuestionTypes] = useState<PeriodicQuestionType[]>(() => [...new Set<PeriodicQuestionType>(initialPracticeQuestionTypes ?? [])]);
   // One discriminated state makes the two popup surfaces mutually exclusive.
   const [activePopup, setActivePopup] = useState<'ranges' | 'mass' | null>(null);
   const rangeMenuOpen = activePopup === 'ranges';
