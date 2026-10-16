@@ -26,6 +26,13 @@ interface PeriodicTableLearningProps {
 
 type AtomicMassMode = 'exact' | 'round';
 
+type PopupPosition = {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
 const CATEGORY_STYLES: Record<ChemElement['category'], string> = {
   'alkali-metal': 'border-rose-400/60 bg-rose-500/10 hover:bg-rose-500/20',
   'alkaline-earth': 'border-orange-400/60 bg-orange-500/10 hover:bg-orange-500/20',
@@ -143,7 +150,7 @@ const PeriodicRangeMenu = ({
   selectedRangeIndex: number | null;
   onSelectRange: (index: number) => void;
   onClose: () => void;
-  menuPosition: { top: number; left: number; width: number; maxHeight: number };
+  menuPosition: PopupPosition;
 }) => (
   <>
     <div
@@ -208,6 +215,61 @@ const PeriodicRangeMenu = ({
   </>
 );
 
+
+const PeriodicMassMenu = ({
+  massMode,
+  menuPosition,
+  onSelectMode,
+  onClose,
+}: {
+  massMode: AtomicMassMode;
+  menuPosition: PopupPosition;
+  onSelectMode: (mode: AtomicMassMode) => void;
+  onClose: () => void;
+}) => (
+  <>
+    <div
+      className="periodic-mass-backdrop fixed inset-0 z-[90]"
+      aria-hidden="true"
+      onClick={onClose}
+    />
+    <div
+      className="periodic-mass-menu fixed z-[100] max-h-[min(45dvh,14rem)] overflow-y-auto overscroll-contain rounded-2xl border border-border/75 bg-popover p-3 shadow-xl"
+      style={{
+        position: 'fixed',
+        top: menuPosition.top,
+        left: menuPosition.left,
+        width: menuPosition.width,
+        maxHeight: menuPosition.maxHeight,
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Atomic mass format"
+    >
+      <div className="mb-2 border-b border-border/60 px-1 pb-2">
+        <p className="font-display text-sm font-black text-foreground">Atomic Mass</p>
+        <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">Choose display format</p>
+      </div>
+      <div className="flex flex-col gap-1">
+        {(['exact', 'round'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onSelectMode(mode)}
+            className="flex min-h-11 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-bold text-foreground transition-colors hover:border-border/70 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-pressed={massMode === mode}
+          >
+            <span className="flex-1 whitespace-nowrap">
+              {mode === 'exact' ? 'Exact Figure' : 'Round Figure'}
+            </span>
+            {massMode === mode && <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  </>
+);
+
 const PeriodicRangeView = ({
   rangeIndex,
   onSelectElement,
@@ -246,20 +308,20 @@ const PeriodicRangeView = ({
       >
         <table
           aria-label={`Elements ${group.from}–${group.to}`}
-          className="w-full min-w-0 table-fixed border-collapse text-sm sm:text-base"
+          className="w-full min-w-[460px] table-fixed border-collapse text-sm sm:text-base"
         >
           <colgroup>
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '36%' }} />
-            <col style={{ width: '25%' }} />
-            <col style={{ width: '21%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '32%' }} />
+            <col style={{ width: '28%' }} />
+            <col style={{ width: '26%' }} />
           </colgroup>
           <thead className="border-b border-border/70 bg-background text-foreground">
             <tr>
               <th scope="col" className="px-1 py-2 text-center text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC NO.</th>
               <th scope="col" className="px-1 py-2 text-left text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ELEMENT</th>
               <th scope="col" className="px-1.5 py-2 text-center text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">SYMBOL</th>
-              <th scope="col" className="px-1 py-2 text-right text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC MASS</th>
+              <th scope="col" className="whitespace-nowrap px-1 py-2 text-right text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC MASS</th>
             </tr>
           </thead>
           <tbody>
@@ -405,12 +467,8 @@ const PeriodicTableLearning = ({
   const longPressTriggeredRef = useRef(false);
   const suppressNextMoreClickRef = useRef(false);
   const ignoreLateMoreContextMenuRef = useRef(false);
-  const [rangeMenuPosition, setRangeMenuPosition] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    maxHeight: number;
-  } | null>(null);
+  const [rangeMenuPosition, setRangeMenuPosition] = useState<PopupPosition | null>(null);
+  const [massMenuPosition, setMassMenuPosition] = useState<PopupPosition | null>(null);
   const [internalSelectedRangeIndex, setInternalSelectedRangeIndex] = useState<number | null>(null);
   const hasControlledRange = selectedRangeIndex !== undefined;
   const requestedRangeIndex = hasControlledRange ? selectedRangeIndex : internalSelectedRangeIndex;
@@ -460,17 +518,52 @@ const PeriodicTableLearning = ({
     };
   }, [rangeMenuOpen]);
 
+  useLayoutEffect(() => {
+    if (!massMenuOpen) return;
+
+    const updateMassMenuPosition = () => {
+      const anchor = moreButtonRef.current;
+      if (!anchor) return;
+
+      const rect = anchor.getBoundingClientRect();
+      const gutter = 12;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const width = Math.min(240, Math.max(0, viewportWidth - gutter * 2));
+      const desiredHeight = Math.max(80, Math.min(180, viewportHeight - gutter * 2));
+      const belowSpace = viewportHeight - rect.bottom - gutter - 8;
+      const aboveSpace = rect.top - gutter - 8;
+      const openAbove = belowSpace < desiredHeight && aboveSpace > belowSpace;
+      const top = openAbove
+        ? Math.max(gutter, rect.top - desiredHeight - 8)
+        : Math.min(rect.bottom + 8, viewportHeight - desiredHeight - gutter);
+      const maxHeight = Math.max(80, Math.min(desiredHeight, viewportHeight - top - gutter));
+      const left = Math.max(gutter, Math.min(rect.right - width, viewportWidth - width - gutter));
+
+      setMassMenuPosition({ top, left, width, maxHeight });
+    };
+
+    updateMassMenuPosition();
+    window.addEventListener('resize', updateMassMenuPosition);
+    window.addEventListener('scroll', updateMassMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMassMenuPosition);
+      window.removeEventListener('scroll', updateMassMenuPosition, true);
+    };
+  }, [massMenuOpen]);
+
   useEffect(() => {
-    if (!rangeMenuOpen) return;
+    if (activePopup === null) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setActivePopup(null);
       setRangeMenuPosition(null);
+      setMassMenuPosition(null);
       moreButtonRef.current?.focus();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [rangeMenuOpen]);
+  }, [activePopup]);
 
   const clearMorePressTimer = () => {
     morePressGenerationRef.current += 1;
@@ -488,6 +581,7 @@ const PeriodicTableLearning = ({
     suppressNextMoreClickRef.current = true;
     ignoreLateMoreContextMenuRef.current = true;
     setRangeMenuPosition(null);
+    if (!massMenuOpen) setMassMenuPosition(null);
     setActivePopup('mass');
   };
 
@@ -576,8 +670,10 @@ const PeriodicTableLearning = ({
     if (rangeMenuOpen) {
       setActivePopup(null);
       setRangeMenuPosition(null);
+      setMassMenuPosition(null);
       return;
     }
+    setMassMenuPosition(null);
     setRangeMenuPosition(null);
     setActivePopup('ranges');
   };
@@ -586,6 +682,7 @@ const PeriodicTableLearning = ({
     if (!isValidPeriodicRangeIndex(index)) return;
     setActivePopup(null);
     setRangeMenuPosition(null);
+    setMassMenuPosition(null);
     changeRange(index);
   };
 
@@ -629,28 +726,23 @@ const PeriodicTableLearning = ({
         document.body,
       )}
 
-      {massMenuOpen && (
-        <div className="absolute right-0 top-full z-40 mt-2 w-56 border border-border bg-popover p-2 shadow-xl backdrop-blur-md" role="dialog" aria-label="Atomic mass format">
-          <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Atomic Mass</p>
-          {(['exact', 'round'] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => {
-                setMassMode(mode);
-                setActivePopup(null);
-                longPressTriggeredRef.current = false;
-                suppressNextMoreClickRef.current = false;
-              }}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-bold text-foreground hover:bg-secondary"
-              aria-pressed={massMode === mode}
-            >
-              <span>{mode === 'exact' ? 'Exact' : 'Round Figure'}</span>
-              {massMode === mode && <span className="text-primary">✓</span>}
-            </button>
-          ))}
-          <p className="px-3 pb-1 pt-2 text-[10px] font-semibold leading-relaxed text-muted-foreground">Long press the 3-dot button to change this format.</p>
-        </div>
+      {massMenuOpen && massMenuPosition && typeof document !== 'undefined' && createPortal(
+        <PeriodicMassMenu
+          massMode={massMode}
+          menuPosition={massMenuPosition}
+          onSelectMode={(mode) => {
+            setMassMode(mode);
+            setActivePopup(null);
+            setMassMenuPosition(null);
+            longPressTriggeredRef.current = false;
+            suppressNextMoreClickRef.current = false;
+          }}
+          onClose={() => {
+            setActivePopup(null);
+            setMassMenuPosition(null);
+          }}
+        />,
+        document.body,
       )}
     </div>
   );
