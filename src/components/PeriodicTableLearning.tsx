@@ -143,7 +143,7 @@ const PeriodicRangeMenu = ({
   onClose: () => void;
 }) => (
   <div
-    className="absolute right-0 top-full z-40 mt-2 max-h-[min(70dvh,34rem)] w-[min(22rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-2xl border border-border/75 bg-popover/95 p-3 shadow-xl backdrop-blur-md sm:p-4"
+    className="periodic-range-menu absolute right-0 top-full z-40 mt-2 max-h-[min(70dvh,34rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-border/75 bg-popover/95 shadow-xl backdrop-blur-md"
     role="dialog"
     aria-label="Element ranges"
   >

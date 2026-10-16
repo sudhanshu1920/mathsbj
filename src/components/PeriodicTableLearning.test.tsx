@@ -28,6 +28,7 @@ describe('PeriodicTableLearning', () => {
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
 
     const dialog = screen.getByRole('dialog', { name: 'Element ranges' });
+    expect(dialog).toHaveClass('periodic-range-menu');
     const rangeGrid = dialog.querySelector<HTMLElement>('[data-periodic-range-grid="true"]');
     expect(rangeGrid).not.toBeNull();
     expect(rangeGrid).toHaveClass('periodic-range-grid');
@@ -49,6 +50,31 @@ describe('PeriodicTableLearning', () => {
       '111–118',
     ]);
     expect(rangeButtons.every((button) => button.classList.contains('periodic-range-card'))).toBe(true);
+  });
+
+  it('opens the matching dedicated table from every range card', () => {
+    render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
+
+    const ranges: Array<[string, number]> = [
+      ['1–10', 10],
+      ['11–20', 10],
+      ['21–30', 10],
+      ['31–40', 10],
+      ['41–50', 10],
+      ['51–60', 10],
+      ['61–70', 10],
+      ['71–80', 10],
+      ['81–90', 10],
+      ['91–100', 10],
+      ['101–110', 10],
+      ['111–118', 8],
+    ];
+
+    for (const [label, count] of ranges) {
+      fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
+      fireEvent.click(screen.getByRole('button', { name: `${label} ${count} elements` }));
+      expect(screen.getByRole('table', { name: `Elements ${label}` })).toBeInTheDocument();
+    }
   });
 
   it('renders the selected range in a four-column table with the shared element data', () => {

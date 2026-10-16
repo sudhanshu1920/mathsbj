@@ -2975,19 +2975,28 @@ html.low-power .quiz-question-panel {
 }
 
 
-/* Periodic Table range picker: keep its card layout independent from utility
-   generation/order and from styles applied to other topic grids. */
-.periodic-range-grid {
+/* Periodic Table range picker. Scope the popup and grid together so
+   global dialog/button styles cannot over-constrain the grid items. */
+.periodic-range-menu {
+  box-sizing: border-box;
+  width: min(42rem, calc(100vw - 1.5rem));
+  max-width: calc(100vw - 1.5rem);
+  min-width: 0;
+  padding: 0.75rem;
+}
+
+.periodic-range-menu .periodic-range-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(3.5rem, 1fr);
   align-items: stretch;
   justify-items: stretch;
-  gap: 0.5rem;
+  gap: 0.625rem;
   width: 100%;
   min-width: 0;
 }
 
-.periodic-range-grid > .periodic-range-card {
+.periodic-range-menu .periodic-range-card {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -2999,23 +3008,46 @@ html.low-power .quiz-question-panel {
   overflow-wrap: anywhere;
 }
 
-.periodic-range-card > span {
+.periodic-range-menu .periodic-range-card > span {
+  display: block;
   max-width: 100%;
   overflow-wrap: anywhere;
 }
 
-.periodic-range-card > span + span {
+.periodic-range-menu .periodic-range-card > span + span {
   line-height: 1.25;
 }
 
 @media (min-width: 420px) {
-  .periodic-range-grid {
+  .periodic-range-menu {
+    padding: 0.875rem;
+  }
+
+  .periodic-range-menu .periodic-range-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 1024px) {
-  .periodic-range-grid {
+@media (min-width: 768px) {
+  .periodic-range-menu {
+    padding: 1rem;
+  }
+
+  .periodic-range-menu .periodic-range-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 339px) {
+  .periodic-range-menu {
+    padding: 0.625rem;
+  }
+
+  .periodic-range-menu .periodic-range-grid {
+    gap: 0.375rem;
+  }
+
+  .periodic-range-menu .periodic-range-card {
+    padding-inline: 0.375rem;
   }
 }
