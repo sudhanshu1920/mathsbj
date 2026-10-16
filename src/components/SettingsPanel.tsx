@@ -253,7 +253,7 @@ const SettingsPanel = () => {
             Background notifications
           </p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            New-version alerts and daily study reminders at 12 PM, 2 PM, 4 PM, 6 PM, 8 PM and 10 PM.
+            Daily study reminders at 12 PM, 2 PM, 4 PM, 6 PM, 8 PM and 10 PM. New-version push alerts require a Firebase-enabled build.
           </p>
         </div>
         <Switch
