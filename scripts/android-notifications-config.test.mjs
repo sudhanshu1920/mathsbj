@@ -95,6 +95,23 @@ test('configures FCM only for a matching Firebase Android app and remains idempo
   assert.equal((mainActivity.match(/registerPlugin\(DailyTargetReminderPlugin\.class\)/g) || []).length, 1);
 });
 
+
+test('native alarm rechecks completion and keeps tomorrow noon queued after the 10 PM cutoff', async (t) => {
+  const root = await createAndroidFixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await configureAndroidNotifications(root);
+  const receiver = await readFile(
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), '../android-native/com/sudhanshu/mathsbj/DailyTargetReminderReceiver.java'),
+    'utf8',
+  );
+  assert.match(receiver, /prefs\.getBoolean\("completed", false\)/);
+  assert.match(receiver, /elapsedSeconds >= targetMinutes \* 60L/);
+  assert.match(receiver, /tomorrow's first slot/);
+  assert.match(receiver, /Calendar\.DAY_OF_YEAR, 1/);
+  assert.match(receiver, /currentMinute > 22 \* 60/);
+  assert.match(receiver, /DailyTargetReminderReceiver\.scheduleNext\(context\)/);
+});
+
 test('rejects Firebase client configuration for a different application id', async (t) => {
   const root = await createAndroidFixture();
   t.after(() => rm(root, { recursive: true, force: true }));
