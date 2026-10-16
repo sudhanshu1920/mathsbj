@@ -320,10 +320,10 @@ const PeriodicRangeView = ({
             </colgroup>
           <thead className="border-b border-border/70 bg-background text-foreground">
             <tr>
-              <th scope="col" className="periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC NO.</th>
-              <th scope="col" className="periodic-range-column-heading px-1 py-2 text-left font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ELEMENT</th>
-              <th scope="col" className="periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">SYMBOL</th>
-              <th scope="col" className="periodic-range-column-heading whitespace-nowrap px-1 py-2 text-right font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC MASS</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC NO.</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading px-1 py-2 text-left font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ELEMENT</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">SYMBOL</th>
+              <th scope="col" className="periodic-range-header-cell periodic-range-column-heading whitespace-nowrap px-1 py-2 text-right font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC MASS</th>
             </tr>
           </thead>
           <tbody>
