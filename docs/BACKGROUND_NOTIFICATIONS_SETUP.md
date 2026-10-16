@@ -19,7 +19,7 @@ The repository currently has no committed Firebase Android configuration or priv
 
 After setup, the Android release workflow sends a push to topic `math_app_updates` only after the signed APK is validated and the published `updates/update.json` is verified. Installation subscribes to the topic after background notifications are enabled. The sender validates package, version, the allowlisted APK URL and SHA-256, checks the previously notified version/source commit, and writes notification state after FCM accepts the message. A stable Android notification tag replaces a duplicate alert for the same app-update slot.
 
-If either Firebase secret is missing, the APK build continues without FCM and Actions prints a warning rather than pretending a push was sent. Local study reminders do not depend on Firebase or network access.
+Users need to install a Firebase-enabled APK once and opt in before their installation can receive FCM update pushes; older already-installed APKs without Firebase cannot receive this new push feature. If either Firebase secret is missing, the APK build continues without FCM and Actions prints a warning rather than pretending a push was sent. Local study reminders do not depend on Firebase or network access.
 
 ## Delivery limitations
 
