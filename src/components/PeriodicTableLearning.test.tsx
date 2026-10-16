@@ -366,7 +366,7 @@ describe('PeriodicTableLearning', () => {
     expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
   });
 
-  it('uses Cube Roots touch swipe navigation and isolates vertical/table scrolling', () => {
+  it('swipes from the table, preserves vertical scrolling, and keeps element selection working', () => {
     const onSelectElement = vi.fn();
     render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
 
@@ -422,7 +422,11 @@ describe('PeriodicTableLearning', () => {
       dispatchTouch(scrollRegion, 'touchmove', 110, 143);
       dispatchTouch(scrollRegion, 'touchend', 110, 143);
     });
-    expect(screen.getByRole('table', { name: 'Elements 11–20' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Elements 21–30' })).toBeInTheDocument();
+
+    const elementNameButton = screen.getByRole('button', { name: /Scandium, atomic number 21/i });
+    fireEvent.click(elementNameButton);
+    expect(onSelectElement).toHaveBeenCalledWith(21);
   });
 
   it('shows the selected element on its detail page and does not attach range swipes there', () => {
