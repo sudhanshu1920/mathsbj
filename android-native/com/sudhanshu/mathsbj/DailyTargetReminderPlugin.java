@@ -2,6 +2,7 @@ package com.sudhanshu.mathsbj;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -93,8 +94,29 @@ public class DailyTargetReminderPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void consumeNotificationAction(PluginCall call) {
+        Intent intent = getActivity().getIntent();
+        JSObject result = new JSObject();
+        String action = intent == null ? null : intent.getStringExtra("mathmaster_notification_action");
+        if (action != null) {
+            result.put("action", action);
+            result.put("versionName", intent.getStringExtra("mathmaster_update_version_name"));
+            result.put("versionCode", intent.getStringExtra("mathmaster_update_version_code"));
+            result.put("updateManifestUrl", intent.getStringExtra("mathmaster_update_manifest_url"));
+            intent.removeExtra("mathmaster_notification_action");
+            intent.removeExtra("mathmaster_update_version_name");
+            intent.removeExtra("mathmaster_update_version_code");
+            intent.removeExtra("mathmaster_update_manifest_url");
+            intent.removeExtra("mathmaster_notification_day");
+        }
+        call.resolve(result);
+    }
+
+    @PluginMethod
     public void setUpdateAlerts(PluginCall call) {
         boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled"));
+        getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean("updateAlertsEnabled", enabled).apply();
         JSObject result = new JSObject();
         try {
             // Firebase is an optional build-time integration. Reflection keeps the
