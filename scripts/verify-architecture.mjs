@@ -530,7 +530,7 @@ if (backRequestEffect.indexOf('if (!config || finished) return;') < 0 ||
 
 // Challenge Timer must share one exclusive mode and one lifecycle-controlled clock.
 const practiceConfigStart = practice.indexOf('interface PracticeConfig {');
-const practiceConfigEnd = practice.indexOf('type PeriodicQuestionType', practiceConfigStart);
+const practiceConfigEnd = practice.indexOf('type AnswerType', practiceConfigStart);
 const practiceConfig = practice.slice(practiceConfigStart, practiceConfigEnd);
 if (practiceConfigStart < 0 || practiceConfigEnd < 0 ||
     !practiceConfig.includes('timerMode: QuizTimerMode;') ||
