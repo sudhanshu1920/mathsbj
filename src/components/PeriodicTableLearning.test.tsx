@@ -135,9 +135,9 @@ describe('PeriodicTableLearning', () => {
     ]);
     expect(within(table).getAllByRole('row')).toHaveLength(11);
     expect(table.querySelectorAll('col')).toHaveLength(4);
-    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '15%' });
-    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '43%' });
-    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '14%' });
+    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '18%' });
+    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '39%' });
+    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '15%' });
     expect(table.querySelectorAll('col')[3]).toHaveStyle({ width: '28%' });
     expect(table).toHaveClass('min-w-[36rem]', 'table-fixed');
     const tableRegion = screen.getByRole('region', { name: 'Elements 21–30 table' });
