@@ -79,14 +79,16 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putString("hindiMessagesJson", hindi == null ? "[]" : hindi)
                 .apply();
 
-            if (enabled && !completed && hasNotificationPermission(getContext())) {
+            if (enabled && hasNotificationPermission(getContext())) {
+                // scheduleNext cancels today's remaining alarms if the goal is
+                // complete, but leaves the next day's noon alarm queued.
                 DailyTargetReminderReceiver.scheduleNext(getContext());
             } else {
                 DailyTargetReminderReceiver.cancelScheduled(getContext());
             }
 
             JSObject result = new JSObject();
-            result.put("scheduled", enabled && !completed && hasNotificationPermission(getContext()));
+            result.put("scheduled", enabled && hasNotificationPermission(getContext()));
             call.resolve(result);
         } catch (Exception error) {
             call.reject("Unable to sync daily target reminders.", error);
