@@ -26,6 +26,7 @@ type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'p
 
 interface LearningPageProps {
   onBack?: () => void;
+  onBackToPeriodicTable?: () => void;
   onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
@@ -48,6 +49,7 @@ const topics: LearningTopicId[] = [
 
 const LearningPage = ({
   onBack,
+  onBackToPeriodicTable,
   onStartPractice,
   learningState,
   onLearningStateChange,
@@ -291,6 +293,7 @@ const LearningPage = ({
               onSelectRange={(index) => updateState({ periodicSelectedRangeIndex: index })}
               onSelectElement={(n) => setSelectedElement(n)}
               onBack={onBack}
+              onBackToTable={onBackToPeriodicTable}
               onOpenPractice={openPracticeMode}
             />
           </Suspense>
