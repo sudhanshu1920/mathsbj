@@ -21,6 +21,8 @@ interface PeriodicTableLearningProps {
   selectedRangeIndex?: number | null;
   onSelectRange?: (index: number | null) => void;
   onBack?: () => void;
+  /** Directly returns from a range page to the main Periodic Table view. */
+  onBackToTable?: () => void;
   onOpenPractice?: () => void;
 }
 
@@ -297,64 +299,66 @@ const PeriodicRangeView = ({
       className="periodic-range-page w-full min-w-0 pb-4"
       aria-label={`Periodic Table elements ${group.from} to ${group.to}`}
     >
-      <div
-        role="region"
-        aria-label={`Elements ${group.from}–${group.to} table`}
-        data-periodic-table-scroll="true"
-        ref={scrollRegionRef}
-        onScroll={(event) => onScrollLeftChange(event.currentTarget.scrollLeft)}
-        className="periodic-table-scroll w-full min-w-0 overflow-x-auto overscroll-x-contain"
-        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}
-      >
-        <table
-          aria-label={`Elements ${group.from}–${group.to}`}
-          className="w-full min-w-[460px] table-fixed border-collapse text-sm sm:text-base"
+      <div className="periodic-range-table-frame mx-auto w-fit max-w-full min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/40">
+        <div
+          role="region"
+          aria-label={`Elements ${group.from}–${group.to} table`}
+          data-periodic-table-scroll="true"
+          ref={scrollRegionRef}
+          onScroll={(event) => onScrollLeftChange(event.currentTarget.scrollLeft)}
+          className="periodic-table-scroll w-full min-w-0 overflow-x-auto overscroll-x-contain"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}
         >
-          <colgroup>
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '32%' }} />
-            <col style={{ width: '28%' }} />
-            <col style={{ width: '26%' }} />
-          </colgroup>
+          <table
+            aria-label={`Elements ${group.from}–${group.to}`}
+            className="periodic-range-table w-max min-w-0 table-fixed border-collapse"
+          >
+            <colgroup>
+              <col className="periodic-col-number" />
+              <col className="periodic-col-element" />
+              <col className="periodic-col-symbol" />
+              <col className="periodic-col-mass" />
+            </colgroup>
           <thead className="border-b border-border/70 bg-background text-foreground">
             <tr>
-              <th scope="col" className="px-1 py-2 text-center text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC NO.</th>
-              <th scope="col" className="px-1 py-2 text-left text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ELEMENT</th>
-              <th scope="col" className="px-1.5 py-2 text-center text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">SYMBOL</th>
-              <th scope="col" className="whitespace-nowrap px-1 py-2 text-right text-[13px] font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:text-sm sm:tracking-wide">ATOMIC MASS</th>
+              <th scope="col" className="periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC NO.</th>
+              <th scope="col" className="periodic-range-column-heading px-1 py-2 text-left font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ELEMENT</th>
+              <th scope="col" className="periodic-range-column-heading px-1 py-2 text-center font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">SYMBOL</th>
+              <th scope="col" className="periodic-range-column-heading whitespace-nowrap px-1 py-2 text-right font-black uppercase leading-tight tracking-normal sm:px-4 sm:py-3.5 sm:tracking-wide">ATOMIC MASS</th>
             </tr>
           </thead>
           <tbody>
             {elements.map((el) => (
               <tr key={el.number} className="border-b border-border/50 last:border-b-0 hover:bg-primary/[0.035]">
-                <td className="px-1 py-1.5 text-center text-sm font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">{el.number}</td>
-                <td className="px-1 py-1.5 sm:px-4 sm:py-3">
+                <td className="periodic-range-cell px-1 py-1.5 text-center font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">{el.number}</td>
+                <td className="periodic-range-cell px-1 py-1.5 sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
                     aria-label={`${el.name}, atomic number ${el.number}`}
                     data-periodic-element-select="true"
-                    className="block min-h-10 w-full whitespace-normal break-words rounded-md py-1 text-left text-sm font-semibold leading-snug text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-base"
+                    className="periodic-range-element-name block min-h-10 w-full whitespace-normal break-words rounded-md py-1 text-left font-semibold leading-snug text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     {el.name}
                   </button>
                 </td>
-                <td className="px-1 py-1.5 text-center sm:px-4 sm:py-3">
+                <td className="periodic-range-cell px-1 py-1.5 text-center sm:px-4 sm:py-3">
                   <button
                     type="button"
                     onClick={() => onSelectElement(el.number)}
                     aria-label={`Open ${el.name} details`}
                     data-periodic-element-select="true"
-                    className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md px-1 text-sm font-display font-black tabular-nums text-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-base"
+                    className="periodic-range-symbol inline-flex min-h-9 min-w-9 items-center justify-center rounded-md px-1 font-display font-black tabular-nums text-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     {el.symbol}
                   </button>
                 </td>
-                <td className="whitespace-nowrap px-1 py-1.5 text-right text-sm font-semibold tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-base">{formatMass(el, massMode)}</td>
+                <td className="periodic-range-cell whitespace-nowrap px-1 py-1.5 text-right font-semibold tabular-nums text-foreground sm:px-4 sm:py-3">{formatMass(el, massMode)}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   );
@@ -458,6 +462,7 @@ const PeriodicTableLearning = ({
   selectedRangeIndex,
   onSelectRange,
   onBack,
+  onBackToTable,
   onOpenPractice,
 }: PeriodicTableLearningProps) => {
   const morePressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -476,6 +481,7 @@ const PeriodicTableLearning = ({
     ? requestedRangeIndex
     : null;
   const previousRangeIndexRef = useRef<number | null>(activeRangeIndex);
+  const skipRangeMenuRestoreRef = useRef(false);
   const lastSelectedRangeIndexRef = useRef<number | null>(activeRangeIndex);
   const tableScrollLeftRef = useRef(0);
   const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
@@ -635,15 +641,28 @@ const PeriodicTableLearning = ({
 
   useEffect(() => {
     if (previousRangeIndexRef.current !== null && activeRangeIndex === null) {
-      // The app router has returned from a dedicated range page. Restore the
-      // exact range picker context without adding another history entry.
-      setActivePopup('ranges');
+      // System/browser Back keeps its existing range-picker restoration. An
+      // explicit toolbar Back uses the direct-table path and skips the picker.
+      if (skipRangeMenuRestoreRef.current) {
+        skipRangeMenuRestoreRef.current = false;
+      } else {
+        setActivePopup('ranges');
+      }
     }
     if (activeRangeIndex !== null) {
       lastSelectedRangeIndexRef.current = activeRangeIndex;
     }
     previousRangeIndexRef.current = activeRangeIndex;
   }, [activeRangeIndex]);
+
+  const handleRangePageBack = () => {
+    skipRangeMenuRestoreRef.current = true;
+    setActivePopup(null);
+    setRangeMenuPosition(null);
+    setMassMenuPosition(null);
+    if (onBackToTable) onBackToTable();
+    else changeRange(null);
+  };
 
   const changeRange = (index: number | null) => {
     if (index !== null && !isValidPeriodicRangeIndex(index)) return;
@@ -773,10 +792,7 @@ const PeriodicTableLearning = ({
         <div className="app-topbar-page relative flex min-w-0 items-center justify-between gap-1.5" data-app-topbar>
           <button
             type="button"
-            onClick={() => {
-              if (onBack) onBack();
-              else changeRange(null);
-            }}
+            onClick={handleRangePageBack}
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             aria-label="Back"
           >
