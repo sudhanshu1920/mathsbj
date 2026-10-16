@@ -787,9 +787,26 @@ jobs:
               raise SystemExit("Published update manifest has an invalid APK checksum")
           PY
 
+      - name: Verify published APK asset SHA-256 before push
+        shell: bash
+        env:
+          PUBLISHED_APK_URL: https://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk
+        run: |
+          set -euo pipefail
+          expected_sha256="$(python3 -c 'import json; from pathlib import Path; print(json.loads(Path("dist/updates/update.json").read_text(encoding="utf-8"))["sha256"].lower())')"
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 \
+            "${PUBLISHED_APK_URL}?cacheBust=${GITHUB_SHA}" \
+            -o "$RUNNER_TEMP/published-mathmaster.apk"
+          test -s "$RUNNER_TEMP/published-mathmaster.apk"
+          actual_sha256="$(sha256sum "$RUNNER_TEMP/published-mathmaster.apk" | awk '{print $1}')"
+          if [ "$actual_sha256" != "$expected_sha256" ]; then
+            echo "::error::Published APK asset SHA-256 does not match the update manifest; FCM notification will not be sent."
+            exit 1
+          fi
+          echo "Public APK asset verified against the published update manifest."
+
       - name: Send new-release push notification through Firebase (optional until configured)
         shell: bash
-        continue-on-error: true
         env:
           MATHMASTER_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.MATHMASTER_FIREBASE_SERVICE_ACCOUNT_JSON }}
           MATHMASTER_FIREBASE_CLIENT_CONFIG_PATH: android/app/google-services.json
