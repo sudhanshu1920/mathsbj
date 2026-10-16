@@ -178,8 +178,11 @@ describe('PeriodicTableLearning', () => {
       expect(within(table).getByRole('row', { name: /17.*Chlorine.*Cl.*35\.45/ })).toBeInTheDocument();
 
       const openMassMenu = (pointerId: number) => {
-        fireEvent.pointerDown(moreButton, { button: 0, pointerId, pointerType: 'touch' });
+        // Selecting a range changes the dedicated page and remounts the toolbar.
+        const currentMoreButton = screen.getByRole('button', { name: /open element range menu/i });
+        fireEvent.pointerDown(currentMoreButton, { button: 0, pointerId, pointerType: 'touch' });
         act(() => { vi.advanceTimersByTime(550); });
+        fireEvent.pointerUp(currentMoreButton, { button: 0, pointerId, pointerType: 'touch' });
       };
 
       openMassMenu(101);
