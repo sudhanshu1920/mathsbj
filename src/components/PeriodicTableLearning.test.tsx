@@ -276,7 +276,8 @@ describe('PeriodicTableLearning', () => {
     expect(headers[0]).toHaveClass('text-center');
     expect(headers[1]).toHaveClass('text-left');
     expect(headers[2]).toHaveClass('text-center');
-    expect(headers[3]).toHaveClass('text-right');
+    expect(headers[3]).toHaveClass('text-center', 'periodic-range-mass');
+    expect(headers[3]).not.toHaveClass('text-right');
     expect(table.querySelectorAll('tbody td.periodic-range-cell')).toHaveLength(40);
     const tableRegion = screen.getByRole('region', { name: 'Elements 21–30 table' });
     expect(tableRegion).not.toHaveClass('max-h-[min(64dvh,38rem)]');
