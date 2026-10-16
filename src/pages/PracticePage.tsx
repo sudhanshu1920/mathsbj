@@ -455,7 +455,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       numbers: inRange.map((el) => el.number),
       symbols: inRange.map((el) => el.symbol),
       names: inRange.map((el) => el.name),
-      masses: inRange.map((el) => Number(formatMass(el, massMode).replace(/[\[\]]/g, ''))),
+      masses: inRange.map((el) => Number(formatMass(el, massMode).replaceAll('[', '').replaceAll(']', ''))),
     };
     for (const el of inRange) {
       for (const type of selected) {
