@@ -21,13 +21,15 @@ import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
 import { getTrigAngles, type TrigFunction } from '@/lib/trigData';
 import type { PracticeLaunchContext } from '@/lib/practiceNavigation';
+import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table';
+type PeriodicPracticeSelection = { from: number; to: number; questionTypes: PeriodicQuestionType[]; massMode: PeriodicMassMode };
 
 interface LearningPageProps {
   onBack?: () => void;
   onBackToPeriodicTable?: () => void;
-  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number }) => void;
+  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
   practiceSelectorOpen?: boolean;
@@ -72,6 +74,7 @@ const LearningPage = ({
     practiceReturn?.topic === 'trig' ? practiceReturn.extras?.trigProMode ?? false : false,
   );
   const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
+  const [pendingPeriodicPractice, setPendingPeriodicPractice] = useState<PeriodicPracticeSelection | null>(null);
 
   useEffect(() => {
     setShowPracticeMode(practiceSelectorOpen);
@@ -114,7 +117,10 @@ const LearningPage = ({
     }
   };
 
-  const setActiveTopic = (t: Topic | null) => updateState({ activeTopic: t, selectedNumber: null, selectedRange: null, formulaSectionIndex: null, formulaCategoryIndex: null, periodicSelectedElement: null, periodicSelectedRangeIndex: null });
+  const setActiveTopic = (t: Topic | null) => {
+    if (t !== 'periodic-table') setPendingPeriodicPractice(null);
+    updateState({ activeTopic: t, selectedNumber: null, selectedRange: null, formulaSectionIndex: null, formulaCategoryIndex: null, periodicSelectedElement: null, periodicSelectedRangeIndex: null });
+  };
   const setSelectedElement = (n: number | null) => updateState({ periodicSelectedElement: n });
   const setSelectedNumber = (n: number | null) => updateState({ selectedNumber: n });
   const setSelectedRange = (r: { from: number; to: number } | null) => updateState({ selectedRange: r });
@@ -143,6 +149,10 @@ const LearningPage = ({
     const ctx: { from?: number; to?: number; number?: number } = {};
     if (selectedNumber) ctx.number = selectedNumber;
     if (selectedRange) { ctx.from = selectedRange.from; ctx.to = selectedRange.to; }
+    if (activeTopic === 'periodic-table' && pendingPeriodicPractice) {
+      ctx.from = pendingPeriodicPractice.from;
+      ctx.to = pendingPeriodicPractice.to;
+    }
     if (activeTopic === 'periodic-table' && periodicSelectedElement) {
       ctx.number = periodicSelectedElement;
     }
@@ -160,6 +170,10 @@ const LearningPage = ({
       timerEnabled: settings.timerEnabled,
       timerSeconds: settings.timerSeconds,
       infinite: settings.infinite,
+      ...(activeTopic === 'periodic-table' && pendingPeriodicPractice ? {
+        periodicQuestionTypes: [...pendingPeriodicPractice.questionTypes],
+        periodicMassMode: pendingPeriodicPractice.massMode,
+      } : {}),
     });
     setPendingTrigFunctions(null);
     setShowPracticeMode(false);
@@ -305,7 +319,11 @@ const LearningPage = ({
               onSelectElement={(n) => setSelectedElement(n)}
               onBack={onBack}
               onBackToTable={onBackToPeriodicTable}
-              onOpenPractice={openPracticeMode}
+              initialPracticeQuestionTypes={pendingPeriodicPractice?.questionTypes}
+              onOpenPractice={(selection) => {
+                setPendingPeriodicPractice({ ...selection, questionTypes: [...selection.questionTypes] });
+                openPracticeMode();
+              }}
             />
           </Suspense>
         </div>

@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import { getTrigQuestions, getTrigAngles, buildTrigOptions, isTrigAnswerCorrect, TRIG_FUNCTIONS, type TrigFunction, type TrigAngle } from '@/lib/trigData';
-import { ELEMENTS, formatMass } from '@/lib/periodicTable';
+import { ELEMENTS, formatMass, type PeriodicMassMode, type PeriodicQuestionType } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
 import { enqueueQuestionRetry, ensureOutstandingQuestionRetries, getQuizCompletionPercent, identifyQuizQuestions, shouldFinishQuestionQueue } from '@/lib/quizRetryQueue';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
@@ -76,8 +76,6 @@ interface PracticeConfig {
   repetitionByTopic: Record<string, number>;
 }
 
-type PeriodicQuestionType = 'atomic-number' | 'symbol' | 'name' | 'mass';
-type PeriodicMassMode = 'round' | 'exact';
 type AnswerType = 'decimal-pct' | 'mixed-pct' | 'fraction' | 'trig' | 'text';
 
 interface MixedPct {
@@ -457,7 +455,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
       numbers: inRange.map((el) => el.number),
       symbols: inRange.map((el) => el.symbol),
       names: inRange.map((el) => el.name),
-      masses: inRange.map((el) => Number(formatMass(el, massMode))),
+      masses: inRange.map((el) => Number(formatMass(el, massMode).split('[').join('').split(']').join(''))),
     };
     for (const el of inRange) {
       for (const type of selected) {
@@ -472,9 +470,13 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
             ? { text: `Which element has the symbol ${el.symbol}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType }
             : { text: `What is the symbol of ${el.name}?`, answer: el.symbol, answerType: 'text', optionPool: optionPool.symbols, topicLabel: labelWithType });
         } else if (type === 'name') {
-          questions.push(reverse
-            ? { text: `What element has atomic number ${el.number}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType }
-            : { text: `Which element has the symbol ${el.symbol}?`, answer: el.name, answerType: 'text', optionPool: optionPool.names, topicLabel: labelWithType });
+          questions.push({
+            text: `What is the name of element number ${el.number}?`,
+            answer: el.name,
+            answerType: 'text',
+            optionPool: optionPool.names,
+            topicLabel: labelWithType,
+          });
         } else {
           const massText = formatMass(el, massMode);
           const massValue = Number(massText.replace(/[\\[\\]]/g, ''));
@@ -847,7 +849,7 @@ interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
   initialMode?: 'mcq' | 'input';
-  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number };
+  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode };
   onExit?: () => void;
   onExitCancelled?: () => void;
   externalBackRequest?: number;
@@ -1089,6 +1091,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               trigProMode: initialExtras?.trigProMode ?? false,
             }
           : {}),
+        ...(mappedTopic === 'periodic-table'
+          ? {
+              periodicQuestionTypes: [...(initialExtras?.periodicQuestionTypes ?? ['atomic-number', 'symbol', 'name', 'mass'])],
+              periodicMassMode: initialExtras?.periodicMassMode ?? 'round',
+            }
+          : {}),
       };
       const cfg: PracticeConfig = {
         topics: [{ id: mappedTopic, label: topicInfo?.label || mappedTopic, range }],
@@ -1115,6 +1123,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     initialExtras?.trigFunctions,
     initialExtras?.trigProMode,
     initialExtras?.count,
+    initialExtras?.periodicQuestionTypes,
+    initialExtras?.periodicMassMode,
     startPractice,
   ]);
 

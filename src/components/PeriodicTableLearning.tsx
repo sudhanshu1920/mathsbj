@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import SwipeContainer from '@/components/SwipeContainer';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
-import type { ChemElement } from '@/lib/periodicTable';
+import type { ChemElement, PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
 import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
 import { getPeriodicRangeElements } from '@/lib/periodicRanges';
 import {
@@ -23,10 +23,11 @@ interface PeriodicTableLearningProps {
   onBack?: () => void;
   /** Directly returns from a range page to the main Periodic Table view. */
   onBackToTable?: () => void;
-  onOpenPractice?: () => void;
+  initialPracticeQuestionTypes?: PeriodicQuestionType[];
+  onOpenPractice?: (selection: { from: number; to: number; questionTypes: PeriodicQuestionType[]; massMode: PeriodicMassMode }) => void;
 }
 
-type AtomicMassMode = 'exact' | 'round';
+type AtomicMassMode = PeriodicMassMode;
 
 type PopupPosition = {
   top: number;
@@ -457,6 +458,7 @@ const ElementDetails = ({
 const PeriodicTableLearning = ({
   selectedElement,
   onSelectElement,
+  initialPracticeQuestionTypes,
   selectedRangeIndex,
   onSelectRange,
   onBack,
@@ -483,6 +485,8 @@ const PeriodicTableLearning = ({
   const lastSelectedRangeIndexRef = useRef<number | null>(activeRangeIndex);
   const tableScrollLeftRef = useRef(0);
   const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
+  const [practicePopupOpen, setPracticePopupOpen] = useState(false);
+  const [practiceQuestionTypes, setPracticeQuestionTypes] = useState<PeriodicQuestionType[]>(() => [...new Set<PeriodicQuestionType>(initialPracticeQuestionTypes ?? [])]);
   // One discriminated state makes the two popup surfaces mutually exclusive.
   const [activePopup, setActivePopup] = useState<'ranges' | 'mass' | null>(null);
   const rangeMenuOpen = activePopup === 'ranges';
@@ -571,6 +575,21 @@ const PeriodicTableLearning = ({
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [activePopup]);
+
+  useEffect(() => {
+    if (!practicePopupOpen) return;
+    const handlePracticeEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPracticePopupOpen(false);
+    };
+    document.addEventListener('keydown', handlePracticeEscape);
+    return () => document.removeEventListener('keydown', handlePracticeEscape);
+  }, [practicePopupOpen]);
+
+  const togglePracticeQuestionType = (type: PeriodicQuestionType) => {
+    setPracticeQuestionTypes((previous) => previous.includes(type)
+      ? previous.filter((item) => item !== type)
+      : [...previous, type]);
+  };
 
   const clearMorePressTimer = () => {
     morePressGenerationRef.current += 1;
@@ -803,7 +822,7 @@ const PeriodicTableLearning = ({
             {onOpenPractice && (
               <button
                 type="button"
-                onClick={onOpenPractice}
+                onClick={() => setPracticePopupOpen(true)}
                 className="inline-flex h-7 items-center gap-1 rounded-full gradient-primary px-2 text-[10px] font-semibold text-primary-foreground"
               >
                 <Dumbbell size={12} />
@@ -815,6 +834,85 @@ const PeriodicTableLearning = ({
             {renderRangeSelector()}
           </div>
         </div>
+
+        {practicePopupOpen && typeof document !== 'undefined' && createPortal(
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[2px]"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setPracticePopupOpen(false);
+            }}
+          >
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="periodic-practice-title"
+              aria-describedby="periodic-practice-description"
+              className="max-h-[min(82dvh,34rem)] w-full max-w-sm overflow-y-auto overscroll-contain rounded-2xl border border-border/80 bg-popover p-4 text-popover-foreground shadow-2xl sm:p-5"
+            >
+              <div className="mb-4">
+                <h3 id="periodic-practice-title" className="font-display text-lg font-black text-foreground">Choose What to Practice</h3>
+                <p id="periodic-practice-description" className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Select one or more properties for elements {activeRange.from}–{activeRange.to}.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {([
+                  ['atomic-number', 'Atomic No.'],
+                  ['name', 'Element'],
+                  ['symbol', 'Symbol'],
+                  ['mass', 'Atomic Mass'],
+                ] as [PeriodicQuestionType, string][]).map(([type, label]) => {
+                  const checked = practiceQuestionTypes.includes(type);
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={checked}
+                      onClick={() => togglePracticeQuestionType(type)}
+                      className={'flex min-h-12 w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ' + (checked ? 'border-primary bg-primary/10 text-foreground' : 'border-border/75 bg-background/70 text-foreground hover:border-primary/50 hover:bg-secondary/70')}
+                    >
+                      <span className={'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ' + (checked ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/50 bg-background')}>
+                        {checked && <Check size={14} strokeWidth={3} aria-hidden="true" />}
+                      </span>
+                      <span className="flex-1">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {practiceQuestionTypes.length === 0 && (
+                <p role="status" className="mt-3 text-xs font-medium text-muted-foreground">Select at least one property to continue.</p>
+              )}
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPracticePopupOpen(false)}
+                  className="min-h-10 flex-1 rounded-xl border border-border px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={practiceQuestionTypes.length === 0}
+                  onClick={() => {
+                    if (practiceQuestionTypes.length === 0 || !onOpenPractice) return;
+                    onOpenPractice({
+                      from: activeRange.from,
+                      to: activeRange.to,
+                      questionTypes: [...practiceQuestionTypes],
+                      massMode,
+                    });
+                    setPracticePopupOpen(false);
+                  }}
+                  className="min-h-10 flex-1 rounded-xl bg-primary px-3 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  Continue
+                </button>
+              </div>
+            </section>
+          </div>,
+          document.body,
+        )}
         <SwipeContainer
           edgeBackEnabled
           itemCount={PERIODIC_GROUPS.length}

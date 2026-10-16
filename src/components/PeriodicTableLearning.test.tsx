@@ -448,7 +448,7 @@ describe('PeriodicTableLearning', () => {
     expect(screen.queryByRole('button', { name: /Next element range/i })).not.toBeInTheDocument();
   });
 
-  it('keeps Practice and the unchanged three-dot selector aligned on the dedicated page', () => {
+  it('selects Periodic Table properties before opening Practice Mode and preserves the range menu', () => {
     const onOpenPractice = vi.fn();
     const onSelectRange = vi.fn();
     render(
@@ -472,10 +472,73 @@ describe('PeriodicTableLearning', () => {
     expect(header.contains(rangeButton)).toBe(true);
 
     fireEvent.click(practice);
+    const dialog = screen.getByRole('dialog', { name: 'Choose What to Practice' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(onOpenPractice).not.toHaveBeenCalled();
+    const continueButton = within(dialog).getByRole('button', { name: 'Continue' });
+    expect(continueButton).toBeDisabled();
+
+    const atomicNumber = within(dialog).getByRole('checkbox', { name: 'Atomic No.' });
+    const element = within(dialog).getByRole('checkbox', { name: 'Element' });
+    const symbol = within(dialog).getByRole('checkbox', { name: 'Symbol' });
+    const mass = within(dialog).getByRole('checkbox', { name: 'Atomic Mass' });
+    fireEvent.click(atomicNumber);
+    fireEvent.click(element);
+    fireEvent.click(mass);
+    fireEvent.click(element);
+    fireEvent.click(element);
+    expect(atomicNumber).toHaveAttribute('aria-checked', 'true');
+    expect(element).toHaveAttribute('aria-checked', 'true');
+    expect(symbol).toHaveAttribute('aria-checked', 'false');
+    expect(mass).toHaveAttribute('aria-checked', 'true');
+    expect(continueButton).toBeEnabled();
+
+    fireEvent.click(continueButton);
     expect(onOpenPractice).toHaveBeenCalledTimes(1);
+    expect(onOpenPractice).toHaveBeenCalledWith({
+      from: 1,
+      to: 10,
+      questionTypes: ['atomic-number', 'mass', 'name'],
+      massMode: 'exact',
+    });
+    expect(screen.queryByRole('dialog', { name: 'Choose What to Practice' })).not.toBeInTheDocument();
 
     fireEvent.click(rangeButton);
     expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
+  });
+
+  it('preserves property selections when the popup is cancelled and reopened without duplicates', () => {
+    const onOpenPractice = vi.fn();
+    render(
+      <PeriodicTableLearning
+        selectedElement={null}
+        selectedRangeIndex={1}
+        onSelectElement={vi.fn()}
+        onOpenPractice={onOpenPractice}
+      />,
+    );
+
+    const practice = screen.getByRole('button', { name: /practice/i });
+    fireEvent.click(practice);
+    let dialog = screen.getByRole('dialog', { name: 'Choose What to Practice' });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Symbol' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(onOpenPractice).not.toHaveBeenCalled();
+
+    fireEvent.click(practice);
+    dialog = screen.getByRole('dialog', { name: 'Choose What to Practice' });
+    expect(within(dialog).getByRole('checkbox', { name: 'Symbol' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Atomic No.' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Element' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Atomic Mass' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    expect(onOpenPractice).toHaveBeenCalledTimes(1);
+    expect(onOpenPractice).toHaveBeenCalledWith({
+      from: 11,
+      to: 20,
+      questionTypes: ['symbol', 'atomic-number', 'name', 'mass'],
+      massMode: 'exact',
+    });
   });
 
   it('swipes from the table, preserves vertical scrolling, and keeps element selection working', () => {
