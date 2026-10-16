@@ -285,9 +285,9 @@ const PeriodicRangeView = ({
           className="w-full min-w-[36rem] table-fixed border-collapse text-sm sm:text-base"
         >
           <colgroup>
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '39%' }} />
             <col style={{ width: '15%' }} />
-            <col style={{ width: '43%' }} />
-            <col style={{ width: '14%' }} />
             <col style={{ width: '28%' }} />
           </colgroup>
           <thead className="border-b border-border/70 bg-background text-foreground">
