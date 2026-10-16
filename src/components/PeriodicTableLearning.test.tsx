@@ -165,6 +165,53 @@ describe('PeriodicTableLearning', () => {
     }
   });
 
+
+  it('keeps the atomic-mass popup wide, viewport-anchored, and applies exact/round formatting', () => {
+    vi.useFakeTimers();
+    try {
+      render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
+      const moreButton = screen.getByRole('button', { name: /open element range menu/i });
+
+      fireEvent.click(moreButton);
+      fireEvent.click(screen.getByRole('button', { name: /11–20 10 elements/i }));
+      const table = screen.getByRole('table', { name: 'Elements 11–20' });
+      expect(within(table).getByRole('row', { name: /17.*Chlorine.*Cl.*35\.45/ })).toBeInTheDocument();
+
+      const openMassMenu = (pointerId: number) => {
+        fireEvent.pointerDown(moreButton, { button: 0, pointerId, pointerType: 'touch' });
+        act(() => { vi.advanceTimersByTime(550); });
+      };
+
+      openMassMenu(101);
+      const dialog = screen.getByRole('dialog', { name: 'Atomic mass format' });
+      expect(dialog).toHaveClass('periodic-mass-menu', 'fixed', 'z-[100]');
+      expect(dialog.parentElement).toBe(document.body);
+      expect(dialog).toHaveStyle({ position: 'fixed' });
+      const width = Number.parseFloat((dialog as HTMLElement).style.width);
+      const left = Number.parseFloat((dialog as HTMLElement).style.left);
+      const top = Number.parseFloat((dialog as HTMLElement).style.top);
+      expect(width).toBeGreaterThan(0);
+      expect(width).toBeLessThanOrEqual(window.innerWidth - 24);
+      expect(left).toBeGreaterThanOrEqual(12);
+      expect(left + width).toBeLessThanOrEqual(window.innerWidth - 12);
+      expect(top).toBeGreaterThanOrEqual(12);
+      expect(screen.getByRole('button', { name: /Exact Figure/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Round Figure/ })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Round Figure/ }));
+      expect(screen.queryByRole('dialog', { name: 'Atomic mass format' })).not.toBeInTheDocument();
+      expect(within(table).getByRole('row', { name: /17.*Chlorine.*Cl.*35\.5/ })).toBeInTheDocument();
+
+      openMassMenu(102);
+      fireEvent.click(screen.getByRole('button', { name: /Exact Figure/ }));
+      expect(screen.queryByRole('dialog', { name: 'Atomic mass format' })).not.toBeInTheDocument();
+      expect(within(table).getByRole('row', { name: /17.*Chlorine.*Cl.*35\.45/ })).toBeInTheDocument();
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
   it('opens the matching dedicated table from every range card', () => {
     render(<PeriodicTableLearning selectedElement={null} onSelectElement={vi.fn()} />);
 
@@ -206,11 +253,12 @@ describe('PeriodicTableLearning', () => {
     ]);
     expect(within(table).getAllByRole('row')).toHaveLength(11);
     expect(table.querySelectorAll('col')).toHaveLength(4);
-    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '18%' });
-    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '36%' });
-    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '25%' });
-    expect(table.querySelectorAll('col')[3]).toHaveStyle({ width: '21%' });
-    expect(table).toHaveClass('w-full', 'min-w-0', 'table-fixed');
+    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '14%' });
+    expect(table.querySelectorAll('col')[1]).toHaveStyle({ width: '32%' });
+    expect(table.querySelectorAll('col')[2]).toHaveStyle({ width: '28%' });
+    expect(table.querySelectorAll('col')[3]).toHaveStyle({ width: '26%' });
+    expect(table).toHaveClass('w-full', 'min-w-[460px]', 'table-fixed');
+    expect(table.querySelector('thead th:last-child')).toHaveClass('whitespace-nowrap');
     const tableRegion = screen.getByRole('region', { name: 'Elements 21–30 table' });
     expect(tableRegion).not.toHaveClass('rounded-2xl', 'shadow-sm', 'border');
     expect(tableRegion).not.toHaveClass('max-h-[min(64dvh,38rem)]');
