@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, ReactNode, TouchEvent } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
+import { SWIPE_BACK_EDGE_WIDTH } from '@/components/SwipeBack';
 
 interface SwipeContainerProps {
   items?: ReactNode[];
@@ -9,9 +10,11 @@ interface SwipeContainerProps {
   onIndexChange: (index: number) => void;
   /** Ignore gestures that begin inside nested controls or scroll surfaces. */
   ignoreSwipeSelector?: string;
+  /** Reserve left-edge starts for the enclosing SwipeBack, not range paging. */
+  edgeBackEnabled?: boolean;
 }
 
-const SwipeContainer = ({ items, itemCount, renderItem, currentIndex, onIndexChange, ignoreSwipeSelector }: SwipeContainerProps) => {
+const SwipeContainer = ({ items, itemCount, renderItem, currentIndex, onIndexChange, ignoreSwipeSelector, edgeBackEnabled = false }: SwipeContainerProps) => {
   const count = itemCount ?? items?.length ?? 0;
   const [direction, setDirection] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -19,6 +22,18 @@ const SwipeContainer = ({ items, itemCount, renderItem, currentIndex, onIndexCha
   const swiping = useRef(false);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    // The enclosing SwipeBack owns edge-origin gestures; don't also page to the
+    // previous range when the same touch finishes moving right.
+    if (edgeBackEnabled && touch.clientX <= SWIPE_BACK_EDGE_WIDTH) {
+      touchStart.current = null;
+      axisLocked.current = null;
+      swiping.current = false;
+      return;
+    }
+
     const target = e.target;
     if (
       ignoreSwipeSelector &&
@@ -30,13 +45,10 @@ const SwipeContainer = ({ items, itemCount, renderItem, currentIndex, onIndexCha
       swiping.current = false;
       return;
     }
-
-    const touch = e.touches[0];
-    if (!touch) return;
     touchStart.current = { x: touch.clientX, y: touch.clientY };
     axisLocked.current = null;
     swiping.current = false;
-  }, [ignoreSwipeSelector]);
+  }, [edgeBackEnabled, ignoreSwipeSelector]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!touchStart.current) return;
