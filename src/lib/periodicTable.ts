@@ -366,7 +366,7 @@ function getPhysicalCaveat(number: number): string | undefined {
   return undefined;
 }
 
-function createPhysicalProperties(number: number): ElementPhysicalProperties {
+function createPhysicalProperties(number: number, symbol: string): ElementPhysicalProperties {
   const values = VERIFIED_PHYSICAL_VALUES.get(number);
   const caveat = getPhysicalCaveat(number);
   return {
@@ -374,7 +374,7 @@ function createPhysicalProperties(number: number): ElementPhysicalProperties {
     meltingPointK: values?.meltingPointK ?? null,
     boilingPointK: values?.boilingPointK ?? null,
     sourceName: PHYSICAL_DATA_SOURCE,
-    sourceUrl: `https://pubchem.ncbi.nlm.nih.gov/element/${number}`,
+    sourceUrl: `https://pubchem.ncbi.nlm.nih.gov/element/${symbol}`,
     ...(caveat ? { caveat } : {}),
   };
 }
@@ -393,7 +393,7 @@ export const ELEMENTS: ChemElement[] = RAW.split('\n').map((line, i) => {
     category: CAT[cat],
     config,
     state: uncertainState ? 'Unknown' : GASES.has(number) ? 'Gas' : LIQUIDS.has(number) ? 'Liquid' : 'Solid',
-    physicalProperties: createPhysicalProperties(number),
+    physicalProperties: createPhysicalProperties(number, symbol),
     ...place(number),
   };
 });
