@@ -6,7 +6,7 @@ import SwipeContainer from '@/components/SwipeContainer';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import type { ChemElement, PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
-import { CATEGORY_LABEL, ELEMENTS, formatMass } from '@/lib/periodicTable';
+import { CATEGORY_LABEL, ELEMENTS, formatMass, PUBCHEM_PERIODIC_TABLE_SNAPSHOT_DATE, PUBCHEM_PERIODIC_TABLE_URL } from '@/lib/periodicTable';
 import { getPeriodicRangeElements } from '@/lib/periodicRanges';
 import {
   getAdjacentPeriodicRangeIndex,
@@ -393,7 +393,6 @@ const ElementDetails = ({
     ['Period', String(element.period)],
     ['Group', element.group === null ? 'Not assigned (f-block)' : String(element.group)],
     ['Block', `${element.block}-block`],
-    ['State', element.state],
     ['Radioactive', element.radioactive ? 'Yes' : 'No'],
     ['Electron Configuration', element.config],
   ], [element, massMode]);
@@ -488,9 +487,102 @@ const ElementDetails = ({
             </div>
           </div>
         </div>
-        <p className="px-2 py-3 text-center text-[10px] font-medium text-muted-foreground">
-          Element properties shown are limited to information available in the app’s shared dataset.
-        </p>
+        <section
+          aria-labelledby="physical-properties-title"
+          className="mt-4 rounded-2xl border border-border/70 bg-card/40 p-4 sm:p-5"
+          data-physical-properties-for={element.number}
+        >
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 id="physical-properties-title" className="font-display text-lg font-black text-foreground sm:text-xl">
+              Physical Properties
+            </h2>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              {element.state === 'Unknown' ? 'Bulk state unconfirmed' : '20 °C · 1 atm'}
+            </span>
+          </div>
+
+          {(() => {
+            const physical = element.physicalProperties;
+            const unavailable = 'Data unavailable in the selected structured source';
+            const temperature = (kelvin: number | null | undefined) =>
+              kelvin == null ? unavailable : `${kelvin} K (≈ ${Math.round(kelvin - 273.15)} °C)`;
+            const stateValue = element.state === 'Unknown'
+              ? 'Data unavailable — bulk state is not established in this snapshot'
+              : `${element.state} at 20 °C and 1 atm`;
+            const densityValue = physical?.densityGPerCm3 == null
+              ? unavailable
+              : `${physical.densityGPerCm3} g/cm³${element.state === 'Gas' ? ' (gas density at STP)' : ''}`;
+            const transitionPointValue = (kind: 'melting' | 'boiling') => {
+              if (element.number === 2 && kind === 'melting') {
+                return 'Not shown at 1 atm — helium requires pressure to solidify';
+              }
+              if (element.number === 6 || element.number === 33) {
+                return 'Not shown — sublimes at 1 atm';
+              }
+              return temperature(kind === 'melting' ? physical?.meltingPointK : physical?.boilingPointK);
+            };
+            const stateNotSolid = element.state === 'Gas' || element.state === 'Liquid';
+            const unknownState = element.state === 'Unknown';
+            const rows: Array<[string, string]> = [
+              ['Physical State', stateValue],
+              ['Appearance / Color', unavailable],
+              ['Density', densityValue],
+              ['Melting Point', transitionPointValue('melting')],
+              ['Boiling Point', transitionPointValue('boiling')],
+              ['Thermal Conductivity', unavailable],
+              ['Electrical Conductivity / Resistivity', unavailable],
+              ['Specific Heat Capacity', unavailable],
+              ['Hardness', stateNotSolid ? 'Not applicable for a bulk gas/liquid at the reference conditions' : unavailable],
+              ['Molar Volume / Atomic Volume', unavailable],
+              ['Crystal Structure', stateNotSolid ? 'Not applicable for a bulk gas/liquid at the reference conditions' : unknownState ? 'Data unavailable — bulk state is not established' : unavailable],
+              ['Magnetic Property', unavailable],
+              ['Thermal Expansion', unavailable],
+              ['Mechanical Properties', stateNotSolid ? 'Not applicable for a bulk gas/liquid at the reference conditions' : unknownState ? 'Data unavailable — bulk state is not established' : unavailable],
+            ];
+            return (
+              <dl className="grid min-w-0 grid-cols-1 gap-x-6 min-[640px]:grid-cols-2">
+                {rows.map(([label, value]) => (
+                  <div key={label} className="min-w-0 border-b border-border/45 py-2.5">
+                    <dt className="text-[10px] font-extrabold uppercase tracking-[0.09em] text-muted-foreground sm:text-[11px]">
+                      {label}
+                    </dt>
+                    <dd className="mt-1 break-words text-sm font-semibold leading-snug text-foreground">
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            );
+          })()}
+
+          {element.physicalProperties?.caveat && (
+            <p className="mt-3 rounded-lg bg-secondary/45 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+              {element.physicalProperties.caveat}
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/45 pt-3 text-[11px] leading-relaxed text-muted-foreground">
+            <span>
+              Local offline snapshot · Retrieved {PUBCHEM_PERIODIC_TABLE_SNAPSHOT_DATE}. Temperatures supplied in K; °C is rounded to the nearest degree. Density values are shown in g/cm³; gas densities are labelled STP where applicable.
+            </span>
+            <a
+              href={element.physicalProperties?.sourceUrl ?? PUBCHEM_PERIODIC_TABLE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary"
+            >
+              PubChem source for {element.name}
+            </a>
+            <a
+              href={PUBCHEM_PERIODIC_TABLE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary"
+            >
+              Snapshot data source
+            </a>
+          </div>
+        </section>
       </div>
     </section>
   );
