@@ -6,7 +6,7 @@ import SwipeContainer from '@/components/SwipeContainer';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import type { ChemElement, PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
-import { CATEGORY_LABEL, ELEMENTS, formatMass, PUBCHEM_PERIODIC_TABLE_URL } from '@/lib/periodicTable';
+import { CATEGORY_LABEL, ELEMENTS, formatMass, PUBCHEM_PERIODIC_TABLE_SNAPSHOT_DATE, PUBCHEM_PERIODIC_TABLE_URL } from '@/lib/periodicTable';
 import { getPeriodicRangeElements } from '@/lib/periodicRanges';
 import {
   getAdjacentPeriodicRangeIndex,
@@ -563,7 +563,7 @@ const ElementDetails = ({
 
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/45 pt-3 text-[11px] leading-relaxed text-muted-foreground">
             <span>
-              Local offline snapshot · Temperatures supplied in K; °C is rounded to the nearest degree. Density values are shown in g/cm³; gas densities are labelled STP where applicable.
+              Local offline snapshot · Retrieved {PUBCHEM_PERIODIC_TABLE_SNAPSHOT_DATE}. Temperatures supplied in K; °C is rounded to the nearest degree. Density values are shown in g/cm³; gas densities are labelled STP where applicable.
             </span>
             <a
               href={element.physicalProperties?.sourceUrl ?? PUBCHEM_PERIODIC_TABLE_URL}
