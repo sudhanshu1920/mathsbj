@@ -61,7 +61,49 @@ let listenersStarted = false;
 let lastPayloadSignature = '';
 let lastUpdateAlertsSetting: boolean | null = null;
 let syncQueue: Promise<void> = Promise.resolve();
+let updateAlertsSyncPromise: Promise<void> | null = null;
+let requestedUpdateAlertsSetting: boolean | null = null;
 let lastPersistedSyncAt = 0;
+
+const queueUpdateAlertsSync = (): void => {
+  requestedUpdateAlertsSetting = getBackgroundNotificationsEnabled();
+  if (updateAlertsSyncPromise) return;
+
+  updateAlertsSyncPromise = (async () => {
+    while (requestedUpdateAlertsSetting !== null) {
+      const desired = requestedUpdateAlertsSetting;
+      requestedUpdateAlertsSetting = null;
+      if (lastUpdateAlertsSetting === desired) continue;
+
+      try {
+        const result = await NativeNotifications.setUpdateAlerts({ enabled: desired });
+        if (!result.configured) {
+          // A Firebase-free build still supports local reminders. Do not keep
+          // retrying an integration that is not present in this installed APK.
+          console.info('Background notifications: FCM update alerts are not configured on this build.');
+          lastUpdateAlertsSetting = desired;
+        } else if (result.success !== true || result.subscribed !== desired) {
+          console.warn('Background notifications: FCM topic subscription was not confirmed; it will be retried on the next sync.');
+          lastUpdateAlertsSetting = null;
+        } else {
+          lastUpdateAlertsSetting = desired;
+        }
+      } catch {
+        console.warn('Background notifications: unable to synchronize FCM update-topic preference.');
+        lastUpdateAlertsSetting = null;
+      }
+
+      // If the user toggled the preference while Firebase was working, apply
+      // the newest choice after the in-flight operation completes.
+      if (getBackgroundNotificationsEnabled() !== desired) {
+        requestedUpdateAlertsSetting = getBackgroundNotificationsEnabled();
+      }
+    }
+  })().finally(() => {
+    updateAlertsSyncPromise = null;
+    if (requestedUpdateAlertsSetting !== null) queueUpdateAlertsSync();
+  });
+};
 
 export const getNextDailyReminderMinute = (
   currentMinute: number,
@@ -117,20 +159,10 @@ const queueNativeSync = (force = false): Promise<boolean> => {
       if (syncResult.synced !== true) {
         throw new Error('Native daily reminder scheduler did not confirm the requested state.');
       }
-      if (lastUpdateAlertsSetting !== backgroundEnabled) {
-        const pushResult = await NativeNotifications.setUpdateAlerts({ enabled: backgroundEnabled });
-        if (!pushResult.configured) {
-          // Local reminders still work in a non-Firebase build; do not misreport
-          // push configuration as proof of delivery.
-          console.info('Background notifications: FCM update alerts are not configured on this build.');
-          lastUpdateAlertsSetting = backgroundEnabled;
-        } else if (pushResult.success !== true || pushResult.subscribed !== backgroundEnabled) {
-          console.warn('Background notifications: FCM topic subscription was not confirmed; it will be retried on the next sync.');
-          lastUpdateAlertsSetting = null;
-        } else {
-          lastUpdateAlertsSetting = backgroundEnabled;
-        }
-      }
+      // Keep local alarm scheduling independent of FCM/network latency.
+      // Push topic changes are serialized separately and can retry on a later
+      // progress sync or app resume without blocking the study reminder toggle.
+      queueUpdateAlertsSync();
       succeeded = true;
     })
     .catch(() => {
