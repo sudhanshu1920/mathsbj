@@ -11,6 +11,18 @@ export type ElementCategory =
 export type PeriodicQuestionType = 'atomic-number' | 'symbol' | 'name' | 'mass';
 export type PeriodicMassMode = 'round' | 'exact';
 
+export interface ElementPhysicalProperties {
+  /** PubChem periodic-table snapshot; density is normalized to g/cm³. */
+  densityGPerCm3: number | null;
+  /** PubChem values are Kelvin. Null means no suitable value was included. */
+  meltingPointK: number | null;
+  boilingPointK: number | null;
+  sourceName: 'PubChem Periodic Table';
+  /** Element-specific record for provenance and additional measurement notes. */
+  sourceUrl: string;
+  caveat?: string;
+}
+
 export interface ChemElement {
   number: number;
   symbol: string;
@@ -26,7 +38,10 @@ export interface ChemElement {
   xpos: number;
   /** grid row 1-7 main, 9 lanthanides, 10 actinides */
   ypos: number;
+  /** Approximate bulk phase at 20 °C and 1 atm; Unknown where not established. */
   state: 'Solid' | 'Liquid' | 'Gas' | 'Unknown';
+  /** Every exported element has this object; unavailable values are explicitly null. */
+  physicalProperties?: ElementPhysicalProperties;
 }
 
 // number|symbol|name|mass|category code|config  (mass ending "*" = radioactive mass number)
@@ -215,10 +230,159 @@ function place(n: number): Pick<ChemElement, 'period' | 'group' | 'block' | 'xpo
   return { period, group, block: group <= 12 ? 'd' : 'p', xpos: group, ypos: period };
 }
 
-export const ELEMENTS: ChemElement[] = RAW.split('\n').map((line, i) => {
+const UNCERTAIN_BULK_STATE = new Set([85, 87]);
+const PHYSICAL_DATA_SOURCE = 'PubChem Periodic Table' as const;
+export const PUBCHEM_PERIODIC_TABLE_URL = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug/periodictable/JSON';
+
+/**
+ * Offline snapshot of PubChem's Periodic Table structured fields.
+ * Format: atomicNumber|meltingPointK|boilingPointK|densityGPerCm3.
+ * Blank values deliberately remain unavailable rather than inferred.
+ *
+ * Values are omitted for bulk properties not established for transient/
+ * synthetic elements in this snapshot. Helium's pressure-dependent melting
+ * point and normal-pressure subliming elements (carbon and arsenic) are
+ * intentionally not mislabeled as ordinary 1-atm melting/boiling points.
+ */
+const PHYSICAL_DATA_RAW = `1|13.81|20.28|0.00008988
+2||4.22|0.0001785
+3|453.65|1615|0.534
+4|1560|2744|1.85
+5|2348|4273|2.37
+6|||2.2670
+7|63.15|77.36|0.0012506
+8|54.36|90.2|0.001429
+9|53.53|85.03|0.001696
+10|24.56|27.07|0.0008999
+11|370.95|1156|0.97
+12|923|1363|1.74
+13|933.437|2792|2.70
+14|1687|3538|2.3296
+15|317.3|553.65|1.82
+16|388.36|717.75|2.067
+17|171.65|239.11|0.003214
+18|83.8|87.3|0.0017837
+19|336.53|1032|0.89
+20|1115|1757|1.54
+21|1814|3109|2.99
+22|1941|3560|4.5
+23|2183|3680|6.0
+24|2180|2944|7.15
+25|1519|2334|7.3
+26|1811|3134|7.874
+27|1768|3200|8.86
+28|1728|3186|8.912
+29|1357.77|2835|8.933
+30|692.68|1180|7.134
+31|302.91|2477|5.91
+32|1211.4|3106|5.323
+33|||5.776
+34|493.65|958|4.809
+35|265.95|331.95|3.11
+36|115.79|119.93|0.003733
+37|312.46|961|1.53
+38|1050|1655|2.64
+39|1795|3618|4.47
+40|2128|4682|6.52
+41|2750|5017|8.57
+42|2896|4912|10.2
+43|2430|4538|11
+44|2607|4423|12.1
+45|2237|3968|12.4
+46|1828.05|3236|12.0
+47|1234.93|2435|10.501
+48|594.22|1040|8.69
+49|429.75|2345|7.31
+50|505.08|2875|7.287
+51|903.78|1860|6.685
+52|722.66|1261|6.232
+53|386.85|457.55|4.93
+54|161.36|165.03|0.005887
+55|301.59|944|1.93
+56|1000|2170|3.62
+57|1191|3737|6.15
+58|1071|3697|6.770
+59|1204|3793|6.77
+60|1294|3347|7.01
+61|1315|3273|7.26
+62|1347|2067|7.52
+63|1095|1802|5.24
+64|1586|3546|7.90
+65|1629|3503|8.23
+66|1685|2840|8.55
+67|1747|2973|8.80
+68|1802|3141|9.07
+69|1818|2223|9.32
+70|1092|1469|6.90
+71|1936|3675|9.84
+72|2506|4876|13.3
+73|3290|5731|16.4
+74|3695|5828|19.3
+75|3459|5869|20.8
+76|3306|5285|22.57
+77|2719|4701|22.42
+78|2041.55|4098|21.46
+79|1337.33|3129|19.282
+80|234.32|629.88|13.5336
+81|577|1746|11.8
+82|600.61|2022|11.342
+83|544.55|1837|9.807
+84|527|1235|9.32
+86|202|211.45|0.00973
+88|973|1413|5
+89|1324|3471|10.07
+90|2023|5061|11.72
+91|1845||15.37
+92|1408|4404|18.95
+93|917|4175|20.25
+94|913|3501|19.84
+95|1449|2284|13.69
+96|1618|3400|13.51`;
+
+function parsePhysicalValue(raw: string | undefined): number | null {
+  if (raw === undefined || raw.trim() === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+const VERIFIED_PHYSICAL_VALUES = new Map<number, Pick<ElementPhysicalProperties, 'densityGPerCm3' | 'meltingPointK' | 'boilingPointK'>>(
+  PHYSICAL_DATA_RAW.split('\\n').map((line) => {
+    const [numberRaw, meltingRaw, boilingRaw, densityRaw] = line.split('|');
+    return [Number(numberRaw), {
+      meltingPointK: parsePhysicalValue(meltingRaw),
+      boilingPointK: parsePhysicalValue(boilingRaw),
+      densityGPerCm3: parsePhysicalValue(densityRaw),
+    }];
+  }),
+);
+
+function getPhysicalCaveat(number: number): string | undefined {
+  if (number === 2) return 'Helium does not solidify at 1 atm; pressure-dependent melting values are omitted.';
+  if (number === 6) return 'Carbon sublimes at 1 atm; ordinary-pressure melting and boiling values are omitted.';
+  if (number === 33) return 'Arsenic sublimes at 1 atm; ordinary-pressure melting and boiling values are omitted.';
+  if (number === 85 || number === 87) return 'Reliable bulk physical measurements are not established in this snapshot.';
+  if (number >= 97) return 'Bulk physical values are omitted because this snapshot does not distinguish experimentally measured values from estimates for these synthetic/radioactive elements.';
+  return undefined;
+}
+
+function createPhysicalProperties(number: number): ElementPhysicalProperties {
+  const values = VERIFIED_PHYSICAL_VALUES.get(number);
+  const caveat = getPhysicalCaveat(number);
+  return {
+    densityGPerCm3: values?.densityGPerCm3 ?? null,
+    meltingPointK: values?.meltingPointK ?? null,
+    boilingPointK: values?.boilingPointK ?? null,
+    sourceName: PHYSICAL_DATA_SOURCE,
+    sourceUrl: `https://pubchem.ncbi.nlm.nih.gov/element/${number}`,
+    ...(caveat ? { caveat } : {}),
+  };
+}
+
+export const ELEMENTS: ChemElement[] = RAW.split('\\n').map((line, i) => {
   const [symbol, name, massRaw, cat, config] = line.split('|');
   const number = i + 1;
   const radioactive = massRaw.endsWith('*');
+  const uncertainState = number >= 97 || UNCERTAIN_BULK_STATE.has(number);
   return {
     number,
     symbol,
@@ -227,7 +391,8 @@ export const ELEMENTS: ChemElement[] = RAW.split('\n').map((line, i) => {
     radioactive,
     category: CAT[cat],
     config,
-    state: number > 103 ? 'Unknown' : GASES.has(number) ? 'Gas' : LIQUIDS.has(number) ? 'Liquid' : 'Solid',
+    state: uncertainState ? 'Unknown' : GASES.has(number) ? 'Gas' : LIQUIDS.has(number) ? 'Liquid' : 'Solid',
+    physicalProperties: createPhysicalProperties(number),
     ...place(number),
   };
 });
