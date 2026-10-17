@@ -671,7 +671,7 @@ describe('PeriodicTableLearning', () => {
     expect(onSelectElement).toHaveBeenCalledWith(21);
   });
 
-  it('shows the selected element on its detail page and does not attach range swipes there', () => {
+  it('shows element details and supports left/right swipes for next and previous elements', () => {
     const onSelectElement = vi.fn();
     const onSelectRange = vi.fn();
     const onBack = vi.fn();
@@ -696,16 +696,71 @@ describe('PeriodicTableLearning', () => {
     expect(screen.getAllByText('44.956').length).toBeGreaterThan(0);
     expect(screen.getByText('Electron Configuration')).toBeInTheDocument();
 
-    const details = screen.getByLabelText('Scandium element details');
-    fireEvent.pointerDown(details, { pointerType: 'touch', button: 0, clientX: 230, clientY: 120, isPrimary: true });
-    fireEvent.pointerUp(details, { pointerType: 'touch', button: 0, clientX: 100, clientY: 123, isPrimary: true });
+    const swipe = (
+      target: HTMLElement,
+      fromX: number,
+      fromY: number,
+      toX: number,
+      toY: number,
+      pointerId: number,
+    ) => {
+      fireEvent.pointerDown(target, {
+        pointerId, pointerType: 'touch', button: 0, isPrimary: true, clientX: fromX, clientY: fromY,
+      });
+      fireEvent.pointerUp(target, {
+        pointerId, pointerType: 'touch', button: 0, isPrimary: true, clientX: toX, clientY: toY,
+      });
+    };
+
+    const scandiumDetails = screen.getByLabelText('Scandium element details');
+    swipe(scandiumDetails, 230, 120, 100, 123, 501);
+    expect(onSelectElement).toHaveBeenLastCalledWith(22);
     expect(onSelectRange).not.toHaveBeenCalled();
+
+    rerender(<PeriodicTableLearning {...props} selectedElement={22} />);
+    expect(screen.getByLabelText('Titanium element details')).toBeInTheDocument();
+    const titaniumDetails = screen.getByLabelText('Titanium element details');
+    swipe(titaniumDetails, 100, 120, 230, 123, 502);
+    expect(onSelectElement).toHaveBeenLastCalledWith(21);
+
+    rerender(<PeriodicTableLearning {...props} selectedElement={21} />);
+    const detailsAfterNavigation = screen.getByLabelText('Scandium element details');
+    swipe(detailsAfterNavigation, 230, 120, 225, 205, 503);
+    expect(onSelectElement).toHaveBeenCalledTimes(3);
 
     fireEvent.click(screen.getByRole('button', { name: /Back to previous Periodic Table page/i }));
     expect(onBack).toHaveBeenCalledTimes(1);
 
     rerender(<PeriodicTableLearning {...props} />);
     expect((screen.getByRole('region', { name: 'Elements 21–30 table' }) as HTMLDivElement).scrollLeft).toBe(140);
+  });
+
+  it('does not wrap past the first or last element when swiping on the detail page', () => {
+    const onSelectElement = vi.fn();
+    const renderProps = { selectedElement: 1 as number | null, onSelectElement };
+    const { rerender } = render(<PeriodicTableLearning {...renderProps} />);
+
+    const swipe = (target: HTMLElement, fromX: number, toX: number, pointerId: number) => {
+      fireEvent.pointerDown(target, {
+        pointerId, pointerType: 'touch', button: 0, isPrimary: true, clientX: fromX, clientY: 120,
+      });
+      fireEvent.pointerUp(target, {
+        pointerId, pointerType: 'touch', button: 0, isPrimary: true, clientX: toX, clientY: 123,
+      });
+    };
+
+    swipe(screen.getByLabelText('Hydrogen element details'), 100, 220, 511);
+    expect(onSelectElement).not.toHaveBeenCalled();
+
+    swipe(screen.getByLabelText('Hydrogen element details'), 220, 100, 512);
+    expect(onSelectElement).toHaveBeenCalledWith(2);
+
+    rerender(<PeriodicTableLearning {...renderProps} selectedElement={118} />);
+    swipe(screen.getByLabelText('Oganesson element details'), 220, 100, 513);
+    expect(onSelectElement).toHaveBeenCalledTimes(1);
+
+    swipe(screen.getByLabelText('Oganesson element details'), 100, 220, 514);
+    expect(onSelectElement).toHaveBeenLastCalledWith(117);
   });
 
 
