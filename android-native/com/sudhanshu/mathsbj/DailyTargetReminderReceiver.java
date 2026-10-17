@@ -121,7 +121,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             candidate.set(Calendar.SECOND, 0);
             candidate.set(Calendar.MILLISECOND, 0);
             long triggerAt = candidate.getTimeInMillis();
-            if (triggerAt <= nowMillis + 5000L) continue;
+            if (triggerAt <= nowMillis) continue;
 
             return scheduleAlarm(context, candidate, minuteOfDay, todayKey());
         }
