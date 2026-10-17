@@ -365,10 +365,9 @@ jobs:
 
                       Handler mainHandler = new Handler(getContext().getMainLooper());
                       mainHandler.post(new Runnable() {
-                          private int attempts = 0;
-
                           @Override
                           public void run() {
+                              long nextPollDelay = 1500L;
                               try {
                                   DownloadManager.Query query =
                                       new DownloadManager.Query().setFilterById(downloadId);
@@ -383,10 +382,16 @@ jobs:
                                           cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
                                       long total = cursor.getLong(
                                           cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
-                                      if (status == DownloadManager.STATUS_RUNNING
-                                          || status == DownloadManager.STATUS_PENDING
-                                          || status == DownloadManager.STATUS_PAUSED) {
+                                      if (status == DownloadManager.STATUS_RUNNING) {
                                           notifyDownloadState(downloadId, "downloading", downloaded, total, null, null);
+                                          nextPollDelay = 1000L;
+                                      } else if (status == DownloadManager.STATUS_PENDING) {
+                                          notifyDownloadState(downloadId, "downloading", downloaded, total, null, null);
+                                          nextPollDelay = 3000L;
+                                      } else if (status == DownloadManager.STATUS_PAUSED) {
+                                          notifyDownloadState(downloadId, "paused", downloaded, total, null,
+                                              "Android paused this download; it will resume when the platform allows.");
+                                          nextPollDelay = 15000L;
                                       } else if (status == DownloadManager.STATUS_SUCCESSFUL) {
                                           notifyDownloadState(downloadId, "verifying", downloaded, total, null, null);
                                           Uri apkUri = manager.getUriForDownloadedFile(downloadId);
@@ -463,16 +468,12 @@ jobs:
                                           failDownload(manager, downloadId, "The APK download failed. Check the network and retry.");
                                           return;
                                       }
-                                      if (attempts++ > 900) {
-                                          failDownload(manager, downloadId, "APK download timed out. Please retry.");
-                                          return;
-                                      }
                                   }
                               } catch (Exception pollingError) {
                                   failDownload(manager, downloadId, "Unable to verify the APK download status.");
                                   return;
                               }
-                              mainHandler.postDelayed(this, 1000);
+                              mainHandler.postDelayed(this, nextPollDelay);
                           }
                       });
 
