@@ -53,8 +53,14 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
         String apkUrl = data.get("apkUrl");
         String checksum = data.get("sha256");
         String manifestUrl = data.get("updateManifestUrl");
+        long numericVersionCode = -1L;
+        try {
+            numericVersionCode = Long.parseLong(versionCode == null ? "" : versionCode);
+        } catch (NumberFormatException ignored) {
+            // Invalid release metadata is rejected below.
+        }
         if (versionName == null || !versionName.matches("[0-9]+\\.[0-9]+\\.[0-9]+")
-            || versionCode == null || !versionCode.matches("[1-9][0-9]{0,9}")
+            || numericVersionCode < 1L || numericVersionCode > 2100000000L
             || !"https://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk".equals(apkUrl)
             || checksum == null || !checksum.matches("(?i)[a-f0-9]{64}")
             || !"https://raw.githubusercontent.com/sudhanshu1920/mathsbj-updates/main/updates/update.json".equals(manifestUrl)) {
