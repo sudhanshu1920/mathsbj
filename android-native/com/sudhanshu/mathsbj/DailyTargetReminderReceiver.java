@@ -246,7 +246,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             manager.createNotificationChannel(channel);
         }
 
-        if (!manager.areNotificationsEnabled()) {
+        if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) {
             Log.w(TAG, "Reminder not posted because app-level Android notifications are disabled.");
             return false;
         }
