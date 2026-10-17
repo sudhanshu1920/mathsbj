@@ -1,5 +1,10 @@
 import { Capacitor } from "@capacitor/core";
-import { isAndroidNativeUpdaterAvailable, getInstalledAndroidVersion, startAndroidUpdate } from "@/nativeAppUpdater";
+import {
+  isAndroidNativeUpdaterAvailable,
+  getInstalledAndroidVersion,
+  startAndroidUpdate,
+  saveAndroidUpdateToDownloads,
+} from "@/nativeAppUpdater";
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "@/lib/appVersion";
 import { fetchLatestRelease, validateReleaseManifest, type ReleaseManifest } from "@/lib/updateFeed";
 import { isNewerRelease } from "@/lib/updateVersion";
@@ -14,17 +19,34 @@ export type AppUpdateCheckResult =
 export type AppUpdateInstallResult =
   | { status: "started"; platform: "android"; downloadId: number }
   | { status: "applying"; platform: "web" }
-  | { status: "offline" | "unsupported" | "error" };
+  | { status: "current" | "offline" | "unsupported" | "error" };
+
+export type AppUpdateDownloadResult =
+  | { status: "started"; platform: "android"; downloadId: number; update: ReleaseManifest }
+  | { status: "offline" | "unsupported" | "current" | "error" };
 
 let checkRequest: Promise<AppUpdateCheckResult> | null = null;
+
+async function getCurrentVersion() {
+  return isAndroidNativeUpdaterAvailable()
+    ? getInstalledAndroidVersion()
+    : { versionCode: APP_VERSION_CODE, versionName: APP_VERSION_NAME };
+}
+
+async function getFreshInstallableRelease(candidate: ReleaseManifest) {
+  // A dialog can remain open while the public manifest changes or the app is
+  // updated elsewhere. Re-fetch and revalidate at the point of user action.
+  validateReleaseManifest(candidate);
+  const [latestRaw, current] = await Promise.all([fetchLatestRelease(), getCurrentVersion()]);
+  const latest = validateReleaseManifest(latestRaw);
+  return { latest, current, newer: isNewerRelease(latest, current) };
+}
 
 async function runCheck(): Promise<AppUpdateCheckResult> {
   if (typeof navigator !== "undefined" && !navigator.onLine) return { status: "offline" };
   try {
     const isAndroid = isAndroidNativeUpdaterAvailable();
-    const current = isAndroid
-      ? await getInstalledAndroidVersion()
-      : { versionCode: APP_VERSION_CODE, versionName: APP_VERSION_NAME };
+    const current = await getCurrentVersion();
     const latest = await fetchLatestRelease();
 
     let available = isNewerRelease(latest, current);
@@ -58,26 +80,47 @@ export function checkForAppUpdate(): Promise<AppUpdateCheckResult> {
 }
 
 export async function installAppUpdate(candidate: ReleaseManifest): Promise<AppUpdateInstallResult> {
-  const update = validateReleaseManifest(candidate);
   if (typeof navigator !== "undefined" && !navigator.onLine) return { status: "offline" };
-  if (isAndroidNativeUpdaterAvailable()) {
-    const result = await startAndroidUpdate(update);
+  try {
+    const { latest, newer } = await getFreshInstallableRelease(candidate);
+    if (!newer && isAndroidNativeUpdaterAvailable()) return { status: "current" };
+    if (isAndroidNativeUpdaterAvailable()) {
+      const result = await startAndroidUpdate(latest);
+      if (result.status !== "started") return result;
+      return { status: "started", platform: "android", downloadId: result.downloadId };
+    }
+
+    const result = await applyPwaUpdate();
+    if (result === "applying") return { status: "applying", platform: "web" };
+
+    // A browser-only PWA may not have a service worker. Reload is safe here;
+    // native Android always takes the signed APK installer route above.
+    if (result === "unsupported" && !Capacitor.isNativePlatform()) {
+      if (typeof window === "undefined") return { status: "unsupported" };
+      window.location.reload();
+      return { status: "applying", platform: "web" };
+    }
+
+    if (result === "offline" || result === "unsupported" || result === "error") return { status: result };
+    return { status: "error" };
+  } catch (error) {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return { status: "offline" };
+    return { status: "error" };
+  }
+}
+
+/** Saves the latest verified Android release into the public Downloads folder. */
+export async function downloadAppUpdate(candidate: ReleaseManifest): Promise<AppUpdateDownloadResult> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return { status: "offline" };
+  if (!isAndroidNativeUpdaterAvailable()) return { status: "unsupported" };
+  try {
+    const { latest, newer } = await getFreshInstallableRelease(candidate);
+    if (!newer) return { status: "current" };
+    const result = await saveAndroidUpdateToDownloads(latest);
     if (result.status !== "started") return result;
-    return { status: "started", platform: "android", downloadId: result.downloadId };
+    return { status: "started", platform: "android", downloadId: result.downloadId, update: latest };
+  } catch (error) {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return { status: "offline" };
+    return { status: "error" };
   }
-  const result = await applyPwaUpdate();
-  if (result === "applying") return { status: "applying", platform: "web" };
-
-  // A normal browser tab (or a browser where service-worker registration was
-  // unavailable during startup) can still apply a published web deployment by
-  // reloading after the user explicitly chose Update Now. Native platforms
-  // must never take this path because reloading cannot install a native APK.
-  if (result === "unsupported" && !Capacitor.isNativePlatform()) {
-    if (typeof window === "undefined") return { status: "unsupported" };
-    window.location.reload();
-    return { status: "applying", platform: "web" };
-  }
-
-  if (result === "offline" || result === "unsupported" || result === "error") return { status: result };
-  return { status: "error" };
 }
