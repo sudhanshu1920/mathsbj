@@ -31,6 +31,12 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
     private static final String TAG = "MathAppReminders";
     private static final int ALARM_REQUEST_CODE = 7401;
     private static final int NOTIFICATION_ID = 7402;
+    private static final int REMINDER_POLICY_VERSION = 2;
+    private static final int[] DEFAULT_REMINDER_MINUTES = {
+        720, 840, 960, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320
+    };
+    private static final String DEFAULT_REMINDER_SCHEDULE_JSON =
+        "[720,840,960,1080,1140,1185,1230,1260,1290,1310,1320]";
     private static final Random RANDOM = new Random();
 
     @Override
@@ -42,6 +48,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         }
 
         normalizeDay(prefs);
+        ensureCurrentSchedulePolicy(prefs);
         Log.i(TAG, "Alarm received; validating current local target state.");
         String today = todayKey();
         String scheduledDay = intent.getStringExtra("scheduledDay");
@@ -53,13 +60,15 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         if (!prefs.getBoolean("enabled", false)
             || !DailyTargetReminderPlugin.hasNotificationPermission(context)) {
             cancelScheduled(context);
+            cancelVisibleReminder(context);
             return;
         }
 
         int targetMinutes = Math.max(1, prefs.getInt("targetMinutes", 5));
         long elapsedSeconds = Math.max(0L, prefs.getLong("elapsedSeconds", 0L));
-        if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
+        if (elapsedSeconds >= targetMinutes * 60L) {
             prefs.edit().putBoolean("completed", true).apply();
+            cancelVisibleReminder(context);
             Log.i(TAG, "Reminder skipped because the daily target is complete.");
             scheduleNext(context);
             return;
@@ -73,8 +82,17 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             return;
         }
 
+        JSONArray slots = parseArray(prefs.getString("scheduleMinutesJson", DEFAULT_REMINDER_SCHEDULE_JSON));
+        int stageIndex = getStageIndex(slots, currentMinute);
+        if (stageIndex < 0) {
+            // An alarm delayed past today's 10 PM cutoff must not post a stale reminder.
+            scheduleNext(context);
+            return;
+        }
+
         int remainingMinutes = (int) Math.max(1L, (long) Math.ceil((targetMinutes * 60L - elapsedSeconds) / 60.0));
-        boolean posted = showReminder(context, prefs, remainingMinutes);
+        int minutesToCutoff = getMinutesUntilCutoff();
+        boolean posted = showReminder(context, prefs, remainingMinutes, stageIndex, minutesToCutoff);
         if (posted) {
             Log.i(TAG, "Reminder posted to NotificationManager; actual device presentation is not observable here.");
         } else {
@@ -86,6 +104,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
     public static boolean scheduleNext(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         normalizeDay(prefs);
+        ensureCurrentSchedulePolicy(prefs);
         cancelScheduled(context);
 
         if (!prefs.getBoolean("enabled", false)
@@ -97,19 +116,11 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         int targetMinutes = Math.max(1, prefs.getInt("targetMinutes", 5));
         long elapsedSeconds = Math.max(0L, prefs.getLong("elapsedSeconds", 0L));
 
-        JSONArray slots = parseArray(prefs.getString("scheduleMinutesJson", "[]"));
-        if (slots.length() == 0) {
-            slots = new JSONArray();
-            slots.put(12 * 60);
-            slots.put(14 * 60);
-            slots.put(16 * 60);
-            slots.put(18 * 60);
-            slots.put(20 * 60);
-            slots.put(22 * 60);
-        }
+        JSONArray slots = parseArray(prefs.getString("scheduleMinutesJson", DEFAULT_REMINDER_SCHEDULE_JSON));
 
-        if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
+        if (elapsedSeconds >= targetMinutes * 60L) {
             prefs.edit().putBoolean("completed", true).apply();
+            cancelVisibleReminder(context);
             return scheduleTomorrow(context, slots);
         }
 
@@ -186,6 +197,12 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         }
     }
 
+    /** Remove the currently visible reminder when the user finishes the target or opts out. */
+    public static void cancelVisibleReminder(Context context) {
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) manager.cancel(NOTIFICATION_ID);
+    }
+
     public static void cancelScheduled(Context context) {
         Intent alarmIntent = new Intent(context, DailyTargetReminderReceiver.class);
         alarmIntent.setAction(ACTION_FIRE);
@@ -203,6 +220,55 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         if (alarmManager != null) alarmManager.cancel(pendingIntent);
         pendingIntent.cancel();
         Log.i(TAG, "Pending local reminder alarm cancelled.");
+    }
+
+    private static boolean matchesCurrentSchedule(JSONArray slots) {
+        if (slots.length() != DEFAULT_REMINDER_MINUTES.length) return false;
+        for (int index = 0; index < DEFAULT_REMINDER_MINUTES.length; index++) {
+            if (slots.optInt(index, -1) != DEFAULT_REMINDER_MINUTES[index]) return false;
+        }
+        return true;
+    }
+
+    /**
+     * On package replacement, SharedPreferences survive while the old six-slot
+     * schedule would otherwise survive too. Migrate the policy before arming an
+     * alarm so a never-opened upgraded app still uses the current 11-stage day.
+     */
+    private static void ensureCurrentSchedulePolicy(SharedPreferences prefs) {
+        JSONArray current = parseArray(prefs.getString("scheduleMinutesJson", "[]"));
+        if (prefs.getInt("schedulePolicyVersion", 0) == REMINDER_POLICY_VERSION
+            && matchesCurrentSchedule(current)) {
+            return;
+        }
+        prefs.edit()
+            .putInt("schedulePolicyVersion", REMINDER_POLICY_VERSION)
+            .putString("scheduleMinutesJson", DEFAULT_REMINDER_SCHEDULE_JSON)
+            .apply();
+        Log.i(TAG, "Migrated persisted daily-target reminders to the current 11-stage schedule.");
+    }
+
+    private static int getStageIndex(JSONArray slots, int currentMinute) {
+        if (slots.length() == 0 || currentMinute < slots.optInt(0, 720)
+            || currentMinute > slots.optInt(slots.length() - 1, 1320)) {
+            return -1;
+        }
+        int stageIndex = -1;
+        for (int index = 0; index < slots.length(); index++) {
+            if (slots.optInt(index, -1) > currentMinute) break;
+            stageIndex = index;
+        }
+        return stageIndex;
+    }
+
+    private static int getMinutesUntilCutoff() {
+        Calendar cutoff = Calendar.getInstance();
+        cutoff.set(Calendar.HOUR_OF_DAY, 22);
+        cutoff.set(Calendar.MINUTE, 0);
+        cutoff.set(Calendar.SECOND, 0);
+        cutoff.set(Calendar.MILLISECOND, 0);
+        long remainingMillis = cutoff.getTimeInMillis() - System.currentTimeMillis();
+        return (int) Math.max(0L, (long) Math.ceil(remainingMillis / 60000.0));
     }
 
     private static void normalizeDay(SharedPreferences prefs) {
@@ -229,7 +295,111 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         catch (JSONException ignored) { return new JSONArray(); }
     }
 
-    private static boolean showReminder(Context context, SharedPreferences prefs, int remainingMinutes) {
+    private static JSONArray getFallbackMessages(int stageIndex, boolean marathi) {
+        String[][] fallback = marathi ? new String[][] {
+            {
+                "चॅम्पियन, आजचं टार्गेट सुरू करूया का? अभ्यासाचे %1$d मिनिटं बाकी 💪",
+                "नवीन दिवस, नवीन संधी! अजून %1$d मिनिटांचा अभ्यास 🚀"
+            },
+            {
+                "दुपार झाली! टार्गेट झोपलंय की तू? %1$d मिनिटं बाकी 😂",
+                "फोनला आराम मिळाला, आता मेंदूची पाळी! %1$d मिनिटं 😎"
+            },
+            {
+                "टार्गेटशी एवढी ओळख नको! %1$d मिनिटं अभ्यास करूया 😂",
+                "टार्गेट रात्री स्वप्नात येईल—अजून %1$d मिनिटं 😏"
+            },
+            {
+                "संध्याकाळ झाली! बहाणे थांबवून %1$d मिनिटं पूर्ण करूया 😏",
+                "अभ्यास उद्यावर ढकलू नकोस—%1$d मिनिटं बाकी 😂"
+            },
+            {
+                "आता वेळ वाया नको! %1$d मिनिटांचा अभ्यास बाकी 🔥",
+                "आजचा दिवस हातात आहे—%1$d मिनिटं पूर्ण करूया 💪"
+            },
+            {
+                "वेळ पुढे जातोय! %1$d मिनिटं अभ्यास बाकी 🔥",
+                "लक्ष्य जवळ आणूया—अजून %1$d मिनिटं 💪"
+            },
+            {
+                "रात्रीची तयारी, टार्गेट अजून बाकी? %1$d मिनिटं 😂",
+                "आजच टार्गेटला निरोप देऊया—%1$d मिनिटं 😏"
+            },
+            {
+                "आता लक्ष्यावर फोकस! %1$d मिनिटं बाकी ⏳",
+                "दिवस संपण्याआधी एक छोटीशी जिंक मिळव—%1$d मिनिटं 💪"
+            },
+            {
+                "फायनल राऊंड! %1$d मिनिटं पूर्ण करून आजचा दिवस जिंक 🔥",
+                "आजचं टार्गेट आजच—अजून %1$d मिनिटं 😎"
+            },
+            {
+                "रात्री 10 वाजेपर्यंत %2$d मिनिटं! अभ्यासाचे %1$d मिनिटं बाकी ⏳",
+                "10 वाजेपर्यंत फक्त %2$d मिनिटं—शक्य तितकं पूर्ण करूया 🚀 (%1$d मिनिटं)"
+            },
+            {
+                "आजचा शेवटचा रिमाइंडर! अभ्यासाचे %1$d मिनिटं बाकी 💪",
+                "अंतिम चेक-इन—शक्य तितकं लक्ष्य पूर्ण करूया 🌟 (%1$d मिनिटं)"
+            }
+        } : new String[][] {
+            {
+                "चैंपियन, आज का लक्ष्य शुरू करें? पढ़ाई के %1$d मिनट बाकी 💪",
+                "नया दिन, नया मौका! %1$d मिनट पढ़ाई करें 🚀"
+            },
+            {
+                "दोपहर हो गई! टारगेट सो रहा है क्या? %1$d मिनट बाकी 😂",
+                "मोबाइल को आराम, अब दिमाग की बारी! %1$d मिनट 😎"
+            },
+            {
+                "टारगेट से इतनी दोस्ती क्यों? %1$d मिनट पढ़ाई करें 😂",
+                "टारगेट रात को सपने में आएगा—%1$d मिनट बाकी 😏"
+            },
+            {
+                "शाम हो गई! बहाने बंद, %1$d मिनट पढ़ाई करें 😏",
+                "आज का काम कल पर न डालें—%1$d मिनट बाकी 😂"
+            },
+            {
+                "अब वक्त बर्बाद नहीं! %1$d मिनट पढ़ाई बाकी 🔥",
+                "दिन अभी हाथ में है—%1$d मिनट पूरे करें 💪"
+            },
+            {
+                "वक्त निकल रहा है! %1$d मिनट पढ़ाई बाकी 🔥",
+                "लक्ष्य करीब लाएं—अभी %1$d मिनट 💪"
+            },
+            {
+                "रात होने वाली है, टारगेट बाकी? %1$d मिनट 😂",
+                "आज ही टारगेट खत्म करें—%1$d मिनट बाकी 😏"
+            },
+            {
+                "अब लक्ष्य पर फोकस करें! %1$d मिनट बाकी ⏳",
+                "दिन खत्म होने से पहले एक जीत दिला दें—%1$d मिनट 💪"
+            },
+            {
+                "फाइनल राउंड! %1$d मिनट पूरे करके आज जीतें 🔥",
+                "आज का टारगेट आज ही—%1$d मिनट बाकी 😎"
+            },
+            {
+                "रात 10 बजे तक %2$d मिनट! पढ़ाई के %1$d मिनट बाकी ⏳",
+                "10 बजे तक सिर्फ %2$d मिनट—जितना हो सके पूरा करें 🚀 (%1$d मिनट)"
+            },
+            {
+                "आज का आखिरी रिमाइंडर! पढ़ाई के %1$d मिनट बाकी 💪",
+                "अंतिम चेक-इन—जितना हो सके लक्ष्य पूरा करें 🌟 (%1$d मिनट)"
+            }
+        };
+        JSONArray result = new JSONArray();
+        int safeStage = Math.max(0, Math.min(stageIndex, fallback.length - 1));
+        for (String message : fallback[safeStage]) result.put(message);
+        return result;
+    }
+
+    private static boolean showReminder(
+        Context context,
+        SharedPreferences prefs,
+        int remainingMinutes,
+        int stageIndex,
+        int minutesToCutoff
+    ) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) {
             Log.w(TAG, "Reminder not posted because NotificationManager is unavailable.");
@@ -260,26 +430,55 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
 
         boolean useMarathi = RANDOM.nextBoolean();
         String language = useMarathi ? "mr" : "hi";
-        String title = useMarathi ? "🎯 आजचं लक्ष्य बाकी आहे!" : "🎯 आज का लक्ष्य बाकी है!";
+        String title;
+        if (stageIndex >= 8) {
+            title = useMarathi ? "⏳ आजची शेवटची फेरी!" : "⏳ आज का आखिरी दौर!";
+        } else if (stageIndex >= 4) {
+            title = useMarathi ? "🔥 आजचं टार्गेट पूर्ण करूया!" : "🔥 आज का टारगेट पूरा करें!";
+        } else {
+            title = useMarathi ? "🎯 आजचं लक्ष्य सुरू करूया!" : "🎯 आज का लक्ष्य शुरू करें!";
+        }
+
         String source = prefs.getString(useMarathi ? "marathiMessagesJson" : "hindiMessagesJson", "[]");
-        JSONArray messages = parseArray(source);
+        JSONArray allStages = parseArray(source);
+        JSONArray messages = allStages.optJSONArray(stageIndex);
+        if (messages == null || messages.length() == 0) {
+            // The first alarm after upgrading may run before the WebView syncs
+            // the new nested message pools. Use a local stage-aware fallback.
+            messages = getFallbackMessages(stageIndex, useMarathi);
+        }
+
         String previous = prefs.getString("lastMessageId", "");
+        String previousText = prefs.getString("lastMessageText", "");
         String body = null;
         String selectedId = "";
-        for (int attempt = 0; attempt < 8 && messages.length() > 0; attempt++) {
+        for (int attempt = 0; attempt < 12 && messages.length() > 0; attempt++) {
             int index = RANDOM.nextInt(messages.length());
             String candidate = messages.optString(index, "");
-            String candidateId = language + ":" + index;
-            if (candidate.isEmpty() || (messages.length() > 1 && candidateId.equals(previous))) continue;
-            body = String.format(Locale.getDefault(), candidate, remainingMinutes);
+            String candidateId = language + ":" + stageIndex + ":" + index;
+            if (candidate.isEmpty() || candidate.equals(previousText) || candidateId.equals(previous)) continue;
+            body = String.format(Locale.getDefault(), candidate, remainingMinutes, minutesToCutoff);
             selectedId = candidateId;
+            prefs.edit().putString("lastMessageText", candidate).apply();
             break;
         }
         if (body == null) {
-            body = useMarathi
-                ? "आजचं लक्ष्य अजून बाकी आहे. पुन्हा सुरू करूया!"
-                : "आज का लक्ष्य अभी बाकी है। फिर से शुरू करें!";
-            selectedId = language + ":fallback";
+            for (int index = 0; index < messages.length(); index++) {
+                String candidate = messages.optString(index, "");
+                if (candidate.isEmpty() || candidate.equals(previousText)) continue;
+                body = String.format(Locale.getDefault(), candidate, remainingMinutes, minutesToCutoff);
+                selectedId = language + ":" + stageIndex + ":" + index;
+                prefs.edit().putString("lastMessageText", candidate).apply();
+                break;
+            }
+        }
+        if (body == null) {
+            String fallback = useMarathi
+                ? "आजचं लक्ष्य अजून बाकी आहे. पुन्हा सुरू करूया! अभ्यासाचे %1$d मिनिटं बाकी."
+                : "आज का लक्ष्य अभी बाकी है। फिर से शुरू करें! पढ़ाई के %1$d मिनट बाकी।";
+            body = String.format(Locale.getDefault(), fallback, remainingMinutes, minutesToCutoff);
+            selectedId = language + ":" + stageIndex + ":fallback";
+            prefs.edit().putString("lastMessageText", fallback).apply();
         }
         prefs.edit().putString("lastMessageId", selectedId).apply();
 

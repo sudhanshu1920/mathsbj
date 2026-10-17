@@ -108,14 +108,24 @@ test('native alarm rechecks completion and keeps tomorrow noon queued after the 
     path.resolve(path.dirname(new URL(import.meta.url).pathname), '../android-native/com/sudhanshu/mathsbj/DailyTargetReminderReceiver.java'),
     'utf8',
   );
-  assert.match(receiver, /prefs\.getBoolean\("completed", false\)/);
-  assert.match(receiver, /elapsedSeconds >= targetMinutes \* 60L/);
+  assert.match(receiver, /if \(elapsedSeconds >= targetMinutes \* 60L\)/);
+  assert.doesNotMatch(receiver, /prefs\.getBoolean\("completed", false\) \|\| elapsedSeconds/);
   assert.match(receiver, /scheduleTomorrow\(context, slots\)/);
   assert.match(receiver, /private static boolean scheduleTomorrow/);
   assert.match(receiver, /public static boolean scheduleNext/);
   assert.match(receiver, /AlarmManager is unavailable/);
   assert.match(receiver, /Calendar\.DAY_OF_YEAR, 1/);
   assert.match(receiver, /currentMinute > 22 \* 60/);
+  assert.match(receiver, /REMINDER_POLICY_VERSION = 2/);
+  assert.match(receiver, /720, 840, 960, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320/);
+  assert.match(receiver, /ensureCurrentSchedulePolicy\(prefs\)/);
+  assert.match(receiver, /schedulePolicyVersion/);
+  assert.match(receiver, /getStageIndex\(slots, currentMinute\)/);
+  assert.match(receiver, /allStages\.optJSONArray\(stageIndex\)/);
+  assert.match(receiver, /getMinutesUntilCutoff\(\)/);
+  assert.match(receiver, /putString\("lastMessageText", candidate\)/);
+  assert.match(receiver, /cancelVisibleReminder\(context\)/);
+  assert.match(receiver, /triggerAt <= nowMillis/);
   assert.match(receiver, /scheduleNext\(context\)/);
 });
 
