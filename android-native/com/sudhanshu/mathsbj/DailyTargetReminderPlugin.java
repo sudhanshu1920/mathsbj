@@ -87,6 +87,7 @@ public class DailyTargetReminderPlugin extends Plugin {
                 scheduled = DailyTargetReminderReceiver.scheduleNext(getContext());
             } else {
                 DailyTargetReminderReceiver.cancelScheduled(getContext());
+                DailyTargetReminderReceiver.cancelVisibleReminder(getContext());
             }
 
             JSObject result = new JSObject();
