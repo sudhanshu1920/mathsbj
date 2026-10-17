@@ -36,10 +36,10 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
   const mounted = useRef(true);
   const canSaveToDownloads = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 
-  const setAction = (action: UpdateAction | null) => {
+  const setAction = useCallback((action: UpdateAction | null) => {
     activeActionRef.current = action;
     setActiveAction(action);
-  };
+  }, []);
 
   const showUpdate = useCallback((candidate: unknown) => {
     let safeCandidate: ReleaseManifest;
@@ -52,10 +52,10 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     setUpdate((current) => current && current.versionCode >= safeCandidate.versionCode ? current : safeCandidate);
   }, []);
 
-  const resetActionStatus = () => {
+  const resetActionStatus = useCallback(() => {
     setDownloadStatus("");
     setDownloadProgress(null);
-  };
+  }, []);
 
   const performUpdate = useCallback(async (candidate: ReleaseManifest) => {
     if (isQuizActive) {
@@ -110,7 +110,7 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     } finally {
       actionInFlight.current = false;
     }
-  }, [isQuizActive]);
+  }, [isQuizActive, resetActionStatus, setAction]);
 
   const performDownload = useCallback(async (candidate: ReleaseManifest) => {
     if (actionInFlight.current || activeActionRef.current) return;
@@ -151,7 +151,7 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     } finally {
       actionInFlight.current = false;
     }
-  }, [canSaveToDownloads]);
+  }, [canSaveToDownloads, resetActionStatus, setAction]);
 
   const dismissCurrentUpdate = useCallback(() => {
     if (activeActionRef.current) return;
