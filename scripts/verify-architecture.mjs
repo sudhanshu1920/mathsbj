@@ -354,7 +354,8 @@ if (!updateFeed.includes(expectedUpdateManifestUrl) ||
     !updateFeed.includes('SHA256_PATTERN') ||
     !releaseWorkflow.includes(`\"apkUrl\": \"${expectedUpdateApkUrl}\",`) ||
     !releaseWorkflow.includes('\"github.com\".equalsIgnoreCase(updateUri.getHost())') ||
-    !releaseWorkflow.includes('\"/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk\".equals(updateUri.getPath())')) {
+    !releaseWorkflow.includes('TRUSTED_APK_PATH =') ||
+    !releaseWorkflow.includes('TRUSTED_APK_PATH.equals(updateUri.getPath())')) {
   fail('manifest URL, manifest APK URL, native APK allowlist, and checksum validation must use one trusted public release location');
 }
 if (!updateService.includes('checkForAppUpdate') || !updateService.includes('isNewerRelease')) {
@@ -371,8 +372,10 @@ if (!settingsPanel.includes('mountedRef.current = false') ||
 if (!updateManager.includes('dismissedVersionCode = useRef(0)') ||
     updateManager.includes('localStorage.getItem("mathmaster.dismissed-update-version-code")') ||
     !updateManager.includes('Update Now') ||
-    !updateManager.includes('Later')) {
-  fail('update dialog must expose Update Now/Later and keep dismissal scoped to the current app session');
+    !updateManager.includes('Download APK') ||
+    !updateManager.includes('downloadAppUpdate') ||
+    !updateManager.includes('activeActionRef.current')) {
+  fail('update dialog must expose mutually exclusive Update Now/Download APK/Later choices and scope dismissal to the current session');
 }
 if (!updateManager.includes('lastAutomaticCheckSucceeded') ||
     !updateManager.includes('30_000') ||
@@ -641,14 +644,16 @@ if (!updateManagerSource.includes('App.addListener("resume", checkOnForeground)'
   fail('Update checks must refresh on native resume/web foreground while deduplicating one lifecycle transition');
 }
 if (!updateManagerSource.includes('Current version:') ||
-    !updateManagerSource.includes('New version:') ||
-    !updateManagerSource.includes('installAttemptInFlight.current')) {
-  fail('Update alert must show installed/latest versions and guard repeated Update Now actions');
+    !updateManagerSource.includes('Latest version:') ||
+    !updateManagerSource.includes('actionInFlight.current') ||
+    !updateManagerSource.includes('downloadAppUpdate')) {
+  fail('Update alert must show installed/latest versions and guard duplicate update/download actions');
 }
 if (!updateManagerTests.includes('dismisses only for the current app session') ||
-    !updateManagerTests.includes('starts the trusted APK update only after Update Now is clicked') ||
-    !updateManagerTests.includes('shows the actual installed and latest versions')) {
-  fail('Update alert needs tests for actual version display, session dismissal, and explicit install action');
+    !updateManagerTests.includes('starts Update Now only when selected') ||
+    !updateManagerTests.includes('downloads a verified APK to Downloads only when selected') ||
+    !updateManagerTests.includes('shows actual installed/latest versions')) {
+  fail('Update alert needs tests for version display, session dismissal, and separate install/download actions');
 }
 if (!updateOrderingSource.includes('latestCodeValid && currentCodeValid) return latest.versionCode! > current.versionCode!') ||
     !updateOrderingSource.includes('Semantic comparison is a compatibility fallback only')) {
@@ -658,8 +663,8 @@ const apkVerifierStart = releaseWorkflowVersion.indexOf('new Thread(() -> {');
 const apkHashCheck = releaseWorkflowVersion.indexOf('expectedSha256.equalsIgnoreCase(actualSha256)', apkVerifierStart);
 const apkInstallerPost = releaseWorkflowVersion.indexOf('mainHandler.post(() -> {', apkHashCheck);
 if (apkVerifierStart < 0 || apkHashCheck < apkVerifierStart || apkInstallerPost < apkHashCheck ||
-    !releaseWorkflowVersion.includes('"MathMaster-APK-verifier"') ||
-    !releaseWorkflowVersion.includes('if (apkUri == null)')) {
+    !releaseWorkflowVersion.includes('"MathApp-APK-verifier"') ||
+    !releaseWorkflowVersion.includes('if (apkUri == null || !destinationFile.isFile()')) {
   fail('Downloaded APK checksum must run off the UI thread and the Android installer must only open after verification');
 }
 
@@ -667,13 +672,47 @@ const nativeUpdaterSource = read('src/nativeAppUpdater.ts');
 const updateFeedSource = read('src/lib/updateFeed.ts');
 if (!nativeUpdaterSource.includes('versionCode: update.versionCode') ||
     !releaseWorkflowVersion.includes('Integer expectedVersionCode = call.getInt("versionCode");') ||
-    !releaseWorkflowVersion.includes('getPackageArchiveInfo(destinationFile.getAbsolutePath(), 0)') ||
+    !releaseWorkflowVersion.includes('getPackageArchiveInfo(destinationFile.getAbsolutePath(), packageFlags)') ||
     !releaseWorkflowVersion.includes('downloadedInfo.packageName') ||
-    !releaseWorkflowVersion.includes('downloadedVersionCode != expectedVersionCode.longValue()')) {
-  fail('Native updater must verify the downloaded APK package identity and expected versionCode before installation');
+    !releaseWorkflowVersion.includes('downloadedVersionCode != expectedVersionCode.longValue()') ||
+    !releaseWorkflowVersion.includes('sameSigningCertificate(installedInfo, downloadedInfo)') ||
+    !releaseWorkflowVersion.includes('saveVerifiedApkToDownloads(destinationFile, publicName, expectedSha256)') ||
+    !releaseWorkflowVersion.includes('MediaStore.Downloads.EXTERNAL_CONTENT_URI') ||
+    !releaseWorkflowVersion.includes('downloadToDownloads(PluginCall call)') ||
+    !releaseWorkflowVersion.includes('androidx.core.content.FileProvider') ||
+    !releaseWorkflowVersion.includes('math_app_update_paths.xml') ||
+    !releaseWorkflowVersion.includes('<external-path name="public_downloads" path="Download/"/>') ||
+    !releaseWorkflowVersion.includes('notifyDownloadState(downloadId, "paused"') ||
+    releaseWorkflowVersion.includes('attempts++ > 900')) {
+  fail('Native updater must verify package, version, signing identity and support verified APK files in public Downloads');
 }
 if (!updateFeedSource.includes('Number(data.versionCode) > 2100000000')) {
   fail('Update metadata must reject versionCodes outside Android supported bounds');
+}
+
+// Notification reliability: verify that a local reminder schedule is only
+// reported as successful when Android actually accepted a pending alarm, and
+// that remote push payloads respect the user's preference in the native service.
+const reminderBridgeSource = read('src/lib/dailyTargetReminders.ts');
+const reminderPluginSource = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java');
+const reminderReceiverSource = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderReceiver.java');
+const updateMessagingSource = read('android-native/com/sudhanshu/mathsbj/MathMasterMessagingService.java');
+const releaseNotificationSenderSource = read('scripts/release-notification-sender.mjs');
+const releaseNotificationTestsSource = read('scripts/release-notification-sender.test.mjs');
+if (!reminderPluginSource.includes('result.put("synced", syncSucceeded)') ||
+    !reminderPluginSource.includes('DailyTargetReminderReceiver.scheduleNext(getContext())') ||
+    !reminderReceiverSource.includes('public static boolean scheduleNext(Context context)') ||
+    !reminderReceiverSource.includes('Log.w(TAG, "Alarm scheduling failed: Android AlarmManager is unavailable.")') ||
+    !reminderBridgeSource.includes('syncResult.synced !== true')) {
+  fail('Daily reminder opt-in must not be acknowledged unless native Android confirms that the next alarm is scheduled');
+}
+if (!releaseNotificationSenderSource.includes("topic: 'math_app_updates'") ||
+    !releaseNotificationSenderSource.includes("type: 'app_update'") ||
+    !releaseNotificationTestsSource.includes('assert.equal(payload.notification, undefined)') ||
+    !updateMessagingSource.includes('.getBoolean("updateAlertsEnabled", false)') ||
+    !updateMessagingSource.includes('if (!enabled)') ||
+    !updateMessagingSource.includes('Ignoring update push with invalid release metadata.')) {
+  fail('Release alerts must be data-only, opt-in aware, idempotent, and validate release metadata before displaying');
 }
 
 // Quiz countdown progress must use the active timer deadline and leave the overall quiz bar intact.

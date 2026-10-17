@@ -79,16 +79,20 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putString("hindiMessagesJson", hindi == null ? "[]" : hindi)
                 .apply();
 
+            boolean scheduled = false;
             if (enabled && hasNotificationPermission(getContext())) {
-                // scheduleNext cancels today's remaining alarms if the goal is
-                // complete, but leaves the next day's noon alarm queued.
-                DailyTargetReminderReceiver.scheduleNext(getContext());
+                // scheduleNext cancels today\'s remaining alarms if the goal is
+                // complete, but leaves the next day\'s noon alarm queued.
+                scheduled = DailyTargetReminderReceiver.scheduleNext(getContext());
             } else {
                 DailyTargetReminderReceiver.cancelScheduled(getContext());
             }
 
             JSObject result = new JSObject();
-            result.put("scheduled", enabled && hasNotificationPermission(getContext()));
+            boolean syncSucceeded = !enabled || (hasNotificationPermission(getContext()) && scheduled);
+            result.put("synced", syncSucceeded);
+            result.put("scheduled", enabled && hasNotificationPermission(getContext()) && scheduled);
+            if (!syncSucceeded) android.util.Log.w("MathAppReminders", "Notification preference sync could not create a pending reminder alarm.");
             call.resolve(result);
         } catch (Exception error) {
             call.reject("Unable to sync daily target reminders.", error);
@@ -119,25 +123,58 @@ public class DailyTargetReminderPlugin extends Plugin {
         boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled"));
         getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putBoolean("updateAlertsEnabled", enabled).apply();
-        JSObject result = new JSObject();
         try {
-            // Firebase is an optional build-time integration. Reflection keeps the
-            // app buildable when a Firebase client configuration has not been added.
+            // Firebase is optional for local reminders. Wait for the real async
+            // topic result instead of reporting subscribed=true immediately.
             Class<?> messagingClass = Class.forName("com.google.firebase.messaging.FirebaseMessaging");
             Object messaging = messagingClass.getMethod("getInstance").invoke(null);
-            Method method = messagingClass.getMethod(enabled ? "subscribeToTopic" : "unsubscribeFromTopic", String.class);
-            method.invoke(messaging, "math_app_updates");
-            result.put("configured", true);
-            result.put("subscribed", enabled);
+            java.lang.reflect.Method method = messagingClass.getMethod(
+                enabled ? "subscribeToTopic" : "unsubscribeFromTopic", String.class);
+            Object task = method.invoke(messaging, "math_app_updates");
+            Class<?> listenerClass = Class.forName("com.google.android.gms.tasks.OnCompleteListener");
+            java.lang.reflect.Method addListener = null;
+            Class<?> taskClass = Class.forName("com.google.android.gms.tasks.Task");
+            addListener = taskClass.getMethod("addOnCompleteListener", listenerClass);
+            Object listener = java.lang.reflect.Proxy.newProxyInstance(
+                listenerClass.getClassLoader(),
+                new Class<?>[] { listenerClass },
+                (proxy, invoked, args) -> {
+                    if ("onComplete".equals(invoked.getName()) && args != null && args.length == 1) {
+                        Object completedTask = args[0];
+                        boolean success = Boolean.TRUE.equals(
+                            taskClass.getMethod("isSuccessful").invoke(completedTask));
+                        JSObject result = new JSObject();
+                        result.put("configured", true);
+                        result.put("success", success);
+                        result.put("subscribed", success && enabled);
+                        if (!success) {
+                            android.util.Log.w("MathAppNotifications",
+                                "FCM topic subscription operation failed; update push may not be enabled.");
+                            result.put("message", "Firebase topic subscription failed.");
+                        } else {
+                            android.util.Log.i("MathAppNotifications",
+                                enabled ? "Subscribed to app update topic." : "Unsubscribed from app update topic.");
+                        }
+                        call.resolve(result);
+                    }
+                    return null;
+                });
+            addListener.invoke(task, listener);
         } catch (ClassNotFoundException missingFirebase) {
-            result.put("configured", false);
-            result.put("subscribed", false);
-        } catch (Exception error) {
+            JSObject result = new JSObject();
             result.put("configured", false);
             result.put("subscribed", false);
             result.put("message", "Firebase update notifications are not available on this build.");
+            call.resolve(result);
+        } catch (Exception error) {
+            android.util.Log.w("MathAppNotifications", "Unable to configure FCM update topic.", error);
+            JSObject result = new JSObject();
+            result.put("configured", true);
+            result.put("success", false);
+            result.put("subscribed", false);
+            result.put("message", "Firebase topic subscription could not be confirmed.");
+            call.resolve(result);
         }
-        call.resolve(result);
     }
 
     public static boolean hasNotificationPermission(Context context) {

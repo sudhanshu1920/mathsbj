@@ -10,7 +10,7 @@ Study reminders use the existing `math-app-streak-v1` record (target minutes and
 
 ## Configure Firebase push for release alerts
 
-The repository currently has no committed Firebase Android configuration or privileged FCM sender credential. Release push is therefore **inactive until the following GitHub Actions secrets are set**.
+Firebase Android configuration and privileged FCM credentials must be supplied through GitHub Actions secrets and are deliberately not committed to the repository. The existing release run 38992291241 logged that FCM accepted version 1.0.8/build 1143; that is evidence of server-side acceptance for that run, not proof that a particular Android device received or displayed it. Each future build can still skip push if required secrets/configuration are absent.
 
 1. In Firebase Console, create/select the Firebase project and register an Android app with application ID `com.sudhanshu.mathsbj`. Download its `google-services.json`, make sure it contains this exact Android package, then Base64-encode the file (for example, `base64 -w 0 google-services.json`).
 2. Add repository secret **`MATHMASTER_FIREBASE_GOOGLE_SERVICES_JSON_BASE64`** with that Base64 text. The Android release workflow injects it into the generated Android project only during the build, adds the Firebase Messaging SDK and declares the topic subscription service.
