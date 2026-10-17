@@ -79,10 +79,11 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putString("hindiMessagesJson", hindi == null ? "[]" : hindi)
                 .apply();
 
+            boolean scheduled = false;
             if (enabled && hasNotificationPermission(getContext())) {
-                // scheduleNext cancels today's remaining alarms if the goal is
-                // complete, but leaves the next day's noon alarm queued.
-                boolean scheduled = DailyTargetReminderReceiver.scheduleNext(getContext());
+                // scheduleNext cancels today\'s remaining alarms if the goal is
+                // complete, but leaves the next day\'s noon alarm queued.
+                scheduled = DailyTargetReminderReceiver.scheduleNext(getContext());
             } else {
                 DailyTargetReminderReceiver.cancelScheduled(getContext());
             }
