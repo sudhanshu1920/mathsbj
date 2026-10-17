@@ -120,6 +120,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
 
         if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
             prefs.edit().putBoolean("completed", true).apply();
+            cancelVisibleReminder(context);
             return scheduleTomorrow(context, slots);
         }
 
