@@ -106,6 +106,20 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
             manager.createNotificationChannel(channel);
         }
 
+        if (!manager.areNotificationsEnabled()) {
+            android.util.Log.w("MathAppNotifications",
+                "Update notification was not posted because app-level notifications are disabled.");
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel existing = manager.getNotificationChannel(CHANNEL_ID);
+            if (existing != null && existing.getImportance() == NotificationManager.IMPORTANCE_NONE) {
+                android.util.Log.w("MathAppNotifications",
+                    "Update notification was not posted because the App Updates channel is disabled.");
+                return;
+            }
+        }
+
         Intent openApp = new Intent(this, MainActivity.class);
         openApp.setAction("com.sudhanshu.mathsbj.OPEN_APP_UPDATE");
         openApp.putExtra("mathmaster_notification_action", "app-update");
@@ -134,5 +148,7 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
             .setWhen(System.currentTimeMillis())
             .build();
         manager.notify("mathmaster-update", NOTIFICATION_ID, notification);
+        android.util.Log.i("MathAppNotifications",
+            "Update notification posted to NotificationManager; actual device presentation is not observable here.");
     }
 }
