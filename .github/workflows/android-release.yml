@@ -709,7 +709,8 @@ jobs:
           PY
 
           grep -q "REQUEST_INSTALL_PACKAGES" "$manifest"
-          grep -q 'CapacitorPlugin.*AppUpdater' "$plugin_dir/AppUpdaterPlugin.java"
+          grep -q '@CapacitorPlugin' "$plugin_dir/AppUpdaterPlugin.java"
+          grep -q 'name = "AppUpdater"' "$plugin_dir/AppUpdaterPlugin.java"
 
       - name: Configure Android edge-to-edge system bars
         shell: bash
