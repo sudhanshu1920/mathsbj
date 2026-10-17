@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   addAndroidUpdateDownloadListener: vi.fn(),
   downloadStateListener: undefined as ((event: {
     downloadId: number;
-    state: "downloading" | "verifying" | "installer_opened" | "saved_to_downloads" | "failed";
+    state: "downloading" | "paused" | "verifying" | "installer_opened" | "saved_to_downloads" | "failed";
     progress: number;
     fileName?: string;
     message?: string;
@@ -173,6 +173,21 @@ describe("AppUpdateManager", () => {
       downloadId: 43, state: "saved_to_downloads", progress: 100, fileName: "MathApp-v1.0.2.apk",
     }));
     await waitFor(() => expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument());
+    expect(mocks.installAppUpdate).not.toHaveBeenCalled();
+  });
+
+  it("shows Android-paused download state without falsely marking completion", async () => {
+    render(<AppUpdateManager isQuizActive={false} />);
+    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Download APK" }));
+    await waitFor(() => expect(mocks.downloadAppUpdate).toHaveBeenCalledWith(latest));
+
+    act(() => mocks.downloadStateListener?.({
+      downloadId: 43, state: "paused", progress: 28, message: "Android paused this download.",
+    }));
+    expect(screen.getByText(/Download paused by Android/)).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "28");
+    expect(screen.getByRole("button", { name: "Update Now" })).toBeDisabled();
     expect(mocks.installAppUpdate).not.toHaveBeenCalled();
   });
 
