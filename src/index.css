@@ -3181,7 +3181,7 @@ html.low-power .quiz-question-panel {
 
 /* Slightly indent the Elements column content without changing the table's column widths. */
 .periodic-range-table .periodic-tint-element {
-  padding-left: calc(clamp(0.25rem, 0.8vw, 0.5rem) + 0.25rem);
+  padding-left: calc(clamp(0.25rem, 0.8vw, 0.5rem) + 0.5rem);
 }
 
 .periodic-range-table .periodic-range-symbol {
