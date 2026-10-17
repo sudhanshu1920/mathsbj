@@ -133,15 +133,8 @@ public class DailyTargetReminderPlugin extends Plugin {
             Object task = method.invoke(messaging, "math_app_updates");
             Class<?> listenerClass = Class.forName("com.google.android.gms.tasks.OnCompleteListener");
             java.lang.reflect.Method addListener = null;
-            for (java.lang.reflect.Method candidate : task.getClass().getMethods()) {
-                if ("addOnCompleteListener".equals(candidate.getName())
-                    && candidate.getParameterTypes().length == 1
-                    && candidate.getParameterTypes()[0].equals(listenerClass)) {
-                    addListener = candidate;
-                    break;
-                }
-            }
-            if (addListener == null) throw new NoSuchMethodException("Firebase Task listener is unavailable");
+            Class<?> taskClass = Class.forName("com.google.android.gms.tasks.Task");
+            addListener = taskClass.getMethod("addOnCompleteListener", listenerClass);
             Object listener = java.lang.reflect.Proxy.newProxyInstance(
                 listenerClass.getClassLoader(),
                 new Class<?>[] { listenerClass },
@@ -149,7 +142,7 @@ public class DailyTargetReminderPlugin extends Plugin {
                     if ("onComplete".equals(invoked.getName()) && args != null && args.length == 1) {
                         Object completedTask = args[0];
                         boolean success = Boolean.TRUE.equals(
-                            completedTask.getClass().getMethod("isSuccessful").invoke(completedTask));
+                            taskClass.getMethod("isSuccessful").invoke(completedTask));
                         JSObject result = new JSObject();
                         result.put("configured", success);
                         result.put("subscribed", success && enabled);
