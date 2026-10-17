@@ -52,8 +52,13 @@ export function shouldSendNotification(previous, release, sourceCommit) {
 export function createFcmMessage(release) {
   const notes = release.releaseNotes ? ` ${release.releaseNotes}` : '';
   const body = `Version ${release.versionName} (build ${release.versionCode}) is now available.${notes} Tap to update.`.slice(0, 240);
+  // Use a data-only message so Android invokes MathMasterMessagingService
+  // while backgrounded. A notification payload would bypass the opt-in check
+  // and be auto-displayed by FCM even after the user disables notifications.
   const data = {
     type: 'app_update',
+    title: '🎉 New Math App Update Available!',
+    body,
     mathmaster_notification_action: 'app-update',
     versionCode: String(release.versionCode),
     versionName: release.versionName,
@@ -68,19 +73,10 @@ export function createFcmMessage(release) {
   return {
     message: {
       topic: 'math_app_updates',
-      notification: {
-        title: '🎉 New Math App Update Available!',
-        body,
-      },
       data,
       android: {
         priority: 'HIGH',
         collapse_key: 'mathmaster-update',
-        notification: {
-          channel_id: 'app_updates',
-          tag: 'mathmaster-update',
-          sound: 'default',
-        },
       },
     },
   };
