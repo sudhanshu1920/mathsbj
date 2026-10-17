@@ -15,7 +15,7 @@ describe('Periodic Table physical-property snapshot', () => {
       if (!physical) throw new Error(`Missing physical property model for Z=${element.number}`);
 
       expect(physical.sourceName).toBe('PubChem Periodic Table');
-      expect(physical.sourceUrl).toBe(`https://pubchem.ncbi.nlm.nih.gov/element/${element.number}`);
+      expect(physical.sourceUrl).toBe(`https://pubchem.ncbi.nlm.nih.gov/element/${element.symbol}`);
       for (const [key, value] of Object.entries({
         densityGPerCm3: physical.densityGPerCm3,
         meltingPointK: physical.meltingPointK,
