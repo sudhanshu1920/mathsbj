@@ -373,12 +373,15 @@ const ElementDetails = ({
   massMode,
   onBack,
   onClose,
+  onNavigateElement,
 }: {
   element: ChemElement;
   massMode: AtomicMassMode;
   onBack: () => void;
   onClose: () => void;
+  onNavigateElement: (number: number) => void;
 }) => {
+  const touchStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   const facts = useMemo(() => [
     ['Atomic No.', String(element.number)],
     ['Element', element.name],
@@ -397,8 +400,39 @@ const ElementDetails = ({
     <section
       data-periodic-element-detail="true"
       className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background/95"
-      style={{ WebkitOverflowScrolling: 'touch' }}
+      style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
       aria-label={`${element.name} element details`}
+      onPointerDown={(event) => {
+        touchStartRef.current = null;
+        if (event.pointerType !== 'touch' || !event.isPrimary || event.button !== 0) return;
+        if (
+          event.target instanceof Element &&
+          event.target.closest('button, a, input, textarea, select, [role="button"]')
+        ) return;
+
+        touchStartRef.current = {
+          x: event.clientX,
+          y: event.clientY,
+          pointerId: event.pointerId,
+        };
+      }}
+      onPointerUp={(event) => {
+        const start = touchStartRef.current;
+        touchStartRef.current = null;
+        if (!start || event.pointerType !== 'touch' || event.pointerId !== start.pointerId) return;
+
+        const deltaX = event.clientX - start.x;
+        const deltaY = event.clientY - start.y;
+        if (Math.abs(deltaX) < 56 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+
+        const nextNumber = element.number + (deltaX < 0 ? 1 : -1);
+        if (nextNumber >= 1 && nextNumber <= ELEMENTS.length && ELEMENTS[nextNumber - 1]) {
+          onNavigateElement(nextNumber);
+        }
+      }}
+      onPointerCancel={() => {
+        touchStartRef.current = null;
+      }}
     >
       <div className="mx-auto min-h-full w-full max-w-4xl px-3 py-3 sm:px-6 sm:py-5">
         <div className="app-topbar-page sticky top-0 z-10 mb-3 flex items-center gap-3 rounded-2xl px-2 py-2">
@@ -822,6 +856,7 @@ const PeriodicTableLearning = ({
         massMode={massMode}
         onBack={backToPreviousPage}
         onClose={backToPreviousPage}
+        onNavigateElement={onSelectElement}
       />
     );
   }
