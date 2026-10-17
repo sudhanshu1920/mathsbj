@@ -22,6 +22,8 @@ interface PeriodicTableLearningProps {
   onSelectRange?: (index: number | null) => void;
   /** Optional history-aware callback for range paging swipes. */
   onSwipeRange?: (index: number) => void;
+  /** Optional history-aware callback for next/previous element swipes. */
+  onSwipeElement?: (number: number) => void;
   /** Mirrors the route-aware popup state so browser/native Back can dismiss it. */
   isRangeMenuOpen?: boolean;
   onRangeMenuOpenChange?: (open: boolean, reason?: 'dismiss' | 'select') => void;
@@ -501,6 +503,7 @@ const PeriodicTableLearning = ({
   selectedRangeIndex,
   onSelectRange,
   onSwipeRange,
+  onSwipeElement,
   isRangeMenuOpen,
   onRangeMenuOpenChange,
   onBack,
@@ -856,7 +859,7 @@ const PeriodicTableLearning = ({
         massMode={massMode}
         onBack={backToPreviousPage}
         onClose={backToPreviousPage}
-        onNavigateElement={onSelectElement}
+        onNavigateElement={onSwipeElement ?? onSelectElement}
       />
     );
   }
