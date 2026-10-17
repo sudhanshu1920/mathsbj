@@ -6,6 +6,7 @@ import {
   getDailyReminderStageIndex,
   getNextDailyReminderMinute,
   getRemainingTargetMinutes,
+  isDailyTargetComplete,
 } from './dailyTargetReminders';
 
 describe('smart daily target reminder policy', () => {
@@ -38,6 +39,16 @@ describe('smart daily target reminder policy', () => {
     expect(getDailyReminderStageIndex(22 * 60)).toBe(10);
     expect(getDailyReminderStageIndex(22 * 60 + 1)).toBeNull();
     expect(getDailyReminderStageIndex(Number.NaN)).toBeNull();
+  });
+
+  it('recomputes completion when the user changes the target', () => {
+    expect(isDailyTargetComplete(20, 19 * 60)).toBe(false);
+    expect(isDailyTargetComplete(20, 20 * 60)).toBe(true);
+    // A previously persisted completed flag must not override a newly increased target.
+    expect(isDailyTargetComplete(30, 20 * 60)).toBe(false);
+    // Lowering the target uses the actual accumulated study time immediately.
+    expect(isDailyTargetComplete(10, 20 * 60)).toBe(true);
+    expect(isDailyTargetComplete(0, 0)).toBe(false);
   });
 
   it('calculates remaining study-target minutes from the existing streak time state', () => {
