@@ -29,7 +29,7 @@ describe('PeriodicTableLearning', () => {
     fireEvent.click(screen.getByRole('button', { name: /21–30 10 elements/i }));
 
     expect(onRangeMenuOpenChange).toHaveBeenLastCalledWith(false, 'select');
-    expect(onSelectRange).toHaveBeenCalledWith(2, 'picker');
+    expect(onSelectRange).toHaveBeenCalledWith(2);
     expect(screen.getByRole('heading', { name: 'Elements 21–30' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Elements 21–30 table' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Elements 21–30' })).toBeInTheDocument();
