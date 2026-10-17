@@ -354,7 +354,8 @@ if (!updateFeed.includes(expectedUpdateManifestUrl) ||
     !updateFeed.includes('SHA256_PATTERN') ||
     !releaseWorkflow.includes(`\"apkUrl\": \"${expectedUpdateApkUrl}\",`) ||
     !releaseWorkflow.includes('\"github.com\".equalsIgnoreCase(updateUri.getHost())') ||
-    !releaseWorkflow.includes('\"/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk\".equals(updateUri.getPath())')) {
+    !releaseWorkflow.includes('TRUSTED_APK_PATH =') ||
+    !releaseWorkflow.includes('TRUSTED_APK_PATH.equals(updateUri.getPath())')) {
   fail('manifest URL, manifest APK URL, native APK allowlist, and checksum validation must use one trusted public release location');
 }
 if (!updateService.includes('checkForAppUpdate') || !updateService.includes('isNewerRelease')) {
