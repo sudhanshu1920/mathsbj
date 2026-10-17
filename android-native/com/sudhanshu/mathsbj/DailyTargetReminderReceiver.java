@@ -60,6 +60,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         if (!prefs.getBoolean("enabled", false)
             || !DailyTargetReminderPlugin.hasNotificationPermission(context)) {
             cancelScheduled(context);
+            cancelVisibleReminder(context);
             return;
         }
 
@@ -67,6 +68,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         long elapsedSeconds = Math.max(0L, prefs.getLong("elapsedSeconds", 0L));
         if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
             prefs.edit().putBoolean("completed", true).apply();
+            cancelVisibleReminder(context);
             Log.i(TAG, "Reminder skipped because the daily target is complete.");
             scheduleNext(context);
             return;
@@ -192,6 +194,12 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             Log.w(TAG, "Alarm scheduling failed because the Android platform rejected the request.", error);
             return false;
         }
+    }
+
+    /** Remove the currently visible reminder when the user finishes the target or opts out. */
+    public static void cancelVisibleReminder(Context context) {
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) manager.cancel(NOTIFICATION_ID);
     }
 
     public static void cancelScheduled(Context context) {
