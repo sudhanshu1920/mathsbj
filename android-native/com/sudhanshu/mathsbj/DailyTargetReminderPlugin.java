@@ -54,7 +54,6 @@ public class DailyTargetReminderPlugin extends Plugin {
     public void syncDailyTarget(PluginCall call) {
         try {
             Boolean enabledValue = call.getBoolean("enabled");
-            Boolean completedValue = call.getBoolean("completed");
             Integer targetValue = call.getInt("targetMinutes");
             Double elapsedValue = call.getDouble("elapsedSeconds");
             String dayKey = call.getString("dayKey");
@@ -64,7 +63,7 @@ public class DailyTargetReminderPlugin extends Plugin {
 
             int targetMinutes = targetValue == null ? 5 : Math.max(1, targetValue);
             long elapsedSeconds = elapsedValue == null ? 0L : Math.max(0L, (long) Math.floor(elapsedValue));
-            boolean completed = Boolean.TRUE.equals(completedValue) || elapsedSeconds >= targetMinutes * 60L;
+            boolean completed = elapsedSeconds >= targetMinutes * 60L;
             boolean enabled = Boolean.TRUE.equals(enabledValue);
 
             SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
