@@ -791,7 +791,7 @@ describe('PeriodicTableLearning', () => {
     expect(within(physical).getByText('0.00008988 g/cm³ (gas density at STP)')).toBeInTheDocument();
     expect(within(physical).getByText('13.81 K (≈ -259 °C)')).toBeInTheDocument();
     expect(within(physical).getByText('20.28 K (≈ -253 °C)')).toBeInTheDocument();
-    expect(within(physical).getByText('Data unavailable in the selected structured source')).toBeInTheDocument();
+    expect(within(physical).getAllByText('Data unavailable in the selected structured source').length).toBeGreaterThan(5);
     expect(within(physical).getByRole('link', { name: 'PubChem source for Hydrogen' })).toHaveAttribute(
       'href',
       'https://pubchem.ncbi.nlm.nih.gov/element/1',
