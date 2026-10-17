@@ -3172,6 +3172,10 @@ html.low-power .quiz-question-panel {
 }
 
 .periodic-range-table .periodic-range-element-name {
+  font-size: 16px;
+}
+
+.periodic-range-table .periodic-range-element-name {
   padding-inline: 0.125rem;
 }
 
