@@ -421,7 +421,7 @@ const Index = () => {
       lastDepth.current = depth;
     }
     isHandlingPopstate.current = false;
-  }, [tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen]);
+  }, [tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen, periodicRangeMenuOpen]);
 
   // Handle native Android back button / system edge-back.
   // Capacitor owns the native event before Android finishes the Activity, so
