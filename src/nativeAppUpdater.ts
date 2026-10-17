@@ -3,7 +3,7 @@ import { validateReleaseManifest, type ReleaseManifest } from "@/lib/updateFeed"
 
 export interface AndroidUpdateDownloadEvent {
   downloadId: number;
-  state: "downloading" | "verifying" | "installer_opened" | "saved_to_downloads" | "failed";
+  state: "downloading" | "paused" | "verifying" | "installer_opened" | "saved_to_downloads" | "failed";
   progress: number;
   fileName?: string;
   message?: string;
