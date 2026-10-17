@@ -664,7 +664,7 @@ const apkHashCheck = releaseWorkflowVersion.indexOf('expectedSha256.equalsIgnore
 const apkInstallerPost = releaseWorkflowVersion.indexOf('mainHandler.post(() -> {', apkHashCheck);
 if (apkVerifierStart < 0 || apkHashCheck < apkVerifierStart || apkInstallerPost < apkHashCheck ||
     !releaseWorkflowVersion.includes('"MathMaster-APK-verifier"') ||
-    !releaseWorkflowVersion.includes('if (apkUri == null)')) {
+    !releaseWorkflowVersion.includes('if (apkUri == null || !destinationFile.isFile()')) {
   fail('Downloaded APK checksum must run off the UI thread and the Android installer must only open after verification');
 }
 
