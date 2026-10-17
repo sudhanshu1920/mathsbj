@@ -173,27 +173,57 @@ jobs:
           cat > "$plugin_dir/AppUpdaterPlugin.java" <<'JAVA'
           package com.sudhanshu.mathsbj;
 
+          import android.Manifest;
           import android.app.DownloadManager;
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.content.ContentResolver;
+          import android.content.ContentValues;
           import android.content.Context;
           import android.content.Intent;
           import android.content.pm.PackageInfo;
+          import android.content.pm.PackageManager;
+          import android.content.pm.Signature;
+          import android.database.Cursor;
           import android.net.Uri;
           import android.os.Build;
           import android.os.Environment;
+          import android.os.Handler;
+          import android.provider.MediaStore;
           import android.provider.Settings;
           import android.widget.Toast;
           import java.io.File;
+          import java.io.FileInputStream;
+          import java.io.FileOutputStream;
           import java.io.InputStream;
+          import java.io.OutputStream;
           import java.security.MessageDigest;
+          import java.util.Locale;
+          import java.util.Set;
+          import java.util.TreeSet;
 
           import com.getcapacitor.JSObject;
           import com.getcapacitor.Plugin;
           import com.getcapacitor.PluginCall;
           import com.getcapacitor.PluginMethod;
           import com.getcapacitor.annotation.CapacitorPlugin;
+          import com.getcapacitor.annotation.Permission;
+          import com.getcapacitor.annotation.PermissionCallback;
 
-          @CapacitorPlugin(name = "AppUpdater")
+          @CapacitorPlugin(
+              name = "AppUpdater",
+              permissions = {
+                  @Permission(alias = "legacyDownloads", strings = { Manifest.permission.WRITE_EXTERNAL_STORAGE })
+              }
+          )
           public class AppUpdaterPlugin extends Plugin {
+              private static final String TRUSTED_APK_PATH =
+                  "/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk";
+              private static final String DOWNLOAD_EVENT = "downloadState";
+              private static final String UPDATE_CHANNEL_ID = "app_updates";
+
               @PluginMethod
               public void getVersion(PluginCall call) {
                   try {
@@ -213,31 +243,64 @@ jobs:
 
               @PluginMethod
               public void downloadAndInstall(PluginCall call) {
+                  startUpdateDownload(call, false);
+              }
+
+              @PluginMethod
+              public void downloadToDownloads(PluginCall call) {
+                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                      && getContext().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                          != PackageManager.PERMISSION_GRANTED) {
+                      requestPermissionForAlias("legacyDownloads", call, "legacyDownloadsPermissionResult");
+                      return;
+                  }
+                  startUpdateDownload(call, true);
+              }
+
+              @PermissionCallback
+              private void legacyDownloadsPermissionResult(PluginCall call) {
+                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                      && getContext().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                          != PackageManager.PERMISSION_GRANTED) {
+                      call.reject("DOWNLOAD_PERMISSION_REQUIRED");
+                      return;
+                  }
+                  startUpdateDownload(call, true);
+              }
+
+              private void startUpdateDownload(PluginCall call, boolean downloadOnly) {
                   String url = call.getString("url");
                   Uri updateUri = url == null ? null : Uri.parse(url);
                   String expectedSha256 = call.getString("sha256");
                   Integer expectedVersionCode = call.getInt("versionCode");
+                  String versionName = call.getString("versionName");
                   if (updateUri == null
                       || !"https".equalsIgnoreCase(updateUri.getScheme())
                       || !"github.com".equalsIgnoreCase(updateUri.getHost())
                       || updateUri.getPort() != -1
                       || updateUri.getUserInfo() != null
-                      || !"/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk".equals(updateUri.getPath())
+                      || !TRUSTED_APK_PATH.equals(updateUri.getPath())
                       || updateUri.getQuery() != null
                       || updateUri.getFragment() != null
                       || expectedSha256 == null
                       || !expectedSha256.matches("(?i)[a-f0-9]{64}")
                       || expectedVersionCode == null
                       || expectedVersionCode <= 0
-                      || expectedVersionCode > 2100000000) {
+                      || expectedVersionCode > 2100000000
+                      || versionName == null
+                      || !versionName.matches("[0-9]+\\\\.[0-9]+\\\\.[0-9]+")) {
                       call.reject("Update APK source or version is not trusted.");
                       return;
                   }
 
-                  long installedVersionCode;
+                  final PackageInfo installedInfo;
+                  final long installedVersionCode;
                   try {
-                      PackageInfo installedInfo = getContext().getPackageManager()
-                          .getPackageInfo(getContext().getPackageName(), 0);
+                      int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                          ? PackageManager.GET_SIGNING_CERTIFICATES
+                          : PackageManager.GET_SIGNATURES;
+                      installedInfo = getContext().getPackageManager()
+                          .getPackageInfo(getContext().getPackageName(), flags);
                       installedVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
                           ? installedInfo.getLongVersionCode()
                           : installedInfo.versionCode;
@@ -250,48 +313,56 @@ jobs:
                       return;
                   }
 
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                  if (!downloadOnly && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                       && !getContext().getPackageManager().canRequestPackageInstalls()) {
                       Intent settings = new Intent(
                           Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                           Uri.parse("package:" + getContext().getPackageName())
                       );
-                      getActivity().startActivity(settings);
+                      try {
+                          getActivity().startActivity(settings);
+                      } catch (Exception settingsError) {
+                          call.reject("Unable to open Android install-permission settings.", settingsError);
+                          return;
+                      }
                       call.reject("INSTALL_PERMISSION_REQUIRED");
                       return;
                   }
 
                   try {
-                      DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-                      request.setTitle("MathMaster update");
-                      request.setDescription("Downloading the latest MathMaster APK");
-                      request.setMimeType("application/octet-stream");
-                      request.setNotificationVisibility(
-                          DownloadManager.Request.VISIBILITY_VISIBLE
-                      );
                       File destinationDirectory = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
                       if (destinationDirectory == null
                           || (!destinationDirectory.exists() && !destinationDirectory.mkdirs())) {
-                          call.reject("Unable to prepare the update download location.");
+                          call.reject("Unable to prepare the verified update download location.");
                           return;
                       }
-                      String destinationName = "MathMaster-update-" + expectedVersionCode + ".apk";
-                      File destinationFile = new File(destinationDirectory, destinationName);
+                      String stagedName = "MathMaster-update-" + expectedVersionCode + ".apk";
+                      File destinationFile = new File(destinationDirectory, stagedName);
                       if (destinationFile.exists() && !destinationFile.delete()) {
                           call.reject("Unable to replace a previous incomplete update download.");
                           return;
                       }
+
+                      DownloadManager.Request request = new DownloadManager.Request(updateUri);
+                      request.setTitle(downloadOnly ? "Math App APK download" : "Math App update");
+                      request.setDescription(downloadOnly
+                          ? "Downloading and verifying the APK before saving it to Downloads"
+                          : "Downloading the latest Math App APK");
+                      request.setMimeType("application/octet-stream");
+                      request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
                       request.setDestinationInExternalFilesDir(
-                          getContext(),
-                          Environment.DIRECTORY_DOWNLOADS,
-                          destinationName
-                      );
+                          getContext(), Environment.DIRECTORY_DOWNLOADS, stagedName);
 
                       DownloadManager manager =
                           (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
+                      if (manager == null) {
+                          call.reject("Android Download Manager is unavailable.");
+                          return;
+                      }
                       long downloadId = manager.enqueue(request);
+                      notifyDownloadState(downloadId, "downloading", 0, 0, null, null);
 
-                      android.os.Handler mainHandler = new android.os.Handler(getContext().getMainLooper());
+                      Handler mainHandler = new Handler(getContext().getMainLooper());
                       mainHandler.post(new Runnable() {
                           private int attempts = 0;
 
@@ -300,94 +371,104 @@ jobs:
                               try {
                                   DownloadManager.Query query =
                                       new DownloadManager.Query().setFilterById(downloadId);
-                                  try (android.database.Cursor cursor = manager.query(query)) {
-                                      if (cursor != null && cursor.moveToFirst()) {
-                                          int status = cursor.getInt(
-                                              cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
-                                          );
+                                  try (Cursor cursor = manager.query(query)) {
+                                      if (cursor == null || !cursor.moveToFirst()) {
+                                          failDownload(manager, downloadId, "Unable to read the update download status.");
+                                          return;
+                                      }
+                                      int status = cursor.getInt(
+                                          cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+                                      long downloaded = cursor.getLong(
+                                          cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+                                      long total = cursor.getLong(
+                                          cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+                                      if (status == DownloadManager.STATUS_RUNNING
+                                          || status == DownloadManager.STATUS_PENDING
+                                          || status == DownloadManager.STATUS_PAUSED) {
+                                          notifyDownloadState(downloadId, "downloading", downloaded, total, null, null);
+                                      } else if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                                          notifyDownloadState(downloadId, "verifying", downloaded, total, null, null);
+                                          Uri apkUri = manager.getUriForDownloadedFile(downloadId);
+                                          if (apkUri == null || !destinationFile.isFile() || destinationFile.length() <= 0L) {
+                                              failDownload(manager, downloadId, "The downloaded APK is missing or empty.");
+                                              return;
+                                          }
 
-                                          if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                                              Uri apkUri = manager.getUriForDownloadedFile(downloadId);
-                                              if (apkUri == null) {
-                                                  manager.remove(downloadId);
-                                                  Toast.makeText(getContext(), "Update verification failed.", Toast.LENGTH_LONG).show();
-                                                  return;
-                                              }
-
-                                              final Uri verifiedApkUri = apkUri;
-                                              new Thread(() -> {
-                                                  String actualSha256;
-                                                  try (InputStream input = getContext().getContentResolver().openInputStream(verifiedApkUri)) {
-                                                      if (input == null) throw new java.io.IOException("Downloaded APK cannot be read.");
-                                                      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                                                      byte[] buffer = new byte[8192];
-                                                      int length;
-                                                      while ((length = input.read(buffer)) != -1) digest.update(buffer, 0, length);
-                                                      StringBuilder actual = new StringBuilder();
-                                                      for (byte value : digest.digest()) {
-                                                          actual.append(String.format(java.util.Locale.ROOT, "%02x", value));
-                                                      }
-                                                      actualSha256 = actual.toString();
-                                                  } catch (Exception verificationError) {
-                                                      manager.remove(downloadId);
-                                                      mainHandler.post(() -> Toast.makeText(getContext(), "Update verification failed.", Toast.LENGTH_LONG).show());
-                                                      return;
-                                                  }
-
+                                          new Thread(() -> {
+                                              try {
+                                                  String actualSha256 = sha256(apkUri);
                                                   if (!expectedSha256.equalsIgnoreCase(actualSha256)) {
-                                                      manager.remove(downloadId);
-                                                      mainHandler.post(() -> Toast.makeText(getContext(), "Update verification failed.", Toast.LENGTH_LONG).show());
-                                                      return;
+                                                      throw new java.io.IOException("APK checksum does not match the published update manifest.");
+                                                  }
+                                                  int packageFlags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                                                      ? PackageManager.GET_SIGNING_CERTIFICATES
+                                                      : PackageManager.GET_SIGNATURES;
+                                                  PackageInfo downloadedInfo = getContext().getPackageManager()
+                                                      .getPackageArchiveInfo(destinationFile.getAbsolutePath(), packageFlags);
+                                                  if (downloadedInfo == null
+                                                      || !getContext().getPackageName().equals(downloadedInfo.packageName)) {
+                                                      throw new java.io.IOException("Downloaded APK package name is invalid.");
+                                                  }
+                                                  long downloadedVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                                                      ? downloadedInfo.getLongVersionCode()
+                                                      : downloadedInfo.versionCode;
+                                                  if (downloadedVersionCode != expectedVersionCode.longValue()
+                                                      || downloadedVersionCode <= installedVersionCode) {
+                                                      throw new java.io.IOException("Downloaded APK version does not match release metadata.");
+                                                  }
+                                                  if (!sameSigningCertificate(installedInfo, downloadedInfo)) {
+                                                      throw new java.io.IOException("Downloaded APK signing certificate does not match the installed app.");
                                                   }
 
-                                                  try {
-                                                      PackageInfo downloadedInfo = getContext().getPackageManager()
-                                                          .getPackageArchiveInfo(destinationFile.getAbsolutePath(), 0);
-                                                      if (downloadedInfo == null
-                                                          || !getContext().getPackageName().equals(downloadedInfo.packageName)) {
-                                                          throw new java.io.IOException("Downloaded APK package name is invalid.");
-                                                      }
-                                                      long downloadedVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
-                                                          ? downloadedInfo.getLongVersionCode()
-                                                          : downloadedInfo.versionCode;
-                                                      if (downloadedVersionCode != expectedVersionCode.longValue()
-                                                          || downloadedVersionCode <= installedVersionCode) {
-                                                          throw new java.io.IOException("Downloaded APK version does not match release metadata.");
-                                                      }
-                                                  } catch (Exception packageVerificationError) {
+                                                  if (downloadOnly) {
+                                                      String publicName = "MathApp-v" + versionName + ".apk";
+                                                      Uri savedUri = saveVerifiedApkToDownloads(destinationFile, publicName, expectedSha256);
                                                       manager.remove(downloadId);
-                                                      mainHandler.post(() -> Toast.makeText(getContext(), "Update package verification failed.", Toast.LENGTH_LONG).show());
+                                                      notifyDownloadState(downloadId, "saved_to_downloads", 1, 1, publicName, null);
+                                                      mainHandler.post(() -> {
+                                                          Toast.makeText(getContext(),
+                                                              "Verified APK saved to Downloads/" + publicName,
+                                                              Toast.LENGTH_LONG).show();
+                                                          showSavedApkNotification(savedUri, publicName, expectedVersionCode);
+                                                      });
                                                       return;
                                                   }
 
                                                   mainHandler.post(() -> {
                                                       Intent install = new Intent(Intent.ACTION_VIEW);
-                                                      install.setDataAndType(verifiedApkUri, "application/vnd.android.package-archive");
+                                                      install.setDataAndType(apkUri, "application/vnd.android.package-archive");
                                                       install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                                                       install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                                                       try {
                                                           getContext().startActivity(install);
+                                                          notifyDownloadState(downloadId, "installer_opened", 1, 1, null, null);
                                                       } catch (Exception installError) {
-                                                          manager.remove(downloadId);
-                                                          Toast.makeText(getContext(), "Unable to open Android installer.", Toast.LENGTH_LONG).show();
+                                                          failDownload(manager, downloadId, "Unable to open Android installer.");
                                                       }
                                                   });
-                                              }, "MathMaster-APK-verifier").start();
-                                              return;
-                                          } else if (status == DownloadManager.STATUS_FAILED) {
-                                              manager.remove(downloadId);
-                                              Toast.makeText(getContext(), "Update download failed.", Toast.LENGTH_LONG).show();
-                                              return;
-                                          } else if (attempts++ > 600) {
-                                              manager.remove(downloadId);
-                                              Toast.makeText(getContext(), "Update download timed out.", Toast.LENGTH_LONG).show();
-                                              return;
-                                          }
+                                              } catch (Exception verificationError) {
+                                                  manager.remove(downloadId);
+                                                  notifyDownloadState(downloadId, "failed", 0, 0, null,
+                                                      verificationError.getMessage() == null
+                                                          ? "APK verification failed."
+                                                          : verificationError.getMessage());
+                                                  mainHandler.post(() -> Toast.makeText(getContext(),
+                                                      "APK verification failed. No update was installed or saved.",
+                                                      Toast.LENGTH_LONG).show());
+                                              }
+                                          }, "MathApp-APK-verifier").start();
+                                          return;
+                                      } else if (status == DownloadManager.STATUS_FAILED) {
+                                          failDownload(manager, downloadId, "The APK download failed. Check the network and retry.");
+                                          return;
+                                      }
+                                      if (attempts++ > 900) {
+                                          failDownload(manager, downloadId, "APK download timed out. Please retry.");
+                                          return;
                                       }
                                   }
                               } catch (Exception pollingError) {
-                                  manager.remove(downloadId);
-                                  Toast.makeText(getContext(), "Unable to verify the update download.", Toast.LENGTH_LONG).show();
+                                  failDownload(manager, downloadId, "Unable to verify the APK download status.");
                                   return;
                               }
                               mainHandler.postDelayed(this, 1000);
@@ -398,12 +479,162 @@ jobs:
                       result.put("downloadId", downloadId);
                       call.resolve(result);
                   } catch (Exception e) {
-                      call.reject("Unable to download the update APK.", e);
+                      call.reject("Unable to start the APK download.", e);
                   }
+              }
+
+              private void failDownload(DownloadManager manager, long downloadId, String message) {
+                  manager.remove(downloadId);
+                  notifyDownloadState(downloadId, "failed", 0, 0, null, message);
+                  new Handler(getContext().getMainLooper()).post(() ->
+                      Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show());
+              }
+
+              private void notifyDownloadState(long downloadId, String state, long downloaded, long total,
+                                               String fileName, String message) {
+                  JSObject data = new JSObject();
+                  data.put("downloadId", downloadId);
+                  data.put("state", state);
+                  data.put("progress", total > 0L
+                      ? Math.max(0, Math.min(100, (int) ((downloaded * 100L) / total)))
+                      : 0);
+                  if (fileName != null) data.put("fileName", fileName);
+                  if (message != null) data.put("message", message);
+                  notifyListeners(DOWNLOAD_EVENT, data, true);
+              }
+
+              private String sha256(Uri uri) throws Exception {
+                  try (InputStream input = getContext().getContentResolver().openInputStream(uri)) {
+                      if (input == null) throw new java.io.IOException("Downloaded APK cannot be read.");
+                      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                      byte[] buffer = new byte[8192];
+                      int length;
+                      while ((length = input.read(buffer)) != -1) digest.update(buffer, 0, length);
+                      StringBuilder actual = new StringBuilder();
+                      for (byte value : digest.digest()) actual.append(String.format(Locale.ROOT, "%02x", value));
+                      return actual.toString();
+                  }
+              }
+
+              private boolean sameSigningCertificate(PackageInfo installed, PackageInfo downloaded) throws Exception {
+                  Set<String> installedDigests = signingDigests(installed);
+                  Set<String> downloadedDigests = signingDigests(downloaded);
+                  return !installedDigests.isEmpty() && installedDigests.equals(downloadedDigests);
+              }
+
+              private Set<String> signingDigests(PackageInfo info) throws Exception {
+                  Signature[] signatures;
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && info.signingInfo != null) {
+                      signatures = info.signingInfo.getApkContentsSigners();
+                  } else {
+                      signatures = info.signatures;
+                  }
+                  Set<String> result = new TreeSet<>();
+                  if (signatures == null) return result;
+                  MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                  for (Signature signature : signatures) {
+                      byte[] value = digest.digest(signature.toByteArray());
+                      StringBuilder hex = new StringBuilder();
+                      for (byte b : value) hex.append(String.format(Locale.ROOT, "%02x", b));
+                      result.add(hex.toString());
+                  }
+                  return result;
+              }
+
+              private Uri saveVerifiedApkToDownloads(File source, String displayName, String expectedSha256) throws Exception {
+                  ContentResolver resolver = getContext().getContentResolver();
+                  Uri savedUri;
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                      Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
+                      String selection = MediaStore.MediaColumns.DISPLAY_NAME + "=? AND "
+                          + MediaStore.MediaColumns.RELATIVE_PATH + "=?";
+                      String[] args = { displayName, Environment.DIRECTORY_DOWNLOADS + "/" };
+                      try (Cursor cursor = resolver.query(collection,
+                          new String[] { MediaStore.MediaColumns._ID }, selection, args, null)) {
+                          if (cursor != null) {
+                              while (cursor.moveToNext()) {
+                                  long id = cursor.getLong(0);
+                                  resolver.delete(Uri.withAppendedPath(collection, Long.toString(id)), null, null);
+                              }
+                          }
+                      }
+                      ContentValues values = new ContentValues();
+                      values.put(MediaStore.MediaColumns.DISPLAY_NAME, displayName);
+                      values.put(MediaStore.MediaColumns.MIME_TYPE, "application/vnd.android.package-archive");
+                      values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/");
+                      values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+                      savedUri = resolver.insert(collection, values);
+                      if (savedUri == null) throw new java.io.IOException("Unable to create the APK file in Downloads.");
+                      try (InputStream input = new FileInputStream(source);
+                           OutputStream output = resolver.openOutputStream(savedUri, "w")) {
+                          if (output == null) throw new java.io.IOException("Unable to write the APK to Downloads.");
+                          copy(input, output);
+                      } catch (Exception e) {
+                          resolver.delete(savedUri, null, null);
+                          throw e;
+                      }
+                      ContentValues ready = new ContentValues();
+                      ready.put(MediaStore.MediaColumns.IS_PENDING, 0);
+                      resolver.update(savedUri, ready, null, null);
+                  } else {
+                      File directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                      if (!directory.exists() && !directory.mkdirs()) {
+                          throw new java.io.IOException("Unable to create the public Downloads folder.");
+                      }
+                      File target = new File(directory, displayName);
+                      if (target.exists() && !target.delete()) {
+                          throw new java.io.IOException("Unable to replace the previous APK in Downloads.");
+                      }
+                      try (InputStream input = new FileInputStream(source);
+                           OutputStream output = new FileOutputStream(target)) {
+                          copy(input, output);
+                      }
+                      savedUri = Uri.fromFile(target);
+                  }
+                  if (!expectedSha256.equalsIgnoreCase(sha256(savedUri))) {
+                      resolver.delete(savedUri, null, null);
+                      throw new java.io.IOException("Saved APK checksum verification failed.");
+                  }
+                  return savedUri;
+              }
+
+              private void copy(InputStream input, OutputStream output) throws Exception {
+                  byte[] buffer = new byte[8192];
+                  int length;
+                  while ((length = input.read(buffer)) != -1) output.write(buffer, 0, length);
+                  output.flush();
+              }
+
+              private void showSavedApkNotification(Uri apkUri, String fileName, int versionCode) {
+                  NotificationManager manager = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+                  if (manager == null) return;
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      NotificationChannel channel = new NotificationChannel(
+                          UPDATE_CHANNEL_ID, "App Updates", NotificationManager.IMPORTANCE_DEFAULT);
+                      channel.setDescription("Math App update download results.");
+                      manager.createNotificationChannel(channel);
+                  }
+                  Intent openApk = new Intent(Intent.ACTION_VIEW);
+                  openApk.setDataAndType(apkUri, "application/vnd.android.package-archive");
+                  openApk.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                  PendingIntent contentIntent = PendingIntent.getActivity(
+                      getContext(), 8800 + versionCode, openApk,
+                      PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                  Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                      ? new Notification.Builder(getContext(), UPDATE_CHANNEL_ID)
+                      : new Notification.Builder(getContext());
+                  Notification notification = builder
+                      .setSmallIcon(getContext().getApplicationInfo().icon)
+                      .setContentTitle("APK saved to Downloads")
+                      .setContentText("Tap to open " + fileName)
+                      .setContentIntent(contentIntent)
+                      .setAutoCancel(true)
+                      .setOnlyAlertOnce(true)
+                      .build();
+                  manager.notify("mathapp-apk-saved", 8800 + versionCode, notification);
               }
           }
           JAVA
-
           manifest="android/app/src/main/AndroidManifest.xml"
           python3 - <<'PY'
           from pathlib import Path
@@ -411,6 +642,7 @@ jobs:
           path = Path("android/app/src/main/AndroidManifest.xml")
           text = path.read_text(encoding="utf-8")
           permission = '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />'
+          legacy_permission = '    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />'
 
           # Capacitor-generated manifests can omit the android namespace on the
           # root element. Ensure the permission we add is always namespace-valid.
@@ -431,6 +663,8 @@ jobs:
           if permission not in text:
               insert_at = manifest_end + 1
               text = text[:insert_at] + "\n" + permission + text[insert_at:]
+          if legacy_permission not in text:
+              text = text[:insert_at] + "\n" + legacy_permission + text[insert_at:]
 
           path.write_text(text, encoding="utf-8")
           PY
