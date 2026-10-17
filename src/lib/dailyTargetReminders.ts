@@ -231,14 +231,6 @@ const queueUpdateAlertsSync = (): void => {
   });
 };
 
-export const getNextDailyReminderMinute = (
-  currentMinute: number,
-  schedule: readonly number[] = DAILY_REMINDER_MINUTES,
-): number | null => schedule.find((minute) => minute > currentMinute) ?? null;
-
-export const getRemainingTargetMinutes = (targetMinutes: number, elapsedSeconds: number): number =>
-  Math.max(0, Math.ceil((Math.max(1, targetMinutes) * 60 - Math.max(0, elapsedSeconds)) / 60));
-
 export const getBackgroundNotificationsEnabled = (): boolean => {
   try {
     return localStorage.getItem(ENABLED_KEY) === '1';
