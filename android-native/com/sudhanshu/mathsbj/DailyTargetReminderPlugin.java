@@ -75,6 +75,7 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putBoolean("completed", completed)
                 .putString("dayKey", dayKey == null ? "" : dayKey)
                 .putString("scheduleMinutesJson", schedule == null ? "[]" : schedule)
+                .putInt("schedulePolicyVersion", 2)
                 .putString("marathiMessagesJson", marathi == null ? "[]" : marathi)
                 .putString("hindiMessagesJson", hindi == null ? "[]" : hindi)
                 .apply();
