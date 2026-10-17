@@ -114,9 +114,10 @@ describe('PeriodicTableLearning', () => {
   });
 
   it('marks swipe changes separately from picker selections', () => {
+    const onSwipeRange = vi.fn();
     const onSelectRange = vi.fn();
     const { container } = render(
-      <PeriodicTableLearning selectedElement={null} selectedRangeIndex={0} onSelectElement={vi.fn()} onSelectRange={onSelectRange} />,
+      <PeriodicTableLearning selectedElement={null} selectedRangeIndex={0} onSelectElement={vi.fn()} onSelectRange={onSelectRange} onSwipeRange={onSwipeRange} />,
     );
     const page = container.querySelector('[data-periodic-range-index="0"]');
     expect(page).not.toBeNull();
@@ -136,7 +137,8 @@ describe('PeriodicTableLearning', () => {
       dispatchTouch('touchmove', 130, 144);
       dispatchTouch('touchend', 130, 144);
     });
-    expect(onSelectRange).toHaveBeenCalledWith(1, 'swipe');
+    expect(onSwipeRange).toHaveBeenCalledWith(1);
+    expect(onSelectRange).not.toHaveBeenCalled();
   });
 
   it('does not let a long press also trigger the normal range-menu click', () => {
