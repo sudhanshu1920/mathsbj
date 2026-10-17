@@ -1,3 +1,7 @@
+import { App } from '@capacitor/app';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { getStreak, todayStr } from '@/lib/streak';
+
 export const DAILY_REMINDER_POLICY_VERSION = 2;
 
 /** Local device time, in minutes after midnight. One native AlarmManager alarm is queued at a time. */
