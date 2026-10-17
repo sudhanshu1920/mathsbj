@@ -74,8 +74,12 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         }
 
         int remainingMinutes = (int) Math.max(1L, (long) Math.ceil((targetMinutes * 60L - elapsedSeconds) / 60.0));
-        showReminder(context, prefs, remainingMinutes);
-        Log.i(TAG, "Reminder displayed; next eligible slot will be reconciled.");
+        boolean posted = showReminder(context, prefs, remainingMinutes);
+        if (posted) {
+            Log.i(TAG, "Reminder posted to NotificationManager; actual device presentation is not observable here.");
+        } else {
+            Log.w(TAG, "Reminder not posted because Android notifications or its channel are disabled.");
+        }
         scheduleNext(context);
     }
 
@@ -225,9 +229,12 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         catch (JSONException ignored) { return new JSONArray(); }
     }
 
-    private static void showReminder(Context context, SharedPreferences prefs, int remainingMinutes) {
+    private static boolean showReminder(Context context, SharedPreferences prefs, int remainingMinutes) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (manager == null) return;
+        if (manager == null) {
+            Log.w(TAG, "Reminder not posted because NotificationManager is unavailable.");
+            return false;
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -237,6 +244,18 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             );
             channel.setDescription("Study reminders while today's target is incomplete.");
             manager.createNotificationChannel(channel);
+        }
+
+        if (!manager.areNotificationsEnabled()) {
+            Log.w(TAG, "Reminder not posted because app-level Android notifications are disabled.");
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel existing = manager.getNotificationChannel(CHANNEL_ID);
+            if (existing != null && existing.getImportance() == NotificationManager.IMPORTANCE_NONE) {
+                Log.w(TAG, "Reminder not posted because its Android notification channel is disabled.");
+                return false;
+            }
         }
 
         boolean useMarathi = RANDOM.nextBoolean();
@@ -290,5 +309,6 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             .setWhen(System.currentTimeMillis())
             .build();
         manager.notify(NOTIFICATION_ID, notification);
+        return true;
     }
 }
