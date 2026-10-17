@@ -678,7 +678,12 @@ if (!nativeUpdaterSource.includes('versionCode: update.versionCode') ||
     !releaseWorkflowVersion.includes('sameSigningCertificate(installedInfo, downloadedInfo)') ||
     !releaseWorkflowVersion.includes('saveVerifiedApkToDownloads(destinationFile, publicName, expectedSha256)') ||
     !releaseWorkflowVersion.includes('MediaStore.Downloads.EXTERNAL_CONTENT_URI') ||
-    !releaseWorkflowVersion.includes('downloadToDownloads(PluginCall call)')) {
+    !releaseWorkflowVersion.includes('downloadToDownloads(PluginCall call)') ||
+    !releaseWorkflowVersion.includes('androidx.core.content.FileProvider') ||
+    !releaseWorkflowVersion.includes('math_app_update_paths.xml') ||
+    !releaseWorkflowVersion.includes('<external-path name="public_downloads" path="Download/"/>') ||
+    !releaseWorkflowVersion.includes('notifyDownloadState(downloadId, "paused"') ||
+    releaseWorkflowVersion.includes('attempts++ > 900')) {
   fail('Native updater must verify package, version, signing identity and support verified APK files in public Downloads');
 }
 if (!updateFeedSource.includes('Number(data.versionCode) > 2100000000')) {
