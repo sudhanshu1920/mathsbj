@@ -164,6 +164,10 @@ export const getDailyReminderStageIndex = (
 export const getRemainingTargetMinutes = (targetMinutes: number, elapsedSeconds: number): number =>
   Math.max(0, Math.ceil((Math.max(1, targetMinutes) * 60 - Math.max(0, elapsedSeconds)) / 60));
 
+/** Recompute goal completion from current target settings; persisted flags can become stale after a target increase. */
+export const isDailyTargetComplete = (targetMinutes: number, elapsedSeconds: number): boolean =>
+  Math.max(0, elapsedSeconds) >= Math.max(1, targetMinutes) * 60;
+
 interface MathMasterNotificationsPlugin {
   requestPermission(): Promise<{ granted: boolean }>;
   syncDailyTarget(options: {
@@ -248,7 +252,7 @@ const getNativeState = (enabled = getBackgroundNotificationsEnabled()) => {
   const date = todayStr();
   const record = streak.days[date];
   const elapsedSeconds = Math.max(0, Math.floor(record?.seconds ?? 0));
-  const completed = Boolean(record?.completed || elapsedSeconds >= streak.targetMinutes * 60);
+  const completed = isDailyTargetComplete(streak.targetMinutes, elapsedSeconds);
 
   return {
     // Preserve the user's opt-in separately from today's completion state so
