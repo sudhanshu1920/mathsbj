@@ -194,6 +194,7 @@ jobs:
           import android.provider.MediaStore;
           import android.provider.Settings;
           import android.widget.Toast;
+          import androidx.core.content.FileProvider;
           import java.io.File;
           import java.io.FileInputStream;
           import java.io.FileOutputStream;
@@ -588,12 +589,25 @@ jobs:
                       try (InputStream input = new FileInputStream(source);
                            OutputStream output = new FileOutputStream(target)) {
                           copy(input, output);
+                      } catch (Exception copyError) {
+                          if (target.exists()) target.delete();
+                          throw copyError;
                       }
                       savedUri = Uri.fromFile(target);
                   }
                   if (!expectedSha256.equalsIgnoreCase(sha256(savedUri))) {
-                      resolver.delete(savedUri, null, null);
+                      if ("file".equals(savedUri.getScheme())) {
+                          File invalidFile = new File(savedUri.getPath());
+                          if (invalidFile.exists()) invalidFile.delete();
+                      } else {
+                          resolver.delete(savedUri, null, null);
+                      }
                       throw new java.io.IOException("Saved APK checksum verification failed.");
+                  }
+                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                      savedUri = FileProvider.getUriForFile(
+                          getContext(), getContext().getPackageName() + ".fileprovider",
+                          new File(savedUri.getPath()));
                   }
                   return savedUri;
               }
@@ -666,6 +680,30 @@ jobs:
           if legacy_permission not in text:
               text = text[:insert_at] + "\n" + legacy_permission + text[insert_at:]
 
+          provider = """    <provider
+                      android:name="androidx.core.content.FileProvider"
+                      android:authorities="com.sudhanshu.mathsbj.fileprovider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                      <meta-data
+                          android:name="android.support.FILE_PROVIDER_PATHS"
+                          android:resource="@xml/math_app_update_paths" />
+                  </provider>"""
+          if "androidx.core.content.FileProvider" not in text:
+              app_close = text.rfind("</application>")
+              if app_close < 0:
+                  raise SystemExit("AndroidManifest.xml has no closing </application> tag")
+              text = text[:app_close] + provider + "\n    " + text[app_close:]
+
+          xml_dir = Path("android/app/src/main/res/xml")
+          xml_dir.mkdir(parents=True, exist_ok=True)
+          (xml_dir / "math_app_update_paths.xml").write_text(
+              '<?xml version="1.0" encoding="utf-8"?>\n'
+              '<paths xmlns:android="http://schemas.android.com/apk/res/android">'
+              '<external-path name="public_downloads" path="Download/"/>'
+              '</paths>\n',
+              encoding="utf-8",
+          )
           path.write_text(text, encoding="utf-8")
           PY
 
