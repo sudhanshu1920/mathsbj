@@ -124,6 +124,7 @@ test('native alarm rechecks completion and keeps tomorrow noon queued after the 
   assert.match(receiver, /allStages\.optJSONArray\(stageIndex\)/);
   assert.match(receiver, /getMinutesUntilCutoff\(\)/);
   assert.match(receiver, /putString\("lastMessageText", candidate\)/);
+  assert.match(receiver, /cancelVisibleReminder\(context\)/);
   assert.match(receiver, /triggerAt <= nowMillis/);
   assert.match(receiver, /scheduleNext\(context\)/);
 });
