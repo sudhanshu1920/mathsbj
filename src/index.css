@@ -3115,7 +3115,7 @@ html.low-power .quiz-question-panel {
 }
 
 .periodic-range-table .periodic-col-number {
-  width: clamp(3.5rem, 9vw, 4.25rem);
+  width: 70px;
 }
 
 .periodic-range-table .periodic-col-element {
