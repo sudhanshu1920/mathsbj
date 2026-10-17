@@ -46,7 +46,7 @@ interface MathMasterNotificationsPlugin {
     marathiMessagesJson: string;
     hindiMessagesJson: string;
   }): Promise<{ synced: boolean; scheduled: boolean }>;
-  setUpdateAlerts(options: { enabled: boolean }): Promise<{ configured: boolean; subscribed?: boolean }>;
+  setUpdateAlerts(options: { enabled: boolean }): Promise<{ configured: boolean; success?: boolean; subscribed?: boolean }>;
   consumeNotificationAction(): Promise<{
     action?: string;
     versionName?: string | null;
@@ -124,7 +124,7 @@ const queueNativeSync = (force = false): Promise<boolean> => {
           // push configuration as proof of delivery.
           console.info('Background notifications: FCM update alerts are not configured on this build.');
           lastUpdateAlertsSetting = backgroundEnabled;
-        } else if (pushResult.subscribed !== backgroundEnabled) {
+        } else if (pushResult.success !== true || pushResult.subscribed !== backgroundEnabled) {
           console.warn('Background notifications: FCM topic subscription was not confirmed; it will be retried on the next sync.');
           lastUpdateAlertsSetting = null;
         } else {
