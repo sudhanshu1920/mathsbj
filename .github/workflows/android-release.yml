@@ -660,8 +660,8 @@ jobs:
           if 'xmlns:android="http://schemas.android.com/apk/res/android"' not in root:
               raise SystemExit("Android namespace is missing from <manifest> root")
 
+          insert_at = manifest_end + 1
           if permission not in text:
-              insert_at = manifest_end + 1
               text = text[:insert_at] + "\n" + permission + text[insert_at:]
           if legacy_permission not in text:
               text = text[:insert_at] + "\n" + legacy_permission + text[insert_at:]
