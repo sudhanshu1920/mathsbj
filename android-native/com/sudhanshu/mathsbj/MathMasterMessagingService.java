@@ -106,7 +106,7 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
             manager.createNotificationChannel(channel);
         }
 
-        if (!manager.areNotificationsEnabled()) {
+        if (!androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()) {
             android.util.Log.w("MathAppNotifications",
                 "Update notification was not posted because app-level notifications are disabled.");
             return;
