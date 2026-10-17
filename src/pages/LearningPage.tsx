@@ -32,6 +32,8 @@ interface LearningPageProps {
   periodicRangeMenuOpen?: boolean;
   onPeriodicRangeMenuOpenChange?: (open: boolean, reason?: 'dismiss' | 'select') => void;
   onPeriodicRangeSwipe?: (index: number | null) => void;
+  /** Replace the current element-detail history entry while swiping between elements. */
+  onPeriodicElementSwipe?: (number: number) => void;
   onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
@@ -58,6 +60,7 @@ const LearningPage = ({
   periodicRangeMenuOpen,
   onPeriodicRangeMenuOpenChange,
   onPeriodicRangeSwipe,
+  onPeriodicElementSwipe,
   onStartPractice,
   learningState,
   onLearningStateChange,
@@ -329,6 +332,10 @@ const LearningPage = ({
                 else updateState({ periodicSelectedRangeIndex: index });
               }}
               onSelectElement={(n) => setSelectedElement(n)}
+              onSwipeElement={(n) => {
+                if (onPeriodicElementSwipe) onPeriodicElementSwipe(n);
+                else setSelectedElement(n);
+              }}
               onBack={onBack}
               onBackToTable={onBackToPeriodicTable}
               initialPracticeQuestionTypes={pendingPeriodicPractice?.questionTypes}
