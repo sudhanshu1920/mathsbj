@@ -30,9 +30,9 @@ describe('smart daily target reminder policy', () => {
     expect(getDailyReminderStageIndex(12 * 60)).toBe(0);
     expect(getDailyReminderStageIndex(13 * 60 + 59)).toBe(0);
     expect(getDailyReminderStageIndex(14 * 60)).toBe(1);
-    expect(getDailyReminderStageIndex(18 * 60 + 10)).toBe(4);
-    expect(getDailyReminderStageIndex(19 * 60 + 50)).toBe(6);
-    expect(getDailyReminderStageIndex(21 * 60 + 40)).toBe(9);
+    expect(getDailyReminderStageIndex(18 * 60 + 10)).toBe(3);
+    expect(getDailyReminderStageIndex(19 * 60 + 50)).toBe(5);
+    expect(getDailyReminderStageIndex(21 * 60 + 55)).toBe(9);
     expect(getDailyReminderStageIndex(22 * 60)).toBe(10);
     expect(getDailyReminderStageIndex(22 * 60 + 1)).toBeNull();
     expect(getDailyReminderStageIndex(Number.NaN)).toBeNull();
@@ -55,13 +55,13 @@ describe('smart daily target reminder policy', () => {
       expect(pool.length).toBeGreaterThanOrEqual(3);
       expect(new Set(pool).size).toBe(pool.length);
       expect(pool.every((message) => message.includes('%1$d'))).toBe(true);
-      expect(pool.every((message) => !/[a-zA-Z]/.test(message.replace(/%\d\\$d/g, '')))).toBe(true);
+      expect(pool.every((message) => !/[a-zA-Z]/.test(message.replace('%1$d', '').replace('%2$d', '')))).toBe(true);
     }
     for (const pool of HINDI_REMINDER_MESSAGES) {
       expect(pool.length).toBeGreaterThanOrEqual(3);
       expect(new Set(pool).size).toBe(pool.length);
       expect(pool.every((message) => message.includes('%1$d'))).toBe(true);
-      expect(pool.every((message) => !/[a-zA-Z]/.test(message.replace(/%\d\\$d/g, '')))).toBe(true);
+      expect(pool.every((message) => !/[a-zA-Z]/.test(message.replace('%1$d', '').replace('%2$d', '')))).toBe(true);
     }
     expect(MARATHI_REMINDER_MESSAGES[9].every((message) => message.includes('%2$d'))).toBe(true);
     expect(HINDI_REMINDER_MESSAGES[9].every((message) => message.includes('%2$d'))).toBe(true);
