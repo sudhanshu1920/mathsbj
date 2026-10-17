@@ -1034,10 +1034,7 @@ const Index = () => {
       if (e.key === '1') handleTabChange('learn');
       else if (e.key === '2') handleTabChange('practice');
       else if (e.key === '3') handleTabChange('progress');
-      else if (e.key === 'Escape') {
-        // Dialogs own Escape dismissal; don't also pop the app history.
-        if (!document.querySelector('[role="dialog"]')) window.history.back();
-      }
+      else if (e.key === 'Escape') window.history.back();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
