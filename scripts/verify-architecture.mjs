@@ -371,8 +371,10 @@ if (!settingsPanel.includes('mountedRef.current = false') ||
 if (!updateManager.includes('dismissedVersionCode = useRef(0)') ||
     updateManager.includes('localStorage.getItem("mathmaster.dismissed-update-version-code")') ||
     !updateManager.includes('Update Now') ||
-    !updateManager.includes('Later')) {
-  fail('update dialog must expose Update Now/Later and keep dismissal scoped to the current app session');
+    !updateManager.includes('Download APK') ||
+    !updateManager.includes('downloadAppUpdate') ||
+    !updateManager.includes('activeActionRef.current')) {
+  fail('update dialog must expose mutually exclusive Update Now/Download APK/Later choices and scope dismissal to the current session');
 }
 if (!updateManager.includes('lastAutomaticCheckSucceeded') ||
     !updateManager.includes('30_000') ||
@@ -641,14 +643,16 @@ if (!updateManagerSource.includes('App.addListener("resume", checkOnForeground)'
   fail('Update checks must refresh on native resume/web foreground while deduplicating one lifecycle transition');
 }
 if (!updateManagerSource.includes('Current version:') ||
-    !updateManagerSource.includes('New version:') ||
-    !updateManagerSource.includes('installAttemptInFlight.current')) {
-  fail('Update alert must show installed/latest versions and guard repeated Update Now actions');
+    !updateManagerSource.includes('Latest version:') ||
+    !updateManagerSource.includes('actionInFlight.current') ||
+    !updateManagerSource.includes('downloadAppUpdate')) {
+  fail('Update alert must show installed/latest versions and guard duplicate update/download actions');
 }
 if (!updateManagerTests.includes('dismisses only for the current app session') ||
-    !updateManagerTests.includes('starts the trusted APK update only after Update Now is clicked') ||
-    !updateManagerTests.includes('shows the actual installed and latest versions')) {
-  fail('Update alert needs tests for actual version display, session dismissal, and explicit install action');
+    !updateManagerTests.includes('starts Update Now only when selected') ||
+    !updateManagerTests.includes('downloads a verified APK to Downloads only when selected') ||
+    !updateManagerTests.includes('shows actual installed/latest versions')) {
+  fail('Update alert needs tests for version display, session dismissal, and separate install/download actions');
 }
 if (!updateOrderingSource.includes('latestCodeValid && currentCodeValid) return latest.versionCode! > current.versionCode!') ||
     !updateOrderingSource.includes('Semantic comparison is a compatibility fallback only')) {
@@ -667,10 +671,14 @@ const nativeUpdaterSource = read('src/nativeAppUpdater.ts');
 const updateFeedSource = read('src/lib/updateFeed.ts');
 if (!nativeUpdaterSource.includes('versionCode: update.versionCode') ||
     !releaseWorkflowVersion.includes('Integer expectedVersionCode = call.getInt("versionCode");') ||
-    !releaseWorkflowVersion.includes('getPackageArchiveInfo(destinationFile.getAbsolutePath(), 0)') ||
+    !releaseWorkflowVersion.includes('getPackageArchiveInfo(destinationFile.getAbsolutePath(), packageFlags)') ||
     !releaseWorkflowVersion.includes('downloadedInfo.packageName') ||
-    !releaseWorkflowVersion.includes('downloadedVersionCode != expectedVersionCode.longValue()')) {
-  fail('Native updater must verify the downloaded APK package identity and expected versionCode before installation');
+    !releaseWorkflowVersion.includes('downloadedVersionCode != expectedVersionCode.longValue()') ||
+    !releaseWorkflowVersion.includes('sameSigningCertificate(installedInfo, downloadedInfo)') ||
+    !releaseWorkflowVersion.includes('saveVerifiedApkToDownloads(destinationFile, publicName, expectedSha256)') ||
+    !releaseWorkflowVersion.includes('MediaStore.Downloads.EXTERNAL_CONTENT_URI') ||
+    !releaseWorkflowVersion.includes('downloadToDownloads(PluginCall call)')) {
+  fail('Native updater must verify package, version, signing identity and support verified APK files in public Downloads');
 }
 if (!updateFeedSource.includes('Number(data.versionCode) > 2100000000')) {
   fail('Update metadata must reject versionCodes outside Android supported bounds');
