@@ -67,6 +67,22 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
             android.util.Log.w("MathAppNotifications", "Ignoring update push with invalid release metadata.");
             return;
         }
+        try {
+            android.content.pm.PackageInfo installed = getPackageManager()
+                .getPackageInfo(getPackageName(), 0);
+            long installedVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                ? installed.getLongVersionCode()
+                : installed.versionCode;
+            if (numericVersionCode <= installedVersionCode) {
+                android.util.Log.i("MathAppNotifications",
+                    "Update push skipped because this installation is already at the announced version.");
+                return;
+            }
+        } catch (Exception versionError) {
+            android.util.Log.w("MathAppNotifications",
+                "Update push skipped because the installed version could not be verified.");
+            return;
+        }
         String title = data.get("title");
         String body = data.get("body");
         if (title == null || title.trim().isEmpty()) title = "🎉 New Math App Update Available!";
