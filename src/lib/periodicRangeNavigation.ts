@@ -1,6 +1,7 @@
 import { PERIODIC_RANGES } from '@/lib/periodicRanges';
 
 export const PERIODIC_GROUPS = PERIODIC_RANGES;
+export const PERIODIC_RANGE_MENU_DEPTH = 'learn-periodic-table-range-menu';
 
 export function getAdjacentPeriodicRangeIndex(
   index: number,
