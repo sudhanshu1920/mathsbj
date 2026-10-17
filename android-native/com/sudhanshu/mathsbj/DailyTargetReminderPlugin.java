@@ -144,7 +144,8 @@ public class DailyTargetReminderPlugin extends Plugin {
                         boolean success = Boolean.TRUE.equals(
                             taskClass.getMethod("isSuccessful").invoke(completedTask));
                         JSObject result = new JSObject();
-                        result.put("configured", success);
+                        result.put("configured", true);
+                        result.put("success", success);
                         result.put("subscribed", success && enabled);
                         if (!success) {
                             android.util.Log.w("MathAppNotifications",
@@ -168,9 +169,10 @@ public class DailyTargetReminderPlugin extends Plugin {
         } catch (Exception error) {
             android.util.Log.w("MathAppNotifications", "Unable to configure FCM update topic.", error);
             JSObject result = new JSObject();
-            result.put("configured", false);
+            result.put("configured", true);
+            result.put("success", false);
             result.put("subscribed", false);
-            result.put("message", "Firebase update notifications are not available on this build.");
+            result.put("message", "Firebase topic subscription could not be confirmed.");
             call.resolve(result);
         }
     }
