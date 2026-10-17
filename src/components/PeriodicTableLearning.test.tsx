@@ -460,7 +460,7 @@ describe('PeriodicTableLearning', () => {
   it('returns from a selected range to the main table without reopening the range picker', () => {
     const onSelectElement = vi.fn();
     const onSelectRange = vi.fn();
-    const baseProps = { selectedElement: null, onSelectElement, onSelectRange, isRangeMenuOpen: false };
+    const baseProps = { selectedElement: null, onSelectElement, onSelectRange };
     const { rerender } = render(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
 
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
