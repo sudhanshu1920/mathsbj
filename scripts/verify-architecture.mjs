@@ -684,6 +684,31 @@ if (!updateFeedSource.includes('Number(data.versionCode) > 2100000000')) {
   fail('Update metadata must reject versionCodes outside Android supported bounds');
 }
 
+// Notification reliability: verify that a local reminder schedule is only
+// reported as successful when Android actually accepted a pending alarm, and
+// that remote push payloads respect the user's preference in the native service.
+const reminderBridgeSource = read('src/lib/dailyTargetReminders.ts');
+const reminderPluginSource = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java');
+const reminderReceiverSource = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderReceiver.java');
+const updateMessagingSource = read('android-native/com/sudhanshu/mathsbj/MathMasterMessagingService.java');
+const releaseNotificationSenderSource = read('scripts/release-notification-sender.mjs');
+const releaseNotificationTestsSource = read('scripts/release-notification-sender.test.mjs');
+if (!reminderPluginSource.includes('result.put("synced", syncSucceeded)') ||
+    !reminderPluginSource.includes('DailyTargetReminderReceiver.scheduleNext(getContext())') ||
+    !reminderReceiverSource.includes('public static boolean scheduleNext(Context context)') ||
+    !reminderReceiverSource.includes('Log.w(TAG, "Alarm scheduling failed: Android AlarmManager is unavailable.")') ||
+    !reminderBridgeSource.includes('syncResult.synced !== true')) {
+  fail('Daily reminder opt-in must not be acknowledged unless native Android confirms that the next alarm is scheduled');
+}
+if (!releaseNotificationSenderSource.includes("topic: 'math_app_updates'") ||
+    !releaseNotificationSenderSource.includes("type: 'app_update'") ||
+    !releaseNotificationTestsSource.includes('assert.equal(payload.notification, undefined)') ||
+    !updateMessagingSource.includes('.getBoolean("updateAlertsEnabled", false)') ||
+    !updateMessagingSource.includes('if (!enabled)') ||
+    !updateMessagingSource.includes('Ignoring update push with invalid release metadata.')) {
+  fail('Release alerts must be data-only, opt-in aware, idempotent, and validate release metadata before displaying');
+}
+
 // Quiz countdown progress must use the active timer deadline and leave the overall quiz bar intact.
 const questionTimerPage = read('src/pages/PracticePage.tsx');
 const questionTimerHelpers = read('src/lib/quizTimer.ts');
