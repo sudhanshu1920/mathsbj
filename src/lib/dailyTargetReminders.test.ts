@@ -1,5 +1,6 @@
 import {
   DAILY_REMINDER_MINUTES,
+  DAILY_REMINDER_POLICY_VERSION,
   HINDI_REMINDER_MESSAGES,
   MARATHI_REMINDER_MESSAGES,
   getDailyReminderStageIndex,
@@ -9,6 +10,7 @@ import {
 
 describe('smart daily target reminder policy', () => {
   it('uses the expected eleven increasing local-time reminder stages', () => {
+    expect(DAILY_REMINDER_POLICY_VERSION).toBe(2);
     expect(DAILY_REMINDER_MINUTES).toEqual([
       720, 840, 960, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320,
     ]);
