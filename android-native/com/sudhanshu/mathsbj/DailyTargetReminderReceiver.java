@@ -66,7 +66,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
 
         int targetMinutes = Math.max(1, prefs.getInt("targetMinutes", 5));
         long elapsedSeconds = Math.max(0L, prefs.getLong("elapsedSeconds", 0L));
-        if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
+        if (elapsedSeconds >= targetMinutes * 60L) {
             prefs.edit().putBoolean("completed", true).apply();
             cancelVisibleReminder(context);
             Log.i(TAG, "Reminder skipped because the daily target is complete.");
@@ -118,7 +118,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
 
         JSONArray slots = parseArray(prefs.getString("scheduleMinutesJson", DEFAULT_REMINDER_SCHEDULE_JSON));
 
-        if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
+        if (elapsedSeconds >= targetMinutes * 60L) {
             prefs.edit().putBoolean("completed", true).apply();
             cancelVisibleReminder(context);
             return scheduleTomorrow(context, slots);
