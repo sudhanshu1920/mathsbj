@@ -324,7 +324,7 @@ const LearningPage = ({
               isRangeMenuOpen={periodicRangeMenuOpen}
               onRangeMenuOpenChange={onPeriodicRangeMenuOpenChange}
               onSelectRange={(index, source) => {
-                if (source === 'swipe') onPeriodicRangeSwipe?.(index);
+                if (source === 'swipe' && onPeriodicRangeSwipe) onPeriodicRangeSwipe(index);
                 else updateState({ periodicSelectedRangeIndex: index });
               }}
               onSelectElement={(n) => setSelectedElement(n)}
