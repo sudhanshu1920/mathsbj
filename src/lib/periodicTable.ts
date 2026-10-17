@@ -346,7 +346,7 @@ function parsePhysicalValue(raw: string | undefined): number | null {
 }
 
 const VERIFIED_PHYSICAL_VALUES = new Map<number, Pick<ElementPhysicalProperties, 'densityGPerCm3' | 'meltingPointK' | 'boilingPointK'>>(
-  PHYSICAL_DATA_RAW.split('\\n').map((line) => {
+  PHYSICAL_DATA_RAW.split('\n').map((line) => {
     const [numberRaw, meltingRaw, boilingRaw, densityRaw] = line.split('|');
     return [Number(numberRaw), {
       meltingPointK: parsePhysicalValue(meltingRaw),
@@ -378,7 +378,7 @@ function createPhysicalProperties(number: number): ElementPhysicalProperties {
   };
 }
 
-export const ELEMENTS: ChemElement[] = RAW.split('\\n').map((line, i) => {
+export const ELEMENTS: ChemElement[] = RAW.split('\n').map((line, i) => {
   const [symbol, name, massRaw, cat, config] = line.split('|');
   const number = i + 1;
   const radioactive = massRaw.endsWith('*');
