@@ -23,24 +23,49 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
         boolean enabled = getSharedPreferences("math_master_background_notifications", Context.MODE_PRIVATE)
             .getBoolean("updateAlertsEnabled", false);
         if (enabled) {
-            com.google.firebase.messaging.FirebaseMessaging.getInstance().subscribeToTopic("math_app_updates");
+            com.google.firebase.messaging.FirebaseMessaging.getInstance()
+                .subscribeToTopic("math_app_updates")
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        android.util.Log.i("MathAppNotifications", "FCM topic subscription restored after token refresh.");
+                    } else {
+                        android.util.Log.w("MathAppNotifications", "FCM topic subscription restore failed after token refresh.");
+                    }
+                });
         }
     }
 
     @Override
     public void onMessageReceived(RemoteMessage message) {
-        // Firebase renders notification payloads itself while the app is in the
-        // background. This service surfaces the same alert when Math Master is
-        // already foregrounded.
-        String title = message.getNotification() != null ? message.getNotification().getTitle() : null;
-        String body = message.getNotification() != null ? message.getNotification().getBody() : null;
         Map<String, String> data = message.getData();
+        boolean enabled = getSharedPreferences("math_master_background_notifications", Context.MODE_PRIVATE)
+            .getBoolean("updateAlertsEnabled", false);
+        if (!enabled) {
+            android.util.Log.i("MathAppNotifications", "Update push ignored because the user has disabled background notifications.");
+            return;
+        }
+        if (!"app_update".equals(data.get("type"))) {
+            android.util.Log.w("MathAppNotifications", "Ignoring an update push with an unknown message type.");
+            return;
+        }
+        String versionName = data.get("versionName");
+        String versionCode = data.get("versionCode");
+        String apkUrl = data.get("apkUrl");
+        String checksum = data.get("sha256");
+        String manifestUrl = data.get("updateManifestUrl");
+        if (versionName == null || !versionName.matches("[0-9]+\\.[0-9]+\\.[0-9]+")
+            || versionCode == null || !versionCode.matches("[1-9][0-9]{0,9}")
+            || !"https://github.com/sudhanshu1920/mathsbj-updates/releases/download/latest/MathMaster-release.apk".equals(apkUrl)
+            || checksum == null || !checksum.matches("(?i)[a-f0-9]{64}")
+            || !"https://raw.githubusercontent.com/sudhanshu1920/mathsbj-updates/main/updates/update.json".equals(manifestUrl)) {
+            android.util.Log.w("MathAppNotifications", "Ignoring update push with invalid release metadata.");
+            return;
+        }
+        String title = data.get("title");
+        String body = data.get("body");
         if (title == null || title.trim().isEmpty()) title = "🎉 New Math App Update Available!";
         if (body == null || body.trim().isEmpty()) {
-            String version = data.get("versionName");
-            body = version == null
-                ? "A new version is available. Tap to view update details."
-                : "Version " + version + " is now available. Tap to view the update.";
+            body = "Version " + versionName + " is now available. Tap to view update details.";
         }
         showUpdateNotification(title, body, data);
     }
