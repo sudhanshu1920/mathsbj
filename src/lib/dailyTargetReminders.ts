@@ -45,7 +45,7 @@ interface MathMasterNotificationsPlugin {
     scheduleMinutesJson: string;
     marathiMessagesJson: string;
     hindiMessagesJson: string;
-  }): Promise<{ scheduled: boolean }>;
+  }): Promise<{ synced: boolean; scheduled: boolean }>;
   setUpdateAlerts(options: { enabled: boolean }): Promise<{ configured: boolean; subscribed?: boolean }>;
   consumeNotificationAction(): Promise<{
     action?: string;
@@ -113,9 +113,19 @@ const queueNativeSync = (force = false): Promise<boolean> => {
   syncQueue = syncQueue
     .catch(() => undefined)
     .then(async () => {
-      await NativeNotifications.syncDailyTarget(state);
+      const syncResult = await NativeNotifications.syncDailyTarget(state);
+      if (syncResult.synced !== true) {
+        throw new Error('Native daily reminder scheduler did not confirm the requested state.');
+      }
       if (lastUpdateAlertsSetting !== backgroundEnabled) {
-        await NativeNotifications.setUpdateAlerts({ enabled: backgroundEnabled });
+        const pushResult = await NativeNotifications.setUpdateAlerts({ enabled: backgroundEnabled });
+        if (!pushResult.configured) {
+          // Local reminders still work in a non-Firebase build; do not misreport
+          // push configuration as proof of delivery.
+          console.info('Background notifications: FCM update alerts are not configured on this build.');
+        } else if (pushResult.subscribed !== backgroundEnabled) {
+          console.warn('Background notifications: FCM topic subscription was not confirmed.');
+        }
         lastUpdateAlertsSetting = backgroundEnabled;
       }
       succeeded = true;
