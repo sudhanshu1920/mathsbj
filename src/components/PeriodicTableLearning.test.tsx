@@ -821,7 +821,8 @@ describe('PeriodicTableLearning', () => {
     expect(within(physical).getByText(/bulk state is not established in this snapshot/i)).toBeInTheDocument();
     expect(within(physical).getByText(/bulk physical values are omitted/i)).toBeInTheDocument();
     expect(within(physical).getAllByText('Data unavailable in the selected structured source').length).toBeGreaterThan(5);
-    expect(within(physical).queryByText(/g\/cm³/)).not.toBeInTheDocument();
+    const propertyValues = Array.from(physical.querySelectorAll('dd')).map((value) => value.textContent ?? '');
+    expect(propertyValues.some((value) => value.includes('g/cm³'))).toBe(false);
   });
 
   it('refreshes properties when the selected element changes and avoids stale values', () => {
