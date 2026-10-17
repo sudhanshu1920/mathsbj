@@ -1,9 +1,30 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { validateReleaseManifest, type ReleaseManifest } from "@/lib/updateFeed";
 
+export interface AndroidUpdateDownloadEvent {
+  downloadId: number;
+  state: "downloading" | "verifying" | "installer_opened" | "saved_to_downloads" | "failed";
+  progress: number;
+  fileName?: string;
+  message?: string;
+}
+
+export interface AndroidUpdateListenerHandle {
+  remove(): Promise<void>;
+}
+
 type NativeUpdater = {
   getVersion(): Promise<{ versionCode: number; versionName: string }>;
-  downloadAndInstall(options: { url: string; sha256: string; versionCode: number }): Promise<{ downloadId: number }>;
+  downloadAndInstall(options: {
+    url: string; sha256: string; versionCode: number; versionName: string;
+  }): Promise<{ downloadId: number }>;
+  downloadToDownloads(options: {
+    url: string; sha256: string; versionCode: number; versionName: string;
+  }): Promise<{ downloadId: number }>;
+  addListener(
+    eventName: "downloadState",
+    listenerFunc: (event: AndroidUpdateDownloadEvent) => void,
+  ): Promise<AndroidUpdateListenerHandle>;
 };
 
 const AppUpdater = registerPlugin<NativeUpdater>("AppUpdater");
@@ -20,6 +41,13 @@ function isNativeAndroid() {
 
 export function isAndroidNativeUpdaterAvailable() {
   return isNativeAndroid();
+}
+
+export async function addAndroidUpdateDownloadListener(
+  listener: (event: AndroidUpdateDownloadEvent) => void,
+): Promise<AndroidUpdateListenerHandle | null> {
+  if (!isNativeAndroid()) return null;
+  return AppUpdater.addListener("downloadState", listener);
 }
 
 export async function getInstalledAndroidVersion(): Promise<InstalledAppVersion> {
@@ -41,9 +69,26 @@ export async function startAndroidUpdate(candidate: ReleaseManifest): Promise<Na
     url: update.apkUrl,
     sha256: update.sha256,
     versionCode: update.versionCode,
+    versionName: update.versionName,
   });
   if (!Number.isSafeInteger(result.downloadId) || result.downloadId <= 0) {
     throw new Error("The update download could not be started.");
+  }
+  return { status: "started", downloadId: result.downloadId };
+}
+
+export async function saveAndroidUpdateToDownloads(candidate: ReleaseManifest): Promise<NativeInstallResult> {
+  if (!isNativeAndroid()) return { status: "unsupported" };
+  if (!navigator.onLine) return { status: "offline" };
+  const update = validateReleaseManifest(candidate);
+  const result = await AppUpdater.downloadToDownloads({
+    url: update.apkUrl,
+    sha256: update.sha256,
+    versionCode: update.versionCode,
+    versionName: update.versionName,
+  });
+  if (!Number.isSafeInteger(result.downloadId) || result.downloadId <= 0) {
+    throw new Error("The APK download could not be started.");
   }
   return { status: "started", downloadId: result.downloadId };
 }
