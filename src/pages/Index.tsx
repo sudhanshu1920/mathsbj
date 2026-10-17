@@ -552,7 +552,7 @@ const Index = () => {
         periodicSelectedRangeIndex === null &&
         skipStalePeriodicRangeEntries.current
       ) {
-        if (targetPeriodicRangeIndex !== null || targetDepth === 'learn-periodic-table') {
+        if (targetPeriodicRangeIndex !== null || targetDepth === 'learn-periodic-table' || targetDepth === PERIODIC_RANGE_MENU_DEPTH) {
           // The toolbar navigated directly to the table. Drain the obsolete
           // range entries without painting intermediate pages during system Back.
           window.history.back();
@@ -578,10 +578,9 @@ const Index = () => {
       }
 
       if (activeTopic === 'periodic-table' && periodicSelectedRangeIndex !== null) {
-        if (targetPeriodicRangeIndex !== null) {
-          // Ignore obsolete range entries left by older app versions or an
-          // earlier picker opened from another range. Do not flash intermediate
-          // pages; keep popping until the table is reached.
+        if (targetPeriodicRangeIndex !== null || targetDepth === PERIODIC_RANGE_MENU_DEPTH) {
+          // Ignore obsolete range/picker entries left by older app versions or
+          // a picker opened from another range. Do not flash intermediate pages.
           window.history.back();
           return;
         }
