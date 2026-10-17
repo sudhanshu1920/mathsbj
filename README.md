@@ -8,4 +8,4 @@ The signed release APK is built by the GitHub Actions workflow at `.github/workf
 
 Release notifications are sent only after the public update manifest and the published APK asset pass checksum verification. See `docs/BACKGROUND_NOTIFICATIONS_SETUP.md` for the Firebase setup requirements.
 
-<!-- [BUILD_APK] Build requested for the latest main branch changes -->
+<!-- [BUILD_APK] Release latest MathMaster Android APK after Periodic Table practice fix -->
