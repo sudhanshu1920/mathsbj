@@ -457,10 +457,10 @@ describe('PeriodicTableLearning', () => {
     expect(screen.queryByRole('button', { name: /Next element range/i })).not.toBeInTheDocument();
   });
 
-  it('restores the previously selected range when returning from its dedicated page', () => {
+  it('returns from a selected range to the main table without reopening the range picker', () => {
     const onSelectElement = vi.fn();
     const onSelectRange = vi.fn();
-    const baseProps = { selectedElement: null, onSelectElement, onSelectRange };
+    const baseProps = { selectedElement: null, onSelectElement, onSelectRange, isRangeMenuOpen: false };
     const { rerender } = render(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
 
     fireEvent.click(screen.getByRole('button', { name: /open element range menu/i }));
@@ -471,11 +471,9 @@ describe('PeriodicTableLearning', () => {
     expect(screen.getByRole('table', { name: 'Elements 21–30' })).toBeInTheDocument();
 
     rerender(<PeriodicTableLearning {...baseProps} selectedRangeIndex={null} />);
-    expect(screen.getByRole('dialog', { name: 'Element ranges' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /21–30 10 elements/i })).toHaveAttribute('aria-pressed', 'true');
-
-    fireEvent.click(screen.getByRole('button', { name: /31–40 10 elements/i }));
-    expect(onSelectRange).toHaveBeenLastCalledWith(3);
+    expect(screen.getByRole('heading', { name: 'Periodic Table' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Hydrogen, atomic number 1/i })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Element ranges' })).not.toBeInTheDocument();
   });
 
 
