@@ -4,6 +4,22 @@ import SwipeBack from './SwipeBack';
 import SwipeContainer from './SwipeContainer';
 import { getPeriodicRangeIndexFromDepth, getPeriodicSwipeDirection } from '@/lib/periodicRangeNavigation';
 
+const dispatchElementSwipePointer = (
+  target: HTMLElement,
+  type: 'pointerdown' | 'pointerup',
+  init: { pointerId: number; clientX: number; clientY: number },
+) => {
+  // JSDOM may not provide PointerEvent; assign touch-pointer fields explicitly.
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.assign(event, {
+    ...init,
+    pointerType: 'touch',
+    button: 0,
+    isPrimary: true,
+  });
+  target.dispatchEvent(event);
+};
+
 describe('PeriodicTableLearning', () => {
   it('opens the range grid from the three-dot menu and selects the requested range', () => {
     const onSelectElement = vi.fn();
@@ -706,12 +722,8 @@ describe('PeriodicTableLearning', () => {
       toY: number,
       pointerId: number,
     ) => {
-      fireEvent.pointerDown(target, {
-        pointerId, pointerType: 'touch', button: 0, isPrimary: true, clientX: fromX, clientY: fromY,
-      });
-      fireEvent.pointerUp(target, {
-        pointerId, pointerType: 'touch', button: 0, isPrimary: true, clientX: toX, clientY: toY,
-      });
+      dispatchElementSwipePointer(target, 'pointerdown', { pointerId, clientX: fromX, clientY: fromY });
+      dispatchElementSwipePointer(target, 'pointerup', { pointerId, clientX: toX, clientY: toY });
     };
 
     const scandiumDetails = screen.getByLabelText('Scandium element details');
@@ -749,12 +761,8 @@ describe('PeriodicTableLearning', () => {
     const { rerender } = render(<PeriodicTableLearning {...renderProps} />);
 
     const swipe = (target: HTMLElement, fromX: number, toX: number, pointerId: number) => {
-      fireEvent.pointerDown(target, {
-        pointerId, pointerType: 'touch', button: 0, isPrimary: true, clientX: fromX, clientY: 120,
-      });
-      fireEvent.pointerUp(target, {
-        pointerId, pointerType: 'touch', button: 0, isPrimary: true, clientX: toX, clientY: 123,
-      });
+      dispatchElementSwipePointer(target, 'pointerdown', { pointerId, clientX: fromX, clientY: 120 });
+      dispatchElementSwipePointer(target, 'pointerup', { pointerId, clientX: toX, clientY: 123 });
     };
 
     swipe(screen.getByLabelText('Hydrogen element details'), 100, 220, 511);
