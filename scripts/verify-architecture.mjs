@@ -663,7 +663,7 @@ const apkVerifierStart = releaseWorkflowVersion.indexOf('new Thread(() -> {');
 const apkHashCheck = releaseWorkflowVersion.indexOf('expectedSha256.equalsIgnoreCase(actualSha256)', apkVerifierStart);
 const apkInstallerPost = releaseWorkflowVersion.indexOf('mainHandler.post(() -> {', apkHashCheck);
 if (apkVerifierStart < 0 || apkHashCheck < apkVerifierStart || apkInstallerPost < apkHashCheck ||
-    !releaseWorkflowVersion.includes('"MathMaster-APK-verifier"') ||
+    !releaseWorkflowVersion.includes('"MathApp-APK-verifier"') ||
     !releaseWorkflowVersion.includes('if (apkUri == null || !destinationFile.isFile()')) {
   fail('Downloaded APK checksum must run off the UI thread and the Android installer must only open after verification');
 }
