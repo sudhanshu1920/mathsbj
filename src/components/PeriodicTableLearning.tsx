@@ -406,7 +406,7 @@ const ElementDetails = ({
       aria-label={`${element.name} element details`}
       onPointerDown={(event) => {
         touchStartRef.current = null;
-        if (event.pointerType !== 'touch' || !event.isPrimary || event.button !== 0) return;
+        if (event.pointerType !== 'touch' || event.isPrimary === false || event.button !== 0) return;
         if (
           event.target instanceof Element &&
           event.target.closest('button, a, input, textarea, select, [role="button"]')
