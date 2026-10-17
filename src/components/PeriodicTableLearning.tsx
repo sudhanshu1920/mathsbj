@@ -19,7 +19,9 @@ interface PeriodicTableLearningProps {
   onSelectElement: (number: number | null) => void;
   /** Controlled by LearningState so range pages participate in app history. */
   selectedRangeIndex?: number | null;
-  onSelectRange?: (index: number | null, source?: 'picker' | 'swipe') => void;
+  onSelectRange?: (index: number | null) => void;
+  /** Optional history-aware callback for range paging swipes. */
+  onSwipeRange?: (index: number) => void;
   /** Mirrors the route-aware popup state so browser/native Back can dismiss it. */
   isRangeMenuOpen?: boolean;
   onRangeMenuOpenChange?: (open: boolean, reason?: 'dismiss' | 'select') => void;
@@ -464,6 +466,7 @@ const PeriodicTableLearning = ({
   initialPracticeQuestionTypes,
   selectedRangeIndex,
   onSelectRange,
+  onSwipeRange,
   isRangeMenuOpen,
   onRangeMenuOpenChange,
   onBack,
@@ -698,12 +701,12 @@ const PeriodicTableLearning = ({
     if (index !== null && !isValidPeriodicRangeIndex(index)) return;
     if (index !== null && index !== activeRangeIndex) tableScrollLeftRef.current = 0;
     if (index !== null) lastSelectedRangeIndexRef.current = index;
-    if (hasControlledRange) {
-      onSelectRange?.(index, source);
-    } else {
-      setInternalSelectedRangeIndex(index);
-      onSelectRange?.(index, source);
-    }
+    const notifyChange = () => {
+      if (source === 'swipe' && index !== null && onSwipeRange) onSwipeRange(index);
+      else onSelectRange?.(index);
+    };
+    if (!hasControlledRange) setInternalSelectedRangeIndex(index);
+    notifyChange();
   };
 
   const navigateRange = (direction: 'previous' | 'next') => {
