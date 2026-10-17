@@ -45,7 +45,7 @@ describe('Periodic Table physical-property snapshot', () => {
       boilingPointK: 629.88,
     });
     expect(ELEMENTS[25].physicalProperties?.densityGPerCm3).toBe(7.874);
-    expect(ELEMENTS[25].physicalProperties?.sourceUrl).toContain('/element/26');
+    expect(ELEMENTS[25].physicalProperties?.sourceUrl).toContain('/element/Fe');
   });
 
   it('omits misleading pressure-dependent or sublimation transition values', () => {
