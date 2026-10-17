@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -27,6 +28,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
     public static final String ACTION_FIRE = "com.sudhanshu.mathsbj.DAILY_TARGET_REMINDER";
     private static final String PREFS = "math_master_background_notifications";
     private static final String CHANNEL_ID = "daily_target_reminders";
+    private static final String TAG = "MathAppReminders";
     private static final int ALARM_REQUEST_CODE = 7401;
     private static final int NOTIFICATION_ID = 7402;
     private static final Random RANDOM = new Random();
@@ -40,6 +42,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         }
 
         normalizeDay(prefs);
+        Log.i(TAG, "Alarm received; validating current local target state.");
         String today = todayKey();
         String scheduledDay = intent.getStringExtra("scheduledDay");
         if (scheduledDay == null || !scheduledDay.equals(today)) {
@@ -57,6 +60,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         long elapsedSeconds = Math.max(0L, prefs.getLong("elapsedSeconds", 0L));
         if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
             prefs.edit().putBoolean("completed", true).apply();
+            Log.i(TAG, "Reminder skipped because the daily target is complete.");
             scheduleNext(context);
             return;
         }
@@ -71,16 +75,20 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
 
         int remainingMinutes = (int) Math.max(1L, (long) Math.ceil((targetMinutes * 60L - elapsedSeconds) / 60.0));
         showReminder(context, prefs, remainingMinutes);
+        Log.i(TAG, "Reminder displayed; next eligible slot will be reconciled.");
         scheduleNext(context);
     }
 
-    public static void scheduleNext(Context context) {
+    public static boolean scheduleNext(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         normalizeDay(prefs);
         cancelScheduled(context);
 
         if (!prefs.getBoolean("enabled", false)
-            || !DailyTargetReminderPlugin.hasNotificationPermission(context)) return;
+            || !DailyTargetReminderPlugin.hasNotificationPermission(context)) {
+            Log.i(TAG, "No reminder scheduled because opt-in is disabled or notification permission is unavailable.");
+            return false;
+        }
 
         int targetMinutes = Math.max(1, prefs.getInt("targetMinutes", 5));
         long elapsedSeconds = Math.max(0L, prefs.getLong("elapsedSeconds", 0L));
@@ -98,8 +106,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
 
         if (prefs.getBoolean("completed", false) || elapsedSeconds >= targetMinutes * 60L) {
             prefs.edit().putBoolean("completed", true).apply();
-            scheduleTomorrow(context, slots);
-            return;
+            return scheduleTomorrow(context, slots);
         }
 
         Calendar now = Calendar.getInstance();
@@ -116,15 +123,14 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             long triggerAt = candidate.getTimeInMillis();
             if (triggerAt <= nowMillis + 5000L) continue;
 
-            scheduleAlarm(context, candidate, minuteOfDay, todayKey());
-            return;
+            return scheduleAlarm(context, candidate, minuteOfDay, todayKey());
         }
 
         // No eligible slot remains today; retain tomorrow's first reminder.
-        scheduleTomorrow(context, slots);
+        return scheduleTomorrow(context, slots);
     }
 
-    private static void scheduleTomorrow(Context context, JSONArray slots) {
+    private static boolean scheduleTomorrow(Context context, JSONArray slots) {
         Calendar now = Calendar.getInstance();
         int firstMinute = -1;
         for (int i = 0; i < slots.length(); i++) {
@@ -132,7 +138,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             if (candidateMinute < 12 * 60 || candidateMinute > 22 * 60) continue;
             if (firstMinute < 0 || candidateMinute < firstMinute) firstMinute = candidateMinute;
         }
-        if (firstMinute < 12 * 60 || firstMinute > 22 * 60) return;
+        if (firstMinute < 12 * 60 || firstMinute > 22 * 60) return false;
 
         Calendar tomorrow = (Calendar) now.clone();
         tomorrow.add(Calendar.DAY_OF_YEAR, 1);
@@ -140,10 +146,10 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         tomorrow.set(Calendar.MINUTE, firstMinute % 60);
         tomorrow.set(Calendar.SECOND, 0);
         tomorrow.set(Calendar.MILLISECOND, 0);
-        scheduleAlarm(context, tomorrow, firstMinute, todayKey(tomorrow.getTime()));
+        return scheduleAlarm(context, tomorrow, firstMinute, todayKey(tomorrow.getTime()));
     }
 
-    private static void scheduleAlarm(Context context, Calendar candidate, int minuteOfDay, String scheduledDay) {
+    private static boolean scheduleAlarm(Context context, Calendar candidate, int minuteOfDay, String scheduledDay) {
         Intent alarmIntent = new Intent(context, DailyTargetReminderReceiver.class);
         alarmIntent.setAction(ACTION_FIRE);
         alarmIntent.putExtra("scheduledMinute", minuteOfDay);
@@ -155,14 +161,24 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        if (alarmManager == null) return;
+        if (alarmManager == null) {
+            Log.w(TAG, "Alarm scheduling failed: Android AlarmManager is unavailable.");
+            return false;
+        }
         long triggerAt = candidate.getTimeInMillis();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Inexact allow-while-idle alarms need no special exact-alarm permission.
-            // Android/OEM power policies may still delay delivery.
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
-        } else {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // Inexact allow-while-idle alarms need no special exact-alarm permission.
+                // Android/OEM power policies may still delay delivery.
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
+            } else {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
+            }
+            Log.i(TAG, "Next local reminder alarm scheduled (slot " + minuteOfDay + ", day " + scheduledDay + ").");
+            return true;
+        } catch (RuntimeException error) {
+            Log.w(TAG, "Alarm scheduling failed because the Android platform rejected the request.", error);
+            return false;
         }
     }
 
@@ -175,10 +191,14 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             alarmIntent,
             PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
         );
-        if (pendingIntent == null) return;
+        if (pendingIntent == null) {
+            Log.i(TAG, "No pending reminder alarm existed to cancel.");
+            return;
+        }
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager != null) alarmManager.cancel(pendingIntent);
         pendingIntent.cancel();
+        Log.i(TAG, "Pending local reminder alarm cancelled.");
     }
 
     private static void normalizeDay(SharedPreferences prefs) {
