@@ -35,42 +35,54 @@ export function brokeredPreviewStorage() {
     new Promise((resolve) => {
       const requestId = newId();
       let done = false;
-      function finish(r: { ok: boolean; value?: string | null } | null) {
+      let timer: ReturnType<typeof setTimeout>;
+      const finish = (r: { ok: boolean; value?: string | null } | null) => {
         if (done) return;
         done = true;
         clearTimeout(timer);
         window.removeEventListener('message', onMessage);
         resolve(r);
-      }
-      function onMessage(e: MessageEvent) {
+      };
+      const onMessage = (e: MessageEvent) => {
         if (editorOrigins.indexOf(e.origin) < 0) return;
         const d = e.data;
         if (d && d.type === RESULT && d.requestId === requestId) finish(d);
-      }
+      };
       window.addEventListener('message', onMessage);
-      const timer = setTimeout(() => finish(null), TIMEOUT);
       const msg: Record<string, unknown> = { type, requestId, projectId, key };
       if (value !== undefined) msg['value'] = value;
       // targetOrigin per trusted editor origin, so a session token never reaches an arbitrary embedder.
       for (const origin of editorOrigins) window.parent.postMessage(msg, origin);
+      timer = setTimeout(() => finish(null), TIMEOUT);
     });
 
   // The editor may not be listening yet at the first getItem, so retry once.
   let firstGet = true;
   const RETRY_DELAY = 250;
+  // Blocked third-party storage throws here; seeding must not break broker reads.
+  const readLocal = (key: string) => { try { return localStorage.getItem(key); } catch { return undefined; } };
 
   return {
     getItem: async (key: string) => {
-      let res = await request('lovable-preview-auth:get', key);
+      // Sent with GET and REMOVE so an editor that never cached this session can check or revoke it.
+      const local = readLocal(key);
+      let res = await request('lovable-preview-auth:get', key, local ?? undefined);
       if (!res && firstGet) {
         await new Promise((r) => setTimeout(r, RETRY_DELAY));
-        res = await request('lovable-preview-auth:get', key);
+        res = await request('lovable-preview-auth:get', key, local ?? undefined);
       }
       firstGet = false;
       // '' is the logout tombstone: clear the local copy too so it can't resurrect if
       // the broker later goes silent. A null reply means never-synced -> keep local.
       if (res && res.ok && typeof res.value === 'string') {
-        if (res.value === '') { localStorage.removeItem(key); return null; }
+        if (res.value === '') {
+          if (local !== undefined && readLocal(key) === local) localStorage.removeItem(key);
+          return null;
+        }
+        // Seed this origin so a new tab, whose editor holds no session, stays signed in.
+        if (local === null && readLocal(key) === null) {
+          try { localStorage.setItem(key, res.value); } catch { /* storage full: still return the editor's session */ }
+        }
         return res.value;
       }
       return localStorage.getItem(key);
@@ -85,8 +97,9 @@ export function brokeredPreviewStorage() {
       });
     },
     removeItem: (key: string) => {
+      const local = readLocal(key);
       localStorage.removeItem(key);
-      return request('lovable-preview-auth:remove', key).then(() => undefined);
+      return request('lovable-preview-auth:remove', key, local ?? undefined).then(() => undefined);
     },
   };
 }
