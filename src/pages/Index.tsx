@@ -18,7 +18,7 @@ import OfflinePrep from '@/components/OfflinePrep';
 import { getSettings } from '@/lib/settings';
 import { getPracticeNavDepth, getPracticeReturnDepth, isPracticeSessionInProgress, isUnsavedPracticePhase, LEARNING_PRACTICE_SELECTOR_DEPTH, type PracticeLaunchContext, type PracticePhase } from '@/lib/practiceNavigation';
 import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
-import { getPeriodicRangeIndexFromDepth, isValidPeriodicRangeIndex } from '@/lib/periodicRangeNavigation';
+import { getPeriodicRangeIndexFromDepth, isValidPeriodicRangeIndex, PERIODIC_RANGE_MENU_DEPTH } from '@/lib/periodicRangeNavigation';
 import { MOTION } from '@/lib/motion';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TrigFunction } from '@/lib/trigData';
@@ -131,8 +131,12 @@ function getCurrentNavigationDepth(
   practiceTopic: string | undefined,
   practicePhase: PracticePhase,
   practiceSelectorOpen: boolean,
+  periodicRangeMenuOpen = false,
 ): string {
   if (tab === 'learn' && practiceSelectorOpen) return LEARNING_PRACTICE_SELECTOR_DEPTH;
+  if (tab === 'learn' && periodicRangeMenuOpen && learningState.activeTopic === 'periodic-table') {
+    return PERIODIC_RANGE_MENU_DEPTH;
+  }
   return getNavDepth(tab, learningState, practiceTopic, practicePhase);
 }
 
@@ -146,6 +150,7 @@ const Index = () => {
   const [learningPracticeSelectorOpen, setLearningPracticeSelectorOpen] = useState(false);
   const [learningPracticeReturn, setLearningPracticeReturn] = useState<PracticeLaunchContext | null>(null);
   const [learningState, setLearningState] = useState<LearningState>(INITIAL_LEARNING_STATE);
+  const [periodicRangeMenuOpen, setPeriodicRangeMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [practiceBackRequest, setPracticeBackRequest] = useState(0);
@@ -303,6 +308,7 @@ const Index = () => {
     practiceMode,
     practicePhase,
     learningPracticeSelectorOpen,
+    periodicRangeMenuOpen,
   });
   navigationStateRef.current = {
     tab,
@@ -311,6 +317,7 @@ const Index = () => {
     practiceMode,
     practicePhase,
     learningPracticeSelectorOpen,
+    periodicRangeMenuOpen,
   };
 
   // One shared back action for header arrows, in-app edge swipe, and native
@@ -323,10 +330,46 @@ const Index = () => {
     if (window.history.length > 1) window.history.back();
   }, []);
 
+  const handlePeriodicRangeMenuOpenChange = useCallback((open: boolean, reason?: 'dismiss' | 'select') => {
+    if (open) {
+      if (periodicRangeMenuOpen) return;
+      window.history.pushState({ __mathsbj: true, depth: PERIODIC_RANGE_MENU_DEPTH }, '');
+      lastDepth.current = PERIODIC_RANGE_MENU_DEPTH;
+      setPeriodicRangeMenuOpen(true);
+      return;
+    }
+
+    if (reason === 'select') {
+      // Selecting a range replaces the popup entry with its destination. The
+      // picker must not remain behind the new page in the Back stack.
+      replaceNextNavigationEntry.current = true;
+      setPeriodicRangeMenuOpen(false);
+      return;
+    }
+
+    if (!periodicRangeMenuOpen) return;
+    // Explicitly dismiss only the picker entry. Do not use goBack's gesture
+    // debounce here; a close tap is distinct from a native Back gesture.
+    window.history.back();
+  }, [periodicRangeMenuOpen]);
+
+  const handlePeriodicRangeSwipe = useCallback((index: number | null) => {
+    if (index === null || !isValidPeriodicRangeIndex(index)) return;
+    // Range swipes change the visible page without creating a trail of stale
+    // range routes. Back from any range therefore returns to the table.
+    replaceNextNavigationEntry.current = true;
+    setLearningState((previous) => ({
+      ...previous,
+      periodicSelectedElement: null,
+      periodicSelectedRangeIndex: index,
+    }));
+  }, []);
+
   const handlePeriodicRangeBackToTable = useCallback(() => {
     const current = navigationStateRef.current;
     if (current.tab !== 'learn' || current.learningState.activeTopic !== 'periodic-table') return;
 
+    setPeriodicRangeMenuOpen(false);
     skipStalePeriodicRangeEntries.current = true;
     const targetDepth = 'learn-periodic-table';
     // Replace the active range entry rather than pushing another main-table
@@ -363,6 +406,7 @@ const Index = () => {
       practiceTopic,
       practicePhase,
       learningPracticeSelectorOpen,
+      periodicRangeMenuOpen,
     );
     if (depth !== lastDepth.current && !isHandlingPopstate.current) {
       const historyState = { __mathsbj: true, depth };
@@ -377,7 +421,7 @@ const Index = () => {
       lastDepth.current = depth;
     }
     isHandlingPopstate.current = false;
-  }, [tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen]);
+  }, [tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen, periodicRangeMenuOpen]);
 
   // Handle native Android back button / system edge-back.
   // Capacitor owns the native event before Android finishes the Activity, so
@@ -389,8 +433,8 @@ const Index = () => {
     let listenerHandle: { remove: () => Promise<void> } | null = null;
 
     void App.addListener('backButton', () => {
-      const { tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen } = navigationStateRef.current;
-      const depth = getCurrentNavigationDepth(tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen);
+      const { tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen, periodicRangeMenuOpen } = navigationStateRef.current;
+      const depth = getCurrentNavigationDepth(tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen, periodicRangeMenuOpen);
 
       if (depth === 'learn-home') {
         const now = Date.now();
@@ -488,6 +532,19 @@ const Index = () => {
       const targetDepth = typeof window.history.state?.depth === 'string' ? window.history.state.depth : '';
       const targetPeriodicRangeIndex = getPeriodicRangeIndexFromDepth(targetDepth);
 
+      // The range grid is a real in-app history destination. Back closes just
+      // that overlay and restores its underlying table/range without changing
+      // the selected range or popping the parent screen too.
+      if (tab === 'learn' && activeTopic === 'periodic-table' && periodicRangeMenuOpen) {
+        setPeriodicRangeMenuOpen(false);
+        lastDepth.current = targetDepth || (
+          periodicSelectedRangeIndex !== null
+            ? `learn-periodic-table-range-${periodicSelectedRangeIndex}`
+            : 'learn-periodic-table'
+        );
+        return;
+      }
+
       if (
         tab === 'learn' &&
         activeTopic === 'periodic-table' &&
@@ -495,7 +552,7 @@ const Index = () => {
         periodicSelectedRangeIndex === null &&
         skipStalePeriodicRangeEntries.current
       ) {
-        if (targetPeriodicRangeIndex !== null || targetDepth === 'learn-periodic-table') {
+        if (targetPeriodicRangeIndex !== null || targetDepth === 'learn-periodic-table' || targetDepth === PERIODIC_RANGE_MENU_DEPTH) {
           // The toolbar navigated directly to the table. Drain the obsolete
           // range entries without painting intermediate pages during system Back.
           window.history.back();
@@ -521,15 +578,10 @@ const Index = () => {
       }
 
       if (activeTopic === 'periodic-table' && periodicSelectedRangeIndex !== null) {
-        if (targetPeriodicRangeIndex !== null) {
-          // Range swipes are real navigable pages. Browser/system Back should
-          // restore the preceding range, not skip directly to the picker.
-          setLearningState(prev => ({
-            ...prev,
-            periodicSelectedRangeIndex: targetPeriodicRangeIndex,
-            periodicSelectedElement: null,
-          }));
-          lastDepth.current = targetDepth;
+        if (targetPeriodicRangeIndex !== null || targetDepth === PERIODIC_RANGE_MENU_DEPTH) {
+          // Ignore obsolete range/picker entries left by older app versions or
+          // a picker opened from another range. Do not flash intermediate pages.
+          window.history.back();
           return;
         }
 
@@ -598,7 +650,7 @@ const Index = () => {
 
     window.addEventListener('popstate', handlePopstate);
     return () => window.removeEventListener('popstate', handlePopstate);
-  }, [tab, learningState, returnToLearn, practicePhase, learningPracticeSelectorOpen]);
+  }, [tab, learningState, returnToLearn, practicePhase, learningPracticeSelectorOpen, periodicRangeMenuOpen]);
 
   const handlePracticeSelectorVisibilityChange = useCallback((open: boolean) => {
     setLearningPracticeSelectorOpen(open);
@@ -1029,6 +1081,9 @@ const Index = () => {
                   <LearningPage
                     onBack={goBack}
                     onBackToPeriodicTable={handlePeriodicRangeBackToTable}
+                    periodicRangeMenuOpen={periodicRangeMenuOpen}
+                    onPeriodicRangeMenuOpenChange={handlePeriodicRangeMenuOpenChange}
+                    onPeriodicRangeSwipe={handlePeriodicRangeSwipe}
                     onStartPractice={handleStartPractice}
                     learningState={learningState}
                     onLearningStateChange={setLearningState}

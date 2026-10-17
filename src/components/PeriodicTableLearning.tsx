@@ -20,6 +20,11 @@ interface PeriodicTableLearningProps {
   /** Controlled by LearningState so range pages participate in app history. */
   selectedRangeIndex?: number | null;
   onSelectRange?: (index: number | null) => void;
+  /** Optional history-aware callback for range paging swipes. */
+  onSwipeRange?: (index: number) => void;
+  /** Mirrors the route-aware popup state so browser/native Back can dismiss it. */
+  isRangeMenuOpen?: boolean;
+  onRangeMenuOpenChange?: (open: boolean, reason?: 'dismiss' | 'select') => void;
   onBack?: () => void;
   /** Directly returns from a range page to the main Periodic Table view. */
   onBackToTable?: () => void;
@@ -461,6 +466,9 @@ const PeriodicTableLearning = ({
   initialPracticeQuestionTypes,
   selectedRangeIndex,
   onSelectRange,
+  onSwipeRange,
+  isRangeMenuOpen,
+  onRangeMenuOpenChange,
   onBack,
   onBackToTable,
   onOpenPractice,
@@ -480,8 +488,6 @@ const PeriodicTableLearning = ({
   const activeRangeIndex = requestedRangeIndex !== null && isValidPeriodicRangeIndex(requestedRangeIndex)
     ? requestedRangeIndex
     : null;
-  const previousRangeIndexRef = useRef<number | null>(activeRangeIndex);
-  const skipRangeMenuRestoreRef = useRef(false);
   const lastSelectedRangeIndexRef = useRef<number | null>(activeRangeIndex);
   const tableScrollLeftRef = useRef(0);
   const [massMode, setMassMode] = useState<AtomicMassMode>('exact');
@@ -491,6 +497,18 @@ const PeriodicTableLearning = ({
   const [activePopup, setActivePopup] = useState<'ranges' | 'mass' | null>(null);
   const rangeMenuOpen = activePopup === 'ranges';
   const massMenuOpen = activePopup === 'mass';
+
+  // The parent route owns this overlay's Back entry. When popstate changes the
+  // route back to its parent, close the local portal without restoring stale UI.
+  useEffect(() => {
+    if (isRangeMenuOpen === undefined) return;
+    if (isRangeMenuOpen) {
+      setActivePopup('ranges');
+      return;
+    }
+    setActivePopup((current) => current === 'ranges' ? null : current);
+    setRangeMenuPosition(null);
+  }, [isRangeMenuOpen]);
 
   useLayoutEffect(() => {
     if (!rangeMenuOpen) return;
@@ -567,14 +585,24 @@ const PeriodicTableLearning = ({
     if (activePopup === null) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      setActivePopup(null);
-      setRangeMenuPosition(null);
-      setMassMenuPosition(null);
+      if (activePopup === 'ranges') {
+        // The route-backed range picker owns Escape. Stop the global handler
+        // from popping a second history entry for the same key press.
+        event.preventDefault();
+        event.stopPropagation();
+        setActivePopup(null);
+        setRangeMenuPosition(null);
+        onRangeMenuOpenChange?.(false, 'dismiss');
+      } else {
+        // Preserve the existing atomic-mass popup Escape behavior.
+        setActivePopup(null);
+        setMassMenuPosition(null);
+      }
       moreButtonRef.current?.focus();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [activePopup]);
+  }, [activePopup, onRangeMenuOpenChange]);
 
   useEffect(() => {
     if (!practicePopupOpen) return;
@@ -657,23 +685,12 @@ const PeriodicTableLearning = ({
   }, []);
 
   useEffect(() => {
-    if (previousRangeIndexRef.current !== null && activeRangeIndex === null) {
-      // System/browser Back keeps its existing range-picker restoration. An
-      // explicit toolbar Back uses the direct-table path and skips the picker.
-      if (skipRangeMenuRestoreRef.current) {
-        skipRangeMenuRestoreRef.current = false;
-      } else {
-        setActivePopup('ranges');
-      }
-    }
     if (activeRangeIndex !== null) {
       lastSelectedRangeIndexRef.current = activeRangeIndex;
     }
-    previousRangeIndexRef.current = activeRangeIndex;
   }, [activeRangeIndex]);
 
   const handleRangePageBack = () => {
-    skipRangeMenuRestoreRef.current = true;
     setActivePopup(null);
     setRangeMenuPosition(null);
     setMassMenuPosition(null);
@@ -681,20 +698,34 @@ const PeriodicTableLearning = ({
     else changeRange(null);
   };
 
-  const changeRange = (index: number | null) => {
+  const changeRange = (index: number | null, source: 'picker' | 'swipe' = 'picker') => {
     if (index !== null && !isValidPeriodicRangeIndex(index)) return;
     if (index !== null && index !== activeRangeIndex) tableScrollLeftRef.current = 0;
     if (index !== null) lastSelectedRangeIndexRef.current = index;
-    if (hasControlledRange) {
-      onSelectRange?.(index);
-    } else {
-      setInternalSelectedRangeIndex(index);
-    }
+    const notifyChange = () => {
+      if (source === 'swipe' && index !== null && onSwipeRange) onSwipeRange(index);
+      else onSelectRange?.(index);
+    };
+    if (!hasControlledRange) setInternalSelectedRangeIndex(index);
+    notifyChange();
   };
 
   const navigateRange = (direction: 'previous' | 'next') => {
     if (activeRangeIndex === null) return;
-    changeRange(getAdjacentPeriodicRangeIndex(activeRangeIndex, direction));
+    changeRange(getAdjacentPeriodicRangeIndex(activeRangeIndex, direction), 'swipe');
+  };
+
+  const handleRangeMenuVisibilityChange = (open: boolean, reason: 'dismiss' | 'select' = 'dismiss') => {
+    if (open) {
+      setMassMenuPosition(null);
+      setRangeMenuPosition(null);
+      setActivePopup('ranges');
+      onRangeMenuOpenChange?.(true);
+      return;
+    }
+    setActivePopup((current) => current === 'ranges' ? null : current);
+    setRangeMenuPosition(null);
+    onRangeMenuOpenChange?.(false, reason);
   };
 
   const handleMoreClick = () => {
@@ -707,22 +738,18 @@ const PeriodicTableLearning = ({
     if (longPressTriggeredRef.current) return;
 
     if (rangeMenuOpen) {
-      setActivePopup(null);
-      setRangeMenuPosition(null);
+      handleRangeMenuVisibilityChange(false, 'dismiss');
       setMassMenuPosition(null);
       return;
     }
-    setMassMenuPosition(null);
-    setRangeMenuPosition(null);
-    setActivePopup('ranges');
+    handleRangeMenuVisibilityChange(true);
   };
 
   const handleRangeChange = (index: number) => {
     if (!isValidPeriodicRangeIndex(index)) return;
-    setActivePopup(null);
-    setRangeMenuPosition(null);
+    handleRangeMenuVisibilityChange(false, 'select');
     setMassMenuPosition(null);
-    changeRange(index);
+    changeRange(index, 'picker');
   };
 
   const renderRangeSelector = () => (
@@ -756,10 +783,7 @@ const PeriodicTableLearning = ({
         <PeriodicRangeMenu
           selectedRangeIndex={activeRangeIndex ?? lastSelectedRangeIndexRef.current}
           onSelectRange={handleRangeChange}
-          onClose={() => {
-            setActivePopup(null);
-            setRangeMenuPosition(null);
-          }}
+          onClose={() => handleRangeMenuVisibilityChange(false, 'dismiss')}
           menuPosition={rangeMenuPosition}
         />,
         document.body,
