@@ -781,6 +781,63 @@ describe('PeriodicTableLearning', () => {
 
 
 
+  it('shows sourced Physical Properties for Hydrogen without removing existing element information', () => {
+    render(<PeriodicTableLearning selectedElement={1} onSelectElement={vi.fn()} />);
+
+    const details = screen.getByLabelText('Hydrogen element details');
+    const physical = within(details).getByRole('region', { name: 'Physical Properties' });
+    expect(within(physical).getByText('Physical State')).toBeInTheDocument();
+    expect(within(physical).getByText('Gas at 20 °C and 1 atm')).toBeInTheDocument();
+    expect(within(physical).getByText('0.00008988 g/cm³ (gas density at STP)')).toBeInTheDocument();
+    expect(within(physical).getByText('13.81 K (≈ -259 °C)')).toBeInTheDocument();
+    expect(within(physical).getByText('20.28 K (≈ -253 °C)')).toBeInTheDocument();
+    expect(within(physical).getByText('Data unavailable in the selected structured source')).toBeInTheDocument();
+    expect(within(physical).getByRole('link', { name: 'PubChem source for Hydrogen' })).toHaveAttribute(
+      'href',
+      'https://pubchem.ncbi.nlm.nih.gov/element/1',
+    );
+
+    expect(within(details).getByText('Electron Configuration')).toBeInTheDocument();
+    expect(within(details).getByText('1s1')).toBeInTheDocument();
+    expect(within(details).getByText('Atomic Mass')).toBeInTheDocument();
+  });
+
+  it('shows the liquid-state physical data for Mercury with explicit units', () => {
+    render(<PeriodicTableLearning selectedElement={80} onSelectElement={vi.fn()} />);
+
+    const physical = within(screen.getByLabelText('Mercury element details'))
+      .getByRole('region', { name: 'Physical Properties' });
+    expect(within(physical).getByText('Liquid at 20 °C and 1 atm')).toBeInTheDocument();
+    expect(within(physical).getByText('13.5336 g/cm³')).toBeInTheDocument();
+    expect(within(physical).getByText('234.32 K (≈ -39 °C)')).toBeInTheDocument();
+    expect(within(physical).getByText('629.88 K (≈ 357 °C)')).toBeInTheDocument();
+  });
+
+  it('does not show unsupported bulk measurements as confirmed for synthetic elements', () => {
+    render(<PeriodicTableLearning selectedElement={118} onSelectElement={vi.fn()} />);
+
+    const details = screen.getByLabelText('Oganesson element details');
+    const physical = within(details).getByRole('region', { name: 'Physical Properties' });
+    expect(within(physical).getByText(/bulk state is not established in this snapshot/i)).toBeInTheDocument();
+    expect(within(physical).getByText(/bulk physical values are omitted/i)).toBeInTheDocument();
+    expect(within(physical).getAllByText('Data unavailable in the selected structured source').length).toBeGreaterThan(5);
+    expect(within(physical).queryByText(/g\/cm³/)).not.toBeInTheDocument();
+  });
+
+  it('refreshes properties when the selected element changes and avoids stale values', () => {
+    const props = { onSelectElement: vi.fn() };
+    const { rerender } = render(<PeriodicTableLearning {...props} selectedElement={1} />);
+
+    expect(screen.getByText('0.00008988 g/cm³ (gas density at STP)')).toBeInTheDocument();
+    rerender(<PeriodicTableLearning {...props} selectedElement={80} />);
+
+    const physical = within(screen.getByLabelText('Mercury element details'))
+      .getByRole('region', { name: 'Physical Properties' });
+    expect(within(physical).getByText('13.5336 g/cm³')).toBeInTheDocument();
+    expect(within(physical).queryByText('0.00008988 g/cm³ (gas density at STP)')).not.toBeInTheDocument();
+    expect(physical).toHaveAttribute('data-physical-properties-for', '80');
+  });
+
   it('preserves element selection and the full-table two-axis scroll surface', () => {
     const onSelectElement = vi.fn();
     const { container } = render(<PeriodicTableLearning selectedElement={null} onSelectElement={onSelectElement} />);
