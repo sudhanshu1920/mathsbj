@@ -36,10 +36,11 @@ test('creates a topic notification with dynamic version metadata, trusted URL an
   const release = validateReleaseManifest(manifest);
   const payload = createFcmMessage(release).message;
   assert.equal(payload.topic, 'math_app_updates');
-  assert.match(payload.notification.title, /New Math App Update Available/);
-  assert.match(payload.notification.body, /1\.0\.4/);
-  assert.equal(payload.android.notification.channel_id, 'app_updates');
-  assert.equal(payload.android.notification.tag, 'mathmaster-update');
+  assert.match(payload.data.title, /New Math App Update Available/);
+  assert.match(payload.data.body, /1\.0\.4/);
+  assert.equal(payload.notification, undefined);
+  assert.equal(payload.android.notification, undefined);
+  assert.equal(payload.android.collapse_key, 'mathmaster-update');
   assert.equal(payload.data.mathmaster_notification_action, 'app-update');
   assert.equal(payload.data.apkUrl, manifest.apkUrl);
   assert.equal(payload.data.sha256, 'a'.repeat(64));
