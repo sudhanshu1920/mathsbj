@@ -1084,6 +1084,15 @@ const Index = () => {
                     periodicRangeMenuOpen={periodicRangeMenuOpen}
                     onPeriodicRangeMenuOpenChange={handlePeriodicRangeMenuOpenChange}
                     onPeriodicRangeSwipe={handlePeriodicRangeSwipe}
+                    onPeriodicElementSwipe={(number) => {
+                      // Browsing adjacent elements is one detail destination, not a
+                      // trail of one history entry per swipe.
+                      replaceNextNavigationEntry.current = true;
+                      setLearningState((previous) => ({
+                        ...previous,
+                        periodicSelectedElement: number,
+                      }));
+                    }}
                     onStartPractice={handleStartPractice}
                     learningState={learningState}
                     onLearningStateChange={setLearningState}
