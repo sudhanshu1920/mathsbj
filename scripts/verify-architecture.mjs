@@ -711,7 +711,12 @@ if (!releaseNotificationSenderSource.includes("topic: 'math_app_updates'") ||
     !releaseNotificationTestsSource.includes('assert.equal(payload.notification, undefined)') ||
     !updateMessagingSource.includes('.getBoolean("updateAlertsEnabled", false)') ||
     !updateMessagingSource.includes('if (!enabled)') ||
-    !updateMessagingSource.includes('Ignoring update push with invalid release metadata.')) {
+    !updateMessagingSource.includes('Ignoring update push with invalid release metadata.') ||
+    !updateMessagingSource.includes('Update notification was not posted because app-level notifications are disabled.') ||
+    !updateMessagingSource.includes('existing.getImportance() == NotificationManager.IMPORTANCE_NONE') ||
+    !reminderReceiverSource.includes('NotificationManagerCompat.from(context).areNotificationsEnabled()') ||
+    !reminderReceiverSource.includes('existing.getImportance() == NotificationManager.IMPORTANCE_NONE') ||
+    !reminderReceiverSource.includes('actual device presentation is not observable here')) {
   fail('Release alerts must be data-only, opt-in aware, idempotent, and validate release metadata before displaying');
 }
 
