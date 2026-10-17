@@ -223,6 +223,9 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
           ? "Downloading APK to device storage…"
           : "Downloading the verified update APK…");
         setDownloadProgress(event.progress);
+      } else if (event.state === "paused") {
+        setDownloadStatus("Download paused by Android. It will resume when network and device conditions allow.");
+        setDownloadProgress(event.progress);
       } else if (event.state === "verifying") {
         setDownloadStatus("Verifying APK checksum, package, version and signing certificate…");
         setDownloadProgress(100);
