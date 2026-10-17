@@ -233,6 +233,7 @@ function place(n: number): Pick<ChemElement, 'period' | 'group' | 'block' | 'xpo
 const UNCERTAIN_BULK_STATE = new Set([85, 87]);
 const PHYSICAL_DATA_SOURCE = 'PubChem Periodic Table' as const;
 export const PUBCHEM_PERIODIC_TABLE_URL = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug/periodictable/JSON';
+export const PUBCHEM_PERIODIC_TABLE_SNAPSHOT_DATE = '2026-10-17';
 
 /**
  * Offline snapshot of PubChem's Periodic Table structured fields.
