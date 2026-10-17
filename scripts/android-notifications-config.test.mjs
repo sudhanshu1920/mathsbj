@@ -116,6 +116,15 @@ test('native alarm rechecks completion and keeps tomorrow noon queued after the 
   assert.match(receiver, /AlarmManager is unavailable/);
   assert.match(receiver, /Calendar\.DAY_OF_YEAR, 1/);
   assert.match(receiver, /currentMinute > 22 \* 60/);
+  assert.match(receiver, /REMINDER_POLICY_VERSION = 2/);
+  assert.match(receiver, /720, 840, 960, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320/);
+  assert.match(receiver, /ensureCurrentSchedulePolicy\(prefs\)/);
+  assert.match(receiver, /schedulePolicyVersion/);
+  assert.match(receiver, /getStageIndex\(slots, currentMinute\)/);
+  assert.match(receiver, /messages\.optJSONArray\(stageIndex\)/);
+  assert.match(receiver, /getMinutesUntilCutoff\(\)/);
+  assert.match(receiver, /putString\("lastMessageText", candidate\)/);
+  assert.match(receiver, /triggerAt <= nowMillis/);
   assert.match(receiver, /scheduleNext\(context\)/);
 });
 
