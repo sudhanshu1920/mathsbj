@@ -582,6 +582,10 @@ const PeriodicTableLearning = ({
     if (activePopup === null) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      // This popup owns Escape; prevent the app-wide shortcut from popping a
+      // second history entry for the same key press.
+      event.preventDefault();
+      event.stopPropagation();
       if (activePopup === 'ranges') {
         setActivePopup(null);
         setRangeMenuPosition(null);
