@@ -108,8 +108,8 @@ test('native alarm rechecks completion and keeps tomorrow noon queued after the 
     path.resolve(path.dirname(new URL(import.meta.url).pathname), '../android-native/com/sudhanshu/mathsbj/DailyTargetReminderReceiver.java'),
     'utf8',
   );
-  assert.match(receiver, /prefs\.getBoolean\("completed", false\)/);
-  assert.match(receiver, /elapsedSeconds >= targetMinutes \* 60L/);
+  assert.match(receiver, /if \(elapsedSeconds >= targetMinutes \* 60L\)/);
+  assert.doesNotMatch(receiver, /prefs\.getBoolean\("completed", false\) \|\| elapsedSeconds/);
   assert.match(receiver, /scheduleTomorrow\(context, slots\)/);
   assert.match(receiver, /private static boolean scheduleTomorrow/);
   assert.match(receiver, /public static boolean scheduleNext/);
