@@ -120,6 +120,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     private static boolean isCompactSize(Context context, int appWidgetId) {
         int width = getWidgetWidthDp(context, appWidgetId);
         int height = getWidgetHeightDp(context, appWidgetId);
+        // A narrow but tall tile is not compact: keep readable typography for its portrait layout.
+        if (width > 0 && height > width * 1.3f) return false;
         return (width > 0 && width < 220) || (height > 0 && height < 130);
     }
 
