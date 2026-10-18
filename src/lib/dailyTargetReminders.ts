@@ -1,6 +1,8 @@
 import { App } from '@capacitor/app';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { getStreak, todayStr } from '@/lib/streak';
+import { getSettings } from '@/lib/settings';
+import { getTheme, getMode, THEMES } from '@/lib/theme';
 
 export const DAILY_REMINDER_POLICY_VERSION = 2;
 
@@ -193,6 +195,14 @@ interface MathMasterNotificationsPlugin {
     dayKey: string;
     currentStreak: number;
   }): Promise<{ synced: boolean }>;
+  setHomeWidgetPreferences(options: {
+    enabled: boolean;
+    contentJson: string;
+    style: string;
+    theme: string;
+    accentColor: string;
+    mode: string;
+  }): Promise<{ synced: boolean }>;
   syncHomeWidgetUpdateStatus(options: {
     installedVersionCode: number;
     installedVersionName: string;
@@ -211,10 +221,37 @@ let updateAlertsSyncPromise: Promise<void> | null = null;
 let requestedUpdateAlertsSetting: boolean | null = null;
 let lastPersistedSyncAt = 0;
 let lastWidgetPayloadSignature = '';
+let lastHomeWidgetPreferencesSignature = '';
 let widgetSyncQueue: Promise<void> = Promise.resolve();
 
+export const syncHomeWidgetPreferences = async (): Promise<boolean> => {
+  const settings = getSettings();
+  const mode = getMode();
+  const theme = THEMES.find((item) => item.id === getTheme()) ?? THEMES[0];
+  const accentColor = settings.homeWidgetTheme === 'violet' ? '#B8A0FF' : theme.swatch[1];
+  const payload = {
+    enabled: settings.homeScreenWidgetsEnabled,
+    contentJson: JSON.stringify(settings.homeWidgetContent),
+    style: settings.homeWidgetStyle,
+    theme: settings.homeWidgetTheme,
+    accentColor,
+    mode,
+  };
+  if (!Capacitor.isNativePlatform()) return true;
+  const signature = JSON.stringify(payload);
+  if (signature === lastHomeWidgetPreferencesSignature) return true;
+  try {
+    const result = await NativeNotifications.setHomeWidgetPreferences(payload);
+    if (result.synced !== true) return false;
+    lastHomeWidgetPreferencesSignature = signature;
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const queueHomeWidgetSync = (force = false): void => {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!Capacitor.isNativePlatform() || !getSettings().homeScreenWidgetsEnabled) return;
   const streak = getStreak();
   const date = todayStr();
   const record = streak.days[date];
@@ -237,6 +274,8 @@ const queueHomeWidgetSync = (force = false): void => {
   widgetSyncQueue = widgetSyncQueue
     .catch(() => undefined)
     .then(async () => {
+      const preferencesSynced = await syncHomeWidgetPreferences();
+      if (!preferencesSynced) throw new Error('Native home widget preferences were not confirmed.');
       const result = await NativeNotifications.syncHomeWidget(payload);
       if (result.synced !== true) throw new Error('Native home widget did not confirm its state update.');
     })
@@ -251,7 +290,7 @@ export const syncHomeWidgetUpdateStatus = async (status: {
   latestVersionCode: number;
   latestVersionName: string;
 }): Promise<boolean> => {
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!Capacitor.isNativePlatform() || !getSettings().homeScreenWidgetsEnabled) return false;
   try {
     const result = await NativeNotifications.syncHomeWidgetUpdateStatus(status);
     return result.synced === true;
@@ -446,17 +485,24 @@ export const initializeBackgroundNotifications = (): (() => void) => {
     }
   };
   const onResume = () => {
+    lastHomeWidgetPreferencesSignature = '';
+    void syncHomeWidgetPreferences();
     queueHomeWidgetSync(true);
     void queueNativeSync(true);
     void dispatchNotificationAction();
   };
   const onVisibility = () => { if (document.visibilityState === 'visible') onResume(); };
   const onStorage = (event: StorageEvent) => {
-    if (event.key === 'math-app-streak-v1' || event.key === ENABLED_KEY) onResume();
+    if (event.key === 'math-app-streak-v1' || event.key === ENABLED_KEY || event.key === 'math-app-settings-v1') onResume();
+  };
+  const onWidgetPreferencesChanged = () => {
+    lastHomeWidgetPreferencesSignature = '';
+    void syncHomeWidgetPreferences();
   };
   let appResumeListener: { remove: () => Promise<void> } | null = null;
   let disposed = false;
   void dispatchNotificationAction();
+  void syncHomeWidgetPreferences();
   queueHomeWidgetSync(true);
   if (Capacitor.isNativePlatform()) {
     void App.addListener('resume', onResume).then((listener) => {
@@ -472,6 +518,8 @@ export const initializeBackgroundNotifications = (): (() => void) => {
   window.addEventListener('focus', onResume);
   window.addEventListener('online', onResume);
   window.addEventListener('storage', onStorage);
+  window.addEventListener('settings-updated', onWidgetPreferencesChanged);
+  window.addEventListener('theme-updated', onWidgetPreferencesChanged);
   document.addEventListener('visibilitychange', onVisibility);
   void queueNativeSync(true);
 
@@ -484,6 +532,8 @@ export const initializeBackgroundNotifications = (): (() => void) => {
     window.removeEventListener('focus', onResume);
     window.removeEventListener('online', onResume);
     window.removeEventListener('storage', onStorage);
+    window.removeEventListener('settings-updated', onWidgetPreferencesChanged);
+    window.removeEventListener('theme-updated', onWidgetPreferencesChanged);
     document.removeEventListener('visibilitychange', onVisibility);
   };
 };
