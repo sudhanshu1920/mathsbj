@@ -9,7 +9,7 @@ import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
 import { getSettings, isActive, markInteraction, getTablesProMode, setTablesProMode } from '@/lib/settings';
 import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
-import { playClick, playSuccess, playWrong, playLevelUp, playStreak } from '@/lib/sound';
+import { playClick, playRightAnswer, playWrong, playLevelUp } from '@/lib/sound';
 import { MOTION } from '@/lib/motion';
 import XPBar from '@/components/XPBar';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -1355,8 +1355,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           else navigator.vibrate(isCorrect ? 18 : [12, 50, 12]);
         }
         if (isCorrect) {
-          const willMilestone = (score.correct + 1) % 5 === 0;
-          if (willMilestone) playStreak(); else playSuccess();
+          playRightAnswer();
         } else {
           playWrong();
         }
