@@ -78,7 +78,7 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(widgetProvider, /targetSeconds/);
   assert.match(widgetLayout, /widget_progress_bar/);
   assert.match(widgetLayout, /widget_update_badge/);
-  assert.match(widgetInfo, /android\.appwidget\.provider/);
+  assert.match(widgetInfo, /appwidget-provider/);
   assert.match(widgetInfo, /updatePeriodMillis="1800000"/);
   assert.equal((manifest.match(/android:name="\.MathMasterHomeWidgetProvider"/g) || []).length, 1);
   assert.doesNotMatch(manifest, /MathMasterMessagingService/);
