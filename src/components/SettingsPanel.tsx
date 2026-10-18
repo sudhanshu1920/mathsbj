@@ -253,7 +253,7 @@ const SettingsPanel = () => {
             Background notifications
           </p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Daily study reminders at 12 PM, 2 PM, 4 PM, 6 PM, 8 PM and 10 PM. New-version push alerts require a Firebase-enabled build.
+            Daily study reminders start at noon and become more frequent toward 10 PM (12 PM, 2 PM, 4 PM, 6 PM, 7 PM, 7:45 PM, 8:30 PM, 9 PM, 9:30 PM, 9:50 PM and 10 PM). New-version push alerts require a Firebase-enabled build.
           </p>
         </div>
         <Switch
