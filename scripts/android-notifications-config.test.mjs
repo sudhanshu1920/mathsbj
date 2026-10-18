@@ -58,6 +58,9 @@ test('configures local notification permissions, plugin and reboot/time-change r
   const manifest = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
   const activity = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java'), 'utf8');
   const plugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java'), 'utf8');
+  const widgetProvider = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java'), 'utf8');
+  const widgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget.xml'), 'utf8');
+  const widgetInfo = await readFile(path.join(root, 'app/src/main/res/xml/math_master_home_widget_info.xml'), 'utf8');
 
   assert.deepEqual(result, { firebaseEnabled: false, projectId: null });
   assert.match(manifest, /android\.permission\.POST_NOTIFICATIONS/);
@@ -68,6 +71,16 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(activity, /void onNewIntent\(Intent intent\)/);
   assert.match(plugin, /syncDailyTarget/);
   assert.match(plugin, /requestPermission/);
+  assert.match(plugin, /syncHomeWidget/);
+  assert.match(manifest, /\.MathMasterHomeWidgetProvider/);
+  assert.match(manifest, /math_master_home_widget_info/);
+  assert.match(widgetProvider, /updateReleaseStatus/);
+  assert.match(widgetProvider, /targetSeconds/);
+  assert.match(widgetLayout, /widget_progress_bar/);
+  assert.match(widgetLayout, /widget_update_badge/);
+  assert.match(widgetInfo, /android\.appwidget\.provider/);
+  assert.match(widgetInfo, /updatePeriodMillis="1800000"/);
+  assert.equal((manifest.match(/android:name="\.MathMasterHomeWidgetProvider"/g) || []).length, 1);
   assert.doesNotMatch(manifest, /MathMasterMessagingService/);
 });
 
