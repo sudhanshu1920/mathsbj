@@ -98,6 +98,14 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         updateWidgets(context);
     }
 
+    private static boolean isCompactSize(Context context, int appWidgetId) {
+        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return false;
+        Bundle options = AppWidgetManager.getInstance(context).getAppWidgetOptions(appWidgetId);
+        int minWidth = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+        int minHeight = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+        return (minWidth > 0 && minWidth < 210) || (minHeight > 0 && minHeight < 115);
+    }
+
     private static String getInstanceString(SharedPreferences preferences, int appWidgetId, String field, String fallback) {
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
             String key = "instance_" + appWidgetId + "_" + field;
@@ -149,6 +157,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         int elapsedMinutes = (int) Math.min(targetMinutes, elapsedSeconds / 60L);
         int remainingMinutes = (int) Math.max(0L, (targetSeconds - elapsedSeconds + 59L) / 60L);
         int streak = Math.max(0, preferences.getInt("currentStreak", 0));
+        Set<String> selected = getSelectedContent(preferences, appWidgetId);
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.math_master_home_widget);
         boolean widgetsEnabled = preferences.getBoolean("enabled", true);
@@ -161,11 +170,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         views.setInt(R.id.widget_root, "setBackgroundResource", lightMode
             ? R.drawable.math_master_home_widget_background_light
             : R.drawable.math_master_home_widget_background);
-        Bundle widgetOptions = appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID
-            ? Bundle.EMPTY : AppWidgetManager.getInstance(context).getAppWidgetOptions(appWidgetId);
-        int minWidth = widgetOptions == null ? 0 : widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
-        int minHeight = widgetOptions == null ? 0 : widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
-        boolean smallWidget = (minWidth > 0 && minWidth < 180) || (minHeight > 0 && minHeight < 115);
         int paddingDp = smallWidget || "compact".equals(style) ? 9 : ("minimal".equals(style) ? 11 : 12);
         int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
         views.setViewPadding(R.id.widget_root, paddingPx, paddingPx, paddingPx, paddingPx);
@@ -191,10 +195,15 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             views.setTextColor(R.id.widget_target_label, Color.parseColor("#AFAAC7"));
         }
         views.setTextViewText(R.id.widget_progress_percent, progress + "%");
-        views.setTextViewText(
-            R.id.widget_progress_text,
-            String.format(Locale.getDefault(), "%d / %d min", elapsedMinutes, targetMinutes)
-        );
+        String progressSummary;
+        if (selected.contains("studyTime") && selected.contains("target")) {
+            progressSummary = String.format(Locale.getDefault(), "%d / %d min", elapsedMinutes, targetMinutes);
+        } else if (selected.contains("studyTime")) {
+            progressSummary = elapsedMinutes + " min studied";
+        } else {
+            progressSummary = targetMinutes + " min target";
+        }
+        views.setTextViewText(R.id.widget_progress_text, progressSummary);
         views.setProgressBar(R.id.widget_progress_bar, 100, progress, false);
         views.setTextViewText(
             R.id.widget_remaining_text,
@@ -219,15 +228,25 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             }
         }
 
-        Set<String> selected = getSelectedContent(preferences, appWidgetId);
-        views.setViewVisibility(R.id.widget_header_row, widgetsEnabled && selected.contains("appIdentity") ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_target_label, widgetsEnabled && selected.contains("target") ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_progress_percent, widgetsEnabled && selected.contains("progress") ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_progress_bar, widgetsEnabled && selected.contains("progress") ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_progress_text, widgetsEnabled && selected.contains("studyTime") ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_remaining_text, widgetsEnabled && selected.contains("remaining") ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_streak_text, widgetsEnabled && selected.contains("streak") ? View.VISIBLE : View.GONE);
-        boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus");
+        boolean smallWidget = isCompactSize(context, appWidgetId);
+        boolean showIdentity = widgetsEnabled && selected.contains("appIdentity")
+            && (!smallWidget || selected.size() <= 2);
+        boolean showProgress = widgetsEnabled && selected.contains("progress");
+        boolean showTarget = widgetsEnabled && selected.contains("target");
+        boolean showStudyTime = widgetsEnabled && selected.contains("studyTime");
+        boolean showRemaining = widgetsEnabled && selected.contains("remaining")
+            && (!smallWidget || selected.size() <= 2 || (!showTarget && !showProgress && !showStudyTime));
+        boolean showStreak = widgetsEnabled && selected.contains("streak")
+            && (!smallWidget || selected.size() <= 2 || (!showTarget && !showProgress && !showStudyTime && !showRemaining));
+        boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus")
+            && (!smallWidget || selected.size() <= 1);
+        views.setViewVisibility(R.id.widget_header_row, showIdentity ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_target_label, showTarget ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_progress_percent, showProgress ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_progress_bar, showProgress && !smallWidget ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_progress_text, showTarget || showStudyTime ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_remaining_text, showRemaining ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_streak_text, showStreak ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_update_text, showUpdateStatus ? View.VISIBLE : View.GONE);
         if (!showUpdateStatus) views.setViewVisibility(R.id.widget_update_badge, View.GONE);
         views.setViewVisibility(R.id.widget_disabled_text, widgetsEnabled ? View.GONE : View.VISIBLE);
