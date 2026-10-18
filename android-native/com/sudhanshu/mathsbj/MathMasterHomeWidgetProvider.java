@@ -12,6 +12,7 @@ import android.graphics.Color;
 import android.os.Build;
 import android.util.TypedValue;
 import android.view.View;
+import android.os.Bundle;
 import android.widget.RemoteViews;
 
 import org.json.JSONArray;
@@ -34,6 +35,25 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         for (int appWidgetId : appWidgetIds) {
             manager.updateAppWidget(appWidgetId, createViews(context, appWidgetId));
         }
+    }
+
+    @Override
+    public void onDeleted(Context context, int[] appWidgetIds) {
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        for (int appWidgetId : appWidgetIds) {
+            String prefix = "instance_" + appWidgetId + "_";
+            for (String key : preferences.getAll().keySet()) {
+                if (key.startsWith(prefix)) editor.remove(key);
+            }
+        }
+        editor.apply();
+        super.onDeleted(context, appWidgetIds);
+    }
+
+    @Override
+    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager manager, int appWidgetId, Bundle options) {
+        manager.updateAppWidget(appWidgetId, createViews(context, appWidgetId));
     }
 
     public static void updateWidgets(Context context) {
@@ -78,8 +98,16 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         updateWidgets(context);
     }
 
-    private static Set<String> getSelectedContent(SharedPreferences preferences) {
-        String json = preferences.getString("contentJson", null);
+    private static String getInstanceString(SharedPreferences preferences, int appWidgetId, String field, String fallback) {
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            String key = "instance_" + appWidgetId + "_" + field;
+            if (preferences.contains(key)) return preferences.getString(key, fallback);
+        }
+        return preferences.getString(field, fallback);
+    }
+
+    private static Set<String> getSelectedContent(SharedPreferences preferences, int appWidgetId) {
+        String json = getInstanceString(preferences, appWidgetId, "contentJson", preferences.getString("contentJson", null));
         if (json == null) {
             return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus"));
         }
@@ -125,20 +153,26 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.math_master_home_widget);
         boolean widgetsEnabled = preferences.getBoolean("enabled", true);
         String mode = preferences.getString("mode", "dark");
-        String style = preferences.getString("style", "glass");
-        String accentValue = preferences.getString("accentColor", "#B8A0FF");
+        String style = getInstanceString(preferences, appWidgetId, "style", "glass");
+        String widgetTheme = getInstanceString(preferences, appWidgetId, "theme", "app");
+        String accentValue = "violet".equals(widgetTheme) ? "#B8A0FF" : preferences.getString("accentColor", "#B8A0FF");
         int accentColor = accentValue.matches("#[0-9A-Fa-f]{6}") ? Color.parseColor(accentValue) : Color.parseColor("#B8A0FF");
         boolean lightMode = "light".equals(mode);
         views.setInt(R.id.widget_root, "setBackgroundResource", lightMode
             ? R.drawable.math_master_home_widget_background_light
             : R.drawable.math_master_home_widget_background);
-        int paddingDp = "compact".equals(style) ? 9 : ("minimal".equals(style) ? 11 : 12);
+        Bundle widgetOptions = appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID
+            ? Bundle.EMPTY : AppWidgetManager.getInstance(context).getAppWidgetOptions(appWidgetId);
+        int minWidth = widgetOptions == null ? 0 : widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+        int minHeight = widgetOptions == null ? 0 : widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+        boolean smallWidget = (minWidth > 0 && minWidth < 180) || (minHeight > 0 && minHeight < 115);
+        int paddingDp = smallWidget || "compact".equals(style) ? 9 : ("minimal".equals(style) ? 11 : 12);
         int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
         views.setViewPadding(R.id.widget_root, paddingPx, paddingPx, paddingPx, paddingPx);
         views.setTextViewTextSize(R.id.widget_progress_percent, TypedValue.COMPLEX_UNIT_SP,
-            "compact".equals(style) ? 23f : ("minimal".equals(style) ? 26f : 29f));
+            smallWidget || "compact".equals(style) ? 22f : ("minimal".equals(style) ? 26f : 29f));
         views.setTextViewTextSize(R.id.widget_progress_text, TypedValue.COMPLEX_UNIT_SP,
-            "compact".equals(style) ? 12f : 14f);
+            smallWidget || "compact".equals(style) ? 12f : 14f);
         views.setTextColor(R.id.widget_progress_percent, accentColor);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             views.setColorStateList(R.id.widget_progress_bar, "setProgressTintList", ColorStateList.valueOf(accentColor));
@@ -185,7 +219,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             }
         }
 
-        Set<String> selected = getSelectedContent(preferences);
+        Set<String> selected = getSelectedContent(preferences, appWidgetId);
         views.setViewVisibility(R.id.widget_header_row, widgetsEnabled && selected.contains("appIdentity") ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_target_label, widgetsEnabled && selected.contains("target") ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_progress_percent, widgetsEnabled && selected.contains("progress") ? View.VISIBLE : View.GONE);
