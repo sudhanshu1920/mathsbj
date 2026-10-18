@@ -61,6 +61,8 @@ test('configures local notification permissions, plugin and reboot/time-change r
   const widgetProvider = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java'), 'utf8');
   const widgetConfigActivity = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java'), 'utf8');
   const widgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget.xml'), 'utf8');
+  const compactWidgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget_compact.xml'), 'utf8');
+  const wideWidgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget_wide.xml'), 'utf8');
   const widgetInfo = await readFile(path.join(root, 'app/src/main/res/xml/math_master_home_widget_info.xml'), 'utf8');
   const widgetInfoV31 = await readFile(path.join(root, 'app/src/main/res/xml-v31/math_master_home_widget_info.xml'), 'utf8');
   const widgetStrings = await readFile(path.join(root, 'app/src/main/res/values/math_master_home_widget_strings.xml'), 'utf8');
@@ -97,6 +99,12 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(widgetProvider, /targetSeconds/);
   assert.match(widgetLayout, /widget_progress_bar/);
   assert.match(widgetLayout, /widget_update_badge/);
+  assert.match(compactWidgetLayout, /widget_week_strip/);
+  assert.match(compactWidgetLayout, /widget_target_value/);
+  assert.match(wideWidgetLayout, /widget_week_strip/);
+  assert.match(wideWidgetLayout, /widget_target_value/);
+  assert.equal((compactWidgetLayout.match(/android:id="@\\+id\\/widget_week_status_[0-6]"/g) || []).length, 7);
+  assert.equal((wideWidgetLayout.match(/android:id="@\\+id\\/widget_week_status_[0-6]"/g) || []).length, 7);
   assert.match(widgetInfo, /appwidget-provider/);
   assert.match(widgetInfo, /updatePeriodMillis="1800000"/);
   assert.equal((manifest.match(/android:name="\.MathMasterHomeWidgetProvider"/g) || []).length, 1);
