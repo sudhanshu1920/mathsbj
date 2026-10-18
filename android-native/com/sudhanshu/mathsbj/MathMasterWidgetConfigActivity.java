@@ -159,16 +159,52 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
     private void updatePreview() {
         if (previewSummary == null) return;
-        List<String> labels = new ArrayList<>();
+        List<String> selected = new ArrayList<>();
         for (String[] option : CONTENT_OPTIONS) {
             CheckBox checkBox = contentChecks.get(option[0]);
-            if (checkBox != null && checkBox.isChecked()) labels.add(option[1]);
+            if (checkBox != null && checkBox.isChecked()) selected.add(option[0]);
         }
         String style = selectedRadioValue(styleGroup, "glass");
         String theme = selectedRadioValue(themeGroup, "app");
-        previewSummary.setText(labels.isEmpty()
-            ? "Select at least one field"
-            : "Math Master  •  " + android.text.TextUtils.join("  ·  ", labels) + "\n" + capitalize(style) + "  ·  " + ("app".equals(theme) ? "Match App Theme" : "Violet Glass"));
+        if (selected.isEmpty()) {
+            previewSummary.setText("Select at least one field");
+            return;
+        }
+
+        SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        int targetMinutes = Math.max(1, preferences.getInt("targetMinutes", 5));
+        long elapsedSeconds = Math.max(0L, preferences.getLong("elapsedSeconds", 0L));
+        String savedDay = preferences.getString("dayKey", "");
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Calendar.getInstance().getTime());
+        if (!today.equals(savedDay)) elapsedSeconds = 0L;
+        long targetSeconds = targetMinutes * 60L;
+        elapsedSeconds = Math.min(elapsedSeconds, targetSeconds);
+        int elapsedMinutes = (int) (elapsedSeconds / 60L);
+        int percent = (int) Math.max(0L, Math.min(100L, elapsedSeconds * 100L / targetSeconds));
+        int remainingMinutes = (int) Math.max(0L, (targetSeconds - elapsedSeconds + 59L) / 60L);
+        int streak = Math.max(0, preferences.getInt("currentStreak", 0));
+
+        List<String> rows = new ArrayList<>();
+        if (selected.contains("appIdentity")) rows.add("Math Master");
+        if (selected.contains("target")) rows.add("Target: " + targetMinutes + " min");
+        if (selected.contains("progress")) rows.add("Progress: " + percent + "%");
+        if (selected.contains("remaining")) rows.add(remainingMinutes + " min remaining");
+        if (selected.contains("studyTime")) rows.add("Study time: " + elapsedMinutes + " min");
+        if (selected.contains("streak")) rows.add("Streak: " + streak + " days");
+        if (selected.contains("updateStatus")) {
+            boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
+            rows.add(updateAvailable ? "Update available" : "Update status");
+        }
+
+        String appMode = preferences.getString("mode", "dark");
+        boolean light = "light".equals(appMode);
+        boolean violet = "violet".equals(theme);
+        previewSummary.setTextColor(light ? Color.parseColor("#263247") : Color.parseColor("#F5F3FF"));
+        previewSummary.setBackgroundColor(light
+            ? Color.parseColor("#F4F7FC")
+            : (violet ? Color.parseColor("#2C2440") : Color.parseColor("#211F35")));
+        previewSummary.setText(android.text.TextUtils.join("\\n", rows)
+            + "\\n" + capitalize(style) + "  ·  " + (violet ? "Violet Glass" : "Match App Theme"));
     }
 
     private void saveConfiguration() {
