@@ -63,8 +63,19 @@ test("weekly checkmarks use the existing daily streak data and validate native i
 test("glass colors are translucent and target completion uses a stable celebratory accent", () => {
   const dark = read("android-native/res/drawable/math_master_home_widget_background.xml");
   const light = read("android-native/res/drawable/math_master_home_widget_background_light.xml");
+  const completionBackgrounds = Array.from({ length: 7 }, (_, index) => ({
+    dark: read(`android-native/res/drawable/math_master_home_widget_background_complete_${index}.xml`),
+    light: read(`android-native/res/drawable/math_master_home_widget_background_complete_light_${index}.xml`),
+  }));
   assert.match(dark, /#B5211F35/);
   assert.match(light, /#C9F4F7FC/);
   assert.match(provider, /if \(targetComplete\) accentColor = completedAccentColor\(todayKey\(\), streak\)/);
+  assert.match(provider, /COMPLETION_BACKGROUND_DARK\[celebrationTheme\]/);
+  assert.match(provider, /COMPLETION_BACKGROUND_LIGHT\[celebrationTheme\]/);
+  assert.equal(completionBackgrounds.length, 7);
+  for (const background of completionBackgrounds) {
+    assert.match(background.dark, /#B5[0-9A-Fa-f]{6}/);
+    assert.match(background.light, /#D9[0-9A-Fa-f]{6}/);
+  }
   assert.match(provider, /targetComplete \? "✓ Daily target complete!"/);
 });
