@@ -449,12 +449,12 @@ if (!releaseWorkflow.includes('SharedPreferences preferences') ||
 }
 const nativeUpdaterEvents = read('src/nativeAppUpdater.ts');
 const updateManagerUi = read('src/components/AppUpdateManager.tsx');
-const updateManagerTests = read('src/components/AppUpdateManager.test.tsx');
+const updateManagerPerformanceTests = read('src/components/AppUpdateManager.test.tsx');
 if (!nativeUpdaterEvents.includes('downloadedBytes?: number') ||
     !nativeUpdaterEvents.includes('bytesPerSecond?: number') ||
     !updateManagerUi.includes('Math.min(99, event.progress)') ||
     !updateManagerUi.includes('describeDownloadMetrics(event)') ||
-    !updateManagerTests.includes('shows measured bytes and throughput, and caps progress below 100 while verification is running')) {
+    !updateManagerPerformanceTests.includes('shows measured bytes and throughput, and caps progress below 100 while verification is running')) {
   fail('Download progress must report native byte counts/speed and stay below 100% until verification succeeds');
 }
 
