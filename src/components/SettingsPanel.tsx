@@ -59,7 +59,7 @@ const SettingsPanel = () => {
   const guest = !user && isGuest();
   const todayRecord = streak.days[todayStr()];
   const todaySeconds = Math.max(0, Math.floor(todayRecord?.seconds ?? 0));
-  const completedMinutes = Math.min(streak.targetMinutes, Math.floor(todaySeconds / 60));
+  const todayStudyMinutes = Math.floor(todaySeconds / 60);
   const remainingMinutes = Math.max(0, Math.ceil((streak.targetMinutes * 60 - todaySeconds) / 60));
   const widgetProgress = Math.min(100, Math.round((todaySeconds / Math.max(1, streak.targetMinutes * 60)) * 100));
 
@@ -405,7 +405,7 @@ const SettingsPanel = () => {
                               <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">Today's Target</p>
                             )}
                             {settings.homeWidgetContent.includes('studyTime') && (
-                              <p className="mt-0.5 text-sm font-semibold">{completedMinutes} / {streak.targetMinutes} min</p>
+                              <p className="mt-0.5 text-sm font-semibold">{todayStudyMinutes} / {streak.targetMinutes} min</p>
                             )}
                             {settings.homeWidgetContent.includes('progress') && (
                               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-current/15">
