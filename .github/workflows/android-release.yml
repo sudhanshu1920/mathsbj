@@ -361,22 +361,26 @@ jobs:
 
               // DownloadManager keeps paused/partial transfers across process death. Reuse
               // the original job instead of deleting its destination and starting from 0.
-              if (existingId > 0L && expectedSha256.equalsIgnoreCase(previousSha)) {
-                int existingStatus = readDownloadStatus(manager, existingId);
-                boolean active = existingStatus == DownloadManager.STATUS_PENDING
-                    || existingStatus == DownloadManager.STATUS_RUNNING
-                    || existingStatus == DownloadManager.STATUS_PAUSED;
-                boolean completedFileReady = existingStatus == DownloadManager.STATUS_SUCCESSFUL
-                    && destinationFile.isFile() && destinationFile.length() > 0L;
-                if (active || completedFileReady) {
-                  monitorDownload(manager, existingId, destinationFile, expectedSha256,
-                      expectedVersionCode, versionName, installedInfo, installedVersionCode,
-                      downloadOnly, preferences, downloadKey, shaKey);
-                  JSObject result = new JSObject();
-                  result.put("downloadId", existingId);
-                  call.resolve(result);
-                  return;
+              if (existingId > 0L) {
+                if (expectedSha256.equalsIgnoreCase(previousSha)) {
+                  int existingStatus = readDownloadStatus(manager, existingId);
+                  boolean active = existingStatus == DownloadManager.STATUS_PENDING
+                      || existingStatus == DownloadManager.STATUS_RUNNING
+                      || existingStatus == DownloadManager.STATUS_PAUSED;
+                  boolean completedFileReady = existingStatus == DownloadManager.STATUS_SUCCESSFUL
+                      && destinationFile.isFile() && destinationFile.length() > 0L;
+                  if (active || completedFileReady) {
+                    monitorDownload(manager, existingId, destinationFile, expectedSha256,
+                        expectedVersionCode, versionName, installedInfo, installedVersionCode,
+                        downloadOnly, preferences, downloadKey, shaKey);
+                    JSObject result = new JSObject();
+                    result.put("downloadId", existingId);
+                    call.resolve(result);
+                    return;
+                  }
                 }
+                // A changed checksum means the mutable /latest asset is a different file.
+                // Cancel the old job before touching its destination.
                 manager.remove(existingId);
               }
 
