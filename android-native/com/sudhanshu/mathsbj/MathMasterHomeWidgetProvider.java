@@ -152,9 +152,10 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         if (!todayKey().equals(storedDay)) elapsedSeconds = 0L;
 
         long targetSeconds = targetMinutes * 60L;
-        elapsedSeconds = Math.min(elapsedSeconds, targetSeconds);
-        int progress = (int) Math.max(0L, Math.min(100L, elapsedSeconds * 100L / targetSeconds));
-        int elapsedMinutes = (int) Math.min(targetMinutes, elapsedSeconds / 60L);
+        long progressSeconds = Math.min(elapsedSeconds, targetSeconds);
+        int progress = (int) Math.max(0L, Math.min(100L, progressSeconds * 100L / targetSeconds));
+        // Study time remains the actual accumulated duration, even after today's target is reached.
+        int elapsedMinutes = (int) Math.min(Integer.MAX_VALUE, elapsedSeconds / 60L);
         int remainingMinutes = (int) Math.max(0L, (targetSeconds - elapsedSeconds + 59L) / 60L);
         int streak = Math.max(0, preferences.getInt("currentStreak", 0));
         Set<String> selected = getSelectedContent(preferences, appWidgetId);
