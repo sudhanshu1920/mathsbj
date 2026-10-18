@@ -201,6 +201,7 @@ interface MathMasterNotificationsPlugin {
     style: string;
     theme: string;
     accentColor: string;
+    appAccentColor: string;
     mode: string;
   }): Promise<{ synced: boolean }>;
   syncHomeWidgetUpdateStatus(options: {
@@ -233,13 +234,15 @@ export const syncHomeWidgetPreferences = (): Promise<boolean> => {
     const settings = getSettings();
     const mode = getMode();
     const theme = THEMES.find((item) => item.id === getTheme()) ?? THEMES[0];
-    const accentColor = settings.homeWidgetTheme === 'violet' ? '#B8A0FF' : theme.swatch[1];
+    const appAccentColor = theme.swatch[1];
+    const accentColor = settings.homeWidgetTheme === 'violet' ? '#B8A0FF' : appAccentColor;
     const payload = {
       enabled: settings.homeScreenWidgetsEnabled,
       contentJson: JSON.stringify(settings.homeWidgetContent),
       style: settings.homeWidgetStyle,
       theme: settings.homeWidgetTheme,
       accentColor,
+      appAccentColor,
       mode,
     };
     const signature = JSON.stringify(payload);
