@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE_NATIVE_DIR = path.resolve(SCRIPT_DIR, '../android-native/com/sudhanshu/mathsbj');
+const SOURCE_NATIVE_RES_DIR = path.resolve(SCRIPT_DIR, '../android-native/res');
 const PACKAGE_PATH = 'com.sudhanshu.mathsbj';
 const GOOGLE_SERVICES_PLUGIN_VERSION = '4.4.2';
 const FIREBASE_BOM_VERSION = '33.14.0';
@@ -46,6 +47,19 @@ function ensureAndroidPermissions(manifest) {
 
 function ensureManifestReceivers(manifest, firebaseEnabled) {
   const entries = [];
+  if (!manifest.includes('android:name=".MathMasterHomeWidgetProvider"')) {
+    entries.push(`        <receiver
+            android:name=".MathMasterHomeWidgetProvider"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/math_master_home_widget_info" />
+        </receiver>`);
+  }
   if (!manifest.includes('android:name=".DailyTargetReminderReceiver"')) {
     entries.push(`        <receiver
             android:name=".DailyTargetReminderReceiver"
@@ -220,11 +234,24 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'DailyTargetReminderPlugin.java',
     'DailyTargetReminderReceiver.java',
     'DailyTargetReminderBootReceiver.java',
+    'MathMasterHomeWidgetProvider.java',
   ];
   const targetPackageDir = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj');
   await mkdir(targetPackageDir, { recursive: true });
   for (const file of sourceFiles) {
     await copyFile(path.join(SOURCE_NATIVE_DIR, file), path.join(targetPackageDir, file));
+  }
+
+  const widgetResources = [
+    'layout/math_master_home_widget.xml',
+    'drawable/math_master_home_widget_background.xml',
+    'drawable/math_master_home_widget_badge.xml',
+    'xml/math_master_home_widget_info.xml',
+  ];
+  for (const resource of widgetResources) {
+    const destination = path.join(root, 'app/src/main/res', resource);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await copyFile(path.join(SOURCE_NATIVE_RES_DIR, resource), destination);
   }
 
   const mainActivityPath = path.join(targetPackageDir, 'MainActivity.java');
