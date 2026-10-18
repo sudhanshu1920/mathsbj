@@ -225,7 +225,13 @@ describe("AppUpdateManager", () => {
     await waitFor(() => expect(mocks.downloadAppUpdate).toHaveBeenCalledWith(latest));
 
     act(() => mocks.downloadStateListener?.({
-      downloadId: 43, state: "paused", progress: 28, message: "Android paused this download.",
+      downloadId: 43,
+      state: "paused",
+      progress: 28,
+      downloadedBytes: 280,
+      totalBytes: 1000,
+      bytesPerSecond: 0,
+      message: "Android paused this download.",
     }));
     expect(screen.getByText(/Download paused by Android/)).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "28");
