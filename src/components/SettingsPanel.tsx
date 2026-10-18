@@ -29,6 +29,7 @@ const WIDGET_CONTENT_OPTIONS: Array<{ id: HomeWidgetContent; label: string }> = 
   { id: 'remaining', label: 'Remaining Target' },
   { id: 'studyTime', label: 'Study Time' },
   { id: 'streak', label: 'Streak' },
+  { id: 'weekly', label: 'Weekly Target Tracker' },
   { id: 'updateStatus', label: 'Update Status' },
 ];
 
@@ -62,6 +63,22 @@ const SettingsPanel = () => {
   const todayStudyMinutes = Math.floor(todaySeconds / 60);
   const remainingMinutes = Math.max(0, Math.ceil((streak.targetMinutes * 60 - todaySeconds) / 60));
   const widgetProgress = Math.min(100, Math.round((todaySeconds / Math.max(1, streak.targetMinutes * 60)) * 100));
+  const widgetWeekDays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date();
+    day.setHours(12, 0, 0, 0);
+    day.setDate(day.getDate() - (6 - index));
+    const dateKey = [
+      day.getFullYear(),
+      String(day.getMonth() + 1).padStart(2, '0'),
+      String(day.getDate()).padStart(2, '0'),
+    ].join('-');
+    return {
+      dateKey,
+      dayLabel: day.toLocaleDateString(undefined, { weekday: 'narrow' }),
+      dateLabel: String(day.getDate()),
+      completed: streak.days[dateKey]?.completed === true,
+    };
+  });
 
   const mountedRef = useRef(true);
 
@@ -420,6 +437,21 @@ const SettingsPanel = () => {
                           )}
                           {settings.homeWidgetContent.includes('streak') && <span>🔥 {streak.current}-day streak</span>}
                         </div>
+                        {settings.homeWidgetContent.includes('weekly') && (
+                          <div className="mt-2 border-t border-current/10 pt-2">
+                            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] opacity-60">This Week · Last 7 Days</p>
+                            <div className="grid grid-cols-7 gap-1">
+                              {widgetWeekDays.map((day) => (
+                                <div key={day.dateKey} className="flex min-w-0 flex-col items-center rounded-lg bg-current/5 px-0.5 py-1">
+                                  <span className="text-[8px] leading-none opacity-65">{day.dayLabel} {day.dateLabel}</span>
+                                  <span className={"mt-1 text-[11px] font-bold leading-none " + (day.completed ? "text-primary" : "opacity-35")}>
+                                    {day.completed ? '✓' : '·'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {settings.homeWidgetContent.includes('updateStatus') && (
                           <p className="mt-2 truncate text-[10px] opacity-60">Updates refresh when the app opens</p>
                         )}
