@@ -144,15 +144,38 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return R.layout.math_master_home_widget;
     }
 
-    private static int completedAccentColor(String dayKey, int streak) {
-        int[] celebrationColors = {
-            Color.parseColor("#50D9A0"), Color.parseColor("#58D6F2"),
-            Color.parseColor("#FFCA68"), Color.parseColor("#FF83B5"),
-            Color.parseColor("#B8A0FF"), Color.parseColor("#FF9A72"),
-            Color.parseColor("#A8E063")
-        };
+    private static final int[] COMPLETION_ACCENTS = {
+        Color.parseColor("#50D9A0"), Color.parseColor("#58D6F2"),
+        Color.parseColor("#FFCA68"), Color.parseColor("#FF83B5"),
+        Color.parseColor("#B8A0FF"), Color.parseColor("#FF9A72"),
+        Color.parseColor("#A8E063")
+    };
+    private static final int[] COMPLETION_BACKGROUND_DARK = {
+        R.drawable.math_master_home_widget_background_complete_0,
+        R.drawable.math_master_home_widget_background_complete_1,
+        R.drawable.math_master_home_widget_background_complete_2,
+        R.drawable.math_master_home_widget_background_complete_3,
+        R.drawable.math_master_home_widget_background_complete_4,
+        R.drawable.math_master_home_widget_background_complete_5,
+        R.drawable.math_master_home_widget_background_complete_6
+    };
+    private static final int[] COMPLETION_BACKGROUND_LIGHT = {
+        R.drawable.math_master_home_widget_background_complete_light_0,
+        R.drawable.math_master_home_widget_background_complete_light_1,
+        R.drawable.math_master_home_widget_background_complete_light_2,
+        R.drawable.math_master_home_widget_background_complete_light_3,
+        R.drawable.math_master_home_widget_background_complete_light_4,
+        R.drawable.math_master_home_widget_background_complete_light_5,
+        R.drawable.math_master_home_widget_background_complete_light_6
+    };
+
+    private static int completedThemeIndex(String dayKey, int streak) {
         int hash = ((dayKey == null ? "" : dayKey) + "#" + streak).hashCode() & 0x7fffffff;
-        return celebrationColors[hash % celebrationColors.length];
+        return hash % COMPLETION_ACCENTS.length;
+    }
+
+    private static int completedAccentColor(String dayKey, int streak) {
+        return COMPLETION_ACCENTS[completedThemeIndex(dayKey, streak)];
     }
 
     private static Set<String> getCompletedDays(SharedPreferences preferences) {
@@ -266,9 +289,18 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean targetComplete = progress >= 100;
         if (targetComplete) accentColor = completedAccentColor(todayKey(), streak);
         boolean lightMode = "light".equals(mode);
-        views.setInt(R.id.widget_root, "setBackgroundResource", lightMode
-            ? R.drawable.math_master_home_widget_background_light
-            : R.drawable.math_master_home_widget_background);
+        int backgroundResource;
+        if (targetComplete) {
+            int celebrationTheme = completedThemeIndex(todayKey(), streak);
+            backgroundResource = lightMode
+                ? COMPLETION_BACKGROUND_LIGHT[celebrationTheme]
+                : COMPLETION_BACKGROUND_DARK[celebrationTheme];
+        } else {
+            backgroundResource = lightMode
+                ? R.drawable.math_master_home_widget_background_light
+                : R.drawable.math_master_home_widget_background;
+        }
+        views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);
         boolean smallWidget = isCompactSize(context, appWidgetId);
         boolean tallWidget = isTallWidget(context, appWidgetId);
         views.setInt(R.id.widget_root, "setGravity", tallWidget ? Gravity.CENTER_VERTICAL : Gravity.TOP);
