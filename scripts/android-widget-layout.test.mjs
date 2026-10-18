@@ -7,6 +7,8 @@ const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidget
 const nativePlugin = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java");
 const bridge = read("src/lib/dailyTargetReminders.ts");
 const config = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java");
+const settings = read("src/lib/settings.ts");
+const settingsPanel = read("src/components/SettingsPanel.tsx");
 const layouts = [
   "android-native/res/layout/math_master_home_widget.xml",
   "android-native/res/layout/math_master_home_widget_compact.xml",
@@ -60,6 +62,16 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(config, /"random", "Random Premium Theme"/);
   assert.match(config, /putString\("instance_" \+ widgetId \+ "_themeMode", themeMode\)/);
   assert.match(config, /chooseRandomTheme\(preferences, widgetId\)/);
+});
+
+test("weekly tracker is selectable and legacy selections migrate only once", () => {
+  assert.match(settings, /HomeWidgetContent = .*'weekly'/);
+  assert.match(settings, /HOME_WIDGET_CONTENT_SCHEMA_KEY = 'math-app-home-widget-content-schema-v2'/);
+  assert.match(settings, /contentSchemaNeedsMigration && Array\.isArray\(value\.homeWidgetContent\)/);
+  assert.match(settings, /widgetContent = \[\.\.\.widgetContent, 'weekly'\]/);
+  assert.match(settingsPanel, /id: 'weekly', label: 'Weekly Target Tracker'/);
+  assert.match(settingsPanel, /streak\.days\[dateKey\]\?\.completed === true/);
+  assert.match(settingsPanel, /dateLabel: String\(day\.getDate\(\)\)/);
 });
 
 test("weekly checkmarks use the existing daily streak data and validate native input", () => {
