@@ -194,6 +194,7 @@ interface MathMasterNotificationsPlugin {
     elapsedSeconds: number;
     dayKey: string;
     currentStreak: number;
+    completedDaysJson: string;
   }): Promise<{ synced: boolean }>;
   setHomeWidgetPreferences(options: {
     enabled: boolean;
@@ -265,11 +266,25 @@ const queueHomeWidgetSync = (force = false): void => {
   const date = todayStr();
   const record = streak.days[date];
   const elapsedSeconds = Math.max(0, Math.floor(record?.seconds ?? 0));
+  const completedDays: string[] = [];
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  for (let offset = 6; offset >= 0; offset--) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - offset);
+    const dateKey = [
+      day.getFullYear(),
+      String(day.getMonth() + 1).padStart(2, '0'),
+      String(day.getDate()).padStart(2, '0'),
+    ].join('-');
+    if (streak.days[dateKey]?.completed === true) completedDays.push(dateKey);
+  }
   const payload = {
     targetMinutes: Math.max(1, Math.floor(streak.targetMinutes)),
     elapsedSeconds,
     dayKey: date,
     currentStreak: Math.max(0, Math.floor(streak.current)),
+    completedDaysJson: JSON.stringify(completedDays),
   };
   // The widget only displays whole study minutes. Keep sending the freshest
   // seconds at each minute boundary instead of invoking the Android bridge
