@@ -509,7 +509,8 @@ export const initializeBackgroundNotifications = (): (() => void) => {
     if (event.key === 'math-app-streak-v1' || event.key === ENABLED_KEY || event.key === 'math-app-settings-v1') onResume();
   };
   const onWidgetPreferencesChanged = () => {
-    lastHomeWidgetPreferencesSignature = '';
+    // Signature-based deduplication avoids native redraws for unrelated settings
+    // changes (for example, sound/haptics). Theme/widget changes alter the payload.
     void syncHomeWidgetPreferences();
   };
   let appResumeListener: { remove: () => Promise<void> } | null = null;
