@@ -3,7 +3,7 @@ import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { checkForAppUpdate, downloadAppUpdate, installAppUpdate } from "@/lib/appUpdateService";
 import { PWA_UPDATE_DISCOVERED_EVENT, UPDATE_AVAILABLE_EVENT } from "@/lib/appUpdateEvents";
 import {
@@ -297,33 +297,14 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     <Dialog open={!!update} onOpenChange={(open) => {
       if (!open && update && !activeActionRef.current) dismissCurrentUpdate();
     }}>
-      <DialogContent className="z-[100] w-[calc(100%-2rem)] max-w-sm max-h-[90dvh] overflow-y-auto rounded-3xl border-border/70 p-5">
-        <DialogHeader className="space-y-2 text-left">
-          <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary">
-            <span className="text-xl font-black">↻</span>
-          </div>
-          <DialogTitle className="font-display text-xl font-extrabold">New Update Available!</DialogTitle>
-          <DialogDescription className="text-sm leading-relaxed">
-            A new version of Math App is available. Choose how you want to update.
-          </DialogDescription>
+      <DialogContent className="z-[100] w-[calc(100%-1.5rem)] max-w-[320px] max-h-[90dvh] overflow-y-auto rounded-2xl border-border/70 p-4">
+        <DialogHeader className="space-y-1 text-left">
+          <DialogTitle className="font-display text-lg font-bold">New Update Available</DialogTitle>
         </DialogHeader>
         {update && (
-          <div className="space-y-3 rounded-2xl border border-border/70 bg-secondary/40 p-3">
-            <div className="space-y-1 text-sm">
-              {installedVersion && (
-                <p className="text-muted-foreground">
-                  Current version: <span className="font-semibold text-foreground">v{installedVersion.versionName} (build {installedVersion.versionCode})</span>
-                </p>
-              )}
-              <p className="text-foreground">
-                Latest version: <span className="font-bold">v{update.versionName} (build {update.versionCode})</span>
-              </p>
-            </div>
-            {update.releaseNotes && <p className="text-xs leading-relaxed text-muted-foreground">{update.releaseNotes}</p>}
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Update Now downloads and verifies the APK before opening Android Installer. Download APK saves a verified file in Downloads and does not start installation.
-            </p>
-          </div>
+          <p className="rounded-lg bg-secondary/50 px-3 py-2 text-center text-sm font-semibold text-foreground">
+            Version <span className="font-display">v{update.versionName}</span>
+          </p>
         )}
         {activeAction && (
           <div className="space-y-2 rounded-xl border border-border/70 p-3" role="status" aria-live="polite">
@@ -347,20 +328,15 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
         {!activeAction && downloadStatus && (
           <p className="text-xs leading-relaxed text-destructive" role="status">{downloadStatus}</p>
         )}
-        <DialogFooter className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:space-x-0">
-          <Button type="button" disabled={!!activeAction || !update} className="w-full rounded-xl" onClick={() => { if (update) void performUpdate(update); }}>
+        <DialogFooter className="grid grid-cols-2 gap-2 sm:space-x-0">
+          <Button type="button" disabled={!!activeAction || !update} className="w-full rounded-xl px-2 text-xs" onClick={() => { if (update) void performUpdate(update); }}>
             {activeAction === "update" ? "Updating…" : "Update Now"}
           </Button>
-          <Button type="button" variant="outline" disabled={!!activeAction || !update || !canSaveToDownloads} className="w-full rounded-xl" onClick={() => { if (update) void performDownload(update); }}>
+          <Button type="button" variant="outline" disabled={!!activeAction || !update || !canSaveToDownloads} className="w-full rounded-xl px-2 text-xs" onClick={() => { if (update) void performDownload(update); }}>
             {activeAction === "download" ? "Downloading…" : "Download APK"}
           </Button>
-          <Button type="button" variant="ghost" disabled={!!activeAction} className="w-full rounded-xl" onClick={dismissCurrentUpdate}>Later</Button>
+          <Button type="button" variant="ghost" disabled={!!activeAction} className="col-span-2 w-full rounded-xl" onClick={dismissCurrentUpdate}>Later</Button>
         </DialogFooter>
-        {!canSaveToDownloads && (
-          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
-            APK-to-Downloads is available in the installed Android app.
-          </p>
-        )}
       </DialogContent>
     </Dialog>
   );

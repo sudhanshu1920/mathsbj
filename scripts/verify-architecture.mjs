@@ -643,17 +643,18 @@ if (!updateManagerSource.includes('App.addListener("resume", checkOnForeground)'
     !updateManagerSource.includes('FOREGROUND_EVENT_DEDUPE_MS')) {
   fail('Update checks must refresh on native resume/web foreground while deduplicating one lifecycle transition');
 }
-if (!updateManagerSource.includes('Current version:') ||
-    !updateManagerSource.includes('Latest version:') ||
+if (!updateManagerSource.includes('Version <span className="font-display">v{update.versionName}</span>') ||
+    updateManagerSource.includes('Current version:') ||
+    updateManagerSource.includes('update.releaseNotes') ||
     !updateManagerSource.includes('actionInFlight.current') ||
     !updateManagerSource.includes('downloadAppUpdate')) {
-  fail('Update alert must show installed/latest versions and guard duplicate update/download actions');
+  fail('Update alert must show only the dynamic latest version and guard duplicate update/download actions');
 }
 if (!updateManagerTests.includes('dismisses only for the current app session') ||
     !updateManagerTests.includes('starts Update Now only when selected') ||
     !updateManagerTests.includes('downloads a verified APK to Downloads only when selected') ||
-    !updateManagerTests.includes('shows actual installed/latest versions')) {
-  fail('Update alert needs tests for version display, session dismissal, and separate install/download actions');
+    !updateManagerTests.includes('shows the latest version and both update choices without redundant copy')) {
+  fail('Compact update alert needs tests for version display, session dismissal, and separate install/download actions');
 }
 if (!updateOrderingSource.includes('latestCodeValid && currentCodeValid) return latest.versionCode! > current.versionCode!') ||
     !updateOrderingSource.includes('Semantic comparison is a compatibility fallback only')) {

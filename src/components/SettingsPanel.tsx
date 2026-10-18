@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, Type } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSettings, setSound, setVibration, setKeyboardShortcuts, setFont, AppSettings } from '@/lib/settings';
-import { FONT_OPTIONS } from '@/lib/font';
+import { getSettings, setSound, setVibration, setKeyboardShortcuts, AppSettings } from '@/lib/settings';
 import { getStreak, setTarget, StreakState } from '@/lib/streak';
 import { isGuest, setGuest } from '@/lib/guest';
 import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
@@ -147,7 +146,7 @@ const SettingsPanel = () => {
   const isBusy = updateState === 'checking' || updateState === 'updating';
 
   return (
-    <div className="space-y-5 min-w-0">
+    <div className="space-y-4 min-w-0">
       {/* Profile */}
       {user && (
         <div className="glass rounded-2xl p-3 flex items-center gap-3">
@@ -246,16 +245,11 @@ const SettingsPanel = () => {
 
       {/* Background notifications: one contextual permission request opts into local
           daily reminders and server-pushed version updates together. */}
-      <div className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-card/30 p-3">
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <Bell size={16} className="text-muted-foreground" />
-            Background notifications
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Daily study reminders start at noon and become more frequent toward 10 PM (12 PM, 2 PM, 4 PM, 6 PM, 7 PM, 7:45 PM, 8:30 PM, 9 PM, 9:30 PM, 9:50 PM and 10 PM). New-version push alerts require a Firebase-enabled build.
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/30 p-2.5">
+        <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+          <Bell size={16} className="shrink-0 text-muted-foreground" />
+          Background notifications
+        </p>
         <Switch
           checked={backgroundNotificationsEnabled}
           disabled={notificationToggleBusy}
@@ -263,122 +257,75 @@ const SettingsPanel = () => {
           aria-label="Enable background notifications"
         />
       </div>
-      {!backgroundNotificationsEnabled && (
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Enable to allow Android notifications. Permission is requested only when you turn this on.
-        </p>
-      )}
 
-      {/* Font */}
+      {/* Appearance — keep theme identity separate from the Light/Dark mode. */}
       <div>
-        <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-          <Type size={16} className="text-muted-foreground" /> Font
+        <p className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+          <Palette size={16} className="text-muted-foreground" /> Theme
         </p>
-        <div className="grid grid-cols-2 gap-2">
-          {FONT_OPTIONS.map((font) => {
-            const selected = settings.font === font.id;
-            const optionClass = selected
-              ? 'border-primary bg-primary/10 text-primary shadow-[0_10px_28px_-18px_hsl(var(--primary)/0.7)]'
-              : 'border-border/70 bg-transparent text-foreground hover:border-primary/40';
-            return (
-              <motion.button
-                key={font.id}
-                type="button"
-                whileTap={{ scale: MOTION.scale.press }}
-                onClick={() => setSettingsState(setFont(font.id))}
-                aria-pressed={selected}
-                data-font-selector
-                className={"relative min-w-0 rounded-2xl border px-3 py-2.5 text-left transition-all " + optionClass}
-              >
-                <span
-                  className="block truncate text-[15px] font-semibold leading-tight"
-                  style={{ fontFamily: font.family }}
-                >
-                  {font.name}
-                </span>
-                <span className="mt-1 block truncate text-[10px] text-muted-foreground">
-                  {font.tagline}
-                </span>
-                {selected && (
-                  <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Check size={12} />
-                  </span>
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Appearance — Themes */}
-      <div>
-        <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-          <Palette size={16} className="text-muted-foreground" /> Themes
-        </p>
-        {/* Dark / Light mode */}
-        <div className="flex gap-2 mb-3">
+        <div className="mb-2 flex gap-2">
           {(['dark', 'light'] as const).map((m) => {
             const active = mode === m;
             const Icon = m === 'dark' ? Moon : Sun;
             return (
               <motion.button
                 key={m}
+                type="button"
                 whileTap={{ scale: MOTION.scale.press }}
                 onClick={() => setMode(m)}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl px-3 py-2 border text-sm font-semibold transition-colors duration-100 ${
+                aria-pressed={active}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors duration-100 ${
                   active
-                    ? 'border-primary bg-primary/10 text-primary glow-primary'
-                    : 'border-border glass text-muted-foreground hover:border-primary/40'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border/70 bg-transparent text-muted-foreground hover:border-primary/40'
                 }`}
               >
-                <Icon size={15} />
+                <Icon size={14} />
                 {m === 'dark' ? 'Dark' : 'Light'}
               </motion.button>
             );
           })}
         </div>
-        <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 snap-x" style={{ scrollbarWidth: 'none' }}>
+        <div className="grid grid-cols-3 gap-2">
           {THEMES.map((t) => {
             const selected = theme === t.id;
             return (
               <motion.button
                 key={t.id}
+                type="button"
                 whileTap={{ scale: MOTION.scale.press }}
                 onClick={() => setAppTheme(t.id)}
-                className={`relative shrink-0 snap-start w-[108px] rounded-2xl p-3 border text-left transition-all duration-200 ${
+                aria-label={`Select ${t.name} theme`}
+                aria-pressed={selected}
+                className={`min-w-0 rounded-xl border p-2 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   selected
-                    ? 'border-primary glow-primary'
-                    : 'border-border/70 glass hover:border-primary/40'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border/70 bg-card/30 hover:border-primary/40'
                 }`}
               >
-                {/* Color preview: 3 circular dots (bg / primary / accent) */}
-                <div className="flex -space-x-2 mb-2">
-                  {t.swatch.map((c, i) => (
-                    <span
-                      key={i}
-                      className="h-7 w-7 rounded-full border-2 border-background shadow-sm"
-                      style={{ background: c }}
-                    />
-                  ))}
+                <div className="mb-1.5 flex items-center justify-between gap-1">
+                  <div className="flex min-w-0 gap-1" aria-hidden="true">
+                    {t.swatch.map((color, index) => (
+                      <span
+                        key={index}
+                        className="h-2.5 w-2.5 rounded-sm ring-1 ring-black/10"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  {selected && (
+                    <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <Check size={10} />
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs font-semibold text-foreground leading-tight">{t.name}</p>
-                <p className="text-[9px] text-muted-foreground leading-tight mt-0.5 truncate">{t.tagline}</p>
-
-                {/* Premium badge */}
-                {t.premium && (
-                  <span
-                    className="absolute top-1.5 left-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold"
-                    style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
-                  >
+                <p className="min-h-8 break-words text-[11px] font-semibold leading-4 text-foreground">{t.name}</p>
+                {t.premium ? (
+                  <p className="mt-0.5 flex h-3 items-center gap-0.5 text-[9px] leading-none text-muted-foreground">
                     <Crown size={9} /> PRO
-                  </span>
-                )}
-
-                {/* Selected check */}
-                {selected && (
-                  <span className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                    <Check size={12} />
-                  </span>
+                  </p>
+                ) : (
+                  <span className="mt-0.5 block h-3" aria-hidden="true" />
                 )}
               </motion.button>
             );
