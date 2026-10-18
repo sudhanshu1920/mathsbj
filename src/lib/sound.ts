@@ -47,6 +47,9 @@ const enabled = () => {
   try { return getSettings().sound; } catch { return true; }
 };
 
+export const playClick = () => { if (!enabled()) return; playTones([{ f: 880, d: 0.04, t: 'triangle', v: 0.6 }], 0.04); };
+export const playSwipe = () => { if (!enabled()) return; playTones([{ f: 520, d: 0.06, t: 'sine', v: 0.5 }, { f: 760, d: 0.05, t: 'sine', v: 0.4 }], 0.04); };
+export const playSuccess = () => { if (!enabled()) return; playTones([{ f: 660, d: 0.09, t: 'triangle' }, { f: 880, d: 0.10, t: 'triangle' }, { f: 1175, d: 0.14, t: 'triangle' }], 0.06); };
 let rightAnswerAudio: HTMLAudioElement | null = null;
 const RIGHT_ANSWER_SOUND_URL = `${import.meta.env.BASE_URL}sounds/right-answer.mp3`;
 
@@ -79,9 +82,6 @@ export const playRightAnswer = () => {
   }
 };
 
-export const playClick = () => { if (!enabled()) return; playTones([{ f: 880, d: 0.04, t: 'triangle', v: 0.6 }], 0.04); };
-export const playSwipe = () => { if (!enabled()) return; playTones([{ f: 520, d: 0.06, t: 'sine', v: 0.5 }, { f: 760, d: 0.05, t: 'sine', v: 0.4 }], 0.04); };
-export const playSuccess = () => { if (!enabled()) return; playTones([{ f: 660, d: 0.09, t: 'triangle' }, { f: 880, d: 0.10, t: 'triangle' }, { f: 1175, d: 0.14, t: 'triangle' }], 0.06); };
 export const playWrong = () => { if (!enabled()) return; playTones([{ f: 220, d: 0.10, t: 'sawtooth', v: 0.5 }, { f: 165, d: 0.16, t: 'sawtooth', v: 0.5 }], 0.05); };
 export const playLevelUp = () => { if (!enabled()) return; playTones([
   { f: 523, d: 0.10, t: 'triangle' },
