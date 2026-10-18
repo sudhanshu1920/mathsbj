@@ -5,6 +5,12 @@ export interface AndroidUpdateDownloadEvent {
   downloadId: number;
   state: "downloading" | "paused" | "verifying" | "installer_opened" | "saved_to_downloads" | "failed";
   progress: number;
+  /** Byte counts sampled from Android DownloadManager, not estimated from time. */
+  downloadedBytes?: number;
+  totalBytes?: number;
+  /** Bytes per second calculated from successive native byte-count samples. */
+  bytesPerSecond?: number;
+  elapsedMs?: number;
   fileName?: string;
   message?: string;
 }

@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
     downloadId: number;
     state: "downloading" | "paused" | "verifying" | "installer_opened" | "saved_to_downloads" | "failed";
     progress: number;
+    downloadedBytes?: number;
+    totalBytes?: number;
+    bytesPerSecond?: number;
+    elapsedMs?: number;
     fileName?: string;
     message?: string;
   }) => void) | undefined,
@@ -182,6 +186,38 @@ describe("AppUpdateManager", () => {
     expect(mocks.installAppUpdate).not.toHaveBeenCalled();
   });
 
+  it("shows measured bytes and throughput, and caps progress below 100 while verification is running", async () => {
+    render(<AppUpdateManager isQuizActive={false} />);
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Download APK" }));
+    await waitFor(() => expect(mocks.downloadAppUpdate).toHaveBeenCalledWith(latest));
+
+    act(() => mocks.downloadStateListener?.({
+      downloadId: 43,
+      state: "downloading",
+      progress: 42,
+      downloadedBytes: 2_000_000,
+      totalBytes: 5_000_000,
+      bytesPerSecond: 500_000,
+      elapsedMs: 4_000,
+    }));
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "42");
+    expect(screen.getByText(/1.91 MB \/ 4.77 MB/)).toBeInTheDocument();
+    expect(screen.getByText(/0.48 MB\/s/)).toBeInTheDocument();
+
+    act(() => mocks.downloadStateListener?.({
+      downloadId: 43,
+      state: "verifying",
+      progress: 100,
+      downloadedBytes: 5_000_000,
+      totalBytes: 5_000_000,
+      bytesPerSecond: 0,
+      elapsedMs: 9_000,
+    }));
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "99");
+    expect(screen.getByText(/Verifying APK checksum/)).toBeInTheDocument();
+  });
+
   it("shows Android-paused download state without falsely marking completion", async () => {
     render(<AppUpdateManager isQuizActive={false} />);
     expect(await screen.findByText("New Update Available")).toBeInTheDocument();
@@ -189,7 +225,13 @@ describe("AppUpdateManager", () => {
     await waitFor(() => expect(mocks.downloadAppUpdate).toHaveBeenCalledWith(latest));
 
     act(() => mocks.downloadStateListener?.({
-      downloadId: 43, state: "paused", progress: 28, message: "Android paused this download.",
+      downloadId: 43,
+      state: "paused",
+      progress: 28,
+      downloadedBytes: 280,
+      totalBytes: 1000,
+      bytesPerSecond: 0,
+      message: "Android paused this download.",
     }));
     expect(screen.getByText(/Download paused by Android/)).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "28");
