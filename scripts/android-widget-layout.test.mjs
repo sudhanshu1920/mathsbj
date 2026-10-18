@@ -42,8 +42,8 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
     assert.equal(layout.includes("@mipmap/ic_launcher"), false);
     assert.equal(layout.includes("widget_progress_text"), false);
   }
-  assert.match(layouts[2], /widget_lower_row[\\s\\S]*android:orientation="horizontal"/);
-  assert.match(layouts[2], /widget_study_remaining_row[\\s\\S]*widget_side_column/);
+  assert.match(layouts[2], /widget_lower_row[\s\S]*android:orientation="horizontal"/);
+  assert.match(layouts[2], /widget_study_remaining_row[\s\S]*widget_side_column/);
 });
 
 test("selected content is not silently suppressed at compact sizes", () => {
