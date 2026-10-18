@@ -1,4 +1,4 @@
-// Lightweight WebAudio UI sound system. No external assets.
+// Lightweight UI sound system with a supplied success clip and WebAudio fallbacks.
 import { getSettings } from './settings';
 
 let ctx: AudioContext | null = null;
