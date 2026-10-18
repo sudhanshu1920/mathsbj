@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   getBackgroundNotificationsEnabled: vi.fn(),
   setBackgroundNotificationsEnabled: vi.fn(),
   syncHomeWidgetPreferences: vi.fn(),
+  refreshHomeWidget: vi.fn(),
 }));
 
 vi.mock("@/lib/appVersion", () => ({ APP_VERSION_NAME: "1.0.0", APP_VERSION_CODE: 1 }));
@@ -97,6 +98,7 @@ vi.mock("@/lib/dailyTargetReminders", () => ({
   getBackgroundNotificationsEnabled: mocks.getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled: mocks.setBackgroundNotificationsEnabled,
   syncHomeWidgetPreferences: mocks.syncHomeWidgetPreferences,
+  refreshHomeWidget: mocks.refreshHomeWidget,
 }));
 
 describe("SettingsPanel compact controls", () => {
@@ -123,6 +125,17 @@ describe("SettingsPanel compact controls", () => {
     fireEvent.click(toggle);
     await waitFor(() => expect(screen.queryByText("Widget Content")).not.toBeInTheDocument());
     expect(screen.getByText("Home Screen Widgets")).toBeInTheDocument();
+  });
+
+  it("refreshes the existing native progress payload when widgets are re-enabled", async () => {
+    render(<SettingsPanel />);
+    const toggle = screen.getByRole("switch", { name: "Home Screen Widgets" });
+
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "false"));
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(mocks.refreshHomeWidget).toHaveBeenCalledTimes(1));
   });
 
   it("previews actual saved progress values without adding another progress tracker", () => {
