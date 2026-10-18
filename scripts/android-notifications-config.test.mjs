@@ -93,7 +93,7 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(widgetStrings, /Math Master Progress/);
   assert.match(widgetInfo, /minWidth="180dp"/);
   assert.match(widgetLayout, /widget_disabled_text/);
-  assert.match(lightWidgetBackground, /#F4F7FC/);
+  assert.match(lightWidgetBackground, /#C9F4F7FC/);
   assert.match(manifest, /math_master_home_widget_info/);
   assert.match(widgetProvider, /updateReleaseStatus/);
   assert.match(widgetProvider, /targetSeconds/);
