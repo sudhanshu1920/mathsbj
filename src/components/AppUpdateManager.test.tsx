@@ -91,7 +91,7 @@ describe("AppUpdateManager", () => {
     expect(screen.getByRole("button", { name: "Later" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Later" }).className).toContain("col-span-2");
     expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(1);
-  });;
+  });
 
   it("dismisses only for the current app session and rechecks on the next launch", async () => {
     localStorage.setItem("mathmaster.dismissed-update-version-code", "1137");
