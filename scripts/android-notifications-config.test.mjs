@@ -63,6 +63,7 @@ test('configures local notification permissions, plugin and reboot/time-change r
   const widgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget.xml'), 'utf8');
   const widgetInfo = await readFile(path.join(root, 'app/src/main/res/xml/math_master_home_widget_info.xml'), 'utf8');
   const widgetInfoV31 = await readFile(path.join(root, 'app/src/main/res/xml-v31/math_master_home_widget_info.xml'), 'utf8');
+  const widgetStrings = await readFile(path.join(root, 'app/src/main/res/values/math_master_home_widget_strings.xml'), 'utf8');
   const lightWidgetBackground = await readFile(path.join(root, 'app/src/main/res/drawable/math_master_home_widget_background_light.xml'), 'utf8');
 
   assert.deepEqual(result, { firebaseEnabled: false, projectId: null });
@@ -85,6 +86,9 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(widgetProvider, /getInstanceString/);
   assert.match(widgetInfo, /android:configure="com\.sudhanshu\.mathsbj\.MathMasterWidgetConfigActivity"/);
   assert.match(widgetInfoV31, /widgetFeatures="reconfigurable"/);
+  assert.match(widgetInfo, /label="@string\/math_master_home_widget_label"/);
+  assert.match(widgetInfoV31, /previewLayout="@layout\/math_master_home_widget"/);
+  assert.match(widgetStrings, /Math Master Progress/);
   assert.match(widgetInfo, /minWidth="180dp"/);
   assert.match(widgetLayout, /widget_disabled_text/);
   assert.match(lightWidgetBackground, /#F4F7FC/);
