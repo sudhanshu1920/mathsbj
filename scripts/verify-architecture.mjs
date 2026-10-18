@@ -429,6 +429,35 @@ if (!releaseWorkflow.includes('request.setMimeType("application/octet-stream");'
   fail('APK downloads must be verified before the installer can be opened from a completion notification');
 }
 
+// The generated Android updater must reuse native DownloadManager jobs across
+// activity/process restarts, and progress telemetry must be based on real byte samples.
+const updateFeedCacheTests = read('src/lib/updateFeed.cache.test.ts');
+if (!releaseWorkflow.includes('SharedPreferences preferences') ||
+    !releaseWorkflow.includes('download_id_') ||
+    !releaseWorkflow.includes('readDownloadStatus(manager, existingId)') ||
+    !releaseWorkflow.includes('DownloadManager.STATUS_PAUSED') ||
+    !releaseWorkflow.includes('expectedSha256.equalsIgnoreCase(previousSha)') ||
+    !releaseWorkflow.includes('monitoredDownloads') ||
+    !releaseWorkflow.includes('data.put("downloadedBytes"') ||
+    !releaseWorkflow.includes('data.put("bytesPerSecond"') ||
+    !releaseWorkflow.includes('new byte[64 * 1024]') ||
+    !releaseWorkflow.includes('destinationFile.length() != total') ||
+    !updateFeed.includes('RELEASE_MANIFEST_CACHE_TTL_MS = 15_000') ||
+    !updateFeedCacheTests.includes('coalesces concurrent checks') ||
+    !updateFeedCacheTests.includes('refreshes the manifest once the short cache lifetime expires')) {
+  fail('APK download resume, identity matching, measured throughput, integrity and bounded metadata cache safeguards are missing');
+}
+const nativeUpdaterEvents = read('src/nativeAppUpdater.ts');
+const updateManagerUi = read('src/components/AppUpdateManager.tsx');
+const updateManagerTests = read('src/components/AppUpdateManager.test.tsx');
+if (!nativeUpdaterEvents.includes('downloadedBytes?: number') ||
+    !nativeUpdaterEvents.includes('bytesPerSecond?: number') ||
+    !updateManagerUi.includes('Math.min(99, event.progress)') ||
+    !updateManagerUi.includes('describeDownloadMetrics(event)') ||
+    !updateManagerTests.includes('shows measured bytes and throughput, and caps progress below 100 while verification is running')) {
+  fail('Download progress must report native byte counts/speed and stay below 100% until verification succeeds');
+}
+
 // Periodic ranges must be contiguous, non-overlapping, and end exactly at 118.
 const rangesText = read('src/lib/periodicRanges.ts');
 const ranges = [...rangesText.matchAll(
