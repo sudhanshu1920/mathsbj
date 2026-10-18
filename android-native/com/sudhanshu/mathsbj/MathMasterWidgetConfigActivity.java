@@ -168,7 +168,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         String theme = selectedRadioValue(themeGroup, "app");
         previewSummary.setText(labels.isEmpty()
             ? "Select at least one field"
-            : "Math Master  •  " + String.join("  ·  ", labels) + "\n" + capitalize(style) + "  ·  " + ("app".equals(theme) ? "Match App Theme" : "Violet Glass"));
+            : "Math Master  •  " + android.text.TextUtils.join("  ·  ", labels) + "\n" + capitalize(style) + "  ·  " + ("app".equals(theme) ? "Match App Theme" : "Violet Glass"));
     }
 
     private void saveConfiguration() {
