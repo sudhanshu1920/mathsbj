@@ -110,7 +110,11 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     try {
       const result = await installAppUpdate(candidate);
       if (result.status === "started") {
-        setDownloadStatus((current) => current || "Downloading the verified update APK…");
+        setDownloadStatus((current) =>
+          !current || current.startsWith("Preparing ")
+            ? "Downloading the verified update APK…"
+            : current,
+        );
         // Wait for the native byte-count event before rendering a percentage.
       } else if (result.status === "applying") {
         setUpdate(null);
@@ -161,7 +165,11 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     try {
       const result = await downloadAppUpdate(candidate);
       if (result.status === "started") {
-        setDownloadStatus((current) => current || "Downloading APK to device storage…");
+        setDownloadStatus((current) =>
+          !current || current.startsWith("Preparing ")
+            ? "Downloading APK to device storage…"
+            : current,
+        );
         // The native event supplies the first percentage only when total size is known.
       } else if (result.status === "current") {
         setAction(null);
