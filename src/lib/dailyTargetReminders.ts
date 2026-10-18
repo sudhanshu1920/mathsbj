@@ -187,6 +187,18 @@ interface MathMasterNotificationsPlugin {
     versionCode?: string | null;
     updateManifestUrl?: string | null;
   }>;
+  syncHomeWidget(options: {
+    targetMinutes: number;
+    elapsedSeconds: number;
+    dayKey: string;
+    currentStreak: number;
+  }): Promise<{ synced: boolean }>;
+  syncHomeWidgetUpdateStatus(options: {
+    installedVersionCode: number;
+    installedVersionName: string;
+    latestVersionCode: number;
+    latestVersionName: string;
+  }): Promise<{ synced: boolean }>;
 }
 
 const NativeNotifications = registerPlugin<MathMasterNotificationsPlugin>('MathMasterNotifications');
@@ -198,6 +210,56 @@ let syncQueue: Promise<void> = Promise.resolve();
 let updateAlertsSyncPromise: Promise<void> | null = null;
 let requestedUpdateAlertsSetting: boolean | null = null;
 let lastPersistedSyncAt = 0;
+let lastWidgetPayloadSignature = '';
+let widgetSyncQueue: Promise<void> = Promise.resolve();
+
+const queueHomeWidgetSync = (force = false): void => {
+  if (!Capacitor.isNativePlatform()) return;
+  const streak = getStreak();
+  const date = todayStr();
+  const record = streak.days[date];
+  const elapsedSeconds = Math.max(0, Math.floor(record?.seconds ?? 0));
+  const payload = {
+    targetMinutes: Math.max(1, Math.floor(streak.targetMinutes)),
+    elapsedSeconds,
+    dayKey: date,
+    currentStreak: Math.max(0, Math.floor(streak.current)),
+  };
+  // The widget only displays whole study minutes. Keep sending the freshest
+  // seconds at each minute boundary instead of invoking the Android bridge
+  // on every one-second persistence tick.
+  const signature = JSON.stringify({
+    ...payload,
+    elapsedSeconds: Math.floor(elapsedSeconds / 60) * 60,
+  });
+  if (!force && signature === lastWidgetPayloadSignature) return;
+  lastWidgetPayloadSignature = signature;
+  widgetSyncQueue = widgetSyncQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const result = await NativeNotifications.syncHomeWidget(payload);
+      if (result.synced !== true) throw new Error('Native home widget did not confirm its state update.');
+    })
+    .catch(() => {
+      lastWidgetPayloadSignature = '';
+    });
+};
+
+export const syncHomeWidgetUpdateStatus = async (status: {
+  installedVersionCode: number;
+  installedVersionName: string;
+  latestVersionCode: number;
+  latestVersionName: string;
+}): Promise<boolean> => {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    const result = await NativeNotifications.syncHomeWidgetUpdateStatus(status);
+    return result.synced === true;
+  } catch {
+    // Home-screen presentation is auxiliary and must never interrupt update checks.
+    return false;
+  }
+};
 
 const queueUpdateAlertsSync = (): void => {
   requestedUpdateAlertsSetting = getBackgroundNotificationsEnabled();
@@ -346,6 +408,7 @@ export const initializeBackgroundNotifications = (): (() => void) => {
   let lastMinuteBucket = -1;
 
   const onProgressPersisted = () => {
+    queueHomeWidgetSync();
     if (!getBackgroundNotificationsEnabled()) return;
     const now = Date.now();
     const currentDayKey = todayStr();
@@ -365,7 +428,10 @@ export const initializeBackgroundNotifications = (): (() => void) => {
     lastPersistedSyncAt = now;
     void queueNativeSync();
   };
-  const onStreakUpdated = () => { void queueNativeSync(true); };
+  const onStreakUpdated = () => {
+    queueHomeWidgetSync(true);
+    void queueNativeSync(true);
+  };
   const dispatchNotificationAction = async () => {
     if (!Capacitor.isNativePlatform()) return;
     try {
@@ -380,6 +446,7 @@ export const initializeBackgroundNotifications = (): (() => void) => {
     }
   };
   const onResume = () => {
+    queueHomeWidgetSync(true);
     void queueNativeSync(true);
     void dispatchNotificationAction();
   };
@@ -390,6 +457,7 @@ export const initializeBackgroundNotifications = (): (() => void) => {
   let appResumeListener: { remove: () => Promise<void> } | null = null;
   let disposed = false;
   void dispatchNotificationAction();
+  queueHomeWidgetSync(true);
   if (Capacitor.isNativePlatform()) {
     void App.addListener('resume', onResume).then((listener) => {
       if (disposed) void listener.remove();
