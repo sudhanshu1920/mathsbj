@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   announceUpdateAvailable: vi.fn(),
   getBackgroundNotificationsEnabled: vi.fn(),
   setBackgroundNotificationsEnabled: vi.fn(),
+  syncHomeWidgetPreferences: vi.fn(),
 }));
 
 vi.mock("@/lib/appVersion", () => ({ APP_VERSION_NAME: "1.0.0", APP_VERSION_CODE: 1 }));
@@ -21,14 +22,31 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: null, signOut: vi.fn() }),
 }));
 
-vi.mock("@/lib/settings", () => ({
-  getSettings: () => ({ sound: true, vibration: false, keyboardShortcuts: true, font: "space-grotesk" }),
-  setSound: (sound: boolean) => ({ sound, vibration: false, keyboardShortcuts: true, font: "space-grotesk" }),
-  setVibration: (vibration: boolean) => ({ sound: true, vibration, keyboardShortcuts: true, font: "space-grotesk" }),
-  setKeyboardShortcuts: (keyboardShortcuts: boolean) => ({ sound: true, vibration: false, keyboardShortcuts, font: "space-grotesk" }),
-}));
+vi.mock("@/lib/settings", () => {
+  const base = () => ({
+    sound: true,
+    vibration: false,
+    keyboardShortcuts: true,
+    font: "space-grotesk",
+    homeScreenWidgetsEnabled: true,
+    homeWidgetContent: ["appIdentity", "target", "progress", "remaining", "studyTime", "streak"],
+    homeWidgetStyle: "glass",
+    homeWidgetTheme: "app",
+  });
+  return {
+    getSettings: base,
+    setSound: (sound: boolean) => ({ ...base(), sound }),
+    setVibration: (vibration: boolean) => ({ ...base(), vibration }),
+    setKeyboardShortcuts: (keyboardShortcuts: boolean) => ({ ...base(), keyboardShortcuts }),
+    setHomeScreenWidgetsEnabled: (enabled: boolean) => ({ ...base(), homeScreenWidgetsEnabled: enabled }),
+    setHomeWidgetContent: (homeWidgetContent: string[]) => ({ ...base(), homeWidgetContent }),
+    setHomeWidgetStyle: (homeWidgetStyle: string) => ({ ...base(), homeWidgetStyle }),
+    setHomeWidgetTheme: (homeWidgetTheme: string) => ({ ...base(), homeWidgetTheme }),
+  };
+});
 
 vi.mock("@/lib/streak", () => ({
+  todayStr: () => "2026-10-18",
   getStreak: () => ({
     enabled: true,
     targetMinutes: 15,
@@ -36,7 +54,7 @@ vi.mock("@/lib/streak", () => ({
     best: 4,
     freezeUsedMonth: "2026-10",
     freezesUsed: 0,
-    days: {},
+    days: { "2026-10-18": { seconds: 120 } },
     lastEvalDate: "2026-10-18",
   }),
   setTarget: vi.fn(() => ({
@@ -78,6 +96,7 @@ vi.mock("@/lib/appUpdateEvents", () => ({
 vi.mock("@/lib/dailyTargetReminders", () => ({
   getBackgroundNotificationsEnabled: mocks.getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled: mocks.setBackgroundNotificationsEnabled,
+  syncHomeWidgetPreferences: mocks.syncHomeWidgetPreferences,
 }));
 
 describe("SettingsPanel compact controls", () => {
@@ -87,7 +106,32 @@ describe("SettingsPanel compact controls", () => {
     mocks.mode = "dark";
     mocks.getBackgroundNotificationsEnabled.mockReturnValue(true);
     mocks.setBackgroundNotificationsEnabled.mockResolvedValue(true);
+    mocks.syncHomeWidgetPreferences.mockResolvedValue(true);
     mocks.checkForAppUpdate.mockResolvedValue({ status: "current" });
+  });
+
+  it("shows only the compact widget row when off and expands saved customization controls when on", async () => {
+    render(<SettingsPanel />);
+
+    const toggle = screen.getByRole("switch", { name: "Home Screen Widgets" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("Widget Content")).toBeInTheDocument();
+    expect(screen.getByText("Widget Style")).toBeInTheDocument();
+    expect(screen.getByText("Widget Theme")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview" })).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    await waitFor(() => expect(screen.queryByText("Widget Content")).not.toBeInTheDocument());
+    expect(screen.getByText("Home Screen Widgets")).toBeInTheDocument();
+  });
+
+  it("previews actual saved progress values without adding another progress tracker", () => {
+    render(<SettingsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    expect(screen.getByText("2 / 15 min")).toBeInTheDocument();
+    expect(screen.getByText("13 min left")).toBeInTheDocument();
+    expect(screen.getByText("🔥 2-day streak")).toBeInTheDocument();
   });
 
   it("removes the font selector without removing the normal settings controls", () => {
