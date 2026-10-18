@@ -245,6 +245,7 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
   const widgetResources = [
     'layout/math_master_home_widget.xml',
     'drawable/math_master_home_widget_background.xml',
+    'drawable/math_master_home_widget_background_light.xml',
     'drawable/math_master_home_widget_badge.xml',
     'xml/math_master_home_widget_info.xml',
   ];
