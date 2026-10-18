@@ -15,6 +15,7 @@ import {
   getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled,
   syncHomeWidgetPreferences,
+  refreshHomeWidget,
 } from '@/lib/dailyTargetReminders';
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
@@ -265,7 +266,9 @@ const SettingsPanel = () => {
               const next = setHomeScreenWidgetsEnabled(enabled);
               setSettingsState(next);
               if (!enabled) setWidgetPreviewVisible(false);
-              void syncHomeWidgetPreferences();
+              void syncHomeWidgetPreferences().then((synced) => {
+                if (enabled && synced) refreshHomeWidget();
+              });
             }}
             aria-label="Home Screen Widgets"
           />
