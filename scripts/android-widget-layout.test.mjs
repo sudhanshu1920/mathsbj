@@ -33,7 +33,8 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
       assert.match(layout, new RegExp(`@\\+id/widget_week_day_${i}\\b`));
       assert.match(layout, new RegExp(`@\\+id/widget_week_status_${i}\\b`));
     }
-    assert.doesNotMatch(layout, /@mipmap\\/ic_launcher|widget_progress_text/);
+    assert.equal(layout.includes("@mipmap/ic_launcher"), false);
+    assert.equal(layout.includes("widget_progress_text"), false);
   }
 });
 
@@ -45,8 +46,8 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_bar, showProgress \? View\.VISIBLE : View\.GONE\)/);
   assert.match(provider, /R\.layout\.math_master_home_widget_compact/);
   assert.match(provider, /R\.layout\.math_master_home_widget_wide/);
-  assert.doesNotMatch(provider, /!smallWidget \? View\.GONE/);
-  assert.doesNotMatch(provider, /selected\.contains\("remaining"\)\s*&&/);
+  assert.equal(provider.includes("showProgress && !smallWidget"), false);
+  assert.equal(provider.includes('selected.contains("remaining") &&'), false);
 });
 
 test("weekly checkmarks use the existing daily streak data and validate native input", () => {
