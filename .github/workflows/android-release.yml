@@ -537,7 +537,7 @@ jobs:
                 mainHandler.postDelayed(this, nextPollDelay);
               }
             };
-            notifyDownloadState(downloadId, "downloading", 0L, -1L, null, null);
+            // The first poll emits real DownloadManager byte counts, including resumed bytes.
             mainHandler.post(poll);
           }
 
