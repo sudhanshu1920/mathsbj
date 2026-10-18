@@ -90,7 +90,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             R.id.widget_remaining_text,
             remainingMinutes == 0 ? "Daily target complete ✓" : remainingMinutes + " min left today"
         );
-        views.setTextViewText(R.id.widget_streak_text, "🔥 " + streak + (streak == 1 ? " day streak" : " day streaks"));
+        views.setTextViewText(R.id.widget_streak_text, "🔥 " + streak + "-day streak");
 
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
         boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
