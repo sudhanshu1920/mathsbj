@@ -169,12 +169,12 @@ public class DailyTargetReminderPlugin extends Plugin {
             String modeValue = call.getString("mode");
 
             java.util.Set<String> allowed = new java.util.HashSet<>(java.util.Arrays.asList(
-                "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus"
+                "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"
             ));
             org.json.JSONArray input = contentJson == null ? new org.json.JSONArray() : new org.json.JSONArray(contentJson);
             org.json.JSONArray content = new org.json.JSONArray();
             java.util.Set<String> seen = new java.util.HashSet<>();
-            for (int i = 0; i < Math.min(input.length(), 7); i++) {
+            for (int i = 0; i < Math.min(input.length(), 8); i++) {
                 String field = input.optString(i, "");
                 if (allowed.contains(field) && seen.add(field)) content.put(field);
             }
