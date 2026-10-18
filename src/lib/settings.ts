@@ -1,10 +1,10 @@
 import { applyFont, DEFAULT_FONT, normalizeFont, type FontId } from '@/lib/font';
 
-export type HomeWidgetContent = 'appIdentity' | 'target' | 'progress' | 'remaining' | 'studyTime' | 'streak' | 'updateStatus';
+export type HomeWidgetContent = 'appIdentity' | 'target' | 'progress' | 'remaining' | 'studyTime' | 'streak' | 'weekly' | 'updateStatus';
 export type HomeWidgetStyle = 'glass' | 'compact' | 'minimal';
 export type HomeWidgetTheme = 'app' | 'violet';
 
-const HOME_WIDGET_CONTENT: HomeWidgetContent[] = ['appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'updateStatus'];
+const HOME_WIDGET_CONTENT: HomeWidgetContent[] = ['appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'updateStatus'];
 const normalizeWidgetContent = (value: unknown): HomeWidgetContent[] => {
   if (!Array.isArray(value)) return [...HOME_WIDGET_CONTENT];
   const valid = [...new Set(value.filter((item): item is HomeWidgetContent =>
@@ -13,6 +13,7 @@ const normalizeWidgetContent = (value: unknown): HomeWidgetContent[] => {
 };
 
 const KEY = 'math-app-settings-v1';
+const HOME_WIDGET_CONTENT_SCHEMA_KEY = 'math-app-home-widget-content-schema-v2';
 
 export interface AppSettings {
   sound: boolean;
@@ -53,16 +54,32 @@ export const getSettings = (): AppSettings => {
       ? parsed as Record<string, unknown>
       : {};
     const base = defaults();
+    const contentSchemaNeedsMigration = localStorage.getItem(HOME_WIDGET_CONTENT_SCHEMA_KEY) !== '2';
+    let widgetContent = normalizeWidgetContent(value.homeWidgetContent);
+    // The weekly field did not exist in prior builds. Add it once during upgrade,
+    // while respecting explicit selections made after this schema version.
+    if (contentSchemaNeedsMigration && Array.isArray(value.homeWidgetContent) && !widgetContent.includes('weekly')) {
+      widgetContent = [...widgetContent, 'weekly'];
+    }
     cache = {
       sound: normalizeBoolean(value.sound, base.sound),
       vibration: normalizeBoolean(value.vibration, base.vibration),
       keyboardShortcuts: normalizeBoolean(value.keyboardShortcuts, base.keyboardShortcuts),
       homeScreenWidgetsEnabled: normalizeBoolean(value.homeScreenWidgetsEnabled, base.homeScreenWidgetsEnabled),
-      homeWidgetContent: normalizeWidgetContent(value.homeWidgetContent),
+      homeWidgetContent: widgetContent,
       homeWidgetStyle: value.homeWidgetStyle === 'compact' || value.homeWidgetStyle === 'minimal' ? value.homeWidgetStyle : base.homeWidgetStyle,
       homeWidgetTheme: value.homeWidgetTheme === 'violet' ? 'violet' : base.homeWidgetTheme,
       font: normalizeFont(typeof value.font === 'string' ? value.font : base.font),
     };
+    if (contentSchemaNeedsMigration) {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(cache));
+        localStorage.setItem(HOME_WIDGET_CONTENT_SCHEMA_KEY, '2');
+      } catch {
+        // Keep the loaded settings in memory if persistent storage is temporarily unavailable.
+        // A later successful launch can retry the one-time migration.
+      }
+    }
   } catch {
     cache = defaults();
   }

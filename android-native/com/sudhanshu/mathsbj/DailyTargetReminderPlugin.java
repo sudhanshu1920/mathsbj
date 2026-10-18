@@ -135,7 +135,7 @@ public class DailyTargetReminderPlugin extends Plugin {
                         call.reject("Home screen widget week summary contains an invalid date.");
                         return;
                     }
-                    if (uniqueDays.add(date)) completedDays.put(date);
+                    if (uniqueDays.add(date) && isDateInTrailingSevenDays(date)) completedDays.put(date);
                 }
             }
 
@@ -157,6 +157,35 @@ public class DailyTargetReminderPlugin extends Plugin {
         }
     }
 
+    private static boolean isDateInTrailingSevenDays(String dateValue) {
+        java.text.SimpleDateFormat formatter =
+            new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+        formatter.setLenient(false);
+        final java.util.Date parsed;
+        try {
+            parsed = formatter.parse(dateValue);
+        } catch (java.text.ParseException ignored) {
+            return false;
+        }
+        if (parsed == null) return false;
+
+        java.util.Calendar today = java.util.Calendar.getInstance();
+        today.set(java.util.Calendar.HOUR_OF_DAY, 12);
+        today.set(java.util.Calendar.MINUTE, 0);
+        today.set(java.util.Calendar.SECOND, 0);
+        today.set(java.util.Calendar.MILLISECOND, 0);
+        java.util.Calendar firstAllowed = (java.util.Calendar) today.clone();
+        firstAllowed.add(java.util.Calendar.DAY_OF_MONTH, -6);
+
+        java.util.Calendar candidate = java.util.Calendar.getInstance();
+        candidate.setTime(parsed);
+        candidate.set(java.util.Calendar.HOUR_OF_DAY, 12);
+        candidate.set(java.util.Calendar.MINUTE, 0);
+        candidate.set(java.util.Calendar.SECOND, 0);
+        candidate.set(java.util.Calendar.MILLISECOND, 0);
+        return !candidate.before(firstAllowed) && !candidate.after(today);
+    }
+
     @PluginMethod
     public void setHomeWidgetPreferences(PluginCall call) {
         try {
@@ -169,12 +198,12 @@ public class DailyTargetReminderPlugin extends Plugin {
             String modeValue = call.getString("mode");
 
             java.util.Set<String> allowed = new java.util.HashSet<>(java.util.Arrays.asList(
-                "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus"
+                "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"
             ));
             org.json.JSONArray input = contentJson == null ? new org.json.JSONArray() : new org.json.JSONArray(contentJson);
             org.json.JSONArray content = new org.json.JSONArray();
             java.util.Set<String> seen = new java.util.HashSet<>();
-            for (int i = 0; i < Math.min(input.length(), 7); i++) {
+            for (int i = 0; i < Math.min(input.length(), 8); i++) {
                 String field = input.optString(i, "");
                 if (allowed.contains(field) && seen.add(field)) content.put(field);
             }

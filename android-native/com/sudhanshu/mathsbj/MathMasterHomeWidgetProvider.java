@@ -11,6 +11,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Build;
 import android.util.TypedValue;
+import android.util.SizeF;
 import android.view.View;
 import android.view.Gravity;
 import android.os.Bundle;
@@ -22,6 +23,9 @@ import org.json.JSONException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -107,40 +111,34 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static int getWidgetWidthDp(Context context, int appWidgetId) {
         Bundle options = getWidgetOptions(context, appWidgetId);
-        return Math.max(options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0),
-            options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0));
+        int minimum = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+        return minimum > 0 ? minimum : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0);
     }
 
     private static int getWidgetHeightDp(Context context, int appWidgetId) {
         Bundle options = getWidgetOptions(context, appWidgetId);
-        return Math.max(options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0),
-            options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0));
+        int minimum = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+        return minimum > 0 ? minimum : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
     }
 
-    private static boolean isCompactSize(Context context, int appWidgetId) {
-        int width = getWidgetWidthDp(context, appWidgetId);
-        int height = getWidgetHeightDp(context, appWidgetId);
-        // A narrow but tall tile is not compact: keep readable typography for its portrait layout.
-        if (width > 0 && height > width * 1.3f) return false;
-        return (width > 0 && width < 220) || (height > 0 && height < 130);
+    private static boolean isCompactSize(int widthDp, int heightDp) {
+        if (isTallWidget(widthDp, heightDp) || isWideWidget(widthDp, heightDp)) return false;
+        // Short widgets need the dense layout even when their width is not particularly narrow.
+        return (widthDp > 0 && widthDp < 220) || (heightDp > 0 && heightDp < 180);
     }
 
-    private static boolean isTallWidget(Context context, int appWidgetId) {
-        int width = getWidgetWidthDp(context, appWidgetId);
-        int height = getWidgetHeightDp(context, appWidgetId);
-        return width > 0 && height > width * 1.3f;
+    private static boolean isTallWidget(int widthDp, int heightDp) {
+        return widthDp > 0 && heightDp > widthDp * 1.3f;
     }
 
-    private static boolean isWideWidget(Context context, int appWidgetId) {
-        int width = getWidgetWidthDp(context, appWidgetId);
-        int height = getWidgetHeightDp(context, appWidgetId);
-        return width > 0 && height > 0 && width >= height * 1.7f;
+    private static boolean isWideWidget(int widthDp, int heightDp) {
+        return widthDp > 0 && heightDp > 0 && widthDp >= heightDp * 1.7f;
     }
 
-    private static int getWidgetLayout(Context context, int appWidgetId) {
-        if (isTallWidget(context, appWidgetId)) return R.layout.math_master_home_widget;
-        if (isCompactSize(context, appWidgetId)) return R.layout.math_master_home_widget_compact;
-        if (isWideWidget(context, appWidgetId)) return R.layout.math_master_home_widget_wide;
+    private static int getWidgetLayoutForDimensions(int widthDp, int heightDp) {
+        if (isTallWidget(widthDp, heightDp)) return R.layout.math_master_home_widget;
+        if (isWideWidget(widthDp, heightDp)) return R.layout.math_master_home_widget_wide;
+        if (isCompactSize(widthDp, heightDp)) return R.layout.math_master_home_widget_compact;
         return R.layout.math_master_home_widget;
     }
 
@@ -169,13 +167,25 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         R.drawable.math_master_home_widget_background_complete_light_6
     };
 
-    private static int completedThemeIndex(String dayKey, int streak) {
-        int hash = ((dayKey == null ? "" : dayKey) + "#" + streak).hashCode() & 0x7fffffff;
-        return hash % COMPLETION_ACCENTS.length;
+    private static int getPaletteThemeIndex(String theme) {
+        if ("emerald".equals(theme)) return 0;
+        if ("ocean".equals(theme)) return 1;
+        if ("graphite".equals(theme)) return 2;
+        if ("rose".equals(theme)) return 3;
+        if ("violet".equals(theme)) return 4;
+        if ("sapphire".equals(theme)) return 5;
+        if ("aurora".equals(theme)) return 6;
+        return -1;
     }
 
-    private static int completedAccentColor(String dayKey, int streak) {
-        return COMPLETION_ACCENTS[completedThemeIndex(dayKey, streak)];
+    private static String normalizeWidgetTheme(String theme) {
+        return "app".equals(theme) || getPaletteThemeIndex(theme) >= 0 ? theme : "app";
+    }
+
+    private static int appAccentColor(SharedPreferences preferences) {
+        String value = preferences.getString("appAccentColor", preferences.getString("accentColor", "#B8A0FF"));
+        return value != null && value.matches("#[0-9A-Fa-f]{6}")
+            ? Color.parseColor(value) : Color.parseColor("#B8A0FF");
     }
 
     private static Set<String> getCompletedDays(SharedPreferences preferences) {
@@ -199,6 +209,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     ) {
         int[] dayIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
             R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
+        int[] dateIds = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
+            R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
         int[] statusIds = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
             R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
         Set<String> completed = getCompletedDays(preferences);
@@ -216,10 +228,13 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             boolean done = completed.contains(date);
             String label = labelFormat.format(day.getTime());
             views.setTextViewText(dayIds[i], label);
+            views.setTextViewText(dateIds[i], String.valueOf(day.get(Calendar.DAY_OF_MONTH)));
             views.setTextViewText(statusIds[i], done ? "✓" : "·");
             views.setTextColor(dayIds[i], idleColor);
+            views.setTextColor(dateIds[i], idleColor);
             views.setTextColor(statusIds[i], done ? accentColor : idleColor);
-            views.setContentDescription(statusIds[i], label + (done ? ", target completed" : ", target not completed"));
+            views.setContentDescription(statusIds[i], date + ", " + label
+                + (done ? ", target completed" : ", target not completed"));
             day.add(Calendar.DAY_OF_MONTH, 1);
         }
     }
@@ -234,20 +249,50 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static Set<String> getSelectedContent(SharedPreferences preferences, int appWidgetId) {
         String json = getInstanceString(preferences, appWidgetId, "contentJson", preferences.getString("contentJson", null));
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            String prefix = "instance_" + appWidgetId + "_";
+            String contentKey = prefix + "contentJson";
+            if (preferences.contains(contentKey) && preferences.getInt(prefix + "contentSchemaVersion", 0) < 2) {
+                JSONArray migratedContent;
+                try {
+                    migratedContent = new JSONArray(preferences.getString(contentKey, "[]"));
+                } catch (JSONException ignored) {
+                    migratedContent = new JSONArray();
+                    migratedContent.put("appIdentity");
+                    migratedContent.put("target");
+                    migratedContent.put("progress");
+                    migratedContent.put("remaining");
+                    migratedContent.put("studyTime");
+                    migratedContent.put("streak");
+                    migratedContent.put("weekly");
+                    migratedContent.put("updateStatus");
+                }
+                boolean hasWeekly = false;
+                for (int i = 0; i < migratedContent.length(); i++) {
+                    if ("weekly".equals(migratedContent.optString(i, ""))) hasWeekly = true;
+                }
+                if (!hasWeekly && migratedContent.length() < 32) migratedContent.put("weekly");
+                preferences.edit()
+                    .putString(contentKey, migratedContent.toString())
+                    .putInt(prefix + "contentSchemaVersion", 2)
+                    .apply();
+                json = migratedContent.toString();
+            }
+        }
         if (json == null) {
-            return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus"));
+            return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"));
         }
         Set<String> selected = new HashSet<>();
         try {
             JSONArray array = new JSONArray(json);
             for (int i = 0; i < array.length(); i++) {
                 String item = array.optString(i, "");
-                if (Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus").contains(item)) {
+                if (Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus").contains(item)) {
                     selected.add(item);
                 }
             }
         } catch (JSONException ignored) {
-            return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus"));
+            return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"));
         }
         if (selected.isEmpty()) selected.add("progress");
         return selected;
@@ -263,6 +308,35 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     }
 
     public static RemoteViews createViews(Context context, int appWidgetId) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Bundle options = getWidgetOptions(context, appWidgetId);
+            ArrayList<SizeF> availableSizes = options.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES);
+            if (availableSizes != null && !availableSizes.isEmpty()) {
+                Map<SizeF, RemoteViews> viewsBySize = new LinkedHashMap<>();
+                for (SizeF size : availableSizes) {
+                    if (size == null
+                        || Float.isNaN(size.getWidth()) || Float.isInfinite(size.getWidth())
+                        || Float.isNaN(size.getHeight()) || Float.isInfinite(size.getHeight())
+                        || size.getWidth() <= 0f || size.getHeight() <= 0f) continue;
+                    int widthDp = Math.max(1, Math.round(size.getWidth()));
+                    int heightDp = Math.max(1, Math.round(size.getHeight()));
+                    viewsBySize.put(size, createViewsForSize(context, appWidgetId, widthDp, heightDp));
+                }
+                if (!viewsBySize.isEmpty()) return new RemoteViews(viewsBySize);
+            }
+        }
+        return createViewsForSize(context, appWidgetId,
+            getWidgetWidthDp(context, appWidgetId), getWidgetHeightDp(context, appWidgetId));
+    }
+
+    private static RemoteViews createViewsForSize(Context context, int appWidgetId, int widthDp, int heightDp) {
+        int layoutId = getWidgetLayoutForDimensions(widthDp, heightDp);
+        return createViewsForLayout(context, appWidgetId, layoutId, widthDp, heightDp);
+    }
+
+    private static RemoteViews createViewsForLayout(
+        Context context, int appWidgetId, int layoutId, int widthDp, int heightDp
+    ) {
         SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
         int targetMinutes = Math.max(1, Math.min(1440, preferences.getInt("targetMinutes", 5)));
         String storedDay = preferences.getString("dayKey", "");
@@ -278,31 +352,22 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         int streak = Math.max(0, preferences.getInt("currentStreak", 0));
         Set<String> selected = getSelectedContent(preferences, appWidgetId);
 
-        RemoteViews views = new RemoteViews(context.getPackageName(), getWidgetLayout(context, appWidgetId));
+        RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
         boolean widgetsEnabled = preferences.getBoolean("enabled", true);
         String mode = preferences.getString("mode", "dark");
         String style = getInstanceString(preferences, appWidgetId, "style", "glass");
-        String widgetTheme = getInstanceString(preferences, appWidgetId, "theme", "app");
-        String accentValue = "violet".equals(widgetTheme)
-            ? "#B8A0FF" : preferences.getString("appAccentColor", preferences.getString("accentColor", "#B8A0FF"));
-        int accentColor = accentValue.matches("#[0-9A-Fa-f]{6}") ? Color.parseColor(accentValue) : Color.parseColor("#B8A0FF");
+        String widgetTheme = normalizeWidgetTheme(getInstanceString(preferences, appWidgetId, "theme", "app"));
+        int themeIndex = getPaletteThemeIndex(widgetTheme);
+        int accentColor = themeIndex >= 0 ? COMPLETION_ACCENTS[themeIndex] : appAccentColor(preferences);
         boolean targetComplete = progress >= 100;
-        if (targetComplete) accentColor = completedAccentColor(todayKey(), streak);
         boolean lightMode = "light".equals(mode);
-        int backgroundResource;
-        if (targetComplete) {
-            int celebrationTheme = completedThemeIndex(todayKey(), streak);
-            backgroundResource = lightMode
-                ? COMPLETION_BACKGROUND_LIGHT[celebrationTheme]
-                : COMPLETION_BACKGROUND_DARK[celebrationTheme];
-        } else {
-            backgroundResource = lightMode
-                ? R.drawable.math_master_home_widget_background_light
-                : R.drawable.math_master_home_widget_background;
-        }
+        int backgroundResource = themeIndex >= 0
+            ? (lightMode ? COMPLETION_BACKGROUND_LIGHT[themeIndex] : COMPLETION_BACKGROUND_DARK[themeIndex])
+            : (lightMode ? R.drawable.math_master_home_widget_background_light
+                : R.drawable.math_master_home_widget_background);
         views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);
-        boolean smallWidget = isCompactSize(context, appWidgetId);
-        boolean tallWidget = isTallWidget(context, appWidgetId);
+        boolean smallWidget = isCompactSize(widthDp, heightDp);
+        boolean tallWidget = isTallWidget(widthDp, heightDp);
         views.setInt(R.id.widget_root, "setGravity", tallWidget ? Gravity.CENTER_VERTICAL : Gravity.TOP);
         int paddingDp = smallWidget || "compact".equals(style) ? 4 : ("minimal".equals(style) ? 7 : 9);
         int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
@@ -323,10 +388,13 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             smallWidget || "compact".equals(style) ? 7f : 10f);
         int[] dayLabelIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
             R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
+        int[] dayDateIds = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
+            R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
         int[] dayStatusIds = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
             R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
         for (int i = 0; i < 7; i++) {
             views.setTextViewTextSize(dayLabelIds[i], TypedValue.COMPLEX_UNIT_SP, smallWidget ? 6f : 8f);
+            views.setTextViewTextSize(dayDateIds[i], TypedValue.COMPLEX_UNIT_SP, smallWidget ? 5f : 7f);
             views.setTextViewTextSize(dayStatusIds[i], TypedValue.COMPLEX_UNIT_SP, smallWidget ? 8f : 10f);
         }
         views.setTextColor(R.id.widget_progress_percent, accentColor);
@@ -340,12 +408,14 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             views.setTextColor(R.id.widget_study_time_text, Color.parseColor("#475569"));
             views.setTextColor(R.id.widget_remaining_text, Color.parseColor("#475569"));
             views.setTextColor(R.id.widget_streak_text, Color.parseColor("#805A11"));
+            views.setTextColor(R.id.widget_week_title, Color.parseColor("#526078"));
             views.setTextColor(R.id.widget_update_text, Color.parseColor("#526078"));
             views.setTextColor(R.id.widget_update_badge, accentColor);
             views.setTextColor(R.id.widget_disabled_text, accentColor);
         } else {
             views.setTextColor(R.id.widget_progress_percent, accentColor);
             views.setTextColor(R.id.widget_target_label, Color.parseColor("#AFAAC7"));
+            views.setTextColor(R.id.widget_week_title, Color.parseColor("#9F9AB8"));
         }
         views.setTextViewText(R.id.widget_progress_percent, progress + "%");
         views.setTextViewText(R.id.widget_target_value, targetMinutes + " min target");
@@ -380,6 +450,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showStudyTime = widgetsEnabled && selected.contains("studyTime");
         boolean showRemaining = widgetsEnabled && selected.contains("remaining");
         boolean showStreak = widgetsEnabled && selected.contains("streak");
+        boolean showWeekly = widgetsEnabled && selected.contains("weekly");
         boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus");
         views.setViewVisibility(R.id.widget_header_row, showIdentity ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_target_label, showTarget ? View.VISIBLE : View.GONE);
@@ -390,7 +461,9 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         views.setViewVisibility(R.id.widget_remaining_text, showRemaining ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_streak_container, showStreak ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_streak_text, showStreak ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_week_strip, showStreak ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_week_section, showWeekly ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_week_title, showWeekly ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_week_strip, showWeekly ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_update_text, showUpdateStatus ? View.VISIBLE : View.GONE);
         if (!showUpdateStatus) views.setViewVisibility(R.id.widget_update_badge, View.GONE);
         views.setViewVisibility(R.id.widget_disabled_text, widgetsEnabled ? View.GONE : View.VISIBLE);
@@ -403,6 +476,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             views.setViewVisibility(R.id.widget_remaining_text, View.GONE);
             views.setViewVisibility(R.id.widget_streak_container, View.GONE);
             views.setViewVisibility(R.id.widget_streak_text, View.GONE);
+            views.setViewVisibility(R.id.widget_week_section, View.GONE);
+            views.setViewVisibility(R.id.widget_week_title, View.GONE);
             views.setViewVisibility(R.id.widget_week_strip, View.GONE);
             views.setViewVisibility(R.id.widget_update_text, View.GONE);
             views.setViewVisibility(R.id.widget_update_badge, View.GONE);

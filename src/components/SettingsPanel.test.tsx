@@ -147,6 +147,18 @@ describe("SettingsPanel compact controls", () => {
     expect(screen.getByText("🔥 2-day streak")).toBeInTheDocument();
   });
 
+  it("lets the user select the weekly target tracker and previews seven real daily completion states", () => {
+    render(<SettingsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Weekly Target Tracker" }));
+    expect(mocks.syncHomeWidgetPreferences).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Weekly Target Tracker" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
+    expect(screen.getByText("This Week · Last 7 Days")).toBeInTheDocument();
+    expect(screen.getAllByText("·")).toHaveLength(7);
+  });
+
   it("removes the font selector without removing the normal settings controls", () => {
     const { container } = render(<SettingsPanel />);
 
