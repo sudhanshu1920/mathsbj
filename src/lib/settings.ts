@@ -72,8 +72,13 @@ export const getSettings = (): AppSettings => {
       font: normalizeFont(typeof value.font === 'string' ? value.font : base.font),
     };
     if (contentSchemaNeedsMigration) {
-      localStorage.setItem(KEY, JSON.stringify(cache));
-      localStorage.setItem(HOME_WIDGET_CONTENT_SCHEMA_KEY, '2');
+      try {
+        localStorage.setItem(KEY, JSON.stringify(cache));
+        localStorage.setItem(HOME_WIDGET_CONTENT_SCHEMA_KEY, '2');
+      } catch {
+        // Keep the loaded settings in memory if persistent storage is temporarily unavailable.
+        // A later successful launch can retry the one-time migration.
+      }
     }
   } catch {
     cache = defaults();
