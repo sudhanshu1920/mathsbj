@@ -123,7 +123,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static boolean isCompactSize(int widthDp, int heightDp) {
         if (isTallWidget(widthDp, heightDp) || isWideWidget(widthDp, heightDp)) return false;
-        return (widthDp > 0 && widthDp < 220) || (heightDp > 0 && heightDp < 130);
+        // Short widgets need the dense layout even when their width is not particularly narrow.
+        return (widthDp > 0 && widthDp < 220) || (heightDp > 0 && heightDp < 180);
     }
 
     private static boolean isTallWidget(int widthDp, int heightDp) {
