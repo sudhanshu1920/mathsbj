@@ -178,9 +178,9 @@ public class MathMasterWidgetConfigActivity extends Activity {
         String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Calendar.getInstance().getTime());
         if (!today.equals(savedDay)) elapsedSeconds = 0L;
         long targetSeconds = targetMinutes * 60L;
-        elapsedSeconds = Math.min(elapsedSeconds, targetSeconds);
-        int elapsedMinutes = (int) (elapsedSeconds / 60L);
-        int percent = (int) Math.max(0L, Math.min(100L, elapsedSeconds * 100L / targetSeconds));
+        int elapsedMinutes = (int) Math.min(Integer.MAX_VALUE, elapsedSeconds / 60L);
+        long progressSeconds = Math.min(elapsedSeconds, targetSeconds);
+        int percent = (int) Math.max(0L, Math.min(100L, progressSeconds * 100L / targetSeconds));
         int remainingMinutes = (int) Math.max(0L, (targetSeconds - elapsedSeconds + 59L) / 60L);
         int streak = Math.max(0, preferences.getInt("currentStreak", 0));
 
