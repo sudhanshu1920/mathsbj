@@ -142,6 +142,7 @@ public class DailyTargetReminderPlugin extends Plugin {
             String styleValue = call.getString("style");
             String themeValue = call.getString("theme");
             String accentValue = call.getString("accentColor");
+            String appAccentValue = call.getString("appAccentColor");
             String modeValue = call.getString("mode");
 
             java.util.Set<String> allowed = new java.util.HashSet<>(java.util.Arrays.asList(
@@ -161,6 +162,8 @@ public class DailyTargetReminderPlugin extends Plugin {
             String mode = "light".equals(modeValue) ? "light" : "dark";
             String accentColor = accentValue != null && accentValue.matches("#[0-9A-Fa-f]{6}")
                 ? accentValue : "#B8A0FF";
+            String appAccentColor = appAccentValue != null && appAccentValue.matches("#[0-9A-Fa-f]{6}")
+                ? appAccentValue : "#3B82F6";
             boolean enabled = enabledValue == null || enabledValue.booleanValue();
 
             getContext().getSharedPreferences("math_master_home_widget", Context.MODE_PRIVATE)
@@ -170,6 +173,7 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putString("style", style)
                 .putString("theme", theme)
                 .putString("accentColor", accentColor)
+                .putString("appAccentColor", appAccentColor)
                 .putString("mode", mode)
                 .apply();
 
