@@ -47,6 +47,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Home-screen widget layout regression checks
+        run: node --test scripts/android-widget-layout.test.mjs
+
       - name: Build web assets
         run: npm run build
 
