@@ -253,6 +253,36 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static Set<String> getSelectedContent(SharedPreferences preferences, int appWidgetId) {
         String json = getInstanceString(preferences, appWidgetId, "contentJson", preferences.getString("contentJson", null));
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            String prefix = "instance_" + appWidgetId + "_";
+            String contentKey = prefix + "contentJson";
+            if (preferences.contains(contentKey) && preferences.getInt(prefix + "contentSchemaVersion", 0) < 2) {
+                JSONArray migratedContent;
+                try {
+                    migratedContent = new JSONArray(preferences.getString(contentKey, "[]"));
+                } catch (JSONException ignored) {
+                    migratedContent = new JSONArray();
+                    migratedContent.put("appIdentity");
+                    migratedContent.put("target");
+                    migratedContent.put("progress");
+                    migratedContent.put("remaining");
+                    migratedContent.put("studyTime");
+                    migratedContent.put("streak");
+                    migratedContent.put("weekly");
+                    migratedContent.put("updateStatus");
+                }
+                boolean hasWeekly = false;
+                for (int i = 0; i < migratedContent.length(); i++) {
+                    if ("weekly".equals(migratedContent.optString(i, ""))) hasWeekly = true;
+                }
+                if (!hasWeekly && migratedContent.length() < 32) migratedContent.put("weekly");
+                preferences.edit()
+                    .putString(contentKey, migratedContent.toString())
+                    .putInt(prefix + "contentSchemaVersion", 2)
+                    .apply();
+                json = migratedContent.toString();
+            }
+        }
         if (json == null) {
             return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"));
         }
