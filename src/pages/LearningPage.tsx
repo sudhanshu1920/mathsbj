@@ -16,7 +16,8 @@ import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers
 import type { LearningState } from '@/pages/Index';
 const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearning'));
 import { PERIODIC_GROUPS, isValidPeriodicRangeIndex } from '@/lib/periodicRangeNavigation';
-import { getStreak } from '@/lib/streak';
+import { addSeconds as addStreakSeconds, getStreak } from '@/lib/streak';
+import { shouldCountLearningStudySecond } from '@/lib/studyTimeTracking';
 import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
 import { getTrigAngles, type TrigFunction } from '@/lib/trigData';
@@ -84,6 +85,24 @@ const LearningPage = ({
   );
   const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
   const [pendingPeriodicPractice, setPendingPeriodicPractice] = useState<PeriodicPracticeSelection | null>(null);
+
+  // Learning topics are part of the same daily study-minute target as quizzes.
+  // Count only while a topic is open and the visible learning screen is not
+  // covered by the Practice selector; hidden/background time never counts.
+  useEffect(() => {
+    if (!activeTopic || showPracticeMode) return;
+    const timer = window.setInterval(() => {
+      if (shouldCountLearningStudySecond({
+        activeTopic,
+        practiceSelectorOpen: showPracticeMode,
+        visibilityState: document.visibilityState,
+      })) {
+        addStreakSeconds(1);
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [activeTopic, showPracticeMode]);
+
 
   useEffect(() => {
     setShowPracticeMode(practiceSelectorOpen);
