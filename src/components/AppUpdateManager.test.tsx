@@ -78,37 +78,39 @@ describe("AppUpdateManager", () => {
     });
   });
 
-  it("shows actual installed/latest versions, release notes, and both update choices", async () => {
+  it("shows the latest version and both update choices without redundant copy", async () => {
     render(<AppUpdateManager isQuizActive={false} />);
 
-    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
-    expect(screen.getByText(/v1\.0\.1 \(build 1136\)/)).toBeInTheDocument();
-    expect(screen.getByText(/v1\.0\.2 \(build 1137\)/)).toBeInTheDocument();
-    expect(screen.getByText("Fix update notifications.")).toBeInTheDocument();
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
+    expect(screen.getByText("v1.0.2")).toBeInTheDocument();
+    expect(screen.queryByText(/Current version:/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Fix update notifications.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Choose how you want to update/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update Now" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Download APK" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Later" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Later" }).className).toContain("col-span-2");
     expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(1);
-  });
+  });;
 
   it("dismisses only for the current app session and rechecks on the next launch", async () => {
     localStorage.setItem("mathmaster.dismissed-update-version-code", "1137");
     const firstLaunch = render(<AppUpdateManager isQuizActive={false} />);
 
-    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Later" }));
-    expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument();
+    expect(screen.queryByText("New Update Available")).not.toBeInTheDocument();
 
     act(() => {
       window.dispatchEvent(new CustomEvent(UPDATE_AVAILABLE_EVENT, {
         detail: { update: latest, force: true },
       }));
     });
-    expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument();
+    expect(screen.queryByText("New Update Available")).not.toBeInTheDocument();
 
     firstLaunch.unmount();
     render(<AppUpdateManager isQuizActive={false} />);
-    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
     await waitFor(() => expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(2));
   });
 
@@ -123,14 +125,14 @@ describe("AppUpdateManager", () => {
 
     render(<AppUpdateManager isQuizActive={false} />);
     await waitFor(() => expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument();
+    expect(screen.queryByText("New Update Available")).not.toBeInTheDocument();
   });
 
   it("rechecks on foreground return but does not reopen an update dismissed with Later in the same session", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     render(<AppUpdateManager isQuizActive={false} />);
 
-    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Later" }));
     now.mockReturnValue(102_000);
 
@@ -140,12 +142,12 @@ describe("AppUpdateManager", () => {
     });
 
     await waitFor(() => expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(2));
-    expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument();
+    expect(screen.queryByText("New Update Available")).not.toBeInTheDocument();
   });
 
   it("starts Update Now only when selected and waits for verified installer-open status", async () => {
     render(<AppUpdateManager isQuizActive={false} />);
-    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Update Now" }));
     await waitFor(() => expect(mocks.installAppUpdate).toHaveBeenCalledWith(latest));
@@ -156,12 +158,12 @@ describe("AppUpdateManager", () => {
     act(() => mocks.downloadStateListener?.({
       downloadId: 42, state: "installer_opened", progress: 100,
     }));
-    await waitFor(() => expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("New Update Available")).not.toBeInTheDocument());
   });
 
   it("downloads a verified APK to Downloads only when selected and never starts installation", async () => {
     render(<AppUpdateManager isQuizActive={false} />);
-    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Download APK" }));
     await waitFor(() => expect(mocks.downloadAppUpdate).toHaveBeenCalledWith(latest));
@@ -172,13 +174,13 @@ describe("AppUpdateManager", () => {
     act(() => mocks.downloadStateListener?.({
       downloadId: 43, state: "saved_to_downloads", progress: 100, fileName: "MathApp-v1.0.2.apk",
     }));
-    await waitFor(() => expect(screen.queryByText("New Update Available!")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("New Update Available")).not.toBeInTheDocument());
     expect(mocks.installAppUpdate).not.toHaveBeenCalled();
   });
 
   it("shows Android-paused download state without falsely marking completion", async () => {
     render(<AppUpdateManager isQuizActive={false} />);
-    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download APK" }));
     await waitFor(() => expect(mocks.downloadAppUpdate).toHaveBeenCalledWith(latest));
 
@@ -193,7 +195,7 @@ describe("AppUpdateManager", () => {
 
   it("shows failures from a background download and keeps retry possible", async () => {
     render(<AppUpdateManager isQuizActive={false} />);
-    expect(await screen.findByText("New Update Available!")).toBeInTheDocument();
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download APK" }));
     await waitFor(() => expect(mocks.downloadAppUpdate).toHaveBeenCalledWith(latest));
 
