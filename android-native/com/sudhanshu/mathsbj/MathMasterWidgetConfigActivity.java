@@ -357,7 +357,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
                 }
             }
         } catch (JSONException ignored) {
-            values.addAll(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus"));
+            values.addAll(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"));
         }
         if (values.isEmpty()) values.add("progress");
         return values;
