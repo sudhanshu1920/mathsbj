@@ -112,20 +112,32 @@ describe("SettingsPanel compact controls", () => {
     await waitFor(() => expect(mocks.setBackgroundNotificationsEnabled).toHaveBeenCalledWith(false));
   });
 
-  it("uses a compact selectable grid for every existing theme and preserves theme/mode actions", () => {
-    render(<SettingsPanel />);
+  it("renders every theme in a compact responsive selector and preserves theme/mode actions", () => {
+    const { container, rerender } = render(<SettingsPanel />);
 
     const themeButtons = screen.getAllByRole("button", { name: /^Select .* theme$/ });
     expect(themeButtons).toHaveLength(THEMES.length);
     expect(screen.getByRole("button", { name: "Select Arctic Blue theme" })).toHaveAttribute("aria-pressed", "true");
 
+    for (const theme of THEMES) {
+      expect(screen.getByText(theme.name)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: `Select ${theme.name} theme` })).toHaveAttribute("aria-pressed");
+    }
+
+    const grid = container.querySelector("[data-theme-selector-grid]");
+    expect(grid).toHaveClass("grid", "grid-cols-2", "min-[420px]:grid-cols-3", "md:grid-cols-4");
+    expect(grid?.querySelectorAll("[data-theme-option]")).toHaveLength(THEMES.length);
+    expect(grid?.querySelectorAll("[data-theme-swatch]")).toHaveLength(THEMES.length * 3);
+
     fireEvent.click(screen.getByRole("button", { name: "Select Mint theme" }));
     expect(mocks.setTheme).toHaveBeenCalledWith("mint");
 
+    mocks.theme = "mint";
+    rerender(<SettingsPanel />);
+    expect(screen.getByRole("button", { name: "Select Mint theme" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Select Arctic Blue theme" })).toHaveAttribute("aria-pressed", "false");
+
     fireEvent.click(screen.getByRole("button", { name: "Light" }));
     expect(mocks.setMode).toHaveBeenCalledWith("light");
-
-    const grid = themeButtons[0].parentElement;
-    expect(grid).toHaveClass("grid", "grid-cols-3");
   });
 });
