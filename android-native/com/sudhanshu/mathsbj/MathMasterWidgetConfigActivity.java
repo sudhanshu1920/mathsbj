@@ -286,6 +286,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         }
         preferences.edit()
             .putString("instance_" + widgetId + "_contentJson", selected.toString())
+            .putInt("instance_" + widgetId + "_contentSchemaVersion", 2)
             .putString("instance_" + widgetId + "_style", style)
             .putString("instance_" + widgetId + "_themeMode", themeMode)
             .putString("instance_" + widgetId + "_theme", theme)
