@@ -122,7 +122,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     }
 
     private static boolean isCompactSize(int widthDp, int heightDp) {
-        if (widthDp > 0 && heightDp > widthDp * 1.3f) return false;
+        if (isTallWidget(widthDp, heightDp) || isWideWidget(widthDp, heightDp)) return false;
         return (widthDp > 0 && widthDp < 220) || (heightDp > 0 && heightDp < 130);
     }
 
@@ -136,8 +136,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static int getWidgetLayoutForDimensions(int widthDp, int heightDp) {
         if (isTallWidget(widthDp, heightDp)) return R.layout.math_master_home_widget;
-        if (isCompactSize(widthDp, heightDp)) return R.layout.math_master_home_widget_compact;
         if (isWideWidget(widthDp, heightDp)) return R.layout.math_master_home_widget_wide;
+        if (isCompactSize(widthDp, heightDp)) return R.layout.math_master_home_widget_compact;
         return R.layout.math_master_home_widget;
     }
 
