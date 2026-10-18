@@ -164,7 +164,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         String mode = preferences.getString("mode", "dark");
         String style = getInstanceString(preferences, appWidgetId, "style", "glass");
         String widgetTheme = getInstanceString(preferences, appWidgetId, "theme", "app");
-        String accentValue = "violet".equals(widgetTheme) ? "#B8A0FF" : preferences.getString("accentColor", "#B8A0FF");
+        String accentValue = "violet".equals(widgetTheme)
+            ? "#B8A0FF" : preferences.getString("appAccentColor", preferences.getString("accentColor", "#B8A0FF"));
         int accentColor = accentValue.matches("#[0-9A-Fa-f]{6}") ? Color.parseColor(accentValue) : Color.parseColor("#B8A0FF");
         boolean lightMode = "light".equals(mode);
         views.setInt(R.id.widget_root, "setBackgroundResource", lightMode
