@@ -19,12 +19,46 @@ type UpdateAction = "update" | "download";
 const AUTO_CHECK_COOLDOWN_MS = 5 * 60 * 1000;
 const FOREGROUND_EVENT_DEDUPE_MS = 1500;
 
+function formatDownloadBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function formatDownloadDuration(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.round(seconds));
+  if (safeSeconds < 60) return `${safeSeconds}s`;
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainder = safeSeconds % 60;
+  return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
+}
+
+function describeDownloadMetrics(event: AndroidUpdateDownloadEvent): string {
+  if (typeof event.downloadedBytes !== "number" || event.downloadedBytes < 0) return "";
+  const total = typeof event.totalBytes === "number" && event.totalBytes > 0
+    ? event.totalBytes
+    : null;
+  const parts = [total
+    ? `${formatDownloadBytes(event.downloadedBytes)} / ${formatDownloadBytes(total)}`
+    : `${formatDownloadBytes(event.downloadedBytes)} downloaded`];
+
+  if (event.state === "downloading" && typeof event.bytesPerSecond === "number" && event.bytesPerSecond > 0) {
+    parts.push(`${(event.bytesPerSecond / (1024 * 1024)).toFixed(2)} MB/s`);
+    if (total && event.downloadedBytes < total) {
+      parts.push(`~${formatDownloadDuration((total - event.downloadedBytes) / event.bytesPerSecond)} left`);
+    }
+  }
+  return parts.join(" · ");
+}
+
 const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
   const [update, setUpdate] = useState<ReleaseManifest | null>(null);
   const [installedVersion, setInstalledVersion] = useState<InstalledVersion | null>(null);
   const [activeAction, setActiveAction] = useState<UpdateAction | null>(null);
   const [downloadStatus, setDownloadStatus] = useState("");
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [downloadMetrics, setDownloadMetrics] = useState("");
   const queuedUpdate = useRef<ReleaseManifest | null>(null);
   // "Later" only dismisses the current version for this running app session.
   const dismissedVersionCode = useRef(0);
@@ -56,6 +90,7 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
   const resetActionStatus = useCallback(() => {
     setDownloadStatus("");
     setDownloadProgress(null);
+    setDownloadMetrics("");
   }, []);
 
   const performUpdate = useCallback(async (candidate: ReleaseManifest) => {
@@ -229,13 +264,21 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
         setDownloadStatus(activeActionRef.current === "download"
           ? "Downloading APK to device storage…"
           : "Downloading the verified update APK…");
-        setDownloadProgress(event.progress);
+        setDownloadProgress(typeof event.totalBytes === "number" && event.totalBytes > 0
+          ? Math.min(99, event.progress)
+          : null);
+        setDownloadMetrics(describeDownloadMetrics(event));
       } else if (event.state === "paused") {
         setDownloadStatus("Download paused by Android. It will resume when network and device conditions allow.");
-        setDownloadProgress(event.progress);
+        setDownloadProgress(typeof event.totalBytes === "number" && event.totalBytes > 0
+          ? Math.min(99, event.progress)
+          : null);
+        setDownloadMetrics(describeDownloadMetrics(event));
       } else if (event.state === "verifying") {
         setDownloadStatus("Verifying APK checksum, package, version and signing certificate…");
-        setDownloadProgress(100);
+        // 100% is reserved for a file that has passed all verification checks.
+        setDownloadProgress(Math.min(99, event.progress));
+        setDownloadMetrics(describeDownloadMetrics(event));
       } else if (event.state === "installer_opened") {
         setAction(null);
         setUpdate(null);
@@ -318,6 +361,11 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
             <p className="text-xs font-medium text-foreground">
               {downloadStatus || (activeAction === "download" ? "Downloading APK…" : "Updating Math App…")}
             </p>
+            {downloadMetrics && (
+              <p className="text-[11px] leading-relaxed text-muted-foreground" aria-live="off">
+                {downloadMetrics}
+              </p>
+            )}
             {downloadProgress !== null && (
               <div
                 role="progressbar"
