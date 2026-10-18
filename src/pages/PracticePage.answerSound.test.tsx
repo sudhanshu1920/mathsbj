@@ -45,7 +45,7 @@ describe('PracticePage answer sound', () => {
   it('plays the supplied sound when a correct answer is selected', () => {
     const { grid, answer } = openTableQuiz();
 
-    fireEvent.click(grid.getByRole('button', { name: new RegExp('^' + answer + ');
+    fireEvent.click(grid.getByRole('button', { name: new RegExp('^' + answer + '$') }));
 
     expect(soundMocks.playRightAnswer).toHaveBeenCalledTimes(1);
     expect(soundMocks.playWrong).not.toHaveBeenCalled();
