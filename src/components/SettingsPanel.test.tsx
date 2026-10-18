@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   setBackgroundNotificationsEnabled: vi.fn(),
 }));
 
+vi.mock("@/lib/appVersion", () => ({ APP_VERSION_NAME: "1.0.0", APP_VERSION_CODE: 1 }));
+
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: null, signOut: vi.fn() }),
 }));
