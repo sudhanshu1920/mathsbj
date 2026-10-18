@@ -49,3 +49,30 @@ jobs:
 
       - name: Build web assets
         run: npm run build
+
+      - name: Set up Java 21 for native Android verification
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Capacitor Android build tooling
+        run: npm install --no-save @capacitor/cli@8.5.2 @capacitor/android@8.5.2
+
+      - name: Generate Android project for native smoke test
+        run: npx cap add android
+
+      - name: Configure native notifications and home-screen widgets
+        run: node scripts/configure-android-notifications.mjs
+
+      - name: Sync web assets into Android project
+        run: npx cap sync android
+
+      - name: Compile native Android debug APK
+        working-directory: android
+        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug
