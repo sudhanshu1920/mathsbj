@@ -81,10 +81,10 @@ test("weekly checkmarks use the existing daily streak data and validate native i
   assert.match(bridge, /completedDaysJson: JSON\.stringify\(completedDays\)/);
   assert.match(nativePlugin, /completedDaysRaw\.length\(\) > 512/);
   assert.match(nativePlugin, /incomingDays\.length\(\) > 7/);
-  assert.match(nativePlugin, /isDateInTrailingSevenDays\\(date\\)/);
-  assert.match(nativePlugin, /formatter\\.setLenient\\(false\\)/);
-  assert.match(nativePlugin, /candidate\\.after\\(today\\)/);
-  assert.match(nativePlugin, /firstAllowed\\.add\\(java\\.util\\.Calendar\\.DAY_OF_MONTH, -6\\)/);
+  assert.match(nativePlugin, /isDateInTrailingSevenDays\(date\)/);
+  assert.match(nativePlugin, /formatter\.setLenient\(false\)/);
+  assert.match(nativePlugin, /candidate\.after\(today\)/);
+  assert.match(nativePlugin, /firstAllowed\.add\(java\.util\.Calendar\.DAY_OF_MONTH, -6\)/);
   assert.match(nativePlugin, /putString\("completedDaysJson", completedDays\.toString\(\)\)/);
   assert.match(provider, /getCompletedDays\(SharedPreferences preferences\)/);
   assert.match(provider, /views\.setTextViewText\(statusIds\[i\], done \? "✓" : "·"\)/);
