@@ -120,7 +120,7 @@ describe("SettingsPanel compact controls", () => {
     expect(screen.getByText("Widget Content")).toBeInTheDocument();
     expect(screen.getByText("Widget Style")).toBeInTheDocument();
     expect(screen.getByText("Widget Theme")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Preview" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Preview/ })).toBeInTheDocument();
 
     fireEvent.click(toggle);
     await waitFor(() => expect(screen.queryByText("Widget Content")).not.toBeInTheDocument());
@@ -141,7 +141,7 @@ describe("SettingsPanel compact controls", () => {
   it("previews actual saved progress values without adding another progress tracker", () => {
     render(<SettingsPanel />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
     expect(screen.getByText("2 / 15 min")).toBeInTheDocument();
     expect(screen.getByText("13 min left")).toBeInTheDocument();
     expect(screen.getByText("🔥 2-day streak")).toBeInTheDocument();
