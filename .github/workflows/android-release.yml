@@ -395,7 +395,7 @@ jobs:
               request.setDescription(downloadOnly
                   ? "Downloading and verifying the APK before saving it to Downloads"
                   : "Downloading the latest Math App APK");
-              request.setMimeType("application/vnd.android.package-archive");
+              request.setMimeType("application/octet-stream");
               request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
               // Let Android use either Wi-Fi or mobile data; do not silently force Wi-Fi.
               request.setAllowedNetworkTypes(
