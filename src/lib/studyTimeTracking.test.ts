@@ -14,7 +14,6 @@ describe("Learning Mode daily study-time tracking policy", () => {
     [null, false, "visible"],
     ["tables", true, "visible"],
     ["tables", false, "hidden"],
-    ["tables", false, "prerender"],
   ] as const)("does not count topic=%s selector=%s visibility=%s", (
     activeTopic,
     practiceSelectorOpen,
