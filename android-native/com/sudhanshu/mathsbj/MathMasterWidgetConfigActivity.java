@@ -26,6 +26,9 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
+import java.security.SecureRandom;
 
 public class MathMasterWidgetConfigActivity extends Activity {
     private static final String PREFS = "math_master_home_widget";
@@ -44,7 +47,18 @@ public class MathMasterWidgetConfigActivity extends Activity {
         {"remaining", "Remaining Target"},
         {"studyTime", "Study Time"},
         {"streak", "Streak"},
+        {"weekly", "Weekly Target Tracker"},
         {"updateStatus", "Update Status"}
+    };
+
+    private static final String[][] PREMIUM_THEMES = {
+        {"emerald", "Emerald Glass", "#50D9A0"},
+        {"ocean", "Ocean Blue Glass", "#58D6F2"},
+        {"graphite", "Graphite Glass", "#A9B7C9"},
+        {"rose", "Rose Quartz", "#FF83B5"},
+        {"violet", "Midnight Violet", "#B8A0FF"},
+        {"sapphire", "Sapphire Glass", "#698CFF"},
+        {"aurora", "Aurora Glass", "#A8E063"}
     };
 
     @Override
@@ -73,7 +87,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         addSectionLabel(content, "Widget Content");
         String existingJson = preferences.getString(
             "instance_" + widgetId + "_contentJson",
-            preferences.getString("contentJson", "[\"appIdentity\",\"target\",\"progress\",\"remaining\",\"studyTime\",\"streak\",\"updateStatus\"]")
+            preferences.getString("contentJson", "[\"appIdentity\",\"target\",\"progress\",\"remaining\",\"studyTime\",\"streak\",\"weekly\",\"updateStatus\"]")
         );
         List<String> selected = parseContent(existingJson);
         for (String[] option : CONTENT_OPTIONS) {
@@ -99,10 +113,14 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
         addSectionLabel(content, "Widget Theme");
         themeGroup = new RadioGroup(this);
-        themeGroup.setOrientation(RadioGroup.HORIZONTAL);
+        themeGroup.setOrientation(RadioGroup.VERTICAL);
         String currentTheme = preferences.getString("instance_" + widgetId + "_theme", preferences.getString("theme", "app"));
-        addRadio(themeGroup, "app", "Match App Theme", currentTheme);
-        addRadio(themeGroup, "violet", "Violet Glass", currentTheme);
+        String currentThemeMode = preferences.getString("instance_" + widgetId + "_themeMode", currentTheme);
+        addRadio(themeGroup, "app", "Match App Theme", currentThemeMode);
+        addRadio(themeGroup, "random", "Random Premium Theme", currentThemeMode);
+        for (String[] themeOption : PREMIUM_THEMES) {
+            addRadio(themeGroup, themeOption[0], themeOption[1], currentThemeMode);
+        }
         themeGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
         content.addView(themeGroup, matchWrap());
 
@@ -143,7 +161,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
         radio.setTextSize(12);
         radio.setTextColor(Color.parseColor("#243149"));
         radio.setButtonTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#6558D9")));
-        group.addView(radio, new RadioGroup.LayoutParams(0, dp(48), 1f));
+        RadioGroup.LayoutParams params = group.getOrientation() == RadioGroup.HORIZONTAL
+            ? new RadioGroup.LayoutParams(0, dp(48), 1f)
+            : new RadioGroup.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42));
+        group.addView(radio, params);
         if (value.equals(selectedValue)) group.check(radio.getId());
     }
 
@@ -191,6 +212,33 @@ public class MathMasterWidgetConfigActivity extends Activity {
         if (selected.contains("remaining")) rows.add(remainingMinutes + " min remaining");
         if (selected.contains("studyTime")) rows.add("Study time: " + elapsedMinutes + " min");
         if (selected.contains("streak")) rows.add("Streak: " + streak + " days");
+        if (selected.contains("weekly")) {
+            Set<String> completedDays = new HashSet<>();
+            try {
+                JSONArray savedDays = new JSONArray(preferences.getString("completedDaysJson", "[]"));
+                for (int i = 0; i < Math.min(savedDays.length(), 7); i++) {
+                    String day = savedDays.optString(i, "");
+                    if (day.matches("\\d{4}-\\d{2}-\\d{2}")) completedDays.add(day);
+                }
+            } catch (JSONException ignored) {
+                // Empty history is shown as incomplete, never fabricated as completed.
+            }
+            java.util.Calendar date = java.util.Calendar.getInstance();
+            date.set(java.util.Calendar.HOUR_OF_DAY, 12);
+            date.set(java.util.Calendar.MINUTE, 0);
+            date.set(java.util.Calendar.SECOND, 0);
+            date.set(java.util.Calendar.MILLISECOND, 0);
+            date.add(java.util.Calendar.DAY_OF_MONTH, -6);
+            java.text.SimpleDateFormat dateKeyFormat = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+            java.text.SimpleDateFormat dayLabelFormat = new java.text.SimpleDateFormat("EEEEE", java.util.Locale.getDefault());
+            rows.add("THIS WEEK · LAST 7 DAYS");
+            for (int i = 0; i < 7; i++) {
+                String dateKey = dateKeyFormat.format(date.getTime());
+                rows.add(dayLabelFormat.format(date.getTime()) + " " + date.get(java.util.Calendar.DAY_OF_MONTH)
+                    + " " + (completedDays.contains(dateKey) ? "✓" : "·"));
+                date.add(java.util.Calendar.DAY_OF_MONTH, 1);
+            }
+        }
         if (selected.contains("updateStatus")) {
             boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
             rows.add(updateAvailable ? "Update available" : "Update status");
@@ -198,13 +246,19 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
         String appMode = preferences.getString("mode", "dark");
         boolean light = "light".equals(appMode);
-        boolean violet = "violet".equals(theme);
-        previewSummary.setTextColor(light ? Color.parseColor("#263247") : Color.parseColor("#F5F3FF"));
-        previewSummary.setBackgroundColor(light
-            ? Color.parseColor("#F4F7FC")
-            : (violet ? Color.parseColor("#2C2440") : Color.parseColor("#211F35")));
+        String resolvedTheme = "random".equals(theme)
+            ? preferences.getString("instance_" + widgetId + "_theme", "violet") : theme;
+        boolean appTheme = "app".equals(resolvedTheme);
+        int previewBackground = appTheme
+            ? (light ? Color.parseColor("#F4F7FC") : Color.parseColor("#211F35"))
+            : Color.parseColor(themeBackgroundColor(resolvedTheme));
+        previewSummary.setTextColor(light && appTheme ? Color.parseColor("#263247") : Color.parseColor("#F5F3FF"));
+        previewSummary.setBackgroundColor(previewBackground);
+        String themeLabel = "random".equals(theme)
+            ? "Random Premium Theme" + (isPaletteTheme(resolvedTheme) ? " · " + themeLabel(resolvedTheme) : "")
+            : themeLabel(resolvedTheme);
         previewSummary.setText(android.text.TextUtils.join("\\n", rows)
-            + "\\n" + capitalize(style) + "  ·  " + (violet ? "Violet Glass" : "Match App Theme"));
+            + "\\n" + capitalize(style) + "  ·  " + themeLabel);
     }
 
     private void saveConfiguration() {
@@ -219,11 +273,21 @@ public class MathMasterWidgetConfigActivity extends Activity {
         }
 
         String style = selectedRadioValue(styleGroup, "glass");
-        String theme = selectedRadioValue(themeGroup, "app");
+        String themeMode = selectedRadioValue(themeGroup, "app");
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String previousThemeMode = preferences.getString("instance_" + widgetId + "_themeMode", "");
+        String previousTheme = preferences.getString("instance_" + widgetId + "_theme", "");
+        String theme;
+        if ("random".equals(themeMode)) {
+            theme = "random".equals(previousThemeMode) && isPaletteTheme(previousTheme)
+                ? previousTheme : chooseRandomTheme(preferences, widgetId);
+        } else {
+            theme = isValidTheme(themeMode) ? themeMode : "app";
+        }
         preferences.edit()
             .putString("instance_" + widgetId + "_contentJson", selected.toString())
             .putString("instance_" + widgetId + "_style", style)
+            .putString("instance_" + widgetId + "_themeMode", themeMode)
             .putString("instance_" + widgetId + "_theme", theme)
             .apply();
 
@@ -233,6 +297,53 @@ public class MathMasterWidgetConfigActivity extends Activity {
         result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
         setResult(RESULT_OK, result);
         finish();
+    }
+
+    private static boolean isPaletteTheme(String theme) {
+        if (theme == null) return false;
+        for (String[] option : PREMIUM_THEMES) if (option[0].equals(theme)) return true;
+        return false;
+    }
+
+    private static boolean isValidTheme(String theme) {
+        return "app".equals(theme) || isPaletteTheme(theme);
+    }
+
+    private static String themeLabel(String theme) {
+        if ("app".equals(theme)) return "Match App Theme";
+        for (String[] option : PREMIUM_THEMES) if (option[0].equals(theme)) return option[1];
+        return "Match App Theme";
+    }
+
+    private static String themeBackgroundColor(String theme) {
+        if ("emerald".equals(theme)) return "#1C5A42";
+        if ("ocean".equals(theme)) return "#15596B";
+        if ("graphite".equals(theme)) return "#323D4B";
+        if ("rose".equals(theme)) return "#6E294E";
+        if ("violet".equals(theme)) return "#41326D";
+        if ("sapphire".equals(theme)) return "#1D3978";
+        if ("aurora".equals(theme)) return "#355A23";
+        return "#211F35";
+    }
+
+    private static String chooseRandomTheme(SharedPreferences preferences, int widgetId) {
+        Set<String> used = new HashSet<>();
+        for (Map.Entry<String, ?> entry : preferences.getAll().entrySet()) {
+            String key = entry.getKey();
+            if (!key.startsWith("instance_") || !key.endsWith("_theme")) continue;
+            String idPart = key.substring("instance_".length(), key.length() - "_theme".length());
+            try {
+                if (Integer.parseInt(idPart) == widgetId) continue;
+            } catch (NumberFormatException ignored) {
+                continue;
+            }
+            Object value = entry.getValue();
+            if (value instanceof String && isPaletteTheme((String) value)) used.add((String) value);
+        }
+        List<String> available = new ArrayList<>();
+        for (String[] option : PREMIUM_THEMES) if (!used.contains(option[0])) available.add(option[0]);
+        if (available.isEmpty()) for (String[] option : PREMIUM_THEMES) available.add(option[0]);
+        return available.get(new SecureRandom().nextInt(available.size()));
     }
 
     private static List<String> parseContent(String json) {
