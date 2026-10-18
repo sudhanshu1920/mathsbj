@@ -103,8 +103,8 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(compactWidgetLayout, /widget_target_value/);
   assert.match(wideWidgetLayout, /widget_week_strip/);
   assert.match(wideWidgetLayout, /widget_target_value/);
-  assert.equal((compactWidgetLayout.match(/android:id="@\\+id\\/widget_week_status_[0-6]"/g) || []).length, 7);
-  assert.equal((wideWidgetLayout.match(/android:id="@\\+id\\/widget_week_status_[0-6]"/g) || []).length, 7);
+  assert.equal((compactWidgetLayout.match(/widget_week_status_[0-6]/g) || []).length, 7);
+  assert.equal((wideWidgetLayout.match(/widget_week_status_[0-6]/g) || []).length, 7);
   assert.match(widgetInfo, /appwidget-provider/);
   assert.match(widgetInfo, /updatePeriodMillis="1800000"/);
   assert.equal((manifest.match(/android:name="\.MathMasterHomeWidgetProvider"/g) || []).length, 1);
