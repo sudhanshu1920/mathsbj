@@ -61,10 +61,17 @@ test('configures local notification permissions, plugin and reboot/time-change r
   const widgetProvider = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java'), 'utf8');
   const widgetConfigActivity = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java'), 'utf8');
   const widgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget.xml'), 'utf8');
+  const compactWidgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget_compact.xml'), 'utf8');
+  const wideWidgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget_wide.xml'), 'utf8');
   const widgetInfo = await readFile(path.join(root, 'app/src/main/res/xml/math_master_home_widget_info.xml'), 'utf8');
   const widgetInfoV31 = await readFile(path.join(root, 'app/src/main/res/xml-v31/math_master_home_widget_info.xml'), 'utf8');
   const widgetStrings = await readFile(path.join(root, 'app/src/main/res/values/math_master_home_widget_strings.xml'), 'utf8');
   const lightWidgetBackground = await readFile(path.join(root, 'app/src/main/res/drawable/math_master_home_widget_background_light.xml'), 'utf8');
+  const completionWidgetBackgrounds = await Promise.all(Array.from({ length: 7 }, async (_, index) => {
+    const dark = await readFile(path.join(root, 'app/src/main/res/drawable', `math_master_home_widget_background_complete_${index}.xml`), 'utf8');
+    const light = await readFile(path.join(root, 'app/src/main/res/drawable', `math_master_home_widget_background_complete_light_${index}.xml`), 'utf8');
+    return { dark, light };
+  }));
 
   assert.deepEqual(result, { firebaseEnabled: false, projectId: null });
   assert.match(manifest, /android\.permission\.POST_NOTIFICATIONS/);
@@ -91,12 +98,23 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(widgetStrings, /Math Master Progress/);
   assert.match(widgetInfo, /minWidth="180dp"/);
   assert.match(widgetLayout, /widget_disabled_text/);
-  assert.match(lightWidgetBackground, /#F4F7FC/);
+  assert.match(lightWidgetBackground, /#C9F4F7FC/);
+  assert.equal(completionWidgetBackgrounds.length, 7);
+  for (const background of completionWidgetBackgrounds) {
+    assert.match(background.dark, /#B5[0-9A-Fa-f]{6}/);
+    assert.match(background.light, /#D9[0-9A-Fa-f]{6}/);
+  }
   assert.match(manifest, /math_master_home_widget_info/);
   assert.match(widgetProvider, /updateReleaseStatus/);
   assert.match(widgetProvider, /targetSeconds/);
   assert.match(widgetLayout, /widget_progress_bar/);
   assert.match(widgetLayout, /widget_update_badge/);
+  assert.match(compactWidgetLayout, /widget_week_strip/);
+  assert.match(compactWidgetLayout, /widget_target_value/);
+  assert.match(wideWidgetLayout, /widget_week_strip/);
+  assert.match(wideWidgetLayout, /widget_target_value/);
+  assert.equal((compactWidgetLayout.match(/widget_week_status_[0-6]/g) || []).length, 7);
+  assert.equal((wideWidgetLayout.match(/widget_week_status_[0-6]/g) || []).length, 7);
   assert.match(widgetInfo, /appwidget-provider/);
   assert.match(widgetInfo, /updatePeriodMillis="1800000"/);
   assert.equal((manifest.match(/android:name="\.MathMasterHomeWidgetProvider"/g) || []).length, 1);

@@ -16,7 +16,7 @@ Open **Settings → Home Screen Widgets** to toggle widget presentation and choo
 
 When adding a widget through Android's launcher picker, the native **Customize Your Widget** screen saves selected content, style, and theme against that unique Android widget ID. Multiple instances can therefore use different fields and appearance. Android 12 and newer expose the reconfigure capability where the launcher supports it; on older launchers, remove and add a widget again to choose another configuration. Global default changes do not overwrite a previously saved instance-specific choice.
 
-The widget adapts its spacing and visible secondary fields to the size reported by the launcher. The launcher still controls placement, resizing bounds, and exact refresh scheduling.
+The widget chooses compact, regular, or wide layouts from the launcher's reported size, scales typography and spacing for compact tiles, and centers content inside tall portrait tiles. Selecting a field no longer makes it disappear merely because the widget is small. Selecting **Streak** also displays the last seven local days with a tick on each day whose existing streak record marks its target complete. Target completion applies a stable celebratory accent chosen from a small palette for that day, while the widget surface uses a translucent glass treatment. Android launchers still control placement, resizing bounds, and exact refresh scheduling.
 
 ## Refresh and data behavior
 
