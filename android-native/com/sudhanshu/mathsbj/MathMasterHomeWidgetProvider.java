@@ -141,11 +141,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return R.layout.math_master_home_widget;
     }
 
-    private static int getWidgetLayout(Context context, int appWidgetId) {
-        return getWidgetLayoutForDimensions(getWidgetWidthDp(context, appWidgetId),
-            getWidgetHeightDp(context, appWidgetId));
-    }
-
     private static final int[] COMPLETION_ACCENTS = {
         Color.parseColor("#50D9A0"), Color.parseColor("#58D6F2"),
         Color.parseColor("#FFCA68"), Color.parseColor("#FF83B5"),
@@ -318,7 +313,9 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             if (availableSizes != null && !availableSizes.isEmpty()) {
                 Map<SizeF, RemoteViews> viewsBySize = new LinkedHashMap<>();
                 for (SizeF size : availableSizes) {
-                    if (size == null || !Float.isFinite(size.getWidth()) || !Float.isFinite(size.getHeight())
+                    if (size == null
+                        || Float.isNaN(size.getWidth()) || Float.isInfinite(size.getWidth())
+                        || Float.isNaN(size.getHeight()) || Float.isInfinite(size.getHeight())
                         || size.getWidth() <= 0f || size.getHeight() <= 0f) continue;
                     int widthDp = Math.max(1, Math.round(size.getWidth()));
                     int heightDp = Math.max(1, Math.round(size.getHeight()));
