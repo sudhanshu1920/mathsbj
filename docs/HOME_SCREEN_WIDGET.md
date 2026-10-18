@@ -16,3 +16,7 @@ Tap the widget to open Math Master. When an update is known to be available, tap
 - While the app is actively tracking study time, the widget refreshes at minute boundaries and when target/streak settings change. Android also refreshes the local presentation periodically and resets the displayed progress when the local date changes.
 - A successful in-app update check refreshes the update line. A validated Firebase release push can also set the update badge while the app is closed, provided Firebase is configured in the installed APK and update notifications are enabled.
 - Android launchers control widget sizing, exact refresh timing, and whether the widget is available on the lock screen. The widget does not install updates automatically.
+
+## Build requirement
+
+This is a native Android AppWidget. Install an Android APK built with this source before looking for **Math Master** in the home-screen widget picker; updating only the web/PWA bundle cannot add a native widget to an older installed APK.
