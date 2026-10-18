@@ -59,6 +59,8 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(provider, /OPTION_APPWIDGET_SIZES/);
   assert.match(provider, /new RemoteViews\(viewsBySize\)/);
   assert.match(provider, /getWidgetLayoutForDimensions\(widthDp, heightDp\)/);
+  assert.match(provider, /heightDp > 0 && heightDp < 180/);
+  assert.match(provider, /isTallWidget\(widthDp, heightDp\) \|\| isWideWidget\(widthDp, heightDp\)/);
   assert.match(config, /"random", "Random Premium Theme"/);
   assert.match(config, /putString\("instance_" \+ widgetId \+ "_themeMode", themeMode\)/);
   assert.match(config, /chooseRandomTheme\(preferences, widgetId\)/);
