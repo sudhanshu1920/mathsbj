@@ -107,6 +107,7 @@ public class DailyTargetReminderPlugin extends Plugin {
             Double elapsedValue = call.getDouble("elapsedSeconds");
             String dayKey = call.getString("dayKey");
             Integer currentStreakValue = call.getInt("currentStreak");
+            String completedDaysRaw = call.getString("completedDaysJson");
 
             if (dayKey == null || !dayKey.matches("\\d{4}-\\d{2}-\\d{2}")) {
                 call.reject("Home screen widget day key is invalid.");
@@ -116,6 +117,27 @@ public class DailyTargetReminderPlugin extends Plugin {
             int targetMinutes = targetValue == null ? 5 : Math.max(1, Math.min(1440, targetValue));
             long elapsedSeconds = elapsedValue == null ? 0L : Math.max(0L, Math.min(31536000L, (long) Math.floor(elapsedValue)));
             int currentStreak = currentStreakValue == null ? 0 : Math.max(0, Math.min(1000000, currentStreakValue));
+            org.json.JSONArray completedDays = new org.json.JSONArray();
+            if (completedDaysRaw != null) {
+                if (completedDaysRaw.length() > 512) {
+                    call.reject("Home screen widget week summary is too large.");
+                    return;
+                }
+                org.json.JSONArray incomingDays = new org.json.JSONArray(completedDaysRaw);
+                if (incomingDays.length() > 7) {
+                    call.reject("Home screen widget week summary is invalid.");
+                    return;
+                }
+                java.util.Set<String> uniqueDays = new java.util.HashSet<>();
+                for (int i = 0; i < incomingDays.length(); i++) {
+                    String date = incomingDays.optString(i, "");
+                    if (!date.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                        call.reject("Home screen widget week summary contains an invalid date.");
+                        return;
+                    }
+                    if (uniqueDays.add(date)) completedDays.put(date);
+                }
+            }
 
             getContext().getSharedPreferences("math_master_home_widget", Context.MODE_PRIVATE)
                 .edit()
@@ -123,6 +145,7 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putLong("elapsedSeconds", elapsedSeconds)
                 .putString("dayKey", dayKey)
                 .putInt("currentStreak", currentStreak)
+                .putString("completedDaysJson", completedDays.toString())
                 .apply();
 
             MathMasterHomeWidgetProvider.updateWidgets(getContext());
