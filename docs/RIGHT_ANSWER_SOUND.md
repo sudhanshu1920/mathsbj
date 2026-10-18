@@ -1,9 +1,11 @@
-# Right-answer feedback sound
+# Practice feedback sounds
 
-The supplied right-answer audio is bundled at `public/sounds/right-answer.mp3` and is played by the shared Practice / Quiz answer handler whenever an answer is validated as correct.
+The supplied feedback clips are bundled locally under `public/sounds/` and used by the shared Practice / Quiz answer handler.
 
-- Uses the existing **Settings → Sound** preference; when Sound is off, it stays silent.
-- Incorrect answers continue using the existing wrong-answer sound.
-- Reuses one audio element and does not restart an active cue when answers are submitted rapidly.
-- If media playback is unavailable or rejected by the device/browser, falls back to the existing generated success chime.
-- The native Android APK must be rebuilt to include the new bundled sound asset.
+- `right-answer.mp3` plays when an answer is correct.
+- `wrong-answer.mp3` plays when an answer is incorrect.
+- `submit.mp3` plays once when a finite quiz reaches completion or an infinite session is explicitly submitted. It does not replace the per-answer feedback.
+- All clips respect **Settings → Sound**. When Sound is off, no clip or fallback tone plays.
+- A separate audio element is reused for each cue, and an active cue is not restarted by rapid repeated submissions.
+- If media playback fails or is unavailable, the existing generated tone is used as a fallback.
+- Rebuild/sync the native Android APK to bundle the updated sound assets.

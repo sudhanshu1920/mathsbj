@@ -9,7 +9,7 @@ import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
 import { getSettings, isActive, markInteraction, getTablesProMode, setTablesProMode } from '@/lib/settings';
 import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
-import { playClick, playRightAnswer, playWrong, playLevelUp } from '@/lib/sound';
+import { playClick, playRightAnswer, playWrong, playLevelUp, playSubmit } from '@/lib/sound';
 import { MOTION } from '@/lib/motion';
 import XPBar from '@/components/XPBar';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -1219,7 +1219,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
 
 
-  const finishQuiz = useCallback(() => {
+  const finishQuiz = useCallback((options?: { playSubmitSound?: boolean }) => {
     if (finishLockRef.current) return;
     finishLockRef.current = true;
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
@@ -1230,6 +1230,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     autoSubmitTimerRef.current = undefined;
     challengeDeadlineRef.current = null;
     questionDeadlineRef.current = null;
+    if (options?.playSubmitSound) {
+      try {
+        playSubmit();
+      } catch {
+        // Audio feedback is non-critical.
+      }
+    }
     onQuizFinish?.();
     setFinished(true);
   }, [onQuizFinish]);
@@ -1449,7 +1456,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           originalQuestionCountRef.current,
         );
         if (isFiniteQuiz && shouldFinishCurrentPool) {
-          finishQuiz();
+          finishQuiz({ playSubmitSound: true });
         } else if (config.infinite && currentQ + 1 >= latestQuestions.length) {
           const generatedNextPool = generateQuestions(config);
           if (generatedNextPool.length === 0) {
@@ -1498,7 +1505,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (!config?.infinite || config.repetitionEnabled) return;
     const totalAttempts = score.correct + score.wrong;
     if (totalAttempts === 0) return;
-    finishQuiz();
+    finishQuiz({ playSubmitSound: true });
   }, [config, score, finishQuiz]);
 
   useEffect(() => {

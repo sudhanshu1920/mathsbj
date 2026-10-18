@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { playRightAnswer } from './sound';
+import { playRightAnswer, playWrong, playSubmit } from './sound';
 
 const settingsState = vi.hoisted(() => ({ sound: true }));
 
@@ -64,5 +64,33 @@ describe('correct-answer sound', () => {
     playRightAnswer();
     expect(audio.currentTime).toBe(0);
     expect(audio.play).toHaveBeenCalledTimes(2);
+  });
+  
+  it('plays the supplied wrong-answer asset and respects the Sound setting', () => {
+    playWrong();
+
+    expect(MockAudio.instances).toHaveLength(1);
+    const audio = MockAudio.instances[0];
+    expect(audio.src).toMatch(/\/sounds\/wrong-answer\.mp3$/);
+    expect(audio.preload).toBe('auto');
+    expect(audio.play).toHaveBeenCalledTimes(1);
+
+    settingsState.sound = false;
+    playWrong();
+    expect(audio.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('plays the supplied submit asset and respects the Sound setting', () => {
+    playSubmit();
+
+    expect(MockAudio.instances).toHaveLength(1);
+    const audio = MockAudio.instances[0];
+    expect(audio.src).toMatch(/\/sounds\/submit\.mp3$/);
+    expect(audio.preload).toBe('auto');
+    expect(audio.play).toHaveBeenCalledTimes(1);
+
+    settingsState.sound = false;
+    playSubmit();
+    expect(audio.play).toHaveBeenCalledTimes(1);
   });
 });

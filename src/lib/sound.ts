@@ -50,39 +50,52 @@ const enabled = () => {
 export const playClick = () => { if (!enabled()) return; playTones([{ f: 880, d: 0.04, t: 'triangle', v: 0.6 }], 0.04); };
 export const playSwipe = () => { if (!enabled()) return; playTones([{ f: 520, d: 0.06, t: 'sine', v: 0.5 }, { f: 760, d: 0.05, t: 'sine', v: 0.4 }], 0.04); };
 export const playSuccess = () => { if (!enabled()) return; playTones([{ f: 660, d: 0.09, t: 'triangle' }, { f: 880, d: 0.10, t: 'triangle' }, { f: 1175, d: 0.14, t: 'triangle' }], 0.06); };
-let rightAnswerAudio: HTMLAudioElement | null = null;
-const RIGHT_ANSWER_SOUND_URL = `${import.meta.env.BASE_URL}sounds/right-answer.mp3`;
+type AudioCueName = 'right-answer' | 'wrong-answer' | 'submit';
+
+const audioCues: Record<AudioCueName, HTMLAudioElement | null> = {
+  'right-answer': null,
+  'wrong-answer': null,
+  submit: null,
+};
+
+const playWrongFallback = () => {
+  playTones([{ f: 220, d: 0.10, t: 'sawtooth', v: 0.5 }, { f: 165, d: 0.16, t: 'sawtooth', v: 0.5 }], 0.05);
+};
 
 /**
- * Play the supplied correct-answer sound. Reuse one audio element and let an
- * in-progress cue finish rather than repeatedly cutting it off in a fast quiz.
- * The existing generated chime remains a safe fallback if media playback fails.
+ * Reuse one media element per cue and avoid cutting off a sound that is still
+ * playing. All clips are bundled locally so they work in the web app and APK.
  */
-export const playRightAnswer = () => {
+const playAudioCue = (name: AudioCueName, fallback: () => void) => {
   if (!enabled()) return;
   if (typeof window === 'undefined' || typeof Audio === 'undefined') {
-    playSuccess();
+    fallback();
     return;
   }
 
   try {
-    if (!rightAnswerAudio) {
-      rightAnswerAudio = new Audio(RIGHT_ANSWER_SOUND_URL);
-      rightAnswerAudio.preload = 'auto';
+    let audio = audioCues[name];
+    if (!audio) {
+      audio = new Audio(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
+      audio.preload = 'auto';
+      audioCues[name] = audio;
     }
-    if (!rightAnswerAudio.paused && !rightAnswerAudio.ended) return;
+    if (!audio.paused && !audio.ended) return;
 
-    rightAnswerAudio.currentTime = 0;
-    const playback = rightAnswerAudio.play();
+    audio.currentTime = 0;
+    const playback = audio.play();
     if (playback && typeof playback.catch === 'function') {
-      playback.catch(() => playSuccess());
+      playback.catch(() => fallback());
     }
   } catch {
-    playSuccess();
+    fallback();
   }
 };
 
-export const playWrong = () => { if (!enabled()) return; playTones([{ f: 220, d: 0.10, t: 'sawtooth', v: 0.5 }, { f: 165, d: 0.16, t: 'sawtooth', v: 0.5 }], 0.05); };
+export const playRightAnswer = () => playAudioCue('right-answer', playSuccess);
+export const playWrong = () => playAudioCue('wrong-answer', playWrongFallback);
+export const playSubmit = () => playAudioCue('submit', playSuccess);
+
 export const playLevelUp = () => { if (!enabled()) return; playTones([
   { f: 523, d: 0.10, t: 'triangle' },
   { f: 659, d: 0.10, t: 'triangle' },

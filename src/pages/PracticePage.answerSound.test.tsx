@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import PracticePage from '@/pages/PracticePage';
 
@@ -7,6 +7,7 @@ const soundMocks = vi.hoisted(() => ({
   playRightAnswer: vi.fn(),
   playWrong: vi.fn(),
   playLevelUp: vi.fn(),
+  playSubmit: vi.fn(),
 }));
 
 vi.mock('@/lib/sound', () => ({
@@ -21,12 +22,12 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function openTableQuiz() {
+function openTableQuiz(options: { count?: number; infinite?: boolean } = {}) {
   render(
     <PracticePage
       initialTopic="tables"
       initialMode="mcq"
-      initialExtras={{ timerEnabled: false, count: 10 }}
+      initialExtras={{ timerEnabled: false, count: options.count ?? 10, infinite: options.infinite ?? false }}
     />,
   );
   const prompt = screen.getByText(/^\d+ × \d+ = \?$/);
@@ -62,5 +63,16 @@ describe('PracticePage answer sound', () => {
 
     expect(soundMocks.playWrong).toHaveBeenCalledTimes(1);
     expect(soundMocks.playRightAnswer).not.toHaveBeenCalled();
+  });
+  
+  it('plays the submit sound once when the final question completes the quiz', async () => {
+    const { grid, answer } = openTableQuiz({ count: 1 });
+
+    fireEvent.click(grid.getByRole('button', { name: new RegExp('^' + answer + '$') }));
+
+    await waitFor(() => {
+      expect(soundMocks.playSubmit).toHaveBeenCalledTimes(1);
+    });
+    expect(soundMocks.playRightAnswer).toHaveBeenCalledTimes(1);
   });
 });
