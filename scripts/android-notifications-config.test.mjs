@@ -62,6 +62,7 @@ test('configures local notification permissions, plugin and reboot/time-change r
   const widgetConfigActivity = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java'), 'utf8');
   const widgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget.xml'), 'utf8');
   const widgetInfo = await readFile(path.join(root, 'app/src/main/res/xml/math_master_home_widget_info.xml'), 'utf8');
+  const widgetInfoV31 = await readFile(path.join(root, 'app/src/main/res/xml-v31/math_master_home_widget_info.xml'), 'utf8');
   const lightWidgetBackground = await readFile(path.join(root, 'app/src/main/res/drawable/math_master_home_widget_background_light.xml'), 'utf8');
 
   assert.deepEqual(result, { firebaseEnabled: false, projectId: null });
@@ -75,6 +76,7 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(plugin, /requestPermission/);
   assert.match(plugin, /syncHomeWidget/);
   assert.match(plugin, /setHomeWidgetPreferences/);
+  assert.match(plugin, /appAccentColor/);
   assert.match(manifest, /\.MathMasterHomeWidgetProvider/);
   assert.match(manifest, /\.MathMasterWidgetConfigActivity/);
   assert.match(widgetConfigActivity, /AppWidgetManager\.EXTRA_APPWIDGET_ID/);
@@ -82,6 +84,8 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(widgetProvider, /onDeleted\(Context context, int\[\] appWidgetIds\)/);
   assert.match(widgetProvider, /getInstanceString/);
   assert.match(widgetInfo, /android:configure="com\.sudhanshu\.mathsbj\.MathMasterWidgetConfigActivity"/);
+  assert.match(widgetInfoV31, /widgetFeatures="reconfigurable"/);
+  assert.match(widgetInfo, /minWidth="180dp"/);
   assert.match(widgetLayout, /widget_disabled_text/);
   assert.match(lightWidgetBackground, /#F4F7FC/);
   assert.match(manifest, /math_master_home_widget_info/);
