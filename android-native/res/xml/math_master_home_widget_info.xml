@@ -2,9 +2,9 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:initialLayout="@layout/math_master_home_widget"
     android:minWidth="250dp"
-    android:minHeight="120dp"
+    android:minHeight="150dp"
     android:minResizeWidth="180dp"
-    android:minResizeHeight="100dp"
+    android:minResizeHeight="140dp"
     android:updatePeriodMillis="1800000"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />
