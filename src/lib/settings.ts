@@ -7,9 +7,9 @@ export type HomeWidgetTheme = 'app' | 'violet';
 const HOME_WIDGET_CONTENT: HomeWidgetContent[] = ['appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'updateStatus'];
 const normalizeWidgetContent = (value: unknown): HomeWidgetContent[] => {
   if (!Array.isArray(value)) return [...HOME_WIDGET_CONTENT];
-  const valid = value.filter((item): item is HomeWidgetContent =>
-    typeof item === 'string' && HOME_WIDGET_CONTENT.includes(item as HomeWidgetContent));
-  return [...new Set(valid)];
+  const valid = [...new Set(value.filter((item): item is HomeWidgetContent =>
+    typeof item === 'string' && HOME_WIDGET_CONTENT.includes(item as HomeWidgetContent)))];
+  return valid.length > 0 ? valid : [...HOME_WIDGET_CONTENT];
 };
 
 const KEY = 'math-app-settings-v1';
