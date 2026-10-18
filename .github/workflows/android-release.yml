@@ -619,9 +619,6 @@ jobs:
               } catch (Exception verificationError) {
                 failDownload(manager, downloadId, destinationFile, preferences, downloadKey, shaKey,
                     verificationError.getMessage() == null ? "APK verification failed." : verificationError.getMessage());
-                mainHandler.post(() -> Toast.makeText(getContext(),
-                    "APK verification failed. No update was installed or saved.",
-                    Toast.LENGTH_LONG).show());
               }
             }, "MathApp-APK-verifier").start();
           }
