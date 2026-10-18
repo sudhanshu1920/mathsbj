@@ -52,7 +52,13 @@ export function validateReleaseManifest(value: unknown): ReleaseManifest {
   };
 }
 
+// A short-lived in-memory cache avoids repeating the same manifest request
+// immediately after the update dialog was populated. It is deliberately short,
+// never persisted, and never caches failures; stale dialogs still refresh.
+export const RELEASE_MANIFEST_CACHE_TTL_MS = 15_000;
 let manifestRequest: Promise<ReleaseManifest> | null = null;
+let cachedManifest: ReleaseManifest | null = null;
+let cachedAt = 0;
 
 async function requestLatestRelease(): Promise<ReleaseManifest> {
   if (typeof navigator !== "undefined" && !navigator.onLine) throw new Error("OFFLINE");
@@ -66,14 +72,21 @@ async function requestLatestRelease(): Promise<ReleaseManifest> {
     let payload: unknown;
     try { payload = await response.json(); }
     catch { throw new Error("Update metadata is invalid."); }
-    return validateReleaseManifest(payload);
+    const manifest = validateReleaseManifest(payload);
+    cachedManifest = manifest;
+    cachedAt = Date.now();
+    return manifest;
   } catch (error) {
     if (controller.signal.aborted) throw new Error("UPDATE_TIMEOUT");
     throw error;
   } finally { clearTimeout(timeoutId); }
 }
 
-export function fetchLatestRelease(): Promise<ReleaseManifest> {
+export function fetchLatestRelease(forceRefresh = false): Promise<ReleaseManifest> {
+  const cacheAge = Date.now() - cachedAt;
+  if (!forceRefresh && cachedManifest && cacheAge >= 0 && cacheAge < RELEASE_MANIFEST_CACHE_TTL_MS) {
+    return Promise.resolve(cachedManifest);
+  }
   if (!manifestRequest) manifestRequest = requestLatestRelease().finally(() => { manifestRequest = null; });
   return manifestRequest;
 }
