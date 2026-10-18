@@ -309,6 +309,11 @@ export const syncHomeWidgetUpdateStatus = async (status: {
   }
 };
 
+/** Refresh stored progress immediately after a user explicitly re-enables home widgets. */
+export const refreshHomeWidget = (): void => {
+  queueHomeWidgetSync(true);
+};
+
 const queueUpdateAlertsSync = (): void => {
   requestedUpdateAlertsSetting = getBackgroundNotificationsEnabled();
   if (updateAlertsSyncPromise) return;
