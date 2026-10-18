@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java");
 const nativePlugin = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java");
 const bridge = read("src/lib/dailyTargetReminders.ts");
+const config = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java");
 const layouts = [
   "android-native/res/layout/math_master_home_widget.xml",
   "android-native/res/layout/math_master_home_widget_compact.xml",
@@ -23,6 +24,8 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
     "widget_remaining_text",
     "widget_streak_text",
     "widget_streak_container",
+    "widget_week_section",
+    "widget_week_title",
     "widget_week_strip",
     "widget_update_text",
     "widget_disabled_text",
@@ -31,6 +34,7 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
     for (const id of ids) assert.match(layout, new RegExp(`@\\+id/${id}\\b`), `missing ${id}`);
     for (let i = 0; i < 7; i++) {
       assert.match(layout, new RegExp(`@\\+id/widget_week_day_${i}\\b`));
+      assert.match(layout, new RegExp(`@\\+id/widget_week_date_${i}\\b`));
       assert.match(layout, new RegExp(`@\\+id/widget_week_status_${i}\\b`));
     }
     assert.equal(layout.includes("@mipmap/ic_launcher"), false);
@@ -42,12 +46,20 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(provider, /boolean showIdentity = widgetsEnabled && selected\.contains\("appIdentity"\);/);
   assert.match(provider, /boolean showRemaining = widgetsEnabled && selected\.contains\("remaining"\);/);
   assert.match(provider, /boolean showStreak = widgetsEnabled && selected\.contains\("streak"\);/);
+  assert.match(provider, /boolean showWeekly = widgetsEnabled && selected\.contains\("weekly"\);/);
   assert.match(provider, /boolean showUpdateStatus = widgetsEnabled && selected\.contains\("updateStatus"\);/);
+  assert.match(provider, /setViewVisibility\(R\.id\.widget_week_section, showWeekly \? View\.VISIBLE : View\.GONE\)/);
   assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_bar, showProgress \? View\.VISIBLE : View\.GONE\)/);
   assert.match(provider, /R\.layout\.math_master_home_widget_compact/);
   assert.match(provider, /R\.layout\.math_master_home_widget_wide/);
   assert.equal(provider.includes("showProgress && !smallWidget"), false);
   assert.equal(provider.includes('selected.contains("remaining") &&'), false);
+  assert.match(provider, /OPTION_APPWIDGET_SIZES/);
+  assert.match(provider, /new RemoteViews\(viewsBySize\)/);
+  assert.match(provider, /getWidgetLayoutForDimensions\(widthDp, heightDp\)/);
+  assert.match(config, /"random", "Random Premium Theme"/);
+  assert.match(config, /putString\("instance_" \+ widgetId \+ "_themeMode", themeMode\)/);
+  assert.match(config, /chooseRandomTheme\(preferences, widgetId\)/);
 });
 
 test("weekly checkmarks use the existing daily streak data and validate native input", () => {
@@ -58,6 +70,8 @@ test("weekly checkmarks use the existing daily streak data and validate native i
   assert.match(nativePlugin, /putString\("completedDaysJson", completedDays\.toString\(\)\)/);
   assert.match(provider, /getCompletedDays\(SharedPreferences preferences\)/);
   assert.match(provider, /views\.setTextViewText\(statusIds\[i\], done \? "✓" : "·"\)/);
+  assert.match(provider, /views\.setTextViewText\(dateIds\[i\], String\.valueOf\(day\.get\(Calendar\.DAY_OF_MONTH\)\)\)/);
+  assert.match(provider, /date \+ ", " \+ label/);
 });
 
 test("glass colors are translucent and target completion uses a stable celebratory accent", () => {
@@ -69,9 +83,11 @@ test("glass colors are translucent and target completion uses a stable celebrato
   }));
   assert.match(dark, /#B5211F35/);
   assert.match(light, /#C9F4F7FC/);
-  assert.match(provider, /if \(targetComplete\) accentColor = completedAccentColor\(todayKey\(\), streak\)/);
-  assert.match(provider, /COMPLETION_BACKGROUND_DARK\[celebrationTheme\]/);
-  assert.match(provider, /COMPLETION_BACKGROUND_LIGHT\[celebrationTheme\]/);
+  assert.match(provider, /getPaletteThemeIndex\(widgetTheme\)/);
+  assert.match(provider, /COMPLETION_BACKGROUND_DARK\[themeIndex\]/);
+  assert.match(provider, /COMPLETION_BACKGROUND_LIGHT\[themeIndex\]/);
+  assert.match(config, /instance_" \+ widgetId \+ "_themeMode/);
+  assert.match(config, /"random".equals\(previousThemeMode\) && isPaletteTheme\(previousTheme\)/);
   assert.equal(completionBackgrounds.length, 7);
   for (const background of completionBackgrounds) {
     assert.match(background.dark, /#B5[0-9A-Fa-f]{6}/);
