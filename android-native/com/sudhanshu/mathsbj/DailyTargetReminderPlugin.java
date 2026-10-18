@@ -101,6 +101,72 @@ public class DailyTargetReminderPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void syncHomeWidget(PluginCall call) {
+        try {
+            Integer targetValue = call.getInt("targetMinutes");
+            Double elapsedValue = call.getDouble("elapsedSeconds");
+            String dayKey = call.getString("dayKey");
+            Integer currentStreakValue = call.getInt("currentStreak");
+
+            if (dayKey == null || !dayKey.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                call.reject("Home screen widget day key is invalid.");
+                return;
+            }
+
+            int targetMinutes = targetValue == null ? 5 : Math.max(1, Math.min(1440, targetValue));
+            long elapsedSeconds = elapsedValue == null ? 0L : Math.max(0L, Math.min(31536000L, (long) Math.floor(elapsedValue)));
+            int currentStreak = currentStreakValue == null ? 0 : Math.max(0, Math.min(1000000, currentStreakValue));
+
+            getContext().getSharedPreferences("math_master_home_widget", Context.MODE_PRIVATE)
+                .edit()
+                .putInt("targetMinutes", targetMinutes)
+                .putLong("elapsedSeconds", elapsedSeconds)
+                .putString("dayKey", dayKey)
+                .putInt("currentStreak", currentStreak)
+                .apply();
+
+            MathMasterHomeWidgetProvider.updateWidgets(getContext());
+            JSObject result = new JSObject();
+            result.put("synced", true);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("Unable to update the Math Master home screen widget.", error);
+        }
+    }
+
+    @PluginMethod
+    public void syncHomeWidgetUpdateStatus(PluginCall call) {
+        Integer installedCodeValue = call.getInt("installedVersionCode");
+        Integer latestCodeValue = call.getInt("latestVersionCode");
+        String installedName = call.getString("installedVersionName");
+        String latestName = call.getString("latestVersionName");
+        if (installedCodeValue == null || latestCodeValue == null
+            || installedCodeValue < 1 || latestCodeValue < 1
+            || !isValidWidgetVersion(installedName) || !isValidWidgetVersion(latestName)) {
+            JSObject result = new JSObject();
+            result.put("synced", false);
+            call.resolve(result);
+            return;
+        }
+
+        MathMasterHomeWidgetProvider.updateReleaseStatus(
+            getContext(),
+            installedCodeValue.longValue(),
+            installedName,
+            latestCodeValue.longValue(),
+            latestName
+        );
+        JSObject result = new JSObject();
+        result.put("synced", true);
+        call.resolve(result);
+    }
+
+    private static boolean isValidWidgetVersion(String version) {
+        return version != null && version.length() <= 40
+            && version.matches("[0-9]+(?:\\.[0-9]+){0,3}(?:[-+][0-9A-Za-z.-]+)?");
+    }
+
+    @PluginMethod
     public void consumeNotificationAction(PluginCall call) {
         Intent intent = getActivity().getIntent();
         JSObject result = new JSObject();
