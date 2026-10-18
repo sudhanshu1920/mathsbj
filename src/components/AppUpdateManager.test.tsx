@@ -31,6 +31,10 @@ vi.mock("@/nativeAppUpdater", () => ({
 
 vi.mock("@capacitor/core", () => ({
   Capacitor: { isNativePlatform: () => true, getPlatform: () => "android" },
+  registerPlugin: vi.fn(() => ({
+    syncHomeWidget: vi.fn().mockResolvedValue({ synced: true }),
+    syncHomeWidgetUpdateStatus: vi.fn().mockResolvedValue({ synced: true }),
+  })),
 }));
 
 vi.mock("@capacitor/app", () => ({
