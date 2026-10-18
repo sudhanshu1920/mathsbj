@@ -47,6 +47,13 @@ function ensureAndroidPermissions(manifest) {
 
 function ensureManifestReceivers(manifest, firebaseEnabled) {
   const entries = [];
+  if (!manifest.includes('android:name=".MathMasterWidgetConfigActivity"')) {
+    entries.push(`        <activity
+            android:name=".MathMasterWidgetConfigActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />`);
+  }
   if (!manifest.includes('android:name=".MathMasterHomeWidgetProvider"')) {
     entries.push(`        <receiver
             android:name=".MathMasterHomeWidgetProvider"
@@ -235,6 +242,7 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'DailyTargetReminderReceiver.java',
     'DailyTargetReminderBootReceiver.java',
     'MathMasterHomeWidgetProvider.java',
+    'MathMasterWidgetConfigActivity.java',
   ];
   const targetPackageDir = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj');
   await mkdir(targetPackageDir, { recursive: true });
