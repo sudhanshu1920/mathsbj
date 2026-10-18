@@ -64,22 +64,3 @@ describe('PracticePage answer sound', () => {
     expect(soundMocks.playRightAnswer).not.toHaveBeenCalled();
   });
 });
-) }));
-
-    expect(soundMocks.playRightAnswer).toHaveBeenCalledTimes(1);
-    expect(soundMocks.playWrong).not.toHaveBeenCalled();
-  });
-
-  it('keeps wrong-answer sound separate from the correct-answer sound', () => {
-    const { grid, answer } = openTableQuiz();
-    const wrongOption = grid.getAllByRole('button').find(
-      (button) => button.textContent?.trim() !== String(answer),
-    );
-    if (!wrongOption) throw new Error('Could not find a wrong answer option.');
-
-    fireEvent.click(wrongOption);
-
-    expect(soundMocks.playWrong).toHaveBeenCalledTimes(1);
-    expect(soundMocks.playRightAnswer).not.toHaveBeenCalled();
-  });
-});
