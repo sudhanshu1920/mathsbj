@@ -1,10 +1,10 @@
 import { applyFont, DEFAULT_FONT, normalizeFont, type FontId } from '@/lib/font';
 
-export type HomeWidgetContent = 'target' | 'progress' | 'remaining' | 'studyTime' | 'streak' | 'updateStatus';
+export type HomeWidgetContent = 'appIdentity' | 'target' | 'progress' | 'remaining' | 'studyTime' | 'streak' | 'updateStatus';
 export type HomeWidgetStyle = 'glass' | 'compact' | 'minimal';
 export type HomeWidgetTheme = 'app' | 'violet';
 
-const HOME_WIDGET_CONTENT: HomeWidgetContent[] = ['target', 'progress', 'remaining', 'studyTime', 'streak', 'updateStatus'];
+const HOME_WIDGET_CONTENT: HomeWidgetContent[] = ['appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'updateStatus'];
 const normalizeWidgetContent = (value: unknown): HomeWidgetContent[] => {
   if (!Array.isArray(value)) return [...HOME_WIDGET_CONTENT];
   const valid = value.filter((item): item is HomeWidgetContent =>
