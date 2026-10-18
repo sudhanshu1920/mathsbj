@@ -135,7 +135,7 @@ public class DailyTargetReminderPlugin extends Plugin {
                         call.reject("Home screen widget week summary contains an invalid date.");
                         return;
                     }
-                    if (uniqueDays.add(date)) completedDays.put(date);
+                    if (uniqueDays.add(date) && isDateInTrailingSevenDays(date)) completedDays.put(date);
                 }
             }
 
@@ -155,6 +155,35 @@ public class DailyTargetReminderPlugin extends Plugin {
         } catch (Exception error) {
             call.reject("Unable to update the Math Master home screen widget.", error);
         }
+    }
+
+    private static boolean isDateInTrailingSevenDays(String dateValue) {
+        java.text.SimpleDateFormat formatter =
+            new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+        formatter.setLenient(false);
+        final java.util.Date parsed;
+        try {
+            parsed = formatter.parse(dateValue);
+        } catch (java.text.ParseException ignored) {
+            return false;
+        }
+        if (parsed == null) return false;
+
+        java.util.Calendar today = java.util.Calendar.getInstance();
+        today.set(java.util.Calendar.HOUR_OF_DAY, 12);
+        today.set(java.util.Calendar.MINUTE, 0);
+        today.set(java.util.Calendar.SECOND, 0);
+        today.set(java.util.Calendar.MILLISECOND, 0);
+        java.util.Calendar firstAllowed = (java.util.Calendar) today.clone();
+        firstAllowed.add(java.util.Calendar.DAY_OF_MONTH, -6);
+
+        java.util.Calendar candidate = java.util.Calendar.getInstance();
+        candidate.setTime(parsed);
+        candidate.set(java.util.Calendar.HOUR_OF_DAY, 12);
+        candidate.set(java.util.Calendar.MINUTE, 0);
+        candidate.set(java.util.Calendar.SECOND, 0);
+        candidate.set(java.util.Calendar.MILLISECOND, 0);
+        return !candidate.before(firstAllowed) && !candidate.after(today);
     }
 
     @PluginMethod
