@@ -8,13 +8,13 @@ import { getStreak, setTarget, todayStr, type StreakState } from '@/lib/streak';
 import { isGuest, setGuest } from '@/lib/guest';
 import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
 import { checkForAppUpdate } from '@/lib/appUpdateService';
-import { syncHomeWidgetPreferences } from '@/lib/dailyTargetReminders';
 import { announceUpdateAvailable } from '@/lib/appUpdateEvents';
 import { MOTION } from '@/lib/motion';
 import { APP_VERSION_NAME } from '@/lib/appVersion';
 import {
   getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled,
+  syncHomeWidgetPreferences,
 } from '@/lib/dailyTargetReminders';
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
@@ -63,6 +63,10 @@ const SettingsPanel = () => {
   const widgetProgress = Math.min(100, Math.round((todaySeconds / Math.max(1, streak.targetMinutes * 60)) * 100));
 
   const mountedRef = useRef(true);
+
+  useEffect(() => {
+    void syncHomeWidgetPreferences();
+  }, [theme, mode]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -274,7 +278,7 @@ const SettingsPanel = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: MOTION.duration.fast, ease: MOTION.ease.easeOut }}
+              transition={{ duration: MOTION.duration.standard, ease: MOTION.ease.easeOut }}
               className="overflow-hidden"
             >
               <div className="mt-3 space-y-3 border-t border-border/50 pt-3">
