@@ -47,6 +47,13 @@ function ensureAndroidPermissions(manifest) {
 
 function ensureManifestReceivers(manifest, firebaseEnabled) {
   const entries = [];
+  if (!manifest.includes('android:name=".MathMasterWidgetConfigActivity"')) {
+    entries.push(`        <activity
+            android:name=".MathMasterWidgetConfigActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />`);
+  }
   if (!manifest.includes('android:name=".MathMasterHomeWidgetProvider"')) {
     entries.push(`        <receiver
             android:name=".MathMasterHomeWidgetProvider"
@@ -235,6 +242,7 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'DailyTargetReminderReceiver.java',
     'DailyTargetReminderBootReceiver.java',
     'MathMasterHomeWidgetProvider.java',
+    'MathMasterWidgetConfigActivity.java',
   ];
   const targetPackageDir = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj');
   await mkdir(targetPackageDir, { recursive: true });
@@ -245,8 +253,11 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
   const widgetResources = [
     'layout/math_master_home_widget.xml',
     'drawable/math_master_home_widget_background.xml',
+    'drawable/math_master_home_widget_background_light.xml',
     'drawable/math_master_home_widget_badge.xml',
+    'values/math_master_home_widget_strings.xml',
     'xml/math_master_home_widget_info.xml',
+    'xml-v31/math_master_home_widget_info.xml',
   ];
   for (const resource of widgetResources) {
     const destination = path.join(root, 'app/src/main/res', resource);

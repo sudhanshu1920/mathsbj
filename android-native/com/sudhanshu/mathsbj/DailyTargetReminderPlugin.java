@@ -135,6 +135,58 @@ public class DailyTargetReminderPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setHomeWidgetPreferences(PluginCall call) {
+        try {
+            Boolean enabledValue = call.getBoolean("enabled");
+            String contentJson = call.getString("contentJson");
+            String styleValue = call.getString("style");
+            String themeValue = call.getString("theme");
+            String accentValue = call.getString("accentColor");
+            String appAccentValue = call.getString("appAccentColor");
+            String modeValue = call.getString("mode");
+
+            java.util.Set<String> allowed = new java.util.HashSet<>(java.util.Arrays.asList(
+                "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus"
+            ));
+            org.json.JSONArray input = contentJson == null ? new org.json.JSONArray() : new org.json.JSONArray(contentJson);
+            org.json.JSONArray content = new org.json.JSONArray();
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            for (int i = 0; i < Math.min(input.length(), 7); i++) {
+                String field = input.optString(i, "");
+                if (allowed.contains(field) && seen.add(field)) content.put(field);
+            }
+            if (content.length() == 0) content.put("progress");
+
+            String style = "compact".equals(styleValue) || "minimal".equals(styleValue) ? styleValue : "glass";
+            String theme = "violet".equals(themeValue) ? "violet" : "app";
+            String mode = "light".equals(modeValue) ? "light" : "dark";
+            String accentColor = accentValue != null && accentValue.matches("#[0-9A-Fa-f]{6}")
+                ? accentValue : "#B8A0FF";
+            String appAccentColor = appAccentValue != null && appAccentValue.matches("#[0-9A-Fa-f]{6}")
+                ? appAccentValue : "#3B82F6";
+            boolean enabled = enabledValue == null || enabledValue.booleanValue();
+
+            getContext().getSharedPreferences("math_master_home_widget", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("enabled", enabled)
+                .putString("contentJson", content.toString())
+                .putString("style", style)
+                .putString("theme", theme)
+                .putString("accentColor", accentColor)
+                .putString("appAccentColor", appAccentColor)
+                .putString("mode", mode)
+                .apply();
+
+            MathMasterHomeWidgetProvider.updateWidgetPreferences(getContext());
+            JSObject result = new JSObject();
+            result.put("synced", true);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("Unable to save home screen widget preferences.", error);
+        }
+    }
+
+    @PluginMethod
     public void syncHomeWidgetUpdateStatus(PluginCall call) {
         Integer installedCodeValue = call.getInt("installedVersionCode");
         Integer latestCodeValue = call.getInt("latestVersionCode");

@@ -1,11 +1,27 @@
 import { applyFont, DEFAULT_FONT, normalizeFont, type FontId } from '@/lib/font';
 
+export type HomeWidgetContent = 'appIdentity' | 'target' | 'progress' | 'remaining' | 'studyTime' | 'streak' | 'updateStatus';
+export type HomeWidgetStyle = 'glass' | 'compact' | 'minimal';
+export type HomeWidgetTheme = 'app' | 'violet';
+
+const HOME_WIDGET_CONTENT: HomeWidgetContent[] = ['appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'updateStatus'];
+const normalizeWidgetContent = (value: unknown): HomeWidgetContent[] => {
+  if (!Array.isArray(value)) return [...HOME_WIDGET_CONTENT];
+  const valid = [...new Set(value.filter((item): item is HomeWidgetContent =>
+    typeof item === 'string' && HOME_WIDGET_CONTENT.includes(item as HomeWidgetContent)))];
+  return valid.length > 0 ? valid : [...HOME_WIDGET_CONTENT];
+};
+
 const KEY = 'math-app-settings-v1';
 
 export interface AppSettings {
   sound: boolean;
   vibration: boolean;
   keyboardShortcuts: boolean;
+  homeScreenWidgetsEnabled: boolean;
+  homeWidgetContent: HomeWidgetContent[];
+  homeWidgetStyle: HomeWidgetStyle;
+  homeWidgetTheme: HomeWidgetTheme;
   font: FontId;
 }
 
@@ -13,6 +29,11 @@ const defaults = (): AppSettings => ({
   sound: true,
   vibration: true,
   keyboardShortcuts: true,
+  // Keep existing pinned widgets enabled after upgrading from a version without this setting.
+  homeScreenWidgetsEnabled: true,
+  homeWidgetContent: [...HOME_WIDGET_CONTENT],
+  homeWidgetStyle: 'glass',
+  homeWidgetTheme: 'app',
   font: DEFAULT_FONT,
 });
 
@@ -36,6 +57,10 @@ export const getSettings = (): AppSettings => {
       sound: normalizeBoolean(value.sound, base.sound),
       vibration: normalizeBoolean(value.vibration, base.vibration),
       keyboardShortcuts: normalizeBoolean(value.keyboardShortcuts, base.keyboardShortcuts),
+      homeScreenWidgetsEnabled: normalizeBoolean(value.homeScreenWidgetsEnabled, base.homeScreenWidgetsEnabled),
+      homeWidgetContent: normalizeWidgetContent(value.homeWidgetContent),
+      homeWidgetStyle: value.homeWidgetStyle === 'compact' || value.homeWidgetStyle === 'minimal' ? value.homeWidgetStyle : base.homeWidgetStyle,
+      homeWidgetTheme: value.homeWidgetTheme === 'violet' ? 'violet' : base.homeWidgetTheme,
       font: normalizeFont(typeof value.font === 'string' ? value.font : base.font),
     };
   } catch {
@@ -58,6 +83,32 @@ export const setVibration = (v: boolean) => {
 };
 export const setKeyboardShortcuts = (v: boolean) => {
   const s = { ...getSettings(), keyboardShortcuts: v };
+  save(s);
+  return s;
+};
+
+export const setHomeScreenWidgetsEnabled = (enabled: boolean) => {
+  const s = { ...getSettings(), homeScreenWidgetsEnabled: enabled };
+  save(s);
+  return s;
+};
+
+export const setHomeWidgetContent = (content: HomeWidgetContent[]) => {
+  const normalized = normalizeWidgetContent(content);
+  if (normalized.length === 0) return getSettings();
+  const s = { ...getSettings(), homeWidgetContent: normalized };
+  save(s);
+  return s;
+};
+
+export const setHomeWidgetStyle = (style: HomeWidgetStyle) => {
+  const s = { ...getSettings(), homeWidgetStyle: style };
+  save(s);
+  return s;
+};
+
+export const setHomeWidgetTheme = (theme: HomeWidgetTheme) => {
+  const s = { ...getSettings(), homeWidgetTheme: theme };
   save(s);
   return s;
 };

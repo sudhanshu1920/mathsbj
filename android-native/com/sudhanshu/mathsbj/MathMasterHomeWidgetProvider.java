@@ -7,7 +7,20 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.os.Build;
+import android.util.TypedValue;
+import android.view.View;
+import android.os.Bundle;
 import android.widget.RemoteViews;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -20,18 +33,47 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] appWidgetIds) {
         for (int appWidgetId : appWidgetIds) {
-            manager.updateAppWidget(appWidgetId, createViews(context));
+            manager.updateAppWidget(appWidgetId, createViews(context, appWidgetId));
         }
     }
 
+    @Override
+    public void onDeleted(Context context, int[] appWidgetIds) {
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        for (int appWidgetId : appWidgetIds) {
+            String prefix = "instance_" + appWidgetId + "_";
+            for (String key : preferences.getAll().keySet()) {
+                if (key.startsWith(prefix)) editor.remove(key);
+            }
+        }
+        editor.apply();
+        super.onDeleted(context, appWidgetIds);
+    }
+
+    @Override
+    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager manager, int appWidgetId, Bundle options) {
+        manager.updateAppWidget(appWidgetId, createViews(context, appWidgetId));
+    }
+
     public static void updateWidgets(Context context) {
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        if (!preferences.getBoolean("enabled", true)) return;
+        refreshWidgetInstances(context);
+    }
+
+    /** Called when widget preferences change, including the global OFF transition. */
+    public static void updateWidgetPreferences(Context context) {
+        refreshWidgetInstances(context);
+    }
+
+    private static void refreshWidgetInstances(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         ComponentName provider = new ComponentName(context, MathMasterHomeWidgetProvider.class);
         int[] widgetIds = manager.getAppWidgetIds(provider);
         if (widgetIds == null || widgetIds.length == 0) return;
-        RemoteViews views = createViews(context);
         for (int widgetId : widgetIds) {
-            manager.updateAppWidget(widgetId, views);
+            manager.updateAppWidget(widgetId, createViews(context, widgetId));
         }
     }
 
@@ -56,6 +98,43 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         updateWidgets(context);
     }
 
+    private static boolean isCompactSize(Context context, int appWidgetId) {
+        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return false;
+        Bundle options = AppWidgetManager.getInstance(context).getAppWidgetOptions(appWidgetId);
+        int minWidth = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+        int minHeight = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+        return (minWidth > 0 && minWidth < 210) || (minHeight > 0 && minHeight < 115);
+    }
+
+    private static String getInstanceString(SharedPreferences preferences, int appWidgetId, String field, String fallback) {
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            String key = "instance_" + appWidgetId + "_" + field;
+            if (preferences.contains(key)) return preferences.getString(key, fallback);
+        }
+        return preferences.getString(field, fallback);
+    }
+
+    private static Set<String> getSelectedContent(SharedPreferences preferences, int appWidgetId) {
+        String json = getInstanceString(preferences, appWidgetId, "contentJson", preferences.getString("contentJson", null));
+        if (json == null) {
+            return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus"));
+        }
+        Set<String> selected = new HashSet<>();
+        try {
+            JSONArray array = new JSONArray(json);
+            for (int i = 0; i < array.length(); i++) {
+                String item = array.optString(i, "");
+                if (Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus").contains(item)) {
+                    selected.add(item);
+                }
+            }
+        } catch (JSONException ignored) {
+            return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "updateStatus"));
+        }
+        if (selected.isEmpty()) selected.add("progress");
+        return selected;
+    }
+
     private static boolean isSafeVersion(String value) {
         return value != null && value.length() <= 40
             && value.matches("[0-9]+(?:\\.[0-9]+){0,3}(?:[-+][0-9A-Za-z.-]+)?");
@@ -65,7 +144,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Calendar.getInstance().getTime());
     }
 
-    private static RemoteViews createViews(Context context) {
+    public static RemoteViews createViews(Context context, int appWidgetId) {
         SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
         int targetMinutes = Math.max(1, Math.min(1440, preferences.getInt("targetMinutes", 5)));
         String storedDay = preferences.getString("dayKey", "");
@@ -73,18 +152,61 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         if (!todayKey().equals(storedDay)) elapsedSeconds = 0L;
 
         long targetSeconds = targetMinutes * 60L;
-        elapsedSeconds = Math.min(elapsedSeconds, targetSeconds);
-        int progress = (int) Math.max(0L, Math.min(100L, elapsedSeconds * 100L / targetSeconds));
-        int elapsedMinutes = (int) Math.min(targetMinutes, elapsedSeconds / 60L);
+        long progressSeconds = Math.min(elapsedSeconds, targetSeconds);
+        int progress = (int) Math.max(0L, Math.min(100L, progressSeconds * 100L / targetSeconds));
+        // Study time remains the actual accumulated duration, even after today's target is reached.
+        int elapsedMinutes = (int) Math.min(Integer.MAX_VALUE, elapsedSeconds / 60L);
         int remainingMinutes = (int) Math.max(0L, (targetSeconds - elapsedSeconds + 59L) / 60L);
         int streak = Math.max(0, preferences.getInt("currentStreak", 0));
+        Set<String> selected = getSelectedContent(preferences, appWidgetId);
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.math_master_home_widget);
+        boolean widgetsEnabled = preferences.getBoolean("enabled", true);
+        String mode = preferences.getString("mode", "dark");
+        String style = getInstanceString(preferences, appWidgetId, "style", "glass");
+        String widgetTheme = getInstanceString(preferences, appWidgetId, "theme", "app");
+        String accentValue = "violet".equals(widgetTheme)
+            ? "#B8A0FF" : preferences.getString("appAccentColor", preferences.getString("accentColor", "#B8A0FF"));
+        int accentColor = accentValue.matches("#[0-9A-Fa-f]{6}") ? Color.parseColor(accentValue) : Color.parseColor("#B8A0FF");
+        boolean lightMode = "light".equals(mode);
+        views.setInt(R.id.widget_root, "setBackgroundResource", lightMode
+            ? R.drawable.math_master_home_widget_background_light
+            : R.drawable.math_master_home_widget_background);
+        boolean smallWidget = isCompactSize(context, appWidgetId);
+        int paddingDp = smallWidget || "compact".equals(style) ? 9 : ("minimal".equals(style) ? 11 : 12);
+        int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
+        views.setViewPadding(R.id.widget_root, paddingPx, paddingPx, paddingPx, paddingPx);
+        views.setTextViewTextSize(R.id.widget_progress_percent, TypedValue.COMPLEX_UNIT_SP,
+            smallWidget || "compact".equals(style) ? 22f : ("minimal".equals(style) ? 26f : 29f));
+        views.setTextViewTextSize(R.id.widget_progress_text, TypedValue.COMPLEX_UNIT_SP,
+            smallWidget || "compact".equals(style) ? 12f : 14f);
+        views.setTextColor(R.id.widget_progress_percent, accentColor);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            views.setColorStateList(R.id.widget_progress_bar, "setProgressTintList", ColorStateList.valueOf(accentColor));
+        }
+        if (lightMode) {
+            views.setTextColor(R.id.widget_title_text, Color.parseColor("#253047"));
+            views.setTextColor(R.id.widget_target_label, Color.parseColor("#536078"));
+            views.setTextColor(R.id.widget_progress_text, Color.parseColor("#202A3D"));
+            views.setTextColor(R.id.widget_remaining_text, Color.parseColor("#475569"));
+            views.setTextColor(R.id.widget_streak_text, Color.parseColor("#805A11"));
+            views.setTextColor(R.id.widget_update_text, Color.parseColor("#526078"));
+            views.setTextColor(R.id.widget_update_badge, accentColor);
+            views.setTextColor(R.id.widget_disabled_text, accentColor);
+        } else {
+            views.setTextColor(R.id.widget_progress_percent, accentColor);
+            views.setTextColor(R.id.widget_target_label, Color.parseColor("#AFAAC7"));
+        }
         views.setTextViewText(R.id.widget_progress_percent, progress + "%");
-        views.setTextViewText(
-            R.id.widget_progress_text,
-            String.format(Locale.getDefault(), "%d / %d min", elapsedMinutes, targetMinutes)
-        );
+        String progressSummary;
+        if (selected.contains("studyTime") && selected.contains("target")) {
+            progressSummary = String.format(Locale.getDefault(), "%d / %d min", elapsedMinutes, targetMinutes);
+        } else if (selected.contains("studyTime")) {
+            progressSummary = elapsedMinutes + " min studied";
+        } else {
+            progressSummary = targetMinutes + " min target";
+        }
+        views.setTextViewText(R.id.widget_progress_text, progressSummary);
         views.setProgressBar(R.id.widget_progress_bar, 100, progress, false);
         views.setTextViewText(
             R.id.widget_remaining_text,
@@ -107,6 +229,38 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             } else {
                 views.setTextViewText(R.id.widget_update_text, "Updates refresh when the app opens");
             }
+        }
+
+        boolean showIdentity = widgetsEnabled && selected.contains("appIdentity")
+            && (!smallWidget || selected.size() <= 2);
+        boolean showProgress = widgetsEnabled && selected.contains("progress");
+        boolean showTarget = widgetsEnabled && selected.contains("target");
+        boolean showStudyTime = widgetsEnabled && selected.contains("studyTime");
+        boolean showRemaining = widgetsEnabled && selected.contains("remaining")
+            && (!smallWidget || selected.size() <= 2 || (!showTarget && !showProgress && !showStudyTime));
+        boolean showStreak = widgetsEnabled && selected.contains("streak")
+            && (!smallWidget || selected.size() <= 2 || (!showTarget && !showProgress && !showStudyTime && !showRemaining));
+        boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus")
+            && (!smallWidget || selected.size() <= 1);
+        views.setViewVisibility(R.id.widget_header_row, showIdentity ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_target_label, showTarget ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_progress_percent, showProgress ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_progress_bar, showProgress && !smallWidget ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_progress_text, showTarget || showStudyTime ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_remaining_text, showRemaining ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_streak_text, showStreak ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_update_text, showUpdateStatus ? View.VISIBLE : View.GONE);
+        if (!showUpdateStatus) views.setViewVisibility(R.id.widget_update_badge, View.GONE);
+        views.setViewVisibility(R.id.widget_disabled_text, widgetsEnabled ? View.GONE : View.VISIBLE);
+        if (!widgetsEnabled) {
+            views.setViewVisibility(R.id.widget_target_label, View.GONE);
+            views.setViewVisibility(R.id.widget_progress_percent, View.GONE);
+            views.setViewVisibility(R.id.widget_progress_bar, View.GONE);
+            views.setViewVisibility(R.id.widget_progress_text, View.GONE);
+            views.setViewVisibility(R.id.widget_remaining_text, View.GONE);
+            views.setViewVisibility(R.id.widget_streak_text, View.GONE);
+            views.setViewVisibility(R.id.widget_update_text, View.GONE);
+            views.setViewVisibility(R.id.widget_update_badge, View.GONE);
         }
 
         Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
