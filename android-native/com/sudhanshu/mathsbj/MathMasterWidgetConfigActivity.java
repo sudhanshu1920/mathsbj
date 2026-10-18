@@ -257,8 +257,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
         String themeLabel = "random".equals(theme)
             ? "Random Premium Theme" + (isPaletteTheme(resolvedTheme) ? " · " + themeLabel(resolvedTheme) : "")
             : themeLabel(resolvedTheme);
-        previewSummary.setText(android.text.TextUtils.join("\\n", rows)
-            + "\\n" + capitalize(style) + "  ·  " + themeLabel);
+        previewSummary.setText(android.text.TextUtils.join("\n", rows)
+            + "\n" + capitalize(style) + "  ·  " + themeLabel);
     }
 
     private void saveConfiguration() {
