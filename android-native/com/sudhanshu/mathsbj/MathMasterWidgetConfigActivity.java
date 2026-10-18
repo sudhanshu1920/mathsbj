@@ -251,8 +251,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
         boolean appTheme = "app".equals(resolvedTheme);
         int previewBackground = appTheme
             ? (light ? Color.parseColor("#F4F7FC") : Color.parseColor("#211F35"))
-            : Color.parseColor(themeBackgroundColor(resolvedTheme));
-        previewSummary.setTextColor(light && appTheme ? Color.parseColor("#263247") : Color.parseColor("#F5F3FF"));
+            : Color.parseColor(themeBackgroundColor(resolvedTheme, light));
+        previewSummary.setTextColor(light ? Color.parseColor("#263247") : Color.parseColor("#F5F3FF"));
         previewSummary.setBackgroundColor(previewBackground);
         String themeLabel = "random".equals(theme)
             ? "Random Premium Theme" + (isPaletteTheme(resolvedTheme) ? " · " + themeLabel(resolvedTheme) : "")
@@ -315,7 +315,17 @@ public class MathMasterWidgetConfigActivity extends Activity {
         return "Match App Theme";
     }
 
-    private static String themeBackgroundColor(String theme) {
+    private static String themeBackgroundColor(String theme, boolean light) {
+        if (light) {
+            if ("emerald".equals(theme)) return "#E3FFF1";
+            if ("ocean".equals(theme)) return "#DDF9FF";
+            if ("graphite".equals(theme)) return "#E6EBF4";
+            if ("rose".equals(theme)) return "#FFE5F0";
+            if ("violet".equals(theme)) return "#EEE7FF";
+            if ("sapphire".equals(theme)) return "#DEE8FF";
+            if ("aurora".equals(theme)) return "#EFFFD9";
+            return "#F4F7FC";
+        }
         if ("emerald".equals(theme)) return "#1C5A42";
         if ("ocean".equals(theme)) return "#15596B";
         if ("graphite".equals(theme)) return "#323D4B";
