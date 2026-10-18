@@ -33,7 +33,7 @@ function openTableQuiz() {
   const match = prompt.textContent?.match(/^(\d+) × (\d+) = \?$/);
   if (!match) throw new Error('Could not read the generated multiplication question.');
 
-  const grid = document.querySelector('.mcq-options-grid');
+  const grid = document.querySelector<HTMLDivElement>('.mcq-options-grid');
   if (!grid) throw new Error('Multiple-choice answers did not render.');
   return {
     grid: within(grid),
@@ -45,7 +45,26 @@ describe('PracticePage answer sound', () => {
   it('plays the supplied sound when a correct answer is selected', () => {
     const { grid, answer } = openTableQuiz();
 
-    fireEvent.click(grid.getByRole('button', { name: String(answer), exact: true }));
+    fireEvent.click(grid.getByRole('button', { name: new RegExp('^' + answer + ');
+
+    expect(soundMocks.playRightAnswer).toHaveBeenCalledTimes(1);
+    expect(soundMocks.playWrong).not.toHaveBeenCalled();
+  });
+
+  it('keeps wrong-answer sound separate from the correct-answer sound', () => {
+    const { grid, answer } = openTableQuiz();
+    const wrongOption = grid.getAllByRole('button').find(
+      (button) => button.textContent?.trim() !== String(answer),
+    );
+    if (!wrongOption) throw new Error('Could not find a wrong answer option.');
+
+    fireEvent.click(wrongOption);
+
+    expect(soundMocks.playWrong).toHaveBeenCalledTimes(1);
+    expect(soundMocks.playRightAnswer).not.toHaveBeenCalled();
+  });
+});
+) }));
 
     expect(soundMocks.playRightAnswer).toHaveBeenCalledTimes(1);
     expect(soundMocks.playWrong).not.toHaveBeenCalled();
