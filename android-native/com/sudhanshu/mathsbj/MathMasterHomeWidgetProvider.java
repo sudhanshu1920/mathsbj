@@ -170,6 +170,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         views.setInt(R.id.widget_root, "setBackgroundResource", lightMode
             ? R.drawable.math_master_home_widget_background_light
             : R.drawable.math_master_home_widget_background);
+        boolean smallWidget = isCompactSize(context, appWidgetId);
         int paddingDp = smallWidget || "compact".equals(style) ? 9 : ("minimal".equals(style) ? 11 : 12);
         int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
         views.setViewPadding(R.id.widget_root, paddingPx, paddingPx, paddingPx, paddingPx);
@@ -228,7 +229,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             }
         }
 
-        boolean smallWidget = isCompactSize(context, appWidgetId);
         boolean showIdentity = widgetsEnabled && selected.contains("appIdentity")
             && (!smallWidget || selected.size() <= 2);
         boolean showProgress = widgetsEnabled && selected.contains("progress");
