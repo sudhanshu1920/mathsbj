@@ -286,47 +286,56 @@ const SettingsPanel = () => {
             );
           })}
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div
+          data-theme-selector-grid
+          className="grid grid-cols-2 gap-1.5 min-[420px]:grid-cols-3 md:grid-cols-4"
+        >
           {THEMES.map((t) => {
             const selected = theme === t.id;
             return (
               <motion.button
                 key={t.id}
+                data-theme-option={t.id}
                 type="button"
                 whileTap={{ scale: MOTION.scale.press }}
                 onClick={() => setAppTheme(t.id)}
                 aria-label={`Select ${t.name} theme`}
                 aria-pressed={selected}
-                className={`min-w-0 rounded-xl border p-2 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left transition-colors duration-100 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   selected
-                    ? 'border-primary bg-primary/5'
+                    ? 'border-primary/70 bg-primary/10'
                     : 'border-border/70 bg-card/30 hover:border-primary/40'
                 }`}
               >
-                <div className="mb-1.5 flex items-center justify-between gap-1">
-                  <div className="flex min-w-0 gap-1" aria-hidden="true">
+                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
                     {t.swatch.map((color, index) => (
                       <span
                         key={index}
-                        className="h-2.5 w-2.5 rounded-sm ring-1 ring-black/10"
+                        data-theme-swatch
+                        className="h-2 w-2 rounded-full ring-1 ring-border/60"
                         style={{ backgroundColor: color }}
                       />
                     ))}
-                  </div>
-                  {selected && (
-                    <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                      <Check size={10} />
-                    </span>
-                  )}
-                </div>
-                <p className="min-h-8 break-words text-[11px] font-semibold leading-4 text-foreground">{t.name}</p>
-                {t.premium ? (
-                  <p className="mt-0.5 flex h-3 items-center gap-0.5 text-[9px] leading-none text-muted-foreground">
-                    <Crown size={9} /> PRO
-                  </p>
-                ) : (
-                  <span className="mt-0.5 block h-3" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-tight text-foreground">
+                    {t.name}
+                  </span>
+                </span>
+                {t.premium && (
+                  <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold leading-none text-muted-foreground">
+                    <Crown size={9} />
+                    PRO
+                  </span>
                 )}
+                <span
+                  aria-hidden="true"
+                  className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ${
+                    selected ? 'bg-primary text-primary-foreground' : 'text-transparent'
+                  }`}
+                >
+                  <Check size={9} />
+                </span>
               </motion.button>
             );
           })}
