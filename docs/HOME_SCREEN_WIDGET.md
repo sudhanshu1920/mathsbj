@@ -10,6 +10,14 @@ Math Master includes a native Android home-screen widget backed by the existing 
 
 Tap the widget to open Math Master. When an update is known to be available, tapping also asks the app to refresh its normal verified update check; it does not bypass package, checksum, or signing-certificate validation.
 
+## Widget customization
+
+Open **Settings → Home Screen Widgets** to toggle widget presentation and choose which progress fields, style, and theme are used as defaults. The Settings row stays compact when the option is off. Turning it off leaves pinned launcher widgets in place with a disabled-state display; it does not remove widgets or stop the app's normal study tracking and daily reminders.
+
+When adding a widget through Android's launcher picker, the native **Customize Your Widget** screen saves selected content, style, and theme against that unique Android widget ID. Multiple instances can therefore use different fields and appearance. Android 12 and newer expose the reconfigure capability where the launcher supports it; on older launchers, remove and add a widget again to choose another configuration. Global default changes do not overwrite a previously saved instance-specific choice.
+
+The widget adapts its spacing and visible secondary fields to the size reported by the launcher. The launcher still controls placement, resizing bounds, and exact refresh scheduling.
+
 ## Refresh and data behavior
 
 - Progress is copied from the existing `math-app-streak-v1` daily record. It is not stored in a second target-tracking system.
