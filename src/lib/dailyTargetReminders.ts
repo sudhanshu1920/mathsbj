@@ -224,30 +224,36 @@ let lastWidgetPayloadSignature = '';
 let lastHomeWidgetPreferencesSignature = '';
 let widgetSyncQueue: Promise<void> = Promise.resolve();
 
-export const syncHomeWidgetPreferences = async (): Promise<boolean> => {
-  const settings = getSettings();
-  const mode = getMode();
-  const theme = THEMES.find((item) => item.id === getTheme()) ?? THEMES[0];
-  const accentColor = settings.homeWidgetTheme === 'violet' ? '#B8A0FF' : theme.swatch[1];
-  const payload = {
-    enabled: settings.homeScreenWidgetsEnabled,
-    contentJson: JSON.stringify(settings.homeWidgetContent),
-    style: settings.homeWidgetStyle,
-    theme: settings.homeWidgetTheme,
-    accentColor,
-    mode,
-  };
-  if (!Capacitor.isNativePlatform()) return true;
-  const signature = JSON.stringify(payload);
-  if (signature === lastHomeWidgetPreferencesSignature) return true;
-  try {
-    const result = await NativeNotifications.setHomeWidgetPreferences(payload);
-    if (result.synced !== true) return false;
-    lastHomeWidgetPreferencesSignature = signature;
-    return true;
-  } catch {
-    return false;
-  }
+let homeWidgetPreferencesQueue: Promise<boolean> = Promise.resolve(true);
+
+export const syncHomeWidgetPreferences = (): Promise<boolean> => {
+  if (!Capacitor.isNativePlatform()) return Promise.resolve(true);
+  // Serialize native preference writes and resolve the newest persisted state last.
+  homeWidgetPreferencesQueue = homeWidgetPreferencesQueue.catch(() => false).then(async () => {
+    const settings = getSettings();
+    const mode = getMode();
+    const theme = THEMES.find((item) => item.id === getTheme()) ?? THEMES[0];
+    const accentColor = settings.homeWidgetTheme === 'violet' ? '#B8A0FF' : theme.swatch[1];
+    const payload = {
+      enabled: settings.homeScreenWidgetsEnabled,
+      contentJson: JSON.stringify(settings.homeWidgetContent),
+      style: settings.homeWidgetStyle,
+      theme: settings.homeWidgetTheme,
+      accentColor,
+      mode,
+    };
+    const signature = JSON.stringify(payload);
+    if (signature === lastHomeWidgetPreferencesSignature) return true;
+    try {
+      const result = await NativeNotifications.setHomeWidgetPreferences(payload);
+      if (result.synced !== true) return false;
+      lastHomeWidgetPreferencesSignature = signature;
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  return homeWidgetPreferencesQueue;
 };
 
 const queueHomeWidgetSync = (force = false): void => {
@@ -485,7 +491,6 @@ export const initializeBackgroundNotifications = (): (() => void) => {
     }
   };
   const onResume = () => {
-    lastHomeWidgetPreferencesSignature = '';
     void syncHomeWidgetPreferences();
     queueHomeWidgetSync(true);
     void queueNativeSync(true);
