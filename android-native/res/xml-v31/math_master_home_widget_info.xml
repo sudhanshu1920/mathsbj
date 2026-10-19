@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:label="@string/math_master_home_widget_label"
-    android:initialLayout="@layout/math_master_home_widget"
-    android:description="@string/math_master_home_widget_description"
+    android:label="@string/math_master_widget_hero_wide_label"
+    android:initialLayout="@layout/math_master_widget_hero_wide_regular"
+    android:description="@string/math_master_widget_hero_wide_description"
     android:previewLayout="@layout/math_master_home_widget"
     android:configure="com.sudhanshu.mathsbj.MathMasterWidgetConfigActivity"
     android:minWidth="110dp"
