@@ -201,6 +201,7 @@ interface MathMasterNotificationsPlugin {
     contentJson: string;
     style: string;
     theme: string;
+    composition: string;
     accentColor: string;
     appAccentColor: string;
     mode: string;
@@ -242,6 +243,7 @@ export const syncHomeWidgetPreferences = (): Promise<boolean> => {
       contentJson: JSON.stringify(settings.homeWidgetContent),
       style: settings.homeWidgetStyle,
       theme: settings.homeWidgetTheme,
+      composition: settings.homeWidgetComposition,
       accentColor,
       appAccentColor,
       mode,

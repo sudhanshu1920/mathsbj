@@ -99,9 +99,10 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(widgetInfo, /label="@string\/math_master_home_widget_label"/);
   assert.match(widgetInfoV31, /previewLayout="@layout\/math_master_home_widget"/);
   assert.match(widgetStrings, /Math Master Progress/);
-  assert.match(widgetInfo, /minWidth="180dp"/);
-  assert.match(widgetInfo, /minHeight="150dp"/);
-  assert.match(widgetInfo, /minResizeHeight="140dp"/);
+  assert.match(widgetInfo, /minWidth="110dp"/);
+  assert.match(widgetInfo, /minHeight="80dp"/);
+  assert.match(widgetInfo, /minResizeWidth="95dp"/);
+  assert.match(widgetInfo, /minResizeHeight="70dp"/);
   assert.match(widgetLayout, /widget_disabled_text/);
   assert.match(lightWidgetBackground, /#C9F4F7FC/);
   assert.equal(completionWidgetBackgrounds.length, 7);

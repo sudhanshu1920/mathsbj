@@ -3,7 +3,7 @@ import { m as motion, AnimatePresence } from 'framer-motion';
 import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, LayoutGrid, Eye } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSettings, setSound, setVibration, setKeyboardShortcuts, setHomeScreenWidgetsEnabled, setHomeWidgetContent, setHomeWidgetStyle, setHomeWidgetTheme, type AppSettings, type HomeWidgetContent, type HomeWidgetStyle, type HomeWidgetTheme } from '@/lib/settings';
+import { getSettings, setSound, setVibration, setKeyboardShortcuts, setHomeScreenWidgetsEnabled, setHomeWidgetContent, setHomeWidgetStyle, setHomeWidgetTheme, setHomeWidgetComposition, HOME_WIDGET_COMPOSITIONS, type AppSettings, type HomeWidgetContent, type HomeWidgetStyle, type HomeWidgetTheme, type HomeWidgetComposition } from '@/lib/settings';
 import { getStreak, setTarget, todayStr, type StreakState } from '@/lib/streak';
 import { isGuest, setGuest } from '@/lib/guest';
 import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
@@ -80,6 +80,24 @@ const SettingsPanel = () => {
     };
   });
 
+  const compositionArtPosition: Record<HomeWidgetComposition, string> = {
+    auto: '0% 0%',
+    hero_wide: '0% 0%',
+    compact_green: '50% 0%',
+    square_math_bot: '100% 0%',
+    medium_study: '0% 100%',
+    square_cosmic: '50% 100%',
+    extra_wide_weekly: '100% 100%',
+    minimal_progress: '0% 0%',
+  };
+  const widgetPreviewArtStyle = settings.homeWidgetComposition === 'minimal_progress'
+    ? undefined
+    : {
+        backgroundImage: `linear-gradient(100deg, ${mode === 'light' ? 'rgba(245, 248, 255, 0.86), rgba(18, 40, 64, 0.18)' : 'rgba(3, 10, 25, 0.68), rgba(6, 20, 34, 0.3)'}), url('/math_master_widget_atlas.webp')`,
+        backgroundSize: 'cover, 300% 200%',
+        backgroundPosition: `center, ${compositionArtPosition[settings.homeWidgetComposition]}`,
+        backgroundRepeat: 'no-repeat, no-repeat',
+      };
   const widgetPreviewSurfaceClass = settings.homeWidgetTheme === 'violet'
     ? mode === 'light'
       ? 'border-violet-300/60 bg-gradient-to-br from-violet-50/85 via-violet-100/65 to-indigo-100/50 text-violet-950 shadow-violet-950/10'
@@ -355,6 +373,33 @@ const SettingsPanel = () => {
                 </div>
 
                 <div>
+                  <p className="mb-2 text-xs font-semibold text-muted-foreground">Widget Design</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {HOME_WIDGET_COMPOSITIONS.map((option) => {
+                      const selected = settings.homeWidgetComposition === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => {
+                            setSettingsState(setHomeWidgetComposition(option.id));
+                            void syncHomeWidgetPreferences();
+                          }}
+                          className={`rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            selected
+                              ? 'border-primary/70 bg-primary/10 text-primary'
+                              : 'border-border/70 bg-transparent text-muted-foreground hover:border-primary/40'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
                   <p className="mb-2 text-xs font-semibold text-muted-foreground">Widget Style</p>
                   <div className="flex flex-wrap gap-1.5">
                     {WIDGET_STYLES.map((option) => {
@@ -426,6 +471,8 @@ const SettingsPanel = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
                         data-widget-preview-surface
+                        data-widget-composition={settings.homeWidgetComposition}
+                        style={widgetPreviewArtStyle}
                         className={`mt-2 ${widgetPreviewRadiusClass} ${widgetPreviewPaddingClass} border shadow-lg backdrop-blur-xl ${widgetPreviewSurfaceClass}`}
                       >
                         {settings.homeWidgetContent.includes('appIdentity') && (

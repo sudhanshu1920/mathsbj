@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { normalizeRemoteViewsLayout } from "./configure-android-notifications.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java");
@@ -15,11 +16,19 @@ const bridge = read("src/lib/dailyTargetReminders.ts");
 const config = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java");
 const settings = read("src/lib/settings.ts");
 const settingsPanel = read("src/components/SettingsPanel.tsx");
-const layouts = [
+const compositionIds = [
+  "hero_wide", "compact_green", "square_math_bot", "medium_study",
+  "square_cosmic", "extra_wide_weekly", "minimal_progress",
+];
+const sizeVariants = ["compact", "regular", "wide"];
+const compositionLayoutPaths = compositionIds.flatMap((composition) =>
+  sizeVariants.map((size) => `android-native/res/layout/math_master_widget_${composition}_${size}.xml`));
+const legacyLayoutPaths = [
   "android-native/res/layout/math_master_home_widget.xml",
   "android-native/res/layout/math_master_home_widget_compact.xml",
   "android-native/res/layout/math_master_home_widget_wide.xml",
-].map(read);
+];
+const layouts = [...legacyLayoutPaths, ...compositionLayoutPaths].map(read);
 
 test("all responsive layouts preserve selectable fields and remove the launcher logo", () => {
   const ids = [
@@ -29,6 +38,10 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
     "widget_progress_percent",
     "widget_progress_bar",
     "widget_flex_spacer",
+    "widget_artwork",
+    "widget_artwork_overlay",
+    "widget_progress_ring",
+    "widget_content",
     "widget_study_time_text",
     "widget_remaining_text",
     "widget_streak_text",
@@ -47,6 +60,7 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
       assert.match(layout, new RegExp(`@\\+id/widget_week_status_${i}\\b`));
     }
     assert.equal(layout.includes("@mipmap/ic_launcher"), false);
+    assert.doesNotMatch(normalizeRemoteViewsLayout(layout), /<View\b/, "packaged RemoteViews layouts must not use plain View classes");
     assert.equal(layout.includes("widget_progress_text"), false);
   }
   assert.match(layouts[2], /widget_lower_row[\s\S]*android:orientation="horizontal"/);
@@ -60,14 +74,15 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(provider, /boolean showWeekly = widgetsEnabled && selected\.contains\("weekly"\);/);
   assert.match(provider, /boolean showUpdateStatus = widgetsEnabled && selected\.contains\("updateStatus"\);/);
   assert.match(provider, /setViewVisibility\(R\.id\.widget_week_section, showWeekly \? View\.VISIBLE : View\.GONE\)/);
-  assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_bar, showProgress \? View\.VISIBLE : View\.GONE\)/);
-  assert.match(provider, /R\.layout\.math_master_home_widget_compact/);
-  assert.match(provider, /R\.layout\.math_master_home_widget_wide/);
+  assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_bar, showProgress && !useProgressRing \? View\.VISIBLE : View\.GONE\)/);
+  assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_ring, useProgressRing \? View\.VISIBLE : View\.GONE\)/);
+  assert.match(provider, /R\.layout\.math_master_widget_minimal_progress_compact/);
+  assert.match(provider, /R\.layout\.math_master_widget_hero_wide_wide/);
   assert.equal(provider.includes("showProgress && !smallWidget"), false);
   assert.equal(provider.includes('selected.contains("remaining") &&'), false);
   assert.match(provider, /OPTION_APPWIDGET_SIZES/);
   assert.match(provider, /new RemoteViews\(viewsBySize\)/);
-  assert.match(provider, /getWidgetLayoutForDimensions\(widthDp, heightDp\)/);
+  assert.match(provider, /getWidgetLayoutForDimensions\(widthDp, heightDp, composition\)/);
   assert.match(provider, /heightDp > 0 && heightDp < 135/);
   assert.match(provider, /isTallWidget\(widthDp, heightDp\) \|\| isWideWidget\(widthDp, heightDp\)/);
   assert.match(config, /"random", "Random Premium Theme"/);
@@ -137,7 +152,7 @@ test("responsive typography and weighted spacing adapt to selected fields and av
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_lower_row,"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_side_column,"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer,"));
-  assert.ok(provider.includes('views.setInt(R.id.widget_root, "setGravity",'));
+  assert.ok(provider.includes('views.setInt(R.id.widget_content, "setGravity",'));
   assert.ok(provider.includes("distributeVerticalSpace ? Gravity.TOP : Gravity.CENTER_VERTICAL"));
   for (const layout of layouts) {
     assert.ok(layout.includes('android:id="@+id/widget_flex_spacer"'));
@@ -172,7 +187,55 @@ test("every native widget provider and responsive layout is registered and copie
   assert.ok(android31WidgetInfo.includes('android:widgetFeatures="reconfigurable"'));
   assert.ok(provider.includes("OPTION_APPWIDGET_SIZES"));
   assert.ok(provider.includes("new RemoteViews(viewsBySize)"));
-  assert.ok(provider.includes("getWidgetLayoutForDimensions(widthDp, heightDp)"));
+  assert.ok(provider.includes("getWidgetLayoutForDimensions(widthDp, heightDp, composition)"));
+});
+
+test("all seven design compositions have three responsive XML variants and packaged art resources", () => {
+  assert.equal(compositionLayoutPaths.length, 21);
+  for (const composition of compositionIds) {
+    assert.ok(provider.includes(`case "${composition}":`), `provider must route ${composition}`);
+    assert.ok(configureAndroid.includes(`drawable/math_master_widget_art_overlay_${composition}.xml`));
+    for (const size of sizeVariants) {
+      const path = `android-native/res/layout/math_master_widget_${composition}_${size}.xml`;
+      assert.ok(configureAndroid.includes(`'layout/math_master_widget_${composition}_${size}.xml'`), `${path} must be copied`);
+      const layout = read(path);
+      for (const id of ["widget_root", "widget_content", "widget_artwork", "widget_artwork_overlay", "widget_progress_ring", "widget_progress_percent", "widget_target_value", "widget_progress_bar", "widget_week_strip"]) {
+        assert.ok(layout.includes(`@+id/${id}`), `${path} must contain ${id}`);
+      }
+      assert.ok(layout.includes(`math_master_widget_art_overlay_${composition}`));
+    }
+  }
+  assert.ok(configureAndroid.includes("'drawable-nodpi/math_master_widget_atlas.webp'"));
+  assert.ok(existsSync(new URL("../android-native/res/drawable-nodpi/math_master_widget_atlas.webp", import.meta.url)));
+  assert.ok(existsSync(new URL("../public/math_master_widget_atlas.webp", import.meta.url)));
+  assert.ok(read("src/lib/settings.ts").includes("HOME_WIDGET_COMPOSITIONS"));
+  assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
+  assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
+  assert.ok(provider.includes("getWidgetArtwork(context, composition, widthDp, heightDp)"));
+});
+
+test("widget artwork uses sampled region decoding and bounded output renditions", () => {
+  assert.ok(provider.includes("BitmapRegionDecoder"));
+  assert.ok(provider.includes("decoder.decodeRegion(new Rect(left, top, right, bottom), options)"));
+  assert.ok(provider.includes("options.inSampleSize = sampleSize"));
+  assert.ok(provider.includes("outputWidth = Math.max(1, Math.min(desiredWidth"));
+  assert.ok(provider.includes("outputHeight = Math.max(1, Math.min(300"));
+  assert.ok(provider.includes("WIDGET_ARTWORK_CACHE"));
+  assert.ok(provider.includes("catch (IOException | RuntimeException exception)"));
+  assert.equal(
+    provider.includes("BitmapFactory.decodeResource(context.getResources(), R.drawable.math_master_widget_atlas)"),
+    false,
+    "the full-resolution artwork atlas must not be decoded into one ARGB bitmap",
+  );
+});
+
+test("native widget configuration preview uses the selected composition artwork and live metrics", () => {
+  assert.match(provider, /public static Bitmap getConfigurationPreviewArtwork/);
+  assert.ok(config.includes("MathMasterHomeWidgetProvider.getConfigurationPreviewArtwork("));
+  assert.ok(config.includes("previewArtwork.setImageBitmap(artwork)"));
+  assert.ok(config.includes("previewMetric.setText(primaryMetric)"));
+  assert.ok(config.includes("previewDesignTitle.setText("));
+  assert.ok(config.includes("previewSubtitle.setText(android.text.TextUtils.join"));
 });
 
 test("package updates refresh all existing pinned widget instances without replacing their saved configuration", () => {

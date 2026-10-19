@@ -235,6 +235,14 @@ async function configureFirebase(root, encodedConfig) {
   return { enabled: true, projectId: config.project_info.project_id };
 }
 
+/**
+ * Android RemoteViews cannot reliably inflate an arbitrary plain <View> in launcher widgets.
+ * Replace the artwork overlay with a supported FrameLayout before packaging native resources.
+ */
+export function normalizeRemoteViewsLayout(xml) {
+  return xml.replace(/<View(?=\s+android:id="@\+id\/widget_artwork_overlay")/g, '<FrameLayout');
+}
+
 export async function configureAndroidNotifications(androidRoot, { firebaseJsonBase64 = '' } = {}) {
   const root = path.resolve(androidRoot);
   const sourceFiles = [
@@ -254,6 +262,36 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'layout/math_master_home_widget.xml',
     'layout/math_master_home_widget_compact.xml',
     'layout/math_master_home_widget_wide.xml',
+    'drawable/math_master_widget_panel.xml',
+    'drawable/math_master_widget_art_overlay_hero_wide.xml',
+    'drawable/math_master_widget_art_overlay_compact_green.xml',
+    'drawable/math_master_widget_art_overlay_square_math_bot.xml',
+    'drawable/math_master_widget_art_overlay_medium_study.xml',
+    'drawable/math_master_widget_art_overlay_square_cosmic.xml',
+    'drawable/math_master_widget_art_overlay_extra_wide_weekly.xml',
+    'drawable/math_master_widget_art_overlay_minimal_progress.xml',
+    'drawable-nodpi/math_master_widget_atlas.webp',
+    'layout/math_master_widget_hero_wide_compact.xml',
+    'layout/math_master_widget_hero_wide_regular.xml',
+    'layout/math_master_widget_hero_wide_wide.xml',
+    'layout/math_master_widget_compact_green_compact.xml',
+    'layout/math_master_widget_compact_green_regular.xml',
+    'layout/math_master_widget_compact_green_wide.xml',
+    'layout/math_master_widget_square_math_bot_compact.xml',
+    'layout/math_master_widget_square_math_bot_regular.xml',
+    'layout/math_master_widget_square_math_bot_wide.xml',
+    'layout/math_master_widget_medium_study_compact.xml',
+    'layout/math_master_widget_medium_study_regular.xml',
+    'layout/math_master_widget_medium_study_wide.xml',
+    'layout/math_master_widget_square_cosmic_compact.xml',
+    'layout/math_master_widget_square_cosmic_regular.xml',
+    'layout/math_master_widget_square_cosmic_wide.xml',
+    'layout/math_master_widget_extra_wide_weekly_compact.xml',
+    'layout/math_master_widget_extra_wide_weekly_regular.xml',
+    'layout/math_master_widget_extra_wide_weekly_wide.xml',
+    'layout/math_master_widget_minimal_progress_compact.xml',
+    'layout/math_master_widget_minimal_progress_regular.xml',
+    'layout/math_master_widget_minimal_progress_wide.xml',
     'drawable/math_master_home_widget_background.xml',
     'drawable/math_master_home_widget_background_light.xml',
     'drawable/math_master_home_widget_background_complete_0.xml',
@@ -278,7 +316,12 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
   for (const resource of widgetResources) {
     const destination = path.join(root, 'app/src/main/res', resource);
     await mkdir(path.dirname(destination), { recursive: true });
-    await copyFile(path.join(SOURCE_NATIVE_RES_DIR, resource), destination);
+    if (resource.startsWith('layout/')) {
+      const sourceXml = await readRequired(path.join(SOURCE_NATIVE_RES_DIR, resource), resource);
+      await writeFile(destination, normalizeRemoteViewsLayout(sourceXml));
+    } else {
+      await copyFile(path.join(SOURCE_NATIVE_RES_DIR, resource), destination);
+    }
   }
 
   const mainActivityPath = path.join(targetPackageDir, 'MainActivity.java');
