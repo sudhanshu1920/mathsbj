@@ -762,11 +762,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             views.setImageViewBitmap(R.id.widget_progress_ring, createProgressRing(context, progress, accentColor));
             views.setContentDescription(R.id.widget_progress_ring, progress + "% completion progress");
         }
-        boolean hasPrimaryContent = showProgress || showTarget;
-        boolean hasSupportingContent = showStudyTime || showRemaining || showStreak || showWeekly || showUpdateStatus;
-        int supportingGroupCount = (showStudyTime || showRemaining ? 1 : 0)
-            + (showStreak ? 1 : 0) + (showWeekly ? 1 : 0) + (showUpdateStatus ? 1 : 0);
-        int effectiveHeightDp = heightDp > 0 ? heightDp : 150;
         // A weighted spacer separated the primary metric from supporting details and created
         // a large empty band in launcher screenshots. Keep each composition grouped and centered.
         views.setViewVisibility(R.id.widget_flex_spacer, View.GONE);
