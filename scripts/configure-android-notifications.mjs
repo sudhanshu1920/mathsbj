@@ -274,7 +274,7 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'drawable/math_master_widget_art_overlay_square_cosmic.xml',
     'drawable/math_master_widget_art_overlay_extra_wide_weekly.xml',
     'drawable/math_master_widget_art_overlay_minimal_progress.xml',
-    'drawable-nodpi/math_master_widget_atlas.webp',
+    'drawable-nodpi/math_master_widget_atlas.png',
     'layout/math_master_widget_hero_wide_compact.xml',
     'layout/math_master_widget_hero_wide_regular.xml',
     'layout/math_master_widget_hero_wide_wide.xml',
