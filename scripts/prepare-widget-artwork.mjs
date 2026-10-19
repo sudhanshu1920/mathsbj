@@ -1,49 +1,48 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, stat } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(SCRIPT_DIR, "..");
-const PART_COUNT = 17;
-const PART_DIR = path.join(ROOT, "assets", "widget-art", "atlas-parts");
+const SVG_SOURCE = path.join(ROOT, "public", "math_master_widget_atlas.svg");
+const NATIVE_PNG = path.join(ROOT, "android-native", "res", "drawable-nodpi", "math_master_widget_atlas.png");
 
 export async function prepareWidgetArtwork() {
-  const chunks = [];
-  for (let index = 1; index <= PART_COUNT; index += 1) {
-    const partName = `atlas-part-${String(index).padStart(2, "0")}.b64`;
-    const chunk = (await readFile(path.join(PART_DIR, partName), "utf8")).trim();
-    if (!chunk || !/^[A-Za-z0-9+/]+={0,2}$/.test(chunk)) {
-      throw new Error(`Widget artwork source chunk is invalid: ${partName}`);
-    }
-    chunks.push(chunk);
+  await access(SVG_SOURCE);
+  await mkdir(path.dirname(NATIVE_PNG), { recursive: true });
+
+  // Render the resolution-independent 3x2 vector atlas at 3840x1280 for Android.
+  // The runtime BitmapRegionDecoder samples individual panels, so the full PNG is never
+  // decoded into a full-sized ARGB bitmap during widget refreshes.
+  const result = spawnSync("rsvg-convert", [
+    "-w", "3840",
+    "-h", "1280",
+    "-o", NATIVE_PNG,
+    SVG_SOURCE,
+  ], { encoding: "utf8" });
+
+  if (result.error) {
+    throw new Error("Android widget artwork requires rsvg-convert (install librsvg2-bin).");
+  }
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || "").trim();
+    throw new Error("Unable to rasterize the vector widget atlas." + (detail ? " " + detail : ""));
   }
 
-  const encoded = chunks.join("");
-  if (encoded.length % 4 !== 0) {
-    throw new Error("Widget artwork base64 source has an invalid encoded length");
+  const [bytes, info] = await Promise.all([readFile(NATIVE_PNG), stat(NATIVE_PNG)]);
+  const validPng = bytes.length > 100_000
+    && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  if (!validPng || info.size !== bytes.length) {
+    throw new Error("Generated widget artwork PNG is missing, truncated, or invalid.");
   }
-  const artwork = Buffer.from(encoded, "base64");
-  if (artwork.length < 100_000
-      || artwork.toString("ascii", 0, 4) !== "RIFF"
-      || artwork.toString("ascii", 8, 12) !== "WEBP") {
-    throw new Error("Widget artwork source is missing, truncated, or is not a valid WebP atlas");
-  }
-
-  const destinations = [
-    path.join(ROOT, "public", "math_master_widget_atlas.webp"),
-    path.join(ROOT, "android-native", "res", "drawable-nodpi", "math_master_widget_atlas.webp"),
-  ];
-  for (const destination of destinations) {
-    await mkdir(path.dirname(destination), { recursive: true });
-    await writeFile(destination, artwork);
-  }
-  return { bytes: artwork.length, destinations };
+  return { bytes: info.size, width: 3840, height: 1280, destination: NATIVE_PNG };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   prepareWidgetArtwork()
-    .then(({ bytes, destinations }) => {
-      console.log(`Prepared high-resolution widget artwork (${bytes} bytes) for ${destinations.length} build targets.`);
+    .then(({ bytes, width, height }) => {
+      console.log(`Prepared vector widget artwork at ${width}x${height} (${bytes} bytes).`);
     })
     .catch((error) => {
       const message = error instanceof Error ? error.message : "Unknown artwork preparation error";
