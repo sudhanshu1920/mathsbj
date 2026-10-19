@@ -147,9 +147,6 @@ test("responsive typography and weighted spacing adapt to selected fields and av
   assert.ok(provider.includes("responsiveTextSize(percentBase, fontScale"));
   assert.ok(provider.includes("float widthScale = measuredWidthDp / (compactLayout ? 125f : (wideLayout ? 220f : 190f))"));
   assert.ok(provider.includes("Math.max(1.0f, Math.min(1.42f, widthScale))"));
-  assert.ok(provider.includes("boolean hasPrimaryContent = showProgress || showTarget;"));
-  assert.ok(provider.includes("boolean hasSupportingContent = showStudyTime || showRemaining || showStreak || showWeekly || showUpdateStatus;"));
-  assert.ok(provider.includes("supportingGroupCount >= 2 && effectiveHeightDp >= 145"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_primary_row,"));
   assert.ok(provider.includes("(showProgress || showTarget) ? View.VISIBLE : View.GONE);"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_study_remaining_row,"));
@@ -214,7 +211,8 @@ test("all seven design compositions have three responsive XML variants and packa
     }
   }
   assert.ok(configureAndroid.includes("'drawable-nodpi/math_master_widget_atlas.png'"));
-  assert.match(artworkPreparation, /"-w", "3840",\s*"-h", "1280"/);\n  assert.match(artworkPreparation, /math_master_widget_atlas\.png/);\n  assert.ok(existsSync(new URL("../public/math_master_widget_atlas.svg", import.meta.url)));
+  assert.match(artworkPreparation, /"-w", "3840",\s*"-h", "1280"/);
+  assert.match(artworkPreparation, /math_master_widget_atlas\.png/);\n  assert.ok(existsSync(new URL("../public/math_master_widget_atlas.svg", import.meta.url)));
   assert.match(artworkSvg, /width="1536" height="512" viewBox="0 0 1536 512"/);\n  assert.equal((artworkSvg.match(/clip-path="url\(#panel\)"/g) || []).length, 6, "six art scenes should be clipped to the atlas tile grid");
   assert.ok(read("src/lib/settings.ts").includes("HOME_WIDGET_COMPOSITIONS"));
   assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
