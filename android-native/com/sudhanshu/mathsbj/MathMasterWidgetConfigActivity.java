@@ -11,6 +11,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -38,6 +40,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private RadioGroup styleGroup;
     private RadioGroup themeGroup;
     private TextView previewSummary;
+    private FrameLayout previewPanel;
+    private ImageView previewArtwork;
     private int widgetId = INVALID_WIDGET_ID;
 
     private static final String[][] CONTENT_OPTIONS = {
@@ -59,6 +63,16 @@ public class MathMasterWidgetConfigActivity extends Activity {
         {"violet", "Midnight Violet", "#B8A0FF"},
         {"sapphire", "Sapphire Glass", "#698CFF"},
         {"aurora", "Aurora Glass", "#A8E063"}
+    };
+
+    private static final String[][] WIDGET_STYLES = {
+        {"hero_wide", "Hero Wide · Scenic Dashboard"},
+        {"compact_green", "Compact Green · Botanical Glass"},
+        {"square_math_bot", "Square Math Bot · Electric Blue"},
+        {"medium_study", "Medium Study · Rose Violet"},
+        {"square_cosmic", "Square Cosmic · Space Glass"},
+        {"extra_wide_weekly", "Extra-Wide Weekly · Panoramic"},
+        {"minimal_progress", "Minimal Progress · Graphite Mint"}
     };
 
     @Override
@@ -102,12 +116,15 @@ public class MathMasterWidgetConfigActivity extends Activity {
             content.addView(checkBox, matchWrap());
         }
 
-        addSectionLabel(content, "Widget Style");
+        addSectionLabel(content, "Widget Design");
         styleGroup = new RadioGroup(this);
-        styleGroup.setOrientation(RadioGroup.HORIZONTAL);
-        addRadio(styleGroup, "glass", "Glass", preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "glass")));
-        addRadio(styleGroup, "compact", "Compact", preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "glass")));
-        addRadio(styleGroup, "minimal", "Minimal", preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "glass")));
+        styleGroup.setOrientation(RadioGroup.VERTICAL);
+        String savedStyle = MathMasterHomeWidgetProvider.normalizeWidgetDesign(
+            preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "hero_wide"))
+        );
+        for (String[] option : WIDGET_STYLES) {
+            addRadio(styleGroup, option[0], option[1], savedStyle);
+        }
         styleGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
         content.addView(styleGroup, matchWrap());
 
@@ -124,13 +141,27 @@ public class MathMasterWidgetConfigActivity extends Activity {
         themeGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
         content.addView(themeGroup, matchWrap());
 
-        addSectionLabel(content, "Preview");
+        addSectionLabel(content, "Live Preview");
+        previewPanel = new FrameLayout(this);
+        previewPanel.setMinimumHeight(dp(204));
+        previewPanel.setBackgroundColor(Color.parseColor("#211F35"));
+        previewArtwork = new ImageView(this);
+        previewArtwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        previewArtwork.setAlpha(0.82f);
+        previewPanel.addView(previewArtwork, new FrameLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT
+        ));
         previewSummary = new TextView(this);
         previewSummary.setTextColor(Color.parseColor("#F5F3FF"));
         previewSummary.setTextSize(12);
         previewSummary.setPadding(dp(14), dp(12), dp(14), dp(12));
-        previewSummary.setBackgroundColor(Color.parseColor("#211F35"));
-        content.addView(previewSummary, matchWrap());
+        previewSummary.setBackgroundColor(Color.TRANSPARENT);
+        previewSummary.setGravity(Gravity.CENTER_VERTICAL);
+        previewSummary.setMaxLines(16);
+        previewPanel.addView(previewSummary, new FrameLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT
+        ));
+        content.addView(previewPanel, matchWrap());
         updatePreview();
 
         LinearLayout actions = new LinearLayout(this);
@@ -179,13 +210,13 @@ public class MathMasterWidgetConfigActivity extends Activity {
     }
 
     private void updatePreview() {
-        if (previewSummary == null) return;
+        if (previewSummary == null || previewPanel == null || previewArtwork == null) return;
         List<String> selected = new ArrayList<>();
         for (String[] option : CONTENT_OPTIONS) {
             CheckBox checkBox = contentChecks.get(option[0]);
             if (checkBox != null && checkBox.isChecked()) selected.add(option[0]);
         }
-        String style = selectedRadioValue(styleGroup, "glass");
+        String style = MathMasterHomeWidgetProvider.normalizeWidgetDesign(selectedRadioValue(styleGroup, "hero_wide"));
         String theme = selectedRadioValue(themeGroup, "app");
         if (selected.isEmpty()) {
             previewSummary.setText("Select at least one field");
@@ -252,13 +283,15 @@ public class MathMasterWidgetConfigActivity extends Activity {
         int previewBackground = appTheme
             ? (light ? Color.parseColor("#F4F7FC") : Color.parseColor("#211F35"))
             : Color.parseColor(themeBackgroundColor(resolvedTheme, light));
+        previewPanel.setBackgroundColor(previewBackground);
+        previewArtwork.setImageResource(MathMasterHomeWidgetProvider.getWidgetArtworkResource(style));
         previewSummary.setTextColor(light ? Color.parseColor("#263247") : Color.parseColor("#F5F3FF"));
-        previewSummary.setBackgroundColor(previewBackground);
+        previewSummary.setBackgroundColor(Color.TRANSPARENT);
         String themeLabel = "random".equals(theme)
             ? "Random Premium Theme" + (isPaletteTheme(resolvedTheme) ? " · " + themeLabel(resolvedTheme) : "")
             : themeLabel(resolvedTheme);
         previewSummary.setText(android.text.TextUtils.join("\n", rows)
-            + "\n" + capitalize(style) + "  ·  " + themeLabel);
+            + "\n" + widgetStyleLabel(style) + "  ·  " + themeLabel);
     }
 
     private void saveConfiguration() {
@@ -272,7 +305,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             return;
         }
 
-        String style = selectedRadioValue(styleGroup, "glass");
+        String style = MathMasterHomeWidgetProvider.normalizeWidgetDesign(selectedRadioValue(styleGroup, "hero_wide"));
         String themeMode = selectedRadioValue(themeGroup, "app");
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String previousThemeMode = preferences.getString("instance_" + widgetId + "_themeMode", "");
@@ -298,6 +331,13 @@ public class MathMasterWidgetConfigActivity extends Activity {
         result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
         setResult(RESULT_OK, result);
         finish();
+    }
+
+    private static String widgetStyleLabel(String style) {
+        for (String[] option : WIDGET_STYLES) {
+            if (option[0].equals(style)) return option[1];
+        }
+        return "Hero Wide · Scenic Dashboard";
     }
 
     private static boolean isPaletteTheme(String theme) {
