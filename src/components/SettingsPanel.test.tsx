@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   setTheme: vi.fn(),
   setMode: vi.fn(),
   setHomeWidgetComposition: vi.fn(),
+  setHomeWidgetComposition: vi.fn(),
   setGuest: vi.fn(),
   checkForAppUpdate: vi.fn(),
   announceUpdateAvailable: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("@/lib/settings", () => {
     homeWidgetStyle: "glass",
     homeWidgetTheme: "app",
     homeWidgetComposition: "auto",
+    homeWidgetComposition: "auto",
   });
   return {
     getSettings: base,
@@ -45,6 +47,20 @@ vi.mock("@/lib/settings", () => {
     setHomeWidgetContent: (homeWidgetContent: string[]) => ({ ...base(), homeWidgetContent }),
     setHomeWidgetStyle: (homeWidgetStyle: string) => ({ ...base(), homeWidgetStyle }),
     setHomeWidgetTheme: (homeWidgetTheme: string) => ({ ...base(), homeWidgetTheme }),
+    setHomeWidgetComposition: (homeWidgetComposition: string) => {
+      mocks.setHomeWidgetComposition(homeWidgetComposition);
+      return { ...base(), homeWidgetComposition };
+    },
+    HOME_WIDGET_COMPOSITIONS: [
+      { id: "auto", label: "Auto Responsive" },
+      { id: "hero_wide", label: "Hero Wide · Sunset" },
+      { id: "compact_green", label: "Compact Green" },
+      { id: "square_math_bot", label: "Square Math Bot" },
+      { id: "medium_study", label: "Medium Study" },
+      { id: "square_cosmic", label: "Square Cosmic" },
+      { id: "extra_wide_weekly", label: "Extra-Wide Weekly" },
+      { id: "minimal_progress", label: "Minimal Progress" },
+    ],
     setHomeWidgetComposition: (homeWidgetComposition: string) => {
       mocks.setHomeWidgetComposition(homeWidgetComposition);
       return { ...base(), homeWidgetComposition };
@@ -194,6 +210,19 @@ describe("SettingsPanel compact controls", () => {
     expect(designButton).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
     expect(document.querySelector('[data-widget-composition="square_cosmic"]')).not.toBeNull();
+  });
+
+  it("exposes the seven native widget compositions and reflects the chosen default in the preview", () => {
+    render(<SettingsPanel />);
+
+    const designButton = screen.getByRole("button", { name: "Square Cosmic" });
+    fireEvent.click(designButton);
+    expect(mocks.setHomeWidgetComposition).toHaveBeenCalledWith("square_cosmic");
+    expect(designButton).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
+    expect(document.querySelector('[data-widget-composition="square_cosmic"]')).not.toBeNull();
+    expect(screen.getByText("Today's Target")).toBeInTheDocument();
   });
 
   it("lets the user select the weekly target tracker and previews seven real daily completion states", () => {
