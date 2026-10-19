@@ -189,8 +189,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     /** Maps old saved style identifiers to the closest premium design without losing instance settings. */
     public static String normalizeWidgetDesign(String style) {
         if ("glass".equals(style)) return "hero_wide";
-        if (isCompactDesign(style)) return "compact_green";
-        if (isMinimalDesign(style)) return "minimal_progress";
+        if ("compact".equals(style)) return "compact_green";
+        if ("minimal".equals(style)) return "minimal_progress";
         if (style != null && Arrays.asList(
             "hero_wide", "compact_green", "square_math_bot", "medium_study",
             "square_cosmic", "extra_wide_weekly", "minimal_progress"
