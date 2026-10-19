@@ -8,7 +8,7 @@ const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidget
 const bootReceiver = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java");
 const configureAndroid = read("scripts/configure-android-notifications.mjs");
 const artworkPreparation = read("scripts/prepare-widget-artwork.mjs");
-const artworkPartPaths = Array.from({ length: 9 }, (_, index) => "assets/widget-art/atlas-parts/atlas-part-" + String(index + 1).padStart(2, "0") + ".b64";
+const artworkPartPaths = Array.from({ length: 9 }, (_, index) => "assets/widget-art/atlas-parts/atlas-part-" + String(index + 1).padStart(2, "0") + ".b64");
 const legacyWidgetInfo = read("android-native/res/xml/math_master_home_widget_info.xml");
 const android31WidgetInfo = read("android-native/res/xml-v31/math_master_home_widget_info.xml");
 const widgetProviderFiles = readdirSync(new URL("../android-native/com/sudhanshu/mathsbj/", import.meta.url))
