@@ -2,4 +2,18 @@
 <resources>
     <string name="math_master_home_widget_label">Math Master Progress</string>
     <string name="math_master_home_widget_description">Daily target and study progress at a glance.</string>
+    <string name="math_master_widget_hero_wide_label">Math Master · Neon Hero Wide</string>
+    <string name="math_master_widget_hero_wide_description">Blue and cyan progress dashboard with a panoramic glass surface.</string>
+    <string name="math_master_widget_compact_green_label">Math Master · Emerald Compact</string>
+    <string name="math_master_widget_compact_green_description">Compact emerald glass progress ring and study streak.</string>
+    <string name="math_master_widget_square_math_bot_label">Math Master · Math Bot</string>
+    <string name="math_master_widget_square_math_bot_description">Square electric-blue mathematics progress dashboard.</string>
+    <string name="math_master_widget_medium_study_label">Math Master · Pink Study</string>
+    <string name="math_master_widget_medium_study_description">Rose and violet study progress with a soft glass finish.</string>
+    <string name="math_master_widget_square_cosmic_label">Math Master · Cosmic Neon</string>
+    <string name="math_master_widget_square_cosmic_description">Midnight-blue and violet cosmic progress dashboard.</string>
+    <string name="math_master_widget_extra_wide_weekly_label">Math Master · Extra-Wide Weekly</string>
+    <string name="math_master_widget_extra_wide_weekly_description">Panoramic seven-day study completion and streak dashboard.</string>
+    <string name="math_master_widget_minimal_progress_label">Math Master · Minimal Progress</string>
+    <string name="math_master_widget_minimal_progress_description">Compact graphite and mint progress summary.</string>
 </resources>
