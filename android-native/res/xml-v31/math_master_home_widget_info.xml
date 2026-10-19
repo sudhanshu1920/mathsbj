@@ -3,7 +3,7 @@
     android:label="@string/math_master_widget_hero_wide_label"
     android:initialLayout="@layout/math_master_widget_hero_wide_regular"
     android:description="@string/math_master_widget_hero_wide_description"
-    android:previewLayout="@layout/math_master_home_widget"
+    android:previewLayout="@layout/math_master_widget_hero_wide_regular"
     android:configure="com.sudhanshu.mathsbj.MathMasterWidgetConfigActivity"
     android:minWidth="110dp"
     android:minHeight="80dp"
