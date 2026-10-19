@@ -31,3 +31,22 @@ The current repository contains **one native launcher widget provider**: `MathMa
 ## Verification policy
 
 A passing source test or APK build means the implementation compiles and the tested source/resource paths are present. It does **not** prove that every launcher size renders without clipping. The table intentionally leaves real-launcher verification unverified until screenshots from supported Android launchers/devices are captured and reviewed.
+
+## Premium design and layout coverage
+
+| Composition | Intended appearance | Native layout variants | Artwork | Automated source/resource coverage | Physical launcher status |
+|---|---|---|---|---|---|
+| `hero_wide` | Blue/cyan scenic hero dashboard | compact, regular, wide | Atlas panel 1 | Provider routing, resource-copy and layout checks | **Unverified** |
+| `compact_green` | Emerald botanical glass with progress ring | compact, regular, wide | Atlas panel 2 | Provider routing, ring visibility and layout checks | **Unverified** |
+| `square_math_bot` | Navy educational/technical dashboard | compact, regular, wide | Atlas panel 3 | Provider routing, ring visibility and layout checks | **Unverified** |
+| `medium_study` | Rose/violet scenic study composition | compact, regular, wide | Atlas panel 4 | Provider routing and layout checks | **Unverified** |
+| `square_cosmic` | Midnight/cyan cosmic glass with ring | compact, regular, wide | Atlas panel 5 | Provider routing, ring visibility and layout checks | **Unverified** |
+| `extra_wide_weekly` | Panoramic seven-day tracker | compact, regular, wide | Atlas panel 6 | Provider routing, weekly-data and layout checks | **Unverified** |
+| `minimal_progress` | Graphite/emerald minimal metric surface | compact, regular, wide | No decorative bitmap by design | Provider routing and layout checks | **Unverified** |
+| `auto` | Select composition from actual reported dimensions | Maps to compact/regular/wide composition layouts | Composition-dependent | Responsive resolver and resource routing checks | **Unverified** |
+
+### Loading-error investigation and safe fallback
+
+The source resources contain a self-closing plain `View` used only as the artwork tint overlay. Plain generic `View` is not a safe choice in a launcher `RemoteViews` hierarchy. The Android resource-generation step normalizes that overlay to `FrameLayout` before packaging, and regression tests assert that normalized layouts have no remaining plain `View` tags. This is a source-level compatibility fix and is covered by CI resource compilation; actual device Logcat evidence for the user's original launcher failure is not available, so the specific runtime crash is **not yet device-confirmed**. Missing/corrupt optional art safely falls back to the native glass background and live metrics. Artwork now uses sampled region decoding with bounded output sizes to reduce full-atlas memory pressure.
+
+The automated matrix confirms source routing and build/resource coverage only. It does not prove that all composition/size combinations are free of clipping, launcher-specific inflation errors, or stale pinned-widget rendering. Those remain device/emulator verification items.

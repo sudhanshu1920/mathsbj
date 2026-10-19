@@ -244,6 +244,13 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return optimized;
     }
 
+    /** Returns a size-optimized sample for the in-app native widget configuration preview. */
+    public static Bitmap getConfigurationPreviewArtwork(Context context, String composition, int widthDp, int heightDp) {
+        String safeComposition = normalizeComposition(composition);
+        if ("auto".equals(safeComposition)) safeComposition = "hero_wide";
+        return getWidgetArtwork(context, safeComposition, Math.max(1, widthDp), Math.max(1, heightDp));
+    }
+
     private static Bitmap createProgressRing(Context context, int progress, int accentColor) {
         float density = context.getResources().getDisplayMetrics().density;
         int size = Math.max(96, Math.round(82f * density));

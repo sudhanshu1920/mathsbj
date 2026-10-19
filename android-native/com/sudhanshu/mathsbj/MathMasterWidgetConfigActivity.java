@@ -6,11 +6,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -39,6 +42,11 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private RadioGroup compositionGroup;
     private RadioGroup themeGroup;
     private TextView previewSummary;
+    private FrameLayout previewFrame;
+    private ImageView previewArtwork;
+    private TextView previewDesignTitle;
+    private TextView previewMetric;
+    private TextView previewSubtitle;
     private int widgetId = INVALID_WIDGET_ID;
 
     private static final String[][] CONTENT_OPTIONS = {
@@ -149,6 +157,66 @@ public class MathMasterWidgetConfigActivity extends Activity {
         content.addView(themeGroup, matchWrap());
 
         addSectionLabel(content, "Preview");
+        previewFrame = new FrameLayout(this);
+        GradientDrawable previewSurface = new GradientDrawable();
+        previewSurface.setColor(Color.parseColor("#211F35"));
+        previewSurface.setCornerRadius(dp(16));
+        previewSurface.setStroke(dp(1), Color.argb(75, 255, 255, 255));
+        previewFrame.setBackground(previewSurface);
+        previewFrame.setClipToOutline(true);
+        previewFrame.setElevation(dp(2));
+
+        previewArtwork = new ImageView(this);
+        previewArtwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        previewArtwork.setContentDescription("Artwork preview for the selected widget design");
+        previewArtwork.setVisibility(View.GONE);
+        previewFrame.addView(previewArtwork, new FrameLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+
+        View previewShade = new View(this);
+        GradientDrawable shade = new GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[] { Color.argb(20, 0, 0, 0), Color.argb(210, 5, 10, 24) });
+        shade.setCornerRadius(dp(16));
+        previewShade.setBackground(shade);
+        previewShade.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        previewFrame.addView(previewShade, new FrameLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+
+        LinearLayout previewOverlay = new LinearLayout(this);
+        previewOverlay.setOrientation(LinearLayout.VERTICAL);
+        previewOverlay.setGravity(Gravity.BOTTOM | Gravity.START);
+        previewOverlay.setPadding(dp(14), dp(10), dp(14), dp(10));
+
+        previewDesignTitle = new TextView(this);
+        previewDesignTitle.setTextColor(Color.parseColor("#D9E8FF"));
+        previewDesignTitle.setTextSize(10);
+        previewDesignTitle.setTypeface(null, 1);
+        previewDesignTitle.setLetterSpacing(0.08f);
+        previewDesignTitle.setMaxLines(1);
+        previewOverlay.addView(previewDesignTitle, matchWrap());
+
+        previewMetric = new TextView(this);
+        previewMetric.setTextColor(Color.WHITE);
+        previewMetric.setTextSize(26);
+        previewMetric.setTypeface(null, 1);
+        previewMetric.setIncludeFontPadding(false);
+        previewMetric.setShadowLayer(4, 0, dp(1), Color.argb(150, 0, 0, 0));
+        previewOverlay.addView(previewMetric, matchWrap());
+
+        previewSubtitle = new TextView(this);
+        previewSubtitle.setTextColor(Color.parseColor("#E8EDFA"));
+        previewSubtitle.setTextSize(10);
+        previewSubtitle.setMaxLines(1);
+        previewSubtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        previewOverlay.addView(previewSubtitle, matchWrap());
+
+        previewFrame.addView(previewOverlay, new FrameLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM | Gravity.START));
+        content.addView(previewFrame, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(150)));
+
         previewSummary = new TextView(this);
         previewSummary.setTextColor(Color.parseColor("#F5F3FF"));
         previewSummary.setTextSize(12);
@@ -212,10 +280,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
         String style = selectedRadioValue(styleGroup, "glass");
         String composition = selectedRadioValue(compositionGroup, "auto");
         String theme = selectedRadioValue(themeGroup, "app");
-        if (selected.isEmpty()) {
-            previewSummary.setText("Select at least one field");
-            return;
-        }
+        boolean noFieldsSelected = selected.isEmpty();
+        if (noFieldsSelected) previewSummary.setText("Select at least one field");
 
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         int targetMinutes = Math.max(1, preferences.getInt("targetMinutes", 5));
@@ -279,12 +345,47 @@ public class MathMasterWidgetConfigActivity extends Activity {
             : Color.parseColor(themeBackgroundColor(resolvedTheme, light));
         previewSummary.setTextColor(light ? Color.parseColor("#263247") : Color.parseColor("#F5F3FF"));
         previewSummary.setBackgroundColor(previewBackground);
+
+        GradientDrawable previewSurface = new GradientDrawable(
+            GradientDrawable.Orientation.TL_BR, new int[] { previewBackground, previewBackground });
+        previewSurface.setCornerRadius(dp(16));
+        previewSurface.setStroke(dp(1), Color.argb(75, 255, 255, 255));
+        previewFrame.setBackground(previewSurface);
+
+        android.graphics.Bitmap artwork = MathMasterHomeWidgetProvider.getConfigurationPreviewArtwork(
+            this, composition, 320, 150);
+        previewArtwork.setImageBitmap(artwork);
+        previewArtwork.setVisibility(artwork == null ? View.GONE : View.VISIBLE);
+
+        previewDesignTitle.setText(selected.contains("appIdentity")
+            ? "MATH MASTER" : compositionLabel(composition).toUpperCase(java.util.Locale.getDefault()));
+        String primaryMetric = selected.contains("progress") ? percent + "%"
+            : (selected.contains("target") ? targetMinutes + " MIN"
+            : (selected.contains("remaining") ? remainingMinutes + " MIN LEFT"
+            : (selected.contains("studyTime") ? elapsedMinutes + " MIN STUDIED"
+            : (selected.contains("streak") ? streak + "-DAY STREAK" : "YOUR PROGRESS"))));
+        previewMetric.setText(primaryMetric);
+
+        List<String> previewDetails = new ArrayList<>();
+        if (selected.contains("target")) previewDetails.add("Target " + targetMinutes + " min");
+        if (selected.contains("studyTime")) previewDetails.add(elapsedMinutes + " min studied");
+        if (selected.contains("remaining")) previewDetails.add(remainingMinutes + " min left");
+        if (selected.contains("streak")) previewDetails.add(streak + "-day streak");
+        if (selected.contains("weekly")) previewDetails.add("7-day tracker");
+        if (selected.contains("updateStatus")) {
+            previewDetails.add(preferences.getBoolean("updateAvailable", false) ? "Update available" : "Update status");
+        }
+        if (previewDetails.isEmpty()) previewDetails.add(capitalize(style) + " glass design");
+        previewSubtitle.setText(android.text.TextUtils.join("  ·  ", previewDetails));
+
         String themeLabel = "random".equals(theme)
             ? "Random Premium Theme" + (isPaletteTheme(resolvedTheme) ? " · " + themeLabel(resolvedTheme) : "")
             : themeLabel(resolvedTheme);
-        previewSummary.setText("Design: " + compositionLabel(composition) + "\n"
-            + android.text.TextUtils.join("\n", rows)
-            + "\n" + capitalize(style) + "  ·  " + themeLabel);
+        previewSummary.setText(noFieldsSelected
+            ? "Select at least one field\n" + capitalize(style) + "  ·  " + themeLabel
+            : "Design: " + compositionLabel(composition) + "\n"
+                + android.text.TextUtils.join("\n", rows)
+                + "\n" + capitalize(style) + "  ·  " + themeLabel);
     }
 
     private void saveConfiguration() {

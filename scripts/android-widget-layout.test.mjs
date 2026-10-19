@@ -229,6 +229,15 @@ test("widget artwork uses sampled region decoding and bounded output renditions"
   );
 });
 
+test("native widget configuration preview uses the selected composition artwork and live metrics", () => {
+  assert.match(provider, /public static Bitmap getConfigurationPreviewArtwork/);
+  assert.ok(config.includes("MathMasterHomeWidgetProvider.getConfigurationPreviewArtwork("));
+  assert.ok(config.includes("previewArtwork.setImageBitmap(artwork)"));
+  assert.ok(config.includes("previewMetric.setText(primaryMetric)"));
+  assert.ok(config.includes("previewDesignTitle.setText("));
+  assert.ok(config.includes("previewSubtitle.setText(android.text.TextUtils.join"));
+});
+
 test("package updates refresh all existing pinned widget instances without replacing their saved configuration", () => {
   assert.ok(bootReceiver.includes("Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)"));
   assert.ok(bootReceiver.includes("MathMasterHomeWidgetProvider.updateWidgetPreferences(context)"));
