@@ -2,11 +2,12 @@
 
 ## Confirmed inventory
 
-The current repository contains **one native launcher widget provider**: `MathMasterHomeWidgetProvider`. It is an adaptive dashboard whose selected fields are configured independently for each Android AppWidget ID. No separate Quick Timer, Stopwatch, standalone Weekly Tracker, or second native progress-widget provider was found in the current native source tree; do not treat Settings preview cards or layout variants as extra providers.
+The native launcher picker now exposes **seven catalog provider entries** backed by the shared `MathMasterHomeWidgetProvider` renderer: Hero Wide (the legacy provider identity), Compact Green, Square Math Bot, Medium Study, Square Cosmic, Extra-Wide Weekly, and Minimal Progress. Six small provider classes give Android's launcher distinct labels/previews without duplicating the rendering engine, progress store, or timer logic. The legacy provider identity is retained to protect already-pinned widget instances. No separate Quick Timer or Stopwatch provider is introduced.
 
 | Actual component / rendering path | Resource / implementation | Source audit | Changed in this audit | Build/automated coverage | Real launcher visual status |
 |---|---|---|---|---|---|
-| Math Master home-screen dashboard | `MathMasterHomeWidgetProvider.java` | Audited | Refresh all pinned instances on package replacement; keep per-ID configuration lookup | Covered by widget regression test and Android build workflow | **Unverified** |
+| Hero Wide / legacy identity | `MathMasterHomeWidgetProvider.java`, `math_master_home_widget_info.xml` | Audited | New Hero Wide picker label/preview; legacy pinned-instance identity retained | Provider/layout/resource-copy regression tests plus Android build workflow | **Unverified** |
+| Six additional catalog entries | `MathMaster*WidgetProvider.java` wrappers with their own `res/xml*/*_info.xml` metadata | Audited | Independent picker labels/previews; fixed composition per selected catalog entry | Provider/metadata manifest generation tests plus Android build workflow | **Unverified** |
 | Compact / narrow / short dashboard variant | `math_master_home_widget_compact.xml` | Audited | Existing responsive layout retained; added release-copy/registration assertions | Covered by widget layout/resource-copy tests and Android build workflow | **Unverified** |
 | Regular / tall dashboard variant | `math_master_home_widget.xml` | Audited | Existing responsive layout retained; used as safe regular/tall fallback | Covered by widget layout/resource-copy tests and Android build workflow | **Unverified** |
 | Wide / short dashboard variant | `math_master_home_widget_wide.xml` | Audited | Existing horizontal lower-row layout retained; resource-copy assertions added | Covered by widget layout/resource-copy tests and Android build workflow | **Unverified** |
@@ -16,13 +17,16 @@ The current repository contains **one native launcher widget provider**: `MathMa
 
 ## Confirmed root causes / gaps
 
-1. The native boot/package-update receiver already received `MY_PACKAGE_REPLACED` but only rescheduled daily reminders. It did not explicitly re-render active launcher widget instances. After an APK update, a pinned widget could therefore continue showing its prior `RemoteViews` until another widget update path ran.
-2. The Android dashboard already had three separate XML runtime layouts. A fix to one XML file alone cannot prove all three resources are packaged and used. The build configuration copies these resources from `android-native/res`; regression tests now check the provider registration, all three copied variants, both widget metadata resources, and the size-aware renderer.
-3. The Settings preview is a separate web UI rather than an Android `RemoteViews` renderer. Before this audit it used an almost opaque surface, tiny fixed labels, did not honor the selected preview style/theme consistently, tied the target value to the study-time field, and rendered an empty primary row when only supporting fields were selected. It now better reflects the global content/style/theme settings, while remaining a visual preview rather than an exact device-size simulation.
+1. The original native manifest contained only `MathMasterHomeWidgetProvider`, so Android's Add Widget picker could not display seven independent design entries even though the code already contained seven composition families and 21 runtime layout variants.
+2. The APK-generation script copied the legacy provider and its legacy metadata only. New catalog entries therefore require provider Java files, matching legacy and Android 12+ metadata, distinct labels/previews, and manifest registration all to be generated together.
+3. The native boot/package-update receiver already received `MY_PACKAGE_REPLACED` but only rescheduled daily reminders. It did not explicitly re-render active launcher widget instances. The shared refresh path now enumerates all seven providers while each AppWidget ID still resolves its own preferences.
+4. Android `RemoteViews` is not the in-app Settings preview. The native picker preview can use the selected artwork/layout, but actual wallpaper blending, clipping, touch behavior and launcher-specific resize results remain unverified until run on a device/emulator.
 
 ## Data and configuration preservation
 
-- Package replacement refreshes existing widget IDs through `MathMasterHomeWidgetProvider.updateWidgetPreferences(context)`; that path renders each ID separately and reads its own `instance_<id>_...` settings.
+- Package replacement refreshes IDs from all seven registered widget provider classes through `MathMasterHomeWidgetProvider.updateWidgetPreferences(context)`; each ID still renders with its own `instance_<id>_...` settings.
+- The six new provider wrappers use the shared renderer and authoritative data; they do not introduce duplicate progress databases or timer engines.
+- New catalog instances have their composition fixed to the design the user chose in Android's launcher picker, while older instances of the legacy provider preserve any already-saved custom composition.
 - No new provider, progress tracker, timer engine, or data store was introduced.
 - Weekly completion remains backed by saved daily completion history; the redesign does not create synthetic completion ticks.
 - Removing a widget continues to clean only that widget ID's preferences through the existing `onDeleted` implementation.
