@@ -123,6 +123,9 @@ test("responsive typography and weighted spacing adapt to selected fields and av
   assert.match(provider, /boolean hasPrimaryContent = showProgress \|\| showTarget;/);
   assert.match(provider, /boolean hasSupportingContent = showStudyTime \|\| showRemaining \|\| showStreak \|\| showWeekly \|\| showUpdateStatus;/);
   assert.match(provider, /supportingGroupCount >= 2 && effectiveHeightDp >= 145/);
+  assert.match(provider, /setViewVisibility\(R\\.id\\.widget_primary_row,[\\s\\S]*?showProgress \\|\\| showTarget/);
+  assert.match(provider, /setViewVisibility\(R\\.id\\.widget_study_remaining_row,[\\s\\S]*?showStudyTime \\|\\| showRemaining/);
+  assert.match(provider, /if \(wideLayout\) \{[\\s\\S]*?widget_lower_row[\\s\\S]*?widget_side_column/);
   assert.match(provider, /effectiveHeightDp >= 145/);
   assert.match(provider, /setViewVisibility\(R\.id\.widget_flex_spacer,[\s\S]*?distributeVerticalSpace \? View\.VISIBLE : View\.GONE\)/);
   assert.match(provider, /setInt\(R\.id\.widget_root, "setGravity",[\s\S]*?distributeVerticalSpace \? Gravity\.TOP : Gravity\.CENTER_VERTICAL\)/);
