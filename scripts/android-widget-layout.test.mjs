@@ -1,9 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java");
+const bootReceiver = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java");
+const configureAndroid = read("scripts/configure-android-notifications.mjs");
+const legacyWidgetInfo = read("android-native/res/xml/math_master_home_widget_info.xml");
+const android31WidgetInfo = read("android-native/res/xml-v31/math_master_home_widget_info.xml");
+const widgetProviderFiles = readdirSync(new URL("../android-native/com/sudhanshu/mathsbj/", import.meta.url))
+  .filter((name) => /WidgetProvider\\.java$/.test(name));
 const nativePlugin = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java");
 const bridge = read("src/lib/dailyTargetReminders.ts");
 const config = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java");
@@ -140,4 +146,42 @@ test("responsive typography and weighted spacing adapt to selected fields and av
     assert.ok(layout.includes('android:visibility="gone"'));
     assert.ok(layout.includes('android:minWidth="50dp"') || layout.includes('android:minWidth="62dp"'));
   }
+});
+
+test("every native widget provider and responsive layout is registered and copied into Android builds", () => {
+  assert.ok(widgetProviderFiles.length > 0, "native AppWidgetProvider inventory must not be empty");
+  for (const filename of widgetProviderFiles) {
+    const componentName = filename.replace(/\\.java$/, "");
+    assert.ok(configureAndroid.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
+    assert.ok(configureAndroid.includes(`android:name=".${componentName}"`), `${componentName} must be registered in AndroidManifest`);
+    assert.ok(configureAndroid.includes("@xml/math_master_home_widget_info"), `${componentName} must reference widget metadata`);
+  }
+
+  const variantFiles = [
+    "math_master_home_widget.xml",
+    "math_master_home_widget_compact.xml",
+    "math_master_home_widget_wide.xml",
+  ];
+  for (const filename of variantFiles) {
+    assert.ok(configureAndroid.includes(`'layout/${filename}'`), `${filename} must be copied for every release/debug build`);
+    assert.ok(configureAndroid.includes(`@layout/${filename.replace(/\\.xml$/, "")}`) || filename !== "math_master_home_widget.xml");
+  }
+  assert.match(legacyWidgetInfo, /android:initialLayout="@layout\\/math_master_home_widget"/);
+  assert.match(legacyWidgetInfo, /android:resizeMode="horizontal\\|vertical"/);
+  assert.match(android31WidgetInfo, /android:initialLayout="@layout\\/math_master_home_widget"/);
+  assert.match(android31WidgetInfo, /android:previewLayout="@layout\\/math_master_home_widget"/);
+  assert.match(android31WidgetInfo, /android:widgetFeatures="reconfigurable"/);
+  assert.match(provider, /OPTION_APPWIDGET_SIZES/);
+  assert.match(provider, /new RemoteViews\\(viewsBySize\\)/);
+  assert.match(provider, /getWidgetLayoutForDimensions\\(widthDp, heightDp\\)/);
+});
+
+test("package updates refresh all existing pinned widget instances without replacing their saved configuration", () => {
+  assert.match(bootReceiver, /Intent\\.ACTION_MY_PACKAGE_REPLACED\\.equals\\(action\\)/);
+  assert.match(bootReceiver, /MathMasterHomeWidgetProvider\\.updateWidgetPreferences\\(context\\)/);
+  assert.match(provider, /AppWidgetManager\\.getInstance\\(context\\)/);
+  assert.match(provider, /getAppWidgetIds\\(provider\\)/);
+  assert.match(provider, /for \\(int widgetId : widgetIds\\)/);
+  assert.match(provider, /getSelectedContent\\(preferences, appWidgetId\\)/);
+  assert.match(provider, /getInstanceString\\(preferences, appWidgetId, "theme"/);
 });
