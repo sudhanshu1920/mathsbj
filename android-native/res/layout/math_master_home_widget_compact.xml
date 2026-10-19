@@ -55,7 +55,8 @@
 
         <TextView
             android:id="@+id/widget_progress_percent"
-            android:layout_width="43dp"
+            android:layout_width="wrap_content"
+            android:minWidth="50dp"
             android:layout_height="wrap_content"
             android:fontFamily="sans"
             android:includeFontPadding="false"
@@ -106,6 +107,13 @@
         android:progressBackgroundTint="#45415E"
         android:progressTint="#B8A0FF"
         android:indeterminate="false" />
+
+    <TextView
+        android:id="@+id/widget_flex_spacer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/widget_study_remaining_row"

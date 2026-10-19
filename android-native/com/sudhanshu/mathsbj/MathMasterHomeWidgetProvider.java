@@ -123,8 +123,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static boolean isCompactSize(int widthDp, int heightDp) {
         if (isTallWidget(widthDp, heightDp) || isWideWidget(widthDp, heightDp)) return false;
-        // Short widgets need the dense layout even when their width is not particularly narrow.
-        return (widthDp > 0 && widthDp < 220) || (heightDp > 0 && heightDp < 180);
+        // Reserve the compact layout for genuinely narrow or very short launcher tiles.
+        return (widthDp > 0 && widthDp < 190) || (heightDp > 0 && heightDp < 135);
     }
 
     private static boolean isTallWidget(int widthDp, int heightDp) {
@@ -140,6 +140,10 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         if (isWideWidget(widthDp, heightDp)) return R.layout.math_master_home_widget_wide;
         if (isCompactSize(widthDp, heightDp)) return R.layout.math_master_home_widget_compact;
         return R.layout.math_master_home_widget;
+    }
+
+    private static float responsiveTextSize(float base, float scale, float minimum, float maximum) {
+        return Math.max(minimum, Math.min(maximum, base * scale));
     }
 
     private static final int[] COMPLETION_ACCENTS = {
@@ -366,26 +370,50 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             : (lightMode ? R.drawable.math_master_home_widget_background_light
                 : R.drawable.math_master_home_widget_background);
         views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);
-        boolean smallWidget = isCompactSize(widthDp, heightDp);
-        boolean tallWidget = isTallWidget(widthDp, heightDp);
-        views.setInt(R.id.widget_root, "setGravity", tallWidget ? Gravity.CENTER_VERTICAL : Gravity.TOP);
-        int paddingDp = smallWidget || "compact".equals(style) ? 4 : ("minimal".equals(style) ? 7 : 9);
+        boolean compactLayout = layoutId == R.layout.math_master_home_widget_compact;
+        boolean wideLayout = layoutId == R.layout.math_master_home_widget_wide;
+        float measuredWidthDp = widthDp > 0 ? widthDp : 220f;
+        float measuredHeightDp = heightDp > 0 ? heightDp : 150f;
+        float fontScale = Math.max(0.88f, Math.min(1.28f,
+            Math.min(measuredWidthDp / 240f, measuredHeightDp / 175f)));
+        if ("compact".equals(style)) fontScale = Math.max(0.84f, fontScale * 0.96f);
+        else if ("minimal".equals(style)) fontScale = Math.max(0.86f, fontScale * 0.98f);
+
+        int paddingDp = widthDp > 0 && widthDp < 200 ? 6 : (widthDp >= 320 ? 10 : 8);
+        if ("compact".equals(style)) paddingDp = Math.max(4, paddingDp - 1);
+        else if ("minimal".equals(style)) paddingDp = Math.max(6, paddingDp - 1);
         int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
         views.setViewPadding(R.id.widget_root, paddingPx, paddingPx, paddingPx, paddingPx);
+
+        float percentBase = compactLayout ? 24f : (wideLayout ? 29f : 32f);
+        views.setTextViewTextSize(R.id.widget_title_text, TypedValue.COMPLEX_UNIT_SP,
+            responsiveTextSize(compactLayout ? 9.5f : (wideLayout ? 11.5f : 12f), fontScale,
+                compactLayout ? 9f : (wideLayout ? 10.5f : 11f), compactLayout ? 12f : (wideLayout ? 13f : 13.5f)));
         views.setTextViewTextSize(R.id.widget_progress_percent, TypedValue.COMPLEX_UNIT_SP,
-            smallWidget || "compact".equals(style) ? 22f : ("minimal".equals(style) ? 26f : 29f));
+            responsiveTextSize(percentBase, fontScale,
+                compactLayout ? 22f : (wideLayout ? 27f : 30f), compactLayout ? 30f : (wideLayout ? 36f : 40f)));
         views.setTextViewTextSize(R.id.widget_target_value, TypedValue.COMPLEX_UNIT_SP,
-            smallWidget || "compact".equals(style) ? 10f : ("minimal".equals(style) ? 12f : 14f));
+            responsiveTextSize(compactLayout ? 14f : (wideLayout ? 14.5f : 15.5f), fontScale,
+                compactLayout ? 12.5f : (wideLayout ? 13.5f : 14.5f), compactLayout ? 16.5f : (wideLayout ? 17.5f : 19f)));
         views.setTextViewTextSize(R.id.widget_target_label, TypedValue.COMPLEX_UNIT_SP,
-            smallWidget || "compact".equals(style) ? 8f : 10f);
+            responsiveTextSize(compactLayout ? 10f : (wideLayout ? 10.5f : 11f), fontScale,
+                compactLayout ? 9.5f : (wideLayout ? 10f : 10.5f), compactLayout ? 12f : (wideLayout ? 12.5f : 13f)));
         views.setTextViewTextSize(R.id.widget_study_time_text, TypedValue.COMPLEX_UNIT_SP,
-            smallWidget || "compact".equals(style) ? 8f : 11f);
+            responsiveTextSize(compactLayout ? 10.5f : (wideLayout ? 11.5f : 12f), fontScale,
+                compactLayout ? 9.5f : (wideLayout ? 10.5f : 11f), compactLayout ? 13f : (wideLayout ? 13.5f : 14.5f)));
         views.setTextViewTextSize(R.id.widget_remaining_text, TypedValue.COMPLEX_UNIT_SP,
-            smallWidget || "compact".equals(style) ? 8f : 11f);
+            responsiveTextSize(compactLayout ? 10.5f : (wideLayout ? 11.5f : 12f), fontScale,
+                compactLayout ? 9.5f : (wideLayout ? 10.5f : 11f), compactLayout ? 13f : (wideLayout ? 13.5f : 14.5f)));
         views.setTextViewTextSize(R.id.widget_streak_text, TypedValue.COMPLEX_UNIT_SP,
-            smallWidget || "compact".equals(style) ? 8f : 11f);
+            responsiveTextSize(compactLayout ? 10.5f : (wideLayout ? 11.5f : 12f), fontScale,
+                compactLayout ? 9.5f : (wideLayout ? 10.5f : 11f), compactLayout ? 13f : (wideLayout ? 13.5f : 14.5f)));
         views.setTextViewTextSize(R.id.widget_update_text, TypedValue.COMPLEX_UNIT_SP,
-            smallWidget || "compact".equals(style) ? 7f : 10f);
+            responsiveTextSize(compactLayout ? 9f : (wideLayout ? 9.5f : 10.5f), fontScale,
+                compactLayout ? 8.5f : (wideLayout ? 9f : 9.5f), compactLayout ? 10.5f : (wideLayout ? 11.5f : 12f)));
+        views.setTextViewTextSize(R.id.widget_week_title, TypedValue.COMPLEX_UNIT_SP,
+            responsiveTextSize(compactLayout ? 7.5f : (wideLayout ? 8f : 9f), fontScale,
+                compactLayout ? 7f : (wideLayout ? 7.5f : 8.5f), compactLayout ? 9f : (wideLayout ? 9.5f : 10.5f)));
+
         int[] dayLabelIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
             R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
         int[] dayDateIds = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
@@ -393,9 +421,15 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         int[] dayStatusIds = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
             R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
         for (int i = 0; i < 7; i++) {
-            views.setTextViewTextSize(dayLabelIds[i], TypedValue.COMPLEX_UNIT_SP, smallWidget ? 6f : 8f);
-            views.setTextViewTextSize(dayDateIds[i], TypedValue.COMPLEX_UNIT_SP, smallWidget ? 5f : 7f);
-            views.setTextViewTextSize(dayStatusIds[i], TypedValue.COMPLEX_UNIT_SP, smallWidget ? 8f : 10f);
+            views.setTextViewTextSize(dayLabelIds[i], TypedValue.COMPLEX_UNIT_SP,
+                responsiveTextSize(compactLayout ? 8f : (wideLayout ? 8.5f : 9f), fontScale,
+                    compactLayout ? 7.5f : (wideLayout ? 8f : 8.5f), compactLayout ? 9.5f : (wideLayout ? 10f : 10.5f)));
+            views.setTextViewTextSize(dayDateIds[i], TypedValue.COMPLEX_UNIT_SP,
+                responsiveTextSize(compactLayout ? 7.5f : (wideLayout ? 7.5f : 8f), fontScale,
+                    compactLayout ? 7f : (wideLayout ? 7f : 7.5f), compactLayout ? 8.5f : (wideLayout ? 8.5f : 9f)));
+            views.setTextViewTextSize(dayStatusIds[i], TypedValue.COMPLEX_UNIT_SP,
+                responsiveTextSize(compactLayout ? 10f : (wideLayout ? 10.5f : 11.5f), fontScale,
+                    compactLayout ? 9f : (wideLayout ? 9.5f : 10.5f), compactLayout ? 11.5f : (wideLayout ? 12f : 13f)));
         }
         views.setTextColor(R.id.widget_progress_percent, accentColor);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -452,6 +486,17 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showStreak = widgetsEnabled && selected.contains("streak");
         boolean showWeekly = widgetsEnabled && selected.contains("weekly");
         boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus");
+        boolean hasPrimaryContent = showProgress || showTarget;
+        boolean hasSupportingContent = showStudyTime || showRemaining || showStreak || showWeekly || showUpdateStatus;
+        int supportingGroupCount = (showStudyTime || showRemaining ? 1 : 0)
+            + (showStreak ? 1 : 0) + (showWeekly ? 1 : 0) + (showUpdateStatus ? 1 : 0);
+        int effectiveHeightDp = heightDp > 0 ? heightDp : 150;
+        boolean distributeVerticalSpace = widgetsEnabled && hasPrimaryContent && hasSupportingContent
+            && supportingGroupCount >= 2 && effectiveHeightDp >= 145;
+        views.setViewVisibility(R.id.widget_flex_spacer,
+            distributeVerticalSpace ? View.VISIBLE : View.GONE);
+        views.setInt(R.id.widget_root, "setGravity",
+            distributeVerticalSpace ? Gravity.TOP : Gravity.CENTER_VERTICAL);
         views.setViewVisibility(R.id.widget_header_row, showIdentity ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_target_label, showTarget ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_target_value, showTarget ? View.VISIBLE : View.GONE);
@@ -464,6 +509,17 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         views.setViewVisibility(R.id.widget_week_section, showWeekly ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_week_title, showWeekly ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_week_strip, showWeekly ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_primary_row,
+            (showProgress || showTarget) ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_study_remaining_row,
+            (showStudyTime || showRemaining) ? View.VISIBLE : View.GONE);
+        if (wideLayout) {
+            boolean showWideLowerRow = showStudyTime || showRemaining || showStreak || showWeekly;
+            views.setViewVisibility(R.id.widget_lower_row,
+                showWideLowerRow ? View.VISIBLE : View.GONE);
+            views.setViewVisibility(R.id.widget_side_column,
+                (showStreak || showWeekly) ? View.VISIBLE : View.GONE);
+        }
         views.setViewVisibility(R.id.widget_update_text, showUpdateStatus ? View.VISIBLE : View.GONE);
         if (!showUpdateStatus) views.setViewVisibility(R.id.widget_update_badge, View.GONE);
         views.setViewVisibility(R.id.widget_disabled_text, widgetsEnabled ? View.GONE : View.VISIBLE);
