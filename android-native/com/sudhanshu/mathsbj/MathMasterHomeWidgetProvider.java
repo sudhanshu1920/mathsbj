@@ -133,7 +133,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         else return null;
 
         float ratio = widthDp > 0 && heightDp > 0 ? Math.max(0.72f, Math.min(3.6f, widthDp / (float) heightDp)) : 1.65f;
-        String cacheKey = composition + "_" + Math.round(ratio * 4f);
+        String cacheKey = composition + "_" + Math.round(ratio * 4f) + "_" + Math.max(1, Math.min(6, Math.round(Math.max(1, widthDp) / 70f)));
         synchronized (WIDGET_ARTWORK_CACHE) {
             Bitmap cached = WIDGET_ARTWORK_CACHE.get(cacheKey);
             if (cached != null && !cached.isRecycled()) return cached;
