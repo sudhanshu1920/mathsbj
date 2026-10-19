@@ -212,8 +212,10 @@ test("all seven design compositions have three responsive XML variants and packa
   }
   assert.ok(configureAndroid.includes("'drawable-nodpi/math_master_widget_atlas.png'"));
   assert.match(artworkPreparation, /"-w", "3840",\s*"-h", "1280"/);
-  assert.match(artworkPreparation, /math_master_widget_atlas\.png/);\n  assert.ok(existsSync(new URL("../public/math_master_widget_atlas.svg", import.meta.url)));
-  assert.match(artworkSvg, /width="1536" height="512" viewBox="0 0 1536 512"/);\n  assert.equal((artworkSvg.match(/clip-path="url\(#panel\)"/g) || []).length, 6, "six art scenes should be clipped to the atlas tile grid");
+  assert.match(artworkPreparation, /math_master_widget_atlas\.png/);
+  assert.ok(existsSync(new URL("../public/math_master_widget_atlas.svg", import.meta.url)));
+  assert.match(artworkSvg, /width="1536" height="512" viewBox="0 0 1536 512"/);
+  assert.equal((artworkSvg.match(/clip-path="url\(#panel\)"/g) || []).length, 6, "six art scenes should be clipped to the atlas tile grid");
   assert.ok(read("src/lib/settings.ts").includes("HOME_WIDGET_COMPOSITIONS"));
   assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
   assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
