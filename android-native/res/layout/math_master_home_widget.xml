@@ -1,12 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center_vertical"
-    android:padding="9dp"
+    android:clipChildren="true"
+    android:clipToPadding="true"
     android:background="@drawable/math_master_home_widget_background">
+
+    <ImageView
+        android:id="@+id/widget_artwork_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/math_master_widget_art_hero_wide"
+        android:scaleType="centerCrop"
+        android:alpha="0.82"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:id="@+id/widget_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:padding="9dp"
+        android:background="@android:color/transparent">
 
     <LinearLayout
         android:id="@+id/widget_header_row"
@@ -488,3 +506,4 @@
         android:textStyle="bold"
         android:visibility="gone" />
 </LinearLayout>
+</FrameLayout>
