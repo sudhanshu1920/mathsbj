@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { prepareWidgetArtwork } from "./prepare-widget-artwork.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE_NATIVE_DIR = path.resolve(SCRIPT_DIR, '../android-native/com/sudhanshu/mathsbj');
@@ -240,10 +241,13 @@ async function configureFirebase(root, encodedConfig) {
  * Replace the artwork overlay with a supported FrameLayout before packaging native resources.
  */
 export function normalizeRemoteViewsLayout(xml) {
-  return xml.replace(/<View(?=\s+android:id="@\+id\/widget_artwork_overlay")/g, '<FrameLayout');
+  return xml
+    .replace(/<View(?=\s+android:id="@\+id\/widget_artwork_overlay")/g, '<FrameLayout')
+    .replace(/android:scaleType="fitXY"/g, 'android:scaleType="centerCrop"');
 }
 
 export async function configureAndroidNotifications(androidRoot, { firebaseJsonBase64 = '' } = {}) {
+  await prepareWidgetArtwork();
   const root = path.resolve(androidRoot);
   const sourceFiles = [
     'DailyTargetReminderPlugin.java',
