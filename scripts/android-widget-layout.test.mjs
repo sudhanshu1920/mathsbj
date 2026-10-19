@@ -22,6 +22,7 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
     "widget_target_value",
     "widget_progress_percent",
     "widget_progress_bar",
+    "widget_flex_spacer",
     "widget_study_time_text",
     "widget_remaining_text",
     "widget_streak_text",
@@ -61,7 +62,7 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(provider, /OPTION_APPWIDGET_SIZES/);
   assert.match(provider, /new RemoteViews\(viewsBySize\)/);
   assert.match(provider, /getWidgetLayoutForDimensions\(widthDp, heightDp\)/);
-  assert.match(provider, /heightDp > 0 && heightDp < 180/);
+  assert.match(provider, /heightDp > 0 && heightDp < 135/);
   assert.match(provider, /isTallWidget\(widthDp, heightDp\) \|\| isWideWidget\(widthDp, heightDp\)/);
   assert.match(config, /"random", "Random Premium Theme"/);
   assert.match(config, /putString\("instance_" \+ widgetId \+ "_themeMode", themeMode\)/);
@@ -114,4 +115,18 @@ test("glass colors are translucent and target completion uses a stable celebrato
     assert.match(background.light, /#D9[0-9A-Fa-f]{6}/);
   }
   assert.match(provider, /targetComplete \? "✓ Daily target complete!"/);
+});
+
+test("responsive typography and weighted spacing adapt to selected fields and available height", () => {
+  assert.match(provider, /responsiveTextSize\(percentBase, fontScale/);
+  assert.match(provider, /measuredWidthDp \/ 240f, measuredHeightDp \/ 175f/);
+  assert.match(provider, /boolean hasPrimaryContent = showProgress \|\| showTarget;/);
+  assert.match(provider, /boolean hasSupportingContent = showStudyTime \|\| showRemaining \|\| showStreak \|\| showWeekly \|\| showUpdateStatus;/);
+  assert.match(provider, /effectiveHeightDp >= 145/);
+  assert.match(provider, /setViewVisibility\(R\.id\.widget_flex_spacer,[\s\S]*?distributeVerticalSpace \? View\.VISIBLE : View\.GONE\)/);
+  assert.match(provider, /setInt\(R\.id\.widget_root, "setGravity",[\s\S]*?distributeVerticalSpace \? Gravity\.TOP : Gravity\.CENTER_VERTICAL\)/);
+  for (const layout of layouts) {
+    assert.match(layout, /widget_flex_spacer[\s\S]*?android:layout_height="0dp"[\s\S]*?android:layout_weight="1"[\s\S]*?android:visibility="gone"/);
+    assert.match(layout, /android:minWidth="(?:50|62)dp"/);
+  }
 });
