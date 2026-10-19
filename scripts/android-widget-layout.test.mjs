@@ -169,17 +169,17 @@ test("responsive typography is more prominent and weighted spacers cannot split 
 
 test("seven native launcher catalog entries have independent metadata and shared responsive rendering", () => {
   const expectedProviders = [
-    ["MathMasterHomeWidgetProvider", "hero_wide", "math_master_home_widget_info"],
-    ["MathMasterCompactGreenWidgetProvider", "compact_green", "math_master_widget_compact_green_info"],
-    ["MathMasterSquareMathBotWidgetProvider", "square_math_bot", "math_master_widget_square_math_bot_info"],
-    ["MathMasterMediumStudyWidgetProvider", "medium_study", "math_master_widget_medium_study_info"],
-    ["MathMasterSquareCosmicWidgetProvider", "square_cosmic", "math_master_widget_square_cosmic_info"],
-    ["MathMasterExtraWideWeeklyWidgetProvider", "extra_wide_weekly", "math_master_widget_extra_wide_weekly_info"],
-    ["MathMasterMinimalProgressWidgetProvider", "minimal_progress", "math_master_widget_minimal_progress_info"],
+    ["MathMasterHomeWidgetProvider", "hero_wide", "math_master_home_widget_info", 110, 80, 95, 70],
+    ["MathMasterCompactGreenWidgetProvider", "compact_green", "math_master_widget_compact_green_info", 110, 80, 95, 70],
+    ["MathMasterSquareMathBotWidgetProvider", "square_math_bot", "math_master_widget_square_math_bot_info", 110, 110, 95, 95],
+    ["MathMasterMediumStudyWidgetProvider", "medium_study", "math_master_widget_medium_study_info", 160, 100, 125, 80],
+    ["MathMasterSquareCosmicWidgetProvider", "square_cosmic", "math_master_widget_square_cosmic_info", 110, 110, 95, 95],
+    ["MathMasterExtraWideWeeklyWidgetProvider", "extra_wide_weekly", "math_master_widget_extra_wide_weekly_info", 240, 80, 190, 70],
+    ["MathMasterMinimalProgressWidgetProvider", "minimal_progress", "math_master_widget_minimal_progress_info", 110, 70, 95, 60],
   ];
   assert.equal(widgetProviderFiles.length, 7, "the catalog must contain seven native provider classes");
   assert.equal(expectedProviders.length, widgetProviderFiles.length);
-  for (const [className, composition, info] of expectedProviders) {
+  for (const [className, composition, info, minWidth, minHeight, minResizeWidth, minResizeHeight] of expectedProviders) {
     const filename = `${className}.java`;
     assert.ok(configureAndroid.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
     assert.ok(provider.includes(`${className}.class`), `${className} must participate in shared widget refresh`);
@@ -189,6 +189,14 @@ test("seven native launcher catalog entries have independent metadata and shared
     assert.ok(configureAndroid.includes(`'xml-v31/${info}.xml'`), `${info}.xml Android 12 preview must be copied`);
     assert.ok(metadata.includes(`android:label="@string/math_master_widget_${composition}_label"`));
     assert.ok(metadata.includes(`android:initialLayout="@layout/math_master_widget_${composition}_regular"`));
+    assert.ok(metadata.includes(`android:minWidth="${minWidth}dp"`));
+    assert.ok(metadata.includes(`android:minHeight="${minHeight}dp"`));
+    assert.ok(metadata.includes(`android:minResizeWidth="${minResizeWidth}dp"`));
+    assert.ok(metadata.includes(`android:minResizeHeight="${minResizeHeight}dp"`));
+    assert.ok(metadataV31.includes(`android:minWidth="${minWidth}dp"`));
+    assert.ok(metadataV31.includes(`android:minHeight="${minHeight}dp"`));
+    assert.ok(metadataV31.includes(`android:minResizeWidth="${minResizeWidth}dp"`));
+    assert.ok(metadataV31.includes(`android:minResizeHeight="${minResizeHeight}dp"`));
     assert.ok(metadataV31.includes(`android:description="@string/math_master_widget_${composition}_description"`));
     assert.ok(metadataV31.includes(`android:previewLayout="@layout/math_master_widget_${composition}_regular"`));
     assert.ok(metadataV31.includes('android:widgetFeatures="reconfigurable"'));
