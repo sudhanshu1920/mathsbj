@@ -36,6 +36,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
     private final Map<String, CheckBox> contentChecks = new LinkedHashMap<>();
     private RadioGroup styleGroup;
+    private RadioGroup compositionGroup;
     private RadioGroup themeGroup;
     private TextView previewSummary;
     private int widgetId = INVALID_WIDGET_ID;
@@ -49,6 +50,17 @@ public class MathMasterWidgetConfigActivity extends Activity {
         {"streak", "Streak"},
         {"weekly", "Weekly Target Tracker"},
         {"updateStatus", "Update Status"}
+    };
+
+    private static final String[][] WIDGET_COMPOSITIONS = {
+        {"auto", "Auto (adapts to size)"},
+        {"hero_wide", "Hero Wide · Sunset"},
+        {"compact_green", "Compact Green · Botanical"},
+        {"square_math_bot", "Square Math Bot"},
+        {"medium_study", "Medium Study · Scenic"},
+        {"square_cosmic", "Square Cosmic"},
+        {"extra_wide_weekly", "Extra-Wide Weekly"},
+        {"minimal_progress", "Minimal Progress"}
     };
 
     private static final String[][] PREMIUM_THEMES = {
@@ -110,6 +122,18 @@ public class MathMasterWidgetConfigActivity extends Activity {
         addRadio(styleGroup, "minimal", "Minimal", preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "glass")));
         styleGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
         content.addView(styleGroup, matchWrap());
+
+        addSectionLabel(content, "Design Composition");
+        compositionGroup = new RadioGroup(this);
+        compositionGroup.setOrientation(RadioGroup.VERTICAL);
+        String currentComposition = preferences.getString(
+            "instance_" + widgetId + "_composition", preferences.getString("composition", "auto"));
+        if (!isValidComposition(currentComposition)) currentComposition = "auto";
+        for (String[] compositionOption : WIDGET_COMPOSITIONS) {
+            addRadio(compositionGroup, compositionOption[0], compositionOption[1], currentComposition);
+        }
+        compositionGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
+        content.addView(compositionGroup, matchWrap());
 
         addSectionLabel(content, "Widget Theme");
         themeGroup = new RadioGroup(this);
@@ -186,6 +210,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             if (checkBox != null && checkBox.isChecked()) selected.add(option[0]);
         }
         String style = selectedRadioValue(styleGroup, "glass");
+        String composition = selectedRadioValue(compositionGroup, "auto");
         String theme = selectedRadioValue(themeGroup, "app");
         if (selected.isEmpty()) {
             previewSummary.setText("Select at least one field");
@@ -257,7 +282,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
         String themeLabel = "random".equals(theme)
             ? "Random Premium Theme" + (isPaletteTheme(resolvedTheme) ? " · " + themeLabel(resolvedTheme) : "")
             : themeLabel(resolvedTheme);
-        previewSummary.setText(android.text.TextUtils.join("\n", rows)
+        previewSummary.setText("Design: " + compositionLabel(composition) + "\n"
+            + android.text.TextUtils.join("\n", rows)
             + "\n" + capitalize(style) + "  ·  " + themeLabel);
     }
 
@@ -273,6 +299,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
         }
 
         String style = selectedRadioValue(styleGroup, "glass");
+        String composition = selectedRadioValue(compositionGroup, "auto");
+        if (!isValidComposition(composition)) composition = "auto";
         String themeMode = selectedRadioValue(themeGroup, "app");
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String previousThemeMode = preferences.getString("instance_" + widgetId + "_themeMode", "");
@@ -288,6 +316,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             .putString("instance_" + widgetId + "_contentJson", selected.toString())
             .putInt("instance_" + widgetId + "_contentSchemaVersion", 2)
             .putString("instance_" + widgetId + "_style", style)
+            .putString("instance_" + widgetId + "_composition", composition)
             .putString("instance_" + widgetId + "_themeMode", themeMode)
             .putString("instance_" + widgetId + "_theme", theme)
             .apply();
@@ -298,6 +327,17 @@ public class MathMasterWidgetConfigActivity extends Activity {
         result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
         setResult(RESULT_OK, result);
         finish();
+    }
+
+    private static boolean isValidComposition(String composition) {
+        if (composition == null) return false;
+        for (String[] option : WIDGET_COMPOSITIONS) if (option[0].equals(composition)) return true;
+        return false;
+    }
+
+    private static String compositionLabel(String composition) {
+        for (String[] option : WIDGET_COMPOSITIONS) if (option[0].equals(composition)) return option[1];
+        return "Auto (adapts to size)";
     }
 
     private static boolean isPaletteTheme(String theme) {
