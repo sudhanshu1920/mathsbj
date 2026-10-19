@@ -59,10 +59,6 @@ vi.mock("@/lib/settings", () => {
       { id: "extra_wide_weekly", label: "Extra-Wide Weekly" },
       { id: "minimal_progress", label: "Minimal Progress" },
     ],
-    setHomeWidgetComposition: (homeWidgetComposition: string) => {
-      mocks.setHomeWidgetComposition(homeWidgetComposition);
-      return { ...base(), homeWidgetComposition };
-    },
   };
 });
 
