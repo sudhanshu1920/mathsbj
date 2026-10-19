@@ -67,6 +67,28 @@ function ensureManifestReceivers(manifest, firebaseEnabled) {
                 android:resource="@xml/math_master_home_widget_info" />
         </receiver>`);
   }
+  const additionalWidgetProviders = [
+    { className: "MathMasterCompactGreenWidgetProvider", info: "math_master_widget_compact_green_info" },
+    { className: "MathMasterSquareMathBotWidgetProvider", info: "math_master_widget_square_math_bot_info" },
+    { className: "MathMasterMediumStudyWidgetProvider", info: "math_master_widget_medium_study_info" },
+    { className: "MathMasterSquareCosmicWidgetProvider", info: "math_master_widget_square_cosmic_info" },
+    { className: "MathMasterExtraWideWeeklyWidgetProvider", info: "math_master_widget_extra_wide_weekly_info" },
+    { className: "MathMasterMinimalProgressWidgetProvider", info: "math_master_widget_minimal_progress_info" },
+  ];
+  for (const { className, info } of additionalWidgetProviders) {
+    if (manifest.includes(`android:name=".${className}"`)) continue;
+    entries.push(`        <receiver
+            android:name=".${className}"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/${info}" />
+        </receiver>`);
+  }
   if (!manifest.includes('android:name=".DailyTargetReminderReceiver"')) {
     entries.push(`        <receiver
             android:name=".DailyTargetReminderReceiver"
@@ -250,6 +272,12 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'DailyTargetReminderReceiver.java',
     'DailyTargetReminderBootReceiver.java',
     'MathMasterHomeWidgetProvider.java',
+    'MathMasterCompactGreenWidgetProvider.java',
+    'MathMasterSquareMathBotWidgetProvider.java',
+    'MathMasterMediumStudyWidgetProvider.java',
+    'MathMasterSquareCosmicWidgetProvider.java',
+    'MathMasterExtraWideWeeklyWidgetProvider.java',
+    'MathMasterMinimalProgressWidgetProvider.java',
     'MathMasterWidgetConfigActivity.java',
   ];
   const targetPackageDir = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj');
@@ -312,6 +340,18 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'values/math_master_home_widget_strings.xml',
     'xml/math_master_home_widget_info.xml',
     'xml-v31/math_master_home_widget_info.xml',
+    'xml/math_master_widget_compact_green_info.xml',
+    'xml-v31/math_master_widget_compact_green_info.xml',
+    'xml/math_master_widget_square_math_bot_info.xml',
+    'xml-v31/math_master_widget_square_math_bot_info.xml',
+    'xml/math_master_widget_medium_study_info.xml',
+    'xml-v31/math_master_widget_medium_study_info.xml',
+    'xml/math_master_widget_square_cosmic_info.xml',
+    'xml-v31/math_master_widget_square_cosmic_info.xml',
+    'xml/math_master_widget_extra_wide_weekly_info.xml',
+    'xml-v31/math_master_widget_extra_wide_weekly_info.xml',
+    'xml/math_master_widget_minimal_progress_info.xml',
+    'xml-v31/math_master_widget_minimal_progress_info.xml',
   ];
   for (const resource of widgetResources) {
     const destination = path.join(root, 'app/src/main/res', resource);
