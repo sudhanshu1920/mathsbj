@@ -201,6 +201,7 @@ interface MathMasterNotificationsPlugin {
     contentJson: string;
     style: string;
     theme: string;
+    composition: string;
     accentColor: string;
     appAccentColor: string;
     mode: string;
