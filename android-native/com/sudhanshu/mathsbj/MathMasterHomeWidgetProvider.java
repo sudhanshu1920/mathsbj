@@ -186,6 +186,39 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return "app".equals(theme) || getPaletteThemeIndex(theme) >= 0 ? theme : "app";
     }
 
+    /** Maps old saved style identifiers to the closest premium design without losing instance settings. */
+    public static String normalizeWidgetDesign(String style) {
+        if ("glass".equals(style)) return "hero_wide";
+        if (isCompactDesign(style)) return "compact_green";
+        if (isMinimalDesign(style)) return "minimal_progress";
+        if (style != null && Arrays.asList(
+            "hero_wide", "compact_green", "square_math_bot", "medium_study",
+            "square_cosmic", "extra_wide_weekly", "minimal_progress"
+        ).contains(style)) return style;
+        return "hero_wide";
+    }
+
+    public static int getWidgetArtworkResource(String style) {
+        switch (normalizeWidgetDesign(style)) {
+            case "compact_green": return R.drawable.math_master_widget_art_compact_green;
+            case "square_math_bot": return R.drawable.math_master_widget_art_square_math_bot;
+            case "medium_study": return R.drawable.math_master_widget_art_medium_study;
+            case "square_cosmic": return R.drawable.math_master_widget_art_square_cosmic;
+            case "extra_wide_weekly": return R.drawable.math_master_widget_art_extra_wide_weekly;
+            case "minimal_progress": return R.drawable.math_master_widget_art_minimal_progress;
+            case "hero_wide":
+            default: return R.drawable.math_master_widget_art_hero_wide;
+        }
+    }
+
+    private static boolean isCompactDesign(String style) {
+        return "compact_green".equals(style);
+    }
+
+    private static boolean isMinimalDesign(String style) {
+        return "minimal_progress".equals(style);
+    }
+
     private static int appAccentColor(SharedPreferences preferences) {
         String value = preferences.getString("appAccentColor", preferences.getString("accentColor", "#B8A0FF"));
         return value != null && value.matches("#[0-9A-Fa-f]{6}")
@@ -359,7 +392,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
         boolean widgetsEnabled = preferences.getBoolean("enabled", true);
         String mode = preferences.getString("mode", "dark");
-        String style = getInstanceString(preferences, appWidgetId, "style", "glass");
+        String style = normalizeWidgetDesign(getInstanceString(preferences, appWidgetId, "style", "hero_wide"));
         String widgetTheme = normalizeWidgetTheme(getInstanceString(preferences, appWidgetId, "theme", "app"));
         int themeIndex = getPaletteThemeIndex(widgetTheme);
         int accentColor = themeIndex >= 0 ? COMPLETION_ACCENTS[themeIndex] : appAccentColor(preferences);
@@ -370,20 +403,21 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             : (lightMode ? R.drawable.math_master_home_widget_background_light
                 : R.drawable.math_master_home_widget_background);
         views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);
+        views.setImageViewResource(R.id.widget_artwork_overlay, getWidgetArtworkResource(style));
         boolean compactLayout = layoutId == R.layout.math_master_home_widget_compact;
         boolean wideLayout = layoutId == R.layout.math_master_home_widget_wide;
         float measuredWidthDp = widthDp > 0 ? widthDp : 220f;
         float measuredHeightDp = heightDp > 0 ? heightDp : 150f;
         float fontScale = Math.max(0.88f, Math.min(1.28f,
             Math.min(measuredWidthDp / 240f, measuredHeightDp / 175f)));
-        if ("compact".equals(style)) fontScale = Math.max(0.84f, fontScale * 0.96f);
-        else if ("minimal".equals(style)) fontScale = Math.max(0.86f, fontScale * 0.98f);
+        if (isCompactDesign(style)) fontScale = Math.max(0.84f, fontScale * 0.96f);
+        else if (isMinimalDesign(style)) fontScale = Math.max(0.86f, fontScale * 0.98f);
 
         int paddingDp = widthDp > 0 && widthDp < 200 ? 6 : (widthDp >= 320 ? 10 : 8);
-        if ("compact".equals(style)) paddingDp = Math.max(4, paddingDp - 1);
-        else if ("minimal".equals(style)) paddingDp = Math.max(6, paddingDp - 1);
+        if (isCompactDesign(style)) paddingDp = Math.max(4, paddingDp - 1);
+        else if (isMinimalDesign(style)) paddingDp = Math.max(6, paddingDp - 1);
         int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
-        views.setViewPadding(R.id.widget_root, paddingPx, paddingPx, paddingPx, paddingPx);
+        views.setViewPadding(R.id.widget_content, paddingPx, paddingPx, paddingPx, paddingPx);
 
         float percentBase = compactLayout ? 24f : (wideLayout ? 29f : 32f);
         views.setTextViewTextSize(R.id.widget_title_text, TypedValue.COMPLEX_UNIT_SP,
@@ -495,7 +529,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             && supportingGroupCount >= 2 && effectiveHeightDp >= 145;
         views.setViewVisibility(R.id.widget_flex_spacer,
             distributeVerticalSpace ? View.VISIBLE : View.GONE);
-        views.setInt(R.id.widget_root, "setGravity",
+        views.setInt(R.id.widget_content, "setGravity",
             distributeVerticalSpace ? Gravity.TOP : Gravity.CENTER_VERTICAL);
         views.setViewVisibility(R.id.widget_header_row, showIdentity ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_target_label, showTarget ? View.VISIBLE : View.GONE);
