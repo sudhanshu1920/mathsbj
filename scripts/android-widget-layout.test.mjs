@@ -163,6 +163,8 @@ test("seven selectable widget designs use valid scalable art and preserve legacy
   ];
   for (const [design, asset] of designs) {
     assert.ok(config.includes(`{"${design}",`), `missing selectable design ${design}`);
+    assert.ok(provider.includes(`"${design}"`), `provider does not recognize ${design}`);
+    assert.ok(configureAndroid.includes(`drawable/${asset}'`), `build copy list omits ${asset}`);
     assert.match(read(`android-native/res/drawable/${asset}`), /<vector[\s\S]*viewportWidth="320"[\s\S]*viewportHeight="180"/);
   }
   assert.match(provider, /if \("glass"\.equals\(style\)\) return "hero_wide";/);
