@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { prepareWidgetArtwork } from "./prepare-widget-artwork.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE_NATIVE_DIR = path.resolve(SCRIPT_DIR, '../android-native/com/sudhanshu/mathsbj');
@@ -240,11 +241,17 @@ async function configureFirebase(root, encodedConfig) {
  * Replace the artwork overlay with a supported FrameLayout before packaging native resources.
  */
 export function normalizeRemoteViewsLayout(xml) {
-  return xml.replace(/<View(?=\s+android:id="@\+id\/widget_artwork_overlay")/g, '<FrameLayout');
+  return xml
+    .replace(/<View(?=\s+android:id="@\+id\/widget_artwork_overlay")/g, '<FrameLayout')
+    .replace(/android:scaleType="fitXY"/g, 'android:scaleType="centerCrop"');
 }
 
-export async function configureAndroidNotifications(androidRoot, { firebaseJsonBase64 = '' } = {}) {
+export async function configureAndroidNotifications(androidRoot, { firebaseJsonBase64 = '', rasterizeWidgetArtwork = false } = {}) {
+  if (rasterizeWidgetArtwork) await prepareWidgetArtwork();
   const root = path.resolve(androidRoot);
+  const artworkResource = rasterizeWidgetArtwork
+    ? 'drawable-nodpi/math_master_widget_atlas.png'
+    : 'drawable-nodpi/math_master_widget_atlas.webp';
   const sourceFiles = [
     'DailyTargetReminderPlugin.java',
     'DailyTargetReminderReceiver.java',
@@ -270,7 +277,7 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'drawable/math_master_widget_art_overlay_square_cosmic.xml',
     'drawable/math_master_widget_art_overlay_extra_wide_weekly.xml',
     'drawable/math_master_widget_art_overlay_minimal_progress.xml',
-    'drawable-nodpi/math_master_widget_atlas.webp',
+    artworkResource,
     'layout/math_master_widget_hero_wide_compact.xml',
     'layout/math_master_widget_hero_wide_regular.xml',
     'layout/math_master_widget_hero_wide_wide.xml',
@@ -350,7 +357,7 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const androidRoot = process.env.ANDROID_ROOT || path.resolve('android');
   const firebaseJsonBase64 = process.env.MATHMASTER_FIREBASE_GOOGLE_SERVICES_JSON_BASE64 || '';
-  configureAndroidNotifications(androidRoot, { firebaseJsonBase64 })
+  configureAndroidNotifications(androidRoot, { firebaseJsonBase64, rasterizeWidgetArtwork: true })
     .then((result) => {
       console.log('Configured native Android background target reminders.');
       if (result.firebaseEnabled) {

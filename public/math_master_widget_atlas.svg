@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="512" viewBox="0 0 1536 512">
+  <title>Math Master premium widget artwork atlas</title>
+  <desc>Six vivid, text-free vector scenes for adaptive Android home-screen widgets.</desc>
+  <defs>
+    <linearGradient id="sunset" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#182c62"/><stop offset=".48" stop-color="#f48f9d"/><stop offset="1" stop-color="#ffcf8c"/>
+    </linearGradient>
+    <linearGradient id="forest" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#062e39"/><stop offset=".5" stop-color="#08765f"/><stop offset="1" stop-color="#b2d878"/>
+    </linearGradient>
+    <linearGradient id="robotSky" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#071a4a"/><stop offset=".6" stop-color="#063d83"/><stop offset="1" stop-color="#1599d1"/>
+    </linearGradient>
+    <linearGradient id="roseSky" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ffd3e7"/><stop offset=".55" stop-color="#e8a3cd"/><stop offset="1" stop-color="#986bb7"/>
+    </linearGradient>
+    <linearGradient id="cosmos" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#060d31"/><stop offset=".52" stop-color="#27216e"/><stop offset="1" stop-color="#0a688f"/>
+    </linearGradient>
+    <linearGradient id="lakeSky" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#163b64"/><stop offset=".48" stop-color="#35b5b3"/><stop offset="1" stop-color="#f5c78c"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#35d0cb" stop-opacity=".9"/><stop offset="1" stop-color="#082d53"/>
+    </linearGradient>
+    <linearGradient id="goldBook" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ffd984"/><stop offset="1" stop-color="#e57d35"/>
+    </linearGradient>
+    <linearGradient id="blueBook" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#66dcf1"/><stop offset="1" stop-color="#2365b2"/>
+    </linearGradient>
+    <linearGradient id="botShell" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#fffef5"/><stop offset=".55" stop-color="#bedff3"/><stop offset="1" stop-color="#6098c8"/>
+    </linearGradient>
+    <radialGradient id="sunGlow">
+      <stop stop-color="#fff9cc" stop-opacity=".95"/><stop offset="1" stop-color="#ffd36c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nebula">
+      <stop stop-color="#d35dff" stop-opacity=".76"/><stop offset=".48" stop-color="#7958ff" stop-opacity=".32"/><stop offset="1" stop-color="#2a3cc0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="planet">
+      <stop stop-color="#b3f2ff"/><stop offset=".45" stop-color="#538fe8"/><stop offset="1" stop-color="#343b9a"/>
+    </radialGradient>
+    <pattern id="stars" width="73" height="61" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="12" r="1.3" fill="#fff" opacity=".75"/>
+      <circle cx="54" cy="38" r="1" fill="#7ee9ff" opacity=".8"/>
+      <path d="M34 6v5M31.5 8.5h5" stroke="#fff" stroke-width="1" opacity=".62"/>
+    </pattern>
+    <clipPath id="panel"><rect x="0" y="0" width="512" height="256" rx="0"/></clipPath>
+  </defs>
+
+  <!-- HERO_WIDE: cinematic alpine sunrise -->
+  <g clip-path="url(#panel)">
+    <rect width="512" height="256" fill="url(#sunset)"/>
+    <circle cx="390" cy="55" r="70" fill="url(#sunGlow)"/>
+    <circle cx="390" cy="55" r="25" fill="#fff2b6"/>
+    <path d="M0 116 Q74 75 142 112T286 98T512 112V180H0Z" fill="#7e719f" opacity=".65"/>
+    <path d="M0 166 58 106 88 127 153 69 203 119 248 92 303 142 353 93 408 139 455 102 512 151V256H0Z" fill="#273b70"/>
+    <path d="M24 146 58 106 88 127 153 69 203 119 175 109 153 88 130 118 89 146 60 127Z" fill="#e8e8ef" opacity=".86"/>
+    <path d="M224 150 248 92 303 142 278 130 251 111 240 134Z" fill="#e9dce2"/>
+    <path d="M310 161 353 93 408 139 379 124 354 109 335 140Z" fill="#f4dbe1"/>
+    <path d="M0 170 76 151 122 177 184 137 239 175 302 144 365 180 432 144 512 174V256H0Z" fill="#142e56"/>
+    <path d="M0 211 Q65 180 119 204T224 199T331 207T432 187T512 205V256H0Z" fill="#0b3f59"/>
+    <path d="M225 256 Q255 220 286 209T344 190Q332 226 365 256Z" fill="#40aaba" opacity=".75"/>
+    <path d="M0 236 48 211 64 218 85 199 105 231 134 216 157 256Z" fill="#081f3b"/>
+    <path d="M426 256 452 208 468 231 481 191 512 239V256Z" fill="#09263e"/>
+    <path d="M250 229l49-8m-37 20 69-4m-49 15 89 1" stroke="#9be5e5" stroke-width="2" opacity=".42"/>
+  </g>
+
+  <!-- COMPACT_GREEN: lush botanical reading nook -->
+  <g transform="translate(512 0)" clip-path="url(#panel)">
+    <rect width="512" height="256" fill="url(#forest)"/>
+    <circle cx="340" cy="95" r="124" fill="#d4eb8d" opacity=".12"/>
+    <path d="M0 0H512V256H0Z" fill="#032e2c" opacity=".18"/>
+    <path d="M28 0V256M40 0V256M316 0V256M328 0V256" stroke="#d5b57b" stroke-width="5" opacity=".24"/>
+    <rect x="50" y="18" width="235" height="170" rx="5" fill="#f5dfab" opacity=".22"/>
+    <rect x="61" y="29" width="213" height="148" rx="3" fill="#e5efb2" opacity=".12"/>
+    <path d="M100 -5C58 27 65 57 103 65 129 31 121 10 100 -5Z" fill="#79d36e"/>
+    <path d="M147 0C118 35 129 61 162 62 181 28 169 8 147 0Z" fill="#a4e36c"/>
+    <path d="M205 -4C170 30 183 54 214 57 235 26 225 6 205 -4Z" fill="#3cc08a"/>
+    <path d="M90 0Q100 35 107 60M146 0Q153 30 160 59M205 0Q208 28 212 53" stroke="#d1ec90" stroke-width="2" fill="none"/>
+    <path d="M0 192Q90 166 173 188T337 177T512 182V256H0Z" fill="#052b34"/>
+    <rect x="245" y="154" width="207" height="21" rx="4" fill="#9a5239"/>
+    <rect x="238" y="174" width="220" height="19" rx="3" fill="#dc9b4e"/>
+    <rect x="259" y="193" width="193" height="20" rx="3" fill="#255c70"/>
+    <rect x="275" y="212" width="177" height="18" rx="3" fill="#db6c55"/>
+    <rect x="277" y="151" width="166" height="4" fill="#f6d28b" opacity=".88"/>
+    <path d="M0 226Q120 207 206 232T512 221V256H0Z" fill="#031e2c" opacity=".7"/>
+    <path d="M365 37q-50 17-41 53 34-1 41-53ZM400 18q-9 43 21 58 27-28-21-58ZM443 45q-35 19-20 48 31-8 20-48ZM474 13q-14 42 17 55 22-29-17-55Z" fill="#70d77d"/>
+    <path d="M366 39 351 89M400 20 419 75M443 47 423 90M474 15 490 64" stroke="#c1ef8d" stroke-width="2"/>
+    <circle cx="87" cy="126" r="18" fill="#e4d68b" opacity=".35"/>
+    <circle cx="87" cy="126" r="6" fill="#fff3bd" opacity=".88"/>
+  </g>
+
+  <!-- SQUARE_MATH_BOT: cheerful study robot -->
+  <g transform="translate(1024 0)" clip-path="url(#panel)">
+    <rect width="512" height="256" fill="url(#robotSky)"/>
+    <rect width="512" height="256" fill="url(#stars)"/>
+    <circle cx="430" cy="48" r="58" fill="#2cd8ff" opacity=".1"/>
+    <path d="M36 52 60 27 84 52 60 77Z" fill="none" stroke="#36cbff" stroke-width="2" opacity=".7"/>
+    <path d="M389 15l22 39h-44Z" fill="none" stroke="#4cbaff" stroke-width="2"/>
+    <circle cx="93" cy="101" r="20" fill="none" stroke="#39d7f3" stroke-width="2" opacity=".7"/>
+    <path d="M80 101h26M93 88v26" stroke="#39d7f3" stroke-width="2"/>
+    <path d="M149 35 160 24M155 42l18-1M158 29l8 16" stroke="#8deeff" stroke-width="2" opacity=".7"/>
+    <ellipse cx="297" cy="225" rx="126" ry="18" fill="#020e3b" opacity=".55"/>
+    <rect x="216" y="88" width="157" height="126" rx="32" fill="url(#botShell)" stroke="#d8f7ff" stroke-width="3"/>
+    <rect x="235" y="107" width="119" height="74" rx="20" fill="#092955"/>
+    <ellipse cx="266" cy="139" rx="10" ry="15" fill="#46ecff"/>
+    <ellipse cx="322" cy="139" rx="10" ry="15" fill="#46ecff"/>
+    <path d="M267 158q26 22 54 0" stroke="#69f2ff" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M295 88V68" stroke="#d1f8ff" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="295" cy="61" r="10" fill="#ffce67" stroke="#fff0b7" stroke-width="3"/>
+    <path d="M205 100q-22 10-13 39 15 9 25-9M375 99q24 14 12 39-15 8-24-10" fill="#82cce8" stroke="#e0fbff" stroke-width="3"/>
+    <rect x="232" y="205" width="125" height="16" rx="8" fill="#4c91c9"/>
+    <path d="M208 214 185 233M378 213 401 233" stroke="#b8e7f5" stroke-width="12" stroke-linecap="round"/>
+    <path d="M230 90 246 55 293 46 340 56 357 90Z" fill="#243a81" stroke="#70e9ff" stroke-width="3"/>
+    <path d="M246 55 291 28 340 56" fill="#4d78ce" stroke="#93eeff" stroke-width="3"/>
+    <path d="M237 194l-26 29 20 16 25-21M351 194l26 29-20 16-25-21" fill="#fff5d0" stroke="#9de7fa" stroke-width="3"/>
+    <rect x="275" y="196" width="41" height="10" rx="5" fill="#f8bd60"/>
+    <circle cx="67" cy="190" r="3" fill="#f5dc83"/><circle cx="106" cy="164" r="2" fill="#fff"/>
+  </g>
+
+  <!-- MEDIUM_STUDY: warm pastel desk and cat -->
+  <g transform="translate(0 256)" clip-path="url(#panel)">
+    <rect width="512" height="256" fill="url(#roseSky)"/>
+    <circle cx="390" cy="58" r="72" fill="#fff1c7" opacity=".35"/>
+    <rect x="224" y="0" width="288" height="170" fill="#fff2dc" opacity=".25"/>
+    <path d="M225 0V170M365 0V170M457 0V170M225 84H512" stroke="#fff5df" stroke-width="7" opacity=".7"/>
+    <path d="M0 0Q80 60 145 17T235 50L235 0Z" fill="#df8ebd" opacity=".5"/>
+    <path d="M0 0 32 27 8 46 53 55 15 81 69 86" stroke="#765b6f" stroke-width="5" fill="none" opacity=".55"/>
+    <g fill="#f8a8d0" stroke="#ffd9e8" stroke-width="2">
+      <circle cx="26" cy="35" r="12"/><circle cx="52" cy="21" r="10"/><circle cx="67" cy="55" r="13"/>
+      <circle cx="99" cy="27" r="11"/><circle cx="124" cy="61" r="10"/><circle cx="155" cy="32" r="12"/>
+      <circle cx="183" cy="58" r="9"/><circle cx="43" cy="91" r="9"/><circle cx="138" cy="97" r="11"/>
+    </g>
+    <g fill="#fff2f8">
+      <circle cx="26" cy="35" r="4"/><circle cx="52" cy="21" r="3"/><circle cx="67" cy="55" r="4"/>
+      <circle cx="99" cy="27" r="3"/><circle cx="124" cy="61" r="3"/><circle cx="155" cy="32" r="4"/>
+      <circle cx="183" cy="58" r="3"/><circle cx="43" cy="91" r="3"/><circle cx="138" cy="97" r="3"/>
+    </g>
+    <rect x="0" y="192" width="512" height="18" fill="#9e5f89"/>
+    <rect x="0" y="210" width="512" height="46" fill="#603c66"/>
+    <rect x="58" y="169" width="160" height="14" rx="4" fill="#3b5b88"/>
+    <rect x="75" y="153" width="148" height="16" rx="3" fill="#f8c86f"/>
+    <rect x="90" y="137" width="124" height="16" rx="3" fill="#f6e2f1"/>
+    <rect x="101" y="133" width="100" height="4" fill="#ba6b9c"/>
+    <rect x="302" y="182" width="142" height="13" rx="6" fill="#d59c68"/>
+    <ellipse cx="367" cy="175" rx="79" ry="42" fill="#f5e8d9"/>
+    <ellipse cx="345" cy="163" rx="45" ry="35" fill="#fff5e8"/>
+    <circle cx="321" cy="138" r="32" fill="#fff4e5"/>
+    <path d="M296 118 296 89 319 108M328 107 350 89 348 122" fill="#fff1dd" stroke="#e7c1ad" stroke-width="3"/>
+    <path d="M299 136q8 8 16 0M325 136q8 8 16 0" stroke="#654a55" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M317 146q5 5 10 0" stroke="#d58a9e" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M312 153 298 157M332 153 346 157" stroke="#c99ba7" stroke-width="2"/>
+    <path d="M284 161q-18 23 6 35M367 196q33 12 55-5" stroke="#fff4e4" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <rect x="426" y="165" width="38" height="29" rx="5" fill="#f5d3e5" stroke="#fff3f4" stroke-width="3"/>
+    <path d="M464 172q20-2 13 16h-13" fill="none" stroke="#fff3f4" stroke-width="5"/>
+    <path d="M435 165q10-14 22 0" fill="#fff6db"/>
+  </g>
+
+  <!-- SQUARE_COSMIC: vivid ringed planet nebula -->
+  <g transform="translate(512 256)" clip-path="url(#panel)">
+    <rect width="512" height="256" fill="url(#cosmos)"/>
+    <rect width="512" height="256" fill="url(#stars)"/>
+    <ellipse cx="255" cy="101" rx="180" ry="100" fill="url(#nebula)"/>
+    <path d="M0 172Q86 139 163 166T321 159T512 151V256H0Z" fill="#121847" opacity=".75"/>
+    <path d="M0 212 54 170 88 201 134 154 188 206 235 182 285 217 344 162 401 207 458 171 512 208V256H0Z" fill="#101a47"/>
+    <circle cx="360" cy="110" r="66" fill="url(#planet)"/>
+    <ellipse cx="360" cy="111" rx="108" ry="27" fill="none" stroke="#ba8aff" stroke-width="13" transform="rotate(-19 360 111)" opacity=".9"/>
+    <ellipse cx="360" cy="111" rx="108" ry="27" fill="none" stroke="#e2c5ff" stroke-width="3" transform="rotate(-19 360 111)"/>
+    <path d="M296 94q55 33 111 5" fill="none" stroke="#b8dfff" stroke-width="6" opacity=".35"/>
+    <circle cx="143" cy="78" r="24" fill="#4ea6ff"/>
+    <path d="M123 70q24-20 42 4M126 83q20-12 38 6" stroke="#a5d7ff" stroke-width="3" fill="none" opacity=".8"/>
+    <circle cx="221" cy="51" r="11" fill="#e5a6ff"/>
+    <circle cx="72" cy="128" r="4" fill="#fff0a4"/><circle cx="184" cy="27" r="3" fill="#fff"/>
+    <path d="M27 55l6 12 13 2-10 9 2 13-11-7-11 7 3-13-10-9 13-2Z" fill="#97dfff" opacity=".75"/>
+    <path d="M270 204l5 10 11 2-8 8 2 11-10-6-10 6 2-11-8-8 11-2Z" fill="#bd8aff" opacity=".7"/>
+  </g>
+
+  <!-- EXTRA_WIDE_WEEKLY: panoramic emerald mountain lake -->
+  <g transform="translate(1024 256)" clip-path="url(#panel)">
+    <rect width="512" height="256" fill="url(#lakeSky)"/>
+    <circle cx="390" cy="48" r="63" fill="url(#sunGlow)"/>
+    <circle cx="390" cy="48" r="20" fill="#fff3c4"/>
+    <path d="M0 149 62 75 99 112 151 49 208 121 263 69 328 131 374 82 430 130 477 91 512 124V256H0Z" fill="#2a6578"/>
+    <path d="M18 126 62 75 99 112 151 49 208 121 170 99 151 74 130 107 99 130 63 93 41 135Z" fill="#dfedf0"/>
+    <path d="M177 138 263 69 328 131 287 113 266 91 231 120Z" fill="#d9eeee"/>
+    <path d="M0 171Q85 149 171 170T347 164T512 174V256H0Z" fill="#164d65"/>
+    <path d="M0 189Q85 178 173 191T349 186T512 193V256H0Z" fill="url(#water)"/>
+    <path d="M0 213q87-13 171 1t171 0 170 2M0 232q80-8 163 2t171-2 178 1" stroke="#9df4e3" stroke-width="2" fill="none" opacity=".55"/>
+    <path d="M0 256 0 193 18 177 35 200 54 165 72 207 88 185 110 256Z" fill="#082f48"/>
+    <path d="M406 256 424 199 442 221 456 177 473 212 488 187 512 211V256Z" fill="#0b3c50"/>
+    <path d="M38 175 38 150M28 166 38 143 49 166M67 186 67 161M56 177 67 151 78 177" stroke="#0f423f" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M440 203 440 173M428 192 440 164 452 192M482 209 482 179M471 198 482 171 493 198" stroke="#0f423f" stroke-width="6" stroke-linejoin="round"/>
+  </g>
+</svg>
