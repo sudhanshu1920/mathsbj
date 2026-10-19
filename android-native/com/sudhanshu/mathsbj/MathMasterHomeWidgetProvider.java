@@ -11,6 +11,8 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BitmapRegionDecoder;
+import android.graphics.Rect;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
@@ -35,6 +37,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
@@ -42,7 +47,7 @@ import java.util.Locale;
 public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     private static final String WIDGET_PREFS = "math_master_home_widget";
     private static final int REQUEST_CODE = 8907;
-    private static Bitmap widgetArtworkAtlas;
+    private static BitmapRegionDecoder widgetArtworkDecoder;
     private static final Map<String, Bitmap> WIDGET_ARTWORK_CACHE = new LinkedHashMap<String, Bitmap>(16, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, Bitmap> eldest) {
@@ -122,6 +127,21 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         updateWidgets(context);
     }
 
+    private static BitmapRegionDecoder getWidgetArtworkDecoder(Context context) {
+        synchronized (MathMasterHomeWidgetProvider.class) {
+            if (widgetArtworkDecoder != null && !widgetArtworkDecoder.isRecycled()) {
+                return widgetArtworkDecoder;
+            }
+            try (InputStream input = context.getResources().openRawResource(R.drawable.math_master_widget_atlas)) {
+                widgetArtworkDecoder = BitmapRegionDecoder.newInstance(input, false);
+            } catch (IOException | RuntimeException exception) {
+                // Optional artwork must never prevent a widget from rendering its live metrics.
+                widgetArtworkDecoder = null;
+            }
+            return widgetArtworkDecoder;
+        }
+    }
+
     private static Bitmap getWidgetArtwork(Context context, String composition, int widthDp, int heightDp) {
         int panelIndex;
         if ("hero_wide".equals(composition)) panelIndex = 0;
@@ -132,22 +152,26 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         else if ("extra_wide_weekly".equals(composition)) panelIndex = 5;
         else return null;
 
-        float ratio = widthDp > 0 && heightDp > 0 ? Math.max(0.72f, Math.min(3.6f, widthDp / (float) heightDp)) : 1.65f;
-        String cacheKey = composition + "_" + Math.round(ratio * 4f) + "_" + Math.max(1, Math.min(6, Math.round(Math.max(1, widthDp) / 70f)));
+        float ratio = widthDp > 0 && heightDp > 0
+            ? Math.max(0.72f, Math.min(3.6f, widthDp / (float) heightDp)) : 1.65f;
+
+        // Store only the exact optimized rendition needed by the RemoteViews, never a full decoded atlas.
+        int desiredWidth = Math.max(200, Math.min(520, Math.round(Math.max(1, widthDp) * 1.7f)));
+        int outputHeight = Math.max(80, Math.min(300, Math.round(desiredWidth / ratio)));
+        int outputWidth = Math.max(120, Math.min(desiredWidth, Math.round(outputHeight * ratio)));
+        outputHeight = Math.max(80, Math.min(300, Math.round(outputWidth / ratio)));
+        String cacheKey = composition + "_" + Math.round(ratio * 100f)
+            + "_" + outputWidth + "x" + outputHeight;
         synchronized (WIDGET_ARTWORK_CACHE) {
             Bitmap cached = WIDGET_ARTWORK_CACHE.get(cacheKey);
             if (cached != null && !cached.isRecycled()) return cached;
         }
 
-        Bitmap atlas;
-        synchronized (MathMasterHomeWidgetProvider.class) {
-            if (widgetArtworkAtlas == null || widgetArtworkAtlas.isRecycled()) {
-                widgetArtworkAtlas = BitmapFactory.decodeResource(context.getResources(), R.drawable.math_master_widget_atlas);
-            }
-            atlas = widgetArtworkAtlas;
-        }
-        if (atlas == null || atlas.isRecycled()) return null;
+        BitmapRegionDecoder decoder = getWidgetArtworkDecoder(context);
+        if (decoder == null || decoder.isRecycled()) return null;
 
+        int atlasWidth = decoder.getWidth();
+        int atlasHeight = decoder.getHeight();
         float[][] rects = {
             {0.003f, 0.015f, 0.322f, 0.475f},
             {0.330f, 0.015f, 0.642f, 0.475f},
@@ -157,10 +181,10 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             {0.652f, 0.497f, 0.965f, 0.954f}
         };
         float[] rect = rects[panelIndex];
-        int left = Math.max(0, Math.min(atlas.getWidth() - 1, Math.round(rect[0] * atlas.getWidth())));
-        int top = Math.max(0, Math.min(atlas.getHeight() - 1, Math.round(rect[1] * atlas.getHeight())));
-        int right = Math.max(left + 1, Math.min(atlas.getWidth(), Math.round(rect[2] * atlas.getWidth())));
-        int bottom = Math.max(top + 1, Math.min(atlas.getHeight(), Math.round(rect[3] * atlas.getHeight())));
+        int left = Math.max(0, Math.min(atlasWidth - 1, Math.round(rect[0] * atlasWidth)));
+        int top = Math.max(0, Math.min(atlasHeight - 1, Math.round(rect[1] * atlasHeight)));
+        int right = Math.max(left + 1, Math.min(atlasWidth, Math.round(rect[2] * atlasWidth)));
+        int bottom = Math.max(top + 1, Math.min(atlasHeight, Math.round(rect[3] * atlasHeight)));
         int panelWidth = right - left;
         int panelHeight = bottom - top;
 
@@ -181,15 +205,43 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             panelHeight = cropHeight;
         }
 
-        Bitmap crop = Bitmap.createBitmap(atlas, left, top, panelWidth, panelHeight);
-        int outputWidth = Math.max(260, Math.min(520, Math.round(Math.max(1, widthDp) * 1.7f)));
-        int outputHeight = Math.max(100, Math.min(300, Math.round(outputWidth / ratio)));
-        Bitmap scaled = Bitmap.createScaledBitmap(crop, outputWidth, outputHeight, true);
-        if (crop != scaled && !crop.isRecycled()) crop.recycle();
-        synchronized (WIDGET_ARTWORK_CACHE) {
-            WIDGET_ARTWORK_CACHE.put(cacheKey, scaled);
+        // Sample the source region before allocating pixels. This avoids a full-resolution ARGB atlas
+        // and avoids creating a full-resolution intermediate crop on each refresh.
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        int sampleSize = 1;
+        while (panelWidth / (sampleSize * 2) >= outputWidth
+            && panelHeight / (sampleSize * 2) >= outputHeight) {
+            sampleSize *= 2;
         }
-        return scaled;
+        options.inSampleSize = sampleSize;
+
+        Bitmap decoded;
+        try {
+            synchronized (decoder) {
+                decoded = decoder.decodeRegion(new Rect(left, top, right, bottom), options);
+            }
+        } catch (RuntimeException exception) {
+            // Invalid or unsupported image data falls back to the widget's native glass background.
+            return null;
+        }
+        if (decoded == null || decoded.isRecycled()) return null;
+
+        Bitmap optimized = decoded;
+        if (decoded.getWidth() != outputWidth || decoded.getHeight() != outputHeight) {
+            try {
+                optimized = Bitmap.createScaledBitmap(decoded, outputWidth, outputHeight, true);
+            } catch (RuntimeException exception) {
+                if (!decoded.isRecycled()) decoded.recycle();
+                return null;
+            }
+            if (optimized != decoded && !decoded.isRecycled()) decoded.recycle();
+        }
+
+        synchronized (WIDGET_ARTWORK_CACHE) {
+            WIDGET_ARTWORK_CACHE.put(cacheKey, optimized);
+        }
+        return optimized;
     }
 
     private static Bitmap createProgressRing(Context context, int progress, int accentColor) {
