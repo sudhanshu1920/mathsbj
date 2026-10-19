@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   setTheme: vi.fn(),
   setMode: vi.fn(),
   setHomeWidgetComposition: vi.fn(),
-  setHomeWidgetComposition: vi.fn(),
   setGuest: vi.fn(),
   checkForAppUpdate: vi.fn(),
   announceUpdateAvailable: vi.fn(),
@@ -35,7 +34,6 @@ vi.mock("@/lib/settings", () => {
     homeWidgetContent: ["appIdentity", "target", "progress", "remaining", "studyTime", "streak"],
     homeWidgetStyle: "glass",
     homeWidgetTheme: "app",
-    homeWidgetComposition: "auto",
     homeWidgetComposition: "auto",
   });
   return {
