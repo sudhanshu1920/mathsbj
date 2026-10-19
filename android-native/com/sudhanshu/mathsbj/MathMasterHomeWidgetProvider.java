@@ -157,9 +157,9 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
         // Store only the exact optimized rendition needed by the RemoteViews, never a full decoded atlas.
         int desiredWidth = Math.max(200, Math.min(520, Math.round(Math.max(1, widthDp) * 1.7f)));
-        int outputHeight = Math.max(80, Math.min(300, Math.round(desiredWidth / ratio)));
-        int outputWidth = Math.max(120, Math.min(desiredWidth, Math.round(outputHeight * ratio)));
-        outputHeight = Math.max(80, Math.min(300, Math.round(outputWidth / ratio)));
+        int outputHeight = Math.max(1, Math.min(300, Math.round(desiredWidth / ratio)));
+        int outputWidth = Math.max(1, Math.min(desiredWidth, Math.round(outputHeight * ratio)));
+        outputHeight = Math.max(1, Math.min(300, Math.round(outputWidth / ratio)));
         String cacheKey = composition + "_" + Math.round(ratio * 100f)
             + "_" + outputWidth + "x" + outputHeight;
         synchronized (WIDGET_ARTWORK_CACHE) {
