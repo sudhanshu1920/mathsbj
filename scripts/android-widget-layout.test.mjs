@@ -138,12 +138,15 @@ test("glass colors are translucent and target completion uses a stable celebrato
   assert.match(provider, /targetComplete \? "✓ Daily target complete!"/);
 });
 
-test("responsive typography and weighted spacing adapt to selected fields and available height", () => {
+test("responsive typography is more prominent and weighted spacers cannot split widget content", () => {
   assert.ok(provider.includes("responsiveTextSize(percentBase, fontScale"));
-  assert.ok(provider.includes("measuredWidthDp / 240f, measuredHeightDp / 175f"));
-  assert.ok(provider.includes("boolean hasPrimaryContent = showProgress || showTarget;"));
-  assert.ok(provider.includes("boolean hasSupportingContent = showStudyTime || showRemaining || showStreak || showWeekly || showUpdateStatus;"));
-  assert.ok(provider.includes("supportingGroupCount >= 2 && effectiveHeightDp >= 145"));
+  assert.ok(provider.includes("measuredWidthDp / 220f, measuredHeightDp / 155f"));
+  assert.ok(provider.includes("float percentBase = compactLayout ? 27f : (wideLayout ? 36f : 38f);"));
+  assert.ok(provider.includes("responsiveTextSize(percentBase, fontScale"));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer, View.GONE);"));
+  assert.ok(provider.includes('views.setInt(R.id.widget_content, "setGravity", Gravity.CENTER_VERTICAL);'));
+  assert.equal(provider.includes("boolean distributeVerticalSpace"), false);
+  assert.equal(provider.includes("distributeVerticalSpace ? Gravity.TOP"), false);
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_primary_row,"));
   assert.ok(provider.includes("(showProgress || showTarget) ? View.VISIBLE : View.GONE);"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_study_remaining_row,"));
@@ -151,9 +154,7 @@ test("responsive typography and weighted spacing adapt to selected fields and av
   assert.ok(provider.includes("boolean showWideLowerRow = showStudyTime || showRemaining || showStreak || showWeekly;"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_lower_row,"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_side_column,"));
-  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer,"));
-  assert.ok(provider.includes('views.setInt(R.id.widget_content, "setGravity",'));
-  assert.ok(provider.includes("distributeVerticalSpace ? Gravity.TOP : Gravity.CENTER_VERTICAL"));
+  assert.ok(provider.includes('views.setFloat(R.id.widget_artwork, "setAlpha", 1.0f);'));
   for (const layout of layouts) {
     assert.ok(layout.includes('android:id="@+id/widget_flex_spacer"'));
     assert.ok(layout.includes('android:layout_height="0dp"'));
