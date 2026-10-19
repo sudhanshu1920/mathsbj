@@ -63,7 +63,7 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
     }
     assert.equal(layout.includes("@mipmap/ic_launcher"), false);
     const packagedLayout = normalizeRemoteViewsLayout(layout);
-    assert.doesNotMatch(packagedLayout, /<View\\b/, "packaged RemoteViews layouts must not use plain View classes");
+    assert.equal(packagedLayout.includes("<View"), false, "packaged RemoteViews layouts must not use plain View classes");
     assert.doesNotMatch(packagedLayout, /android:scaleType="fitXY"/, "packaged artwork must not stretch when launcher dimensions differ");
     assert.match(packagedLayout, /android:scaleType="centerCrop"/, "packaged artwork must preserve its aspect ratio");
     assert.equal(layout.includes("widget_progress_text"), false);
@@ -238,19 +238,18 @@ test("widget artwork uses sampled region decoding and bounded output renditions"
 });
 
 test("4K vector artwork, contrast, width-based typography, and compact spacing are regression protected", () => {
-  assert.match(artworkPreparation, /rsvg-convert/);
-  assert.match(artworkPreparation, /3840/);
-  assert.match(artworkPreparation, /1280/);
-  assert.match(artworkPreparation, /math_master_widget_atlas\.png/);
-  assert.match(artworkSvg, /width="1536" height="512" viewBox="0 0 1536 512"/);
-  assert.equal((artworkSvg.match(/clip-path="url\(#panel\)"/g) || []).length, 6);
-  assert.match(provider, /setAlpha", 1\.0f/);
-  assert.doesNotMatch(provider, /setAlpha", 0\.86f/);
-  assert.match(provider, /float widthScale = measuredWidthDp \/ \(compactLayout \? 125f/);
-  assert.match(provider, /Math.max\(1\.0f, Math.min\(1\.42f, widthScale\)\)/);
+  assert.ok(artworkPreparation.includes('"-w", "3840"'));
+  assert.ok(artworkPreparation.includes('"-h", "1280"'));
+  assert.ok(artworkPreparation.includes("math_master_widget_atlas.png"));
+  assert.ok(artworkSvg.includes('width="1536" height="512" viewBox="0 0 1536 512"'));
+  assert.equal(artworkSvg.split('clip-path="url(#panel)"').length - 1, 6);
+  assert.ok(provider.includes('setAlpha", 1.0f'));
+  assert.equal(provider.includes('setAlpha", 0.86f'), false);
+  assert.ok(provider.includes("float widthScale = measuredWidthDp / (compactLayout ? 125f"));
+  assert.ok(provider.includes("Math.max(1.0f, Math.min(1.42f, widthScale))"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer, View.GONE)"));
   assert.ok(provider.includes('views.setInt(R.id.widget_content, "setGravity", Gravity.CENTER_VERTICAL);'));
-  assert.match(provider, /Color\.WHITE/);
+  assert.ok(provider.includes("Color.WHITE"));
 
   const overlayPaths = [
     "android-native/res/drawable/math_master_widget_art_overlay_hero_wide.xml",
