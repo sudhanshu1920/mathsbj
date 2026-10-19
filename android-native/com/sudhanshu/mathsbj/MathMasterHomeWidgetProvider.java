@@ -488,9 +488,11 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus");
         boolean hasPrimaryContent = showProgress || showTarget;
         boolean hasSupportingContent = showStudyTime || showRemaining || showStreak || showWeekly || showUpdateStatus;
+        int supportingGroupCount = (showStudyTime || showRemaining ? 1 : 0)
+            + (showStreak ? 1 : 0) + (showWeekly ? 1 : 0) + (showUpdateStatus ? 1 : 0);
         int effectiveHeightDp = heightDp > 0 ? heightDp : 150;
         boolean distributeVerticalSpace = widgetsEnabled && hasPrimaryContent && hasSupportingContent
-            && effectiveHeightDp >= 145;
+            && supportingGroupCount >= 2 && effectiveHeightDp >= 145;
         views.setViewVisibility(R.id.widget_flex_spacer,
             distributeVerticalSpace ? View.VISIBLE : View.GONE);
         views.setInt(R.id.widget_root, "setGravity",
