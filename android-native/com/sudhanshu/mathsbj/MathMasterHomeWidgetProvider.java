@@ -627,7 +627,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showArtwork = widgetsEnabled && artwork != null && !"minimal_progress".equals(composition);
         if (showArtwork) {
             views.setImageViewBitmap(R.id.widget_artwork, artwork);
-            views.setFloat(R.id.widget_artwork, "setAlpha", 0.86f);
+            views.setFloat(R.id.widget_artwork, "setAlpha", 1.0f);
             views.setViewVisibility(R.id.widget_artwork, View.VISIBLE);
             views.setViewVisibility(R.id.widget_artwork_overlay, View.VISIBLE);
         } else {
@@ -638,8 +638,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean wideLayout = sizeClass == 2;
         float measuredWidthDp = widthDp > 0 ? widthDp : 220f;
         float measuredHeightDp = heightDp > 0 ? heightDp : 150f;
-        float fontScale = Math.max(0.88f, Math.min(1.28f,
-            Math.min(measuredWidthDp / 240f, measuredHeightDp / 175f)));
+        float fontScale = Math.max(0.92f, Math.min(1.30f,
+            Math.min(measuredWidthDp / 220f, measuredHeightDp / 155f)));
         if ("compact".equals(style)) fontScale = Math.max(0.84f, fontScale * 0.96f);
         else if ("minimal".equals(style)) fontScale = Math.max(0.86f, fontScale * 0.98f);
 
@@ -650,34 +650,34 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
         views.setViewPadding(R.id.widget_content, paddingPx, paddingPx, paddingPx, paddingPx);
 
-        float percentBase = compactLayout ? 24f : (wideLayout ? 29f : 32f);
+        float percentBase = compactLayout ? 27f : (wideLayout ? 36f : 38f);
         views.setTextViewTextSize(R.id.widget_title_text, TypedValue.COMPLEX_UNIT_SP,
             responsiveTextSize(compactLayout ? 9.5f : (wideLayout ? 11.5f : 12f), fontScale,
                 compactLayout ? 9f : (wideLayout ? 10.5f : 11f), compactLayout ? 12f : (wideLayout ? 13f : 13.5f)));
         views.setTextViewTextSize(R.id.widget_progress_percent, TypedValue.COMPLEX_UNIT_SP,
             responsiveTextSize(percentBase, fontScale,
-                compactLayout ? 22f : (wideLayout ? 27f : 30f), compactLayout ? 30f : (wideLayout ? 36f : 40f)));
+                compactLayout ? 24f : (wideLayout ? 32f : 34f), compactLayout ? 32f : (wideLayout ? 44f : 46f)));
         views.setTextViewTextSize(R.id.widget_target_value, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 14f : (wideLayout ? 14.5f : 15.5f), fontScale,
-                compactLayout ? 12.5f : (wideLayout ? 13.5f : 14.5f), compactLayout ? 16.5f : (wideLayout ? 17.5f : 19f)));
+            responsiveTextSize(compactLayout ? 16f : (wideLayout ? 17.5f : 18.5f), fontScale,
+                compactLayout ? 14f : (wideLayout ? 15.5f : 16.5f), compactLayout ? 19f : (wideLayout ? 21f : 22f)));
         views.setTextViewTextSize(R.id.widget_target_label, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 10f : (wideLayout ? 10.5f : 11f), fontScale,
-                compactLayout ? 9.5f : (wideLayout ? 10f : 10.5f), compactLayout ? 12f : (wideLayout ? 12.5f : 13f)));
+            responsiveTextSize(compactLayout ? 10.5f : (wideLayout ? 12f : 12.5f), fontScale,
+                compactLayout ? 10f : (wideLayout ? 11f : 11.5f), compactLayout ? 13f : (wideLayout ? 14f : 14.5f)));
         views.setTextViewTextSize(R.id.widget_study_time_text, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 10.5f : (wideLayout ? 11.5f : 12f), fontScale,
-                compactLayout ? 9.5f : (wideLayout ? 10.5f : 11f), compactLayout ? 13f : (wideLayout ? 13.5f : 14.5f)));
+            responsiveTextSize(compactLayout ? 11.5f : (wideLayout ? 12.5f : 13.5f), fontScale,
+                compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 15f : 16f)));
         views.setTextViewTextSize(R.id.widget_remaining_text, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 10.5f : (wideLayout ? 11.5f : 12f), fontScale,
-                compactLayout ? 9.5f : (wideLayout ? 10.5f : 11f), compactLayout ? 13f : (wideLayout ? 13.5f : 14.5f)));
+            responsiveTextSize(compactLayout ? 11.5f : (wideLayout ? 12.5f : 13.5f), fontScale,
+                compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 15f : 16f)));
         views.setTextViewTextSize(R.id.widget_streak_text, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 10.5f : (wideLayout ? 11.5f : 12f), fontScale,
-                compactLayout ? 9.5f : (wideLayout ? 10.5f : 11f), compactLayout ? 13f : (wideLayout ? 13.5f : 14.5f)));
+            responsiveTextSize(compactLayout ? 11.5f : (wideLayout ? 12.5f : 13.5f), fontScale,
+                compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 15f : 16f)));
         views.setTextViewTextSize(R.id.widget_update_text, TypedValue.COMPLEX_UNIT_SP,
             responsiveTextSize(compactLayout ? 9f : (wideLayout ? 9.5f : 10.5f), fontScale,
                 compactLayout ? 8.5f : (wideLayout ? 9f : 9.5f), compactLayout ? 10.5f : (wideLayout ? 11.5f : 12f)));
         views.setTextViewTextSize(R.id.widget_week_title, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 7.5f : (wideLayout ? 8f : 9f), fontScale,
-                compactLayout ? 7f : (wideLayout ? 7.5f : 8.5f), compactLayout ? 9f : (wideLayout ? 9.5f : 10.5f)));
+            responsiveTextSize(compactLayout ? 8.5f : (wideLayout ? 9.5f : 10f), fontScale,
+                compactLayout ? 8f : (wideLayout ? 8.5f : 9.5f), compactLayout ? 10f : (wideLayout ? 11f : 12f)));
 
         int[] dayLabelIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
             R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
@@ -687,14 +687,14 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
         for (int i = 0; i < 7; i++) {
             views.setTextViewTextSize(dayLabelIds[i], TypedValue.COMPLEX_UNIT_SP,
-                responsiveTextSize(compactLayout ? 8f : (wideLayout ? 8.5f : 9f), fontScale,
-                    compactLayout ? 7.5f : (wideLayout ? 8f : 8.5f), compactLayout ? 9.5f : (wideLayout ? 10f : 10.5f)));
+                responsiveTextSize(compactLayout ? 9f : (wideLayout ? 9.5f : 10f), fontScale,
+                    compactLayout ? 8.5f : (wideLayout ? 9f : 9.5f), compactLayout ? 10.5f : (wideLayout ? 11f : 12f)));
             views.setTextViewTextSize(dayDateIds[i], TypedValue.COMPLEX_UNIT_SP,
-                responsiveTextSize(compactLayout ? 7.5f : (wideLayout ? 7.5f : 8f), fontScale,
-                    compactLayout ? 7f : (wideLayout ? 7f : 7.5f), compactLayout ? 8.5f : (wideLayout ? 8.5f : 9f)));
+                responsiveTextSize(compactLayout ? 8.5f : (wideLayout ? 8.5f : 9f), fontScale,
+                    compactLayout ? 8f : (wideLayout ? 8f : 8.5f), compactLayout ? 9.5f : (wideLayout ? 9.5f : 10.5f)));
             views.setTextViewTextSize(dayStatusIds[i], TypedValue.COMPLEX_UNIT_SP,
-                responsiveTextSize(compactLayout ? 10f : (wideLayout ? 10.5f : 11.5f), fontScale,
-                    compactLayout ? 9f : (wideLayout ? 9.5f : 10.5f), compactLayout ? 11.5f : (wideLayout ? 12f : 13f)));
+                responsiveTextSize(compactLayout ? 12f : (wideLayout ? 12.5f : 13.5f), fontScale,
+                    compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 14.5f : 15.5f)));
         }
         views.setTextColor(R.id.widget_progress_percent, accentColor);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -756,17 +756,10 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             views.setImageViewBitmap(R.id.widget_progress_ring, createProgressRing(context, progress, accentColor));
             views.setContentDescription(R.id.widget_progress_ring, progress + "% completion progress");
         }
-        boolean hasPrimaryContent = showProgress || showTarget;
-        boolean hasSupportingContent = showStudyTime || showRemaining || showStreak || showWeekly || showUpdateStatus;
-        int supportingGroupCount = (showStudyTime || showRemaining ? 1 : 0)
-            + (showStreak ? 1 : 0) + (showWeekly ? 1 : 0) + (showUpdateStatus ? 1 : 0);
-        int effectiveHeightDp = heightDp > 0 ? heightDp : 150;
-        boolean distributeVerticalSpace = widgetsEnabled && hasPrimaryContent && hasSupportingContent
-            && supportingGroupCount >= 2 && effectiveHeightDp >= 145;
-        views.setViewVisibility(R.id.widget_flex_spacer,
-            distributeVerticalSpace ? View.VISIBLE : View.GONE);
-        views.setInt(R.id.widget_content, "setGravity",
-            distributeVerticalSpace ? Gravity.TOP : Gravity.CENTER_VERTICAL);
+        // A weighted spacer pushed metrics to opposite ends of the card on some launchers,
+        // leaving a large empty band through the middle. Keep the content group compact and balanced.
+        views.setViewVisibility(R.id.widget_flex_spacer, View.GONE);
+        views.setInt(R.id.widget_content, "setGravity", Gravity.CENTER_VERTICAL);
         views.setViewVisibility(R.id.widget_header_row, showIdentity ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_target_label, showTarget ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_target_value, showTarget ? View.VISIBLE : View.GONE);
