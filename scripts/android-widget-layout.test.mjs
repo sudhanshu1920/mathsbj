@@ -149,7 +149,7 @@ test("responsive typography and weighted spacing adapt to selected fields and av
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_lower_row,"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_side_column,"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer,"));
-  assert.ok(provider.includes('views.setInt(R.id.widget_root, "setGravity",'));
+  assert.ok(provider.includes('views.setInt(R.id.widget_content, "setGravity",'));
   assert.ok(provider.includes("distributeVerticalSpace ? Gravity.TOP : Gravity.CENTER_VERTICAL"));
   for (const layout of layouts) {
     assert.ok(layout.includes('android:id="@+id/widget_flex_spacer"'));
@@ -184,7 +184,7 @@ test("every native widget provider and responsive layout is registered and copie
   assert.ok(android31WidgetInfo.includes('android:widgetFeatures="reconfigurable"'));
   assert.ok(provider.includes("OPTION_APPWIDGET_SIZES"));
   assert.ok(provider.includes("new RemoteViews(viewsBySize)"));
-  assert.ok(provider.includes("getWidgetLayoutForDimensions(widthDp, heightDp)"));
+  assert.ok(provider.includes("getWidgetLayoutForDimensions(widthDp, heightDp, composition)"));
 });
 
 test("all seven design compositions have three responsive XML variants and packaged art resources", () => {
