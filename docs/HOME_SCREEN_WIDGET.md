@@ -28,3 +28,10 @@ The widget chooses compact, regular, or wide layouts from the launcher's reporte
 ## Build requirement
 
 This is a native Android AppWidget. Install an Android APK built with this source before looking for **Math Master** in the home-screen widget picker; updating only the web/PWA bundle cannot add a native widget to an older installed APK. Responsive widget layout, typography, and empty-container visibility changes are included in the merged home-screen widget update. After a release build succeeds, install that APK and verify the widget at compact, medium, wide, and tall sizes; CI compilation alone does not verify launcher-specific rendering.
+
+
+## Seven selectable widget designs
+
+The native widget configuration screen offers seven per-instance visual designs: Hero Wide (scenic blue/cyan), Compact Green (botanical emerald), Square Math Bot (electric blue), Medium Study (rose/violet), Square Cosmic (space/sapphire), Extra-Wide Weekly (panoramic teal/gold), and Minimal Progress (graphite/mint). These use separate Android vector artwork assets layered behind live data; selected content, weekly completion, theme, click action, and per-widget preferences continue to use the existing native provider and data store. Legacy `glass`, `compact`, and `minimal` style values map to the closest corresponding design when rendered.
+
+The artwork is resolution-independent vector illustration, not a photorealistic 4K bitmap. It keeps edges sharp across supported widget sizes and avoids decoding large bitmaps on each update. Three responsive layout variants remain shared by the seven visual designs. The in-configuration preview uses the same artwork-resource mapping, but it is not a device-exact simulation of launcher sizing. Real launcher screenshots, resize/clipping behavior and the original reported loading error still require device/emulator verification and relevant Logcat evidence before those criteria can be marked complete.
