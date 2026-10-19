@@ -93,7 +93,7 @@ const SettingsPanel = () => {
   const widgetPreviewArtStyle = settings.homeWidgetComposition === 'minimal_progress'
     ? undefined
     : {
-        backgroundImage: `linear-gradient(100deg, ${mode === 'light' ? 'rgba(245, 248, 255, 0.86), rgba(18, 40, 64, 0.18)' : 'rgba(3, 10, 25, 0.68), rgba(6, 20, 34, 0.3)'}), url('/math_master_widget_atlas.webp')`,
+        backgroundImage: `linear-gradient(100deg, ${mode === 'light' ? 'rgba(245, 248, 255, 0.86), rgba(18, 40, 64, 0.18)' : 'rgba(3, 10, 25, 0.68), rgba(6, 20, 34, 0.3)'}), url('/math_master_widget_atlas.svg')`,
         backgroundSize: 'cover, 300% 200%',
         backgroundPosition: `center, ${compositionArtPosition[settings.homeWidgetComposition]}`,
         backgroundRepeat: 'no-repeat, no-repeat',
