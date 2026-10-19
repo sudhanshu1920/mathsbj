@@ -196,6 +196,7 @@ public class DailyTargetReminderPlugin extends Plugin {
             String accentValue = call.getString("accentColor");
             String appAccentValue = call.getString("appAccentColor");
             String modeValue = call.getString("mode");
+            String compositionValue = call.getString("composition");
 
             java.util.Set<String> allowed = new java.util.HashSet<>(java.util.Arrays.asList(
                 "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"
@@ -209,6 +210,11 @@ public class DailyTargetReminderPlugin extends Plugin {
             }
             if (content.length() == 0) content.put("progress");
 
+            java.util.Set<String> allowedCompositions = new java.util.HashSet<>(java.util.Arrays.asList(
+                "auto", "hero_wide", "compact_green", "square_math_bot",
+                "medium_study", "square_cosmic", "extra_wide_weekly", "minimal_progress"
+            ));
+            String composition = allowedCompositions.contains(compositionValue) ? compositionValue : "auto";
             String style = "compact".equals(styleValue) || "minimal".equals(styleValue) ? styleValue : "glass";
             String theme = "violet".equals(themeValue) ? "violet" : "app";
             String mode = "light".equals(modeValue) ? "light" : "dark";
@@ -223,6 +229,7 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putBoolean("enabled", enabled)
                 .putString("contentJson", content.toString())
                 .putString("style", style)
+                .putString("composition", composition)
                 .putString("theme", theme)
                 .putString("accentColor", accentColor)
                 .putString("appAccentColor", appAccentColor)
