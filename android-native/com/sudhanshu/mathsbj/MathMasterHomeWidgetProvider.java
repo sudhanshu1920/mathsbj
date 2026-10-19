@@ -509,6 +509,17 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         views.setViewVisibility(R.id.widget_week_section, showWeekly ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_week_title, showWeekly ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_week_strip, showWeekly ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_primary_row,
+            (showProgress || showTarget) ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_study_remaining_row,
+            (showStudyTime || showRemaining) ? View.VISIBLE : View.GONE);
+        if (wideLayout) {
+            boolean showWideLowerRow = showStudyTime || showRemaining || showStreak || showWeekly;
+            views.setViewVisibility(R.id.widget_lower_row,
+                showWideLowerRow ? View.VISIBLE : View.GONE);
+            views.setViewVisibility(R.id.widget_side_column,
+                (showStreak || showWeekly) ? View.VISIBLE : View.GONE);
+        }
         views.setViewVisibility(R.id.widget_update_text, showUpdateStatus ? View.VISIBLE : View.GONE);
         if (!showUpdateStatus) views.setViewVisibility(R.id.widget_update_badge, View.GONE);
         views.setViewVisibility(R.id.widget_disabled_text, widgetsEnabled ? View.GONE : View.VISIBLE);
