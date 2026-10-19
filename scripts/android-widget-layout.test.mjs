@@ -214,8 +214,8 @@ test("all seven design compositions have three responsive XML variants and packa
     }
   }
   assert.ok(configureAndroid.includes("'drawable-nodpi/math_master_widget_atlas.png'"));
-  assert.match(artworkPreparation, /3840",\s*"1280"/);\n  assert.match(artworkPreparation, /math_master_widget_atlas\\.png/);\n  assert.ok(existsSync(new URL("../public/math_master_widget_atlas.svg", import.meta.url)));
-  assert.match(artworkSvg, /width="1536" height="512" viewBox="0 0 1536 512"/);\n  assert.equal((artworkSvg.match(/clip-path="url\\(#panel\\)"/g) || []).length, 6, "six art scenes should be clipped to the atlas tile grid");
+  assert.match(artworkPreparation, /"-w", "3840",\s*"-h", "1280"/);\n  assert.match(artworkPreparation, /math_master_widget_atlas\.png/);\n  assert.ok(existsSync(new URL("../public/math_master_widget_atlas.svg", import.meta.url)));
+  assert.match(artworkSvg, /width="1536" height="512" viewBox="0 0 1536 512"/);\n  assert.equal((artworkSvg.match(/clip-path="url\(#panel\)"/g) || []).length, 6, "six art scenes should be clipped to the atlas tile grid");
   assert.ok(read("src/lib/settings.ts").includes("HOME_WIDGET_COMPOSITIONS"));
   assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
   assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
@@ -241,16 +241,16 @@ test("4K vector artwork, contrast, width-based typography, and compact spacing a
   assert.match(artworkPreparation, /rsvg-convert/);
   assert.match(artworkPreparation, /3840/);
   assert.match(artworkPreparation, /1280/);
-  assert.match(artworkPreparation, /math_master_widget_atlas\\.png/);
+  assert.match(artworkPreparation, /math_master_widget_atlas\.png/);
   assert.match(artworkSvg, /width="1536" height="512" viewBox="0 0 1536 512"/);
-  assert.equal((artworkSvg.match(/clip-path="url\\(#panel\\)"/g) || []).length, 6);
-  assert.match(provider, /setAlpha", 1\\.0f/);
-  assert.doesNotMatch(provider, /setAlpha", 0\\.86f/);
+  assert.equal((artworkSvg.match(/clip-path="url\(#panel\)"/g) || []).length, 6);
+  assert.match(provider, /setAlpha", 1\.0f/);
+  assert.doesNotMatch(provider, /setAlpha", 0\.86f/);
   assert.match(provider, /float widthScale = measuredWidthDp \/ \(compactLayout \? 125f/);
-  assert.match(provider, /Math.max\(1\\.0f, Math.min\(1\\.42f, widthScale\)\)/);
+  assert.match(provider, /Math.max\(1\.0f, Math.min\(1\.42f, widthScale\)\)/);
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer, View.GONE)"));
   assert.ok(provider.includes('views.setInt(R.id.widget_content, "setGravity", Gravity.CENTER_VERTICAL);'));
-  assert.match(provider, /Color\\.WHITE/);
+  assert.match(provider, /Color\.WHITE/);
 
   const overlayPaths = [
     "android-native/res/drawable/math_master_widget_art_overlay_hero_wide.xml",
