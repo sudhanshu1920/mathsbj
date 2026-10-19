@@ -4,9 +4,9 @@
     android:initialLayout="@layout/math_master_widget_square_math_bot_regular"
     android:configure="com.sudhanshu.mathsbj.MathMasterWidgetConfigActivity"
     android:minWidth="110dp"
-    android:minHeight="80dp"
+    android:minHeight="110dp"
     android:minResizeWidth="95dp"
-    android:minResizeHeight="70dp"
+    android:minResizeHeight="95dp"
     android:updatePeriodMillis="1800000"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />
