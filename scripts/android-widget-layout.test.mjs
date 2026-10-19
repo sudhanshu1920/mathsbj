@@ -24,6 +24,8 @@ const layouts = [
 test("all responsive layouts preserve selectable fields and remove the launcher logo", () => {
   const ids = [
     "widget_header_row",
+    "widget_artwork_overlay",
+    "widget_content",
     "widget_target_label",
     "widget_target_value",
     "widget_progress_percent",
@@ -145,6 +147,32 @@ test("responsive typography and weighted spacing adapt to selected fields and av
     assert.ok(layout.includes('android:layout_weight="1"'));
     assert.ok(layout.includes('android:visibility="gone"'));
     assert.ok(layout.includes('android:minWidth="50dp"') || layout.includes('android:minWidth="62dp"'));
+  }
+});
+
+
+test("seven selectable widget designs use valid scalable art and preserve legacy styles", () => {
+  const designs = [
+    ["hero_wide", "math_master_widget_art_hero_wide.xml"],
+    ["compact_green", "math_master_widget_art_compact_green.xml"],
+    ["square_math_bot", "math_master_widget_art_square_math_bot.xml"],
+    ["medium_study", "math_master_widget_art_medium_study.xml"],
+    ["square_cosmic", "math_master_widget_art_square_cosmic.xml"],
+    ["extra_wide_weekly", "math_master_widget_art_extra_wide_weekly.xml"],
+    ["minimal_progress", "math_master_widget_art_minimal_progress.xml"],
+  ];
+  for (const [design, asset] of designs) {
+    assert.ok(config.includes(`{"${design}",`), `missing selectable design ${design}`);
+    assert.match(read(`android-native/res/drawable/${asset}`), /<vector[\s\S]*viewportWidth="320"[\s\S]*viewportHeight="180"/);
+  }
+  assert.match(provider, /if \("glass"\.equals\(style\)\) return "hero_wide";/);
+  assert.match(provider, /if \("compact"\.equals\(style\)\) return "compact_green";/);
+  assert.match(provider, /if \("minimal"\.equals\(style\)\) return "minimal_progress";/);
+  assert.match(provider, /setImageViewResource\(R\.id\.widget_artwork_overlay, getWidgetArtworkResource\(style\)\)/);
+  assert.match(config, /previewArtwork\.setImageResource\(MathMasterHomeWidgetProvider\.getWidgetArtworkResource\(style\)\)/);
+  for (const layout of layouts) {
+    assert.match(layout, /android:id="@\+id/widget_artwork_overlay"/);
+    assert.match(layout, /android:scaleType="centerCrop"/);
   }
 });
 
