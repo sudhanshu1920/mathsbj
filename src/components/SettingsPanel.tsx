@@ -80,6 +80,27 @@ const SettingsPanel = () => {
     };
   });
 
+  const widgetPreviewSurfaceClass = settings.homeWidgetTheme === 'violet'
+    ? mode === 'light'
+      ? 'border-violet-300/60 bg-gradient-to-br from-violet-50/85 via-violet-100/65 to-indigo-100/50 text-violet-950 shadow-violet-950/10'
+      : 'border-violet-300/25 bg-gradient-to-br from-violet-950/80 via-slate-950/65 to-indigo-950/60 text-violet-50 shadow-violet-950/25'
+    : mode === 'light'
+      ? 'border-slate-200/75 bg-gradient-to-br from-white/85 via-slate-50/70 to-indigo-100/45 text-slate-800 shadow-slate-900/5'
+      : 'border-white/15 bg-gradient-to-br from-slate-900/75 via-slate-900/60 to-violet-950/45 text-slate-100 shadow-black/20';
+  const widgetPreviewPaddingClass = settings.homeWidgetStyle === 'compact'
+    ? 'p-2.5'
+    : settings.homeWidgetStyle === 'minimal' ? 'p-3' : 'p-3.5';
+  const widgetPreviewRadiusClass = settings.homeWidgetStyle === 'minimal' ? 'rounded-xl' : 'rounded-2xl';
+  const widgetPreviewMetricClass = settings.homeWidgetStyle === 'compact'
+    ? 'text-xl'
+    : settings.homeWidgetStyle === 'minimal' ? 'text-2xl' : 'text-3xl';
+  const widgetPreviewAccentClass = settings.homeWidgetTheme === 'violet'
+    ? mode === 'light' ? 'text-violet-700' : 'text-violet-300'
+    : 'text-primary';
+  const widgetPreviewAccentBgClass = settings.homeWidgetTheme === 'violet'
+    ? mode === 'light' ? 'bg-violet-600' : 'bg-violet-300'
+    : 'bg-primary';
+
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -404,47 +425,56 @@ const SettingsPanel = () => {
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
-                        className={`mt-2 rounded-2xl border p-3 shadow-sm ${
-                          mode === 'light'
-                            ? 'border-slate-200 bg-slate-50 text-slate-800'
-                            : 'border-white/10 bg-slate-950/85 text-slate-100'
-                        }`}
+                        data-widget-preview-surface
+                        className={`mt-2 ${widgetPreviewRadiusClass} ${widgetPreviewPaddingClass} border shadow-lg backdrop-blur-xl ${widgetPreviewSurfaceClass}`}
                       >
                         {settings.homeWidgetContent.includes('appIdentity') && (
-                          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Math Master</p>
+                          <p className={`mb-2 text-[11px] font-bold uppercase tracking-[0.14em] ${widgetPreviewAccentClass}`}>Math Master</p>
                         )}
-                        <div className="flex items-center gap-3">
-                          {settings.homeWidgetContent.includes('progress') && (
-                            <span className="text-2xl font-bold text-primary">{widgetProgress}%</span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            {settings.homeWidgetContent.includes('target') && (
-                              <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">Today's Target</p>
-                            )}
-                            {settings.homeWidgetContent.includes('studyTime') && (
-                              <p className="mt-0.5 text-sm font-semibold">{todayStudyMinutes} / {streak.targetMinutes} min</p>
-                            )}
+                        {(settings.homeWidgetContent.includes('progress')
+                          || settings.homeWidgetContent.includes('target')
+                          || settings.homeWidgetContent.includes('studyTime')) && (
+                          <div className="flex items-center gap-3">
                             {settings.homeWidgetContent.includes('progress') && (
-                              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-current/15">
-                                <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${widgetProgress}%` }} />
-                              </div>
+                              <span className={`shrink-0 ${widgetPreviewMetricClass} font-bold ${widgetPreviewAccentClass}`}>{widgetProgress}%</span>
                             )}
+                            <div className="min-w-0 flex-1">
+                              {settings.homeWidgetContent.includes('target') && (
+                                <>
+                                  <p className="text-[11px] font-bold uppercase tracking-wide opacity-70">Today's Target</p>
+                                  <p className="mt-0.5 text-sm font-bold">{streak.targetMinutes} min target</p>
+                                </>
+                              )}
+                              {settings.homeWidgetContent.includes('studyTime') && (
+                                <p className={settings.homeWidgetContent.includes('target') ? "mt-1 text-sm font-semibold" : "text-sm font-semibold"}>
+                                  {todayStudyMinutes} min studied
+                                </p>
+                              )}
+                              {settings.homeWidgetContent.includes('progress') && (
+                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-current/15">
+                                  <div className={`h-full rounded-full transition-[width] ${widgetPreviewAccentBgClass}`} style={{ width: `${widgetProgress}%` }} />
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] opacity-80">
-                          {settings.homeWidgetContent.includes('remaining') && (
-                            <span>{remainingMinutes === 0 ? 'Target complete' : `${remainingMinutes} min left`}</span>
-                          )}
-                          {settings.homeWidgetContent.includes('streak') && <span>🔥 {streak.current}-day streak</span>}
-                        </div>
+                        )}
+                        {(settings.homeWidgetContent.includes('remaining') || settings.homeWidgetContent.includes('streak')) && (
+                          <div className="mt-2 flex items-center justify-between gap-2 text-xs opacity-85">
+                            {settings.homeWidgetContent.includes('remaining') && (
+                              <span>{remainingMinutes === 0 ? 'Target complete' : `${remainingMinutes} min left`}</span>
+                            )}
+                            {settings.homeWidgetContent.includes('streak') && <span>🔥 {streak.current}-day streak</span>}
+                          </div>
+                        )}
                         {settings.homeWidgetContent.includes('weekly') && (
                           <div className="mt-2 border-t border-current/10 pt-2">
-                            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] opacity-60">This Week · Last 7 Days</p>
-                            <div className="grid grid-cols-7 gap-1">
+                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] opacity-65">This Week · Last 7 Days</p>
+                            <div className="grid grid-cols-7 gap-1.5">
                               {widgetWeekDays.map((day) => (
-                                <div key={day.dateKey} className="flex min-w-0 flex-col items-center rounded-lg bg-current/5 px-0.5 py-1">
-                                  <span className="text-[8px] leading-none opacity-65">{day.dayLabel} {day.dateLabel}</span>
-                                  <span className={"mt-1 text-[11px] font-bold leading-none " + (day.completed ? "text-primary" : "opacity-35")}>
+                                <div key={day.dateKey} className="flex min-w-0 flex-col items-center rounded-md bg-current/5 px-0.5 py-1.5">
+                                  <span className="text-[10px] leading-none opacity-70">{day.dayLabel}</span>
+                                  <span className="mt-1 text-[10px] leading-none opacity-75">{day.dateLabel}</span>
+                                  <span className={`mt-1.5 text-xs font-bold leading-none ${day.completed ? widgetPreviewAccentClass : "opacity-35"}`}>
                                     {day.completed ? '✓' : '·'}
                                   </span>
                                 </div>
@@ -453,7 +483,7 @@ const SettingsPanel = () => {
                           </div>
                         )}
                         {settings.homeWidgetContent.includes('updateStatus') && (
-                          <p className="mt-2 truncate text-[10px] opacity-60">Updates refresh when the app opens</p>
+                          <p className="mt-2 truncate text-[11px] opacity-65">Updates refresh when the app opens</p>
                         )}
                       </motion.div>
                     )}
