@@ -142,7 +142,26 @@ describe("SettingsPanel compact controls", () => {
     render(<SettingsPanel />);
 
     fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
-    expect(screen.getByText("2 / 15 min")).toBeInTheDocument();
+    expect(screen.getByText("15 min target")).toBeInTheDocument();
+    expect(screen.getByText("2 min studied")).toBeInTheDocument();
+    expect(screen.getByText("13 min left")).toBeInTheDocument();
+    expect(screen.getByText("🔥 2-day streak")).toBeInTheDocument();
+  });
+
+  it("hides empty preview rows and reflects the selected widget style and theme", () => {
+    const { container } = render(<SettingsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Progress" }));
+    fireEvent.click(screen.getByRole("button", { name: "Today's Target" }));
+    fireEvent.click(screen.getByRole("button", { name: "Study Time" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compact" }));
+    fireEvent.click(screen.getByRole("button", { name: "Violet Glass" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
+
+    const preview = container.querySelector("[data-widget-preview-surface]");
+    expect(preview).toHaveClass("backdrop-blur-xl", "bg-gradient-to-br", "p-2.5", "border-violet-300/25");
+    expect(preview?.querySelector(".flex.items-center.gap-3")).toBeNull();
+    expect(screen.queryByText("15 min target")).not.toBeInTheDocument();
     expect(screen.getByText("13 min left")).toBeInTheDocument();
     expect(screen.getByText("🔥 2-day streak")).toBeInTheDocument();
   });
