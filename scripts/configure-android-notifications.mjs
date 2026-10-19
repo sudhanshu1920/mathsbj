@@ -260,9 +260,15 @@ async function configureFirebase(root, encodedConfig) {
 /**
  * Android RemoteViews cannot reliably inflate an arbitrary plain <View> in launcher widgets.
  * Replace the artwork overlay with a supported FrameLayout before packaging native resources.
+ * Keep the themed overlay visible in the launcher's static picker preview; the live provider
+ * explicitly toggles it after it binds the actual artwork, so runtime state remains authoritative.
  */
 export function normalizeRemoteViewsLayout(xml) {
-  return xml.replace(/<View(?=\s+android:id="@\+id\/widget_artwork_overlay")/g, '<FrameLayout');
+  const normalized = xml.replace(/<View(?=\s+android:id="@\+id\/widget_artwork_overlay")/g, '<FrameLayout');
+  return normalized.replace(
+    /(<FrameLayout(?=[^>]*android:id="@\+id\/widget_artwork_overlay")[^>]*android:visibility=")gone"/,
+    '$1visible"',
+  );
 }
 
 export async function configureAndroidNotifications(androidRoot, { firebaseJsonBase64 = '' } = {}) {
