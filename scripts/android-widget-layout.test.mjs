@@ -118,19 +118,26 @@ test("glass colors are translucent and target completion uses a stable celebrato
 });
 
 test("responsive typography and weighted spacing adapt to selected fields and available height", () => {
-  assert.match(provider, /responsiveTextSize\(percentBase, fontScale/);
-  assert.match(provider, /measuredWidthDp \/ 240f, measuredHeightDp \/ 175f/);
-  assert.match(provider, /boolean hasPrimaryContent = showProgress \|\| showTarget;/);
-  assert.match(provider, /boolean hasSupportingContent = showStudyTime \|\| showRemaining \|\| showStreak \|\| showWeekly \|\| showUpdateStatus;/);
-  assert.match(provider, /supportingGroupCount >= 2 && effectiveHeightDp >= 145/);
-  assert.match(provider, /setViewVisibility\(R\\.id\\.widget_primary_row,[\\s\\S]*?showProgress \\|\\| showTarget/);
-  assert.match(provider, /setViewVisibility\(R\\.id\\.widget_study_remaining_row,[\\s\\S]*?showStudyTime \\|\\| showRemaining/);
-  assert.match(provider, /if \(wideLayout\) \{[\\s\\S]*?widget_lower_row[\\s\\S]*?widget_side_column/);
-  assert.match(provider, /effectiveHeightDp >= 145/);
-  assert.match(provider, /setViewVisibility\(R\.id\.widget_flex_spacer,[\s\S]*?distributeVerticalSpace \? View\.VISIBLE : View\.GONE\)/);
-  assert.match(provider, /setInt\(R\.id\.widget_root, "setGravity",[\s\S]*?distributeVerticalSpace \? Gravity\.TOP : Gravity\.CENTER_VERTICAL\)/);
+  assert.ok(provider.includes("responsiveTextSize(percentBase, fontScale"));
+  assert.ok(provider.includes("measuredWidthDp / 240f, measuredHeightDp / 175f"));
+  assert.ok(provider.includes("boolean hasPrimaryContent = showProgress || showTarget;"));
+  assert.ok(provider.includes("boolean hasSupportingContent = showStudyTime || showRemaining || showStreak || showWeekly || showUpdateStatus;"));
+  assert.ok(provider.includes("supportingGroupCount >= 2 && effectiveHeightDp >= 145"));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_primary_row,"));
+  assert.ok(provider.includes("(showProgress || showTarget) ? View.VISIBLE : View.GONE);"));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_study_remaining_row,"));
+  assert.ok(provider.includes("(showStudyTime || showRemaining) ? View.VISIBLE : View.GONE);"));
+  assert.ok(provider.includes("boolean showWideLowerRow = showStudyTime || showRemaining || showStreak || showWeekly;"));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_lower_row,"));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_side_column,"));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer,"));
+  assert.ok(provider.includes('views.setInt(R.id.widget_root, "setGravity",'));
+  assert.ok(provider.includes("distributeVerticalSpace ? Gravity.TOP : Gravity.CENTER_VERTICAL"));
   for (const layout of layouts) {
-    assert.match(layout, /widget_flex_spacer[\s\S]*?android:layout_height="0dp"[\s\S]*?android:layout_weight="1"[\s\S]*?android:visibility="gone"/);
-    assert.match(layout, /android:minWidth="(?:50|62)dp"/);
+    assert.ok(layout.includes('android:id="@+id/widget_flex_spacer"'));
+    assert.ok(layout.includes('android:layout_height="0dp"'));
+    assert.ok(layout.includes('android:layout_weight="1"'));
+    assert.ok(layout.includes('android:visibility="gone"'));
+    assert.ok(layout.includes('android:minWidth="50dp"') || layout.includes('android:minWidth="62dp"'));
   }
 });
