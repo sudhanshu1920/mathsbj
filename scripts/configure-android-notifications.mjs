@@ -240,7 +240,7 @@ async function configureFirebase(root, encodedConfig) {
  * Replace the artwork overlay with a supported FrameLayout before packaging native resources.
  */
 export function normalizeRemoteViewsLayout(xml) {
-  return xml.replace(/<View(?=\\s+android:id="@\\+id\\/widget_artwork_overlay")/g, '<FrameLayout');
+  return xml.replace(/<View(?=\s+android:id="@\+id\/widget_artwork_overlay")/g, '<FrameLayout');
 }
 
 export async function configureAndroidNotifications(androidRoot, { firebaseJsonBase64 = '' } = {}) {
