@@ -476,7 +476,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         day.add(Calendar.DAY_OF_MONTH, -6);
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         SimpleDateFormat labelFormat = new SimpleDateFormat("EEEEE", Locale.getDefault());
-        int idleColor = lightMode ? Color.parseColor("#7C8498") : Color.parseColor("#9F9AB8");
+        int idleColor = lightMode ? Color.parseColor("#64748B") : Color.parseColor("#D6DEEA");
         for (int i = 0; i < 7; i++) {
             String date = dateFormat.format(day.getTime());
             boolean done = completed.contains(date);
@@ -627,7 +627,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showArtwork = widgetsEnabled && artwork != null && !"minimal_progress".equals(composition);
         if (showArtwork) {
             views.setImageViewBitmap(R.id.widget_artwork, artwork);
-            views.setFloat(R.id.widget_artwork, "setAlpha", 0.86f);
+            views.setFloat(R.id.widget_artwork, "setAlpha", 1.0f);
             views.setViewVisibility(R.id.widget_artwork, View.VISIBLE);
             views.setViewVisibility(R.id.widget_artwork_overlay, View.VISIBLE);
         } else {
@@ -638,8 +638,13 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean wideLayout = sizeClass == 2;
         float measuredWidthDp = widthDp > 0 ? widthDp : 220f;
         float measuredHeightDp = heightDp > 0 ? heightDp : 150f;
-        float fontScale = Math.max(0.88f, Math.min(1.28f,
-            Math.min(measuredWidthDp / 240f, measuredHeightDp / 175f)));
+        float widthScale = measuredWidthDp / (compactLayout ? 125f : (wideLayout ? 220f : 190f));
+        float heightScale = measuredHeightDp / (compactLayout ? 112f : (wideLayout ? 122f : 138f));
+        // Wide widgets have horizontal room; do not shrink their typography just because they are short.
+        float fontScale = wideLayout
+            ? Math.max(1.0f, Math.min(1.42f, widthScale))
+            : Math.max(compactLayout ? 0.98f : 1.0f,
+                Math.min(compactLayout ? 1.28f : 1.32f, Math.min(widthScale, heightScale)));
         if ("compact".equals(style)) fontScale = Math.max(0.84f, fontScale * 0.96f);
         else if ("minimal".equals(style)) fontScale = Math.max(0.86f, fontScale * 0.98f);
 
@@ -696,7 +701,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
                 responsiveTextSize(compactLayout ? 10f : (wideLayout ? 10.5f : 11.5f), fontScale,
                     compactLayout ? 9f : (wideLayout ? 9.5f : 10.5f), compactLayout ? 11.5f : (wideLayout ? 12f : 13f)));
         }
-        views.setTextColor(R.id.widget_progress_percent, accentColor);
+        views.setTextColor(R.id.widget_progress_percent,
+            lightMode ? Color.parseColor("#0F172A") : Color.WHITE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             views.setColorStateList(R.id.widget_progress_bar, "setProgressTintList", ColorStateList.valueOf(accentColor));
         }
@@ -712,9 +718,9 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             views.setTextColor(R.id.widget_update_badge, accentColor);
             views.setTextColor(R.id.widget_disabled_text, accentColor);
         } else {
-            views.setTextColor(R.id.widget_progress_percent, accentColor);
-            views.setTextColor(R.id.widget_target_label, Color.parseColor("#AFAAC7"));
-            views.setTextColor(R.id.widget_week_title, Color.parseColor("#9F9AB8"));
+            views.setTextColor(R.id.widget_progress_percent, Color.WHITE);
+            views.setTextColor(R.id.widget_target_label, Color.parseColor("#D6E0EE"));
+            views.setTextColor(R.id.widget_week_title, Color.parseColor("#D5DEEA"));
         }
         views.setTextViewText(R.id.widget_progress_percent, progress + "%");
         views.setTextViewText(R.id.widget_target_value, Math.min(elapsedMinutes, targetMinutes) + " / " + targetMinutes + " min");
@@ -761,12 +767,10 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         int supportingGroupCount = (showStudyTime || showRemaining ? 1 : 0)
             + (showStreak ? 1 : 0) + (showWeekly ? 1 : 0) + (showUpdateStatus ? 1 : 0);
         int effectiveHeightDp = heightDp > 0 ? heightDp : 150;
-        boolean distributeVerticalSpace = widgetsEnabled && hasPrimaryContent && hasSupportingContent
-            && supportingGroupCount >= 2 && effectiveHeightDp >= 145;
-        views.setViewVisibility(R.id.widget_flex_spacer,
-            distributeVerticalSpace ? View.VISIBLE : View.GONE);
-        views.setInt(R.id.widget_content, "setGravity",
-            distributeVerticalSpace ? Gravity.TOP : Gravity.CENTER_VERTICAL);
+        // A weighted spacer separated the primary metric from supporting details and created
+        // a large empty band in launcher screenshots. Keep each composition grouped and centered.
+        views.setViewVisibility(R.id.widget_flex_spacer, View.GONE);
+        views.setInt(R.id.widget_content, "setGravity", Gravity.CENTER_VERTICAL);
         views.setViewVisibility(R.id.widget_header_row, showIdentity ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_target_label, showTarget ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_target_value, showTarget ? View.VISIBLE : View.GONE);
