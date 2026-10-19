@@ -72,7 +72,8 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(provider, /boolean showWeekly = widgetsEnabled && selected\.contains\("weekly"\);/);
   assert.match(provider, /boolean showUpdateStatus = widgetsEnabled && selected\.contains\("updateStatus"\);/);
   assert.match(provider, /setViewVisibility\(R\.id\.widget_week_section, showWeekly \? View\.VISIBLE : View\.GONE\)/);
-  assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_bar, showProgress \? View\.VISIBLE : View\.GONE\)/);
+  assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_bar, showProgress && !useProgressRing \? View\.VISIBLE : View\.GONE\)/);
+  assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_ring, useProgressRing \? View\.VISIBLE : View\.GONE\)/);
   assert.match(provider, /R\.layout\.math_master_home_widget_compact/);
   assert.match(provider, /R\.layout\.math_master_home_widget_wide/);
   assert.equal(provider.includes("showProgress && !smallWidget"), false);
