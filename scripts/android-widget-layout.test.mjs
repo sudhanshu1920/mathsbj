@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java");
@@ -15,11 +15,19 @@ const bridge = read("src/lib/dailyTargetReminders.ts");
 const config = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java");
 const settings = read("src/lib/settings.ts");
 const settingsPanel = read("src/components/SettingsPanel.tsx");
-const layouts = [
+const compositionIds = [
+  "hero_wide", "compact_green", "square_math_bot", "medium_study",
+  "square_cosmic", "extra_wide_weekly", "minimal_progress",
+];
+const sizeVariants = ["compact", "regular", "wide"];
+const compositionLayoutPaths = compositionIds.flatMap((composition) =>
+  sizeVariants.map((size) => `android-native/res/layout/math_master_widget_${composition}_${size}.xml`));
+const legacyLayoutPaths = [
   "android-native/res/layout/math_master_home_widget.xml",
   "android-native/res/layout/math_master_home_widget_compact.xml",
   "android-native/res/layout/math_master_home_widget_wide.xml",
-].map(read);
+];
+const layouts = [...legacyLayoutPaths, ...compositionLayoutPaths].map(read);
 
 test("all responsive layouts preserve selectable fields and remove the launcher logo", () => {
   const ids = [
@@ -29,6 +37,10 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
     "widget_progress_percent",
     "widget_progress_bar",
     "widget_flex_spacer",
+    "widget_artwork",
+    "widget_artwork_overlay",
+    "widget_progress_ring",
+    "widget_content",
     "widget_study_time_text",
     "widget_remaining_text",
     "widget_streak_text",
@@ -67,7 +79,7 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.equal(provider.includes('selected.contains("remaining") &&'), false);
   assert.match(provider, /OPTION_APPWIDGET_SIZES/);
   assert.match(provider, /new RemoteViews\(viewsBySize\)/);
-  assert.match(provider, /getWidgetLayoutForDimensions\(widthDp, heightDp\)/);
+  assert.match(provider, /getWidgetLayoutForDimensions\(widthDp, heightDp, composition\)/);
   assert.match(provider, /heightDp > 0 && heightDp < 135/);
   assert.match(provider, /isTallWidget\(widthDp, heightDp\) \|\| isWideWidget\(widthDp, heightDp\)/);
   assert.match(config, /"random", "Random Premium Theme"/);
@@ -173,6 +185,30 @@ test("every native widget provider and responsive layout is registered and copie
   assert.ok(provider.includes("OPTION_APPWIDGET_SIZES"));
   assert.ok(provider.includes("new RemoteViews(viewsBySize)"));
   assert.ok(provider.includes("getWidgetLayoutForDimensions(widthDp, heightDp)"));
+});
+
+test("all seven design compositions have three responsive XML variants and packaged art resources", () => {
+  assert.equal(compositionLayoutPaths.length, 21);
+  for (const composition of compositionIds) {
+    assert.ok(provider.includes(`case "${composition}":`), `provider must route ${composition}`);
+    assert.ok(configureAndroid.includes(`drawable/math_master_widget_art_overlay_${composition}.xml`));
+    for (const size of sizeVariants) {
+      const path = `android-native/res/layout/math_master_widget_${composition}_${size}.xml`;
+      assert.ok(configureAndroid.includes(`'layout/math_master_widget_${composition}_${size}.xml'`), `${path} must be copied`);
+      const layout = read(path);
+      for (const id of ["widget_root", "widget_content", "widget_artwork", "widget_artwork_overlay", "widget_progress_ring", "widget_progress_percent", "widget_target_value", "widget_progress_bar", "widget_week_strip"]) {
+        assert.ok(layout.includes(`@+id/${id}`), `${path} must contain ${id}`);
+      }
+      assert.ok(layout.includes(`math_master_widget_art_overlay_${composition}`));
+    }
+  }
+  assert.ok(configureAndroid.includes("'drawable-nodpi/math_master_widget_atlas.webp'"));
+  assert.ok(existsSync(new URL("../android-native/res/drawable-nodpi/math_master_widget_atlas.webp", import.meta.url)));
+  assert.ok(existsSync(new URL("../public/math_master_widget_atlas.webp", import.meta.url)));
+  assert.ok(read("src/lib/settings.ts").includes("HOME_WIDGET_COMPOSITIONS"));
+  assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
+  assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
+  assert.ok(provider.includes("getWidgetArtwork(context, composition, widthDp, heightDp)"));
 });
 
 test("package updates refresh all existing pinned widget instances without replacing their saved configuration", () => {
