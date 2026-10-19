@@ -31,3 +31,29 @@ The current repository contains **one native launcher widget provider**: `MathMa
 ## Verification policy
 
 A passing source test or APK build means the implementation compiles and the tested source/resource paths are present. It does **not** prove that every launcher size renders without clipping. The table intentionally leaves real-launcher verification unverified until screenshots from supported Android launchers/devices are captured and reviewed.
+
+
+## Seven selectable premium visual styles
+
+The single existing provider now supports seven per-widget style identifiers with dedicated native vector-art resources, while preserving the three dynamic size layouts and the existing data/configuration store. This intentionally avoids seven duplicate AppWidget providers.
+
+| Design ID | Visual direction | Artwork resource |
+|---|---|---|
+| `hero_wide` | Scenic blue/cyan dashboard | `math_master_widget_art_hero_wide.xml` |
+| `compact_green` | Botanical emerald glass | `math_master_widget_art_compact_green.xml` |
+| `square_math_bot` | Educational robot / electric blue | `math_master_widget_art_square_math_bot.xml` |
+| `medium_study` | Study / rose-violet | `math_master_widget_art_medium_study.xml` |
+| `square_cosmic` | Midnight space / sapphire | `math_master_widget_art_square_cosmic.xml` |
+| `extra_wide_weekly` | Panoramic teal / gold | `math_master_widget_art_extra_wide_weekly.xml` |
+| `minimal_progress` | Graphite / mint minimal | `math_master_widget_art_minimal_progress.xml` |
+
+Legacy `glass`, `compact`, and `minimal` settings are normalized to a corresponding supported design. All artwork uses Android vector drawables to scale cleanly without runtime full-4K bitmap decoding. The Add Widget picker has a static default preview supplied by the existing regular layout; after configuration, the preview panel uses the selected design artwork. It is a styled summary, not a pixel-perfect RemoteViews render.
+
+| Verification item | Status |
+|---|---|
+| Native provider count | 1 discovered |
+| Responsive content layouts | 3 discovered |
+| Selectable style mappings/assets | Source changes added; CI build/test must validate |
+| Loading-error root cause with installed-device Logcat | **Unverified** — no device logs available |
+| Actual launcher render at compact/wide/tall aspect ratios | **Unverified** — device/emulator screenshots required |
+| Photorealistic 4K source art | **Not included** — included vectors are scalable illustrative assets |
