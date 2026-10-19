@@ -3,6 +3,26 @@ import { applyFont, DEFAULT_FONT, normalizeFont, type FontId } from '@/lib/font'
 export type HomeWidgetContent = 'appIdentity' | 'target' | 'progress' | 'remaining' | 'studyTime' | 'streak' | 'weekly' | 'updateStatus';
 export type HomeWidgetStyle = 'glass' | 'compact' | 'minimal';
 export type HomeWidgetTheme = 'app' | 'violet';
+export type HomeWidgetComposition =
+  | 'auto'
+  | 'hero_wide'
+  | 'compact_green'
+  | 'square_math_bot'
+  | 'medium_study'
+  | 'square_cosmic'
+  | 'extra_wide_weekly'
+  | 'minimal_progress';
+
+export const HOME_WIDGET_COMPOSITIONS: Array<{ id: HomeWidgetComposition; label: string }> = [
+  { id: 'auto', label: 'Auto Responsive' },
+  { id: 'hero_wide', label: 'Hero Wide · Sunset' },
+  { id: 'compact_green', label: 'Compact Green' },
+  { id: 'square_math_bot', label: 'Square Math Bot' },
+  { id: 'medium_study', label: 'Medium Study' },
+  { id: 'square_cosmic', label: 'Square Cosmic' },
+  { id: 'extra_wide_weekly', label: 'Extra-Wide Weekly' },
+  { id: 'minimal_progress', label: 'Minimal Progress' },
+];
 
 const HOME_WIDGET_CONTENT: HomeWidgetContent[] = ['appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'updateStatus'];
 const normalizeWidgetContent = (value: unknown): HomeWidgetContent[] => {
@@ -23,6 +43,7 @@ export interface AppSettings {
   homeWidgetContent: HomeWidgetContent[];
   homeWidgetStyle: HomeWidgetStyle;
   homeWidgetTheme: HomeWidgetTheme;
+  homeWidgetComposition: HomeWidgetComposition;
   font: FontId;
 }
 
@@ -35,6 +56,7 @@ const defaults = (): AppSettings => ({
   homeWidgetContent: [...HOME_WIDGET_CONTENT],
   homeWidgetStyle: 'glass',
   homeWidgetTheme: 'app',
+  homeWidgetComposition: 'auto',
   font: DEFAULT_FONT,
 });
 
@@ -69,6 +91,8 @@ export const getSettings = (): AppSettings => {
       homeWidgetContent: widgetContent,
       homeWidgetStyle: value.homeWidgetStyle === 'compact' || value.homeWidgetStyle === 'minimal' ? value.homeWidgetStyle : base.homeWidgetStyle,
       homeWidgetTheme: value.homeWidgetTheme === 'violet' ? 'violet' : base.homeWidgetTheme,
+      homeWidgetComposition: HOME_WIDGET_COMPOSITIONS.some((item) => item.id === value.homeWidgetComposition)
+        ? value.homeWidgetComposition as HomeWidgetComposition : base.homeWidgetComposition,
       font: normalizeFont(typeof value.font === 'string' ? value.font : base.font),
     };
     if (contentSchemaNeedsMigration) {
@@ -126,6 +150,12 @@ export const setHomeWidgetStyle = (style: HomeWidgetStyle) => {
 
 export const setHomeWidgetTheme = (theme: HomeWidgetTheme) => {
   const s = { ...getSettings(), homeWidgetTheme: theme };
+  save(s);
+  return s;
+};
+
+export const setHomeWidgetComposition = (composition: HomeWidgetComposition) => {
+  const s = { ...getSettings(), homeWidgetComposition: composition };
   save(s);
   return s;
 };
