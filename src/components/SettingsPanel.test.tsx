@@ -215,8 +215,9 @@ describe("SettingsPanel compact controls", () => {
     expect(designButton).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
-    expect(document.querySelector('[data-widget-composition="square_cosmic"]')).not.toBeNull();
-    expect(screen.getByText("Today's Target")).toBeInTheDocument();
+    const preview = document.querySelector('[data-widget-composition="square_cosmic"]');
+    expect(preview).not.toBeNull();
+    expect(preview?.textContent).toContain("Today's Target");
   });
 
   it("lets the user select the weekly target tracker and previews seven real daily completion states", () => {
