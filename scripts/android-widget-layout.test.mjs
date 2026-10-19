@@ -60,7 +60,10 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
       assert.match(layout, new RegExp(`@\\+id/widget_week_status_${i}\\b`));
     }
     assert.equal(layout.includes("@mipmap/ic_launcher"), false);
-    assert.doesNotMatch(normalizeRemoteViewsLayout(layout), /<View\b/, "packaged RemoteViews layouts must not use plain View classes");
+    const packagedLayout = normalizeRemoteViewsLayout(layout);
+    assert.doesNotMatch(packagedLayout, /<View\b/, "packaged RemoteViews layouts must not use plain View classes");
+    assert.match(packagedLayout, /android:id="@\+id\/widget_artwork_overlay"[\s\S]*?android:visibility="visible"/,
+      "the launcher's static preview must show the composition tint until live RemoteViews are applied");
     assert.equal(layout.includes("widget_progress_text"), false);
   }
   assert.match(layouts[2], /widget_lower_row[\s\S]*android:orientation="horizontal"/);
