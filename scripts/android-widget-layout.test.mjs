@@ -122,6 +122,7 @@ test("responsive typography and weighted spacing adapt to selected fields and av
   assert.match(provider, /measuredWidthDp \/ 240f, measuredHeightDp \/ 175f/);
   assert.match(provider, /boolean hasPrimaryContent = showProgress \|\| showTarget;/);
   assert.match(provider, /boolean hasSupportingContent = showStudyTime \|\| showRemaining \|\| showStreak \|\| showWeekly \|\| showUpdateStatus;/);
+  assert.match(provider, /supportingGroupCount >= 2 && effectiveHeightDp >= 145/);
   assert.match(provider, /effectiveHeightDp >= 145/);
   assert.match(provider, /setViewVisibility\(R\.id\.widget_flex_spacer,[\s\S]*?distributeVerticalSpace \? View\.VISIBLE : View\.GONE\)/);
   assert.match(provider, /setInt\(R\.id\.widget_root, "setGravity",[\s\S]*?distributeVerticalSpace \? Gravity\.TOP : Gravity\.CENTER_VERTICAL\)/);
