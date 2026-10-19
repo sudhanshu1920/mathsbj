@@ -7,6 +7,8 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java");
 const bootReceiver = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java");
 const configureAndroid = read("scripts/configure-android-notifications.mjs");
+const artworkPreparation = read("scripts/prepare-widget-artwork.mjs");
+const artworkPartPaths = Array.from({ length: 9 }, (_, index) => "assets/widget-art/atlas-parts/atlas-part-" + String(index + 1).padStart(2, "0") + ".b64";
 const legacyWidgetInfo = read("android-native/res/xml/math_master_home_widget_info.xml");
 const android31WidgetInfo = read("android-native/res/xml-v31/math_master_home_widget_info.xml");
 const widgetProviderFiles = readdirSync(new URL("../android-native/com/sudhanshu/mathsbj/", import.meta.url))
@@ -60,7 +62,10 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
       assert.match(layout, new RegExp(`@\\+id/widget_week_status_${i}\\b`));
     }
     assert.equal(layout.includes("@mipmap/ic_launcher"), false);
-    assert.doesNotMatch(normalizeRemoteViewsLayout(layout), /<View\b/, "packaged RemoteViews layouts must not use plain View classes");
+    const packagedLayout = normalizeRemoteViewsLayout(layout);
+    assert.doesNotMatch(packagedLayout, /<View\\b/, "packaged RemoteViews layouts must not use plain View classes");
+    assert.doesNotMatch(packagedLayout, /android:scaleType="fitXY"/, "packaged artwork must not stretch when launcher dimensions differ");
+    assert.match(packagedLayout, /android:scaleType="centerCrop"/, "packaged artwork must preserve its aspect ratio");
     assert.equal(layout.includes("widget_progress_text"), false);
   }
   assert.match(layouts[2], /widget_lower_row[\s\S]*android:orientation="horizontal"/);
@@ -140,7 +145,8 @@ test("glass colors are translucent and target completion uses a stable celebrato
 
 test("responsive typography and weighted spacing adapt to selected fields and available height", () => {
   assert.ok(provider.includes("responsiveTextSize(percentBase, fontScale"));
-  assert.ok(provider.includes("measuredWidthDp / 240f, measuredHeightDp / 175f"));
+  assert.ok(provider.includes("float widthScale = measuredWidthDp / (compactLayout ? 125f : (wideLayout ? 220f : 190f))"));
+  assert.ok(provider.includes("Math.max(1.0f, Math.min(1.42f, widthScale))"));
   assert.ok(provider.includes("boolean hasPrimaryContent = showProgress || showTarget;"));
   assert.ok(provider.includes("boolean hasSupportingContent = showStudyTime || showRemaining || showStreak || showWeekly || showUpdateStatus;"));
   assert.ok(provider.includes("supportingGroupCount >= 2 && effectiveHeightDp >= 145"));
@@ -153,7 +159,9 @@ test("responsive typography and weighted spacing adapt to selected fields and av
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_side_column,"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer,"));
   assert.ok(provider.includes('views.setInt(R.id.widget_content, "setGravity",'));
-  assert.ok(provider.includes("distributeVerticalSpace ? Gravity.TOP : Gravity.CENTER_VERTICAL"));
+  assert.ok(provider.includes('views.setInt(R.id.widget_content, "setGravity", Gravity.CENTER_VERTICAL);'));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer, View.GONE)"));
+  assert.equal(provider.includes("distributeVerticalSpace"), false);
   for (const layout of layouts) {
     assert.ok(layout.includes('android:id="@+id/widget_flex_spacer"'));
     assert.ok(layout.includes('android:layout_height="0dp"'));
@@ -227,6 +235,39 @@ test("widget artwork uses sampled region decoding and bounded output renditions"
     false,
     "the full-resolution artwork atlas must not be decoded into one ARGB bitmap",
   );
+});
+
+test("widget artwork source is higher resolution and the runtime keeps it vivid", () => {
+  assert.match(artworkPreparation, /PART_COUNT = 9/);
+  assert.match(artworkPreparation, /toString\("ascii", 8, 12\) !== "WEBP"/);
+  assert.match(provider, /setAlpha", 1\.0f/);
+  assert.doesNotMatch(provider, /setAlpha", 0\.86f/);
+  assert.match(provider, /Color\.WHITE/);
+
+  const encoded = artworkPartPaths.map((part) => {
+    assert.ok(existsSync(new URL("../" + part, import.meta.url)), "missing artwork source chunk " + part);
+    return read(part).trim();
+  }).join("");
+  const artworkBytes = Buffer.from(encoded, "base64");
+  assert.ok(artworkBytes.length > 100_000, "source atlas must not be a tiny thumbnail");
+  assert.equal(artworkBytes.toString("ascii", 0, 4), "RIFF");
+  assert.equal(artworkBytes.toString("ascii", 8, 12), "WEBP");
+
+  const overlayPaths = [
+    "android-native/res/drawable/math_master_widget_art_overlay_hero_wide.xml",
+    "android-native/res/drawable/math_master_widget_art_overlay_compact_green.xml",
+    "android-native/res/drawable/math_master_widget_art_overlay_square_math_bot.xml",
+    "android-native/res/drawable/math_master_widget_art_overlay_medium_study.xml",
+    "android-native/res/drawable/math_master_widget_art_overlay_square_cosmic.xml",
+    "android-native/res/drawable/math_master_widget_art_overlay_extra_wide_weekly.xml",
+    "android-native/res/drawable/math_master_widget_art_overlay_minimal_progress.xml",
+  ];
+  for (const overlayPath of overlayPaths) {
+    const overlay = read(overlayPath);
+    const colors = [...overlay.matchAll(/#([0-9A-Fa-f]{8})/g)].map((match) => parseInt(match[1].slice(0, 2), 16));
+    assert.ok(colors.length >= 4, overlayPath + " must retain a tinted surface and border");
+    assert.ok(colors.every((alpha) => alpha <= 0x66), overlayPath + " must not hide the background artwork");
+  }
 });
 
 test("native widget configuration preview uses the selected composition artwork and live metrics", () => {
