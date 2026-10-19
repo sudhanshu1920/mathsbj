@@ -242,6 +242,7 @@ export const syncHomeWidgetPreferences = (): Promise<boolean> => {
       contentJson: JSON.stringify(settings.homeWidgetContent),
       style: settings.homeWidgetStyle,
       theme: settings.homeWidgetTheme,
+      composition: settings.homeWidgetComposition,
       accentColor,
       appAccentColor,
       mode,
