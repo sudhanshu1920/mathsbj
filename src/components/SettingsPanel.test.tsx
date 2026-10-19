@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   mode: "dark",
   setTheme: vi.fn(),
   setMode: vi.fn(),
+  setHomeWidgetComposition: vi.fn(),
   setGuest: vi.fn(),
   checkForAppUpdate: vi.fn(),
   announceUpdateAvailable: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock("@/lib/settings", () => {
     homeWidgetContent: ["appIdentity", "target", "progress", "remaining", "studyTime", "streak"],
     homeWidgetStyle: "glass",
     homeWidgetTheme: "app",
+    homeWidgetComposition: "auto",
   });
   return {
     getSettings: base,
@@ -43,6 +45,10 @@ vi.mock("@/lib/settings", () => {
     setHomeWidgetContent: (homeWidgetContent: string[]) => ({ ...base(), homeWidgetContent }),
     setHomeWidgetStyle: (homeWidgetStyle: string) => ({ ...base(), homeWidgetStyle }),
     setHomeWidgetTheme: (homeWidgetTheme: string) => ({ ...base(), homeWidgetTheme }),
+    setHomeWidgetComposition: (homeWidgetComposition: string) => {
+      mocks.setHomeWidgetComposition(homeWidgetComposition);
+      return { ...base(), homeWidgetComposition };
+    },
   };
 });
 
@@ -177,6 +183,17 @@ describe("SettingsPanel compact controls", () => {
     fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
     const violetPreview = themeRender.container.querySelector("[data-widget-preview-surface]");
     expect(violetPreview).toHaveClass("backdrop-blur-xl", "bg-gradient-to-br", "p-3.5", "border-violet-300/25");
+  });
+
+  it("exposes all seven distinct native widget compositions and persists the selected default", () => {
+    render(<SettingsPanel />);
+
+    const designButton = screen.getByRole("button", { name: "Square Cosmic" });
+    fireEvent.click(designButton);
+    expect(mocks.setHomeWidgetComposition).toHaveBeenCalledWith("square_cosmic");
+    expect(designButton).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
+    expect(document.querySelector('[data-widget-composition="square_cosmic"]')).not.toBeNull();
   });
 
   it("lets the user select the weekly target tracker and previews seven real daily completion states", () => {
