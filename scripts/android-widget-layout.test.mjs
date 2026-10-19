@@ -214,6 +214,21 @@ test("all seven design compositions have three responsive XML variants and packa
   assert.ok(provider.includes("getWidgetArtwork(context, composition, widthDp, heightDp)"));
 });
 
+test("widget artwork uses sampled region decoding and bounded output renditions", () => {
+  assert.match(provider, /BitmapRegionDecoder/);
+  assert.match(provider, /decoder\\.decodeRegion\\(new Rect\\(left, top, right, bottom\\), options\\)/);
+  assert.match(provider, /options\\.inSampleSize = sampleSize/);
+  assert.match(provider, /outputWidth = Math\\.max\\(120, Math\\.min\\(desiredWidth/);
+  assert.match(provider, /outputHeight = Math\\.max\\(80, Math\\.min\\(300/);
+  assert.match(provider, /WIDGET_ARTWORK_CACHE/);
+  assert.match(provider, /catch \\(IOException \\| RuntimeException exception\\)/);
+  assert.doesNotMatch(
+    provider,
+    /BitmapFactory\\.decodeResource\\(context\\.getResources\\(\\), R\\.drawable\\.math_master_widget_atlas\\)/,
+    "the full-resolution artwork atlas must not be decoded into one ARGB bitmap",
+  );
+});
+
 test("package updates refresh all existing pinned widget instances without replacing their saved configuration", () => {
   assert.ok(bootReceiver.includes("Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)"));
   assert.ok(bootReceiver.includes("MathMasterHomeWidgetProvider.updateWidgetPreferences(context)"));
