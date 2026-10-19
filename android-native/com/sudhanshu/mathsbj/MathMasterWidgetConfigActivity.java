@@ -131,16 +131,27 @@ public class MathMasterWidgetConfigActivity extends Activity {
         styleGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
         content.addView(styleGroup, matchWrap());
 
-        addSectionLabel(content, "Design Composition");
+        String fixedComposition = MathMasterHomeWidgetProvider.getFixedCompositionForWidget(this, widgetId);
+        addSectionLabel(content, fixedComposition == null ? "Design Composition" : "Selected Design");
         compositionGroup = new RadioGroup(this);
         compositionGroup.setOrientation(RadioGroup.VERTICAL);
-        String currentComposition = preferences.getString(
+        String currentComposition = fixedComposition != null ? fixedComposition : preferences.getString(
             "instance_" + widgetId + "_composition", preferences.getString("composition", "auto"));
         if (!isValidComposition(currentComposition)) currentComposition = "auto";
         for (String[] compositionOption : WIDGET_COMPOSITIONS) {
             addRadio(compositionGroup, compositionOption[0], compositionOption[1], currentComposition);
         }
         compositionGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
+        if (fixedComposition != null) {
+            compositionGroup.setVisibility(View.GONE);
+            TextView fixedDesign = new TextView(this);
+            fixedDesign.setText(compositionLabel(fixedComposition)
+                + " — selected from the launcher widget collection");
+            fixedDesign.setTextColor(Color.parseColor("#243149"));
+            fixedDesign.setTextSize(13);
+            fixedDesign.setPadding(dp(2), dp(3), dp(2), dp(6));
+            content.addView(fixedDesign, matchWrap());
+        }
         content.addView(compositionGroup, matchWrap());
 
         addSectionLabel(content, "Widget Theme");
@@ -400,7 +411,9 @@ public class MathMasterWidgetConfigActivity extends Activity {
         }
 
         String style = selectedRadioValue(styleGroup, "glass");
-        String composition = selectedRadioValue(compositionGroup, "auto");
+        String fixedComposition = MathMasterHomeWidgetProvider.getFixedCompositionForWidget(this, widgetId);
+        String composition = fixedComposition != null
+            ? fixedComposition : selectedRadioValue(compositionGroup, "auto");
         if (!isValidComposition(composition)) composition = "auto";
         String themeMode = selectedRadioValue(themeGroup, "app");
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -413,14 +426,17 @@ public class MathMasterWidgetConfigActivity extends Activity {
         } else {
             theme = isValidTheme(themeMode) ? themeMode : "app";
         }
-        preferences.edit()
+        SharedPreferences.Editor editor = preferences.edit()
             .putString("instance_" + widgetId + "_contentJson", selected.toString())
             .putInt("instance_" + widgetId + "_contentSchemaVersion", 2)
             .putString("instance_" + widgetId + "_style", style)
             .putString("instance_" + widgetId + "_composition", composition)
             .putString("instance_" + widgetId + "_themeMode", themeMode)
-            .putString("instance_" + widgetId + "_theme", theme)
-            .apply();
+            .putString("instance_" + widgetId + "_theme", theme);
+        if (fixedComposition != null) {
+            editor.putBoolean("instance_" + widgetId + "_catalogLocked", true);
+        }
+        editor.apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
         manager.updateAppWidget(widgetId, MathMasterHomeWidgetProvider.createViews(this, widgetId));
