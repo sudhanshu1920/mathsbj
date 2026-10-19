@@ -235,6 +235,14 @@ async function configureFirebase(root, encodedConfig) {
   return { enabled: true, projectId: config.project_info.project_id };
 }
 
+/**
+ * Android RemoteViews cannot reliably inflate an arbitrary plain <View> in launcher widgets.
+ * Replace the artwork overlay with a supported FrameLayout before packaging native resources.
+ */
+export function normalizeRemoteViewsLayout(xml) {
+  return xml.replace(/<View(?=\\s+android:id="@\\+id\\/widget_artwork_overlay")/g, '<FrameLayout');
+}
+
 export async function configureAndroidNotifications(androidRoot, { firebaseJsonBase64 = '' } = {}) {
   const root = path.resolve(androidRoot);
   const sourceFiles = [
@@ -308,7 +316,12 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
   for (const resource of widgetResources) {
     const destination = path.join(root, 'app/src/main/res', resource);
     await mkdir(path.dirname(destination), { recursive: true });
-    await copyFile(path.join(SOURCE_NATIVE_RES_DIR, resource), destination);
+    if (resource.startsWith('layout/')) {
+      const sourceXml = await readRequired(path.join(SOURCE_NATIVE_RES_DIR, resource), resource);
+      await writeFile(destination, normalizeRemoteViewsLayout(sourceXml));
+    } else {
+      await copyFile(path.join(SOURCE_NATIVE_RES_DIR, resource), destination);
+    }
   }
 
   const mainActivityPath = path.join(targetPackageDir, 'MainActivity.java');
