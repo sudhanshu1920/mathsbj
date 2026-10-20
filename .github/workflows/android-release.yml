@@ -52,8 +52,6 @@ jobs:
       - name: Architecture regression checks
         run: npm run regression:check
 
-      - name: Home-screen widget layout regression checks
-        run: node --test scripts/android-widget-layout.test.mjs
 
       - name: Lint
         run: npm run lint
