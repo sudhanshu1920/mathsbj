@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Atom, Box, Grid3x3, Percent, Radical, Sigma, Square, Superscript, Triangle } from 'lucide-react';
+import { Atom, Box, CalendarCheck, Grid3x3, Percent, Radical, Sigma, Square, Superscript, Triangle } from 'lucide-react';
 import { TOPIC_ICON_MAP } from '@/lib/topicIcons';
 
 describe('topic icon semantics', () => {
@@ -16,6 +16,7 @@ describe('topic icon semantics', () => {
       trig: { label: 'Trigonometry', icon: Triangle },
       'addition-subtraction-digits': { label: '+/-', symbol: '±' },
       'periodic-table': { label: 'Periodic Table', icon: Atom },
+      'study-tracker': { label: 'Study Tracker', icon: CalendarCheck },
     } as const;
 
     for (const [topicId, expectedConfig] of Object.entries(expected)) {
