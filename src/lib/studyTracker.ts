@@ -265,6 +265,134 @@ export function shiftStudyPeriod(anchorDate: string, mode: StudyMode, direction:
   return formatDateKey(addDays(date, direction * 7));
 }
 
+export interface StudySubjectMutationResult {
+  state: StudyTrackerState;
+  error?: string;
+  subject?: StudySubject;
+}
+
+export function addStudySubject(
+  state: StudyTrackerState,
+  rawName: string,
+  now = new Date(),
+  id = createStudyId(),
+): StudySubjectMutationResult {
+  const name = normalizeSubjectName(rawName).slice(0, 40);
+  if (!name) return { state, error: 'Enter a subject name.' };
+  if (state.subjects.some((subject) => getSubjectNameIdentity(subject.name) === getSubjectNameIdentity(name))) {
+    return { state, error: 'A subject with this name already exists.' };
+  }
+
+  const timestamp = now.toISOString();
+  const subject: StudySubject = {
+    id,
+    name,
+    order: Math.max(-1, ...state.subjects.map((item) => item.order)) + 1,
+    archived: false,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  return { state: { ...state, subjects: [...state.subjects, subject] }, subject };
+}
+
+export function renameStudySubject(
+  state: StudyTrackerState,
+  subjectId: string,
+  rawName: string,
+  now = new Date(),
+): StudySubjectMutationResult {
+  const name = normalizeSubjectName(rawName).slice(0, 40);
+  if (!name) return { state, error: 'Subject name cannot be empty.' };
+  if (!state.subjects.some((subject) => subject.id === subjectId)) {
+    return { state, error: 'Subject not found.' };
+  }
+  if (state.subjects.some((subject) => subject.id !== subjectId && getSubjectNameIdentity(subject.name) === getSubjectNameIdentity(name))) {
+    return { state, error: 'A subject with this name already exists.' };
+  }
+
+  const timestamp = now.toISOString();
+  return {
+    state: {
+      ...state,
+      subjects: state.subjects.map((subject) => subject.id === subjectId
+        ? { ...subject, name, updatedAt: timestamp }
+        : subject),
+    },
+  };
+}
+
+export function reorderStudySubject(
+  state: StudyTrackerState,
+  subjectId: string,
+  direction: -1 | 1,
+): StudyTrackerState {
+  const current = [...state.subjects]
+    .filter((subject) => !subject.archived)
+    .sort((left, right) => left.order - right.order);
+  const fromIndex = current.findIndex((subject) => subject.id === subjectId);
+  const toIndex = fromIndex + direction;
+  if (fromIndex < 0 || toIndex < 0 || toIndex >= current.length) return state;
+
+  const reordered = [...current];
+  [reordered[fromIndex], reordered[toIndex]] = [reordered[toIndex], reordered[fromIndex]];
+  const orderById = new Map(reordered.map((subject, index) => [subject.id, index]));
+  const archived = [...state.subjects]
+    .filter((subject) => subject.archived)
+    .sort((left, right) => left.order - right.order);
+  const archivedOrderById = new Map(archived.map((subject, index) => [subject.id, reordered.length + index]));
+
+  return {
+    ...state,
+    subjects: state.subjects.map((subject) => ({
+      ...subject,
+      order: orderById.get(subject.id) ?? archivedOrderById.get(subject.id) ?? subject.order,
+    })),
+  };
+}
+
+export function setStudySubjectArchived(
+  state: StudyTrackerState,
+  subjectId: string,
+  archived: boolean,
+  now = new Date(),
+): StudyTrackerState {
+  if (!state.subjects.some((subject) => subject.id === subjectId)) return state;
+  const nextActiveOrder = Math.max(
+    -1,
+    ...state.subjects.filter((subject) => !subject.archived && subject.id !== subjectId).map((subject) => subject.order),
+  ) + 1;
+  const timestamp = now.toISOString();
+  return {
+    ...state,
+    subjects: state.subjects.map((subject) => subject.id === subjectId
+      ? { ...subject, archived, order: archived ? subject.order : nextActiveOrder, updatedAt: timestamp }
+      : subject),
+  };
+}
+
+export function upsertStudyEntry(
+  state: StudyTrackerState,
+  entry: Omit<StudyEntry, 'updatedAt'>,
+  now = new Date(),
+): StudyTrackerState {
+  if (!isDateKey(entry.date) ||
+      !state.subjects.some((subject) => subject.id === entry.subjectId) ||
+      !isStudyEntryStatus(entry.status) ||
+      !Number.isFinite(entry.minutes) ||
+      !Number.isInteger(entry.minutes) ||
+      entry.minutes < 0 || entry.minutes > 1440) return state;
+
+  const saved: StudyEntry = {
+    ...entry,
+    note: entry.note.slice(0, 240),
+    updatedAt: now.toISOString(),
+  };
+  return {
+    ...state,
+    entries: { ...state.entries, [studyEntryKey(saved.date, saved.subjectId)]: saved },
+  };
+}
+
 export function cycleStudyMode(mode: StudyMode): StudyMode {
   const index = STUDY_MODES.indexOf(mode);
   return STUDY_MODES[(index + 1) % STUDY_MODES.length];
