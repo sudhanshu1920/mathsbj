@@ -380,7 +380,25 @@ describe('Study Tracker strict date permissions and subject history', () => {
       },
     };
     expect(saveStudyTrackerState(bypassAttempt, localStorage, now)).toBe(false);
+
+    const future = '2026-10-21';
+    const futureBypassAttempt: StudyTrackerState = {
+      ...todayState,
+      entries: {
+        ...todayState.entries,
+        [studyEntryKey(future, 'builtin-math')]: {
+          date: future,
+          subjectId: 'builtin-math',
+          status: 'completed',
+          minutes: 99,
+          note: 'future entry must not persist',
+          updatedAt: now.toISOString(),
+        },
+      },
+    };
+    expect(saveStudyTrackerState(futureBypassAttempt, localStorage, now)).toBe(false);
     expect(getStudyEntry(loadStudyTrackerState(now, localStorage), past, 'builtin-math')).toBeUndefined();
+    expect(getStudyEntry(loadStudyTrackerState(now, localStorage), future, 'builtin-math')).toBeUndefined();
     expect(getStudyEntry(loadStudyTrackerState(now, localStorage), formatDateKey(now), 'builtin-math')?.minutes).toBe(25);
   });
 });
