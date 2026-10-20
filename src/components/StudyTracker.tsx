@@ -540,7 +540,6 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       {activeSubjects.length === 0 && (
         <div className="mt-3 rounded-xl border border-dashed border-border p-5 text-center">
           <p className="text-sm font-semibold text-foreground">No active subjects</p>
-          <p className="mt-1 text-xs text-muted-foreground">Restore a subject or add a new one to start tracking.</p>
           <button type="button" onClick={() => setOverlayState('subjects')} className="mt-3 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"><Plus size={13} className="mr-1 inline" /> Manage subjects</button>
         </div>
       )}
@@ -678,7 +677,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       )}
 
       {overlay === 'subjects' && (
-        <OverlayFrame title="Manage subjects" description="Add columns, keep subjects in order, and archive history without deleting it." onClose={closeOverlay}>
+        <OverlayFrame title="Subjects" onClose={closeOverlay}>
           <form className="flex items-start gap-2" onSubmit={(event) => { event.preventDefault(); addSubject(); }}>
             <label className="min-w-0 flex-1">
               <span className="mb-1.5 block text-xs font-semibold text-foreground">New subject</span>
@@ -689,7 +688,6 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
           {subjectError && <p role="alert" className="mt-2 text-xs text-destructive">{subjectError}</p>}
 
           <div className="mt-4">
-            <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">Active columns · drag not required</p>
             <div className="space-y-2">
               {activeSubjects.map((subject, index) => (
                 <div key={subject.id} className="rounded-xl border border-border/80 bg-background/55 p-2.5">
@@ -742,7 +740,6 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
 
           <div className="mt-5 border-t border-border/70 pt-4">
             <p className="font-display text-sm font-bold text-foreground">Reference date range</p>
-            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">PDF-inspired preset only. Navigation and entries continue outside this range.</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <label className="min-w-0"><span className="mb-1 block text-[11px] font-semibold text-muted-foreground">Start</span><input type="date" value={templateStartDraft} onChange={(event) => { setTemplateStartDraft(event.target.value); setTemplateError(''); }} className="h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-xs text-foreground" /></label>
               <label className="min-w-0"><span className="mb-1 block text-[11px] font-semibold text-muted-foreground">End</span><input type="date" value={templateEndDraft} onChange={(event) => { setTemplateEndDraft(event.target.value); setTemplateError(''); }} className="h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-xs text-foreground" /></label>
