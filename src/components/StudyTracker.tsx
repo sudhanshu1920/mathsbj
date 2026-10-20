@@ -613,15 +613,15 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
         </div>
       )}
 
-      {activeSubjects.length > 0 && mode === 'table' && (
+      {tableColumns.length > 0 && mode === 'table' && (
         <section className="mt-3 overflow-hidden rounded-xl border border-border bg-card/45" aria-label="Seven day study table">
           <div className="overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-max border-collapse text-xs">
               <thead>
                 <tr>
                   <th scope="col" className="sticky left-0 z-20 min-w-[6.2rem] border border-border bg-muted px-2.5 py-2.5 text-left font-display text-[11px] font-extrabold text-foreground">Date</th>
-                  {activeSubjects.map((subject) => (
-                    <th key={subject.id} scope="col" className="min-w-[5.4rem] max-w-[7.5rem] border border-border bg-muted px-2 py-2.5 text-center font-display text-[11px] font-extrabold text-foreground">
+                  {tableColumns.map((subject) => (
+                    <th key={subject.columnKey} scope="col" className="min-w-[5.4rem] max-w-[7.5rem] border border-border bg-muted px-2 py-2.5 text-center font-display text-[11px] font-extrabold text-foreground">
                       <span className="block max-w-[7rem] truncate" title={subject.name}>{subject.name}</span>
                     </th>
                   ))}
@@ -630,25 +630,36 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
               <tbody>
                 {tableDates.map((date, rowIndex) => {
                   const day = parseDateKey(date);
-                  const today = isToday(day);
+                  const today = date === todayKey;
                   const sunday = isSunday(day);
+                  const subjectsForDay = getActiveStudySubjectsForDate(state, date);
                   return (
-                    <tr key={date} className={rowIndex % 2 === 0 ? 'bg-card/30' : 'bg-muted/25'}>
+                    <tr key={date} className={`${rowIndex % 2 === 0 ? 'bg-card/30' : 'bg-muted/25'} ${today ? 'ring-1 ring-inset ring-primary/20' : ''}`}>
                       <th scope="row" className={`sticky left-0 z-10 border border-border px-2.5 py-2 text-left ${today ? 'bg-primary/15' : sunday ? 'bg-[hsl(var(--warning)/0.16)]' : rowIndex % 2 === 0 ? 'bg-card' : 'bg-muted/60'}`}>
                         <button type="button" onClick={() => openDayDetails(date)} className="flex w-full min-w-[5.8rem] flex-col items-start gap-0.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`View entries for ${dateLabel(date, 'EEEE d MMMM yyyy')}`}>
                           <span className="font-display text-[11px] font-bold text-foreground">{dateLabel(date, 'dd MMM')}</span>
                           <span className={`text-[9px] font-semibold ${today ? 'text-primary' : 'text-muted-foreground'}`}>{today ? 'Today' : dateLabel(date, 'EEE')}</span>
                         </button>
                       </th>
-                      {activeSubjects.map((subject) => {
-                        const entry = getStudyEntry(state, date, subject.id);
+                      {tableColumns.map((column) => {
+                        const subjectForDay = subjectsForDay.find((subject) => subjectColumnKey(subject) === column.columnKey);
+                        const entry = subjectForDay ? getStudyEntry(state, date, column.id) : undefined;
                         const status = entry?.status ?? 'not-started';
                         return (
-                          <td key={subject.id} className={`border border-border p-0 ${today ? 'bg-primary/[0.045]' : sunday ? 'bg-[hsl(var(--warning)/0.08)]' : ''}`}>
-                            <button type="button" onClick={() => openEntry(date, subject)} className="flex min-h-[2.8rem] w-full min-w-[5.25rem] items-center justify-center gap-1.5 px-2 py-2 text-foreground hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" aria-label={`Edit ${subject.name} entry for ${dateLabel(date, 'd MMMM yyyy')}. Status: ${STATUS_LABEL[status]}.`}>
-                              {entry && entry.status !== 'not-started' ? <StatusGlyph status={entry.status} /> : <span className="text-muted-foreground/55">—</span>}
-                              {entry?.minutes ? <span className="text-[9px] tabular-nums text-muted-foreground">{entry.minutes}m</span> : null}
-                            </button>
+                          <td key={column.columnKey} className={`border border-border p-0 ${today && subjectForDay ? 'bg-primary/[0.07]' : sunday ? 'bg-[hsl(var(--warning)/0.08)]' : ''}`}>
+                            {!subjectForDay ? (
+                              <div aria-hidden="true" className="min-h-[2.8rem] w-full" />
+                            ) : today ? (
+                              <button type="button" onClick={() => openEntry(date, subjectForDay)} className="flex min-h-[2.8rem] w-full min-w-[5.25rem] items-center justify-center gap-1.5 px-2 py-2 text-foreground hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" aria-label={`Edit ${subjectForDay.name} entry for ${dateLabel(date, 'd MMMM yyyy')}. Status: ${STATUS_LABEL[status]}.`}>
+                                {entry && entry.status !== 'not-started' ? <StatusGlyph status={entry.status} /> : <span className="text-muted-foreground/55">—</span>}
+                                {entry?.minutes ? <span className="text-[9px] tabular-nums text-muted-foreground">{entry.minutes}m</span> : null}
+                              </button>
+                            ) : (
+                              <div className="flex min-h-[2.8rem] w-full min-w-[5.25rem] items-center justify-center gap-1.5 px-2 py-2 text-muted-foreground/80" aria-label={`${subjectForDay.name}, read-only. Status: ${STATUS_LABEL[status]}.`}>
+                                {entry && entry.status !== 'not-started' ? <StatusGlyph status={entry.status} /> : <span>—</span>}
+                                {entry?.minutes ? <span className="text-[9px] tabular-nums">{entry.minutes}m</span> : null}
+                              </div>
+                            )}
                           </td>
                         );
                       })}
@@ -659,13 +670,13 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
             </table>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-3 py-2 text-[10px] text-muted-foreground">
-            <span>{tableDates.length} days · {activeSubjects.length} subjects</span>
+            <span>{tableDates.length} days · {new Set(tableColumns.map((subject) => subject.id)).size} subjects</span>
             <span>{periodCompleted} completed entries · {periodDuration} min recorded</span>
           </div>
         </section>
       )}
 
-      {activeSubjects.length > 0 && mode === 'week' && (
+      {weekColumns.length > 0 && mode === 'week' && (
         <section className="mt-3 overflow-hidden rounded-xl border border-border bg-card/45" aria-label="Weekly subject overview">
           <div className="overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-[42rem] border-collapse text-xs">
@@ -673,7 +684,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
                 <tr>
                   <th scope="col" className="sticky left-0 z-20 min-w-[7rem] border border-border bg-muted px-2 py-2.5 text-left font-display text-[11px] font-extrabold text-foreground">Subject</th>
                   {weekDates.map((date) => (
-                    <th key={date} scope="col" className={`min-w-[3.1rem] border border-border px-1 py-2 text-center font-display text-[10px] font-extrabold ${isToday(parseDateKey(date)) ? 'bg-primary/15 text-primary' : isSunday(parseDateKey(date)) ? 'bg-[hsl(var(--warning)/0.16)] text-foreground' : 'bg-muted text-foreground'}`}>
+                    <th key={date} scope="col" className={`min-w-[3.1rem] border border-border px-1 py-2 text-center font-display text-[10px] font-extrabold ${date === todayKey ? 'bg-primary/15 text-primary' : isSunday(parseDateKey(date)) ? 'bg-[hsl(var(--warning)/0.16)] text-foreground' : 'bg-muted text-foreground'}`}>
                       <span className="block">{dateLabel(date, 'EEE')}</span><span className="mt-0.5 block font-normal">{dateLabel(date, 'd')}</span>
                     </th>
                   ))}
@@ -681,24 +692,37 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
                 </tr>
               </thead>
               <tbody>
-                {activeSubjects.map((subject, rowIndex) => {
-                  const total = weekDates.filter((date) => getEntryStatus(date, subject.id) === 'completed').length;
+                {weekColumns.map((subject, rowIndex) => {
+                  const matchingDates = weekDates.filter((date) =>
+                    getActiveStudySubjectsForDate(state, date).some((version) => subjectColumnKey(version) === subject.columnKey),
+                  );
+                  const total = matchingDates.filter((date) => getEntryStatus(date, subject.id) === 'completed').length;
                   return (
-                    <tr key={subject.id} className={rowIndex % 2 === 0 ? 'bg-card/30' : 'bg-muted/25'}>
+                    <tr key={subject.columnKey} className={rowIndex % 2 === 0 ? 'bg-card/30' : 'bg-muted/25'}>
                       <th scope="row" className={`sticky left-0 z-10 border border-border px-2 py-2 text-left font-semibold text-foreground ${rowIndex % 2 === 0 ? 'bg-card' : 'bg-muted/80'}`}>
                         <span className="block max-w-[6.4rem] truncate" title={subject.name}>{subject.name}</span>
                       </th>
                       {weekDates.map((date) => {
+                        const activeVersion = getActiveStudySubjectsForDate(state, date)
+                          .find((version) => subjectColumnKey(version) === subject.columnKey);
                         const status = getEntryStatus(date, subject.id);
                         return (
-                          <td key={date} className={`border border-border p-0 text-center ${isToday(parseDateKey(date)) ? 'bg-primary/[0.045]' : isSunday(parseDateKey(date)) ? 'bg-[hsl(var(--warning)/0.08)]' : ''}`}>
-                            <button type="button" onClick={() => openEntry(date, subject)} className="flex min-h-[2.75rem] w-full items-center justify-center gap-1 px-1 py-2 hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" aria-label={`Edit ${subject.name} on ${dateLabel(date, 'EEEE d MMMM')}: ${STATUS_LABEL[status]}`}>
-                              {status === 'completed' ? <Check size={15} className="text-success" /> : status === 'in-progress' ? <span className="h-2 w-2 rounded-full bg-primary" /> : <span className="text-muted-foreground/50">–</span>}
-                            </button>
+                          <td key={date} className={`border border-border p-0 text-center ${date === todayKey && activeVersion ? 'bg-primary/[0.07]' : isSunday(parseDateKey(date)) ? 'bg-[hsl(var(--warning)/0.08)]' : ''}`}>
+                            {!activeVersion ? (
+                              <div aria-hidden="true" className="min-h-[2.75rem] w-full" />
+                            ) : date === todayKey ? (
+                              <button type="button" onClick={() => openEntry(date, activeVersion)} className="flex min-h-[2.75rem] w-full items-center justify-center gap-1 px-1 py-2 hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" aria-label={`Edit ${activeVersion.name} on ${dateLabel(date, 'EEEE d MMMM')}: ${STATUS_LABEL[status]}`}>
+                                {status === 'completed' ? <Check size={15} className="text-success" /> : status === 'in-progress' ? <span className="h-2 w-2 rounded-full bg-primary" /> : <span className="text-muted-foreground/50">–</span>}
+                              </button>
+                            ) : (
+                              <div className="flex min-h-[2.75rem] w-full items-center justify-center gap-1 px-1 py-2 text-muted-foreground/80" aria-label={`${activeVersion.name} on ${dateLabel(date, 'EEEE d MMMM')}, read-only: ${STATUS_LABEL[status]}`}>
+                                {status === 'completed' ? <Check size={15} className="text-success" /> : status === 'in-progress' ? <span className="h-2 w-2 rounded-full bg-primary" /> : <span>–</span>}
+                              </div>
+                            )}
                           </td>
                         );
                       })}
-                      <td className="border border-border px-2 py-2 text-center font-bold tabular-nums text-foreground">{total}/7</td>
+                      <td className="border border-border px-2 py-2 text-center font-bold tabular-nums text-foreground">{total}/{matchingDates.length || 0}</td>
                     </tr>
                   );
                 })}
@@ -707,8 +731,8 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
           </div>
           <div className="grid grid-cols-3 gap-2 border-t border-border/70 p-3">
             <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Completed</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{weekDates.reduce((total, date) => total + dayCompletionCount(date), 0)}</p></div>
-            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Active days</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{new Set(weekDates.filter((date) => activeSubjects.some((subject) => entryIsActive(getStudyEntry(state, date, subject.id)))).map((date) => date)).size}</p></div>
-            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Study time</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{weekDates.reduce((total, date) => total + activeSubjects.reduce((sum, subject) => sum + (getStudyEntry(state, date, subject.id)?.minutes ?? 0), 0), 0)}<span className="ml-1 text-[10px] font-semibold text-muted-foreground">min</span></p></div>
+            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Active days</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{new Set(weekDates.filter((date) => getActiveStudySubjectsForDate(state, date).some((subject) => entryIsActive(getStudyEntry(state, date, subject.id)))).map((date) => date)).size}</p></div>
+            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Study time</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{weekDates.reduce((total, date) => total + getActiveStudySubjectsForDate(state, date).reduce((sum, subject) => sum + (getStudyEntry(state, date, subject.id)?.minutes ?? 0), 0), 0)}<span className="ml-1 text-[10px] font-semibold text-muted-foreground">min</span></p></div>
           </div>
         </section>
       )}
