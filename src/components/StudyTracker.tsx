@@ -654,15 +654,16 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
               const day = parseDateKey(date);
               const inMonth = isSameMonth(day, monthDate);
               const completed = dayCompletionCount(date);
+              const incomplete = activeSubjects.filter((subject) => {
+                const entry = getStudyEntry(state, date, subject.id);
+                return entryIsActive(entry) && entry?.status !== 'completed';
+              }).length;
               return (
-                <button key={date} type="button" onClick={() => openDayDetails(date)} className={renderDateClass(date, inMonth)} aria-label={`${dateLabel(date, 'EEEE d MMMM yyyy')}, ${completed} completed subjects`}>
+                <button key={date} type="button" onClick={() => openDayDetails(date)} className={renderDateClass(date, inMonth)} aria-label={`${dateLabel(date, 'EEEE d MMMM yyyy')}, ${completed} complete, ${incomplete} incomplete`}>
                   <span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 ${isToday(day) ? 'bg-primary text-primary-foreground' : ''}`}>{dateLabel(date, 'd')}</span>
                   <span className="mt-1 flex h-2.5 items-center justify-center gap-0.5" aria-hidden="true">
-                    {completed > 0 && <span className="h-1.5 w-1.5 rounded-full bg-success" />}
-                    {activeSubjects.some((subject) => {
-                      const entry = getStudyEntry(state, date, subject.id);
-                      return entryIsActive(entry) && entry?.status !== 'completed';
-                    }) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                    {completed > 0 && <Check size={10} className="text-success" />}
+                    {incomplete > 0 && <Clock3 size={10} className="text-primary" />}
                   </span>
                 </button>
               );
