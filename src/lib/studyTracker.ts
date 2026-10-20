@@ -335,14 +335,16 @@ function canPersistStudyTrackerChange(
     if (affectedDate !== today) return false;
   }
 
-  const previousHistory = new Map((previous?.subjectHistory ?? []).map((snapshot) => [snapshot.effectiveDate, snapshot]));
-  const nextHistory = new Map(next.subjectHistory.map((snapshot) => [snapshot.effectiveDate, snapshot]));
-  const historyDates = new Set([...previousHistory.keys(), ...nextHistory.keys()]);
-  for (const date of historyDates) {
-    const before = previousHistory.get(date);
-    const after = nextHistory.get(date);
-    if (JSON.stringify(before) === JSON.stringify(after)) continue;
-    if (date !== today) return false;
+  if (previous) {
+    const previousHistory = new Map(previous.subjectHistory.map((snapshot) => [snapshot.effectiveDate, snapshot]));
+    const nextHistory = new Map(next.subjectHistory.map((snapshot) => [snapshot.effectiveDate, snapshot]));
+    const historyDates = new Set([...previousHistory.keys(), ...nextHistory.keys()]);
+    for (const date of historyDates) {
+      const before = previousHistory.get(date);
+      const after = nextHistory.get(date);
+      if (JSON.stringify(before) === JSON.stringify(after)) continue;
+      if (date !== today) return false;
+    }
   }
 
   // A caller must not bypass the effective-dated mutation helpers by changing
