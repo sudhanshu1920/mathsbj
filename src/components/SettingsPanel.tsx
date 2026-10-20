@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, setKeyboardShortcuts, type AppSettings } from '@/lib/settings';
 import { getStreak, setTarget, type StreakState } from '@/lib/streak';
 import { isGuest, setGuest } from '@/lib/guest';
-import { THEMES, setTheme as setAppTheme, useMode, setMode } from '@/lib/theme';
+import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
 import { checkForAppUpdate } from '@/lib/appUpdateService';
 import { announceUpdateAvailable } from '@/lib/appUpdateEvents';
 import { MOTION } from '@/lib/motion';
@@ -30,6 +30,7 @@ const SettingsPanel = () => {
   const [online, setOnline] = useState(navigator.onLine);
   const updateResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateCheckInFlightRef = useRef(false);
+  const theme = useTheme();
   const mode = useMode();
   const guest = !user && isGuest();
   const mountedRef = useRef(true);
