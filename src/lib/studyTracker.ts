@@ -114,27 +114,48 @@ const toSubjectSnapshot = (subjects: StudySubject[]): StudySubjectSnapshot[] =>
     .map(({ id, name, order, archived }) => ({ id, name, order, archived }));
 
 function createInitialSubjectHistory(subjects: StudySubject[]): StudySubjectHistorySnapshot[] {
-  // Built-in subjects are part of the tracker's original baseline. Custom
-  // subjects enter history on their creation date, never before that date.
+  // Legacy storage may not contain subjectHistory. Built-in names have a
+  // known original baseline, so never infer their historical labels from the
+  // mutable current subject records.
+  const builtIns = subjects
+    .filter((subject) => subject.id.startsWith('builtin-'))
+    .map((subject) => {
+      const defaultIndex = DEFAULT_STUDY_SUBJECTS.findIndex(
+        (name) => subject.id === 'builtin-' + name.toLowerCase(),
+      );
+      return {
+        ...subject,
+        name: defaultIndex >= 0 ? DEFAULT_STUDY_SUBJECTS[defaultIndex] : subject.name,
+        order: defaultIndex >= 0 ? defaultIndex : subject.order,
+        archived: false,
+      };
+    });
+  const customSubjects = subjects
+    .filter((subject) => !subject.id.startsWith('builtin-'))
+    // Without a legacy snapshot, a custom subject's original name/order cannot
+    // be reconstructed. Keep its stable ID and saved records visible, and
+    // treat its current name as the best available legacy label.
+    .map((subject) => ({ ...subject, archived: false }));
+
   const history: StudySubjectHistorySnapshot[] = [{
     effectiveDate: '0001-01-01',
-    subjects: toSubjectSnapshot(subjects.filter((subject) => subject.id.startsWith('builtin-'))),
+    subjects: toSubjectSnapshot(builtIns),
   }];
-  const customDates = [...new Set(subjects
-    .filter((subject) => !subject.id.startsWith('builtin-'))
-    .map((subject) => {
-      const created = Date.parse(subject.createdAt);
-      return Number.isFinite(created) ? formatDateKey(new Date(created)) : '0001-01-01';
-    }))].sort();
+  const customDates = [...new Set(customSubjects.map((subject) => {
+    const created = Date.parse(subject.createdAt);
+    return Number.isFinite(created) ? formatDateKey(new Date(created)) : '0001-01-01';
+  }))].sort();
 
   for (const effectiveDate of customDates) {
     history.push({
       effectiveDate,
-      subjects: toSubjectSnapshot(subjects.filter((subject) =>
-        subject.id.startsWith('builtin-') ||
-        (Number.isFinite(Date.parse(subject.createdAt)) &&
-          formatDateKey(new Date(Date.parse(subject.createdAt))) <= effectiveDate),
-      )),
+      subjects: toSubjectSnapshot([
+        ...builtIns,
+        ...customSubjects.filter((subject) => {
+          const created = Date.parse(subject.createdAt);
+          return Number.isFinite(created) && formatDateKey(new Date(created)) <= effectiveDate;
+        }),
+      ]),
     });
   }
   return history;
@@ -277,7 +298,19 @@ export function normalizeStudyTrackerState(value: unknown, now = new Date()): St
     });
     subjectHistory = [...snapshotsByDate.values()].sort((left, right) => left.effectiveDate.localeCompare(right.effectiveDate));
   }
-  if (subjectHistory.length === 0) subjectHistory = createInitialSubjectHistory(subjects);
+  if (subjectHistory.length === 0) {
+    // Migrate pre-history storage without retroactively applying mutable
+    // built-in names/archives to old dates. The migration cannot recover a
+    // custom subject's prior renamed label if that older version never saved
+    // it, but it preserves the stable ID and all historical entries.
+    subjectHistory = createInitialSubjectHistory(subjects);
+    const today = formatDateKey(now);
+    const currentSnapshot = snapshotSubjectsForDate(subjects, today);
+    const todayIndex = subjectHistory.findIndex((snapshot) => snapshot.effectiveDate === today);
+    if (todayIndex >= 0) subjectHistory[todayIndex] = currentSnapshot;
+    else subjectHistory.push(currentSnapshot);
+    subjectHistory.sort((left, right) => left.effectiveDate.localeCompare(right.effectiveDate));
+  }
 
   const start = isDateKey(preferences.templateStartDate)
     ? preferences.templateStartDate
