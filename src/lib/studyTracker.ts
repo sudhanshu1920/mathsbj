@@ -538,7 +538,8 @@ export function setStudySubjectArchived(
 ): StudyTrackerState {
   if (!state.subjects.some((subject) => subject.id === subjectId)) return state;
   const today = formatDateKey(now);
-  if (!getActiveStudySubjectsForDate(state, today).some((subject) => subject.id === subjectId) && !archived) return state;
+  const currentVersion = getStudySubjectsForDate(state, today).find((subject) => subject.id === subjectId);
+  if (!currentVersion || (archived && currentVersion.archived) || (!archived && !currentVersion.archived)) return state;
   const nextActiveOrder = Math.max(
     -1,
     ...state.subjects.filter((subject) => !subject.archived && subject.id !== subjectId).map((subject) => subject.order),
