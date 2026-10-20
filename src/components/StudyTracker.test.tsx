@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import StudyTracker from '@/components/StudyTracker';
 import {
   STUDY_TRACKER_STORAGE_KEY,
   createDefaultStudyTrackerState,
+  formatDateKey,
   saveStudyTrackerState,
   upsertStudyEntry,
   type StudyTrackerState,
@@ -186,6 +187,72 @@ describe('StudyTracker', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
     fireEvent.click(screen.getByRole('button', { name: /Current mode Table/ }));
     expect(screen.getByText('Week mode')).toBeInTheDocument();
-    expect(screen.queryByRole('rowheader', { name: 'Math' })).not.toBeInTheDocument();
+    // Historical subject configuration remains visible, but the past column
+    // is not an edit control after Math has been archived from today's config.
+    expect(screen.getByRole('rowheader', { name: 'Math' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Edit Math on/ })).not.toBeInTheDocument();
+  });
+});
+
+
+describe('StudyTracker date permissions in every view', () => {
+  it('shows edit controls only for today and keeps past/future records read-only', () => {
+    vi.useFakeTimers();
+    const now = new Date(2026, 9, 20, 12, 0, 0);
+    vi.setSystemTime(now);
+    const initial = createDefaultStudyTrackerState(now);
+    const anchoredYesterday: StudyTrackerState = {
+      ...initial,
+      preferences: { ...initial.preferences, anchorDate: '2026-10-19' },
+    };
+    expect(saveStudyTrackerState(anchoredYesterday, localStorage, now)).toBe(true);
+    render(<StudyTracker />);
+
+    expect(screen.getByRole('button', { name: 'Edit Math entry for Tuesday 20 October 2026. Status: Not Started.' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Math entry for Monday 19 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Math entry for Wednesday 21 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'View entries for Monday 19 October 2026' }));
+    const dailyDialog = screen.getByRole('dialog', { name: 'Daily entries' });
+    expect(within(dailyDialog).getByText('Math')).toBeInTheDocument();
+    expect(within(dailyDialog).queryByRole('button', { name: /Math/ })).not.toBeInTheDocument();
+    fireEvent.click(within(dailyDialog).getByRole('button', { name: 'Close dialog' }));
+
+    const modeButton = screen.getByRole('button', { name: /Current mode Table/i });
+    fireEvent.click(modeButton);
+    expect(screen.getByText('Week mode')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Edit Math on Tuesday 20 October/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Edit Math on Monday 19 October/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Edit Math on Wednesday 21 October/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Current mode Week/i }));
+    expect(screen.getByText('Month mode')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Monday 19 October 2026, 0 complete, 0 incomplete/i }));
+    const historicalDialog = screen.getByRole('dialog', { name: 'Daily entries' });
+    expect(within(historicalDialog).getByText('Math')).toBeInTheDocument();
+    expect(within(historicalDialog).queryByRole('button', { name: /Math/ })).not.toBeInTheDocument();
+  });
+
+  it('refreshes the configured local day on foreground return so yesterday loses edit controls', () => {
+    vi.useFakeTimers();
+    const now = new Date(2026, 9, 20, 23, 58, 0);
+    vi.setSystemTime(now);
+    const state = {
+      ...createDefaultStudyTrackerState(now),
+      preferences: {
+        ...createDefaultStudyTrackerState(now).preferences,
+        anchorDate: '2026-10-20',
+      },
+    };
+    expect(saveStudyTrackerState(state, localStorage, now)).toBe(true);
+    render(<StudyTracker />);
+
+    expect(screen.getByRole('button', { name: 'Edit Math entry for Tuesday 20 October 2026. Status: Not Started.' })).toBeInTheDocument();
+    act(() => {
+      vi.setSystemTime(new Date(2026, 9, 21, 0, 1, 0));
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(screen.queryByRole('button', { name: 'Edit Math entry for Tuesday 20 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Math entry for Wednesday 21 October 2026. Status: Not Started.' })).toBeInTheDocument();
   });
 });
