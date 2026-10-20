@@ -345,6 +345,14 @@ function canPersistStudyTrackerChange(
       if (JSON.stringify(before) === JSON.stringify(after)) continue;
       if (date !== today) return false;
     }
+  } else {
+    // With no existing storage record there is no historical baseline to
+    // authorize imported entries/configurations. A fresh tracker may only
+    // initialize today's entries and today's effective-dated change.
+    if (Object.values(next.entries).some((entry) => entry.date !== today)) return false;
+    if (next.subjectHistory.some((snapshot) =>
+      snapshot.effectiveDate !== '0001-01-01' && snapshot.effectiveDate !== today,
+    )) return false;
   }
 
   // A caller must not bypass the effective-dated mutation helpers by changing
