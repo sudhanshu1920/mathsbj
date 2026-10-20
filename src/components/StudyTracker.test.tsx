@@ -61,7 +61,12 @@ describe('StudyTracker', () => {
       vi.advanceTimersByTime(550);
     });
 
-    expect(screen.getByRole('menu', { name: 'Study Tracker mode' })).toBeInTheDocument();
+    const modeMenu = screen.getByRole('menu', { name: 'Study Tracker mode' });
+    expect(modeMenu).toBeInTheDocument();
+    expect(modeMenu).toHaveStyle({ width: '9rem', maxWidth: 'none' });
+    for (const option of screen.getAllByRole('menuitemradio')) {
+      expect(option).toHaveStyle({ minWidth: '0px', minHeight: '0px' });
+    }
     dispatchPointer(modeButton, 'pointerup');
     fireEvent.click(modeButton);
 
