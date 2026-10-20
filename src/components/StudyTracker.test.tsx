@@ -149,11 +149,11 @@ describe('StudyTracker', () => {
     fireEvent.click(modeButton);
     fireEvent.click(modeButton);
 
-    const day = screen.getByRole('button', { name: /Tuesday 20 October 2026, 1 completed subjects/i });
-    const indicators = day.querySelectorAll('span[aria-hidden="true"] span');
+    const day = screen.getByRole('button', { name: /Tuesday 20 October 2026, 1 complete, 1 incomplete/i });
+    const indicators = day.querySelectorAll('span[aria-hidden="true"] svg');
     expect(indicators).toHaveLength(2);
-    expect(indicators[0]).toHaveClass('bg-success');
-    expect(indicators[1]).toHaveClass('bg-primary');
+    expect(indicators[0]).toHaveClass('text-success');
+    expect(indicators[1]).toHaveClass('text-primary');
   });
 
   it('archives subjects without destroying past entries and keeps all views connected', () => {
