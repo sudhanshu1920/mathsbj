@@ -1,6 +1,7 @@
 import {
   addDays,
   addMonths,
+  differenceInCalendarDays,
   endOfMonth,
   endOfWeek,
   format,
@@ -255,7 +256,9 @@ export function getMonthDates(anchorDate: string): string[] {
   const monthEnd = endOfMonth(date);
   const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const days = Math.round((gridEnd.getTime() - gridStart.getTime()) / 86_400_000) + 1;
+  // endOfWeek is 23:59:59.999; comparing raw milliseconds can round up
+  // to an extra day. Calendar-day arithmetic keeps the grid at 4–6 rows.
+  const days = differenceInCalendarDays(gridEnd, gridStart) + 1;
   return Array.from({ length: days }, (_, index) => formatDateKey(addDays(gridStart, index)));
 }
 
