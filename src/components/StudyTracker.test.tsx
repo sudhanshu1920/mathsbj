@@ -22,13 +22,13 @@ const dispatchPointer = (
   init: { pointerId?: number; clientX?: number; clientY?: number } = {},
 ) => {
   const event = new Event(type, { bubbles: true, cancelable: true });
-  Object.assign(event, {
-    pointerId: init.pointerId ?? 1,
-    pointerType: 'touch',
-    button: 0,
-    isPrimary: true,
-    clientX: init.clientX ?? 0,
-    clientY: init.clientY ?? 0,
+  Object.defineProperties(event, {
+    pointerId: { configurable: true, value: init.pointerId ?? 1 },
+    pointerType: { configurable: true, value: 'touch' },
+    button: { configurable: true, value: 0 },
+    isPrimary: { configurable: true, value: true },
+    clientX: { configurable: true, value: init.clientX ?? 0 },
+    clientY: { configurable: true, value: init.clientY ?? 0 },
   });
   target.dispatchEvent(event);
 };
@@ -77,7 +77,7 @@ describe('StudyTracker', () => {
     render(<StudyTracker />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Add subject column' }));
-    expect(screen.getByRole('dialog', { name: 'Manage subjects' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Subjects' })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('New subject'), { target: { value: 'English' } });
     fireEvent.click(screen.getByRole('button', { name: /^Add$/ }));
 
