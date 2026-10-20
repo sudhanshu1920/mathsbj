@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import {
   Archive,
   ArrowDown,
@@ -25,22 +26,23 @@ import {
   STUDY_TRACKER_STORAGE_KEY,
   STUDY_TRACKER_TEMPLATE_END,
   STUDY_TRACKER_TEMPLATE_START,
-  createStudyId,
+  addStudySubject,
   cycleStudyMode,
   formatDateKey,
   getMonthDates,
   getStudyEntry,
-  getSubjectNameIdentity,
   getTableDates,
   getWeekDates,
   isDateKey,
   isStudyEntryStatus,
   loadStudyTrackerState,
-  normalizeSubjectName,
   parseDateKey,
+  reorderStudySubject,
+  renameStudySubject,
   saveStudyTrackerState,
+  setStudySubjectArchived,
   shiftStudyPeriod,
-  studyEntryKey,
+  upsertStudyEntry,
   type StudyEntry,
   type StudyEntryStatus,
   type StudyMode,
@@ -109,7 +111,7 @@ const OverlayFrame = ({
   title: string;
   description?: string;
   onClose: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
   footer?: React.ReactNode;
 }) => (
   <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/55 p-0 backdrop-blur-[3px] sm:items-center sm:p-4" onMouseDown={(event) => {
@@ -162,10 +164,12 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const overlayRef = useRef<Overlay>(overlay);
   const archiveRef = useRef<string | null>(confirmArchiveId);
+  const returnToDayDetailsRef = useRef(returnToDayDetails);
 
   stateRef.current = state;
   overlayRef.current = overlay;
   archiveRef.current = confirmArchiveId;
+  returnToDayDetailsRef.current = returnToDayDetails;
 
   const commit = useCallback((updater: (previous: StudyTrackerState) => StudyTrackerState) => {
     const next = updater(stateRef.current);
@@ -203,6 +207,8 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       if (archiveRef.current) {
         archiveRef.current = null;
         setConfirmArchiveId(null);
+      } else if (overlayRef.current === 'entry' && returnToDayDetailsRef.current) {
+        setOverlayState('day-detail');
       } else if (overlayRef.current !== null) {
         setOverlayState(null);
       }
@@ -255,7 +261,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     }
   };
 
-  const handleModePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+  const handleModePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     clearLongPress();
     longPressTriggered.current = false;
@@ -283,18 +289,17 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     cycleMode();
   };
 
-  const handleModeContextMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleModeContextMenu = (event: ReactMouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     clearLongPress();
-    suppressNextClick.current = true;
     setShowModeMenu(true);
   };
 
-  const beginPeriodSwipe = (event: React.PointerEvent<HTMLDivElement>) => {
+  const beginPeriodSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
     swipeStart.current = { x: event.clientX, y: event.clientY };
   };
 
-  const finishPeriodSwipe = (event: React.PointerEvent<HTMLDivElement>) => {
+  const finishPeriodSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
     const start = swipeStart.current;
     swipeStart.current = null;
     if (!start) return;
@@ -341,107 +346,58 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     }
     const minutes = rawMinutes ? Number(rawMinutes) : 0;
     const note = entryDraft.note.trim().slice(0, 240);
-    const entry: StudyEntry = {
+    const entry = {
       date: entryDate,
       subjectId: entrySubjectId,
       status: entryDraft.status,
       minutes,
       note,
-      updatedAt: new Date().toISOString(),
     };
-    commit((previous) => ({
-      ...previous,
-      entries: { ...previous.entries, [studyEntryKey(entry.date, entry.subjectId)]: entry },
-    }));
+    commit((previous) => upsertStudyEntry(previous, entry));
+    setEntryError('');
+    setOverlayState(returnToDayDetails ? 'day-detail' : null);
+  };
+
+  const closeEntryEditor = () => {
     setEntryError('');
     setOverlayState(returnToDayDetails ? 'day-detail' : null);
   };
 
   const addSubject = () => {
-    const name = normalizeSubjectName(newSubjectName).slice(0, 40);
-    if (!name) {
-      setSubjectError('Enter a subject name.');
+    const result = addStudySubject(stateRef.current, newSubjectName);
+    if (result.error) {
+      setSubjectError(result.error);
       return;
     }
-    if (stateRef.current.subjects.some((subject) => getSubjectNameIdentity(subject.name) === getSubjectNameIdentity(name))) {
-      setSubjectError('A subject with this name already exists.');
-      return;
-    }
-    const timestamp = new Date().toISOString();
-    const subject: StudySubject = {
-      id: createStudyId(),
-      name,
-      order: Math.max(-1, ...stateRef.current.subjects.map((item) => item.order)) + 1,
-      archived: false,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-    commit((previous) => ({ ...previous, subjects: [...previous.subjects, subject] }));
+    commit(() => result.state);
     setNewSubjectName('');
     setSubjectError('');
   };
 
   const saveSubjectRename = (subjectId: string) => {
-    const name = normalizeSubjectName(subjectNameDraft).slice(0, 40);
-    if (!name) {
-      setSubjectError('Subject name cannot be empty.');
+    const result = renameStudySubject(stateRef.current, subjectId, subjectNameDraft);
+    if (result.error) {
+      setSubjectError(result.error);
       return;
     }
-    if (stateRef.current.subjects.some((subject) => subject.id !== subjectId && getSubjectNameIdentity(subject.name) === getSubjectNameIdentity(name))) {
-      setSubjectError('A subject with this name already exists.');
-      return;
-    }
-    const timestamp = new Date().toISOString();
-    commit((previous) => ({
-      ...previous,
-      subjects: previous.subjects.map((subject) => subject.id === subjectId
-        ? { ...subject, name, updatedAt: timestamp }
-        : subject),
-    }));
+    commit(() => result.state);
     setEditingSubjectId(null);
     setSubjectNameDraft('');
     setSubjectError('');
   };
 
   const moveSubject = (subjectId: string, direction: -1 | 1) => {
-    const current = sortSubjects(stateRef.current.subjects.filter((subject) => !subject.archived));
-    const fromIndex = current.findIndex((subject) => subject.id === subjectId);
-    const toIndex = fromIndex + direction;
-    if (fromIndex < 0 || toIndex < 0 || toIndex >= current.length) return;
-    const reordered = [...current];
-    [reordered[fromIndex], reordered[toIndex]] = [reordered[toIndex], reordered[fromIndex]];
-    const orderById = new Map(reordered.map((subject, index) => [subject.id, index]));
-    const archived = sortSubjects(stateRef.current.subjects.filter((subject) => subject.archived));
-    const archivedOrderById = new Map(archived.map((subject, index) => [subject.id, reordered.length + index]));
-    commit((previous) => ({
-      ...previous,
-      subjects: previous.subjects.map((subject) => ({
-        ...subject,
-        order: orderById.get(subject.id) ?? archivedOrderById.get(subject.id) ?? subject.order,
-      })),
-    }));
+    commit((previous) => reorderStudySubject(previous, subjectId, direction));
   };
 
   const archiveSubject = (subjectId: string) => {
-    const timestamp = new Date().toISOString();
-    commit((previous) => ({
-      ...previous,
-      subjects: previous.subjects.map((subject) => subject.id === subjectId
-        ? { ...subject, archived: true, updatedAt: timestamp }
-        : subject),
-    }));
+    commit((previous) => setStudySubjectArchived(previous, subjectId, true));
     setConfirmArchiveId(null);
     setSubjectError('');
   };
 
   const restoreSubject = (subjectId: string) => {
-    const timestamp = new Date().toISOString();
-    commit((previous) => ({
-      ...previous,
-      subjects: previous.subjects.map((subject) => subject.id === subjectId
-        ? { ...subject, archived: false, updatedAt: timestamp, order: Math.max(-1, ...previous.subjects.filter((item) => !item.archived).map((item) => item.order)) + 1 }
-        : subject),
-    }));
+    commit((previous) => setStudySubjectArchived(previous, subjectId, false));
   };
 
   const saveTemplateRange = () => {
@@ -472,7 +428,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   const weekDates = getWeekDates(anchorDate);
   const monthDates = getMonthDates(anchorDate);
   const monthDate = parseDateKey(anchorDate);
-  const entriesForPeriod = (mode === 'table' ? tableDates : mode === 'week' ? weekDates : monthDates)
+  const entriesForPeriod = (mode === 'table' ? tableDates : mode === 'week' ? weekDates : monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate)))
     .flatMap((date) => activeSubjects.map((subject) => getStudyEntry(state, date, subject.id)))
     .filter((entry): entry is StudyEntry => !!entry);
   const periodCompleted = entriesForPeriod.filter((entry) => entry.status === 'completed').length;
@@ -504,7 +460,6 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     else onExit?.();
   };
 
-  const periodDates = mode === 'table' ? tableDates : mode === 'week' ? weekDates : monthDates;
   const currentMonthLabel = format(monthDate, 'MMMM yyyy');
 
   return (
@@ -824,9 +779,9 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       )}
 
       {overlay === 'entry' && (
-        <OverlayFrame title={`Edit ${state.subjects.find((subject) => subject.id === entrySubjectId)?.name ?? 'subject'}`} description={dateLabel(entryDate, 'EEEE, d MMMM yyyy')} onClose={closeOverlay} footer={
+        <OverlayFrame title={`Edit ${state.subjects.find((subject) => subject.id === entrySubjectId)?.name ?? 'subject'}`} description={dateLabel(entryDate, 'EEEE, d MMMM yyyy')} onClose={closeEntryEditor} footer={
           <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={closeOverlay} className="h-10 rounded-lg border border-border px-4 text-sm font-semibold text-foreground">Cancel</button>
+            <button type="button" onClick={closeEntryEditor} className="h-10 rounded-lg border border-border px-4 text-sm font-semibold text-foreground">Cancel</button>
             <button type="button" onClick={saveEntry} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"><Save size={15} /> Save entry</button>
           </div>
         }>
