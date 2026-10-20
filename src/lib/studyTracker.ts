@@ -417,6 +417,13 @@ export function getActiveStudySubjectsForDate(state: StudyTrackerState, date: st
   return getStudySubjectsForDate(state, date).filter((subject) => !subject.archived);
 }
 
+/** Subjects available on a date, plus archived subjects whose saved record must remain visible. */
+export function getStudySubjectsWithRecordsForDate(state: StudyTrackerState, date: string): StudySubject[] {
+  return getStudySubjectsForDate(state, date).filter((subject) =>
+    !subject.archived || getStudyEntry(state, date, subject.id) !== undefined,
+  );
+}
+
 export function getTableDates(anchorDate: string): string[] {
   const start = parseDateKey(anchorDate);
   return Array.from({ length: 7 }, (_, index) => formatDateKey(addDays(start, index)));
