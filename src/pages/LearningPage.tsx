@@ -20,11 +20,12 @@ import { addSeconds as addStreakSeconds, getStreak } from '@/lib/streak';
 import { shouldCountLearningStudySecond } from '@/lib/studyTimeTracking';
 import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
+import StudyTracker from '@/components/StudyTracker';
 import { getTrigAngles, type TrigFunction } from '@/lib/trigData';
 import type { PracticeLaunchContext } from '@/lib/practiceNavigation';
 import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
 
-type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table';
+type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table' | 'study-tracker';
 type PeriodicPracticeSelection = { from: number; to: number; questionTypes: PeriodicQuestionType[]; massMode: PeriodicMassMode };
 
 interface LearningPageProps {
@@ -53,6 +54,7 @@ const topics: LearningTopicId[] = [
   'percentage',
   'formulas',
   'periodic-table',
+  'study-tracker',
 ];
 
 const LearningPage = ({
@@ -607,6 +609,11 @@ const LearningPage = ({
         </div>
       </SwipeBack>
     );
+  }
+
+  // STUDY TRACKER
+  if (activeTopic === 'study-tracker') {
+    return <StudyTracker onBack={onBack} onExit={() => setActiveTopic(null)} />;
   }
 
   // TOPIC LIST
