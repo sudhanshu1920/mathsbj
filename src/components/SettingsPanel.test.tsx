@@ -33,24 +33,6 @@ vi.mock("@/lib/settings", () => {
     setSound: (sound: boolean) => ({ ...base(), sound }),
     setVibration: (vibration: boolean) => ({ ...base(), vibration }),
     setKeyboardShortcuts: (keyboardShortcuts: boolean) => ({ ...base(), keyboardShortcuts }),
-    setHomeScreenWidgetsEnabled: (enabled: boolean) => ({ ...base(), homeScreenWidgetsEnabled: enabled }),
-    setHomeWidgetContent: (homeWidgetContent: string[]) => ({ ...base(), homeWidgetContent }),
-    setHomeWidgetStyle: (homeWidgetStyle: string) => ({ ...base(), homeWidgetStyle }),
-    setHomeWidgetTheme: (homeWidgetTheme: string) => ({ ...base(), homeWidgetTheme }),
-    setHomeWidgetComposition: (homeWidgetComposition: string) => {
-      mocks.setHomeWidgetComposition(homeWidgetComposition);
-      return { ...base(), homeWidgetComposition };
-    },
-    HOME_WIDGET_COMPOSITIONS: [
-      { id: "auto", label: "Auto Responsive" },
-      { id: "hero_wide", label: "Hero Wide · Sunset" },
-      { id: "compact_green", label: "Compact Green" },
-      { id: "square_math_bot", label: "Square Math Bot" },
-      { id: "medium_study", label: "Medium Study" },
-      { id: "square_cosmic", label: "Square Cosmic" },
-      { id: "extra_wide_weekly", label: "Extra-Wide Weekly" },
-      { id: "minimal_progress", label: "Minimal Progress" },
-    ],
   };
 });
 
@@ -105,8 +87,6 @@ vi.mock("@/lib/appUpdateEvents", () => ({
 vi.mock("@/lib/dailyTargetReminders", () => ({
   getBackgroundNotificationsEnabled: mocks.getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled: mocks.setBackgroundNotificationsEnabled,
-  syncHomeWidgetPreferences: mocks.syncHomeWidgetPreferences,
-  refreshHomeWidget: mocks.refreshHomeWidget,
 }));
 
 describe("SettingsPanel compact controls", () => {
@@ -116,7 +96,6 @@ describe("SettingsPanel compact controls", () => {
     mocks.mode = "dark";
     mocks.getBackgroundNotificationsEnabled.mockReturnValue(true);
     mocks.setBackgroundNotificationsEnabled.mockResolvedValue(true);
-    mocks.syncHomeWidgetPreferences.mockResolvedValue(true);
     mocks.checkForAppUpdate.mockResolvedValue({ status: "current" });
   });
 
