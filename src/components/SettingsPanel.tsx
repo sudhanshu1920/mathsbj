@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, LayoutGrid, Eye } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSettings, setSound, setVibration, setKeyboardShortcuts, setHomeScreenWidgetsEnabled, setHomeWidgetContent, setHomeWidgetStyle, setHomeWidgetTheme, setHomeWidgetComposition, HOME_WIDGET_COMPOSITIONS, type AppSettings, type HomeWidgetContent, type HomeWidgetStyle, type HomeWidgetTheme, type HomeWidgetComposition } from '@/lib/settings';
-import { getStreak, setTarget, todayStr, type StreakState } from '@/lib/streak';
+import { getSettings, setSound, setVibration, setKeyboardShortcuts, type AppSettings } from '@/lib/settings';
+import { getStreak, setTarget, type StreakState } from '@/lib/streak';
 import { isGuest, setGuest } from '@/lib/guest';
 import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
 import { checkForAppUpdate } from '@/lib/appUpdateService';
@@ -14,35 +14,11 @@ import { APP_VERSION_NAME } from '@/lib/appVersion';
 import {
   getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled,
-  syncHomeWidgetPreferences,
-  refreshHomeWidget,
 } from '@/lib/dailyTargetReminders';
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
 
 const PRESET_MINUTES = [5, 10, 15, 30, 60];
-
-const WIDGET_CONTENT_OPTIONS: Array<{ id: HomeWidgetContent; label: string }> = [
-  { id: 'appIdentity', label: 'App Identity' },
-  { id: 'target', label: "Today's Target" },
-  { id: 'progress', label: 'Progress' },
-  { id: 'remaining', label: 'Remaining Target' },
-  { id: 'studyTime', label: 'Study Time' },
-  { id: 'streak', label: 'Streak' },
-  { id: 'weekly', label: 'Weekly Target Tracker' },
-  { id: 'updateStatus', label: 'Update Status' },
-];
-
-const WIDGET_STYLES: Array<{ id: HomeWidgetStyle; label: string }> = [
-  { id: 'glass', label: 'Glass' },
-  { id: 'compact', label: 'Compact' },
-  { id: 'minimal', label: 'Minimal' },
-];
-
-const WIDGET_THEMES: Array<{ id: HomeWidgetTheme; label: string }> = [
-  { id: 'app', label: 'Match App Theme' },
-  { id: 'violet', label: 'Violet Glass' },
-];
 
 const SettingsPanel = () => {
   const { user, signOut } = useAuth();
@@ -51,79 +27,13 @@ const SettingsPanel = () => {
   const [backgroundNotificationsEnabled, setBackgroundNotificationsEnabledState] = useState(() => getBackgroundNotificationsEnabled());
   const [notificationToggleBusy, setNotificationToggleBusy] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
-  const [widgetPreviewVisible, setWidgetPreviewVisible] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const updateResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateCheckInFlightRef = useRef(false);
   const theme = useTheme();
   const mode = useMode();
   const guest = !user && isGuest();
-  const todayRecord = streak.days[todayStr()];
-  const todaySeconds = Math.max(0, Math.floor(todayRecord?.seconds ?? 0));
-  const todayStudyMinutes = Math.floor(todaySeconds / 60);
-  const remainingMinutes = Math.max(0, Math.ceil((streak.targetMinutes * 60 - todaySeconds) / 60));
-  const widgetProgress = Math.min(100, Math.round((todaySeconds / Math.max(1, streak.targetMinutes * 60)) * 100));
-  const widgetWeekDays = Array.from({ length: 7 }, (_, index) => {
-    const day = new Date();
-    day.setHours(12, 0, 0, 0);
-    day.setDate(day.getDate() - (6 - index));
-    const dateKey = [
-      day.getFullYear(),
-      String(day.getMonth() + 1).padStart(2, '0'),
-      String(day.getDate()).padStart(2, '0'),
-    ].join('-');
-    return {
-      dateKey,
-      dayLabel: day.toLocaleDateString(undefined, { weekday: 'narrow' }),
-      dateLabel: String(day.getDate()),
-      completed: streak.days[dateKey]?.completed === true,
-    };
-  });
-
-  const compositionArtPosition: Record<HomeWidgetComposition, string> = {
-    auto: '0% 0%',
-    hero_wide: '0% 0%',
-    compact_green: '50% 0%',
-    square_math_bot: '100% 0%',
-    medium_study: '0% 100%',
-    square_cosmic: '50% 100%',
-    extra_wide_weekly: '100% 100%',
-    minimal_progress: '0% 0%',
-  };
-  const widgetPreviewArtStyle = settings.homeWidgetComposition === 'minimal_progress'
-    ? undefined
-    : {
-        backgroundImage: `linear-gradient(100deg, ${mode === 'light' ? 'rgba(245, 248, 255, 0.86), rgba(18, 40, 64, 0.18)' : 'rgba(3, 10, 25, 0.68), rgba(6, 20, 34, 0.3)'}), url('/math_master_widget_atlas.webp')`,
-        backgroundSize: 'cover, 300% 200%',
-        backgroundPosition: `center, ${compositionArtPosition[settings.homeWidgetComposition]}`,
-        backgroundRepeat: 'no-repeat, no-repeat',
-      };
-  const widgetPreviewSurfaceClass = settings.homeWidgetTheme === 'violet'
-    ? mode === 'light'
-      ? 'border-violet-300/60 bg-gradient-to-br from-violet-50/85 via-violet-100/65 to-indigo-100/50 text-violet-950 shadow-violet-950/10'
-      : 'border-violet-300/25 bg-gradient-to-br from-violet-950/80 via-slate-950/65 to-indigo-950/60 text-violet-50 shadow-violet-950/25'
-    : mode === 'light'
-      ? 'border-slate-200/75 bg-gradient-to-br from-white/85 via-slate-50/70 to-indigo-100/45 text-slate-800 shadow-slate-900/5'
-      : 'border-white/15 bg-gradient-to-br from-slate-900/75 via-slate-900/60 to-violet-950/45 text-slate-100 shadow-black/20';
-  const widgetPreviewPaddingClass = settings.homeWidgetStyle === 'compact'
-    ? 'p-2.5'
-    : settings.homeWidgetStyle === 'minimal' ? 'p-3' : 'p-3.5';
-  const widgetPreviewRadiusClass = settings.homeWidgetStyle === 'minimal' ? 'rounded-xl' : 'rounded-2xl';
-  const widgetPreviewMetricClass = settings.homeWidgetStyle === 'compact'
-    ? 'text-xl'
-    : settings.homeWidgetStyle === 'minimal' ? 'text-2xl' : 'text-3xl';
-  const widgetPreviewAccentClass = settings.homeWidgetTheme === 'violet'
-    ? mode === 'light' ? 'text-violet-700' : 'text-violet-300'
-    : 'text-primary';
-  const widgetPreviewAccentBgClass = settings.homeWidgetTheme === 'violet'
-    ? mode === 'light' ? 'bg-violet-600' : 'bg-violet-300'
-    : 'bg-primary';
-
   const mountedRef = useRef(true);
-
-  useEffect(() => {
-    void syncHomeWidgetPreferences();
-  }, [theme, mode]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -308,239 +218,6 @@ const SettingsPanel = () => {
           aria-label="Toggle keyboard shortcuts"
         />
       </div>
-
-      {/* Compact home-screen widget controls */}
-      <section className="rounded-xl border border-border/60 bg-card/20 px-3 py-2.5">
-        <div className="flex min-h-8 items-center justify-between gap-3">
-          <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
-            <LayoutGrid size={16} className="shrink-0 text-muted-foreground" />
-            <span>Home Screen Widgets</span>
-          </span>
-          <Switch
-            checked={settings.homeScreenWidgetsEnabled}
-            onCheckedChange={(enabled) => {
-              const next = setHomeScreenWidgetsEnabled(enabled);
-              setSettingsState(next);
-              if (!enabled) setWidgetPreviewVisible(false);
-              void syncHomeWidgetPreferences().then((synced) => {
-                if (enabled && synced) refreshHomeWidget();
-              });
-            }}
-            aria-label="Home Screen Widgets"
-          />
-        </div>
-
-        <AnimatePresence initial={false}>
-          {settings.homeScreenWidgetsEnabled && (
-            <motion.div
-              key="home-widget-options"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: MOTION.duration.standard, ease: MOTION.ease.easeOut }}
-              className="overflow-hidden"
-            >
-              <div className="mt-3 space-y-3 border-t border-border/50 pt-3">
-                <div>
-                  <p className="mb-2 text-xs font-semibold text-muted-foreground">Widget Content</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {WIDGET_CONTENT_OPTIONS.map((option) => {
-                      const selected = settings.homeWidgetContent.includes(option.id);
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => {
-                            const nextContent = selected
-                              ? settings.homeWidgetContent.filter((field) => field !== option.id)
-                              : [...settings.homeWidgetContent, option.id];
-                            if (nextContent.length === 0) return;
-                            setSettingsState(setHomeWidgetContent(nextContent));
-                            void syncHomeWidgetPreferences();
-                          }}
-                          className={`rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            selected
-                              ? 'border-primary/70 bg-primary/10 text-primary'
-                              : 'border-border/70 bg-transparent text-muted-foreground hover:border-primary/40'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-xs font-semibold text-muted-foreground">Widget Design</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {HOME_WIDGET_COMPOSITIONS.map((option) => {
-                      const selected = settings.homeWidgetComposition === option.id;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => {
-                            setSettingsState(setHomeWidgetComposition(option.id));
-                            void syncHomeWidgetPreferences();
-                          }}
-                          className={`rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            selected
-                              ? 'border-primary/70 bg-primary/10 text-primary'
-                              : 'border-border/70 bg-transparent text-muted-foreground hover:border-primary/40'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-xs font-semibold text-muted-foreground">Widget Style</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {WIDGET_STYLES.map((option) => {
-                      const selected = settings.homeWidgetStyle === option.id;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => {
-                            setSettingsState(setHomeWidgetStyle(option.id));
-                            void syncHomeWidgetPreferences();
-                          }}
-                          className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            selected
-                              ? 'border-primary/70 bg-primary/10 text-primary'
-                              : 'border-border/70 bg-transparent text-muted-foreground hover:border-primary/40'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-xs font-semibold text-muted-foreground">Widget Theme</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {WIDGET_THEMES.map((option) => {
-                      const selected = settings.homeWidgetTheme === option.id;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => {
-                            setSettingsState(setHomeWidgetTheme(option.id));
-                            void syncHomeWidgetPreferences();
-                          }}
-                          className={`rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            selected
-                              ? 'border-primary/70 bg-primary/10 text-primary'
-                              : 'border-border/70 bg-transparent text-muted-foreground hover:border-primary/40'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <button
-                    type="button"
-                    aria-expanded={widgetPreviewVisible}
-                    onClick={() => setWidgetPreviewVisible((visible) => !visible)}
-                    className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <Eye size={14} />
-                    Preview
-                    <span className="sr-only">widget</span>
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {widgetPreviewVisible && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        data-widget-preview-surface
-                        data-widget-composition={settings.homeWidgetComposition}
-                        style={widgetPreviewArtStyle}
-                        className={`mt-2 ${widgetPreviewRadiusClass} ${widgetPreviewPaddingClass} border shadow-lg backdrop-blur-xl ${widgetPreviewSurfaceClass}`}
-                      >
-                        {settings.homeWidgetContent.includes('appIdentity') && (
-                          <p className={`mb-2 text-[11px] font-bold uppercase tracking-[0.14em] ${widgetPreviewAccentClass}`}>Math Master</p>
-                        )}
-                        {(settings.homeWidgetContent.includes('progress')
-                          || settings.homeWidgetContent.includes('target')
-                          || settings.homeWidgetContent.includes('studyTime')) && (
-                          <div className="flex items-center gap-3">
-                            {settings.homeWidgetContent.includes('progress') && (
-                              <span className={`shrink-0 ${widgetPreviewMetricClass} font-bold ${widgetPreviewAccentClass}`}>{widgetProgress}%</span>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              {settings.homeWidgetContent.includes('target') && (
-                                <>
-                                  <p className="text-[11px] font-bold uppercase tracking-wide opacity-70">Today's Target</p>
-                                  <p className="mt-0.5 text-sm font-bold">{streak.targetMinutes} min target</p>
-                                </>
-                              )}
-                              {settings.homeWidgetContent.includes('studyTime') && (
-                                <p className={settings.homeWidgetContent.includes('target') ? "mt-1 text-sm font-semibold" : "text-sm font-semibold"}>
-                                  {todayStudyMinutes} min studied
-                                </p>
-                              )}
-                              {settings.homeWidgetContent.includes('progress') && (
-                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-current/15">
-                                  <div className={`h-full rounded-full transition-[width] ${widgetPreviewAccentBgClass}`} style={{ width: `${widgetProgress}%` }} />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        {(settings.homeWidgetContent.includes('remaining') || settings.homeWidgetContent.includes('streak')) && (
-                          <div className="mt-2 flex items-center justify-between gap-2 text-xs opacity-85">
-                            {settings.homeWidgetContent.includes('remaining') && (
-                              <span>{remainingMinutes === 0 ? 'Target complete' : `${remainingMinutes} min left`}</span>
-                            )}
-                            {settings.homeWidgetContent.includes('streak') && <span>🔥 {streak.current}-day streak</span>}
-                          </div>
-                        )}
-                        {settings.homeWidgetContent.includes('weekly') && (
-                          <div className="mt-2 border-t border-current/10 pt-2">
-                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] opacity-65">This Week · Last 7 Days</p>
-                            <div className="grid grid-cols-7 gap-1.5">
-                              {widgetWeekDays.map((day) => (
-                                <div key={day.dateKey} className="flex min-w-0 flex-col items-center rounded-md bg-current/5 px-0.5 py-1.5">
-                                  <span className="text-[10px] leading-none opacity-70">{day.dayLabel}</span>
-                                  <span className="mt-1 text-[10px] leading-none opacity-75">{day.dateLabel}</span>
-                                  <span className={`mt-1.5 text-xs font-bold leading-none ${day.completed ? widgetPreviewAccentClass : "opacity-35"}`}>
-                                    {day.completed ? '✓' : '·'}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {settings.homeWidgetContent.includes('updateStatus') && (
-                          <p className="mt-2 truncate text-[11px] opacity-65">Updates refresh when the app opens</p>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
 
       {/* Daily target */}
       <div>

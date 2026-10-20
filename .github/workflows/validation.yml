@@ -47,8 +47,6 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Home-screen widget layout regression checks
-        run: node --test scripts/android-widget-layout.test.mjs
 
       - name: Build web assets
         run: npm run build
@@ -100,7 +98,7 @@ jobs:
           }
           JAVA
 
-      - name: Configure native notifications and home-screen widgets
+      - name: Configure native notifications
         run: node scripts/configure-android-notifications.mjs
 
       - name: Sync web assets into Android project
@@ -113,7 +111,7 @@ jobs:
       - name: Upload verified debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: math-master-widget-redesign-debug-apk
+          name: math-master-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14

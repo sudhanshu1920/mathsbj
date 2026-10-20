@@ -58,21 +58,6 @@ test('configures local notification permissions, plugin and reboot/time-change r
   const manifest = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
   const activity = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java'), 'utf8');
   const plugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java'), 'utf8');
-  const widgetProvider = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java'), 'utf8');
-  const widgetConfigActivity = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java'), 'utf8');
-  const widgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget.xml'), 'utf8');
-  const compactWidgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget_compact.xml'), 'utf8');
-  const wideWidgetLayout = await readFile(path.join(root, 'app/src/main/res/layout/math_master_home_widget_wide.xml'), 'utf8');
-  const widgetInfo = await readFile(path.join(root, 'app/src/main/res/xml/math_master_home_widget_info.xml'), 'utf8');
-  const widgetInfoV31 = await readFile(path.join(root, 'app/src/main/res/xml-v31/math_master_home_widget_info.xml'), 'utf8');
-  const widgetStrings = await readFile(path.join(root, 'app/src/main/res/values/math_master_home_widget_strings.xml'), 'utf8');
-  const lightWidgetBackground = await readFile(path.join(root, 'app/src/main/res/drawable/math_master_home_widget_background_light.xml'), 'utf8');
-  const completionWidgetBackgrounds = await Promise.all(Array.from({ length: 7 }, async (_, index) => {
-    const dark = await readFile(path.join(root, 'app/src/main/res/drawable', `math_master_home_widget_background_complete_${index}.xml`), 'utf8');
-    const light = await readFile(path.join(root, 'app/src/main/res/drawable', `math_master_home_widget_background_complete_light_${index}.xml`), 'utf8');
-    return { dark, light };
-  }));
-
   assert.deepEqual(result, { firebaseEnabled: false, projectId: null });
   assert.match(manifest, /android\.permission\.POST_NOTIFICATIONS/);
   assert.match(manifest, /android\.permission\.RECEIVE_BOOT_COMPLETED/);
@@ -82,56 +67,16 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(activity, /void onNewIntent\(Intent intent\)/);
   assert.match(plugin, /syncDailyTarget/);
   assert.match(plugin, /requestPermission/);
-  assert.match(plugin, /syncHomeWidget/);
-  assert.match(plugin, /setHomeWidgetPreferences/);
-  assert.match(plugin, /appAccentColor/);
-  assert.match(manifest, /\.MathMasterHomeWidgetProvider/);
-  assert.match(manifest, /\.MathMasterWidgetConfigActivity/);
-  assert.match(widgetConfigActivity, /AppWidgetManager\.EXTRA_APPWIDGET_ID/);
-  assert.match(widgetConfigActivity, /instance_" \+ widgetId \+ "_contentJson/);
-  assert.match(widgetProvider, /onDeleted\(Context context, int\[\] appWidgetIds\)/);
-  assert.match(widgetProvider, /getInstanceString/);
-  assert.match(widgetProvider, /OPTION_APPWIDGET_SIZES/);
-  assert.match(widgetProvider, /new RemoteViews\(viewsBySize\)/);
-  assert.match(widgetProvider, /contentSchemaVersion/);
-  assert.match(widgetInfo, /android:configure="com\.sudhanshu\.mathsbj\.MathMasterWidgetConfigActivity"/);
-  assert.match(widgetInfoV31, /widgetFeatures="reconfigurable"/);
-  assert.match(widgetInfo, /label="@string\/math_master_home_widget_label"/);
-  assert.match(widgetInfoV31, /previewLayout="@layout\/math_master_home_widget"/);
-  assert.match(widgetStrings, /Math Master Progress/);
-  assert.match(widgetInfo, /minWidth="110dp"/);
-  assert.match(widgetInfo, /minHeight="80dp"/);
-  assert.match(widgetInfo, /minResizeWidth="95dp"/);
-  assert.match(widgetInfo, /minResizeHeight="70dp"/);
-  assert.match(widgetLayout, /widget_disabled_text/);
-  assert.match(lightWidgetBackground, /#C9F4F7FC/);
-  assert.equal(completionWidgetBackgrounds.length, 7);
-  for (const background of completionWidgetBackgrounds) {
-    assert.match(background.dark, /#B5[0-9A-Fa-f]{6}/);
-    assert.match(background.light, /#D9[0-9A-Fa-f]{6}/);
-  }
-  assert.match(manifest, /math_master_home_widget_info/);
-  assert.match(widgetProvider, /updateReleaseStatus/);
-  assert.match(widgetProvider, /targetSeconds/);
-  assert.match(widgetLayout, /widget_progress_bar/);
-  assert.match(widgetLayout, /widget_update_badge/);
-  assert.match(widgetLayout, /widget_week_section/);
-  assert.match(widgetLayout, /widget_week_title/);
-  assert.match(compactWidgetLayout, /widget_week_strip/);
-  assert.match(compactWidgetLayout, /widget_target_value/);
-  assert.match(wideWidgetLayout, /widget_week_strip/);
-  assert.match(wideWidgetLayout, /widget_target_value/);
-  assert.equal((compactWidgetLayout.match(/widget_week_status_[0-6]/g) || []).length, 7);
-  assert.equal((wideWidgetLayout.match(/widget_week_status_[0-6]/g) || []).length, 7);
-  assert.equal((widgetLayout.match(/widget_week_date_[0-6]/g) || []).length, 7);
-  assert.match(widgetConfigActivity, /"weekly", "Weekly Target Tracker"/);
-  assert.match(widgetConfigActivity, /"random", "Random Premium Theme"/);
-  assert.match(widgetConfigActivity, /instance_" \+ widgetId \+ "_themeMode/);
-  assert.match(widgetConfigActivity, /chooseRandomTheme\(preferences, widgetId\)/);
-  assert.match(widgetInfo, /appwidget-provider/);
-  assert.match(widgetInfo, /updatePeriodMillis="1800000"/);
-  assert.equal((manifest.match(/android:name="\.MathMasterHomeWidgetProvider"/g) || []).length, 1);
-  assert.equal((manifest.match(/android:name="\.MathMasterWidgetConfigActivity"/g) || []).length, 1);
+  assert.doesNotMatch(plugin, /syncHomeWidget|setHomeWidgetPreferences|syncHomeWidgetUpdateStatus/);
+  assert.doesNotMatch(manifest, /MathMasterHomeWidgetProvider|MathMasterWidgetConfigActivity|appwidget/);
+  await assert.rejects(
+    readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java')),
+    { code: 'ENOENT' },
+  );
+  await assert.rejects(
+    readFile(path.join(root, 'app/src/main/res/xml/math_master_home_widget_info.xml')),
+    { code: 'ENOENT' },
+  );
   assert.doesNotMatch(manifest, /MathMasterMessagingService/);
 });
 

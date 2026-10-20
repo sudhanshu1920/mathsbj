@@ -68,14 +68,12 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
             return;
         }
         long installedVersionCode;
-        String installedVersionName;
         try {
             android.content.pm.PackageInfo installed = getPackageManager()
                 .getPackageInfo(getPackageName(), 0);
             installedVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
                 ? installed.getLongVersionCode()
                 : installed.versionCode;
-            installedVersionName = installed.versionName;
             if (numericVersionCode <= installedVersionCode) {
                 android.util.Log.i("MathAppNotifications",
                     "Update push skipped because this installation is already at the announced version.");
@@ -87,10 +85,6 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
             return;
         }
 
-        // The release message has passed package/version/APK URL/hash validation above.
-        // Mirror only that validated release into the home-screen widget.
-        MathMasterHomeWidgetProvider.updateReleaseStatus(
-            this, installedVersionCode, installedVersionName, numericVersionCode, versionName);
         String title = data.get("title");
         String body = data.get("body");
         if (title == null || title.trim().isEmpty()) title = "🎉 New Math App Update Available!";

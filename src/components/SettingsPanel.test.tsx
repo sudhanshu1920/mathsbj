@@ -8,14 +8,11 @@ const mocks = vi.hoisted(() => ({
   mode: "dark",
   setTheme: vi.fn(),
   setMode: vi.fn(),
-  setHomeWidgetComposition: vi.fn(),
   setGuest: vi.fn(),
   checkForAppUpdate: vi.fn(),
   announceUpdateAvailable: vi.fn(),
   getBackgroundNotificationsEnabled: vi.fn(),
   setBackgroundNotificationsEnabled: vi.fn(),
-  syncHomeWidgetPreferences: vi.fn(),
-  refreshHomeWidget: vi.fn(),
 }));
 
 vi.mock("@/lib/appVersion", () => ({ APP_VERSION_NAME: "1.0.0", APP_VERSION_CODE: 1 }));
@@ -30,35 +27,12 @@ vi.mock("@/lib/settings", () => {
     vibration: false,
     keyboardShortcuts: true,
     font: "space-grotesk",
-    homeScreenWidgetsEnabled: true,
-    homeWidgetContent: ["appIdentity", "target", "progress", "remaining", "studyTime", "streak"],
-    homeWidgetStyle: "glass",
-    homeWidgetTheme: "app",
-    homeWidgetComposition: "auto",
   });
   return {
     getSettings: base,
     setSound: (sound: boolean) => ({ ...base(), sound }),
     setVibration: (vibration: boolean) => ({ ...base(), vibration }),
     setKeyboardShortcuts: (keyboardShortcuts: boolean) => ({ ...base(), keyboardShortcuts }),
-    setHomeScreenWidgetsEnabled: (enabled: boolean) => ({ ...base(), homeScreenWidgetsEnabled: enabled }),
-    setHomeWidgetContent: (homeWidgetContent: string[]) => ({ ...base(), homeWidgetContent }),
-    setHomeWidgetStyle: (homeWidgetStyle: string) => ({ ...base(), homeWidgetStyle }),
-    setHomeWidgetTheme: (homeWidgetTheme: string) => ({ ...base(), homeWidgetTheme }),
-    setHomeWidgetComposition: (homeWidgetComposition: string) => {
-      mocks.setHomeWidgetComposition(homeWidgetComposition);
-      return { ...base(), homeWidgetComposition };
-    },
-    HOME_WIDGET_COMPOSITIONS: [
-      { id: "auto", label: "Auto Responsive" },
-      { id: "hero_wide", label: "Hero Wide · Sunset" },
-      { id: "compact_green", label: "Compact Green" },
-      { id: "square_math_bot", label: "Square Math Bot" },
-      { id: "medium_study", label: "Medium Study" },
-      { id: "square_cosmic", label: "Square Cosmic" },
-      { id: "extra_wide_weekly", label: "Extra-Wide Weekly" },
-      { id: "minimal_progress", label: "Minimal Progress" },
-    ],
   };
 });
 
@@ -113,8 +87,6 @@ vi.mock("@/lib/appUpdateEvents", () => ({
 vi.mock("@/lib/dailyTargetReminders", () => ({
   getBackgroundNotificationsEnabled: mocks.getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled: mocks.setBackgroundNotificationsEnabled,
-  syncHomeWidgetPreferences: mocks.syncHomeWidgetPreferences,
-  refreshHomeWidget: mocks.refreshHomeWidget,
 }));
 
 describe("SettingsPanel compact controls", () => {
@@ -124,112 +96,15 @@ describe("SettingsPanel compact controls", () => {
     mocks.mode = "dark";
     mocks.getBackgroundNotificationsEnabled.mockReturnValue(true);
     mocks.setBackgroundNotificationsEnabled.mockResolvedValue(true);
-    mocks.syncHomeWidgetPreferences.mockResolvedValue(true);
     mocks.checkForAppUpdate.mockResolvedValue({ status: "current" });
   });
 
-  it("shows only the compact widget row when off and expands saved customization controls when on", async () => {
+  it("does not expose home-screen widget controls", () => {
     render(<SettingsPanel />);
 
-    const toggle = screen.getByRole("switch", { name: "Home Screen Widgets" });
-    expect(toggle).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText("Widget Content")).toBeInTheDocument();
-    expect(screen.getByText("Widget Style")).toBeInTheDocument();
-    expect(screen.getByText("Widget Theme")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Preview/ })).toBeInTheDocument();
-
-    fireEvent.click(toggle);
-    await waitFor(() => expect(screen.queryByText("Widget Content")).not.toBeInTheDocument());
-    expect(screen.getByText("Home Screen Widgets")).toBeInTheDocument();
-  });
-
-  it("refreshes the existing native progress payload when widgets are re-enabled", async () => {
-    render(<SettingsPanel />);
-    const toggle = screen.getByRole("switch", { name: "Home Screen Widgets" });
-
-    fireEvent.click(toggle);
-    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "false"));
-    fireEvent.click(toggle);
-
-    await waitFor(() => expect(mocks.refreshHomeWidget).toHaveBeenCalledTimes(1));
-  });
-
-  it("previews actual saved progress values without adding another progress tracker", () => {
-    render(<SettingsPanel />);
-
-    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
-    expect(screen.getByText("15 min target")).toBeInTheDocument();
-    expect(screen.getByText("2 min studied")).toBeInTheDocument();
-    expect(screen.getByText("13 min left")).toBeInTheDocument();
-    expect(screen.getByText("🔥 2-day streak")).toBeInTheDocument();
-  });
-
-  it("hides empty preview rows when only supporting fields are selected", () => {
-    const { container } = render(<SettingsPanel />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Progress" }));
-    fireEvent.click(screen.getByRole("button", { name: "Today's Target" }));
-    fireEvent.click(screen.getByRole("button", { name: "Study Time" }));
-    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
-
-    const preview = container.querySelector("[data-widget-preview-surface]");
-    expect(preview).toHaveClass("backdrop-blur-xl", "bg-gradient-to-br");
-    expect(preview?.querySelector(".flex.items-center.gap-3")).toBeNull();
-    expect(screen.queryByText("15 min target")).not.toBeInTheDocument();
-    expect(screen.getByText("13 min left")).toBeInTheDocument();
-    expect(screen.getByText("🔥 2-day streak")).toBeInTheDocument();
-  });
-
-  it("reflects compact spacing and the independently selected glass theme", () => {
-    const compactRender = render(<SettingsPanel />);
-    fireEvent.click(screen.getByRole("button", { name: "Compact" }));
-    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
-    const compactPreview = compactRender.container.querySelector("[data-widget-preview-surface]");
-    expect(compactPreview).toHaveClass("backdrop-blur-xl", "bg-gradient-to-br", "p-2.5");
-    compactRender.unmount();
-
-    const themeRender = render(<SettingsPanel />);
-    fireEvent.click(screen.getByRole("button", { name: "Violet Glass" }));
-    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
-    const violetPreview = themeRender.container.querySelector("[data-widget-preview-surface]");
-    expect(violetPreview).toHaveClass("backdrop-blur-xl", "bg-gradient-to-br", "p-3.5", "border-violet-300/25");
-  });
-
-  it("exposes all seven distinct native widget compositions and persists the selected default", () => {
-    render(<SettingsPanel />);
-
-    const designButton = screen.getByRole("button", { name: "Square Cosmic" });
-    fireEvent.click(designButton);
-    expect(mocks.setHomeWidgetComposition).toHaveBeenCalledWith("square_cosmic");
-    expect(designButton).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
-    expect(document.querySelector('[data-widget-composition="square_cosmic"]')).not.toBeNull();
-  });
-
-  it("exposes the seven native widget compositions and reflects the chosen default in the preview", () => {
-    render(<SettingsPanel />);
-
-    const designButton = screen.getByRole("button", { name: "Square Cosmic" });
-    fireEvent.click(designButton);
-    expect(mocks.setHomeWidgetComposition).toHaveBeenCalledWith("square_cosmic");
-    expect(designButton).toHaveAttribute("aria-pressed", "true");
-
-    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
-    const preview = document.querySelector('[data-widget-composition="square_cosmic"]');
-    expect(preview).not.toBeNull();
-    expect(preview?.textContent).toContain("Today's Target");
-  });
-
-  it("lets the user select the weekly target tracker and previews seven real daily completion states", () => {
-    render(<SettingsPanel />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Weekly Target Tracker" }));
-    expect(mocks.syncHomeWidgetPreferences).toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Weekly Target Tracker" })).toHaveAttribute("aria-pressed", "true");
-
-    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
-    expect(screen.getByText("This Week · Last 7 Days")).toBeInTheDocument();
-    expect(screen.getAllByText("·")).toHaveLength(7);
+    expect(screen.queryByText("Home Screen Widgets")).not.toBeInTheDocument();
+    expect(screen.queryByText("Widget Content")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Preview/ })).not.toBeInTheDocument();
   });
 
   it("removes the font selector without removing the normal settings controls", () => {
