@@ -20,7 +20,7 @@ import {
   Settings2,
   X,
 } from 'lucide-react';
-import { format, isSunday, isSameMonth, isToday } from 'date-fns';
+import { format, isSunday, isSameMonth } from 'date-fns';
 import {
   STUDY_TRACKER_STORAGE_KEY,
   STUDY_TRACKER_TEMPLATE_END,
@@ -33,6 +33,7 @@ import {
   getMonthDates,
   getStudyEntry,
   getStudySubjectsForDate,
+  getStudySubjectsWithRecordsForDate,
   getTableDates,
   getWeekDates,
   isDateKey,
@@ -92,7 +93,7 @@ const collectSubjectColumns = (state: StudyTrackerState, dates: string[]): Subje
   const columns: SubjectColumn[] = [];
   const seen = new Set<string>();
   for (const date of dates) {
-    for (const subject of getActiveStudySubjectsForDate(state, date)) {
+    for (const subject of getStudySubjectsWithRecordsForDate(state, date)) {
       const columnKey = subjectColumnKey(subject);
       if (seen.has(columnKey)) continue;
       seen.add(columnKey);
@@ -477,7 +478,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   const getEntryStatus = (date: string, subjectId: string): StudyEntryStatus =>
     getStudyEntry(state, date, subjectId)?.status ?? 'not-started';
 
-  const dayEntries = (date: string) => getActiveStudySubjectsForDate(state, date).map((subject) => ({
+  const dayEntries = (date: string) => getStudySubjectsWithRecordsForDate(state, date).map((subject) => ({
     subject,
     entry: getStudyEntry(state, date, subject.id),
   }));
@@ -493,16 +494,14 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     : mode === 'week'
       ? weekDates
       : monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate));
-  const entriesForPeriod = datesForPeriod
-    .flatMap((date) => getActiveStudySubjectsForDate(state, date).map((subject) => getStudyEntry(state, date, subject.id)))
-    .filter((entry): entry is StudyEntry => !!entry);
-  const hasSubjectsInPeriod = datesForPeriod.some((date) => getActiveStudySubjectsForDate(state, date).length > 0);
+  const dateSetForPeriod = new Set(datesForPeriod);
+  const entriesForPeriod = Object.values(state.entries).filter((entry) => dateSetForPeriod.has(entry.date));
+  const hasSubjectsInPeriod = datesForPeriod.some((date) => getStudySubjectsWithRecordsForDate(state, date).length > 0);
   const periodCompleted = entriesForPeriod.filter((entry) => entry.status === 'completed').length;
   const periodDuration = entriesForPeriod.reduce((sum, entry) => sum + entry.minutes, 0);
 
   const dayCompletionCount = (date: string) =>
-    getActiveStudySubjectsForDate(state, date)
-      .filter((subject) => getEntryStatus(date, subject.id) === 'completed').length;
+    Object.values(state.entries).filter((entry) => entry.date === date && entry.status === 'completed').length;
 
   const openDayDetails = (date: string) => {
     updateAnchorDate(date);
@@ -633,7 +632,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
                   const day = parseDateKey(date);
                   const today = date === todayKey;
                   const sunday = isSunday(day);
-                  const subjectsForDay = getActiveStudySubjectsForDate(state, date);
+                  const subjectsForDay = getStudySubjectsWithRecordsForDate(state, date);
                   return (
                     <tr key={date} className={`${rowIndex % 2 === 0 ? 'bg-card/30' : 'bg-muted/25'} ${today ? 'ring-1 ring-inset ring-primary/20' : ''}`}>
                       <th scope="row" className={`sticky left-0 z-10 border border-border px-2.5 py-2 text-left ${today ? 'bg-primary/15' : sunday ? 'bg-[hsl(var(--warning)/0.16)]' : rowIndex % 2 === 0 ? 'bg-card' : 'bg-muted/60'}`}>
@@ -650,7 +649,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
                           <td key={column.columnKey} className={`border border-border p-0 ${today && subjectForDay ? 'bg-primary/[0.07]' : sunday ? 'bg-[hsl(var(--warning)/0.08)]' : ''}`}>
                             {!subjectForDay ? (
                               <div aria-hidden="true" className="min-h-[2.8rem] w-full" />
-                            ) : today ? (
+                            ) : today && !subjectForDay.archived ? (
                               <button type="button" onClick={() => openEntry(date, subjectForDay)} className="flex min-h-[2.8rem] w-full min-w-[5.25rem] items-center justify-center gap-1.5 px-2 py-2 text-foreground hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" aria-label={`Edit ${subjectForDay.name} entry for ${dateLabel(date, 'd MMMM yyyy')}. Status: ${STATUS_LABEL[status]}.`}>
                                 {entry && entry.status !== 'not-started' ? <StatusGlyph status={entry.status} /> : <span className="text-muted-foreground/55">—</span>}
                                 {entry?.minutes ? <span className="text-[9px] tabular-nums text-muted-foreground">{entry.minutes}m</span> : null}
@@ -704,14 +703,14 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
                         <span className="block max-w-[6.4rem] truncate" title={subject.name}>{subject.name}</span>
                       </th>
                       {weekDates.map((date) => {
-                        const activeVersion = getActiveStudySubjectsForDate(state, date)
+                        const activeVersion = getStudySubjectsWithRecordsForDate(state, date)
                           .find((version) => subjectColumnKey(version) === subject.columnKey);
                         const status = getEntryStatus(date, subject.id);
                         return (
                           <td key={date} className={`border border-border p-0 text-center ${date === todayKey && activeVersion ? 'bg-primary/[0.07]' : isSunday(parseDateKey(date)) ? 'bg-[hsl(var(--warning)/0.08)]' : ''}`}>
                             {!activeVersion ? (
                               <div aria-hidden="true" className="min-h-[2.75rem] w-full" />
-                            ) : date === todayKey ? (
+                            ) : date === todayKey && !activeVersion.archived ? (
                               <button type="button" onClick={() => openEntry(date, activeVersion)} className="flex min-h-[2.75rem] w-full items-center justify-center gap-1 px-1 py-2 hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" aria-label={`Edit ${activeVersion.name} on ${dateLabel(date, 'EEEE d MMMM')}: ${STATUS_LABEL[status]}`}>
                                 {status === 'completed' ? <Check size={15} className="text-success" /> : status === 'in-progress' ? <span className="h-2 w-2 rounded-full bg-primary" /> : <span className="text-muted-foreground/50">–</span>}
                               </button>
@@ -732,8 +731,8 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
           </div>
           <div className="grid grid-cols-3 gap-2 border-t border-border/70 p-3">
             <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Completed</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{weekDates.reduce((total, date) => total + dayCompletionCount(date), 0)}</p></div>
-            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Active days</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{new Set(weekDates.filter((date) => getActiveStudySubjectsForDate(state, date).some((subject) => entryIsActive(getStudyEntry(state, date, subject.id)))).map((date) => date)).size}</p></div>
-            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Study time</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{weekDates.reduce((total, date) => total + getActiveStudySubjectsForDate(state, date).reduce((sum, subject) => sum + (getStudyEntry(state, date, subject.id)?.minutes ?? 0), 0), 0)}<span className="ml-1 text-[10px] font-semibold text-muted-foreground">min</span></p></div>
+            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Active days</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{new Set(weekDates.filter((date) => Object.values(state.entries).some((entry) => entry.date === date && entryIsActive(entry))).map((date) => date)).size}</p></div>
+            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Study time</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{weekDates.reduce((total, date) => total + Object.values(state.entries).filter((entry) => entry.date === date).reduce((sum, entry) => sum + entry.minutes, 0), 0)}<span className="ml-1 text-[10px] font-semibold text-muted-foreground">min</span></p></div>
           </div>
         </section>
       )}
@@ -747,7 +746,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
             {monthDates.map((date) => {
               const day = parseDateKey(date);
               const inMonth = isSameMonth(day, monthDate);
-              const subjectsForDay = getActiveStudySubjectsForDate(state, date);
+              const subjectsForDay = getStudySubjectsWithRecordsForDate(state, date);
               const completed = dayCompletionCount(date);
               const incomplete = subjectsForDay.filter((subject) => {
                 const entry = getStudyEntry(state, date, subject.id);
@@ -765,9 +764,9 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
             })}
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/70 pt-3">
-            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Active days</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{new Set(monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate) && getActiveStudySubjectsForDate(state, date).some((subject) => entryIsActive(getStudyEntry(state, date, subject.id)))).map((date) => date)).size}</p></div>
+            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Active days</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{new Set(monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate) && Object.values(state.entries).some((entry) => entry.date === date && entryIsActive(entry))).map((date) => date)).size}</p></div>
             <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Completed</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate)).reduce((sum, date) => sum + dayCompletionCount(date), 0)}</p></div>
-            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Study time</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate)).reduce((sum, date) => sum + getActiveStudySubjectsForDate(state, date).reduce((daySum, subject) => daySum + (getStudyEntry(state, date, subject.id)?.minutes ?? 0), 0), 0)}<span className="ml-1 text-[10px] font-semibold text-muted-foreground">min</span></p></div>
+            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Study time</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate)).reduce((sum, date) => sum + Object.values(state.entries).filter((entry) => entry.date === date).reduce((daySum, entry) => daySum + entry.minutes, 0), 0)}<span className="ml-1 text-[10px] font-semibold text-muted-foreground">min</span></p></div>
           </div>
         </section>
       )}
@@ -888,7 +887,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
                     <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-foreground">{subject.name}</span><span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{STATUS_LABEL[entry?.status ?? 'not-started']}{entry?.minutes ? ` · ${entry.minutes} min` : ''}{entry?.note ? ` · ${entry.note}` : ''}</span></span>
                   </>
                 );
-                return dayDetailsDate === todayKey && canEditStudyDate(dayDetailsDate) ? (
+                return dayDetailsDate === todayKey && canEditStudyDate(dayDetailsDate) && !subject.archived ? (
                   <button key={subject.id} type="button" onClick={() => openEntry(dayDetailsDate, subject, true)} className="flex w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/[0.045] p-3 text-left hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                     {content}
                     <Pencil size={15} className="shrink-0 text-muted-foreground" />
