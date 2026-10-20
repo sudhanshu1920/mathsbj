@@ -694,7 +694,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
               <tbody>
                 {weekColumns.map((subject, rowIndex) => {
                   const matchingDates = weekDates.filter((date) =>
-                    getActiveStudySubjectsForDate(state, date).some((version) => subjectColumnKey(version) === subject.columnKey),
+                    getStudySubjectsWithRecordsForDate(state, date).some((version) => subjectColumnKey(version) === subject.columnKey),
                   );
                   const total = matchingDates.filter((date) => getEntryStatus(date, subject.id) === 'completed').length;
                   return (
