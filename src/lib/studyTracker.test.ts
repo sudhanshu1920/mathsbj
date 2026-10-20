@@ -290,6 +290,68 @@ describe('Study Tracker strict date permissions and subject history', () => {
     expect(getStudySubjectsForDate(restored, today).find((subject) => subject.id === mathId)?.name).toBe('Algebra');
   });
 
+  it('migrates missing subject history without retroactively renaming built-in subjects', () => {
+    const now = fixedNow();
+    const initial = defaults();
+    const legacy = {
+      ...initial,
+      subjectHistory: [],
+      subjects: initial.subjects.map((subject) => subject.id === 'builtin-math'
+        ? { ...subject, name: 'Algebra', updatedAt: now.toISOString() }
+        : subject),
+      entries: {
+        [studyEntryKey('2026-10-19', 'builtin-math')]: {
+          date: '2026-10-19',
+          subjectId: 'builtin-math',
+          status: 'completed' as const,
+          minutes: 25,
+          note: 'historical record',
+          updatedAt: now.toISOString(),
+        },
+      },
+    };
+
+    const migrated = normalizeStudyTrackerState(legacy, now);
+    expect(getStudySubjectsForDate(migrated, '2026-10-19').find((subject) => subject.id === 'builtin-math')?.name).toBe('Math');
+    expect(getStudySubjectsForDate(migrated, '2026-10-20').find((subject) => subject.id === 'builtin-math')?.name).toBe('Algebra');
+    expect(getStudyEntry(migrated, '2026-10-19', 'builtin-math')?.note).toBe('historical record');
+  });
+
+  it('rejects persistence-level rewrites of historical or future subject configurations', () => {
+    const now = fixedNow();
+    localStorage.clear();
+    const renamed = renameStudySubject(defaults(), 'builtin-math', 'Algebra', now);
+    expect(renamed.error).toBeUndefined();
+    expect(saveStudyTrackerState(renamed.state, localStorage, now)).toBe(true);
+
+    const stored = loadStudyTrackerState(now, localStorage);
+    const tamperedHistory = stored.subjectHistory.map((snapshot) => snapshot.effectiveDate === '0001-01-01'
+      ? {
+          ...snapshot,
+          subjects: snapshot.subjects.map((subject) => subject.id === 'builtin-math'
+            ? { ...subject, name: 'Tampered History' }
+            : subject),
+        }
+      : snapshot);
+    expect(saveStudyTrackerState({ ...stored, subjectHistory: tamperedHistory }, localStorage, now)).toBe(false);
+
+    const futureSnapshot = {
+      effectiveDate: '2026-10-21',
+      subjects: getStudySubjectsForDate(stored, '2026-10-20').map(({ id, name, order, archived }) => ({
+        id, name, order, archived,
+      })),
+    };
+    expect(saveStudyTrackerState({
+      ...stored,
+      subjectHistory: [...stored.subjectHistory, futureSnapshot],
+    }, localStorage, now)).toBe(false);
+
+    const afterRejectedWrites = loadStudyTrackerState(now, localStorage);
+    expect(getStudySubjectsForDate(afterRejectedWrites, '2026-10-19').find((subject) => subject.id === 'builtin-math')?.name).toBe('Math');
+    expect(getStudySubjectsForDate(afterRejectedWrites, '2026-10-20').find((subject) => subject.id === 'builtin-math')?.name).toBe('Algebra');
+    expect(afterRejectedWrites.subjectHistory.some((snapshot) => snapshot.effectiveDate === '2026-10-21')).toBe(false);
+  });
+
   it('rejects persistence-level attempts to inject a past entry around the mutation helper', () => {
     const now = fixedNow();
     localStorage.clear();
