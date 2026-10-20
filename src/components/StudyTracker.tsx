@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ArrowUp,
   CalendarCheck,
-  CalendarDays,
   Check,
   CheckCircle2,
   ChevronLeft,
@@ -432,7 +431,6 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     .filter((entry): entry is StudyEntry => !!entry);
   const periodCompleted = entriesForPeriod.filter((entry) => entry.status === 'completed').length;
   const periodDuration = entriesForPeriod.reduce((sum, entry) => sum + entry.minutes, 0);
-  const periodActiveDays = new Set(entriesForPeriod.filter((entry) => entryIsActive(entry)).map((entry) => entry.date)).size;
 
   const dayCompletionCount = (date: string) =>
     activeSubjects.filter((subject) => getEntryStatus(date, subject.id) === 'completed').length;
@@ -459,7 +457,6 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     else onExit?.();
   };
 
-  const currentMonthLabel = format(monthDate, 'MMMM yyyy');
 
   return (
     <div className="study-tracker-screen min-w-0 pb-5">
@@ -507,12 +504,16 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       </header>
 
       <div className="mt-2 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
+        <div
+          className="flex min-w-0 flex-1 select-none items-center gap-2 touch-pan-y"
+          role="group"
+          aria-label="Study period. Swipe left or right to navigate dates."
+          onPointerDown={beginPeriodSwipe}
+          onPointerUp={finishPeriodSwipe}
+          onPointerCancel={() => { swipeStart.current = null; }}
+        >
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary"><CalendarCheck size={17} /></span>
-          <div className="min-w-0">
-            <p className="truncate font-display text-sm font-bold text-foreground">{periodLabel(mode, anchorDate)}</p>
-            <p className="truncate text-[10px] text-muted-foreground">Reference template · {dateLabel(state.preferences.templateStartDate)} – {dateLabel(state.preferences.templateEndDate)}</p>
-          </div>
+          <p className="truncate font-display text-sm font-bold text-foreground">{periodLabel(mode, anchorDate)}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button type="button" onClick={() => navigatePeriod(-1)} aria-label={`Previous ${MODE_LABEL[mode].toLowerCase()} period`} className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/60 text-foreground hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><ChevronLeft size={17} /></button>
@@ -521,34 +522,13 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
         </div>
       </div>
 
-      <div
-        className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-border/80 bg-card/50 px-3 py-2.5 select-none"
-        onPointerDown={beginPeriodSwipe}
-        onPointerUp={finishPeriodSwipe}
-        onPointerCancel={() => { swipeStart.current = null; }}
-        aria-label="Swipe left or right here to change the displayed period"
-      >
-        <div className="flex min-w-0 items-center gap-2">
-          <CalendarDays size={15} className="shrink-0 text-primary" />
-          <span className="truncate text-xs font-semibold text-foreground">{mode === 'month' ? currentMonthLabel : periodLabel(mode, anchorDate)}</span>
-        </div>
-        <span className="shrink-0 text-[10px] text-muted-foreground">Swipe ‹ ›</span>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1"><CheckCircle2 size={12} className="text-success" /> Completed</span>
-          <span className="inline-flex items-center gap-1"><Clock3 size={12} className="text-primary" /> In progress</span>
-          <span className="inline-flex items-center gap-1"><Circle size={12} /> Not started</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={() => setOverlayState('subjects')} className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card/60 px-2.5 text-[11px] font-semibold text-foreground hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-            <Settings2 size={14} /> Manage
-          </button>
-          <button type="button" onClick={() => setOverlayState('subjects')} aria-label="Add subject column" className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
-            <Plus size={17} />
-          </button>
-        </div>
+      <div className="mt-2 flex items-center justify-end gap-1.5">
+        <button type="button" onClick={() => setOverlayState('subjects')} className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card/60 px-2.5 text-[11px] font-semibold text-foreground hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <Settings2 size={14} /> Manage
+        </button>
+        <button type="button" onClick={() => setOverlayState('subjects')} aria-label="Add subject column" className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+          <Plus size={17} />
+        </button>
       </div>
 
       {storageWarning && (
@@ -681,7 +661,10 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
                   <span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 ${isToday(day) ? 'bg-primary text-primary-foreground' : ''}`}>{dateLabel(date, 'd')}</span>
                   <span className="mt-1 flex h-2.5 items-center justify-center gap-0.5" aria-hidden="true">
                     {completed > 0 && <span className="h-1.5 w-1.5 rounded-full bg-success" />}
-                    {active && completed === 0 && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                    {activeSubjects.some((subject) => {
+                      const entry = getStudyEntry(state, date, subject.id);
+                      return entryIsActive(entry) && entry?.status !== 'completed';
+                    }) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
                   </span>
                 </button>
               );
@@ -694,11 +677,6 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
           </div>
         </section>
       )}
-
-      <p className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[10px] text-muted-foreground">
-        <span>{periodActiveDays} active days · {periodCompleted} completed entries</span>
-        <span>{periodDuration} study minutes recorded</span>
-      </p>
 
       {overlay === 'subjects' && (
         <OverlayFrame title="Manage subjects" description="Add columns, keep subjects in order, and archive history without deleting it." onClose={closeOverlay}>
