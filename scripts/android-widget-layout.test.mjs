@@ -60,7 +60,10 @@ test("all responsive layouts preserve selectable fields and remove the launcher 
       assert.match(layout, new RegExp(`@\\+id/widget_week_status_${i}\\b`));
     }
     assert.equal(layout.includes("@mipmap/ic_launcher"), false);
-    assert.doesNotMatch(normalizeRemoteViewsLayout(layout), /<View\b/, "packaged RemoteViews layouts must not use plain View classes");
+    const packagedLayout = normalizeRemoteViewsLayout(layout);
+    assert.doesNotMatch(packagedLayout, /<View\b/, "packaged RemoteViews layouts must not use plain View classes");
+    assert.match(packagedLayout, /android:id="@\+id\/widget_artwork_overlay"[\s\S]*?android:visibility="visible"/,
+      "the launcher's static preview must show the composition tint until live RemoteViews are applied");
     assert.equal(layout.includes("widget_progress_text"), false);
   }
   assert.match(layouts[2], /widget_lower_row[\s\S]*android:orientation="horizontal"/);
@@ -164,14 +167,46 @@ test("responsive typography is more prominent and weighted spacers cannot split 
   }
 });
 
-test("every native widget provider and responsive layout is registered and copied into Android builds", () => {
-  assert.ok(widgetProviderFiles.length > 0, "native AppWidgetProvider inventory must not be empty");
-  for (const filename of widgetProviderFiles) {
-    const componentName = filename.replace(".java", "");
+test("seven native launcher catalog entries have independent metadata and shared responsive rendering", () => {
+  const expectedProviders = [
+    ["MathMasterHomeWidgetProvider", "hero_wide", "math_master_home_widget_info", 110, 80, 95, 70],
+    ["MathMasterCompactGreenWidgetProvider", "compact_green", "math_master_widget_compact_green_info", 110, 80, 95, 70],
+    ["MathMasterSquareMathBotWidgetProvider", "square_math_bot", "math_master_widget_square_math_bot_info", 110, 110, 95, 95],
+    ["MathMasterMediumStudyWidgetProvider", "medium_study", "math_master_widget_medium_study_info", 160, 100, 125, 80],
+    ["MathMasterSquareCosmicWidgetProvider", "square_cosmic", "math_master_widget_square_cosmic_info", 110, 110, 95, 95],
+    ["MathMasterExtraWideWeeklyWidgetProvider", "extra_wide_weekly", "math_master_widget_extra_wide_weekly_info", 240, 80, 190, 70],
+    ["MathMasterMinimalProgressWidgetProvider", "minimal_progress", "math_master_widget_minimal_progress_info", 110, 70, 95, 60],
+  ];
+  assert.equal(widgetProviderFiles.length, 7, "the catalog must contain seven native provider classes");
+  assert.equal(expectedProviders.length, widgetProviderFiles.length);
+  for (const [className, composition, info, minWidth, minHeight, minResizeWidth, minResizeHeight] of expectedProviders) {
+    const filename = `${className}.java`;
     assert.ok(configureAndroid.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
-    assert.ok(configureAndroid.includes(`android:name=".${componentName}"`), `${componentName} must be registered in AndroidManifest`);
-    assert.ok(configureAndroid.includes("@xml/math_master_home_widget_info"), `${componentName} must reference widget metadata`);
+    assert.ok(provider.includes(`${className}.class`), `${className} must participate in shared widget refresh`);
+    const metadata = read(`android-native/res/xml/${info}.xml`);
+    const metadataV31 = read(`android-native/res/xml-v31/${info}.xml`);
+    assert.ok(configureAndroid.includes(`'xml/${info}.xml'`), `${info}.xml must be copied to the generated Android app`);
+    assert.ok(configureAndroid.includes(`'xml-v31/${info}.xml'`), `${info}.xml Android 12 preview must be copied`);
+    assert.ok(metadata.includes(`android:label="@string/math_master_widget_${composition}_label"`));
+    assert.ok(metadata.includes(`android:initialLayout="@layout/math_master_widget_${composition}_regular"`));
+    assert.ok(metadata.includes(`android:minWidth="${minWidth}dp"`));
+    assert.ok(metadata.includes(`android:minHeight="${minHeight}dp"`));
+    assert.ok(metadata.includes(`android:minResizeWidth="${minResizeWidth}dp"`));
+    assert.ok(metadata.includes(`android:minResizeHeight="${minResizeHeight}dp"`));
+    assert.ok(metadataV31.includes(`android:minWidth="${minWidth}dp"`));
+    assert.ok(metadataV31.includes(`android:minHeight="${minHeight}dp"`));
+    assert.ok(metadataV31.includes(`android:minResizeWidth="${minResizeWidth}dp"`));
+    assert.ok(metadataV31.includes(`android:minResizeHeight="${minResizeHeight}dp"`));
+    assert.ok(metadataV31.includes(`android:description="@string/math_master_widget_${composition}_description"`));
+    assert.ok(metadataV31.includes(`android:previewLayout="@layout/math_master_widget_${composition}_regular"`));
+    assert.ok(metadataV31.includes('android:widgetFeatures="reconfigurable"'));
+    if (className !== "MathMasterHomeWidgetProvider") {
+      assert.ok(configureAndroid.includes(`{ className: "${className}", info: "${info}" }`));
+    }
   }
+  assert.ok(configureAndroid.includes('android:name=".MathMasterHomeWidgetProvider"'));
+  assert.ok(configureAndroid.includes('android:resource="@xml/math_master_home_widget_info"'));
+  assert.ok(configureAndroid.includes('for (const { className, info } of additionalWidgetProviders)'));
 
   const variantFiles = [
     "math_master_home_widget.xml",
@@ -181,10 +216,11 @@ test("every native widget provider and responsive layout is registered and copie
   for (const filename of variantFiles) {
     assert.ok(configureAndroid.includes(`'layout/${filename}'`), `${filename} must be copied for every release/debug build`);
   }
-  assert.ok(legacyWidgetInfo.includes('android:initialLayout="@layout/math_master_home_widget"'));
+  assert.ok(legacyWidgetInfo.includes('android:label="@string/math_master_widget_hero_wide_label"'));
+  assert.ok(legacyWidgetInfo.includes('android:initialLayout="@layout/math_master_widget_hero_wide_regular"'));
   assert.ok(legacyWidgetInfo.includes('android:resizeMode="horizontal|vertical"'));
-  assert.ok(android31WidgetInfo.includes('android:initialLayout="@layout/math_master_home_widget"'));
-  assert.ok(android31WidgetInfo.includes('android:previewLayout="@layout/math_master_home_widget"'));
+  assert.ok(android31WidgetInfo.includes('android:initialLayout="@layout/math_master_widget_hero_wide_regular"'));
+  assert.ok(android31WidgetInfo.includes('android:previewLayout="@layout/math_master_widget_hero_wide_regular"'));
   assert.ok(android31WidgetInfo.includes('android:widgetFeatures="reconfigurable"'));
   assert.ok(provider.includes("OPTION_APPWIDGET_SIZES"));
   assert.ok(provider.includes("new RemoteViews(viewsBySize)"));
@@ -213,6 +249,20 @@ test("all seven design compositions have three responsive XML variants and packa
   assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
   assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
   assert.ok(provider.includes("getWidgetArtwork(context, composition, widthDp, heightDp)"));
+});
+
+
+
+test("catalog-selected compositions stay independent while legacy pinned instances keep their saved design", () => {
+  assert.ok(provider.includes("private static final Class<?>[] WIDGET_PROVIDER_CLASSES"));
+  assert.ok(provider.includes("for (Class<?> providerClass : WIDGET_PROVIDER_CLASSES)"));
+  assert.ok(provider.includes("manager.getAppWidgetIds(provider)"));
+  assert.ok(provider.includes("catalogCompositionForWidget(Context context, int appWidgetId)"));
+  assert.ok(provider.includes("getFixedCompositionForWidget(Context context, int appWidgetId)"));
+  assert.ok(config.includes("compositionGroup.setVisibility(View.GONE)"));
+  assert.ok(config.includes("editor.putBoolean(\"instance_\" + widgetId + \"_catalogLocked\", true)"));
+  assert.ok(config.includes("fixedComposition != null ? fixedComposition : selectedRadioValue(compositionGroup, \"auto\")"));
+  assert.ok(provider.includes("REQUEST_CODE + Math.max(0, appWidgetId)"));
 });
 
 test("widget artwork uses sampled region decoding and bounded output renditions", () => {

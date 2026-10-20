@@ -3,6 +3,7 @@ package com.sudhanshu.mathsbj;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.appwidget.AppWidgetProviderInfo;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -58,6 +59,15 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         "auto", "hero_wide", "compact_green", "square_math_bot",
         "medium_study", "square_cosmic", "extra_wide_weekly", "minimal_progress"
     };
+    private static final Class<?>[] WIDGET_PROVIDER_CLASSES = {
+        MathMasterHomeWidgetProvider.class,
+        MathMasterCompactGreenWidgetProvider.class,
+        MathMasterSquareMathBotWidgetProvider.class,
+        MathMasterMediumStudyWidgetProvider.class,
+        MathMasterSquareCosmicWidgetProvider.class,
+        MathMasterExtraWideWeeklyWidgetProvider.class,
+        MathMasterMinimalProgressWidgetProvider.class
+    };
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] appWidgetIds) {
@@ -98,11 +108,13 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static void refreshWidgetInstances(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        ComponentName provider = new ComponentName(context, MathMasterHomeWidgetProvider.class);
-        int[] widgetIds = manager.getAppWidgetIds(provider);
-        if (widgetIds == null || widgetIds.length == 0) return;
-        for (int widgetId : widgetIds) {
-            manager.updateAppWidget(widgetId, createViews(context, widgetId));
+        for (Class<?> providerClass : WIDGET_PROVIDER_CLASSES) {
+            ComponentName provider = new ComponentName(context, providerClass);
+            int[] widgetIds = manager.getAppWidgetIds(provider);
+            if (widgetIds == null || widgetIds.length == 0) continue;
+            for (int widgetId : widgetIds) {
+                manager.updateAppWidget(widgetId, createViews(context, widgetId));
+            }
         }
     }
 
@@ -330,7 +342,52 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return "auto";
     }
 
-    private static String resolveComposition(SharedPreferences preferences, int appWidgetId, int widthDp, int heightDp) {
+    private static String compositionForProviderClass(String className) {
+        if (MathMasterHomeWidgetProvider.class.getName().equals(className)) return "hero_wide";
+        if (MathMasterCompactGreenWidgetProvider.class.getName().equals(className)) return "compact_green";
+        if (MathMasterSquareMathBotWidgetProvider.class.getName().equals(className)) return "square_math_bot";
+        if (MathMasterMediumStudyWidgetProvider.class.getName().equals(className)) return "medium_study";
+        if (MathMasterSquareCosmicWidgetProvider.class.getName().equals(className)) return "square_cosmic";
+        if (MathMasterExtraWideWeeklyWidgetProvider.class.getName().equals(className)) return "extra_wide_weekly";
+        if (MathMasterMinimalProgressWidgetProvider.class.getName().equals(className)) return "minimal_progress";
+        return null;
+    }
+
+    /**
+     * Returns the catalog-fixed design for new picker instances. Previously configured widgets
+     * attached to the legacy provider retain their saved composition until the user changes it.
+     */
+    private static String catalogCompositionForWidget(Context context, int appWidgetId) {
+        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return null;
+        try {
+            AppWidgetProviderInfo info = AppWidgetManager.getInstance(context).getAppWidgetInfo(appWidgetId);
+            if (info == null || info.provider == null) return null;
+            String className = info.provider.getClassName();
+            String composition = compositionForProviderClass(className);
+            if (composition == null) return null;
+            if (MathMasterHomeWidgetProvider.class.getName().equals(className)) {
+                SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+                String prefix = "instance_" + appWidgetId + "_";
+                if (preferences.getBoolean(prefix + "catalogLocked", false)
+                    || !preferences.contains(prefix + "composition")) return composition;
+                return null;
+            }
+            return composition;
+        } catch (RuntimeException exception) {
+            // During host hand-off an AppWidgetInfo can briefly be unavailable. The saved
+            // per-instance configuration remains the safe fallback for that transient state.
+            return null;
+        }
+    }
+
+    /** Exposes the selected launcher-catalog design to the configuration activity. */
+    public static String getFixedCompositionForWidget(Context context, int appWidgetId) {
+        return catalogCompositionForWidget(context, appWidgetId);
+    }
+
+    private static String resolveComposition(Context context, SharedPreferences preferences, int appWidgetId, int widthDp, int heightDp) {
+        String fixedComposition = catalogCompositionForWidget(context, appWidgetId);
+        if (fixedComposition != null) return fixedComposition;
         String requested = normalizeComposition(getInstanceString(
             preferences, appWidgetId, "composition", preferences.getString("composition", "auto")
         ));
@@ -585,7 +642,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static RemoteViews createViewsForSize(Context context, int appWidgetId, int widthDp, int heightDp) {
         SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
-        String composition = resolveComposition(preferences, appWidgetId, widthDp, heightDp);
+        String composition = resolveComposition(context, preferences, appWidgetId, widthDp, heightDp);
         int sizeClass = getSizeClass(widthDp, heightDp);
         int layoutId = getWidgetLayoutForDimensions(widthDp, heightDp, composition);
         return createViewsForLayout(context, appWidgetId, layoutId, widthDp, heightDp, sizeClass, composition);
@@ -816,7 +873,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             }
             PendingIntent pendingIntent = PendingIntent.getActivity(
                 context,
-                REQUEST_CODE,
+                REQUEST_CODE + Math.max(0, appWidgetId),
                 launchIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );

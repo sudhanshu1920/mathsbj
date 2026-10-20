@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:label="@string/math_master_widget_medium_study_label"
+    android:initialLayout="@layout/math_master_widget_medium_study_regular"
+    android:configure="com.sudhanshu.mathsbj.MathMasterWidgetConfigActivity"
+    android:minWidth="160dp"
+    android:minHeight="100dp"
+    android:minResizeWidth="125dp"
+    android:minResizeHeight="80dp"
+    android:updatePeriodMillis="1800000"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />

@@ -96,8 +96,29 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(widgetProvider, /contentSchemaVersion/);
   assert.match(widgetInfo, /android:configure="com\.sudhanshu\.mathsbj\.MathMasterWidgetConfigActivity"/);
   assert.match(widgetInfoV31, /widgetFeatures="reconfigurable"/);
-  assert.match(widgetInfo, /label="@string\/math_master_home_widget_label"/);
-  assert.match(widgetInfoV31, /previewLayout="@layout\/math_master_home_widget"/);
+  assert.match(widgetInfo, /label="@string\/math_master_widget_hero_wide_label"/);
+  assert.match(widgetInfo, /initialLayout="@layout\/math_master_widget_hero_wide_regular"/);
+  assert.match(widgetInfoV31, /previewLayout="@layout\/math_master_widget_hero_wide_regular"/);
+  assert.match(widgetInfoV31, /description="@string\/math_master_widget_hero_wide_description"/);
+  const catalogProviders = [
+    ["MathMasterCompactGreenWidgetProvider", "compact_green"],
+    ["MathMasterSquareMathBotWidgetProvider", "square_math_bot"],
+    ["MathMasterMediumStudyWidgetProvider", "medium_study"],
+    ["MathMasterSquareCosmicWidgetProvider", "square_cosmic"],
+    ["MathMasterExtraWideWeeklyWidgetProvider", "extra_wide_weekly"],
+    ["MathMasterMinimalProgressWidgetProvider", "minimal_progress"],
+  ];
+  assert.equal(catalogProviders.length, 6);
+  for (const [className, composition] of catalogProviders) {
+    assert.ok(manifest.includes('android:name=".' + className + '"'), className + " must be registered");
+    const metadataPath = "app/src/main/res/xml/math_master_widget_" + composition + "_info.xml";
+    const metadataV31Path = "app/src/main/res/xml-v31/math_master_widget_" + composition + "_info.xml";
+    const metadata = await readFile(path.join(root, metadataPath), "utf8");
+    const metadataV31 = await readFile(path.join(root, metadataV31Path), "utf8");
+    assert.ok(metadata.includes('initialLayout="@layout/math_master_widget_' + composition + '_regular"'));
+    assert.ok(metadataV31.includes('previewLayout="@layout/math_master_widget_' + composition + '_regular"'));
+    assert.match(metadataV31, /widgetFeatures="reconfigurable"/);
+  }
   assert.match(widgetStrings, /Math Master Progress/);
   assert.match(widgetInfo, /minWidth="110dp"/);
   assert.match(widgetInfo, /minHeight="80dp"/);
