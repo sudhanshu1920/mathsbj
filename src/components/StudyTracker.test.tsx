@@ -117,14 +117,18 @@ describe('StudyTracker', () => {
     expect(screen.getByText('20 Oct – 26 Oct 2026')).toBeInTheDocument();
 
     const period = screen.getByRole('group', { name: /Study period/ });
-    dispatchPointer(period, 'pointerdown', { clientX: 230, clientY: 12 });
-    dispatchPointer(period, 'pointerup', { clientX: 150, clientY: 14 });
+    act(() => {
+      dispatchPointer(period, 'pointerdown', { clientX: 230, clientY: 12 });
+      dispatchPointer(period, 'pointerup', { clientX: 150, clientY: 14 });
+    });
     expect(screen.getByText('27 Oct – 2 Nov 2026')).toBeInTheDocument();
 
     const table = screen.getByRole('region', { name: 'Seven day study table' }).querySelector('table');
     if (!(table instanceof HTMLElement)) throw new Error('Study table did not render.');
-    dispatchPointer(table, 'pointerdown', { clientX: 230, clientY: 12 });
-    dispatchPointer(table, 'pointerup', { clientX: 150, clientY: 14 });
+    act(() => {
+      dispatchPointer(table, 'pointerdown', { clientX: 230, clientY: 12 });
+      dispatchPointer(table, 'pointerup', { clientX: 150, clientY: 14 });
+    });
     expect(screen.getByText('27 Oct – 2 Nov 2026')).toBeInTheDocument();
   });
 
