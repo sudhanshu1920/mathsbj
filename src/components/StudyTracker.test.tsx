@@ -102,17 +102,14 @@ describe('StudyTracker', () => {
   });
 
   it('archives subjects without destroying past entries and keeps all views connected', () => {
-    const { container } = render(<StudyTracker />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add subject column' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+    render(<StudyTracker />);
 
     fireEvent.click(screen.getByRole('button', { name: /Edit Math entry for/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Completed' }));
     fireEvent.click(screen.getByRole('button', { name: /Save entry/ }));
 
     fireEvent.click(screen.getByRole('button', { name: /Manage/ }));
-    const mathRow = container.querySelector('div.rounded-xl.border') ?? container;
-    // The accessible archive action appears only after the subject editor is open.
+    // The accessible archive action appears only while subject management is open.
     fireEvent.click(screen.getByRole('button', { name: /Archive Math/ }));
     fireEvent.click(screen.getByRole('button', { name: /Archive subject/ }));
 
@@ -122,8 +119,9 @@ describe('StudyTracker', () => {
       entry.subjectId === 'builtin-math' && entry.status === 'completed',
     )).toBe(true);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
     fireEvent.click(screen.getByRole('button', { name: /Current mode Table/ }));
     expect(screen.getByText('Week mode')).toBeInTheDocument();
-    expect(mathRow).toBeTruthy();
+    expect(screen.queryByRole('rowheader', { name: 'Math' })).not.toBeInTheDocument();
   });
 });
