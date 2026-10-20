@@ -490,9 +490,9 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
           {showModeMenu && (
             <>
               <button type="button" aria-label="Close mode selector" className="fixed inset-0 z-40 cursor-default" onClick={() => setShowModeMenu(false)} />
-              <div role="menu" aria-label="Study Tracker mode" className="absolute right-0 top-10 z-50 w-36 overflow-hidden rounded-xl border border-border bg-card p-1 shadow-xl">
+              <div role="menu" aria-label="Study Tracker mode" className="absolute right-0 top-10 z-50 w-36 overflow-hidden rounded-xl border border-border bg-card p-1 shadow-xl" style={{ width: '9rem', maxWidth: 'none' }}>
                 {(['table', 'week', 'month'] as StudyMode[]).map((option) => (
-                  <button key={option} type="button" role="menuitemradio" aria-checked={mode === option} onClick={() => selectMode(option)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${mode === option ? 'bg-primary/12 font-bold text-primary' : 'text-foreground hover:bg-muted'}`}>
+                  <button key={option} type="button" role="menuitemradio" aria-checked={mode === option} onClick={() => selectMode(option)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${mode === option ? 'bg-primary/12 font-bold text-primary' : 'text-foreground hover:bg-muted'}`} style={{ minWidth: 0, minHeight: 0 }}>
                     {MODE_LABEL[option]}
                     {mode === option && <Check size={15} aria-hidden="true" />}
                   </button>
