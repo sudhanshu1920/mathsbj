@@ -21,7 +21,7 @@ import {
   Settings2,
   X,
 } from 'lucide-react';
-import { format, isSunday, isSameMonth, isToday, parseISO } from 'date-fns';
+import { format, isSunday, isSameMonth, isToday } from 'date-fns';
 import {
   STUDY_TRACKER_STORAGE_KEY,
   STUDY_TRACKER_TEMPLATE_END,
