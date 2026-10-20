@@ -24,6 +24,7 @@ import {
   shiftStudyPeriod,
   studyEntryKey,
   upsertStudyEntry,
+  type StudyTrackerState,
 } from '@/lib/studyTracker';
 
 afterEach(() => {
