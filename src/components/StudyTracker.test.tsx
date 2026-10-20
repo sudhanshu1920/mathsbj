@@ -208,9 +208,9 @@ describe('StudyTracker date permissions in every view', () => {
     expect(saveStudyTrackerState(anchoredYesterday, localStorage, now)).toBe(true);
     render(<StudyTracker />);
 
-    expect(screen.getByRole('button', { name: 'Edit Math entry for Tuesday 20 October 2026. Status: Not Started.' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit Math entry for Monday 19 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit Math entry for Wednesday 21 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Math entry for 20 October 2026. Status: Not Started.' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Math entry for 19 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Math entry for 21 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'View entries for Monday 19 October 2026' }));
     const dailyDialog = screen.getByRole('dialog', { name: 'Daily entries' });
@@ -247,12 +247,12 @@ describe('StudyTracker date permissions in every view', () => {
     expect(saveStudyTrackerState(state, localStorage, now)).toBe(true);
     render(<StudyTracker />);
 
-    expect(screen.getByRole('button', { name: 'Edit Math entry for Tuesday 20 October 2026. Status: Not Started.' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Math entry for 20 October 2026. Status: Not Started.' })).toBeInTheDocument();
     act(() => {
       vi.setSystemTime(new Date(2026, 9, 21, 0, 1, 0));
       window.dispatchEvent(new Event('focus'));
     });
-    expect(screen.queryByRole('button', { name: 'Edit Math entry for Tuesday 20 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Edit Math entry for Wednesday 21 October 2026. Status: Not Started.' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Math entry for 20 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Math entry for 21 October 2026. Status: Not Started.' })).toBeInTheDocument();
   });
 });
