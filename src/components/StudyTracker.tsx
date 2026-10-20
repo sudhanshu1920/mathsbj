@@ -112,7 +112,7 @@ const OverlayFrame = ({
   description?: string;
   onClose: () => void;
   children: ReactNode;
-  footer?: React.ReactNode;
+  footer?: ReactNode;
 }) => (
   <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/55 p-0 backdrop-blur-[3px] sm:items-center sm:p-4" onMouseDown={(event) => {
     if (event.target === event.currentTarget) onClose();
@@ -229,7 +229,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
       window.dispatchEvent(new CustomEvent('study-tracker-overlay-state', { detail: { open: false } }));
     };
-  }, [closeOverlay, setOverlayState]);
+  }, [setOverlayState]);
 
   useEffect(() => {
     if (overlay !== 'subjects') return;
@@ -240,7 +240,6 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
 
   const activeSubjects = sortSubjects(state.subjects.filter((subject) => !subject.archived));
   const archivedSubjects = sortSubjects(state.subjects.filter((subject) => subject.archived));
-  const allSubjects = sortSubjects(state.subjects);
   const mode = state.preferences.mode;
   const anchorDate = state.preferences.anchorDate;
 
