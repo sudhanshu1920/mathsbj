@@ -525,6 +525,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     if (onBack) onBack();
     else onExit?.();
   };
+  const entryEditable = canEditStudyDate(entryDate);
 
 
   return (
@@ -737,7 +738,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
         </section>
       )}
 
-      {activeSubjects.length > 0 && mode === 'month' && (
+      {hasSubjectsInPeriod && mode === 'month' && (
         <section className="mt-3 rounded-xl border border-border bg-card/45 p-2.5 sm:p-3" aria-label="Monthly calendar">
           <div className="mb-2 grid grid-cols-7 gap-1">
             {WEEKDAY_SHORT.map((day) => <div key={day} className="py-1 text-center text-[10px] font-extrabold text-muted-foreground">{day}</div>)}
@@ -746,14 +747,15 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
             {monthDates.map((date) => {
               const day = parseDateKey(date);
               const inMonth = isSameMonth(day, monthDate);
+              const subjectsForDay = getActiveStudySubjectsForDate(state, date);
               const completed = dayCompletionCount(date);
-              const incomplete = activeSubjects.filter((subject) => {
+              const incomplete = subjectsForDay.filter((subject) => {
                 const entry = getStudyEntry(state, date, subject.id);
                 return entryIsActive(entry) && entry?.status !== 'completed';
               }).length;
               return (
                 <button key={date} type="button" onClick={() => openDayDetails(date)} className={renderDateClass(date, inMonth)} aria-label={`${dateLabel(date, 'EEEE d MMMM yyyy')}, ${completed} complete, ${incomplete} incomplete`}>
-                  <span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 ${isToday(day) ? 'bg-primary text-primary-foreground' : ''}`}>{dateLabel(date, 'd')}</span>
+                  <span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 ${date === todayKey ? 'bg-primary text-primary-foreground' : ''}`}>{dateLabel(date, 'd')}</span>
                   <span className="mt-1 flex h-2.5 items-center justify-center gap-0.5" aria-hidden="true">
                     {completed > 0 && <Check size={10} className="text-success" />}
                     {incomplete > 0 && <Clock3 size={10} className="text-primary" />}
@@ -763,9 +765,9 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
             })}
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/70 pt-3">
-            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Active days</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{new Set(monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate) && activeSubjects.some((subject) => entryIsActive(getStudyEntry(state, date, subject.id)))).map((date) => date)).size}</p></div>
+            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Active days</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{new Set(monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate) && getActiveStudySubjectsForDate(state, date).some((subject) => entryIsActive(getStudyEntry(state, date, subject.id)))).map((date) => date)).size}</p></div>
             <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Completed</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate)).reduce((sum, date) => sum + dayCompletionCount(date), 0)}</p></div>
-            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Study time</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate)).reduce((sum, date) => sum + activeSubjects.reduce((daySum, subject) => daySum + (getStudyEntry(state, date, subject.id)?.minutes ?? 0), 0), 0)}<span className="ml-1 text-[10px] font-semibold text-muted-foreground">min</span></p></div>
+            <div className="rounded-lg bg-muted/50 px-2 py-2"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Study time</p><p className="mt-0.5 font-display text-base font-extrabold text-foreground">{monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate)).reduce((sum, date) => sum + getActiveStudySubjectsForDate(state, date).reduce((daySum, subject) => daySum + (getStudyEntry(state, date, subject.id)?.minutes ?? 0), 0), 0)}<span className="ml-1 text-[10px] font-semibold text-muted-foreground">min</span></p></div>
           </div>
         </section>
       )}
@@ -846,17 +848,18 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       )}
 
       {overlay === 'entry' && (
-        <OverlayFrame title={`Edit ${state.subjects.find((subject) => subject.id === entrySubjectId)?.name ?? 'subject'}`} description={dateLabel(entryDate, 'EEEE, d MMMM yyyy')} onClose={closeEntryEditor} footer={
+        <OverlayFrame title={`Edit ${getStudySubjectsForDate(state, entryDate).find((subject) => subject.id === entrySubjectId)?.name ?? 'subject'}`} description={dateLabel(entryDate, 'EEEE, d MMMM yyyy')} onClose={closeEntryEditor} footer={
           <div className="flex items-center justify-end gap-2">
             <button type="button" onClick={closeEntryEditor} className="h-10 rounded-lg border border-border px-4 text-sm font-semibold text-foreground">Cancel</button>
-            <button type="button" onClick={saveEntry} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"><Save size={15} /> Save entry</button>
+            <button type="button" onClick={saveEntry} disabled={!entryEditable} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45"><Save size={15} /> Save entry</button>
           </div>
         }>
+          {!entryEditable && <p role="status" className="mb-3 rounded-lg border border-border bg-muted/45 px-3 py-2 text-xs text-muted-foreground">This date is read-only.</p>}
           <div>
             <p className="mb-2 text-xs font-semibold text-foreground">Study status</p>
             <div className="grid grid-cols-3 gap-2">
               {(['not-started', 'in-progress', 'completed'] as StudyEntryStatus[]).map((status) => (
-                <button key={status} type="button" aria-pressed={entryDraft.status === status} onClick={() => setEntryDraft((current) => ({ ...current, status }))} className={`flex min-h-[4.1rem] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-center text-[10px] font-bold transition-colors ${entryDraft.status === status ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/30' : 'border-border bg-background/60 text-muted-foreground hover:border-primary/35'}`}>
+                <button key={status} type="button" disabled={!entryEditable} aria-pressed={entryDraft.status === status} onClick={() => setEntryDraft((current) => ({ ...current, status }))} className={`flex min-h-[4.1rem] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-center text-[10px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${entryDraft.status === status ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/30' : 'border-border bg-background/60 text-muted-foreground hover:border-primary/35'}`}>
                   <StatusGlyph status={status} />{STATUS_LABEL[status]}
                 </button>
               ))}
@@ -864,11 +867,11 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
           </div>
           <label className="mt-4 block">
             <span className="mb-1.5 block text-xs font-semibold text-foreground">Study duration <span className="font-normal text-muted-foreground">(optional minutes)</span></span>
-            <input type="number" inputMode="numeric" min={0} max={1440} step={1} value={entryDraft.minutes} onChange={(event) => { setEntryDraft((current) => ({ ...current, minutes: event.target.value })); setEntryError(''); }} placeholder="e.g. 45" className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
+            <input type="number" inputMode="numeric" min={0} max={1440} step={1} disabled={!entryEditable} value={entryDraft.minutes} onChange={(event) => { setEntryDraft((current) => ({ ...current, minutes: event.target.value })); setEntryError(''); }} placeholder="e.g. 45" className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-60" />
           </label>
           <label className="mt-4 block">
             <span className="mb-1.5 block text-xs font-semibold text-foreground">Note <span className="font-normal text-muted-foreground">(optional, max 240 characters)</span></span>
-            <textarea rows={3} maxLength={240} value={entryDraft.note} onChange={(event) => setEntryDraft((current) => ({ ...current, note: event.target.value }))} placeholder="Pages completed, practice topics..." className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15" />
+            <textarea rows={3} maxLength={240} disabled={!entryEditable} value={entryDraft.note} onChange={(event) => setEntryDraft((current) => ({ ...current, note: event.target.value }))} placeholder="Pages completed, practice topics..." className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-60" />
           </label>
           {entryError && <p role="alert" className="mt-3 text-xs text-destructive">{entryError}</p>}
         </OverlayFrame>
@@ -876,15 +879,26 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
 
       {overlay === 'day-detail' && (
         <OverlayFrame title="Daily entries" description={dateLabel(dayDetailsDate, 'EEEE, d MMMM yyyy')} onClose={closeOverlay}>
-          {activeSubjects.length === 0 ? <p className="text-sm text-muted-foreground">Add or restore a subject to log this day.</p> : (
+          {dayEntries(dayDetailsDate).length === 0 ? <p className="text-sm text-muted-foreground">No subjects were active on this date.</p> : (
             <div className="space-y-2">
-              {dayEntries(dayDetailsDate).map(({ subject, entry }) => (
-                <button key={subject.id} type="button" onClick={() => openEntry(dayDetailsDate, subject, true)} className="flex w-full items-center gap-3 rounded-xl border border-border/80 bg-background/55 p-3 text-left hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><StatusGlyph status={entry?.status ?? 'not-started'} /></span>
-                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-foreground">{subject.name}</span><span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{STATUS_LABEL[entry?.status ?? 'not-started']}{entry?.minutes ? ` · ${entry.minutes} min` : ''}{entry?.note ? ` · ${entry.note}` : ''}</span></span>
-                  <Pencil size={15} className="shrink-0 text-muted-foreground" />
-                </button>
-              ))}
+              {dayEntries(dayDetailsDate).map(({ subject, entry }) => {
+                const content = (
+                  <>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><StatusGlyph status={entry?.status ?? 'not-started'} /></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-foreground">{subject.name}</span><span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{STATUS_LABEL[entry?.status ?? 'not-started']}{entry?.minutes ? ` · ${entry.minutes} min` : ''}{entry?.note ? ` · ${entry.note}` : ''}</span></span>
+                  </>
+                );
+                return dayDetailsDate === todayKey && canEditStudyDate(dayDetailsDate) ? (
+                  <button key={subject.id} type="button" onClick={() => openEntry(dayDetailsDate, subject, true)} className="flex w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/[0.045] p-3 text-left hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                    {content}
+                    <Pencil size={15} className="shrink-0 text-muted-foreground" />
+                  </button>
+                ) : (
+                  <div key={subject.id} className="flex w-full items-center gap-3 rounded-xl border border-border/70 bg-muted/20 p-3 text-left text-muted-foreground" aria-label={`${subject.name}, read-only. ${STATUS_LABEL[entry?.status ?? 'not-started']}`}>
+                    {content}
+                  </div>
+                );
+              })}
             </div>
           )}
         </OverlayFrame>
