@@ -38,7 +38,7 @@ if (!learning.includes('TOPIC_ICON_MAP[topicId]')) {
 }
 for (const id of [
   'tables', 'squares', 'square-roots', 'cubes', 'cube-roots',
-  'powers', 'percentage', 'formulas', 'periodic-table',
+  'powers', 'percentage', 'formulas', 'periodic-table', 'study-tracker',
 ]) {
   if (!icons.includes(id)) {
     fail(`missing canonical topic icon mapping: ${id}`);
