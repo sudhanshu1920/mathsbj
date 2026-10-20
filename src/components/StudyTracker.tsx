@@ -655,7 +655,6 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
               const day = parseDateKey(date);
               const inMonth = isSameMonth(day, monthDate);
               const completed = dayCompletionCount(date);
-              const active = activeSubjects.some((subject) => entryIsActive(getStudyEntry(state, date, subject.id)));
               return (
                 <button key={date} type="button" onClick={() => openDayDetails(date)} className={renderDateClass(date, inMonth)} aria-label={`${dateLabel(date, 'EEEE d MMMM yyyy')}, ${completed} completed subjects`}>
                   <span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 ${isToday(day) ? 'bg-primary text-primary-foreground' : ''}`}>{dateLabel(date, 'd')}</span>
