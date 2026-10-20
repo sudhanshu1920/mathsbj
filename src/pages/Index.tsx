@@ -299,6 +299,7 @@ const Index = () => {
   const skipStalePeriodicRangeEntries = useRef(false);
   const historyInitialized = useRef(false);
   const lastNavigationBack = useRef(0);
+  const studyTrackerOverlayOpen = useRef(false);
   const replaceNextNavigationEntry = useRef(false);
   const practiceExitHandled = useRef(false);
   const navigationStateRef = useRef({
@@ -319,6 +320,15 @@ const Index = () => {
     learningPracticeSelectorOpen,
     periodicRangeMenuOpen,
   };
+
+  useEffect(() => {
+    const syncStudyTrackerOverlay = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: unknown }>).detail;
+      studyTrackerOverlayOpen.current = detail?.open === true;
+    };
+    window.addEventListener('study-tracker-overlay-state', syncStudyTrackerOverlay);
+    return () => window.removeEventListener('study-tracker-overlay-state', syncStudyTrackerOverlay);
+  }, []);
 
   // One shared back action for header arrows, in-app edge swipe, and native
   // Android back. A short lock prevents a native gesture + web gesture from
@@ -491,6 +501,19 @@ const Index = () => {
         setLearningPracticeReturn(null);
         replaceNextNavigationEntry.current = false;
         lastDepth.current = getNavDepth('learn', learningState);
+        return;
+      }
+
+      // Study Tracker editors are overlays rather than routes. The first Back
+      // closes the topmost editor/confirmation and leaves the tracker visible.
+      // Because overlays are transient React state, restore the tracker history
+      // entry when Back was already consumed by its open overlay.
+      if (tab === 'learn' && learningState.activeTopic === 'study-tracker' && studyTrackerOverlayOpen.current) {
+        const trackerDepth = getNavDepth('learn', learningState);
+        window.history.pushState({ __mathsbj: true, depth: trackerDepth }, '');
+        lastDepth.current = trackerDepth;
+        window.dispatchEvent(new CustomEvent('study-tracker-back'));
+        isHandlingPopstate.current = false;
         return;
       }
 
