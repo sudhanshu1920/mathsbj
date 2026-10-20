@@ -78,7 +78,7 @@ describe('StudyTracker', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
     expect(screen.getByRole('columnheader', { name: 'English' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Edit Math entry for/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Edit Math entry for/ })[0]);
     expect(screen.getByRole('dialog', { name: 'Edit Math' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Completed' }));
     fireEvent.change(screen.getByLabelText(/Study duration/), { target: { value: '45' } });
@@ -104,7 +104,7 @@ describe('StudyTracker', () => {
   it('archives subjects without destroying past entries and keeps all views connected', () => {
     render(<StudyTracker />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Edit Math entry for/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Edit Math entry for/ })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Completed' }));
     fireEvent.click(screen.getByRole('button', { name: /Save entry/ }));
 
