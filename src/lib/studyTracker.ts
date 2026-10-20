@@ -353,6 +353,16 @@ function canPersistStudyTrackerChange(
     if (next.subjectHistory.some((snapshot) =>
       snapshot.effectiveDate !== '0001-01-01' && snapshot.effectiveDate !== today,
     )) return false;
+    const initialBaseline = toSnapshotOrder(next.subjectHistory.find(
+      (snapshot) => snapshot.effectiveDate === '0001-01-01',
+    )?.subjects ?? []);
+    const expectedBaseline: StudySubjectSnapshot[] = DEFAULT_STUDY_SUBJECTS.map((name, order) => ({
+      id: 'builtin-' + name.toLowerCase(),
+      name,
+      order,
+      archived: false,
+    }));
+    if (JSON.stringify(initialBaseline) !== JSON.stringify(toSnapshotOrder(expectedBaseline))) return false;
   }
 
   // A caller must not bypass the effective-dated mutation helpers by changing
