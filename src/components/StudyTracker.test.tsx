@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import StudyTracker from '@/components/StudyTracker';
-import { STUDY_TRACKER_STORAGE_KEY, type StudyTrackerState } from '@/lib/studyTracker';
+import {
+  STUDY_TRACKER_STORAGE_KEY,
+  createDefaultStudyTrackerState,
+  saveStudyTrackerState,
+  upsertStudyEntry,
+  type StudyTrackerState,
+} from '@/lib/studyTracker';
 
 afterEach(() => {
   cleanup();
@@ -99,6 +105,54 @@ describe('StudyTracker', () => {
       note: 'Fractions and practice',
     });
     expect(Object.keys(saved?.entries ?? {})).toHaveLength(1);
+  });
+
+  it('keeps the period header compact and handles swipes without changing the table from cell gestures', () => {
+    saveStudyTrackerState(createDefaultStudyTrackerState(new Date(2026, 9, 20, 12, 0, 0)));
+    render(<StudyTracker />);
+
+    expect(screen.queryByText(/Reference template/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Swipe ‹ ›')).not.toBeInTheDocument();
+    expect(screen.queryByText('Completed', { selector: 'span' })).not.toBeInTheDocument();
+    expect(screen.getByText('20 Oct – 26 Oct 2026')).toBeInTheDocument();
+
+    const period = screen.getByRole('group', { name: /Study period/ });
+    dispatchPointer(period, 'pointerdown', { clientX: 230, clientY: 12 });
+    dispatchPointer(period, 'pointerup', { clientX: 150, clientY: 14 });
+    expect(screen.getByText('27 Oct – 2 Nov 2026')).toBeInTheDocument();
+
+    const table = screen.getByRole('table', { name: 'Seven day study table' });
+    dispatchPointer(table, 'pointerdown', { clientX: 230, clientY: 12 });
+    dispatchPointer(table, 'pointerup', { clientX: 150, clientY: 14 });
+    expect(screen.getByText('27 Oct – 2 Nov 2026')).toBeInTheDocument();
+  });
+
+  it('shows separate completed and in-progress indicators for a mixed monthly study day', () => {
+    const initial = {
+      ...createDefaultStudyTrackerState(new Date(2026, 9, 20, 12, 0, 0)),
+      preferences: {
+        ...createDefaultStudyTrackerState(new Date(2026, 9, 20, 12, 0, 0)).preferences,
+        anchorDate: '2026-10-20',
+      },
+    };
+    const mathDone = upsertStudyEntry(initial, {
+      date: '2026-10-20', subjectId: 'builtin-math', status: 'completed', minutes: 25, note: '',
+    }, new Date(2026, 9, 20, 12, 0, 0));
+    const mixedDay = upsertStudyEntry(mathDone, {
+      date: '2026-10-20', subjectId: 'builtin-reasoning', status: 'in-progress', minutes: 10, note: '',
+    }, new Date(2026, 9, 20, 12, 0, 0));
+    saveStudyTrackerState(mixedDay);
+    render(<StudyTracker />);
+
+    const modeButton = screen.getByRole('button', { name: /current mode table/i });
+    fireEvent.click(modeButton);
+    fireEvent.click(modeButton);
+
+    const day = screen.getByRole('button', { name: /Tuesday 20 October 2026, 1 completed subjects/i });
+    const indicators = day.querySelectorAll('span[aria-hidden="true"] span');
+    expect(indicators).toHaveLength(2);
+    expect(indicators[0]).toHaveClass('bg-success');
+    expect(indicators[1]).toHaveClass('bg-primary');
   });
 
   it('archives subjects without destroying past entries and keeps all views connected', () => {
