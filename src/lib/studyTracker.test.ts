@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_STUDY_SUBJECTS,
+  canEditStudyDate,
+  formatDateKey,
+  getActiveStudySubjectsForDate,
+  getStudySubjectsForDate,
   STUDY_TRACKER_TEMPLATE_END,
   STUDY_TRACKER_TEMPLATE_START,
   STUDY_TRACKER_STORAGE_KEY,
@@ -180,11 +184,140 @@ describe('Study Tracker subject and entry identity', () => {
       preferences: { mode: 'year', anchorDate: 'invalid', templateStartDate: '2027-01-01', templateEndDate: '2026-01-01' },
     }, fixedNow());
 
-    expect(state.version).toBe(1);
+    expect(state.version).toBe(2);
     expect(state.preferences.mode).toBe('table');
     expect(state.preferences.anchorDate).toBe('2026-10-20');
     expect(state.preferences.templateStartDate).toBe(STUDY_TRACKER_TEMPLATE_START);
     expect(Object.keys(state.entries)).toHaveLength(0);
     expect(state.subjects.map((subject) => subject.name)).toEqual([...DEFAULT_STUDY_SUBJECTS]);
+  });
+});
+
+
+describe('Study Tracker strict date permissions and subject history', () => {
+  it('allows entry writes only for the local day supplied to the data layer', () => {
+    const now = fixedNow();
+    const initial = defaults();
+    expect(canEditStudyDate('2026-10-20', now)).toBe(true);
+    expect(canEditStudyDate('2026-10-19', now)).toBe(false);
+    expect(canEditStudyDate('2026-10-21', now)).toBe(false);
+
+    const savedToday = upsertStudyEntry(initial, {
+      date: '2026-10-20',
+      subjectId: 'builtin-math',
+      status: 'completed',
+      minutes: 30,
+      note: 'today',
+    }, now);
+    expect(savedToday).not.toBe(initial);
+
+    const attemptPast = upsertStudyEntry(savedToday, {
+      date: '2026-10-19',
+      subjectId: 'builtin-math',
+      status: 'completed',
+      minutes: 70,
+      note: 'must reject',
+    }, now);
+    const attemptFuture = upsertStudyEntry(savedToday, {
+      date: '2026-10-21',
+      subjectId: 'builtin-math',
+      status: 'completed',
+      minutes: 70,
+      note: 'must reject',
+    }, now);
+    expect(attemptPast).toBe(savedToday);
+    expect(attemptFuture).toBe(savedToday);
+    expect(getStudyEntry(savedToday, '2026-10-20', 'builtin-math')?.minutes).toBe(30);
+
+    const tomorrow = new Date(2026, 9, 21, 0, 1, 0);
+    const lateHistoricalEdit = upsertStudyEntry(savedToday, {
+      date: '2026-10-20',
+      subjectId: 'builtin-math',
+      status: 'in-progress',
+      minutes: 90,
+      note: 'after midnight',
+    }, tomorrow);
+    expect(lateHistoricalEdit).toBe(savedToday);
+  });
+
+  it('keeps rename, add, reorder, and archive effective-dated without rewriting history', () => {
+    const now = fixedNow();
+    const initial = defaults();
+    const yesterday = '2026-10-19';
+    const today = '2026-10-20';
+    const tomorrow = '2026-10-21';
+    const mathId = 'builtin-math';
+
+    const withYesterdayEntry = {
+      ...initial,
+      entries: {
+        [studyEntryKey(yesterday, mathId)]: {
+          date: yesterday,
+          subjectId: mathId,
+          status: 'completed' as const,
+          minutes: 25,
+          note: 'legacy history',
+          updatedAt: now.toISOString(),
+        },
+      },
+    };
+
+    const added = addStudySubject(withYesterdayEntry, 'English', now, 'custom-english');
+    expect(getActiveStudySubjectsForDate(added.state, yesterday).some((subject) => subject.id === 'custom-english')).toBe(false);
+    expect(getActiveStudySubjectsForDate(added.state, today).some((subject) => subject.id === 'custom-english')).toBe(true);
+    expect(getActiveStudySubjectsForDate(added.state, tomorrow).some((subject) => subject.id === 'custom-english')).toBe(true);
+
+    const renamed = renameStudySubject(added.state, mathId, 'Algebra', now);
+    expect(renamed.error).toBeUndefined();
+    expect(getStudySubjectsForDate(renamed.state, yesterday).find((subject) => subject.id === mathId)?.name).toBe('Math');
+    expect(getStudySubjectsForDate(renamed.state, today).find((subject) => subject.id === mathId)?.name).toBe('Algebra');
+    expect(getStudyEntry(renamed.state, yesterday, mathId)?.note).toBe('legacy history');
+
+    const originalOrder = getActiveStudySubjectsForDate(renamed.state, yesterday).map((subject) => subject.id);
+    const reordered = reorderStudySubject(renamed.state, mathId, 1, now);
+    expect(getActiveStudySubjectsForDate(reordered, yesterday).map((subject) => subject.id)).toEqual(originalOrder);
+    expect(getStudyEntry(reordered, yesterday, mathId)?.status).toBe('completed');
+
+    const archived = setStudySubjectArchived(reordered, mathId, true, now);
+    expect(getActiveStudySubjectsForDate(archived, yesterday).some((subject) => subject.id === mathId)).toBe(true);
+    expect(getActiveStudySubjectsForDate(archived, today).some((subject) => subject.id === mathId)).toBe(false);
+    expect(getStudyEntry(archived, yesterday, mathId)?.minutes).toBe(25);
+
+    const restored = setStudySubjectArchived(archived, mathId, false, now);
+    expect(getActiveStudySubjectsForDate(restored, today).some((subject) => subject.id === mathId)).toBe(true);
+    expect(getStudySubjectsForDate(restored, yesterday).find((subject) => subject.id === mathId)?.name).toBe('Math');
+    expect(getStudySubjectsForDate(restored, today).find((subject) => subject.id === mathId)?.name).toBe('Algebra');
+  });
+
+  it('rejects persistence-level attempts to inject a past entry around the mutation helper', () => {
+    const now = fixedNow();
+    localStorage.clear();
+    const todayState = upsertStudyEntry(defaults(), {
+      date: formatDateKey(now),
+      subjectId: 'builtin-math',
+      status: 'completed',
+      minutes: 25,
+      note: 'safe',
+    }, now);
+    expect(saveStudyTrackerState(todayState, localStorage, now)).toBe(true);
+
+    const past = '2026-10-19';
+    const bypassAttempt: StudyTrackerState = {
+      ...todayState,
+      entries: {
+        ...todayState.entries,
+        [studyEntryKey(past, 'builtin-math')]: {
+          date: past,
+          subjectId: 'builtin-math',
+          status: 'completed',
+          minutes: 99,
+          note: 'must not persist',
+          updatedAt: now.toISOString(),
+        },
+      },
+    };
+    expect(saveStudyTrackerState(bypassAttempt, localStorage, now)).toBe(false);
+    expect(getStudyEntry(loadStudyTrackerState(now, localStorage), past, 'builtin-math')).toBeUndefined();
+    expect(getStudyEntry(loadStudyTrackerState(now, localStorage), formatDateKey(now), 'builtin-math')?.minutes).toBe(25);
   });
 });
