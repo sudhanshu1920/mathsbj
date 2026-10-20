@@ -26,10 +26,13 @@ import {
   STUDY_TRACKER_TEMPLATE_END,
   STUDY_TRACKER_TEMPLATE_START,
   addStudySubject,
+  canEditStudyDate,
   cycleStudyMode,
   formatDateKey,
+  getActiveStudySubjectsForDate,
   getMonthDates,
   getStudyEntry,
+  getStudySubjectsForDate,
   getTableDates,
   getWeekDates,
   isDateKey,
@@ -79,6 +82,25 @@ const makeEntryDraft = (entry?: StudyEntry): EntryDraft => ({
 
 const sortSubjects = (subjects: StudySubject[]) =>
   [...subjects].sort((left, right) => left.order - right.order);
+
+type SubjectColumn = StudySubject & { columnKey: string };
+
+const subjectColumnKey = (subject: Pick<StudySubject, 'id' | 'name' | 'order'>) =>
+  `${subject.id}|${subject.name}|${subject.order}`;
+
+const collectSubjectColumns = (state: StudyTrackerState, dates: string[]): SubjectColumn[] => {
+  const columns: SubjectColumn[] = [];
+  const seen = new Set<string>();
+  for (const date of dates) {
+    for (const subject of getActiveStudySubjectsForDate(state, date)) {
+      const columnKey = subjectColumnKey(subject);
+      if (seen.has(columnKey)) continue;
+      seen.add(columnKey);
+      columns.push({ ...subject, columnKey });
+    }
+  }
+  return columns;
+};
 
 const entryIsActive = (entry: StudyEntry | undefined): boolean =>
   !!entry && (entry.status !== 'not-started' || entry.minutes > 0 || entry.note.trim().length > 0);
@@ -139,6 +161,7 @@ const OverlayFrame = ({
 
 const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   const [state, setState] = useState<StudyTrackerState>(() => loadStudyTrackerState());
+  const [todayKey, setTodayKey] = useState(() => formatDateKey(new Date()));
   const stateRef = useRef(state);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [showModeMenu, setShowModeMenu] = useState(false);
@@ -195,6 +218,29 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   }, [setOverlayState]);
 
   useEffect(() => {
+    let midnightTimer: number | null = null;
+    const refreshToday = () => {
+      if (midnightTimer !== null) window.clearTimeout(midnightTimer);
+      const now = new Date();
+      const nextToday = formatDateKey(now);
+      setTodayKey((current) => current === nextToday ? current : nextToday);
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+      midnightTimer = window.setTimeout(refreshToday, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshToday();
+    };
+    window.addEventListener('focus', refreshToday);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    refreshToday();
+    return () => {
+      if (midnightTimer !== null) window.clearTimeout(midnightTimer);
+      window.removeEventListener('focus', refreshToday);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const syncFromStorage = (event: StorageEvent) => {
       if (event.key !== null && event.key !== STUDY_TRACKER_STORAGE_KEY) return;
       const next = loadStudyTrackerState();
@@ -237,8 +283,8 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     setTemplateError('');
   }, [overlay, state.preferences.templateStartDate, state.preferences.templateEndDate]);
 
-  const activeSubjects = sortSubjects(state.subjects.filter((subject) => !subject.archived));
-  const archivedSubjects = sortSubjects(state.subjects.filter((subject) => subject.archived));
+  const activeSubjects = sortSubjects(getActiveStudySubjectsForDate(state, todayKey));
+  const archivedSubjects = sortSubjects(getStudySubjectsForDate(state, todayKey).filter((subject) => subject.archived));
   const mode = state.preferences.mode;
   const anchorDate = state.preferences.anchorDate;
 
@@ -323,6 +369,8 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   };
 
   const openEntry = (date: string, subject: StudySubject, fromDayDetails = false) => {
+    if (!canEditStudyDate(date) ||
+        !getActiveStudySubjectsForDate(stateRef.current, formatDateKey(new Date())).some((item) => item.id === subject.id)) return;
     setEntryDate(date);
     setEntrySubjectId(subject.id);
     setEntryDraft(makeEntryDraft(getStudyEntry(stateRef.current, date, subject.id)));
@@ -332,14 +380,20 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   };
 
   const saveEntry = () => {
+    const now = new Date();
+    if (!canEditStudyDate(entryDate, now)) {
+      setEntryError("Only today's entries can be changed. This date is now read-only.");
+      return;
+    }
     const rawMinutes = entryDraft.minutes.trim();
     if (rawMinutes && (!/^\d+$/.test(rawMinutes) || Number(rawMinutes) > 1440)) {
       setEntryError('Study minutes must be a whole number between 0 and 1440.');
       return;
     }
-    const subjectExists = stateRef.current.subjects.some((subject) => subject.id === entrySubjectId);
+    const subjectExists = getActiveStudySubjectsForDate(stateRef.current, formatDateKey(now))
+      .some((subject) => subject.id === entrySubjectId);
     if (!subjectExists || !isDateKey(entryDate) || !isStudyEntryStatus(entryDraft.status)) {
-      setEntryError('This entry is no longer valid. Close the editor and open it again.');
+      setEntryError('This subject is no longer available for today. Close the editor and open it again.');
       return;
     }
     const minutes = rawMinutes ? Number(rawMinutes) : 0;
@@ -351,7 +405,13 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       minutes,
       note,
     };
-    commit((previous) => upsertStudyEntry(previous, entry));
+    const previous = stateRef.current;
+    const next = upsertStudyEntry(previous, entry, now);
+    if (next === previous) {
+      setEntryError("This entry could not be saved. Only an active subject on today's date can be changed.");
+      return;
+    }
+    commit(() => next);
     setEntryError('');
     setOverlayState(returnToDayDetails ? 'day-detail' : null);
   };
@@ -417,7 +477,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   const getEntryStatus = (date: string, subjectId: string): StudyEntryStatus =>
     getStudyEntry(state, date, subjectId)?.status ?? 'not-started';
 
-  const dayEntries = (date: string) => activeSubjects.map((subject) => ({
+  const dayEntries = (date: string) => getActiveStudySubjectsForDate(state, date).map((subject) => ({
     subject,
     entry: getStudyEntry(state, date, subject.id),
   }));
@@ -425,15 +485,24 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   const tableDates = getTableDates(anchorDate);
   const weekDates = getWeekDates(anchorDate);
   const monthDates = getMonthDates(anchorDate);
+  const tableColumns = collectSubjectColumns(state, tableDates);
+  const weekColumns = collectSubjectColumns(state, weekDates);
   const monthDate = parseDateKey(anchorDate);
-  const entriesForPeriod = (mode === 'table' ? tableDates : mode === 'week' ? weekDates : monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate)))
-    .flatMap((date) => activeSubjects.map((subject) => getStudyEntry(state, date, subject.id)))
+  const datesForPeriod = mode === 'table'
+    ? tableDates
+    : mode === 'week'
+      ? weekDates
+      : monthDates.filter((date) => isSameMonth(parseDateKey(date), monthDate));
+  const entriesForPeriod = datesForPeriod
+    .flatMap((date) => getActiveStudySubjectsForDate(state, date).map((subject) => getStudyEntry(state, date, subject.id)))
     .filter((entry): entry is StudyEntry => !!entry);
+  const hasSubjectsInPeriod = datesForPeriod.some((date) => getActiveStudySubjectsForDate(state, date).length > 0);
   const periodCompleted = entriesForPeriod.filter((entry) => entry.status === 'completed').length;
   const periodDuration = entriesForPeriod.reduce((sum, entry) => sum + entry.minutes, 0);
 
   const dayCompletionCount = (date: string) =>
-    activeSubjects.filter((subject) => getEntryStatus(date, subject.id) === 'completed').length;
+    getActiveStudySubjectsForDate(state, date)
+      .filter((subject) => getEntryStatus(date, subject.id) === 'completed').length;
 
   const openDayDetails = (date: string) => {
     updateAnchorDate(date);
@@ -446,7 +515,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       'relative min-w-0 rounded-lg border p-1.5 text-center transition-colors sm:p-2',
       inMonth ? 'text-foreground' : 'text-muted-foreground/55',
       isSunday(parseDateKey(date)) ? 'bg-[hsl(var(--warning)/0.13)]' : 'bg-card/35',
-      isToday(parseDateKey(date)) ? 'border-primary ring-1 ring-primary/35' : 'border-border/75',
+      date === todayKey ? 'border-primary ring-1 ring-primary/35' : 'border-border/75',
       'hover:border-primary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
     ];
     return parts.join(' ');
@@ -537,7 +606,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
         </p>
       )}
 
-      {activeSubjects.length === 0 && (
+      {activeSubjects.length === 0 && !hasSubjectsInPeriod && (
         <div className="mt-3 rounded-xl border border-dashed border-border p-5 text-center">
           <p className="text-sm font-semibold text-foreground">No active subjects</p>
           <button type="button" onClick={() => setOverlayState('subjects')} className="mt-3 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"><Plus size={13} className="mr-1 inline" /> Manage subjects</button>
