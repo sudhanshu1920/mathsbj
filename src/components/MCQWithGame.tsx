@@ -202,6 +202,9 @@ const MCQWithGame = ({
     ) return;
 
     if (selectedOptionRef.current === mapping.laneIndex) return;
+    // Consume this approaching gate pass so a later physical crossing cannot
+    // overwrite an intentional touch selection from the same pass.
+    collisionPassConsumedRef.current = true;
     // Publish selection before invoking React state so a rapid next action
     // cannot read an old lane while the parent rerender is still pending.
     selectedOptionRef.current = mapping.laneIndex;
