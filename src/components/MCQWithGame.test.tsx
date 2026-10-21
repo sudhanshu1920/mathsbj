@@ -189,6 +189,67 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("does not convert a large pointer drag into an accidental lane tap", () => {
+    const raf = installAnimationFrameQueue();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, { pointerId: 5, button: 0, clientX: 80, clientY: 650 });
+      fireEvent.pointerMove(stage, { pointerId: 5, clientX: 115, clientY: 650 });
+      now = 50;
+      fireEvent.pointerUp(stage, { pointerId: 5, button: 0, clientX: 115, clientY: 650 });
+
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']"))
+        .toHaveTextContent("Lane 2, option B");
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("preserves an active hold when the question changes", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
+      act(() => vi.advanceTimersByTime(300));
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-2",
+        questionLabel: <p>18 + 9 = ?</p>,
+        options: [
+          { value: "29", label: "29" },
+          { value: "27", label: "27" },
+          { value: "31", label: "31" },
+          { value: "25", label: "25" },
+        ],
+        correctAnswer: "27",
+      })} />);
+
+      expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      now = 350;
+      fireEvent.pointerUp(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("does not steer when the initial pointer-down is on the question panel or an answer gate", () => {
     const raf = installAnimationFrameQueue();
     let now = 10;
