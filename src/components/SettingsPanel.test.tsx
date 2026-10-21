@@ -157,4 +157,17 @@ describe("SettingsPanel compact controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Light" }));
     expect(mocks.setMode).toHaveBeenCalledWith("light");
   });
+  
+  it("opens Backup & Restore and returns to Settings without disturbing existing controls", () => {
+    render(<SettingsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Backup & Restore" }));
+    expect(screen.getByRole("heading", { name: "Backup & Restore" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Backup" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore Backup" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to Settings" }));
+    expect(screen.getByText("Sound")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Backup & Restore" })).toBeInTheDocument();
+  });
 });

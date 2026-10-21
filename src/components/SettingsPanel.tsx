@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, ArchiveRestore, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, setKeyboardShortcuts, type AppSettings } from '@/lib/settings';
@@ -15,6 +15,7 @@ import {
   getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled,
 } from '@/lib/dailyTargetReminders';
+import BackupRestorePanel from '@/components/BackupRestorePanel';
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
 
@@ -25,6 +26,7 @@ const SettingsPanel = () => {
   const [settings, setSettingsState] = useState<AppSettings>(() => getSettings());
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
   const [backgroundNotificationsEnabled, setBackgroundNotificationsEnabledState] = useState(() => getBackgroundNotificationsEnabled());
+  const [backupRestoreOpen, setBackupRestoreOpen] = useState(false);
   const [notificationToggleBusy, setNotificationToggleBusy] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
@@ -144,6 +146,8 @@ const SettingsPanel = () => {
 
   const isBusy = updateState === 'checking' || updateState === 'updating';
 
+  if (backupRestoreOpen) return <BackupRestorePanel onBack={() => setBackupRestoreOpen(false)} />;
+
   return (
     <div className="space-y-4 min-w-0">
       {/* Profile */}
@@ -178,7 +182,7 @@ const SettingsPanel = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">Guest</p>
-            <p className="text-xs text-muted-foreground truncate">Local only — sign in to back up</p>
+            <p className="text-xs text-muted-foreground truncate">Local only — backups stay on this device</p>
           </div>
           <motion.button
             whileTap={{ scale: MOTION.scale.press }}
@@ -340,6 +344,20 @@ const SettingsPanel = () => {
           })}
         </div>
       </div>
+
+      <motion.button
+        type="button"
+        whileTap={{ scale: MOTION.scale.press }}
+        onClick={() => setBackupRestoreOpen(true)}
+        aria-label="Backup & Restore"
+        className="w-full flex items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3 glass transition-colors hover:border-primary/40"
+      >
+        <span className="flex min-w-0 items-center gap-2.5 text-sm font-medium text-foreground">
+          <ArchiveRestore size={16} className="shrink-0 text-muted-foreground" />
+          <span>Backup &amp; Restore</span>
+        </span>
+        <ChevronRight size={17} className="shrink-0 text-muted-foreground" />
+      </motion.button>
 
       {/* Update */}
       <motion.button

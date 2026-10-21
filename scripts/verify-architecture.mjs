@@ -920,4 +920,19 @@ if (!practice.includes('operand1DigitCounts?: number[]') ||
   fail('Quiz +/- must keep compact multi-select controls, independent digit ranges, fair question coverage, and regression tests');
 }
 
+
+const backupService = read('src/lib/backupRestore.ts');
+const backupPanel = read('src/components/BackupRestorePanel.tsx');
+const backupNative = read('android-native/com/sudhanshu/mathsbj/BackupRestorePlugin.java');
+const backupSetup = read('scripts/configure-android-notifications.mjs');
+if (!backupService.includes('BACKUP_FORMAT_VERSION = 1') ||
+    !backupService.includes('Backup integrity check failed') ||
+    !backupService.includes('Could not verify restored record') ||
+    !backupPanel.includes('Restore & Replace') ||
+    !backupNative.includes('Intent.ACTION_CREATE_DOCUMENT') ||
+    !backupNative.includes('Intent.ACTION_OPEN_DOCUMENT') ||
+    !backupSetup.includes("'BackupRestorePlugin.java'") ||
+    !backupSetup.includes('registerPlugin(BackupRestorePlugin.class);')) {
+  fail('Backup & Restore must retain format/checksum validation, read-back verification, confirmation and Android SAF wiring');
+}
 console.log('Architecture regression checks passed.');

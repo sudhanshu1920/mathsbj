@@ -58,6 +58,7 @@ test('configures local notification permissions, plugin and reboot/time-change r
   const manifest = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
   const activity = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java'), 'utf8');
   const plugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java'), 'utf8');
+  const backupPlugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/BackupRestorePlugin.java'), 'utf8');
   assert.deepEqual(result, { firebaseEnabled: false, projectId: null });
   assert.match(manifest, /android\.permission\.POST_NOTIFICATIONS/);
   assert.match(manifest, /android\.permission\.RECEIVE_BOOT_COMPLETED/);
@@ -67,6 +68,13 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(activity, /void onNewIntent\(Intent intent\)/);
   assert.match(plugin, /syncDailyTarget/);
   assert.match(plugin, /requestPermission/);
+  assert.ok(activity.includes('registerPlugin(BackupRestorePlugin.class);'));
+  assert.ok(backupPlugin.includes('@CapacitorPlugin(name = "MathMasterBackup")'));
+  assert.ok(backupPlugin.includes('Intent.ACTION_CREATE_DOCUMENT'));
+  assert.ok(backupPlugin.includes('Intent.ACTION_OPEN_DOCUMENT'));
+  assert.ok(backupPlugin.includes('MAX_BACKUP_BYTES = 64 * 1024 * 1024'));
+  assert.ok(backupPlugin.includes('restoreWidgetPreferences'));
+  assert.doesNotMatch(manifest, /WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE/);
   assert.doesNotMatch(plugin, /syncHomeWidget|setHomeWidgetPreferences|syncHomeWidgetUpdateStatus/);
   assert.doesNotMatch(manifest, /MathMasterHomeWidgetProvider|MathMasterWidgetConfigActivity|appwidget/);
   await assert.rejects(
