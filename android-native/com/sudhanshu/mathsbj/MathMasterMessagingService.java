@@ -85,12 +85,10 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
             return;
         }
 
-        String title = data.get("title");
-        String body = data.get("body");
-        if (title == null || title.trim().isEmpty()) title = "🎉 New Math App Update Available!";
-        if (body == null || body.trim().isEmpty()) {
-            body = "Version " + versionName + " is now available. Tap to view update details.";
-        }
+        // Build the notification title from validated version metadata only. Ignore
+        // remote copy so release notes or stale payload fields cannot add extra text.
+        String title = "New Version " + versionName + " Available";
+        String body = "";
         showUpdateNotification(title, body, data);
     }
 
@@ -139,16 +137,19 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
         Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             ? new Notification.Builder(this, CHANNEL_ID)
             : new Notification.Builder(this);
-        Notification notification = builder
+        builder
             .setSmallIcon(getApplicationInfo().icon)
             .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(new Notification.BigTextStyle().bigText(body))
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
-            .setWhen(System.currentTimeMillis())
-            .build();
+            .setWhen(System.currentTimeMillis());
+        // Avoid an empty content line/expanded text when there is no notification body.
+        if (body != null && !body.trim().isEmpty()) {
+            builder.setContentText(body);
+            builder.setStyle(new Notification.BigTextStyle().bigText(body));
+        }
+        Notification notification = builder.build();
         manager.notify("mathmaster-update", NOTIFICATION_ID, notification);
         android.util.Log.i("MathAppNotifications",
             "Update notification posted to NotificationManager; actual device presentation is not observable here.");

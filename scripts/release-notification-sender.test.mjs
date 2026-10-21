@@ -32,12 +32,13 @@ test('deduplicates the same release and any already-notified version', () => {
   assert.equal(shouldSendNotification({ versionCode: 103, sourceCommit: 'b'.repeat(40) }, release, 'a'.repeat(40)), true);
 });
 
-test('creates a topic notification with dynamic version metadata, trusted URL and stable Android replacement tag', () => {
+test('creates a title-only version update notification with trusted metadata and stable Android replacement tag', () => {
   const release = validateReleaseManifest(manifest);
   const payload = createFcmMessage(release).message;
   assert.equal(payload.topic, 'math_app_updates');
-  assert.match(payload.data.title, /New Math App Update Available/);
-  assert.match(payload.data.body, /1\.0\.4/);
+  assert.equal(payload.data.title, 'New Version 1.0.4 Available');
+  // Invisible compatibility character avoids verbose body fallback in already-installed older APKs.
+  assert.equal(payload.data.body, '\u200B');
   assert.equal(payload.notification, undefined);
   assert.equal(payload.android.notification, undefined);
   assert.equal(payload.android.collapse_key, 'mathmaster-update');
