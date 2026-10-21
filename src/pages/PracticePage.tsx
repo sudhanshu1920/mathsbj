@@ -2064,7 +2064,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             correctScore={score.correct}
             wrongScore={score.wrong}
             durationMs={config.timerMode === 'perQuestion'
-              ? Math.max(1800, Math.min(4200, config.timerSeconds * 480))
+              // Let the configured deadline govern the game: the answer gate
+              // reaches the car just before timeout, leaving a small scheduling margin.
+              ? Math.max(1200, config.timerSeconds * 1000 - 300)
               : config.timerMode === 'challenge' ? 4800 : 5200}
             disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
             onCollision={(laneIndex) => {
