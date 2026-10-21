@@ -48,13 +48,10 @@ interface MCQWithGameProps {
 
 const LANE_LABELS = ["A", "B", "C", "D"] as const;
 const DEFAULT_PASS_DURATION_MS = 5200;
-const STEERING_TAP_MAX_MOVEMENT_PX = 28;
 
 interface SteeringPress {
   pointerId: number;
   direction: -1 | 1;
-  startX: number;
-  startY: number;
   startedAt: number;
   boostTriggered: boolean;
 }
@@ -193,7 +190,6 @@ const MCQWithGame = ({
         disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
     const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
     const startX = Number.isFinite(event.clientX) ? event.clientX : 0;
-    const startY = Number.isFinite(event.clientY) ? event.clientY : 0;
     if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option")) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
@@ -202,8 +198,6 @@ const MCQWithGame = ({
     touchGestureRef.current = {
       pointerId,
       direction,
-      startX,
-      startY,
       startedAt: performance.now(),
       boostTriggered: false,
     };
@@ -236,17 +230,16 @@ const MCQWithGame = ({
     clearHoldTimer();
     touchGestureRef.current = null;
     const duration = Math.max(0, performance.now() - press.startedAt);
-    const endX = Number.isFinite(event.clientX) ? event.clientX : press.startX;
-    const endY = Number.isFinite(event.clientY) ? event.clientY : press.startY;
-    const movement = Math.hypot(endX - press.startX, endY - press.startY);
     const result = classifySteeringGesture(duration, press.direction);
 
     if (press.boostTriggered || result.kind === "boost") {
       endBoost();
       return;
     }
+    // Side and direction are fixed on pointer-down; release coordinates are
+    // deliberately irrelevant so small touch jitter never drops a short tap.
     endBoost();
-    if (movement <= STEERING_TAP_MAX_MOVEMENT_PX) changeLane(result.direction);
+    changeLane(result.direction);
   };
 
   const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
