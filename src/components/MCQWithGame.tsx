@@ -189,7 +189,8 @@ const MCQWithGame = ({
   }, []);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
+    if ((typeof event.button === "number" && event.button !== 0) ||
+        disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
     if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option")) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
