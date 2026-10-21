@@ -401,7 +401,19 @@ export function replaceBackupStorageSnapshot(
 }
 
 export function refreshAppAfterRestore(): void {
+  // Invalidate module caches before publishing refresh events to subscribers.
+  for (const key of [
+    'math-app-study-tracker-v1', 'math-app-settings-v1', 'math-app-streak-v1',
+    'math-app-theme-v5', 'math-app-mode-v1', 'tables-pro-mode',
+  ]) window.dispatchEvent(new StorageEvent('storage', { key }));
+
+  document.documentElement.classList.toggle('desktop-mode', localStorage.getItem('desktop-mode') === '1');
+  const storedScale = Number(localStorage.getItem('font-scale') ?? '1');
+  const fontScale = Number.isFinite(storedScale) ? Math.min(1.5, Math.max(0.8, storedScale)) : 1;
+  document.documentElement.style.setProperty('--font-scale', String(fontScale));
+
   window.dispatchEvent(new CustomEvent('backup-restore-complete'));
+  window.dispatchEvent(new CustomEvent('tables-pro-updated'));
   window.dispatchEvent(new CustomEvent('settings-updated'));
   window.dispatchEvent(new CustomEvent('streak-persisted'));
   window.dispatchEvent(new CustomEvent('streak-updated'));
@@ -409,11 +421,4 @@ export function refreshAppAfterRestore(): void {
   window.dispatchEvent(new CustomEvent('xp-updated'));
   window.dispatchEvent(new CustomEvent('background-notifications-updated'));
   window.dispatchEvent(new CustomEvent('study-tracker-updated'));
-  for (const key of ['math-app-study-tracker-v1','math-app-settings-v1','math-app-streak-v1','math-app-theme-v5','math-app-mode-v1','tables-pro-mode']) {
-    window.dispatchEvent(new StorageEvent('storage', { key }));
-  }
-  document.documentElement.classList.toggle('desktop-mode', localStorage.getItem('desktop-mode') === '1');
-  const storedScale = Number(localStorage.getItem('font-scale') ?? '1');
-  const fontScale = Number.isFinite(storedScale) ? Math.min(1.5, Math.max(0.8, storedScale)) : 1;
-  document.documentElement.style.setProperty('--font-scale', String(fontScale));
 }

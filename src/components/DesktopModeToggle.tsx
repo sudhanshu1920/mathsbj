@@ -35,6 +35,20 @@ const DesktopModeToggle = (_props: DesktopModeToggleProps) => {
     const s = parseFloat(localStorage.getItem(SCALE_KEY) || '1');
     return Number.isFinite(s) ? clamp(s) : 1;
   });
+  useEffect(() => {
+    const syncRestoredPreferences = () => {
+      try {
+        setDesktop(localStorage.getItem(MODE_KEY) === '1');
+        const stored = parseFloat(localStorage.getItem(SCALE_KEY) || '1');
+        setScale(Number.isFinite(stored) ? clamp(stored) : 1);
+      } catch {
+        // Keep the current controls operable if browser storage is unavailable.
+      }
+    };
+    window.addEventListener('backup-restore-complete', syncRestoredPreferences);
+    return () => window.removeEventListener('backup-restore-complete', syncRestoredPreferences);
+  }, []);
+
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const btnRef = useRef<HTMLButtonElement | null>(null);

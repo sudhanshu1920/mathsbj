@@ -8,6 +8,13 @@ import {
   validateBackupText,
 } from './backupRestore';
 
+type EditableEnvelope = {
+  backupFormatVersion: number;
+  dataSchemaVersion: number;
+  payload: { storage: Record<string, string> };
+  [key: string]: unknown;
+};
+
 const widgetPreferences = {
   version: 1,
   global: { enabled: true, composition: 'auto' },
@@ -101,7 +108,7 @@ describe('portable Math Master backup', () => {
       storageEntries: { 'math-app-settings-v1': JSON.stringify({ sound: true }) },
       createdAt: new Date('2026-10-21T08:30:00.000Z'),
     });
-    const corrupt = JSON.parse(source) as Record<string, any>;
+    const corrupt = JSON.parse(source) as EditableEnvelope;
     corrupt.payload.storage['math-app-settings-v1'] = JSON.stringify({ sound: false });
     await expect(validateBackupText(JSON.stringify(corrupt))).rejects.toThrow(/integrity/i);
 
