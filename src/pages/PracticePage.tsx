@@ -2071,11 +2071,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               ? Math.max(1200, config.timerSeconds * 1000 - 300)
               : config.timerMode === 'challenge' ? 4800 : 5200}
             disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
-            onCollision={(laneIndex) => {
+            onCollision={(laneIndex, optionValue) => {
               const option = gameOptions[laneIndex];
-              if (!option || feedback || answerLockRef.current || finishLockRef.current) return;
+              if (
+                !option ||
+                String(option.value) !== String(optionValue) ||
+                feedback ||
+                answerLockRef.current ||
+                finishLockRef.current
+              ) return;
               setSelectedOption(laneIndex);
-              handleAnswer(option.value);
+              handleAnswer(optionValue);
             }}
           />
         )}

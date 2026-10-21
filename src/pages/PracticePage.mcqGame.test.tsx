@@ -5,7 +5,7 @@ import PracticePage from "@/pages/PracticePage";
 afterEach(cleanup);
 
 describe("Quiz Arena MCQ with Game mode", () => {
-  it("offers the third answer mode and opens the real quiz question on four answer lanes", () => {
+  it("offers the third answer mode and opens four live answers on the game screen", () => {
     const originalRequest = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
     const originalCancel = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
     Object.defineProperty(window, "requestAnimationFrame", {
@@ -30,7 +30,9 @@ describe("Quiz Arena MCQ with Game mode", () => {
       fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
 
       expect(screen.getByRole("group", { name: /Four answer lanes/ })).toBeInTheDocument();
-      expect(view.container.querySelectorAll(".mcq-game-gate")).toHaveLength(4);
+      expect(
+        view.container.querySelectorAll(".mcq-game-fallback-option, .mcq-game-gate-label"),
+      ).toHaveLength(4);
       expect(screen.getByTestId("quiz-overall-progress")).toBeInTheDocument();
     } finally {
       view.unmount();
