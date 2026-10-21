@@ -376,8 +376,11 @@ export async function validateBackupText(text: string): Promise<BackupEnvelope> 
 export function replaceBackupStorageSnapshot(
   nextSnapshot: Record<string, string>,
   storage: Storage = localStorage,
+  trustedRollbackSnapshot = false,
 ): Record<string, string> {
-  const next = validateStoragePayload(nextSnapshot);
+  // Rollback data comes from this installation. Keep key/size limits while
+  // bypassing record validation so corrupt legacy data can still be recovered.
+  const next = validateStoragePayload(nextSnapshot, !trustedRollbackSnapshot);
   const previous = captureBackupStorageSnapshot(storage);
   const apply = (snapshot: Record<string, string>) => {
     const currentManagedKeys: string[] = [];
