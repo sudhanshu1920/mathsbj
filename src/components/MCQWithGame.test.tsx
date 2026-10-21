@@ -198,6 +198,51 @@ describe("MCQ with Game gesture controls and continuous 3D scene", () => {
     }
   });
 
+  it("detects the real gate collision while the right-side hold is boosting speed", () => {
+    vi.useFakeTimers();
+    const raf = installAnimationFrameQueue();
+    const onCollision = vi.fn();
+    const mappings = createMCQGateMappings("q-boost-collision", options.map((option) => option.value));
+    const view = render(
+      <MCQWithGame
+        questionKey="q-boost-collision"
+        questionContent="Boost collision"
+        options={options}
+        correctAnswer="28"
+        feedback={null}
+        selectedOption={null}
+        correctScore={0}
+        wrongScore={0}
+        durationMs={5200}
+        onCollision={onCollision}
+      />,
+    );
+
+    try {
+      const stage = screen.getByRole("group", { name: /tap the left or right side to steer/i });
+      fireEvent.pointerDown(stage, { pointerId: 9, clientX: 900, clientY: 200 });
+      act(() => {
+        vi.advanceTimersByTime(180);
+      });
+
+      expect(screen.getByLabelText("Speed boost active")).toBeInTheDocument();
+      expect(stage).toHaveAttribute("data-lane-index", "1");
+
+      for (let timestamp = 0; timestamp <= 5_000; timestamp += 50) {
+        raf.advance(timestamp);
+      }
+
+      expect(onCollision).toHaveBeenCalledTimes(1);
+      expect(onCollision).toHaveBeenCalledWith(1, "28", mappings[1].gateId);
+      fireEvent.pointerUp(stage, { pointerId: 9, clientX: 900, clientY: 200 });
+      expect(onCollision).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      raf.restore();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the same WebGL scene when the quiz engine advances to the next question", () => {
     const onCollision = vi.fn();
     const props = {
