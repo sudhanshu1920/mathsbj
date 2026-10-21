@@ -46,10 +46,10 @@ interface MCQWithGameProps {
   progressLabel?: string;
   timerLabel?: string;
   disabled?: boolean;
-  onCollision: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => void;
+  onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => void;
+  onSubmitAnswer: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => void;
 }
 
-const LANE_LABELS = ["A", "B", "C", "D"] as const;
 const DEFAULT_PASS_DURATION_MS = 5200;
 
 interface SteeringPress {
@@ -75,7 +75,8 @@ const MCQWithGame = ({
   progressLabel,
   timerLabel,
   disabled = false,
-  onCollision,
+  onSelectOption,
+  onSubmitAnswer,
 }: MCQWithGameProps) => {
   const [lane, setLane] = useState(1);
   const [phase, setPhase] = useState<GamePhase>("INITIALIZING");
@@ -100,7 +101,8 @@ const MCQWithGame = ({
   const feedbackRef = useRef(feedback);
   const selectedOptionRef = useRef(selectedOption);
   const correctLaneRef = useRef(-1);
-  const onCollisionRef = useRef(onCollision);
+  const onSelectOptionRef = useRef(onSelectOption);
+  const onSubmitAnswerRef = useRef(onSubmitAnswer);
   const activeQuestionKeyRef = useRef(String(questionKey));
   const boostingRef = useRef(false);
   const speedMultiplierRef = useRef(MCQ_GAME_BASE_SPEED_MULTIPLIER);
@@ -108,6 +110,8 @@ const MCQWithGame = ({
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const passElapsedMsRef = useRef(0);
+  const collisionPassConsumedRef = useRef(false);
+  const questionPanelBottomRef = useRef(0);
   const previousGateZRef = useRef(MCQ_GAME_GATE_START_Z);
   const gateZRef = useRef(MCQ_GAME_GATE_START_Z);
   const scrollOffsetRef = useRef(0);
@@ -126,7 +130,8 @@ const MCQWithGame = ({
     progressLabel,
     timerLabel,
     disabled,
-    onCollision,
+    onSelectOption,
+    onSubmitAnswer,
   });
   latestPropsRef.current = {
     questionKey: String(questionKey),
@@ -141,7 +146,8 @@ const MCQWithGame = ({
     progressLabel,
     timerLabel,
     disabled,
-    onCollision,
+    onSelectOption,
+    onSubmitAnswer,
   };
 
   const nextMappings = createMCQGateMappings(questionKey, options.map((option) => option.value));
@@ -159,7 +165,8 @@ const MCQWithGame = ({
   feedbackRef.current = feedback;
   selectedOptionRef.current = selectedOption;
   correctLaneRef.current = options.findIndex((option) => String(option.value) === String(correctAnswer));
-  onCollisionRef.current = onCollision;
+  onSelectOptionRef.current = onSelectOption;
+  onSubmitAnswerRef.current = onSubmitAnswer;
 
   const clearHoldTimer = useCallback(() => {
     if (holdTimerRef.current !== null) {
@@ -182,13 +189,47 @@ const MCQWithGame = ({
     setLane(nextLane);
   }, []);
 
-  const submitLaneAnswer = useCallback((mappingIndex: number) => {
+  const selectLaneAnswer = useCallback((mappingIndex: number) => {
     const mapping = gateMappingsRef.current[mappingIndex];
-    if (!mapping || disabledRef.current || submittedRef.current || feedbackRef.current) return;
+    const phaseAllowsSelection = phaseRef.current === "RUNNING" || phaseRef.current === "ERROR";
+    if (
+      !mapping ||
+      mapping.questionId !== activeQuestionKeyRef.current ||
+      !phaseAllowsSelection ||
+      disabledRef.current ||
+      submittedRef.current ||
+      feedbackRef.current
+    ) return;
+
+    if (selectedOptionRef.current === mapping.laneIndex) return;
+    // Consume this approaching gate pass so a later physical crossing cannot
+    // overwrite an intentional touch selection from the same pass.
+    collisionPassConsumedRef.current = true;
+    // Publish selection before invoking React state so a rapid next action
+    // cannot read an old lane while the parent rerender is still pending.
+    selectedOptionRef.current = mapping.laneIndex;
+    onSelectOptionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
+  }, []);
+
+  const submitLaneAnswer = useCallback(() => {
+    const selectedIndex = selectedOptionRef.current;
+    const mapping = selectedIndex === null ? undefined : gateMappingsRef.current[selectedIndex];
+    const phaseAllowsSubmission = phaseRef.current === "RUNNING" || phaseRef.current === "ERROR";
+    if (
+      !mapping ||
+      !Number.isInteger(selectedIndex) ||
+      mapping.questionId !== activeQuestionKeyRef.current ||
+      !phaseAllowsSubmission ||
+      disabledRef.current ||
+      submittedRef.current ||
+      feedbackRef.current
+    ) return;
+
+    // Lock synchronously before entering the heavier existing Quiz Engine path.
     submittedRef.current = true;
     phaseRef.current = "ANSWERING";
     setPhase("ANSWERING");
-    onCollisionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
+    onSubmitAnswerRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
   }, []);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -316,6 +357,27 @@ const MCQWithGame = ({
   }, [clearHoldTimer]);
 
   useEffect(() => {
+    const panel = questionPanelRef.current;
+    if (!panel) return;
+
+    const measurePanel = () => {
+      questionPanelBottomRef.current = panel.getBoundingClientRect().bottom + 8;
+    };
+    measurePanel();
+
+    let observer: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(measurePanel);
+      observer.observe(panel);
+    }
+    window.addEventListener("resize", measurePanel);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measurePanel);
+    };
+  }, [questionKey]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -352,18 +414,28 @@ const MCQWithGame = ({
         gateFeedback,
       });
 
-      const panel = questionPanelRef.current;
-      const panelBottom = panel ? panel.offsetTop + panel.offsetHeight + 8 : 0;
+      const panelBottom = questionPanelBottomRef.current;
       projections.forEach((projection, index) => {
         const element = gateLabelRefs.current[index];
         if (!element) return;
         const belowHud = projection.y - projection.height / 2 > panelBottom;
-        element.style.display = projection.visible && belowHud ? "flex" : "none";
-        element.style.left = String(projection.x) + "px";
-        element.style.top = String(projection.y) + "px";
-        element.style.width = String(projection.width) + "px";
-        element.style.height = String(projection.height) + "px";
-        element.style.fontSize = String(projection.fontSize) + "px";
+        const display = projection.visible && belowHud ? "flex" : "none";
+        if (element.style.display !== display) element.style.display = display;
+
+        const updatePx = (
+          property: "left" | "top" | "width" | "height" | "fontSize",
+          value: number,
+        ) => {
+          const previous = Number.parseFloat(element.style[property]);
+          if (!Number.isFinite(previous) || Math.abs(previous - value) > 0.25) {
+            element.style[property] = String(value) + "px";
+          }
+        };
+        updatePx("left", projection.x);
+        updatePx("top", projection.y);
+        updatePx("width", projection.width);
+        updatePx("height", projection.height);
+        updatePx("fontSize", projection.fontSize);
       });
     };
     drawCurrentFrameRef.current = renderFrame;
@@ -411,7 +483,8 @@ const MCQWithGame = ({
         phaseRef.current === "RUNNING" &&
         !disabledRef.current &&
         !feedbackRef.current &&
-        !submittedRef.current
+        !submittedRef.current &&
+        !collisionPassConsumedRef.current
       ) {
         for (const mapping of gateMappingsRef.current) {
           if (mapping.questionId !== activeQuestionKeyRef.current) continue;
@@ -437,7 +510,7 @@ const MCQWithGame = ({
         (scrollOffsetRef.current + advancedMs * MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS) % 8;
       gateZRef.current = nextGateZ;
 
-      if (collisionIndex >= 0 && !submittedRef.current) {
+      if (collisionIndex >= 0 && !submittedRef.current && !collisionPassConsumedRef.current) {
         const mapping = gateMappingsRef.current[collisionIndex];
         if (
           mapping &&
@@ -445,16 +518,18 @@ const MCQWithGame = ({
           !disabledRef.current &&
           !feedbackRef.current
         ) {
-          submittedRef.current = true;
-          phaseRef.current = "ANSWERING";
-          setPhase("ANSWERING");
-          renderFrame();
-          onCollisionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
+          // Gate contact only selects. Quiz scoring/persistence runs on Submit.
+          collisionPassConsumedRef.current = true;
+          if (selectedOptionRef.current !== mapping.laneIndex) {
+            selectedOptionRef.current = mapping.laneIndex;
+            onSelectOptionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
+          }
         }
       }
 
       if (nextGateZ >= MCQ_GAME_COLLISION_Z + 0.8) {
         passElapsedMsRef.current = 0;
+        collisionPassConsumedRef.current = false;
         previousGateZRef.current = MCQ_GAME_GATE_START_Z;
         gateZRef.current = MCQ_GAME_GATE_START_Z;
       } else {
@@ -536,6 +611,8 @@ const MCQWithGame = ({
     activeQuestionKeyRef.current = nextKey;
 
     submittedRef.current = false;
+    selectedOptionRef.current = latestPropsRef.current.selectedOption;
+    collisionPassConsumedRef.current = false;
     passElapsedMsRef.current = 0;
     previousGateZRef.current = MCQ_GAME_GATE_START_Z;
     gateZRef.current = MCQ_GAME_GATE_START_Z;
@@ -562,7 +639,7 @@ const MCQWithGame = ({
   }, [feedback]);
 
   const correctLane = options.findIndex((option) => String(option.value) === String(correctAnswer));
-  const laneAnnouncement = "Lane " + String(lane + 1) + ", option " + LANE_LABELS[lane];
+  const laneAnnouncement = "Lane " + String(lane + 1);
   const phaseStatus = phase === "PAUSED"
     ? "Paused"
     : phase === "ANSWERING"
@@ -571,9 +648,11 @@ const MCQWithGame = ({
         ? "Correct"
         : feedback === "wrong"
           ? selectedOption === null ? "Time's up" : "Wrong answer"
-          : boosting
-            ? "Speed boost active"
-            : "Racing";
+          : selectedOption !== null
+            ? "Answer selected"
+            : boosting
+              ? "Speed boost active"
+              : "Racing";
 
   return (
     <section className="mcq-game-shell" aria-label="Full-screen 3D car racing quiz" data-testid="mcq-game-fullscreen">
@@ -613,16 +692,18 @@ const MCQWithGame = ({
                   key={mapping.gateId}
                   className={[
                     "mcq-game-fallback-option",
+                    selectedOption === index && !feedback ? "is-selected" : "",
                     feedback && selectedOption === index ? feedback === "correct" ? "is-correct" : "is-wrong" : "",
                     feedback && correctLane === index ? "is-answer" : "",
                   ].filter(Boolean).join(" ")}
-                  aria-label={"Lane " + String(index + 1) + ", answer " + String(mapping.optionValue)}
+                  aria-label={"Answer " + String(mapping.optionValue)}
+                  data-option-id={mapping.optionId}
+                  data-lane-id={mapping.laneId}
                   disabled={disabled || submittedRef.current || !!feedback}
                   onPointerDown={(event) => event.stopPropagation()}
                   onPointerUp={(event) => event.stopPropagation()}
-                  onClick={() => submitLaneAnswer(index)}
+                  onClick={() => selectLaneAnswer(index)}
                 >
-                  <span className="mcq-game-gate-letter">{LANE_LABELS[index]}</span>
                   <span className="mcq-game-gate-answer">{options[index]?.label ?? String(mapping.optionValue)}</span>
                 </button>
               ))}
@@ -637,10 +718,11 @@ const MCQWithGame = ({
             />
             <div className="mcq-game-gate-overlay" role="list" aria-label="Four answer gates">
               {gateMappings.map((mapping, index) => {
-                const isSelected = feedback !== null && selectedOption === index;
+                const isSelected = selectedOption === index;
                 const isCorrect = feedback !== null && correctLane === index;
                 const className = [
                   "mcq-game-gate-label",
+                  isSelected && !feedback ? "mcq-game-gate--selected" : "",
                   isSelected && feedback === "correct" ? "mcq-game-gate--correct" : "",
                   isCorrect ? "mcq-game-gate--correct" : "",
                   isSelected && feedback === "wrong" ? "mcq-game-gate--wrong" : "",
@@ -654,12 +736,12 @@ const MCQWithGame = ({
                     data-gate-id={mapping.gateId}
                     data-option-id={mapping.optionId}
                     data-lane-id={mapping.laneId}
-                    aria-label={"Lane " + String(index + 1) + ", answer " + String(mapping.optionValue)}
+                    aria-label={"Answer " + String(mapping.optionValue)}
                     onPointerDown={(event) => event.stopPropagation()}
                     onPointerUp={(event) => event.stopPropagation()}
                     onPointerCancel={(event) => event.stopPropagation()}
+                    onClick={() => selectLaneAnswer(index)}
                   >
-                    <span className="mcq-game-gate-letter">{LANE_LABELS[index]}</span>
                     <span className="mcq-game-gate-answer">{options[index]?.label ?? String(mapping.optionValue)}</span>
                   </div>
                 );
@@ -704,10 +786,10 @@ const MCQWithGame = ({
           <button
             type="button"
             className="mcq-game-submit"
-            aria-label={"Submit selected answer, option " + LANE_LABELS[lane]}
+            aria-label="Submit selected answer"
             data-testid="mcq-game-submit"
-            disabled={disabled || phase !== "RUNNING" || submittedRef.current || !!feedback}
-            onClick={() => submitLaneAnswer(laneRef.current)}
+            disabled={disabled || (phase !== "RUNNING" && phase !== "ERROR") || selectedOption === null || submittedRef.current || !!feedback}
+            onClick={() => submitLaneAnswer()}
           >
             <Send size={19} fill="currentColor" strokeWidth={1.8} aria-hidden="true" />
             <span>Submit</span>

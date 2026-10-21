@@ -2082,7 +2082,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               ? Math.max(350, config.timerSeconds * 1000 - 300)
               : config.timerMode === 'challenge' ? 4800 : 5200}
             disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
-            onCollision={(laneIndex, optionValue, gateId) => {
+            onSelectOption={(laneIndex, optionValue, gateId) => {
               const option = gameOptions[laneIndex];
               const gate = gameGateMappings[laneIndex];
               if (
@@ -2096,7 +2096,25 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 answerLockRef.current ||
                 finishLockRef.current
               ) return;
+              // Selection does not score or advance the quiz.
               setSelectedOption(gate.laneIndex);
+            }}
+            onSubmitAnswer={(laneIndex, optionValue, gateId) => {
+              const option = gameOptions[laneIndex];
+              const gate = gameGateMappings[laneIndex];
+              if (
+                !option ||
+                !gate ||
+                gate.gateId !== gateId ||
+                gate.questionId !== gameQuestionKey ||
+                gate.laneIndex !== selectedOption ||
+                selectedOption === null ||
+                String(gate.optionValue) !== String(option.value) ||
+                String(option.value) !== String(optionValue) ||
+                feedback ||
+                answerLockRef.current ||
+                finishLockRef.current
+              ) return;
               handleAnswer(gate.optionValue);
             }}
           />
