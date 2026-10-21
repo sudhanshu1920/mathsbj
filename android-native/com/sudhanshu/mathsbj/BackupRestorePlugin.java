@@ -120,9 +120,8 @@ public class BackupRestorePlugin extends Plugin {
             }
             output.flush();
         } catch (Exception error) {
-            try { getContext().getContentResolver().delete(uri, null, null); } catch (Exception ignored) { }
             Log.w(TAG, "Unable to finish writing the selected backup document.", error);
-            call.reject("Unable to save the backup. Check the selected destination and available storage.", error);
+            call.reject("Backup save failed. Do not use any partial file left at the destination; retry with another file name or location.", error);
             return;
         }
 
@@ -130,13 +129,11 @@ public class BackupRestorePlugin extends Plugin {
             byte[] expected = MessageDigest.getInstance("SHA-256").digest(bytes);
             byte[] actual = digestDocument(uri);
             if (!MessageDigest.isEqual(expected, actual)) {
-                getContext().getContentResolver().delete(uri, null, null);
                 throw new IllegalStateException("Written backup did not pass read-back verification.");
             }
         } catch (Exception error) {
-            try { getContext().getContentResolver().delete(uri, null, null); } catch (Exception ignored) { }
             Log.w(TAG, "Backup write verification failed.", error);
-            call.reject("The backup was written but could not be verified. It was not reported as successful.", error);
+            call.reject("Backup read-back verification failed. Do not use this file; retry with a new file name and destination.", error);
             return;
         }
 
