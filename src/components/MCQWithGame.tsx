@@ -12,6 +12,7 @@ import {
   MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS,
   MCQ_GAME_TRAVEL_DISTANCE,
   MCQ_GAME_BASE_SPEED_MULTIPLIER,
+  MCQ_GAME_MAX_SPEED_MULTIPLIER,
   advanceMCQGameSpeed,
   clampMCQGameLane,
   classifySteeringGesture,
@@ -340,7 +341,7 @@ const MCQWithGame = ({
   };
 
   useEffect(() => {
-    const controller = createRacingAudioController();
+    const controller = createRacingAudioController(MCQ_GAME_BASE_SPEED_MULTIPLIER, MCQ_GAME_MAX_SPEED_MULTIPLIER);
     racingAudioRef.current = controller;
     return () => {
       controller.dispose();
