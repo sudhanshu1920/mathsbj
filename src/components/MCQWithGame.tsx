@@ -167,6 +167,7 @@ const MCQWithGame = ({
         aria-label="Four answer lanes; swipe left or right to steer the car"
         tabIndex={0}
         data-swipe-ignore-app-section="true"
+        data-swipe-ignore-back="true"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onKeyDown={(event) => {
