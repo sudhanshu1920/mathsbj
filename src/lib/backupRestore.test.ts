@@ -112,11 +112,11 @@ describe('portable Math Master backup', () => {
     corrupt.payload.storage['math-app-settings-v1'] = JSON.stringify({ sound: false });
     await expect(validateBackupText(JSON.stringify(corrupt))).rejects.toThrow(/integrity/i);
 
-    const future = JSON.parse(source) as Record<string, any>;
+    const future = JSON.parse(source) as EditableEnvelope;
     future.backupFormatVersion = 99;
     await expect(validateBackupText(JSON.stringify(future))).rejects.toThrow(/newer app version/i);
 
-    const futureSchema = JSON.parse(source) as Record<string, any>;
+    const futureSchema = JSON.parse(source) as EditableEnvelope;
     futureSchema.dataSchemaVersion = 99;
     await expect(validateBackupText(JSON.stringify(futureSchema))).rejects.toThrow(/newer data schema/i);
 
