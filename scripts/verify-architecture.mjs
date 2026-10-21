@@ -736,6 +736,18 @@ if (!reminderPluginSource.includes('result.put("synced", syncSucceeded)') ||
     !reminderBridgeSource.includes('syncResult.synced !== true')) {
   fail('Daily reminder opt-in must not be acknowledged unless native Android confirms that the next alarm is scheduled');
 }
+if (!reminderBridgeSource.includes('DAILY_REMINDER_POLICY_VERSION = 3') ||
+    !reminderBridgeSource.includes('9 * 60') ||
+    !reminderBridgeSource.includes('22 * 60') ||
+    !reminderReceiverSource.includes('REMINDER_POLICY_VERSION = 3') ||
+    !reminderReceiverSource.includes('540, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140') ||
+    !reminderReceiverSource.includes('1185, 1230, 1260, 1290, 1310, 1320') ||
+    !reminderReceiverSource.includes('candidate.equals(previousText)') ||
+    !reminderReceiverSource.includes('RANDOM.nextBoolean()') ||
+    !reminderReceiverSource.includes('putString("marathiMessagesJson", "[]")') ||
+    !reminderReceiverSource.includes('putString("hindiMessagesJson", "[]")')) {
+  fail('Daily target reminders must use the migrated 17-stage 9 AM–10 PM schedule, independent random language selection, anti-repeat logic, and safe old-message migration');
+}
 if (!releaseNotificationSenderSource.includes("topic: 'math_app_updates'") ||
     !releaseNotificationSenderSource.includes("type: 'app_update'") ||
     !releaseNotificationTestsSource.includes('assert.equal(payload.notification, undefined)') ||

@@ -109,7 +109,7 @@ test('configures FCM only for a matching Firebase Android app and remains idempo
 });
 
 
-test('native alarm rechecks completion and keeps tomorrow noon queued after the 10 PM cutoff', async (t) => {
+test('native alarm rechecks completion and queues tomorrow at 9 AM after the 10 PM cutoff', async (t) => {
   const root = await createAndroidFixture();
   t.after(() => rm(root, { recursive: true, force: true }));
   await configureAndroidNotifications(root);
@@ -125,8 +125,8 @@ test('native alarm rechecks completion and keeps tomorrow noon queued after the 
   assert.match(receiver, /AlarmManager is unavailable/);
   assert.match(receiver, /Calendar\.DAY_OF_YEAR, 1/);
   assert.match(receiver, /currentMinute > 22 \* 60/);
-  assert.match(receiver, /REMINDER_POLICY_VERSION = 2/);
-  assert.match(receiver, /720, 840, 960, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320/);
+  assert.match(receiver, /REMINDER_POLICY_VERSION = 3/);
+  assert.match(receiver, /540, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320/);
   assert.match(receiver, /ensureCurrentSchedulePolicy\(prefs\)/);
   assert.match(receiver, /schedulePolicyVersion/);
   assert.match(receiver, /getStageIndex\(slots, currentMinute\)/);
@@ -135,6 +135,13 @@ test('native alarm rechecks completion and keeps tomorrow noon queued after the 
   assert.match(receiver, /putString\("lastMessageText", candidate\)/);
   assert.match(receiver, /cancelVisibleReminder\(context\)/);
   assert.match(receiver, /triggerAt <= nowMillis/);
+  assert.match(receiver, /minuteOfDay < 9 \* 60/);
+  assert.match(receiver, /candidateMinute < 9 \* 60/);
+  assert.match(receiver, /candidate.equals\(previousText\)/);
+  assert.match(receiver, /RANDOM.nextBoolean\(\)/);
+  assert.match(receiver, /putString\("marathiMessagesJson", "\[\]"\)/);
+  assert.match(receiver, /putString\("hindiMessagesJson", "\[\]"\)/);
+  assert.match(receiver, /stageIndex >= 13/);
   assert.match(receiver, /scheduleNext\(context\)/);
 });
 
@@ -147,4 +154,25 @@ test('rejects Firebase client configuration for a different application id', asy
     configureAndroidNotifications(root, { firebaseJsonBase64: Buffer.from(JSON.stringify(invalid)).toString('base64') }),
     /different Android package/,
   );
+});
+
+
+test('daily reminder bridge and native receiver agree on the 17-stage schedule policy', async (t) => {
+  const root = await createAndroidFixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await configureAndroidNotifications(root);
+  const receiver = await readFile(
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), '../android-native/com/sudhanshu/mathsbj/DailyTargetReminderReceiver.java'),
+    'utf8',
+  );
+  const plugin = await readFile(path.resolve(path.dirname(new URL(import.meta.url).pathname), '../android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java'), 'utf8');
+  const bridge = await readFile(path.resolve(path.dirname(new URL(import.meta.url).pathname), '../src/lib/dailyTargetReminders.ts'), 'utf8');
+  assert.match(receiver, /REMINDER_POLICY_VERSION = 3/);
+  assert.match(plugin, /DailyTargetReminderReceiver\.REMINDER_POLICY_VERSION/);
+  assert.match(bridge, /DAILY_REMINDER_POLICY_VERSION = 3/);
+  assert.match(bridge, /9 \* 60,[\s\S]*22 \* 60/);
+  assert.match(receiver, /540, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140/);
+  assert.match(receiver, /1185, 1230, 1260, 1290, 1310, 1320/);
+  assert.match(receiver, /candidate.equals\(previousText\)/);
+  assert.match(receiver, /RANDOM.nextBoolean\(\)/);
 });

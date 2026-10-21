@@ -31,12 +31,13 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
     private static final String TAG = "MathAppReminders";
     private static final int ALARM_REQUEST_CODE = 7401;
     private static final int NOTIFICATION_ID = 7402;
-    private static final int REMINDER_POLICY_VERSION = 2;
+    public static final int REMINDER_POLICY_VERSION = 3;
     private static final int[] DEFAULT_REMINDER_MINUTES = {
-        720, 840, 960, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320
+        540, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140,
+        1185, 1230, 1260, 1290, 1310, 1320
     };
     private static final String DEFAULT_REMINDER_SCHEDULE_JSON =
-        "[720,840,960,1080,1140,1185,1230,1260,1290,1310,1320]";
+        "[540,600,660,720,780,840,900,960,1020,1080,1140,1185,1230,1260,1290,1310,1320]";
     private static final Random RANDOM = new Random();
 
     @Override
@@ -77,7 +78,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         Calendar now = Calendar.getInstance();
         int currentMinute = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
         if (currentMinute > 22 * 60) {
-            // Respect the 10 PM cutoff today while retaining tomorrow's noon alarm.
+            // Respect the 10 PM cutoff today while retaining tomorrow's 9 AM alarm.
             scheduleNext(context);
             return;
         }
@@ -128,7 +129,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         long nowMillis = System.currentTimeMillis();
         for (int i = 0; i < slots.length(); i++) {
             int minuteOfDay = slots.optInt(i, -1);
-            if (minuteOfDay < 12 * 60 || minuteOfDay > 22 * 60) continue;
+            if (minuteOfDay < 9 * 60 || minuteOfDay > 22 * 60) continue;
 
             Calendar candidate = (Calendar) now.clone();
             candidate.set(Calendar.HOUR_OF_DAY, minuteOfDay / 60);
@@ -150,10 +151,10 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         int firstMinute = -1;
         for (int i = 0; i < slots.length(); i++) {
             int candidateMinute = slots.optInt(i, -1);
-            if (candidateMinute < 12 * 60 || candidateMinute > 22 * 60) continue;
+            if (candidateMinute < 9 * 60 || candidateMinute > 22 * 60) continue;
             if (firstMinute < 0 || candidateMinute < firstMinute) firstMinute = candidateMinute;
         }
-        if (firstMinute < 12 * 60 || firstMinute > 22 * 60) return false;
+        if (firstMinute < 9 * 60 || firstMinute > 22 * 60) return false;
 
         Calendar tomorrow = (Calendar) now.clone();
         tomorrow.add(Calendar.DAY_OF_YEAR, 1);
@@ -233,7 +234,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
     /**
      * On package replacement, SharedPreferences survive while the old six-slot
      * schedule would otherwise survive too. Migrate the policy before arming an
-     * alarm so a never-opened upgraded app still uses the current 11-stage day.
+     * alarm so a never-opened upgraded app still uses the current 17-stage day.
      */
     private static void ensureCurrentSchedulePolicy(SharedPreferences prefs) {
         JSONArray current = parseArray(prefs.getString("scheduleMinutesJson", "[]"));
@@ -244,12 +245,17 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         prefs.edit()
             .putInt("schedulePolicyVersion", REMINDER_POLICY_VERSION)
             .putString("scheduleMinutesJson", DEFAULT_REMINDER_SCHEDULE_JSON)
+            // Old message pools use a different stage count/order. Clear them
+            // so the stage-correct offline fallback runs until the WebView syncs
+            // the upgraded full pools; never label a morning alarm with an old noon message.
+            .putString("marathiMessagesJson", "[]")
+            .putString("hindiMessagesJson", "[]")
             .apply();
-        Log.i(TAG, "Migrated persisted daily-target reminders to the current 11-stage schedule.");
+        Log.i(TAG, "Migrated persisted daily-target reminders to the current 17-stage schedule.");
     }
 
     private static int getStageIndex(JSONArray slots, int currentMinute) {
-        if (slots.length() == 0 || currentMinute < slots.optInt(0, 720)
+        if (slots.length() == 0 || currentMinute < slots.optInt(0, 540)
             || currentMinute > slots.optInt(slots.length() - 1, 1320)) {
             return -1;
         }
@@ -297,95 +303,41 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
 
     private static JSONArray getFallbackMessages(int stageIndex, boolean marathi) {
         String[][] fallback = marathi ? new String[][] {
-            {
-                "चॅम्पियन, आजचं टार्गेट सुरू करूया का? अभ्यासाचे %1$d मिनिटं बाकी 💪",
-                "नवीन दिवस, नवीन संधी! अजून %1$d मिनिटांचा अभ्यास 🚀"
-            },
-            {
-                "दुपार झाली! टार्गेट झोपलंय की तू? %1$d मिनिटं बाकी 😂",
-                "फोनला आराम मिळाला, आता मेंदूची पाळी! %1$d मिनिटं 😎"
-            },
-            {
-                "टार्गेटशी एवढी ओळख नको! %1$d मिनिटं अभ्यास करूया 😂",
-                "टार्गेट रात्री स्वप्नात येईल—अजून %1$d मिनिटं 😏"
-            },
-            {
-                "संध्याकाळ झाली! बहाणे थांबवून %1$d मिनिटं पूर्ण करूया 😏",
-                "अभ्यास उद्यावर ढकलू नकोस—%1$d मिनिटं बाकी 😂"
-            },
-            {
-                "आता वेळ वाया नको! %1$d मिनिटांचा अभ्यास बाकी 🔥",
-                "आजचा दिवस हातात आहे—%1$d मिनिटं पूर्ण करूया 💪"
-            },
-            {
-                "वेळ पुढे जातोय! %1$d मिनिटं अभ्यास बाकी 🔥",
-                "लक्ष्य जवळ आणूया—अजून %1$d मिनिटं 💪"
-            },
-            {
-                "रात्रीची तयारी, टार्गेट अजून बाकी? %1$d मिनिटं 😂",
-                "आजच टार्गेटला निरोप देऊया—%1$d मिनिटं 😏"
-            },
-            {
-                "आता लक्ष्यावर फोकस! %1$d मिनिटं बाकी ⏳",
-                "दिवस संपण्याआधी एक छोटीशी जिंक मिळव—%1$d मिनिटं 💪"
-            },
-            {
-                "फायनल राऊंड! %1$d मिनिटं पूर्ण करून आजचा दिवस जिंक 🔥",
-                "आजचं टार्गेट आजच—अजून %1$d मिनिटं 😎"
-            },
-            {
-                "रात्री 10 वाजेपर्यंत %2$d मिनिटं! अभ्यासाचे %1$d मिनिटं बाकी ⏳",
-                "10 वाजेपर्यंत फक्त %2$d मिनिटं—शक्य तितकं पूर्ण करूया 🚀 (%1$d मिनिटं)"
-            },
-            {
-                "आजचा शेवटचा रिमाइंडर! अभ्यासाचे %1$d मिनिटं बाकी 💪",
-                "अंतिम चेक-इन—शक्य तितकं लक्ष्य पूर्ण करूया 🌟 (%1$d मिनिटं)"
-            }
+            { "उठ चॅम्पियन! आजचं टार्गेट तुझी वाट पाहतंय! अजून %1$d मिनिटं 💪", "आज बहाणे नाहीत—फक्त प्रगती! उरलेले %1$d मिनिटं सुरू कर 🔥" },
+            { "फोन जागा आहे, इंटरनेट जागं आहे... आता अभ्यासालाही उठव 😂 अजून %1$d मिनिटं", "चॅम्पियन, टार्गेटला सुप्रभात म्हणालास? आता कामालाही सुरुवात कर 😏 %1$d मिनिटं बाकी" },
+            { "अकरा वाजले! टार्गेटकडे फक्त बघून ते पूर्ण होत नाही जनाब 😏 %1$d मिनिटं बाकी", "चित्रं पाहण्याचा पहिला टप्पा झाला असेल; आता अभ्यासाचा टप्पा सुरू कर 😂 %1$d मिनिटं बाकी" },
+            { "जेवणाची वेळ झाली; पण टार्गेटने अजून नाश्ताही केलेला नाही 😂 %1$d मिनिटं बाकी", "जेवणाचा विराम ठीक आहे बॉस, अभ्यासालाही आज हजेरी लावू दे 😎 %1$d मिनिटं बाकी" },
+            { "आजचा अभ्यास उद्यावर पाठवायचं कुरिअर रद्द कर 😂 अजून %1$d मिनिटं", "टार्गेट आणि तुझ्यात एवढं अंतर कशाला? छोटा फेरा सुरू कर 🚀 %1$d मिनिटं" },
+            { "दहा मिनिटं लक्ष दे; बहाण्यांनाही थोडा आराम दे 😂 अजून %1$d मिनिटं", "छोटी सुरुवात कर—मोठं टार्गेटही पावलांनीच पूर्ण होतं 💪 %1$d मिनिटं" },
+            { "तीन वाजले! आता फक्त वेळ बघू नको, एक प्रश्नही सोडव ⏳ %1$d मिनिटं बाकी", "मोबाइल खाली, लक्ष वर! पुढची दहा मिनिटं अभ्यासाला दे 🔥 %1$d मिनिटं" },
+            { "चॅम्पियन, दिवस अजून हातात आहे! उरलेलं टार्गेट गाठूया 🔥 %1$d मिनिटं", "प्रेरणेची वाट नको; काम सुरू कर, जोश मागून येईल 💪 %1$d मिनिटं" },
+            { "बहाण्यांचा अभ्यास झाला असेल तर आता पुस्तकाचा धडा उघड 😂 %1$d मिनिटं", "पाच वाजले बॉस! बहाण्यांची पाळी संपली, अभ्यासाची सुरू 😏 %1$d मिनिटं" },
+            { "संध्याकाळ झाली बॉस! आजच्या टार्गेटची तपासणी करूया ⏳ %1$d मिनिटं", "आजची मेहनत उद्याच्या आत्मविश्वासाला बोनस देईल 😎 %1$d मिनिटं बाकी" },
+            { "सात वाजले! आजचं काम आजच पूर्ण करण्याची वेळ आली 🔥 %1$d मिनिटं", "टार्गेट अजून बाकी? चल, आता कृती सुरू करूया 💪 %1$d मिनिटं" },
+            { "साडेसात! आजच्या टार्गेटला उद्याचा पाहुणा बनवू नकोस 😏 %1$d मिनिटं", "थोडं लक्ष, थोडी मेहनत—आजचा शेवट दमदार करूया 🔥 %1$d मिनिटं" },
+            { "रात्र येतेय महाराज! टार्गेटला अजून घरी पाठवायचं आहे 😂 %1$d मिनिटं", "आठ वाजून तीस! बहाणे बाजूला ठेव आणि अभ्यास सुरू कर 😎 %1$d मिनिटं" },
+            { "नऊ वाजले! आता लक्ष विचलित नको—उरलेलं टार्गेट तपास ⏳ %1$d मिनिटं", "वेळ कमी होतोय; शक्य तितका अभ्यास आत्ताच पूर्ण कर 🔥 %1$d मिनिटं" },
+            { "शेवटचा फेरा सुरू! आजची छोटी जिंक स्वतःला दे 🔥 %1$d मिनिटं", "साडेनऊ वाजले—आजचा शेवट दमदार कर, परिपूर्ण असणं गरजेचं नाही 💪 %1$d मिनिटं" },
+            { "शेवटची 10 मिनिटं! अजून %1$d मिनिटांचा अभ्यास; दहा वाजेपर्यंत %2$d मिनिटं ⏳", "अंतिम काउंटडाउन! घड्याळात %2$d मिनिटं—शक्य तितकं टार्गेट पूर्ण कर 🔥 अजून %1$d मिनिटं" },
+            { "आजचा शेवटचा रिमाइंडर! जमलं ते कौतुकास्पद—उद्याची सुरुवात नव्या जोमाने 🌙 अजून %1$d मिनिटं", "दहा वाजले—आजचे रिमाइंडर इथे थांबतात. उद्या पुन्हा नवी सुरुवात 💪 %1$d मिनिटं बाकी" },
         } : new String[][] {
-            {
-                "चैंपियन, आज का लक्ष्य शुरू करें? पढ़ाई के %1$d मिनट बाकी 💪",
-                "नया दिन, नया मौका! %1$d मिनट पढ़ाई करें 🚀"
-            },
-            {
-                "दोपहर हो गई! टारगेट सो रहा है क्या? %1$d मिनट बाकी 😂",
-                "मोबाइल को आराम, अब दिमाग की बारी! %1$d मिनट 😎"
-            },
-            {
-                "टारगेट से इतनी दोस्ती क्यों? %1$d मिनट पढ़ाई करें 😂",
-                "टारगेट रात को सपने में आएगा—%1$d मिनट बाकी 😏"
-            },
-            {
-                "शाम हो गई! बहाने बंद, %1$d मिनट पढ़ाई करें 😏",
-                "आज का काम कल पर न डालें—%1$d मिनट बाकी 😂"
-            },
-            {
-                "अब वक्त बर्बाद नहीं! %1$d मिनट पढ़ाई बाकी 🔥",
-                "दिन अभी हाथ में है—%1$d मिनट पूरे करें 💪"
-            },
-            {
-                "वक्त निकल रहा है! %1$d मिनट पढ़ाई बाकी 🔥",
-                "लक्ष्य करीब लाएं—अभी %1$d मिनट 💪"
-            },
-            {
-                "रात होने वाली है, टारगेट बाकी? %1$d मिनट 😂",
-                "आज ही टारगेट खत्म करें—%1$d मिनट बाकी 😏"
-            },
-            {
-                "अब लक्ष्य पर फोकस करें! %1$d मिनट बाकी ⏳",
-                "दिन खत्म होने से पहले एक जीत दिला दें—%1$d मिनट 💪"
-            },
-            {
-                "फाइनल राउंड! %1$d मिनट पूरे करके आज जीतें 🔥",
-                "आज का टारगेट आज ही—%1$d मिनट बाकी 😎"
-            },
-            {
-                "रात 10 बजे तक %2$d मिनट! पढ़ाई के %1$d मिनट बाकी ⏳",
-                "10 बजे तक सिर्फ %2$d मिनट—जितना हो सके पूरा करें 🚀 (%1$d मिनट)"
-            },
-            {
-                "आज का आखिरी रिमाइंडर! पढ़ाई के %1$d मिनट बाकी 💪",
-                "अंतिम चेक-इन—जितना हो सके लक्ष्य पूरा करें 🌟 (%1$d मिनट)"
-            }
+            { "उठो चैंपियन! आज का टारगेट तुम्हारा इंतज़ार कर रहा है 🔥 अभी %1$d मिनट बाकी", "आज बहाने नहीं—सिर्फ़ प्रगति! बचे हुए %1$d मिनट शुरू कीजिए 💪" },
+            { "मोबाइल जाग रहा है, इंटरनेट भी चालू है... अब पढ़ाई को जगाइए 😂 %1$d मिनट बाकी", "चैंपियन, टारगेट को सुप्रभात कहा? अब काम भी शुरू करिए 😏 %1$d मिनट बाकी" },
+            { "ग्यारह बज गए! टारगेट को देखते रहने से वो पूरा नहीं होगा जनाब 😏 %1$d मिनट बाकी", "चित्र देखने का पहला दौर खत्म? अब पढ़ाई का दौर शुरू करिए 😂 %1$d मिनट बाकी" },
+            { "खाने का वक्त हो गया, लेकिन टारगेट ने अभी नाश्ता भी नहीं किया 😂 %1$d मिनट बाकी", "खाने का विराम ठीक है जनाब, पढ़ाई को भी आज हाज़िरी लगाने दीजिए 😎 %1$d मिनट बाकी" },
+            { "आज की पढ़ाई कल भेजने वाला कुरिअर रद्द कर दीजिए 😂 %1$d मिनट बाकी", "टारगेट और आपके बीच इतना फासला क्यों? छोटा दौर शुरू करें 🚀 %1$d मिनट बाकी" },
+            { "दस मिनट ध्यान लगाइए; बहानों को भी थोड़ा आराम दीजिए 😂 %1$d मिनट बाकी", "छोटी शुरुआत करिए—बड़ा टारगेट भी कदमों से पूरा होता है 💪 %1$d मिनट बाकी" },
+            { "तीन बज गए! सिर्फ़ घड़ी मत देखिए, एक सवाल भी हल करिए ⏳ %1$d मिनट बाकी", "मोबाइल नीचे, ध्यान ऊपर! अगले दस मिनट पढ़ाई को दीजिए 🔥 %1$d मिनट बाकी" },
+            { "चैंपियन, दिन अभी हाथ में है! बाकी टारगेट पूरा करें 🔥 %1$d मिनट बाकी", "प्रेरणा का इंतज़ार मत कीजिए; काम शुरू करें, जोश बाद में आएगा 💪 %1$d मिनट बाकी" },
+            { "बहानों का पाठ पूरा हो गया हो तो पढ़ाई का अध्याय खोलिए 😂 %1$d मिनट बाकी", "पाँच बज गए जनाब! बहानों की पारी खत्म, पढ़ाई की शुरू 😏 %1$d मिनट बाकी" },
+            { "शाम हो गई जनाब! आज के टारगेट का हिसाब देख लें ⏳ %1$d मिनट बाकी", "आज की मेहनत कल के आत्मविश्वास को बोनस देगी 😎 %1$d मिनट बाकी" },
+            { "सात बज गए! आज का काम आज ही पूरा करने का वक्त है 🔥 %1$d मिनट बाकी", "टारगेट बाकी है? चलिए, अब काम शुरू करते हैं 💪 %1$d मिनट बाकी" },
+            { "साढ़े सात! आज के टारगेट को कल का मेहमान मत बनाइए 😏 %1$d मिनट बाकी", "थोड़ा ध्यान, थोड़ी मेहनत—आज का अंत दमदार करें 🔥 %1$d मिनट बाकी" },
+            { "रात होने लगी जनाब! टारगेट को आज ही विदा करना है 😂 %1$d मिनट बाकी", "आठ बजकर तीस मिनट! बहाने किनारे रखिए, पढ़ाई शुरू 😎 %1$d मिनट बाकी" },
+            { "नौ बज गए! ध्यान भटकने न दें—बाकी लक्ष्य देख लें ⏳ %1$d मिनट बाकी", "वक्त कम हो रहा है; जितनी पढ़ाई हो सके अभी पूरी करें 🔥 %1$d मिनट बाकी" },
+            { "आखिरी दौर शुरू! आज खुद को एक छोटी जीत दीजिए 🔥 %1$d मिनट बाकी", "साढ़े नौ बज गए—आज का अंत दमदार करें, परिपूर्ण होना ज़रूरी नहीं 💪 %1$d मिनट बाकी" },
+            { "आखिरी 10 मिनट! पढ़ाई के %1$d मिनट बाकी; दस बजे तक %2$d मिनट ⏳", "अंतिम काउंटडाउन! घड़ी में %2$d मिनट—जितना हो सके पूरा करें 🔥 %1$d मिनट बाकी" },
+            { "आज का आखिरी रिमाइंडर! जो हुआ उसकी तारीफ़ करें; कल फिर नई शुरुआत 🌙 %1$d मिनट बाकी", "दस बजे हो गए—आज के रिमाइंडर यहीं रुकेंगे। कल नई शुरुआत 💪 %1$d मिनट बाकी" },
         };
         JSONArray result = new JSONArray();
         int safeStage = Math.max(0, Math.min(stageIndex, fallback.length - 1));
@@ -431,9 +383,9 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         boolean useMarathi = RANDOM.nextBoolean();
         String language = useMarathi ? "mr" : "hi";
         String title;
-        if (stageIndex >= 8) {
+        if (stageIndex >= 13) {
             title = useMarathi ? "⏳ आजची शेवटची फेरी!" : "⏳ आज का आखिरी दौर!";
-        } else if (stageIndex >= 4) {
+        } else if (stageIndex >= 7) {
             title = useMarathi ? "🔥 आजचं टार्गेट पूर्ण करूया!" : "🔥 आज का टारगेट पूरा करें!";
         } else {
             title = useMarathi ? "🎯 आजचं लक्ष्य सुरू करूया!" : "🎯 आज का लक्ष्य शुरू करें!";

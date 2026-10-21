@@ -10,13 +10,13 @@ import {
 } from './dailyTargetReminders';
 
 describe('smart daily target reminder policy', () => {
-  it('uses the expected eleven increasing local-time reminder stages', () => {
-    expect(DAILY_REMINDER_POLICY_VERSION).toBe(2);
+  it('uses the exact 17-slot 9 AM to 10 PM local-time schedule', () => {
+    expect(DAILY_REMINDER_POLICY_VERSION).toBe(3);
     expect(DAILY_REMINDER_MINUTES).toEqual([
-      720, 840, 960, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320,
+      540, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320,
     ]);
-    expect(getNextDailyReminderMinute(719)).toBe(720);
-    expect(getNextDailyReminderMinute(720)).toBe(840);
+    expect(getNextDailyReminderMinute(539)).toBe(540);
+    expect(getNextDailyReminderMinute(540)).toBe(600);
     expect(getNextDailyReminderMinute(18 * 60)).toBe(19 * 60);
     expect(getNextDailyReminderMinute(19 * 60)).toBe(19 * 60 + 45);
     expect(getNextDailyReminderMinute(19 * 60 + 45)).toBe(20 * 60 + 30);
@@ -28,15 +28,15 @@ describe('smart daily target reminder policy', () => {
     expect(getNextDailyReminderMinute(23 * 60)).toBeNull();
   });
 
-  it('maps delayed delivery to the current urgency stage and rejects times outside noon–10 PM', () => {
-    expect(getDailyReminderStageIndex(11 * 60 + 59)).toBeNull();
-    expect(getDailyReminderStageIndex(12 * 60)).toBe(0);
-    expect(getDailyReminderStageIndex(13 * 60 + 59)).toBe(0);
-    expect(getDailyReminderStageIndex(14 * 60)).toBe(1);
-    expect(getDailyReminderStageIndex(18 * 60 + 10)).toBe(3);
-    expect(getDailyReminderStageIndex(19 * 60 + 50)).toBe(5);
-    expect(getDailyReminderStageIndex(21 * 60 + 55)).toBe(9);
-    expect(getDailyReminderStageIndex(22 * 60)).toBe(10);
+  it('maps delayed delivery to the current urgency stage and rejects times outside 9 AM–10 PM', () => {
+    expect(getDailyReminderStageIndex(8 * 60 + 59)).toBeNull();
+    expect(getDailyReminderStageIndex(9 * 60)).toBe(0);
+    expect(getDailyReminderStageIndex(9 * 60 + 59)).toBe(0);
+    expect(getDailyReminderStageIndex(10 * 60)).toBe(1);
+    expect(getDailyReminderStageIndex(18 * 60 + 10)).toBe(9);
+    expect(getDailyReminderStageIndex(19 * 60 + 50)).toBe(11);
+    expect(getDailyReminderStageIndex(21 * 60 + 55)).toBe(15);
+    expect(getDailyReminderStageIndex(22 * 60)).toBe(16);
     expect(getDailyReminderStageIndex(22 * 60 + 1)).toBeNull();
     expect(getDailyReminderStageIndex(Number.NaN)).toBeNull();
   });
@@ -76,9 +76,22 @@ describe('smart daily target reminder policy', () => {
       expect(pool.every((message) => message.includes('%1$d'))).toBe(true);
       expect(pool.every((message) => !/[a-zA-Z]/.test(message.replace('%1$d', '').replace('%2$d', '')))).toBe(true);
     }
-    expect(MARATHI_REMINDER_MESSAGES[9].every((message) => message.includes('%2$d'))).toBe(true);
-    expect(HINDI_REMINDER_MESSAGES[9].every((message) => message.includes('%2$d'))).toBe(true);
-    expect(MARATHI_REMINDER_MESSAGES[10].every((message) => !message.includes('%2$d'))).toBe(true);
-    expect(HINDI_REMINDER_MESSAGES[10].every((message) => !message.includes('%2$d'))).toBe(true);
+    expect(MARATHI_REMINDER_MESSAGES[15].every((message) => message.includes('%2$d'))).toBe(true);
+    expect(HINDI_REMINDER_MESSAGES[15].every((message) => message.includes('%2$d'))).toBe(true);
+    expect(MARATHI_REMINDER_MESSAGES[16].every((message) => !message.includes('%2$d'))).toBe(true);
+    expect(HINDI_REMINDER_MESSAGES[16].every((message) => !message.includes('%2$d'))).toBe(true);
   });
 });
+
+
+  it('uses unique, strictly increasing slots and gives the final notification exactly the 10 PM stage', () => {
+    expect(DAILY_REMINDER_MINUTES[0]).toBe(9 * 60);
+    expect(DAILY_REMINDER_MINUTES.at(-1)).toBe(22 * 60);
+    expect(new Set(DAILY_REMINDER_MINUTES).size).toBe(17);
+    expect(DAILY_REMINDER_MINUTES.every((minute, index, slots) =>
+      minute >= 9 * 60 && minute <= 22 * 60 && (index === 0 || minute > slots[index - 1]),
+    )).toBe(true);
+    expect(getNextDailyReminderMinute(21 * 60 + 50)).toBe(22 * 60);
+    expect(getNextDailyReminderMinute(22 * 60)).toBeNull();
+    expect(getDailyReminderStageIndex(22 * 60 + 1)).toBeNull();
+  });
