@@ -16,16 +16,37 @@ export const MCQ_GAME_COLLISION_Z = 0.75;
 export const MCQ_GAME_GATE_START_Z = -9.0;
 export const MCQ_GAME_GATE_HALF_WIDTH = 0.6;
 export const MCQ_GAME_TRAVEL_DISTANCE = MCQ_GAME_COLLISION_Z - MCQ_GAME_GATE_START_Z;
+export const MCQ_GAME_HOLD_THRESHOLD_MS = 230;
+export const MCQ_GAME_MAX_BOOST_MULTIPLIER = 2.25;
+export const MCQ_GAME_BOOST_MULTIPLIER = MCQ_GAME_MAX_BOOST_MULTIPLIER;
 
-export interface SweptGateCollisionInput {
-  previousGateZ: number;
-  gateZ: number;
-  collisionZ: number;
-  previousCarX: number;
-  carX: number;
-  gateX: number;
-  carHalfWidth: number;
-  gateHalfWidth: number;
+export interface SteeringGestureResult {
+  kind: "tap" | "boost";
+  direction: -1 | 1;
+}
+
+/** Classifies one completed press deterministically; no lane movement happens on pointer-down. */
+export function classifySteeringGesture(
+  durationMs: number,
+  direction: -1 | 1,
+  holdThresholdMs = MCQ_GAME_HOLD_THRESHOLD_MS,
+): SteeringGestureResult {
+  const safeDuration = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
+  const safeThreshold = Number.isFinite(holdThresholdMs) ? Math.max(0, holdThresholdMs) : MCQ_GAME_HOLD_THRESHOLD_MS;
+  return safeDuration >= safeThreshold
+    ? { kind: "boost", direction }
+    : { kind: "tap", direction };
+}
+
+/** Constrains the target lane before it reaches the animation/physics loop. */
+export function clampMCQGameLane(laneIndex: number, direction: -1 | 1): number {
+  const safeLane = Number.isFinite(laneIndex) ? Math.trunc(laneIndex) : 1;
+  return Math.min(3, Math.max(0, safeLane + direction));
+}
+
+/** Forward speed is one source of truth for gates, road motion, and collision advancement. */
+export function getMCQGameSpeedMultiplier(boosting: boolean): number {
+  return boosting ? Math.min(MCQ_GAME_BOOST_MULTIPLIER, MCQ_GAME_MAX_BOOST_MULTIPLIER) : 1;
 }
 
 /**
@@ -44,6 +65,17 @@ export function createMCQGateMappings(
     const gateId = "question-" + encodeURIComponent(questionId) + "-" + laneId + "-" + optionId;
     return { questionId, optionId, laneId, gateId, laneIndex, optionValue };
   });
+}
+
+export interface SweptGateCollisionInput {
+  previousGateZ: number;
+  gateZ: number;
+  collisionZ: number;
+  previousCarX: number;
+  carX: number;
+  gateX: number;
+  carHalfWidth: number;
+  gateHalfWidth: number;
 }
 
 /**

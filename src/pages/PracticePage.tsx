@@ -1504,7 +1504,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           }
         }
         answerLockRef.current = false;
-      }, isCorrect ? 350 : 700);
+      }, config.mode === 'game' ? 260 : isCorrect ? 350 : 700);
     },
     [config, currentQ, questions, score, finished, feedback, finishQuiz]
   );
@@ -2062,18 +2062,23 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'game' && (
           <MCQWithGame
-            key={gameQuestionKey}
             questionKey={gameQuestionKey}
+            questionLabel={renderQuestionText()}
             options={gameOptions}
             progressLabel={String(Math.min(currentQ + 1, questions.length)) + ' / ' + String(questions.length)}
+            timerLabel={config.timerMode === 'challenge'
+              ? formatChallengeTime(challengeTimeLeft)
+              : config.timerMode === 'perQuestion' && config.timerSeconds < 9999
+                ? String(Math.max(0, timeLeft)) + 's'
+                : undefined}
             correctAnswer={q.answer}
             feedback={feedback}
             selectedOption={selectedOption}
             correctScore={score.correct}
             wrongScore={score.wrong}
             durationMs={config.timerMode === 'perQuestion'
-              // Let the configured deadline govern the game: the answer gate
-              // reaches the car just before timeout, leaving a small scheduling margin.
+              // Base gate speed reaches collision before the existing question deadline.
+              // Holding accelerates the same gate/world clock without changing that deadline.
               ? Math.max(1200, config.timerSeconds * 1000 - 300)
               : config.timerMode === 'challenge' ? 4800 : 5200}
             disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
@@ -2084,6 +2089,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 !option ||
                 !gate ||
                 gate.gateId !== gateId ||
+                gate.questionId !== gameQuestionKey ||
                 String(gate.optionValue) !== String(option.value) ||
                 String(option.value) !== String(optionValue) ||
                 feedback ||
