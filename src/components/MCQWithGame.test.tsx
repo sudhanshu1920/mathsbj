@@ -139,6 +139,52 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(stage).toHaveAttribute("data-swipe-ignore-back", "true");
   });
 
+  it("renders separate reference-style status and floating question HUDs", () => {
+    const view = render(
+      <MCQWithGame
+        {...gameProps({
+          correctScore: 4,
+          wrongScore: 0,
+          progressLabel: "5 / 10",
+          timerLabel: "6s",
+        })}
+      />,
+    );
+
+    expect(view.container.querySelector(".mcq-game-topbar")).toBeInTheDocument();
+    expect(view.container.querySelector(".mcq-game-question-panel")).toBeInTheDocument();
+    expect(view.container.querySelector(".mcq-game-question-panel .mcq-game-question-meta")).toBeNull();
+    expect(screen.getByLabelText("4 correct answers")).toBeInTheDocument();
+    expect(screen.getByLabelText("0 incorrect answers")).toBeInTheDocument();
+    expect(screen.getByLabelText("Question 5 / 10")).toBeInTheDocument();
+    expect(screen.getByLabelText("Time remaining 6s")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit selected answer, option B" })).toBeInTheDocument();
+  });
+
+  it("lets Submit commit the current lane once and shares the collision one-shot guard", () => {
+    const raf = installAnimationFrameQueue();
+    const onCollision = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({ onCollision })} />);
+    const submit = screen.getByTestId("mcq-game-submit");
+
+    try {
+      fireEvent.click(submit);
+      expect(onCollision).toHaveBeenCalledTimes(1);
+      expect(onCollision).toHaveBeenCalledWith(
+        1,
+        "28",
+        createMCQGateMappings("q-1", options.map((option) => option.value))[1].gateId,
+      );
+      expect(submit).toBeDisabled();
+
+      for (let timestamp = 0; timestamp <= 1_500; timestamp += 50) raf.advance(timestamp);
+      expect(onCollision).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("uses a short tap on each screen half for exactly one lane change", () => {
     vi.useFakeTimers();
     const raf = installAnimationFrameQueue();
