@@ -110,13 +110,14 @@ const BackupRestorePanel = ({ onBack }: { onBack: () => void }) => {
   const handleCreateBackup = async () => {
     if (!begin('creating')) return;
     try {
-      // Capture Web Storage in one synchronous pass before awaiting native APIs.
-      const storageEntries = captureBackupStorageSnapshot();
+      // Read native preferences first, then capture all browser-backed app
+      // records synchronously in one pass immediately before serialization.
       let widgetPreferences: WidgetPreferenceSnapshot | null = null;
       if (native) {
         const nativeSnapshot = await NativeBackup.getWidgetPreferences();
         widgetPreferences = JSON.parse(nativeSnapshot.snapshot) as WidgetPreferenceSnapshot;
       }
+      const storageEntries = captureBackupStorageSnapshot();
       const createdAt = new Date();
       const filename = makeBackupFilename(createdAt);
       const text = await createBackupText({ storageEntries, widgetPreferences, createdAt, appVersion: APP_VERSION_NAME });
@@ -219,9 +220,13 @@ const BackupRestorePanel = ({ onBack }: { onBack: () => void }) => {
       setCandidate(null);
       setStatus({
         kind: 'success',
-        message: skippedWidgetInstances > 0
-          ? 'Restore complete. Some per-instance widget settings could not be mapped to widgets on this device; launcher placement is managed by Android.'
-          : 'Restore complete. Saved settings, progress and supported widget preferences are restored.',
+        message: !native && targetWidgetPreferences
+          ? 'Restore complete. Saved settings and progress are restored. Android widget preferences remain in the backup but cannot be applied in this browser.'
+          : skippedWidgetInstances > 0
+            ? 'Restore complete. Some per-instance widget settings could not be mapped to widgets on this device; launcher placement is managed by Android.'
+            : targetWidgetPreferences
+              ? 'Restore complete. Saved settings, progress and supported widget preferences are restored.'
+              : 'Restore complete. Saved settings and progress are restored; this backup did not include launcher-widget preferences.',
       });
     } catch (error) {
       if (!previousStorage) {
@@ -230,7 +235,7 @@ const BackupRestorePanel = ({ onBack }: { onBack: () => void }) => {
       }
       let rollbackFailed = false;
       try {
-        if (storageReplacementAttempted) replaceBackupStorageSnapshot(previousStorage);
+        if (storageReplacementAttempted) replaceBackupStorageSnapshot(previousStorage, localStorage, true);
         if (native && widgetReplacementAttempted && previousWidgetSnapshot !== null) {
           const rollback = await NativeBackup.restoreWidgetPreferences({ snapshot: previousWidgetSnapshot });
           if (!rollback.restored) throw new Error('Android could not restore previous widget preferences.');

@@ -9,7 +9,7 @@ const SENSITIVE_OR_TRANSIENT_KEY = /(auth|token|secret|password|credential|sessi
 const PORTABLE_PREFERENCE_KEYS = new Set(['tables-pro-mode', 'desktop-mode', 'font-scale']);
 const JSON_OBJECT_STORAGE_KEYS = new Set(['math-app-settings-v1','math-app-streak-v1','math-app-analytics-v1','math-app-progress','math-app-xp-v1','math-app-study-tracker-v1']);
 const SCALAR_STORAGE_VALUES: Record<string, (value: string) => boolean> = {
-  'math-app-theme-v5': (value) => ['arctic-blue','deep-space','titanium-silver','midnight-violet','sapphire','ocean-cyan','emerald-glass','aurora','soft-rose','sunset-gold','graphite','pearl-white','indigo','forest','mint','professional-slate','dark-gaming','light-minimal','midnight-blue','golden-premium','cyber-purple','blood-fire','matrix-green','rose-sakura','arctic-ice','void-black'].includes(value),
+  'math-app-theme-v5': (value) => ['arctic-blue','deep-space','titanium-silver','midnight-violet','sapphire','ocean-cyan','emerald-glass','aurora','soft-rose','sunset-gold','graphite','pearl-white','indigo','forest','mint'].includes(value),
   'math-app-mode-v1': (value) => value === 'light' || value === 'dark',
   'math-app-background-notifications-enabled-v1': (value) => value === '0' || value === '1',
   'tables-pro-mode': (value) => value === '0' || value === '1',
@@ -58,6 +58,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
 const utf8Size = (value: string): number => new TextEncoder().encode(value).byteLength;
+
+function isValidDateKey(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const parsed = new Date(value + 'T00:00:00.000Z');
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
 
 export function isBackupStorageKey(key: string): boolean {
   if (typeof key !== 'string' || !key || SENSITIVE_OR_TRANSIENT_KEY.test(key)) return false;
@@ -218,7 +224,7 @@ function validateStoragePayload(value: unknown): Record<string, string> {
         const subjectIds = new Set<string>();
         for (const subject of saved.subjects) {
           if (!isRecord(subject) || typeof subject.id !== 'string' || !subject.id || subjectIds.has(subject.id) ||
-              typeof subject.name !== 'string' || !subject.name.trim() || !Number.isFinite(subject.order)) {
+              typeof subject.name !== 'string' || !subject.name.trim() || !Number.isSafeInteger(subject.order) || typeof subject.archived !== 'boolean') {
             throw new Error('Study Tracker has an invalid or duplicate subject.');
           }
           subjectIds.add(subject.id);
@@ -226,7 +232,7 @@ function validateStoragePayload(value: unknown): Record<string, string> {
         const historyDates = new Set<string>();
         const historicalIds = new Set(subjectIds);
         for (const snapshot of saved.subjectHistory) {
-          if (!isRecord(snapshot) || typeof snapshot.effectiveDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(snapshot.effectiveDate) ||
+          if (!isRecord(snapshot) || !isValidDateKey(snapshot.effectiveDate) ||
               !Array.isArray(snapshot.subjects) || historyDates.has(snapshot.effectiveDate)) {
             throw new Error('Study Tracker subject history is invalid.');
           }
@@ -234,7 +240,7 @@ function validateStoragePayload(value: unknown): Record<string, string> {
           const snapshotIds = new Set<string>();
           for (const subject of snapshot.subjects) {
             if (!isRecord(subject) || typeof subject.id !== 'string' || !subject.id || snapshotIds.has(subject.id) ||
-                typeof subject.name !== 'string' || !subject.name.trim() || !Number.isFinite(subject.order)) {
+                typeof subject.name !== 'string' || !subject.name.trim() || !Number.isSafeInteger(subject.order) || typeof subject.archived !== 'boolean') {
               throw new Error('Study Tracker subject history contains invalid subjects.');
             }
             snapshotIds.add(subject.id);
@@ -242,15 +248,22 @@ function validateStoragePayload(value: unknown): Record<string, string> {
           }
         }
         for (const [entryKey, entry] of Object.entries(saved.entries)) {
-          if (!isRecord(entry) || typeof entry.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) ||
+          if (!isRecord(entry) || !isValidDateKey(entry.date) ||
               typeof entry.subjectId !== 'string' || !historicalIds.has(entry.subjectId) ||
               !['not-started','in-progress','completed'].includes(String(entry.status)) ||
-              !Number.isFinite(entry.minutes) || (entry.minutes as number) < 0 || typeof entry.note !== 'string' ||
+              !Number.isSafeInteger(entry.minutes) || (entry.minutes as number) < 0 || (entry.minutes as number) > 1440 ||
+              typeof entry.note !== 'string' || typeof entry.updatedAt !== 'string' || !Number.isFinite(Date.parse(entry.updatedAt)) ||
               entryKey !== entry.date + '|' + entry.subjectId) {
             throw new Error('Study Tracker contains an invalid daily entry.');
           }
         }
         if (!['table','week','month'].includes(String(saved.preferences.mode))) throw new Error('Study Tracker view preference is invalid.');
+          if (!isValidDateKey(saved.preferences.anchorDate) ||
+              !isValidDateKey(saved.preferences.templateStartDate) ||
+              !isValidDateKey(saved.preferences.templateEndDate) ||
+              saved.preferences.templateStartDate > saved.preferences.templateEndDate) {
+            throw new Error('Study Tracker date preferences are invalid.');
+          }
       }
     }
     const scalarValidator = SCALAR_STORAGE_VALUES[key];

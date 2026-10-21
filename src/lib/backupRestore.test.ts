@@ -84,7 +84,7 @@ describe('portable Math Master backup', () => {
       'math-app-streak-v1': JSON.stringify({ targetMinutes: 30, days: { '2026-10-21': { seconds: 1200 } } }),
       'math-app-study-tracker-v1': JSON.stringify({
         version: 3,
-        subjects: [{ id: 'builtin-math', name: 'Math', order: 0 }],
+        subjects: [{ id: 'builtin-math', name: 'Math', order: 0, archived: false }],
         subjectHistory: [{ effectiveDate: '0001-01-01', subjects: [{ id: 'builtin-math', name: 'Math', order: 0, archived: false }] }],
         entries: { '2026-10-21|builtin-math': { date: '2026-10-21', subjectId: 'builtin-math', status: 'completed', minutes: 35, note: 'Revision', updatedAt: '2026-10-21T07:00:00.000Z' } },
         preferences: { mode: 'month', anchorDate: '2026-10-21', templateStartDate: '2026-10-20', templateEndDate: '2026-12-31' },
