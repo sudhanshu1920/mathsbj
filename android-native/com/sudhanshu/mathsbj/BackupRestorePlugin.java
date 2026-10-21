@@ -10,7 +10,7 @@ import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.util.Log;
 
-import com.getcapacitor.ActivityResult;
+import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -296,7 +296,7 @@ public class BackupRestorePlugin extends Plugin {
                 for (String field : keys(fields)) putPreference(editor, "instance_" + activeId + "_" + field, fields.get(field));
             }
             if (!editor.commit()) throw new IllegalStateException("Android could not commit widget preferences.");
-            MathMasterHomeWidgetProvider.updateWidgetPreferences(getContext());
+            refreshWidgetsIfSupported();
 
             JSObject result = new JSObject();
             result.put("restored", true);
@@ -345,11 +345,26 @@ public class BackupRestorePlugin extends Plugin {
         return result;
     }
 
+    private void refreshWidgetsIfSupported() {
+        try {
+            Class<?> providerClass = Class.forName("com.sudhanshu.mathsbj.MathMasterHomeWidgetProvider");
+            providerClass.getMethod("updateWidgetPreferences", Context.class).invoke(null, getContext());
+        } catch (ClassNotFoundException ignored) {
+            // Some release variants intentionally do not ship a launcher widget provider.
+        } catch (Exception error) {
+            Log.w(TAG, "The installed widget provider could not be refreshed.", error);
+        }
+    }
+
     private int[] getCurrentWidgetIds() {
-        AppWidgetManager manager = AppWidgetManager.getInstance(getContext());
-        ComponentName provider = new ComponentName(getContext(), "com.sudhanshu.mathsbj.MathMasterHomeWidgetProvider");
-        int[] ids = manager.getAppWidgetIds(provider);
-        return ids == null ? new int[0] : ids;
+        try {
+            Class<?> providerClass = Class.forName("com.sudhanshu.mathsbj.MathMasterHomeWidgetProvider");
+            AppWidgetManager manager = AppWidgetManager.getInstance(getContext());
+            int[] ids = manager.getAppWidgetIds(new ComponentName(getContext(), providerClass));
+            return ids == null ? new int[0] : ids;
+        } catch (ClassNotFoundException ignored) {
+            return new int[0];
+        }
     }
 
     private static boolean isValidGlobalPreference(String key, Object value) {
