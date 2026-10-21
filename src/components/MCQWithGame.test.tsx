@@ -137,9 +137,9 @@ describe("Full-screen continuous MCQ racing", () => {
       fireEvent.pointerUp(stage, { pointerId: 1, button: 0, clientX: 80, clientY: 650 });
       expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1, option A");
 
-      fireEvent.pointerDown(stage, { pointerId: 2, button: 0, clientX: 320, clientY: 650 });
+      fireEvent.pointerDown(stage, { pointerId: 1, button: 0, pointerType: "mouse", clientX: 320, clientY: 650 });
       now = 200;
-      fireEvent.pointerUp(stage, { pointerId: 2, button: 0, clientX: 320, clientY: 650 });
+      fireEvent.pointerUp(stage, { pointerId: 1, button: 0, pointerType: "mouse", clientX: 320, clientY: 650 });
       expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2, option B");
     } finally {
       view.unmount();
