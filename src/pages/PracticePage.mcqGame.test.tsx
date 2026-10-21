@@ -6,6 +6,18 @@ afterEach(cleanup);
 
 describe("Quiz Arena MCQ with Game mode", () => {
   it("offers the third answer mode and opens the real quiz question on four answer lanes", () => {
+    const originalRequest = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
+    const originalCancel = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => 1,
+    });
+    Object.defineProperty(window, "cancelAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => {},
+    });
     const view = render(<PracticePage />);
 
     try {
@@ -22,6 +34,10 @@ describe("Quiz Arena MCQ with Game mode", () => {
       expect(screen.getByTestId("quiz-overall-progress")).toBeInTheDocument();
     } finally {
       view.unmount();
+      if (originalRequest) Object.defineProperty(window, "requestAnimationFrame", originalRequest);
+      else Reflect.deleteProperty(window, "requestAnimationFrame");
+      if (originalCancel) Object.defineProperty(window, "cancelAnimationFrame", originalCancel);
+      else Reflect.deleteProperty(window, "cancelAnimationFrame");
     }
   });
 });
