@@ -1504,7 +1504,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           }
         }
         answerLockRef.current = false;
-      }, isCorrect ? 350 : 700);
+      }, config.mode === 'game' ? (isCorrect ? 200 : 240) : isCorrect ? 350 : 700);
     },
     [config, currentQ, questions, score, finished, feedback, finishQuiz]
   );
@@ -1969,34 +1969,36 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           </div>
         )}
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentQ}
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -30 }}
-            className="quiz-question-panel relative text-center mb-2 rounded-2xl px-2 py-4 sm:px-4 sm:py-5"
-          >
-            {renderQuestionText()}
-            <div className="mt-2">{renderAnswerHint()}</div>
-
-            <AnimatePresence mode="wait" initial={false}>
-              {feedback && (
-                <div className="pointer-events-none absolute inset-x-0 -bottom-1 z-10 flex translate-y-1/2 justify-center">
-                  <AnswerFeedback
-                    key={`feedback-${currentQ}-${feedback}`}
-                    status={feedback}
-                    correctAnswer={feedback === 'wrong' ? renderCorrectAnswer() : undefined}
-                  />
-                </div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        </AnimatePresence>
+        {config.mode !== 'game' && (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentQ}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -30 }}
+              className="quiz-question-panel relative text-center mb-2 rounded-2xl px-2 py-4 sm:px-4 sm:py-5"
+            >
+              {renderQuestionText()}
+              <div className="mt-2">{renderAnswerHint()}</div>
+  
+              <AnimatePresence mode="wait" initial={false}>
+                {feedback && (
+                  <div className="pointer-events-none absolute inset-x-0 -bottom-1 z-10 flex translate-y-1/2 justify-center">
+                    <AnswerFeedback
+                      key={`feedback-${currentQ}-${feedback}`}
+                      status={feedback}
+                      correctAnswer={feedback === 'wrong' ? renderCorrectAnswer() : undefined}
+                    />
+                  </div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>
+        )}
 
         {/* Floating XP popup */}
         <AnimatePresence>
-          {xpPop && (
+          {config.mode !== 'game' && xpPop && (
             <motion.div
               key={xpPop.id}
               initial={{ opacity: 0, y: 10, scale: 0.6 }}
@@ -2016,7 +2018,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {/* Level up overlay */}
         <AnimatePresence>
-          {levelUp !== null && (
+          {config.mode !== 'game' && levelUp !== null && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2062,10 +2064,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'game' && (
           <MCQWithGame
-            key={gameQuestionKey}
             questionKey={gameQuestionKey}
+            questionContent={renderQuestionText()}
             options={gameOptions}
-            progressLabel={String(Math.min(currentQ + 1, questions.length)) + ' / ' + String(questions.length)}
+            progressLabel={config.repetitionEnabled
+              ? String(completedQuestionIds.size) + '/' + String(originalQuestionCount)
+              : String(Math.min(currentQ + 1, questions.length)) + ' / ' + String(questions.length)}
+            timerLabel={config.timerMode === 'challenge'
+              ? formatChallengeTime(challengeTimeLeft)
+              : isTimerHidden ? null : String(timeLeft) + 's'}
+            onExit={handleExitRequest}
             correctAnswer={q.answer}
             feedback={feedback}
             selectedOption={selectedOption}
