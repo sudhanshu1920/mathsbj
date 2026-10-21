@@ -1835,14 +1835,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       return <span className="text-primary">{String(q.answer)}</span>;
     };
 
-    const gameOptions = buildMCQGameOptions(q.options, q.answer, q.optionPool).map((option) => ({
-      ...option,
-      label: option.sourceIndex !== null && q.options?.[option.sourceIndex] !== undefined
-        ? renderOption(q.options[option.sourceIndex]!, option.sourceIndex)
-        : String(option.value) === String(q.answer)
-          ? renderCorrectAnswer()
-          : <span>{String(option.value)}</span>,
-    }));
+    const gameOptions = config.mode === 'game'
+      ? buildMCQGameOptions(q.options, q.answer, q.optionPool).map((option) => ({
+          ...option,
+          label: option.sourceIndex !== null && q.options?.[option.sourceIndex] !== undefined
+            ? renderOption(q.options[option.sourceIndex]!, option.sourceIndex)
+            : String(option.value) === String(q.answer)
+              ? renderCorrectAnswer()
+              : <span>{String(option.value)}</span>,
+        }))
+      : [];
 
     return (
       <>
