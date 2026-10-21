@@ -37,6 +37,7 @@ import { PERCENTAGE_PRESETS, type PercentagePresetId, resolvePercentagePresets, 
 import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerProgressPercent, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 import MCQWithGame from '@/components/MCQWithGame';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
+import { createMCQGateMappings } from '@/lib/mcqGamePhysics';
 
 type PracticeMode = 'mcq' | 'input' | 'game';
 
@@ -1845,6 +1846,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               : <span>{String(option.value)}</span>,
         }))
       : [];
+    const gameQuestionKey = String(currentQ) + '-' + String(q.quizQuestionId ?? q.questionId ?? q.text);
+    const gameGateMappings = config.mode === 'game'
+      ? createMCQGateMappings(gameQuestionKey, gameOptions.map((option) => option.value))
+      : [];
 
     return (
       <>
@@ -2057,9 +2062,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'game' && (
           <MCQWithGame
-            key={String(currentQ) + '-' + String(q.quizQuestionId ?? q.questionId ?? q.text)}
-            questionKey={String(currentQ) + '-' + String(q.quizQuestionId ?? q.questionId ?? q.text)}
+            key={gameQuestionKey}
+            questionKey={gameQuestionKey}
             options={gameOptions}
+            progressLabel={String(Math.min(currentQ + 1, questions.length)) + ' / ' + String(questions.length)}
             correctAnswer={q.answer}
             feedback={feedback}
             selectedOption={selectedOption}
@@ -2071,11 +2077,21 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               ? Math.max(1200, config.timerSeconds * 1000 - 300)
               : config.timerMode === 'challenge' ? 4800 : 5200}
             disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
-            onCollision={(laneIndex) => {
+            onCollision={(laneIndex, optionValue, gateId) => {
               const option = gameOptions[laneIndex];
-              if (!option || feedback || answerLockRef.current || finishLockRef.current) return;
-              setSelectedOption(laneIndex);
-              handleAnswer(option.value);
+              const gate = gameGateMappings[laneIndex];
+              if (
+                !option ||
+                !gate ||
+                gate.gateId !== gateId ||
+                String(gate.optionValue) !== String(option.value) ||
+                String(option.value) !== String(optionValue) ||
+                feedback ||
+                answerLockRef.current ||
+                finishLockRef.current
+              ) return;
+              setSelectedOption(gate.laneIndex);
+              handleAnswer(gate.optionValue);
             }}
           />
         )}

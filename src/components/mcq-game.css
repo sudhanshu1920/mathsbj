@@ -1,233 +1,201 @@
 .mcq-game-shell {
   width: 100%;
   min-width: 0;
-  border: 1px solid hsl(var(--border) / 0.75);
+  border: 1px solid hsl(var(--border) / 0.74);
   border-radius: 1.2rem;
-  padding: 0.65rem;
-  background: linear-gradient(150deg, hsl(var(--card) / 0.92), hsl(var(--background) / 0.94));
-  box-shadow: 0 12px 32px hsl(var(--foreground) / 0.06);
+  padding: 0.7rem;
+  background: linear-gradient(155deg, hsl(var(--card) / 0.96), hsl(var(--background) / 0.98));
+  box-shadow: 0 14px 34px hsl(var(--foreground) / 0.07);
 }
 
 .mcq-game-hud {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0 0.2rem 0.65rem;
-  font-size: 0.75rem;
+  gap: 0.45rem;
+  padding: 0 0.15rem 0.65rem;
   color: hsl(var(--muted-foreground));
+  font-size: 0.72rem;
 }
 
 .mcq-game-score,
 .mcq-game-wrong {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.32rem;
   white-space: nowrap;
 }
 
 .mcq-game-score strong {
   color: hsl(var(--success, 145 65% 42%));
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .mcq-game-wrong strong {
   color: hsl(var(--destructive));
-  font-weight: 800;
+  font-weight: 900;
 }
 
-.mcq-game-instruction {
+.mcq-game-progress {
+  max-width: 44%;
   overflow: hidden;
+  color: hsl(var(--primary));
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.065em;
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.mcq-game-road {
+.mcq-game-stage {
   position: relative;
   isolation: isolate;
   width: 100%;
-  height: clamp(280px, 39vh, 430px);
-  min-height: 280px;
+  height: clamp(310px, 42vh, 450px);
+  min-height: 300px;
   overflow: hidden;
-  border: 1px solid hsl(var(--border) / 0.65);
+  border: 1px solid hsl(var(--border) / 0.62);
   border-radius: 0.95rem;
-  background: #17202b;
-  touch-action: pan-y;
+  background:
+    radial-gradient(ellipse at 50% 22%, rgb(31 76 113 / 0.7), transparent 54%),
+    linear-gradient(180deg, #10253b 0%, #111d2c 50%, #09131f 100%);
   outline-offset: 3px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.mcq-game-road:focus-visible {
+.mcq-game-stage:focus-visible {
   outline: 2px solid hsl(var(--primary));
 }
 
-.mcq-game-road-surface {
+.mcq-game-canvas {
   position: absolute;
   inset: 0;
-  z-index: -2;
-  background:
-    linear-gradient(90deg, rgb(7 13 22 / 0.45), transparent 16%, transparent 84%, rgb(7 13 22 / 0.45)),
-    linear-gradient(180deg, #24303f, #141b25 76%, #1c2734);
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
 }
 
-.mcq-game-lane-tracks {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  pointer-events: none;
-}
-
-.mcq-game-lane-track {
-  min-width: 0;
-  border-right: 1px dashed rgb(204 220 239 / 0.26);
-  transition: background-color 160ms ease;
-}
-
-.mcq-game-lane-track:last-child {
-  border-right: 0;
-}
-
-.mcq-game-lane-track--active {
-  background: linear-gradient(180deg, rgb(56 189 248 / 0.07), rgb(56 189 248 / 0.18));
-}
-
-.mcq-game-lane-dashes {
-  position: absolute;
-  z-index: -1;
-  top: -70%;
-  bottom: -70%;
-  left: calc(50% - 2px);
-  width: 4px;
-  background: repeating-linear-gradient(
-    180deg,
-    transparent 0 21px,
-    rgb(226 238 250 / 0.62) 21px 39px,
-    transparent 39px 61px
-  );
-  animation: mcq-game-road-scroll 0.8s linear infinite;
-  pointer-events: none;
-}
-
-.mcq-game-gate-row {
+.mcq-game-gate-overlay {
   position: absolute;
   z-index: 3;
-  top: 12px;
-  left: 0;
-  right: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.25rem;
-  will-change: transform;
-  padding: 0 0.25rem;
+  inset: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
-.mcq-game-gate {
+.mcq-game-gate-label {
+  position: absolute;
   display: flex;
-  min-width: 0;
-  min-height: 80px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
-  overflow-wrap: anywhere;
-  border: 1px solid rgb(148 163 184 / 0.55);
-  border-radius: 0.72rem;
-  padding: 0.35rem 0.12rem;
-  color: #f8fafc;
-  background: linear-gradient(155deg, rgb(48 63 82 / 0.96), rgb(24 34 48 / 0.96));
-  box-shadow: 0 6px 15px rgb(0 0 0 / 0.2), inset 0 1px 0 rgb(255 255 255 / 0.08);
+  gap: 0.06em;
+  overflow: hidden;
+  transform: translate3d(-50%, -50%, 0);
+  border: 1px solid rgb(125 211 252 / 0.78);
+  border-radius: 0.3rem;
+  padding: 0.08rem 0.1rem;
+  color: #f8fbff;
+  background: linear-gradient(160deg, rgb(8 28 48 / 0.92), rgb(15 25 43 / 0.96));
+  box-shadow: 0 0 12px rgb(34 211 238 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.025);
+  font-weight: 900;
+  line-height: 1.08;
   text-align: center;
-  font-size: clamp(0.66rem, 2.65vw, 0.92rem);
-  font-weight: 800;
-  line-height: 1.2;
-  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.85);
+  will-change: left, top, width, height;
 }
 
-.mcq-game-gate--target {
-  border-color: rgb(56 189 248 / 0.96);
-  box-shadow: 0 0 0 1px rgb(56 189 248 / 0.45), 0 0 18px rgb(56 189 248 / 0.25);
-}
-
-.mcq-game-gate--correct {
-  border-color: rgb(74 222 128 / 0.98);
-  background: linear-gradient(155deg, rgb(22 101 52 / 0.98), rgb(20 63 47 / 0.98));
-  box-shadow: 0 0 18px rgb(74 222 128 / 0.36);
-}
-
-.mcq-game-gate--wrong {
-  border-color: rgb(251 113 133 / 0.98);
-  background: linear-gradient(155deg, rgb(136 19 55 / 0.98), rgb(76 20 42 / 0.98));
-  box-shadow: 0 0 18px rgb(251 113 133 / 0.32);
-}
-
-.mcq-game-gate-letter {
-  display: inline-flex;
+.mcq-game-gate-label .mcq-game-gate-letter {
+  display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 1.15rem;
-  height: 1.15rem;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  color: #dbeafe;
-  background: rgb(15 23 42 / 0.62);
-  font-size: 0.62rem;
-  font-weight: 900;
+  width: 1.05em;
+  height: 1.05em;
+  border-radius: 50%;
+  color: #061522;
+  background: #8be5ff;
+  font-size: 0.68em;
+  line-height: 1;
+  text-shadow: none;
 }
 
 .mcq-game-gate-answer {
+  display: block;
   width: 100%;
   min-width: 0;
+  max-height: 2.2em;
+  overflow: hidden;
   overflow-wrap: anywhere;
-  line-height: 1.18;
+  color: #fff;
+  font-size: 0.93em;
+  font-weight: 950;
+  line-height: 1.05;
 }
 
 .mcq-game-gate-answer > * {
   max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
-.mcq-game-collision-line {
-  position: absolute;
-  z-index: 1;
-  right: 0.3rem;
-  bottom: 3.4rem;
-  left: 0.3rem;
-  border-top: 1px dashed rgb(56 189 248 / 0.55);
-  box-shadow: 0 -5px 14px rgb(56 189 248 / 0.08);
-  pointer-events: none;
+.mcq-game-gate--correct {
+  border-color: #5ff0a4;
+  background: linear-gradient(160deg, rgb(10 91 64 / 0.97), rgb(10 46 42 / 0.97));
+  box-shadow: 0 0 18px rgb(74 222 128 / 0.48), inset 0 0 0 1px rgb(187 247 208 / 0.18);
 }
 
-.mcq-game-car {
-  position: absolute;
-  z-index: 4;
-  bottom: 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.8rem;
-  height: 2.8rem;
-  transform: translateX(-50%);
-  border: 1px solid rgb(125 211 252 / 0.8);
-  border-radius: 0.9rem;
-  color: #e0f2fe;
-  background: linear-gradient(145deg, #0e7490, #164e63);
-  box-shadow: 0 5px 18px rgb(0 0 0 / 0.36), 0 0 18px rgb(34 211 238 / 0.3);
-  transition: left 150ms ease-out;
-  pointer-events: none;
+.mcq-game-gate--correct .mcq-game-gate-letter {
+  color: #062519;
+  background: #78f5ac;
+}
+
+.mcq-game-gate--wrong {
+  border-color: #fb7185;
+  background: linear-gradient(160deg, rgb(124 29 48 / 0.98), rgb(69 18 37 / 0.98));
+  box-shadow: 0 0 18px rgb(251 113 133 / 0.4);
+}
+
+.mcq-game-gate--wrong .mcq-game-gate-letter {
+  color: #330711;
+  background: #fda4af;
 }
 
 .mcq-game-lane-readout {
   position: absolute;
+  z-index: 4;
   right: 0.55rem;
-  bottom: 0.42rem;
-  z-index: 5;
-  border: 1px solid rgb(203 213 225 / 0.2);
+  bottom: 0.5rem;
+  border: 1px solid rgb(203 213 225 / 0.24);
   border-radius: 999px;
-  padding: 0.2rem 0.5rem;
-  color: #e2e8f0;
-  background: rgb(15 23 42 / 0.72);
-  font-size: 0.62rem;
-  font-weight: 800;
+  padding: 0.26rem 0.58rem;
+  color: #e2f3ff;
+  background: rgb(8 19 32 / 0.78);
+  font-size: 0.66rem;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.mcq-game-steering-hint {
+  position: absolute;
+  z-index: 4;
+  bottom: 0.55rem;
+  left: 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 66%;
+  border: 1px solid rgb(148 163 184 / 0.17);
+  border-radius: 999px;
+  padding: 0.28rem 0.48rem;
+  color: rgb(226 242 255 / 0.8);
+  background: rgb(8 19 32 / 0.62);
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
   pointer-events: none;
 }
 
@@ -243,22 +211,23 @@
   display: inline-flex;
   min-width: 4.5rem;
   min-height: 2.6rem;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
+  gap: 0.24rem;
   border: 1px solid hsl(var(--border));
   border-radius: 0.8rem;
-  padding: 0.3rem 0.55rem;
+  padding: 0.3rem 0.58rem;
   color: hsl(var(--foreground));
-  background: hsl(var(--secondary) / 0.75);
+  background: hsl(var(--secondary) / 0.78);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 850;
   touch-action: manipulation;
 }
 
 .mcq-game-controls button:disabled {
   cursor: not-allowed;
-  opacity: 0.42;
+  opacity: 0.4;
 }
 
 .mcq-game-controls button:focus-visible {
@@ -267,37 +236,126 @@
 }
 
 .mcq-game-controls-hint {
+  display: inline-flex;
   min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
   color: hsl(var(--muted-foreground));
   text-align: center;
   font-size: 0.65rem;
   line-height: 1.25;
 }
 
+.mcq-game-renderer-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.7rem;
+  color: #f8fafc;
+  background:
+    radial-gradient(ellipse at 50% 20%, rgb(30 79 116 / 0.6), transparent 62%),
+    linear-gradient(180deg, #10253b, #0b1523);
+}
+
+.mcq-game-fallback-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  border: 1px solid rgb(125 211 252 / 0.25);
+  border-radius: 0.8rem;
+  padding: 0.7rem;
+  color: #dbeafe;
+  background: rgb(15 34 54 / 0.8);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.mcq-game-fallback-message svg {
+  flex: 0 0 auto;
+  color: #7dd3fc;
+}
+
+.mcq-game-fallback-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.mcq-game-fallback-option {
+  display: flex;
+  min-width: 0;
+  min-height: 4.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 1px solid rgb(125 211 252 / 0.52);
+  border-radius: 0.8rem;
+  padding: 0.5rem;
+  color: #f8fafc;
+  background: linear-gradient(155deg, rgb(24 48 72 / 0.98), rgb(10 27 45 / 0.98));
+  font-size: 0.95rem;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+  touch-action: manipulation;
+}
+
+.mcq-game-fallback-option .mcq-game-gate-letter {
+  display: inline-flex;
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #061522;
+  background: #8be5ff;
+  font-size: 0.7rem;
+}
+
+.mcq-game-fallback-option .mcq-game-gate-answer {
+  max-height: none;
+  overflow: visible;
+  font-size: inherit;
+  text-shadow: none;
+}
+
+.mcq-game-fallback-option.is-correct,
+.mcq-game-fallback-option.is-answer {
+  border-color: #5ff0a4;
+  background: rgb(10 91 64 / 0.97);
+}
+
+.mcq-game-fallback-option.is-wrong {
+  border-color: #fb7185;
+  background: rgb(124 29 48 / 0.98);
+}
+
+.mcq-game-fallback-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
 .mcq-game-status {
   min-height: 1rem;
-  margin: 0.5rem 0 0.1rem;
+  margin: 0.55rem 0 0.05rem;
   color: hsl(var(--muted-foreground));
   text-align: center;
-  font-size: 0.68rem;
-  line-height: 1.3;
+  font-size: 0.69rem;
+  line-height: 1.35;
 }
 
-@keyframes mcq-game-road-scroll {
-  from { transform: translateY(0); }
-  to { transform: translateY(61px); }
-}
-
-@media (max-width: 360px) {
+@media (max-width: 380px) {
   .mcq-game-shell { padding: 0.45rem; }
-  .mcq-game-gate { min-height: 75px; border-radius: 0.58rem; }
-  .mcq-game-controls button { min-width: 3.9rem; padding-inline: 0.38rem; }
-  .mcq-game-controls-hint { font-size: 0.58rem; }
+  .mcq-game-stage { min-height: 300px; height: 38vh; }
+  .mcq-game-controls button { min-width: 3.8rem; padding-inline: 0.38rem; }
+  .mcq-game-controls-hint { font-size: 0.59rem; }
+  .mcq-game-steering-hint { font-size: 0.48rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mcq-game-lane-dashes { animation: none; }
-  .mcq-game-lane-track,
-  .mcq-game-car,
-  .mcq-game-gate { transition: none; }
+  .mcq-game-gate-label { will-change: auto; }
 }
