@@ -3,6 +3,8 @@ import {
   DEFAULT_STUDY_SUBJECTS,
   canEditStudyDate,
   formatDateKey,
+  getStudyTrackerDate,
+  observeStudyTrackerDate,
   getActiveStudySubjectsForDate,
   getStudySubjectsForDate,
   STUDY_TRACKER_TEMPLATE_END,
@@ -185,7 +187,7 @@ describe('Study Tracker subject and entry identity', () => {
       preferences: { mode: 'year', anchorDate: 'invalid', templateStartDate: '2027-01-01', templateEndDate: '2026-01-01' },
     }, fixedNow());
 
-    expect(state.version).toBe(2);
+    expect(state.version).toBe(3);
     expect(state.preferences.mode).toBe('table');
     expect(state.preferences.anchorDate).toBe('2026-10-20');
     expect(state.preferences.templateStartDate).toBe(STUDY_TRACKER_TEMPLATE_START);
@@ -400,5 +402,44 @@ describe('Study Tracker strict date permissions and subject history', () => {
     expect(getStudyEntry(loadStudyTrackerState(now, localStorage), past, 'builtin-math')).toBeUndefined();
     expect(getStudyEntry(loadStudyTrackerState(now, localStorage), future, 'builtin-math')).toBeUndefined();
     expect(getStudyEntry(loadStudyTrackerState(now, localStorage), formatDateKey(now), 'builtin-math')?.minutes).toBe(25);
+  });
+});
+
+
+describe('Study Tracker permanent lock across local-date rollback', () => {
+  it('keeps the highest observed local day after the device clock moves backwards', () => {
+    const day20 = new Date(2026, 9, 20, 12, 0, 0);
+    const day21 = new Date(2026, 9, 21, 0, 5, 0);
+    localStorage.clear();
+    const day20State = defaults();
+    expect(saveStudyTrackerState(day20State, localStorage, day20)).toBe(true);
+
+    const observedOn21 = observeStudyTrackerDate(loadStudyTrackerState(day21, localStorage), day21);
+    expect(observedOn21.lastObservedDate).toBe('2026-10-21');
+    expect(saveStudyTrackerState(observedOn21, localStorage, day21)).toBe(true);
+
+    const loadedAfterClockRollback = loadStudyTrackerState(day20, localStorage);
+    expect(loadedAfterClockRollback.lastObservedDate).toBe('2026-10-21');
+    expect(getStudyTrackerDate(loadedAfterClockRollback, day20)).toBe('2026-10-21');
+    expect(canEditStudyDate('2026-10-20', day20, loadedAfterClockRollback.lastObservedDate)).toBe(false);
+
+    const pastAttempt = upsertStudyEntry(loadedAfterClockRollback, {
+      date: '2026-10-20',
+      subjectId: 'builtin-math',
+      status: 'completed',
+      minutes: 45,
+      note: 'must remain locked',
+    }, day20);
+    expect(pastAttempt).toBe(loadedAfterClockRollback);
+
+    const currentOnHighWaterDay = upsertStudyEntry(loadedAfterClockRollback, {
+      date: '2026-10-21',
+      subjectId: 'builtin-math',
+      status: 'completed',
+      minutes: 30,
+      note: 'current observed date',
+    }, day20);
+    expect(currentOnHighWaterDay).not.toBe(loadedAfterClockRollback);
+    expect(getStudyEntry(currentOnHighWaterDay, '2026-10-21', 'builtin-math')?.minutes).toBe(30);
   });
 });

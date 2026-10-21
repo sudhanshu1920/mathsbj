@@ -259,5 +259,7 @@ describe('StudyTracker date permissions in every view', () => {
     });
     expect(screen.queryByRole('button', { name: 'Edit Math entry for 20 October 2026. Status: Not Started.' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit Math entry for 21 October 2026. Status: Not Started.' })).toBeInTheDocument();
+    const savedAfterMidnight = JSON.parse(localStorage.getItem(STUDY_TRACKER_STORAGE_KEY) ?? 'null') as StudyTrackerState | null;
+    expect(savedAfterMidnight?.lastObservedDate).toBe('2026-10-21');
   });
 });

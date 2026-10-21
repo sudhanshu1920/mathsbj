@@ -50,7 +50,8 @@ export interface StudySubjectHistorySnapshot {
 }
 
 export interface StudyTrackerState {
-  version: 2;
+  version: 3;
+  lastObservedDate: string;
   subjects: StudySubject[];
   subjectHistory: StudySubjectHistorySnapshot[];
   entries: Record<string, StudyEntry>;
@@ -80,6 +81,20 @@ export const isDateKey = (value: unknown): value is string => {
   const parsed = parseISO(value);
   return isValid(parsed) && formatDateKey(parsed) === value;
 };
+
+function maxStudyDateKey(...dates: Array<string | undefined>): string {
+  const valid = dates.filter((date): date is string => isDateKey(date)).sort();
+  return valid[valid.length - 1] ?? formatDateKey(new Date());
+}
+
+export function getStudyTrackerDate(state: Pick<StudyTrackerState, 'lastObservedDate'>, now = new Date()): string {
+  return maxStudyDateKey(formatDateKey(now), state.lastObservedDate);
+}
+
+export function observeStudyTrackerDate(state: StudyTrackerState, now = new Date()): StudyTrackerState {
+  const observedDate = getStudyTrackerDate(state, now);
+  return state.lastObservedDate === observedDate ? state : { ...state, lastObservedDate: observedDate };
+}
 
 export const parseDateKey = (value: string): Date => {
   const parsed = parseISO(value);
@@ -198,7 +213,8 @@ export function createDefaultStudyTrackerState(now = new Date()): StudyTrackerSt
     updatedAt: timestamp,
   }));
   return {
-    version: 2,
+    version: 3,
+    lastObservedDate: formatDateKey(now),
     subjects,
     subjectHistory: createInitialSubjectHistory(subjects),
     entries: {},
@@ -222,6 +238,11 @@ export function normalizeStudyTrackerState(value: unknown, now = new Date()): St
   if (!isRecord(value)) return fallback;
 
   const preferences = isRecord(value.preferences) ? value.preferences : {};
+  const currentDate = formatDateKey(now);
+  const lastObservedDate = maxStudyDateKey(
+    currentDate,
+    isDateKey(value.lastObservedDate) ? value.lastObservedDate : currentDate,
+  );
   const subjectList: StudySubject[] = [];
   const subjectIds = new Set<string>();
 
@@ -304,10 +325,9 @@ export function normalizeStudyTrackerState(value: unknown, now = new Date()): St
     // custom subject's prior renamed label if that older version never saved
     // it, but it preserves the stable ID and all historical entries.
     subjectHistory = createInitialSubjectHistory(subjects);
-    const today = formatDateKey(now);
-    const currentSnapshot = snapshotSubjectsForDate(subjects, today);
-    const todayIndex = subjectHistory.findIndex((snapshot) => snapshot.effectiveDate === today);
-    if (todayIndex >= 0) subjectHistory[todayIndex] = currentSnapshot;
+    const currentSnapshot = snapshotSubjectsForDate(subjects, lastObservedDate);
+    const currentIndex = subjectHistory.findIndex((snapshot) => snapshot.effectiveDate === lastObservedDate);
+    if (currentIndex >= 0) subjectHistory[currentIndex] = currentSnapshot;
     else subjectHistory.push(currentSnapshot);
     subjectHistory.sort((left, right) => left.effectiveDate.localeCompare(right.effectiveDate));
   }
@@ -321,7 +341,8 @@ export function normalizeStudyTrackerState(value: unknown, now = new Date()): St
   const orderedRangeIsValid = start <= end;
 
   return {
-    version: 2,
+    version: 3,
+    lastObservedDate,
     subjects: subjects.sort((left, right) => left.order - right.order),
     subjectHistory,
     entries,
@@ -347,7 +368,14 @@ export function loadStudyTrackerState(now = new Date(), storage = getBrowserStor
   try {
     const raw = storage.getItem(STUDY_TRACKER_STORAGE_KEY);
     if (!raw) return createDefaultStudyTrackerState(now);
-    return normalizeStudyTrackerState(JSON.parse(raw), now);
+    const rawValue: unknown = JSON.parse(raw);
+    const state = normalizeStudyTrackerState(rawValue, now);
+    const needsMigration = !isRecord(rawValue) ||
+      rawValue.version !== 3 ||
+      !isDateKey(rawValue.lastObservedDate) ||
+      rawValue.lastObservedDate < state.lastObservedDate;
+    if (needsMigration) saveStudyTrackerState(state, storage, now);
+    return state;
   } catch {
     return createDefaultStudyTrackerState(now);
   }
@@ -412,7 +440,7 @@ export function saveStudyTrackerState(
 ): boolean {
   if (!storage) return false;
   try {
-    const today = formatDateKey(now);
+    const today = getStudyTrackerDate(state, now);
     let previous: StudyTrackerState | undefined;
     const raw = storage.getItem(STUDY_TRACKER_STORAGE_KEY);
     if (raw) {
@@ -423,8 +451,10 @@ export function saveStudyTrackerState(
       }
     }
 
-    const normalized = normalizeStudyTrackerState(state, now);
-    if (!canPersistStudyTrackerChange(previous, normalized, today)) return false;
+    const incoming = normalizeStudyTrackerState(state, now);
+    const effectiveToday = maxStudyDateKey(today, previous?.lastObservedDate, incoming.lastObservedDate);
+    const normalized = { ...incoming, lastObservedDate: effectiveToday };
+    if (!canPersistStudyTrackerChange(previous, normalized, effectiveToday)) return false;
     storage.setItem(STUDY_TRACKER_STORAGE_KEY, JSON.stringify(normalized));
     return true;
   } catch {
@@ -441,8 +471,8 @@ export function getStudyEntry(
   return state.entries[studyEntryKey(date, subjectId)];
 }
 
-export function canEditStudyDate(date: string, now = new Date()): boolean {
-  return isDateKey(date) && date === formatDateKey(now);
+export function canEditStudyDate(date: string, now = new Date(), lastObservedDate?: string): boolean {
+  return isDateKey(date) && date === maxStudyDateKey(formatDateKey(now), lastObservedDate);
 }
 
 export function getStudySubjectsForDate(state: StudyTrackerState, date: string): StudySubject[] {
@@ -522,6 +552,7 @@ export function addStudySubject(
     return { state, error: 'A subject with this name already exists.' };
   }
 
+  const effectiveDate = getStudyTrackerDate(state, now);
   const timestamp = now.toISOString();
   const subject: StudySubject = {
     id,
@@ -531,7 +562,7 @@ export function addStudySubject(
     createdAt: timestamp,
     updatedAt: timestamp,
   };
-  const nextState = recordSubjectConfiguration(state, [...state.subjects, subject], formatDateKey(now));
+  const nextState = recordSubjectConfiguration(state, [...state.subjects, subject], effectiveDate);
   return { state: nextState, subject };
 }
 
@@ -550,7 +581,7 @@ export function renameStudySubject(
     return { state, error: 'A subject with this name already exists.' };
   }
 
-  const today = formatDateKey(now);
+  const today = getStudyTrackerDate(state, now);
   const effectiveSubject = getActiveStudySubjectsForDate(state, today).find((subject) => subject.id === subjectId);
   if (!effectiveSubject) return { state, error: 'Only an active subject in today\'s configuration can be renamed.' };
   const timestamp = now.toISOString();
@@ -585,7 +616,7 @@ export function reorderStudySubject(
     ...subject,
     order: orderById.get(subject.id) ?? archivedOrderById.get(subject.id) ?? subject.order,
   }));
-  return recordSubjectConfiguration(state, subjects, formatDateKey(now));
+  return recordSubjectConfiguration(state, subjects, getStudyTrackerDate(state, now));
 }
 
 export function setStudySubjectArchived(
@@ -595,7 +626,7 @@ export function setStudySubjectArchived(
   now = new Date(),
 ): StudyTrackerState {
   if (!state.subjects.some((subject) => subject.id === subjectId)) return state;
-  const today = formatDateKey(now);
+  const today = getStudyTrackerDate(state, now);
   const currentVersion = getStudySubjectsForDate(state, today).find((subject) => subject.id === subjectId);
   if (!currentVersion || (archived && currentVersion.archived) || (!archived && !currentVersion.archived)) return state;
   const nextActiveOrder = Math.max(
@@ -615,7 +646,7 @@ export function upsertStudyEntry(
   now = new Date(),
 ): StudyTrackerState {
   if (!isDateKey(entry.date) ||
-      !canEditStudyDate(entry.date, now) ||
+      !canEditStudyDate(entry.date, now, state.lastObservedDate) ||
       !getActiveStudySubjectsForDate(state, entry.date).some((subject) => subject.id === entry.subjectId) ||
       !isStudyEntryStatus(entry.status) ||
       !Number.isFinite(entry.minutes) ||

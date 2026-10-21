@@ -32,6 +32,8 @@ import {
   getActiveStudySubjectsForDate,
   getMonthDates,
   getStudyEntry,
+  getStudyTrackerDate,
+  observeStudyTrackerDate,
   getStudySubjectsForDate,
   getStudySubjectsWithRecordsForDate,
   getTableDates,
@@ -162,7 +164,7 @@ const OverlayFrame = ({
 
 const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   const [state, setState] = useState<StudyTrackerState>(() => loadStudyTrackerState());
-  const [todayKey, setTodayKey] = useState(() => formatDateKey(new Date()));
+  const [todayKey, setTodayKey] = useState(() => getStudyTrackerDate(state, new Date()));
   const stateRef = useRef(state);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [showModeMenu, setShowModeMenu] = useState(false);
@@ -223,7 +225,13 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     const refreshToday = () => {
       if (midnightTimer !== null) window.clearTimeout(midnightTimer);
       const now = new Date();
-      const nextToday = formatDateKey(now);
+      const observedState = observeStudyTrackerDate(stateRef.current, now);
+      if (observedState !== stateRef.current) {
+        stateRef.current = observedState;
+        setState(observedState);
+        setStorageWarning(!saveStudyTrackerState(observedState, undefined, now));
+      }
+      const nextToday = getStudyTrackerDate(observedState, now);
       setTodayKey((current) => current === nextToday ? current : nextToday);
       const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
       midnightTimer = window.setTimeout(refreshToday, Math.max(1000, nextMidnight.getTime() - now.getTime()));
@@ -247,6 +255,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       const next = loadStudyTrackerState();
       stateRef.current = next;
       setState(next);
+      setTodayKey(getStudyTrackerDate(next, new Date()));
       setStorageWarning(false);
     };
     const closeFromAppBack = () => {
@@ -370,8 +379,8 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
   };
 
   const openEntry = (date: string, subject: StudySubject, fromDayDetails = false) => {
-    if (!canEditStudyDate(date) ||
-        !getActiveStudySubjectsForDate(stateRef.current, formatDateKey(new Date())).some((item) => item.id === subject.id)) return;
+    if (!canEditStudyDate(date, new Date(), stateRef.current.lastObservedDate) ||
+        !getActiveStudySubjectsForDate(stateRef.current, getStudyTrackerDate(stateRef.current, new Date())).some((item) => item.id === subject.id)) return;
     setEntryDate(date);
     setEntrySubjectId(subject.id);
     setEntryDraft(makeEntryDraft(getStudyEntry(stateRef.current, date, subject.id)));
@@ -382,7 +391,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
 
   const saveEntry = () => {
     const now = new Date();
-    if (!canEditStudyDate(entryDate, now)) {
+    if (!canEditStudyDate(entryDate, now, stateRef.current.lastObservedDate)) {
       setEntryError("Only today's entries can be changed. This date is now read-only.");
       return;
     }
@@ -391,7 +400,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
       setEntryError('Study minutes must be a whole number between 0 and 1440.');
       return;
     }
-    const subjectExists = getActiveStudySubjectsForDate(stateRef.current, formatDateKey(now))
+    const subjectExists = getActiveStudySubjectsForDate(stateRef.current, getStudyTrackerDate(stateRef.current, now))
       .some((subject) => subject.id === entrySubjectId);
     if (!subjectExists || !isDateKey(entryDate) || !isStudyEntryStatus(entryDraft.status)) {
       setEntryError('This subject is no longer available for today. Close the editor and open it again.');
@@ -524,7 +533,7 @@ const StudyTracker = ({ onBack, onExit }: StudyTrackerProps) => {
     if (onBack) onBack();
     else onExit?.();
   };
-  const entryEditable = canEditStudyDate(entryDate);
+  const entryEditable = canEditStudyDate(entryDate, new Date(), state.lastObservedDate);
 
 
   return (
