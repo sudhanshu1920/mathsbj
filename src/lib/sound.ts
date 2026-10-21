@@ -84,7 +84,11 @@ const setSmoothTarget = (param: AudioParam, value: number, context: AudioContext
  * updates pitch/timbre at a throttled cadence rather than on every render frame.
  * The persisted Sound setting mutes audio only; it never affects game physics.
  */
-export const createRacingAudioController = (): RacingAudioController => {
+export const createRacingAudioController = (baseSpeedMultiplier: number, maximumSpeedMultiplier: number): RacingAudioController => {
+  const safeBaseSpeed = Number.isFinite(baseSpeedMultiplier) ? baseSpeedMultiplier : 1;
+  const safeMaximumSpeed = Number.isFinite(maximumSpeedMultiplier) && maximumSpeedMultiplier > safeBaseSpeed
+    ? maximumSpeedMultiplier
+    : safeBaseSpeed + 1;
   let nodes: RacingAudioNodes | null = null;
   let gestureSeen = false;
   let paused = false;
@@ -211,9 +215,12 @@ export const createRacingAudioController = (): RacingAudioController => {
     const context = currentNodes.context;
     const now = context.currentTime;
     const safeSpeed = Number.isFinite(speedMultiplier)
-      ? Math.min(3.25, Math.max(1, speedMultiplier))
-      : 1;
-    const normalizedSpeed = Math.min(1, Math.max(0, (safeSpeed - 1) / 2.25));
+      ? Math.min(safeMaximumSpeed, Math.max(safeBaseSpeed, speedMultiplier))
+      : safeBaseSpeed;
+    const normalizedSpeed = Math.min(1, Math.max(
+      0,
+      (safeSpeed - safeBaseSpeed) / (safeMaximumSpeed - safeBaseSpeed),
+    ));
     const shouldUpdate = now - lastUpdateAt >= 0.05 ||
       accelerating !== lastAccelerating ||
       !Number.isFinite(lastSpeed) ||
@@ -244,7 +251,7 @@ export const createRacingAudioController = (): RacingAudioController => {
       }
       const context = getCtx();
       if (context?.state === "suspended") context.resume().catch(() => {});
-      update(Number.isFinite(lastSpeed) ? lastSpeed : 1, false);
+      update(Number.isFinite(lastSpeed) ? lastSpeed : safeBaseSpeed, false);
     },
     update,
     pause: () => {
@@ -262,7 +269,7 @@ export const createRacingAudioController = (): RacingAudioController => {
         if (currentNodes.context.state === "suspended") currentNodes.context.resume().catch(() => {});
         lastUpdateAt = Number.NEGATIVE_INFINITY;
         rampMaster(0.72);
-        update(Number.isFinite(lastSpeed) ? lastSpeed : 1, false);
+        update(Number.isFinite(lastSpeed) ? lastSpeed : safeBaseSpeed, false);
       }
     },
     dispose: () => {
