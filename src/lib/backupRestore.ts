@@ -60,7 +60,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const utf8Size = (value: string): number => new TextEncoder().encode(value).byteLength;
 
 function isValidDateKey(value: unknown): value is string {
-  if (typeof value !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(value + 'T00:00:00.000Z');
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
@@ -217,6 +217,15 @@ function validateStoragePayload(value: unknown, validateRecords = true): Record<
             if (field in saved && typeof saved[field] !== 'boolean') throw new Error('Invalid setting: ' + field);
           }
           if ('font' in saved && !['inter','space-grotesk','nunito','rajdhani'].includes(String(saved.font))) throw new Error('Invalid saved font preference.');
+        }
+        if (key === 'math-app-study-tracker-v1') {
+          if (saved.version !== undefined &&
+              (!Number.isSafeInteger(saved.version) || (saved.version as number) < 1)) {
+            throw new Error('Study Tracker schema version is invalid.');
+          }
+          if (typeof saved.version === 'number' && saved.version > 3) {
+            throw new Error('This backup contains a newer Study Tracker schema. Update the app before restoring it.');
+          }
         }
         if (key === 'math-app-study-tracker-v1' && saved.version === 3) {
           if (!Array.isArray(saved.subjects) || !Array.isArray(saved.subjectHistory) || !isRecord(saved.entries) || !isRecord(saved.preferences)) {

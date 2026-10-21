@@ -182,6 +182,20 @@ describe('portable Math Master backup', () => {
     expect(localStorage.getItem('math-app-streak-v1')).toBe(previousStreak);
   });
 
+  it('rejects future Study Tracker record schema versions', async () => {
+    await expect(createBackupText({
+      storageEntries: {
+        'math-app-study-tracker-v1': JSON.stringify({
+          version: 4,
+          subjects: [],
+          subjectHistory: [],
+          entries: {},
+          preferences: { mode: 'table' },
+        }),
+      },
+    })).rejects.toThrow(/newer Study Tracker schema/i);
+  });
+
   it('rejects unsafe widget configurations rather than accepting arbitrary persisted fields', async () => {
     const badWidgets = { version: 1, global: { arbitraryExecutable: 'run' }, instances: [] };
     await expect(createBackupText({
