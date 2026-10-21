@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { CarFront } from "lucide-react";
+import { CarFront, Check, Send, Timer, X } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import {
   MCQ_GAME_CAR_HALF_WIDTH,
@@ -197,7 +197,7 @@ const MCQWithGame = ({
         touchGestureRef.current) return;
     const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
     const startX = Number.isFinite(event.clientX) ? event.clientX : 0;
-    if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option")) return;
+    if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-topbar, .mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option")) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
     const direction: -1 | 1 = startX < rect.left + rect.width / 2 ? -1 : 1;
@@ -668,19 +668,60 @@ const MCQWithGame = ({
           </>
         )}
 
-        <div className={["mcq-game-question-panel", boosting ? "mcq-game-question-panel--boost" : ""].join(" ")}
+        <div
+          className="mcq-game-topbar"
+          role="group"
+          aria-label="Quiz status and submission"
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+          onPointerCancel={(event) => event.stopPropagation()}
+        >
+          <div className="mcq-game-topbar-stat mcq-game-topbar-stat--correct" aria-label={String(correctScore) + " correct answers"}>
+            <Check size={21} strokeWidth={3.2} aria-hidden="true" />
+            <span>{correctScore}</span>
+          </div>
+          <span className="mcq-game-topbar-divider" aria-hidden="true" />
+          <div className="mcq-game-topbar-stat mcq-game-topbar-stat--wrong" aria-label={String(wrongScore) + " incorrect answers"}>
+            <X size={21} strokeWidth={3.2} aria-hidden="true" />
+            <span>{wrongScore}</span>
+          </div>
+          <span className="mcq-game-topbar-divider" aria-hidden="true" />
+          <div className="mcq-game-topbar-stat mcq-game-topbar-stat--progress" aria-label={"Question " + (progressLabel || "—")}>
+            <span>{progressLabel || "—"}</span>
+          </div>
+          {timerLabel && (
+            <>
+              <span className="mcq-game-topbar-divider mcq-game-topbar-divider--timer" aria-hidden="true" />
+              <div
+                className={["mcq-game-topbar-stat", "mcq-game-topbar-stat--timer", timerLabel.startsWith("00:") || timerLabel === "0s" ? "is-low-time" : ""].filter(Boolean).join(" ")}
+                aria-label={"Time remaining " + timerLabel}
+              >
+                <Timer size={20} strokeWidth={2.6} aria-hidden="true" />
+                <span>{timerLabel}</span>
+              </div>
+            </>
+          )}
+          <button
+            type="button"
+            className="mcq-game-submit"
+            aria-label={"Submit selected answer, option " + LANE_LABELS[lane]}
+            data-testid="mcq-game-submit"
+            disabled={disabled || phase !== "RUNNING" || submittedRef.current || !!feedback}
+            onClick={() => submitFallbackAnswer(laneRef.current)}
+          >
+            <Send size={19} fill="currentColor" strokeWidth={1.8} aria-hidden="true" />
+            <span>Submit</span>
+          </button>
+        </div>
+
+        <div
+          className={["mcq-game-question-panel", boosting ? "mcq-game-question-panel--boost" : ""].join(" ")}
           ref={questionPanelRef}
           aria-label="Current quiz question"
           onPointerDown={(event) => event.stopPropagation()}
           onPointerUp={(event) => event.stopPropagation()}
           onPointerCancel={(event) => event.stopPropagation()}
         >
-          <div className="mcq-game-question-meta">
-            <span>{correctScore} ✓</span>
-            <span>{wrongScore} ✕</span>
-            <span>{progressLabel || "—"}</span>
-            {timerLabel && <span className={timerLabel.startsWith("00:") || timerLabel === "0s" ? "is-low-time" : ""}>{timerLabel}</span>}
-          </div>
           <div className="mcq-game-question-content">{questionLabel}</div>
         </div>
         <span className="mcq-game-lane-readout sr-only" data-testid="mcq-game-lane-readout" aria-live="polite">{laneAnnouncement}</span>
