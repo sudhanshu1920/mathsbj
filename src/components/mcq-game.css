@@ -25,7 +25,6 @@ html.mcq-game-immersive-active,
 html.mcq-game-immersive-active body {
   overflow: hidden;
   overscroll-behavior: none;
-  touch-action: none;
 }
 
 .mcq-game-hud {
@@ -131,7 +130,7 @@ html.mcq-game-immersive-active body {
     radial-gradient(ellipse at 50% 24%, rgb(31 76 113 / 0.58), transparent 54%),
     linear-gradient(180deg, #10253b 0%, #111d2c 50%, #09131f 100%);
   outline-offset: 3px;
-  touch-action: none;
+  touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -175,6 +174,7 @@ html.mcq-game-immersive-active body {
   backdrop-filter: blur(18px) saturate(1.15);
   -webkit-backdrop-filter: blur(18px) saturate(1.15);
   pointer-events: auto;
+  touch-action: pan-y;
   overscroll-behavior: contain;
 }
 
