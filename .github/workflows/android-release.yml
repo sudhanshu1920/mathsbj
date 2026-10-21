@@ -955,6 +955,7 @@ jobs:
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   registerPlugin(AppUpdaterPlugin.class);
+                  registerPlugin(AppUpdaterPlugin.class);
                   registerPlugin(ImmersiveModePlugin.class);
                   super.onCreate(savedInstanceState);
 

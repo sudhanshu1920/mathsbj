@@ -191,29 +191,32 @@ const MCQWithGame = ({
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((typeof event.button === "number" && event.button !== 0) ||
         disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
+    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
+    const startX = Number.isFinite(event.clientX) ? event.clientX : 0;
+    const startY = Number.isFinite(event.clientY) ? event.clientY : 0;
     if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option")) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
-    const direction: -1 | 1 = event.clientX < rect.left + rect.width / 2 ? -1 : 1;
+    const direction: -1 | 1 = startX < rect.left + rect.width / 2 ? -1 : 1;
     clearHoldTimer();
     touchGestureRef.current = {
-      pointerId: event.pointerId,
+      pointerId,
       direction,
-      startX: event.clientX,
-      startY: event.clientY,
+      startX,
+      startY,
       startedAt: performance.now(),
       boostTriggered: false,
     };
 
     try {
-      event.currentTarget.setPointerCapture(event.pointerId);
+      event.currentTarget.setPointerCapture(pointerId);
     } catch {
       // Pointer capture is unavailable in some test browsers; window-level interaction state still works.
     }
 
     holdTimerRef.current = setTimeout(() => {
       const press = touchGestureRef.current;
-      if (!press || press.pointerId !== event.pointerId || phaseRef.current !== "RUNNING" || disabledRef.current) return;
+      if (!press || press.pointerId !== pointerId || phaseRef.current !== "RUNNING" || disabledRef.current) return;
       press.boostTriggered = true;
       boostingRef.current = true;
       setBoosting(true);
@@ -222,12 +225,15 @@ const MCQWithGame = ({
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     const press = touchGestureRef.current;
-    if (!press || press.pointerId !== event.pointerId) return;
+    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
+    if (!press || press.pointerId !== pointerId) return;
 
     clearHoldTimer();
     touchGestureRef.current = null;
     const duration = Math.max(0, performance.now() - press.startedAt);
-    const movement = Math.hypot(event.clientX - press.startX, event.clientY - press.startY);
+    const endX = Number.isFinite(event.clientX) ? event.clientX : press.startX;
+    const endY = Number.isFinite(event.clientY) ? event.clientY : press.startY;
+    const movement = Math.hypot(endX - press.startX, endY - press.startY);
     const result = classifySteeringGesture(duration, press.direction);
 
     if (press.boostTriggered || result.kind === "boost") {
@@ -239,7 +245,8 @@ const MCQWithGame = ({
   };
 
   const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (touchGestureRef.current?.pointerId !== event.pointerId) return;
+    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
+    if (touchGestureRef.current?.pointerId !== pointerId) return;
     clearHoldTimer();
     touchGestureRef.current = null;
     endBoost();
