@@ -384,14 +384,14 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
         {!activeAction && downloadStatus && (
           <p className="text-xs leading-relaxed text-destructive" role="status">{downloadStatus}</p>
         )}
-        <DialogFooter className="grid grid-cols-2 gap-2 sm:space-x-0">
+        <DialogFooter className="!grid grid-cols-1 gap-2 !space-x-0">
           <Button type="button" disabled={!!activeAction || !update} className="w-full rounded-xl px-2 text-xs" onClick={() => { if (update) void performUpdate(update); }}>
             {activeAction === "update" ? "Updating…" : "Update Now"}
           </Button>
           <Button type="button" variant="outline" disabled={!!activeAction || !update || !canSaveToDownloads} className="w-full rounded-xl px-2 text-xs" onClick={() => { if (update) void performDownload(update); }}>
             {activeAction === "download" ? "Downloading…" : "Download APK"}
           </Button>
-          <Button type="button" variant="ghost" disabled={!!activeAction} className="col-span-2 w-full rounded-xl" onClick={dismissCurrentUpdate}>Later</Button>
+          <Button type="button" variant="ghost" disabled={!!activeAction} className="w-full rounded-xl" onClick={dismissCurrentUpdate}>Later</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

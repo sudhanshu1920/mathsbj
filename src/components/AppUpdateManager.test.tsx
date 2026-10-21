@@ -97,7 +97,12 @@ describe("AppUpdateManager", () => {
     expect(screen.getByRole("button", { name: "Update Now" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Download APK" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Later" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Later" }).className).toContain("col-span-2");
+    const laterButton = screen.getByRole("button", { name: "Later" });
+    const buttonFooter = laterButton.parentElement;
+    expect(buttonFooter).toHaveClass("!grid", "grid-cols-1", "gap-2");
+    expect(screen.getByRole("button", { name: "Update Now" }).parentElement).toBe(buttonFooter);
+    expect(screen.getByRole("button", { name: "Download APK" }).parentElement).toBe(buttonFooter);
+    expect(laterButton).toHaveClass("w-full");
     expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(1);
   });
 
