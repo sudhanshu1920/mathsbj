@@ -351,13 +351,28 @@ function buildWorldMesh(): MeshBuilder {
     builder.addBox(side * 5.08, 0.25, -6, 0.10, 0.055, 49, [0.19, 0.66, 0.83]);
     builder.addBox(side * 5.08, -0.13, -6, 0.20, 0.09, 49, [0.10, 0.14, 0.18]);
   }
+
+  // Static, low-poly mountain silhouettes and a restrained moon add depth
+  // without a skybox texture, extra draw calls, or per-frame allocations.
+  builder.addCone(-15.0, -0.18, -33, 7.2, 6.5, [0.018, 0.040, 0.095], 7);
+  builder.addCone(-20.2, -0.18, -39, 8.6, 8.2, [0.025, 0.060, 0.13], 7);
+  builder.addCone(14.2, -0.18, -35, 8.4, 7.4, [0.018, 0.045, 0.11], 7);
+  builder.addCone(20.1, -0.18, -42, 9.5, 9.0, [0.028, 0.075, 0.16], 7);
+  builder.addCone(12.2, 9.4, -36, 0.82, 0.12, [0.70, 0.83, 1.0], 12);
+  for (const star of [
+    [-15, 10.2, -30], [-9, 12.1, -38], [-2, 9.2, -34],
+    [3, 12.5, -40], [8, 10.8, -31], [18, 12.4, -39],
+  ] as const) {
+    builder.addBox(star[0], star[1], star[2], 0.055, 0.055, 0.04, [0.42, 0.66, 0.95]);
+  }
   return builder;
 }
 
 function buildScrollingMesh(): MeshBuilder {
   const builder = new MeshBuilder();
   const laneSeparators = [-2.30, 0, 2.30];
-  for (let z = -32; z <= 20; z += 3.65) {
+  // Four-unit dash spacing divides the eight-unit recycle cycle exactly.
+  for (let z = -32; z <= 20; z += 4.0) {
     for (const x of laneSeparators) {
       builder.addBox(x, -0.068, z, 0.045, 0.018, 1.48, [0.72, 0.80, 0.88]);
     }
@@ -366,8 +381,10 @@ function buildScrollingMesh(): MeshBuilder {
   for (let z = -30; z <= 18; z += 8) {
     for (const side of [-1, 1]) {
       const x = side * 5.42;
-      builder.addBox(x, 0.18, z, 0.13, 0.42, 0.13, [0.28, 0.35, 0.43]);
-      builder.addBox(x, 0.42, z, 0.23, 0.10, 0.18, [0.20, 0.84, 0.98]);
+      builder.addBox(x, 1.48, z, 0.075, 2.85, 0.075, [0.28, 0.35, 0.43]);
+      builder.addBox(x - side * 0.30, 2.92, z, 0.74, 0.075, 0.075, [0.30, 0.40, 0.52]);
+      builder.addBox(x - side * 0.58, 2.86, z, 0.26, 0.11, 0.18, [0.98, 0.66, 0.30]);
+      builder.addBox(x - side * 0.58, 2.80, z, 0.30, 0.035, 0.20, [1.0, 0.82, 0.48]);
       builder.addBox(x, -0.08, z, 0.28, 0.09, 0.28, [0.12, 0.19, 0.24]);
 
       const treeX = side * 7.15;

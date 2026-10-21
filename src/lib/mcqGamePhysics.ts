@@ -17,8 +17,12 @@ export const MCQ_GAME_GATE_START_Z = -9.0;
 export const MCQ_GAME_GATE_HALF_WIDTH = 0.6;
 export const MCQ_GAME_TRAVEL_DISTANCE = MCQ_GAME_COLLISION_Z - MCQ_GAME_GATE_START_Z;
 export const MCQ_GAME_HOLD_THRESHOLD_MS = 230;
-export const MCQ_GAME_MAX_BOOST_MULTIPLIER = 2.25;
-export const MCQ_GAME_BOOST_MULTIPLIER = MCQ_GAME_MAX_BOOST_MULTIPLIER;
+export const MCQ_GAME_BASE_SPEED_MULTIPLIER = 1;
+export const MCQ_GAME_MAX_SPEED_MULTIPLIER = 3.25;
+export const MCQ_GAME_ACCELERATION_RATE_PER_SECOND = 0.56;
+export const MCQ_GAME_DECELERATION_RATE_PER_SECOND = 2.0;
+export const MCQ_GAME_GESTURE_MOVE_TOLERANCE_PX = 18;
+export const MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS = 0.0045;
 
 export interface SteeringGestureResult {
   kind: "tap" | "boost";
@@ -44,9 +48,36 @@ export function clampMCQGameLane(laneIndex: number, direction: -1 | 1): number {
   return Math.min(3, Math.max(0, safeLane + direction));
 }
 
-/** Forward speed is one source of truth for gates, road motion, and collision advancement. */
-export function getMCQGameSpeedMultiplier(boosting: boolean): number {
-  return boosting ? Math.min(MCQ_GAME_BOOST_MULTIPLIER, MCQ_GAME_MAX_BOOST_MULTIPLIER) : 1;
+/**
+ * Advances forward speed using elapsed simulation time, never frame count.
+ * Acceleration compounds exponentially while held; release eases back toward
+ * cruising speed. The bounded timestep prevents a resumed tab from tunnelling.
+ */
+export function advanceMCQGameSpeed(
+  currentSpeed: number,
+  deltaMs: number,
+  accelerating: boolean,
+): number {
+  const safeSpeed = Number.isFinite(currentSpeed)
+    ? Math.min(MCQ_GAME_MAX_SPEED_MULTIPLIER, Math.max(MCQ_GAME_BASE_SPEED_MULTIPLIER, currentSpeed))
+    : MCQ_GAME_BASE_SPEED_MULTIPLIER;
+  const safeDeltaMs = Number.isFinite(deltaMs) ? Math.min(100, Math.max(0, deltaMs)) : 0;
+  if (safeDeltaMs === 0) return safeSpeed;
+
+  const elapsedSeconds = safeDeltaMs / 1000;
+  if (accelerating) {
+    return Math.min(
+      MCQ_GAME_MAX_SPEED_MULTIPLIER,
+      safeSpeed * Math.exp(MCQ_GAME_ACCELERATION_RATE_PER_SECOND * elapsedSeconds),
+    );
+  }
+
+  return Math.max(
+    MCQ_GAME_BASE_SPEED_MULTIPLIER,
+    MCQ_GAME_BASE_SPEED_MULTIPLIER
+      + (safeSpeed - MCQ_GAME_BASE_SPEED_MULTIPLIER)
+      * Math.exp(-MCQ_GAME_DECELERATION_RATE_PER_SECOND * elapsedSeconds),
+  );
 }
 
 /**

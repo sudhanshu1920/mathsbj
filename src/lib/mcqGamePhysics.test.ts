@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  MCQ_GAME_BOOST_MULTIPLIER,
+  MCQ_GAME_BASE_SPEED_MULTIPLIER,
+  MCQ_GAME_MAX_SPEED_MULTIPLIER,
   MCQ_GAME_CAR_HALF_WIDTH,
   MCQ_GAME_COLLISION_Z,
   MCQ_GAME_GATE_HALF_WIDTH,
@@ -10,7 +11,7 @@ import {
   classifySteeringGesture,
   createMCQGateMappings,
   detectSweptGateCollision,
-  getMCQGameSpeedMultiplier,
+  advanceMCQGameSpeed,
 } from "@/lib/mcqGamePhysics";
 
 describe("3D MCQ racing steering and collision physics", () => {
@@ -41,10 +42,47 @@ describe("3D MCQ racing steering and collision physics", () => {
     expect(clampMCQGameLane(99, 1)).toBe(3);
   });
 
-  it("uses one bounded forward-speed multiplier for hold boost", () => {
-    expect(getMCQGameSpeedMultiplier(false)).toBe(1);
-    expect(getMCQGameSpeedMultiplier(true)).toBe(MCQ_GAME_BOOST_MULTIPLIER);
-    expect(getMCQGameSpeedMultiplier(true)).toBeLessThanOrEqual(2.25);
+  it("compounds speed as a hold continues and clamps at the configured maximum", () => {
+    let speed = MCQ_GAME_BASE_SPEED_MULTIPLIER;
+    for (let frame = 0; frame < 5; frame += 1) speed = advanceMCQGameSpeed(speed, 100, true);
+    const after500Ms = speed;
+    for (let frame = 0; frame < 5; frame += 1) speed = advanceMCQGameSpeed(speed, 100, true);
+    const after1000Ms = speed;
+
+    expect(after500Ms).toBeGreaterThan(MCQ_GAME_BASE_SPEED_MULTIPLIER);
+    expect(after1000Ms).toBeGreaterThan(after500Ms);
+
+    for (let frame = 0; frame < 80; frame += 1) speed = advanceMCQGameSpeed(speed, 100, true);
+    expect(speed).toBe(MCQ_GAME_MAX_SPEED_MULTIPLIER);
+  });
+
+  it("decelerates smoothly toward cruising speed after release", () => {
+    const accelerated = advanceMCQGameSpeed(2.5, 50, false);
+    expect(accelerated).toBeGreaterThan(MCQ_GAME_BASE_SPEED_MULTIPLIER);
+    expect(accelerated).toBeLessThan(2.5);
+
+    let speed = accelerated;
+    for (let frame = 0; frame < 100; frame += 1) speed = advanceMCQGameSpeed(speed, 100, false);
+    expect(speed).toBeCloseTo(MCQ_GAME_BASE_SPEED_MULTIPLIER, 6);
+  });
+
+  it("keeps the acceleration curve consistent at 30 and 60 simulated FPS", () => {
+    const simulateOneSecond = (frames: number) => {
+      let speed = MCQ_GAME_BASE_SPEED_MULTIPLIER;
+      for (let frame = 0; frame < frames; frame += 1) {
+        speed = advanceMCQGameSpeed(speed, 1000 / frames, true);
+      }
+      return speed;
+    };
+
+    expect(simulateOneSecond(30)).toBeCloseTo(simulateOneSecond(60), 6);
+  });
+
+  it("sanitizes invalid speed and elapsed-time inputs safely", () => {
+    expect(advanceMCQGameSpeed(Number.NaN, Number.NaN, true))
+      .toBe(MCQ_GAME_BASE_SPEED_MULTIPLIER);
+    expect(advanceMCQGameSpeed(MCQ_GAME_MAX_SPEED_MULTIPLIER * 2, 0, true))
+      .toBe(MCQ_GAME_MAX_SPEED_MULTIPLIER);
   });
 
   it("registers a real swept contact with the gate in the occupied lane", () => {
