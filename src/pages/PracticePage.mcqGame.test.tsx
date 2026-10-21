@@ -1,6 +1,12 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import PracticePage from "@/pages/PracticePage";
+
+vi.mock("@/lib/mcq3dRenderer", () => ({
+  createMCQ3DScene: () => {
+    throw new Error("WebGL unavailable in jsdom test environment");
+  },
+}));
 
 afterEach(cleanup);
 

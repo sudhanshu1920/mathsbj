@@ -391,7 +391,7 @@ const MCQWithGame = ({
               className="mcq-game-canvas"
               aria-label="Interactive 3D road, low-poly car and four answer gates"
             />
-            <div className="mcq-game-gate-overlay" aria-label="Four answer gates">
+            <div className="mcq-game-gate-overlay" role="list" aria-label="Four answer gates">
               {gateMappings.map((mapping, index) => {
                 const isSelected = feedback !== null && selectedOption === index;
                 const isCorrect = feedback !== null && correctLane === index;
@@ -406,6 +406,7 @@ const MCQWithGame = ({
                     key={mapping.gateId}
                     ref={(element) => { gateLabelRefs.current[index] = element; }}
                     className={className}
+                    role="listitem"
                     data-gate-id={mapping.gateId}
                     data-option-id={mapping.optionId}
                     data-lane-id={mapping.laneId}

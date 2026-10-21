@@ -48,7 +48,7 @@ describe("3D MCQ racing lane mappings", () => {
       ...common,
       previousCarX: 0,
       carX: 0,
-      gateX: 0,
+      gateX: MCQ_GAME_LANE_X[1],
     })).toBe(false);
   });
 
