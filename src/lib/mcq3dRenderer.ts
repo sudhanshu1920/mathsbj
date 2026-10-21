@@ -500,9 +500,10 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
     return { width: cssWidth, height: cssHeight };
   };
 
-  const makeViewProjection = (carX: number, width: number, height: number) => {
-    const eye: Point3 = [carX * 0.11, 3.45, 7.20];
-    const target: Point3 = [carX * 0.05, 0.92, -4.85];
+  // Keep the chase camera centered: steering moves the car, not every answer gate.
+  const makeViewProjection = (width: number, height: number) => {
+    const eye: Point3 = [0, 3.45, 7.20];
+    const target: Point3 = [0, 0.92, -4.85];
     const projection = perspectiveMatrix((52 * Math.PI) / 180, width / height, 0.1, 100);
     const view = lookAtMatrix(eye, target, [0, 1, 0]);
     return multiplyMatrices(projection, view);
@@ -529,7 +530,7 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
     render(frame: MCQ3DRenderFrame): MCQGateProjection[] {
       if (disposed) return [];
       const viewport = syncViewport();
-      const viewProjection = makeViewProjection(frame.carX, viewport.width, viewport.height);
+      const viewProjection = makeViewProjection(viewport.width, viewport.height);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(program);
 
