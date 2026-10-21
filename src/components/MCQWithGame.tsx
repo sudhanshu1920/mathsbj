@@ -61,8 +61,9 @@ const MCQWithGame = ({
     let lastTimestamp: number | null = null;
     const safeDuration = Number.isFinite(durationMs) ? Math.max(1200, durationMs) : 4800;
     submittedRef.current = false;
-    phaseRef.current = "RUNNING";
-    setPhase("RUNNING");
+    const initiallyHidden = document.hidden;
+    phaseRef.current = initiallyHidden ? "PAUSED" : "RUNNING";
+    setPhase(initiallyHidden ? "PAUSED" : "RUNNING");
     if (gateRowRef.current) gateRowRef.current.style.transform = "translate3d(0, 0, 0)";
 
     const animate = (timestamp: number) => {
@@ -117,7 +118,7 @@ const MCQWithGame = ({
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    frameRef.current = window.requestAnimationFrame(animate);
+    if (!initiallyHidden) frameRef.current = window.requestAnimationFrame(animate);
 
     return () => {
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
