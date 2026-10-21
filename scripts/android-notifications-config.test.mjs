@@ -59,6 +59,7 @@ test('configures local notification permissions, plugin and reboot/time-change r
   const activity = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java'), 'utf8');
   const plugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java'), 'utf8');
   const backupPlugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/BackupRestorePlugin.java'), 'utf8');
+  const immersivePlugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/GameImmersivePlugin.java'), 'utf8');
   assert.deepEqual(result, { firebaseEnabled: false, projectId: null });
   assert.match(manifest, /android\.permission\.POST_NOTIFICATIONS/);
   assert.match(manifest, /android\.permission\.RECEIVE_BOOT_COMPLETED/);
@@ -70,6 +71,11 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(plugin, /requestPermission/);
   assert.ok(activity.includes('registerPlugin(BackupRestorePlugin.class);'));
   assert.ok(backupPlugin.includes('@CapacitorPlugin(name = "MathMasterBackup")'));
+  assert.ok(activity.includes('registerPlugin(GameImmersivePlugin.class);'));
+  assert.ok(immersivePlugin.includes('@CapacitorPlugin(name = "GameImmersive")'));
+  assert.ok(immersivePlugin.includes('WindowInsets.Type.statusBars()'));
+  assert.ok(immersivePlugin.includes('WindowInsets.Type.navigationBars()'));
+  assert.ok(immersivePlugin.includes('SYSTEM_UI_FLAG_IMMERSIVE_STICKY'));
   assert.ok(backupPlugin.includes('Intent.ACTION_CREATE_DOCUMENT'));
   assert.ok(backupPlugin.includes('Intent.ACTION_OPEN_DOCUMENT'));
   assert.ok(backupPlugin.includes('MAX_BACKUP_BYTES = 64 * 1024 * 1024'));
