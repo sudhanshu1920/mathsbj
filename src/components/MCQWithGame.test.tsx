@@ -383,7 +383,7 @@ describe("Full-screen continuous MCQ racing", () => {
     setStageBounds(stage);
 
     try {
-      // Tap into lane A; the gate must actually cross the car's collision plane.
+      // Steer into the first lane; the gate must cross the collision plane.
       fireEvent.pointerDown(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
       now = 40;
       fireEvent.pointerUp(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
@@ -483,4 +483,5 @@ describe("Full-screen continuous MCQ racing", () => {
     fireEvent.click(screen.getByTestId("mcq-game-submit"));
     expect(onSubmitAnswer).toHaveBeenCalledTimes(1);
     expect(onSubmitAnswer).toHaveBeenCalledWith(1, "28", mapping.gateId);
-  });});
+  });
+});
