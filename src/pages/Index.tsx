@@ -144,7 +144,7 @@ const Index = () => {
   const [tab, setTab] = useState<Tab>('learn');
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
   const [practiceContext, setPracticeContext] = useState<{ from?: number; to?: number; number?: number } | undefined>();
-  const [practiceMode, setPracticeMode] = useState<'mcq' | 'input' | undefined>();
+  const [practiceMode, setPracticeMode] = useState<'mcq' | 'input' | 'game' | undefined>();
   const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode } | undefined>();
   const [returnToLearn, setReturnToLearn] = useState(false);
   const [learningPracticeSelectorOpen, setLearningPracticeSelectorOpen] = useState(false);
@@ -848,7 +848,7 @@ const Index = () => {
     pendingPracticeNavigation.current = null;
   }, []);
 
-  const handlePracticeStarted = useCallback((mode: 'mcq' | 'input') => {
+  const handlePracticeStarted = useCallback((mode: 'mcq' | 'input' | 'game') => {
     practiceExitHandled.current = false;
     if (returnToLearn) replaceNextNavigationEntry.current = true;
     setPracticeMode(mode);
