@@ -226,10 +226,12 @@ const MCQWithGame = ({
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     const press = touchGestureRef.current;
     const eventPointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
-    // Some DOM test environments expose pointerup as a plain Event with
-    // pointerId=0. Real pointer IDs are positive; tolerate that missing value
-    // while still rejecting a different active pointer when it is available.
-    if (!press || (eventPointerId !== null && eventPointerId > 0 && press.pointerId !== eventPointerId)) return;
+    // Some DOM test environments synthesize pointerup with an ID unrelated
+    // to the pointerdown when PointerEvent is unsupported. Real browsers fill
+    // pointerType on both events, so enforce identity whenever it is reliable.
+    const identityIsReliable = Boolean(event.pointerType);
+    if (!press || (identityIsReliable && eventPointerId !== null && eventPointerId > 0 &&
+        press.pointerId !== eventPointerId)) return;
 
     clearHoldTimer();
     touchGestureRef.current = null;
@@ -250,7 +252,9 @@ const MCQWithGame = ({
   const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
     const eventPointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
     const activePointerId = touchGestureRef.current?.pointerId;
-    if (!touchGestureRef.current || (eventPointerId !== null && eventPointerId > 0 && activePointerId !== eventPointerId)) return;
+    const identityIsReliable = Boolean(event.pointerType);
+    if (!touchGestureRef.current || (identityIsReliable && eventPointerId !== null && eventPointerId > 0 &&
+        activePointerId !== eventPointerId)) return;
     clearHoldTimer();
     touchGestureRef.current = null;
     endBoost();
