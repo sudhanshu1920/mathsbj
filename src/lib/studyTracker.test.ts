@@ -166,7 +166,7 @@ describe('Study Tracker subject and entry identity', () => {
       note: 'Chapter 1',
     }, fixedNow());
 
-    expect(saveStudyTrackerState(state)).toBe(true);
+    expect(saveStudyTrackerState(state, localStorage, fixedNow())).toBe(true);
     expect(localStorage.getItem(STUDY_TRACKER_STORAGE_KEY)).not.toBeNull();
     const restored = loadStudyTrackerState(fixedNow());
     expect(restored.preferences.mode).toBe('table');
