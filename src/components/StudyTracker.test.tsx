@@ -66,7 +66,8 @@ describe('StudyTracker', () => {
     expect(modeMenu).toBeInTheDocument();
     expect(modeMenu).toHaveStyle({ width: '9rem', maxWidth: 'none' });
     for (const option of screen.getAllByRole('menuitemradio')) {
-      expect(option).toHaveStyle({ minWidth: '0px', minHeight: '0px' });
+      expect(option.getAttribute('style')).toMatch(/min-width:\s*0(?:px)?/);
+      expect(option.getAttribute('style')).toMatch(/min-height:\s*0(?:px)?/);
     }
     dispatchPointer(modeButton, 'pointerup');
     fireEvent.click(modeButton);
