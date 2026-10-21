@@ -6,6 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { CarFront, X, Zap } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import {
@@ -581,7 +582,7 @@ const MCQWithGame = ({
     (option) => String(option.value) === String(correctAnswer),
   );
 
-  return (
+  return createPortal(
     <section
       className="mcq-game-shell"
       aria-label="MCQ 3D car racing game"
@@ -746,7 +747,8 @@ const MCQWithGame = ({
                     ? "Answer submitted."
                     : "Tap a side to steer. Hold to accelerate."}
       </p>
-    </section>
+    </section>,
+    document.body,
   );
 };
 
