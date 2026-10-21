@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRacingAudioController, playRightAnswer, playWrong, playSubmit } from './sound';
+import { MCQ_GAME_BASE_SPEED_MULTIPLIER, MCQ_GAME_MAX_SPEED_MULTIPLIER } from './mcqGamePhysics';
 
 const settingsState = vi.hoisted(() => ({ sound: true }));
 
@@ -168,7 +169,7 @@ it('creates one speed-responsive engine/wind loop, respects Sound OFF, pauses, a
     value: MockRacingAudioContext,
   });
 
-  const controller = createRacingAudioController();
+  const controller = createRacingAudioController(MCQ_GAME_BASE_SPEED_MULTIPLIER, MCQ_GAME_MAX_SPEED_MULTIPLIER);
   try {
     controller.update(1, false);
     expect(MockRacingAudioContext.instances).toHaveLength(0);
