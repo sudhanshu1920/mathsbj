@@ -83,8 +83,6 @@ jobs:
           @CapacitorPlugin(name = "AppUpdater")
           public class AppUpdaterPlugin extends Plugin {}
           JAVA
-          plugin_dir="android/app/src/main/java/com/sudhanshu/mathsbj"
-          mkdir -p "$plugin_dir"
           cat > "$plugin_dir/ImmersiveModePlugin.java" <<'JAVA'
           package com.sudhanshu.mathsbj;
 
