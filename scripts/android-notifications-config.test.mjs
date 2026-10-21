@@ -126,7 +126,8 @@ test('native alarm rechecks completion and queues tomorrow at 9 AM after the 10 
   assert.match(receiver, /Calendar\.DAY_OF_YEAR, 1/);
   assert.match(receiver, /currentMinute > 22 \* 60/);
   assert.match(receiver, /REMINDER_POLICY_VERSION = 3/);
-  assert.match(receiver, /540, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140, 1185, 1230, 1260, 1290, 1310, 1320/);
+  assert.match(receiver, /540, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140,/);
+  assert.match(receiver, /1185, 1230, 1260, 1290, 1310, 1320/);
   assert.match(receiver, /ensureCurrentSchedulePolicy\(prefs\)/);
   assert.match(receiver, /schedulePolicyVersion/);
   assert.match(receiver, /getStageIndex\(slots, currentMinute\)/);
