@@ -2079,7 +2079,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             durationMs={config.timerMode === 'perQuestion'
               // Base gate speed reaches collision before the existing question deadline.
               // Holding accelerates the same gate/world clock without changing that deadline.
-              ? Math.max(1200, config.timerSeconds * 1000 - 300)
+              ? Math.max(350, config.timerSeconds * 1000 - 300)
               : config.timerMode === 'challenge' ? 4800 : 5200}
             disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
             onCollision={(laneIndex, optionValue, gateId) => {

@@ -272,6 +272,24 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("honors short gate travel times for a 1-second question timer", () => {
+    const raf = installAnimationFrameQueue();
+    const onCollision = vi.fn();
+    const mappings = createMCQGateMappings("q-fast", options.map((option) => option.value));
+    const view = render(
+      <MCQWithGame {...gameProps({ questionKey: "q-fast", durationMs: 700, onCollision })} />,
+    );
+
+    try {
+      for (let timestamp = 0; timestamp <= 800; timestamp += 50) raf.advance(timestamp);
+      expect(onCollision).toHaveBeenCalledTimes(1);
+      expect(onCollision).toHaveBeenCalledWith(1, "28", mappings[1].gateId);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("provides a recoverable direct-answer fallback when WebGL is unavailable", () => {
     vi.mocked(createMCQ3DScene).mockImplementation(() => {
       throw new Error("WebGL unavailable");

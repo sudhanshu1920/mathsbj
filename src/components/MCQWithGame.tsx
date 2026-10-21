@@ -345,7 +345,7 @@ const MCQWithGame = ({
       sessionElapsedMsRef.current += advancedMs;
 
       const safeDuration = Number.isFinite(current.durationMs) && current.durationMs > 0
-        ? Math.max(1200, current.durationMs)
+        ? Math.max(350, current.durationMs)
         : DEFAULT_PASS_DURATION_MS;
       passElapsedMsRef.current += advancedMs;
       const progress = Math.min(1.3, passElapsedMsRef.current / safeDuration);
