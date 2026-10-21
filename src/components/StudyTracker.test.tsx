@@ -114,7 +114,11 @@ describe('StudyTracker', () => {
   });
 
   it('keeps the period header compact and handles swipes without changing the table from cell gestures', () => {
-    saveStudyTrackerState(createDefaultStudyTrackerState(new Date(2026, 9, 20, 12, 0, 0)));
+    saveStudyTrackerState(
+      createDefaultStudyTrackerState(new Date(2026, 9, 20, 12, 0, 0)),
+      localStorage,
+      new Date(2026, 9, 20, 12, 0, 0),
+    );
     render(<StudyTracker />);
 
     expect(screen.queryByText(/Reference template/)).not.toBeInTheDocument();
@@ -152,7 +156,7 @@ describe('StudyTracker', () => {
     const mixedDay = upsertStudyEntry(mathDone, {
       date: '2026-10-20', subjectId: 'builtin-reasoning', status: 'in-progress', minutes: 10, note: '',
     }, new Date(2026, 9, 20, 12, 0, 0));
-    saveStudyTrackerState(mixedDay);
+    saveStudyTrackerState(mixedDay, localStorage, new Date(2026, 9, 20, 12, 0, 0));
     render(<StudyTracker />);
 
     const modeButton = screen.getByRole('button', { name: /current mode table/i });
