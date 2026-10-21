@@ -347,7 +347,7 @@ export async function validateBackupText(text: string): Promise<BackupEnvelope> 
     backupFormatVersion: parsed.backupFormatVersion,
     appVersion: parsed.appVersion,
     createdAt: parsed.createdAt,
-    dataSchemaVersion: parsed.dataSchemaVersion,
+    dataSchemaVersion: parsed.dataSchemaVersion as number,
     payload: { storage, native: { widgetPreferences } },
   };
   const actual = await sha256Hex(stableSerialize(unsigned));
