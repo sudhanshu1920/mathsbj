@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MCQWithGame from "@/components/MCQWithGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
@@ -8,7 +9,7 @@ vi.mock("@/lib/mcq3dRenderer", () => ({
   createMCQ3DScene: vi.fn(() => ({
     render: vi.fn(() => Array.from({ length: 4 }, (_, index) => ({
       x: 50 + index * 80,
-      y: 90,
+      y: 280,
       width: 62,
       height: 42,
       fontSize: 12,
@@ -18,17 +19,34 @@ vi.mock("@/lib/mcq3dRenderer", () => ({
   })),
 }));
 
+const originalPointerEventDescriptor = Object.getOwnPropertyDescriptor(window, "PointerEvent");
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.mocked(createMCQ3DScene).mockReset();
+  vi.useRealTimers();
+  if (originalPointerEventDescriptor) {
+    Object.defineProperty(window, "PointerEvent", originalPointerEventDescriptor);
+  } else {
+    Reflect.deleteProperty(window, "PointerEvent");
+  }
 });
 
 beforeEach(() => {
+  // jsdom does not implement PointerEvent by default. Its generic Event fallback
+  // drops clientX, which makes both screen halves look like the left zone.
+  if (!window.PointerEvent) {
+    Object.defineProperty(window, "PointerEvent", {
+      configurable: true,
+      writable: true,
+      value: MouseEvent,
+    });
+  }
   vi.mocked(createMCQ3DScene).mockImplementation(() => ({
     render: vi.fn(() => Array.from({ length: 4 }, (_, index) => ({
       x: 50 + index * 80,
-      y: 90,
+      y: 280,
       width: 62,
       height: 42,
       fontSize: 12,
@@ -85,47 +103,187 @@ const options = [
   { value: "33", label: "33" },
 ];
 
-describe("MCQ with Game 3D gate collision submission", () => {
-  it("steers the 3D car and submits exactly the collided gate's displayed option once", () => {
+function gameProps(overrides: Partial<ComponentProps<typeof MCQWithGame>> = {}) {
+  return {
+    questionKey: "q-1",
+    questionLabel: <p>14 × 2 = ?</p>,
+    options,
+    correctAnswer: "28",
+    feedback: null,
+    selectedOption: null,
+    correctScore: 0,
+    wrongScore: 0,
+    durationMs: 1200,
+    progressLabel: "1 / 10",
+    onCollision: vi.fn(),
+    ...overrides,
+  };
+}
+
+function setStageBounds(stage: HTMLElement) {
+  vi.spyOn(stage, "getBoundingClientRect").mockReturnValue({
+    x: 0, y: 0, left: 0, top: 0, right: 400, bottom: 800,
+    width: 400, height: 800, toJSON: () => ({}),
+  } as DOMRect);
+}
+
+describe("Full-screen continuous MCQ racing", () => {
+  it("has no visible steering buttons and a fixed floating question panel", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+
+    expect(view.container.querySelectorAll(".mcq-game-controls")).toHaveLength(0);
+    expect(view.container.querySelectorAll("button[aria-label='Steer left'], button[aria-label='Steer right']")).toHaveLength(0);
+    expect(view.container.querySelector(".mcq-game-question-panel")).toBeInTheDocument();
+    expect(screen.getByText("14 × 2 = ?")).toBeInTheDocument();
+    expect(stage).toHaveAttribute("data-swipe-ignore-back", "true");
+  });
+
+  it("uses a short tap on each screen half for exactly one lane change", () => {
+    vi.useFakeTimers();
     const raf = installAnimationFrameQueue();
+    let now = 100;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, { pointerId: 1, button: 0, clientX: 80, clientY: 650 });
+      now = 150;
+      fireEvent.pointerUp(stage, { pointerId: 1, button: 0, clientX: 80, clientY: 650 });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1, option A");
+
+      fireEvent.pointerDown(stage, { pointerId: 1, button: 0, clientX: 320, clientY: 650 });
+      now = 200;
+      fireEvent.pointerUp(stage, { pointerId: 1, button: 0, clientX: 320, clientY: 650 });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2, option B");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("treats a long press as speed boost without repeated lane changes, then restores normal speed", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
+      act(() => vi.advanceTimersByTime(300));
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2, option B");
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      now = 320;
+      fireEvent.pointerUp(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2, option B");
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("does not steer when the initial pointer-down is on the question panel or an answer gate", () => {
+    const raf = installAnimationFrameQueue();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const question = view.container.querySelector(".mcq-game-question-panel") as HTMLElement;
+    const gate = view.container.querySelector(".mcq-game-gate-label") as HTMLElement;
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(question, { pointerId: 1, button: 0, clientX: 80, clientY: 20 });
+      now = 40;
+      fireEvent.pointerUp(question, { pointerId: 1, button: 0, clientX: 80, clientY: 20 });
+      fireEvent.pointerDown(gate, { pointerId: 2, button: 0, clientX: 80, clientY: 280 });
+      now = 70;
+      fireEvent.pointerUp(gate, { pointerId: 2, button: 0, clientX: 80, clientY: 280 });
+
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2, option B");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("submits the exact collided option once and reuses the same 3D scene for the next question", () => {
+    const raf = installAnimationFrameQueue();
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
     const onCollision = vi.fn();
     const mappings = createMCQGateMappings("q-1", options.map((option) => option.value));
+    const firstProps = gameProps({ onCollision });
+    const view = render(<MCQWithGame {...firstProps} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      // Tap into lane A; the gate must actually cross the car's collision plane.
+      fireEvent.pointerDown(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
+      now = 40;
+      fireEvent.pointerUp(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
+      for (let timestamp = 0; timestamp <= 1_350; timestamp += 50) raf.advance(timestamp);
+
+      expect(onCollision).toHaveBeenCalledTimes(1);
+      expect(onCollision).toHaveBeenCalledWith(0, "26", mappings[0].gateId);
+      expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
+
+      const secondOptions = [
+        { value: "29", label: "29" },
+        { value: "27", label: "27" },
+        { value: "31", label: "31" },
+        { value: "25", label: "25" },
+      ];
+      view.rerender(
+        <MCQWithGame
+          {...gameProps({
+            questionKey: "q-2",
+            questionLabel: <p>18 + 9 = ?</p>,
+            options: secondOptions,
+            correctAnswer: "27",
+            selectedOption: null,
+            feedback: null,
+            onCollision,
+          })}
+        />,
+      );
+
+      expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
+      expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
+      expect(Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"))
+        .every((node) => (node.dataset.gateId || "").includes(encodeURIComponent("q-2")))).toBe(true);
+      expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
+
+      for (let timestamp = 1_400; timestamp <= 2_800; timestamp += 50) raf.advance(timestamp);
+      expect(onCollision).toHaveBeenCalledTimes(2);
+      expect(onCollision.mock.calls[1]).toEqual([0, "29", createMCQGateMappings("q-2", secondOptions.map((option) => option.value))[0].gateId]);
+      expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("honors short gate travel times for a 1-second question timer", () => {
+    const raf = installAnimationFrameQueue();
+    const onCollision = vi.fn();
+    const mappings = createMCQGateMappings("q-fast", options.map((option) => option.value));
     const view = render(
-      <MCQWithGame
-        questionKey="q-1"
-        options={options}
-        correctAnswer="28"
-        feedback={null}
-        selectedOption={null}
-        correctScore={0}
-        wrongScore={0}
-        durationMs={1200}
-        onCollision={onCollision}
-      />,
+      <MCQWithGame {...gameProps({ questionKey: "q-fast", durationMs: 700, onCollision })} />,
     );
 
     try {
-      const road = screen.getByRole("group", { name: /Four answer lanes/ });
-      expect(road).toHaveAttribute("data-swipe-ignore-back", "true");
-      expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
-      expect(screen.getByText("Lane 2 · B")).toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole("button", { name: "Steer right" }));
-      expect(screen.getByText("Lane 3 · C")).toBeInTheDocument();
-
-      for (let timestamp = 0; timestamp <= 1_250; timestamp += 50) {
-        raf.advance(timestamp);
-      }
-
+      for (let timestamp = 0; timestamp <= 800; timestamp += 50) raf.advance(timestamp);
       expect(onCollision).toHaveBeenCalledTimes(1);
-      expect(onCollision).toHaveBeenCalledWith(2, "22", mappings[2].gateId);
-
-      fireEvent.click(screen.getByRole("button", { name: "Steer left" }));
-      for (let timestamp = 1_300; timestamp <= 1_600; timestamp += 50) {
-        raf.advance(timestamp);
-      }
-      expect(onCollision).toHaveBeenCalledTimes(1);
-      expect(screen.getByRole("status")).toHaveTextContent("Gate collision detected");
+      expect(onCollision).toHaveBeenCalledWith(1, "28", mappings[1].gateId);
     } finally {
       view.unmount();
       raf.restore();
@@ -138,21 +296,9 @@ describe("MCQ with Game 3D gate collision submission", () => {
     });
     const onCollision = vi.fn();
 
-    render(
-      <MCQWithGame
-        questionKey="fallback-q"
-        options={options}
-        correctAnswer="28"
-        feedback={null}
-        selectedOption={null}
-        correctScore={0}
-        wrongScore={0}
-        durationMs={4_800}
-        onCollision={onCollision}
-      />,
-    );
+    render(<MCQWithGame {...gameProps({ questionKey: "fallback-q", onCollision })} />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("3D graphics could not start");
+    expect(screen.getByRole("alert")).toHaveTextContent("3D graphics are unavailable");
     const answer = screen.getByRole("button", { name: "Lane 2, answer 28" });
     fireEvent.click(answer);
     fireEvent.click(answer);
