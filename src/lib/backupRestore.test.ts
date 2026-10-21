@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('@/lib/appVersion', () => ({ APP_VERSION_NAME: '1.0.0' }));
+
 import {
   captureBackupStorageSnapshot,
   createBackupText,
