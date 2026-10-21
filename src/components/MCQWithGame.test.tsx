@@ -20,11 +20,13 @@ vi.mock("@/lib/mcq3dRenderer", () => ({
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.mocked(createMCQ3DScene).mockReset();
 });
 
 beforeEach(() => {
+  vi.useRealTimers();
   vi.mocked(createMCQ3DScene).mockImplementation(() => ({
     render: vi.fn(() => Array.from({ length: 4 }, (_, index) => ({
       x: 50 + index * 80,
@@ -85,14 +87,84 @@ const options = [
   { value: "33", label: "33" },
 ];
 
-describe("MCQ with Game 3D gate collision submission", () => {
-  it("steers the 3D car and submits exactly the collided gate's displayed option once", () => {
+function tapSide(stage: HTMLElement, direction: "left" | "right", pointerId = 1) {
+  const clientX = direction === "left" ? 100 : 900;
+  fireEvent.pointerDown(stage, { pointerId, clientX, clientY: 200 });
+  fireEvent.pointerUp(stage, { pointerId, clientX, clientY: 200 });
+}
+
+describe("MCQ with Game gesture controls and continuous 3D scene", () => {
+  it("steers one lane per short tap, clamps lane boundaries, and removes visible steering buttons", () => {
+    render(
+      <MCQWithGame
+        questionKey="q-steer"
+        questionContent="7 × 4 = ?"
+        options={options}
+        correctAnswer="28"
+        feedback={null}
+        selectedOption={null}
+        correctScore={0}
+        wrongScore={0}
+        durationMs={5200}
+        onCollision={vi.fn()}
+      />,
+    );
+
+    const stage = screen.getByRole("group", { name: /tap the left or right side to steer/i });
+    expect(screen.getByText("7 × 4 = ?")).toBeInTheDocument();
+    expect(document.body.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
+    expect(screen.queryByRole("button", { name: "Steer left" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Steer right" })).not.toBeInTheDocument();
+
+    tapSide(stage, "left");
+    expect(stage).toHaveAttribute("data-lane-index", "0");
+
+    tapSide(stage, "left", 2);
+    expect(stage).toHaveAttribute("data-lane-index", "0");
+
+    tapSide(stage, "right", 3);
+    expect(stage).toHaveAttribute("data-lane-index", "1");
+  });
+
+  it("turns a long hold into a speed boost without also changing the lane", () => {
+    vi.useFakeTimers();
+    render(
+      <MCQWithGame
+        questionKey="q-hold"
+        questionContent="Hold gesture"
+        options={options}
+        correctAnswer="28"
+        feedback={null}
+        selectedOption={null}
+        correctScore={0}
+        wrongScore={0}
+        durationMs={5200}
+        onCollision={vi.fn()}
+      />,
+    );
+
+    const stage = screen.getByRole("group", { name: /tap the left or right side to steer/i });
+    fireEvent.pointerDown(stage, { pointerId: 7, clientX: 100, clientY: 200 });
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+
+    expect(stage).toHaveAttribute("data-lane-index", "1");
+    expect(screen.getByLabelText("Speed boost active")).toBeInTheDocument();
+
+    fireEvent.pointerUp(stage, { pointerId: 7, clientX: 100, clientY: 200 });
+    expect(stage).toHaveAttribute("data-lane-index", "1");
+    expect(screen.queryByLabelText("Speed boost active")).not.toBeInTheDocument();
+  });
+
+  it("submits exactly the collided gate's displayed option once", () => {
     const raf = installAnimationFrameQueue();
     const onCollision = vi.fn();
     const mappings = createMCQGateMappings("q-1", options.map((option) => option.value));
     const view = render(
       <MCQWithGame
         questionKey="q-1"
+        questionContent="14 + 14 = ?"
         options={options}
         correctAnswer="28"
         feedback={null}
@@ -105,13 +177,9 @@ describe("MCQ with Game 3D gate collision submission", () => {
     );
 
     try {
-      const road = screen.getByRole("group", { name: /Four answer lanes/ });
-      expect(road).toHaveAttribute("data-swipe-ignore-back", "true");
-      expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
-      expect(screen.getByText("Lane 2 · B")).toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole("button", { name: "Steer right" }));
-      expect(screen.getByText("Lane 3 · C")).toBeInTheDocument();
+      const stage = screen.getByRole("group", { name: /tap the left or right side to steer/i });
+      tapSide(stage, "right");
+      expect(stage).toHaveAttribute("data-lane-index", "2");
 
       for (let timestamp = 0; timestamp <= 1_250; timestamp += 50) {
         raf.advance(timestamp);
@@ -120,19 +188,44 @@ describe("MCQ with Game 3D gate collision submission", () => {
       expect(onCollision).toHaveBeenCalledTimes(1);
       expect(onCollision).toHaveBeenCalledWith(2, "22", mappings[2].gateId);
 
-      fireEvent.click(screen.getByRole("button", { name: "Steer left" }));
-      for (let timestamp = 1_300; timestamp <= 1_600; timestamp += 50) {
+      for (let timestamp = 1_300; timestamp <= 2_000; timestamp += 50) {
         raf.advance(timestamp);
       }
       expect(onCollision).toHaveBeenCalledTimes(1);
-      expect(screen.getByRole("status")).toHaveTextContent("Gate collision detected");
     } finally {
       view.unmount();
       raf.restore();
     }
   });
 
-  it("provides a recoverable direct-answer fallback when WebGL is unavailable", () => {
+  it("keeps the same WebGL scene when the quiz engine advances to the next question", () => {
+    const onCollision = vi.fn();
+    const props = {
+      options,
+      correctAnswer: "28",
+      feedback: null,
+      selectedOption: null,
+      correctScore: 0,
+      wrongScore: 0,
+      durationMs: 5200,
+      onCollision,
+    } as const;
+    const view = render(
+      <MCQWithGame {...props} questionKey="question-1" questionContent="First question" />,
+    );
+
+    expect(screen.getByText("First question")).toBeInTheDocument();
+    expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <MCQWithGame {...props} questionKey="question-2" questionContent="Second question" />,
+    );
+
+    expect(screen.getByText("Second question")).toBeInTheDocument();
+    expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
+  });
+
+  it("provides a once-only recoverable answer fallback when WebGL is unavailable", () => {
     vi.mocked(createMCQ3DScene).mockImplementation(() => {
       throw new Error("WebGL unavailable");
     });
@@ -141,13 +234,14 @@ describe("MCQ with Game 3D gate collision submission", () => {
     render(
       <MCQWithGame
         questionKey="fallback-q"
+        questionContent="Fallback question"
         options={options}
         correctAnswer="28"
         feedback={null}
         selectedOption={null}
         correctScore={0}
         wrongScore={0}
-        durationMs={4_800}
+        durationMs={4800}
         onCollision={onCollision}
       />,
     );
