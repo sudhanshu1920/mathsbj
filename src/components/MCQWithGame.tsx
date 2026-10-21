@@ -229,7 +229,7 @@ const MCQWithGame = ({
     // Some DOM test environments synthesize pointerup with an ID unrelated
     // to the pointerdown when PointerEvent is unsupported. Real browsers fill
     // pointerType on both events, so enforce identity whenever it is reliable.
-    const identityIsReliable = Boolean(event.pointerType);
+    const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
     if (!press || (identityIsReliable && eventPointerId !== null && eventPointerId > 0 &&
         press.pointerId !== eventPointerId)) return;
 
@@ -252,7 +252,7 @@ const MCQWithGame = ({
   const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
     const eventPointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
     const activePointerId = touchGestureRef.current?.pointerId;
-    const identityIsReliable = Boolean(event.pointerType);
+    const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
     if (!touchGestureRef.current || (identityIsReliable && eventPointerId !== null && eventPointerId > 0 &&
         activePointerId !== eventPointerId)) return;
     clearHoldTimer();
