@@ -176,4 +176,8 @@ test('daily reminder bridge and native receiver agree on the 17-stage schedule p
   assert.match(receiver, /1185, 1230, 1260, 1290, 1310, 1320/);
   assert.match(receiver, /candidate.equals\(previousText\)/);
   assert.match(receiver, /RANDOM.nextBoolean\(\)/);
+  assert.match(receiver, /elapsedSeconds \/ 60L/);
+  assert.match(receiver, /Math.round\(elapsedSeconds \* 100\.0 \/ \(targetMinutes \* 60L\)\)/);
+  assert.match(receiver, /completedMinutes, targetMinutes, completionPercentage/);
+  assert.match(receiver, /String.format\(Locale.getDefault\(\), candidate, remainingMinutes, minutesToCutoff, completedMinutes, targetMinutes, completionPercentage\)/);
 });

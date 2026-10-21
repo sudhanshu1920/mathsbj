@@ -93,7 +93,15 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
 
         int remainingMinutes = (int) Math.max(1L, (long) Math.ceil((targetMinutes * 60L - elapsedSeconds) / 60.0));
         int minutesToCutoff = getMinutesUntilCutoff();
-        boolean posted = showReminder(context, prefs, remainingMinutes, stageIndex, minutesToCutoff);
+        int completedMinutes = (int) Math.min((long) targetMinutes, elapsedSeconds / 60L);
+        int completionPercentage = (int) Math.min(
+            99L,
+            Math.round(elapsedSeconds * 100.0 / (targetMinutes * 60L))
+        );
+        boolean posted = showReminder(
+            context, prefs, remainingMinutes, stageIndex, minutesToCutoff,
+            completedMinutes, targetMinutes, completionPercentage
+        );
         if (posted) {
             Log.i(TAG, "Reminder posted to NotificationManager; actual device presentation is not observable here.");
         } else {
@@ -350,7 +358,10 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
         SharedPreferences prefs,
         int remainingMinutes,
         int stageIndex,
-        int minutesToCutoff
+        int minutesToCutoff,
+        int completedMinutes,
+        int targetMinutes,
+        int completionPercentage
     ) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) {
@@ -409,7 +420,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             String candidate = messages.optString(index, "");
             String candidateId = language + ":" + stageIndex + ":" + index;
             if (candidate.isEmpty() || candidate.equals(previousText) || candidateId.equals(previous)) continue;
-            body = String.format(Locale.getDefault(), candidate, remainingMinutes, minutesToCutoff);
+            body = String.format(Locale.getDefault(), candidate, remainingMinutes, minutesToCutoff, completedMinutes, targetMinutes, completionPercentage);
             selectedId = candidateId;
             prefs.edit().putString("lastMessageText", candidate).apply();
             break;
@@ -418,7 +429,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             for (int index = 0; index < messages.length(); index++) {
                 String candidate = messages.optString(index, "");
                 if (candidate.isEmpty() || candidate.equals(previousText)) continue;
-                body = String.format(Locale.getDefault(), candidate, remainingMinutes, minutesToCutoff);
+                body = String.format(Locale.getDefault(), candidate, remainingMinutes, minutesToCutoff, completedMinutes, targetMinutes, completionPercentage);
                 selectedId = language + ":" + stageIndex + ":" + index;
                 prefs.edit().putString("lastMessageText", candidate).apply();
                 break;
@@ -428,7 +439,7 @@ public class DailyTargetReminderReceiver extends BroadcastReceiver {
             String fallback = useMarathi
                 ? "आजचं लक्ष्य अजून बाकी आहे. पुन्हा सुरू करूया! अभ्यासाचे %1$d मिनिटं बाकी."
                 : "आज का लक्ष्य अभी बाकी है। फिर से शुरू करें! पढ़ाई के %1$d मिनट बाकी।";
-            body = String.format(Locale.getDefault(), fallback, remainingMinutes, minutesToCutoff);
+            body = String.format(Locale.getDefault(), fallback, remainingMinutes, minutesToCutoff, completedMinutes, targetMinutes, completionPercentage);
             selectedId = language + ":" + stageIndex + ":fallback";
             prefs.edit().putString("lastMessageText", fallback).apply();
         }
