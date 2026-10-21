@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Timer, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Timer, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame, Plus, Minus, ListChecks, Keyboard, CarFront } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
 import { Switch } from '@/components/ui/switch';
 import Particles from '@/components/Particles';
@@ -35,8 +35,10 @@ import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
 import { PERCENTAGE_PRESETS, type PercentagePresetId, resolvePercentagePresets, togglePercentagePresetIds } from '@/lib/percentagePresets';
 import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerProgressPercent, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
+import MCQWithGame from '@/components/MCQWithGame';
+import { buildMCQGameOptions } from '@/lib/mcqGame';
 
-type PracticeMode = 'mcq' | 'input';
+type PracticeMode = 'mcq' | 'input' | 'game';
 
 type ArithmeticOperation = 'addition' | 'subtraction';
 
@@ -697,7 +699,7 @@ export function generateQuestions(config: PracticeConfig): Question[] {
     infinite: config.infinite,
   });
 
-  if (config.mode === 'mcq') {
+  if (config.mode === 'mcq' || config.mode === 'game') {
     return allQuestions.map((q) => {
       // Trig: build options from the standard trig value pool
       if (q.answerType === 'trig') {
@@ -848,7 +850,7 @@ const RenderFraction = ({ n, d, size = 'lg' }: { n: number; d: number; size?: 's
 interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
-  initialMode?: 'mcq' | 'input';
+  initialMode?: 'mcq' | 'input' | 'game';
   initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode };
   onExit?: () => void;
   onExitCancelled?: () => void;
@@ -1306,23 +1308,32 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       }
       const q = questions[currentQ];
       if (!q) return;
+      // The countdown deadline is the source of truth, not a delayed interval tick.
+      // A collision delivered after expiry is processed as a timeout, never as an answer.
+      const questionExpired =
+        answer !== null &&
+        config.timerMode === 'perQuestion' &&
+        questionDeadlineRef.current !== null &&
+        performance.now() >= questionDeadlineRef.current;
+      const submittedAnswer = questionExpired ? null : answer;
+      if (questionExpired) setTimeLeft(0);
       answerLockRef.current = true;
 
       let isCorrect = false;
-      if (answer !== null) {
+      if (submittedAnswer !== null) {
         if (q.answerType === 'trig') {
-          isCorrect = isTrigAnswerCorrect(String(answer), String(q.answer));
+          isCorrect = isTrigAnswerCorrect(String(submittedAnswer), String(q.answer));
         } else if (q.answerType === 'text') {
           const normalizeText = (value: string) => value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
-          isCorrect = normalizeText(String(answer)) === normalizeText(String(q.answer));
+          isCorrect = normalizeText(String(submittedAnswer)) === normalizeText(String(q.answer));
         } else if (typeof q.answer === 'number') {
           if (q.validationAnswer !== undefined && q.answerPrecision !== undefined) {
-            isCorrect = isRootAnswerCorrect(Number(answer), q.validationAnswer, q.answerPrecision);
+            isCorrect = isRootAnswerCorrect(Number(submittedAnswer), q.validationAnswer, q.answerPrecision);
           } else {
-            isCorrect = Number(answer) === q.answer;
+            isCorrect = Number(submittedAnswer) === q.answer;
           }
         } else {
-          isCorrect = normalizeAnswer(String(answer), String(q.answer));
+          isCorrect = normalizeAnswer(String(submittedAnswer), String(q.answer));
         }
       }
 
@@ -1824,6 +1835,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       return <span className="text-primary">{String(q.answer)}</span>;
     };
 
+    const gameOptions = config.mode === 'game'
+      ? buildMCQGameOptions(q.options, q.answer, q.optionPool).map((option) => ({
+          ...option,
+          label: option.sourceIndex !== null && q.options?.[option.sourceIndex] !== undefined
+            ? renderOption(q.options[option.sourceIndex]!, option.sourceIndex)
+            : String(option.value) === String(q.answer)
+              ? renderCorrectAnswer()
+              : <span>{String(option.value)}</span>,
+        }))
+      : [];
+
     return (
       <>
       <SwipeBack onBack={handleExitRequest}>
@@ -2031,6 +2053,31 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               );
             })}
           </div>
+        )}
+
+        {config.mode === 'game' && (
+          <MCQWithGame
+            key={String(currentQ) + '-' + String(q.quizQuestionId ?? q.questionId ?? q.text)}
+            questionKey={String(currentQ) + '-' + String(q.quizQuestionId ?? q.questionId ?? q.text)}
+            options={gameOptions}
+            correctAnswer={q.answer}
+            feedback={feedback}
+            selectedOption={selectedOption}
+            correctScore={score.correct}
+            wrongScore={score.wrong}
+            durationMs={config.timerMode === 'perQuestion'
+              // Let the configured deadline govern the game: the answer gate
+              // reaches the car just before timeout, leaving a small scheduling margin.
+              ? Math.max(1200, config.timerSeconds * 1000 - 300)
+              : config.timerMode === 'challenge' ? 4800 : 5200}
+            disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
+            onCollision={(laneIndex) => {
+              const option = gameOptions[laneIndex];
+              if (!option || feedback || answerLockRef.current || finishLockRef.current) return;
+              setSelectedOption(laneIndex);
+              handleAnswer(option.value);
+            }}
+          />
         )}
 
         {config.mode === 'input' && (
@@ -2738,11 +2785,22 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       {/* Answer Mode */}
       <div className="quiz-setting-block mb-4">
         <label className="quiz-section-label text-sm text-muted-foreground mb-2 block font-semibold">Answer Mode</label>
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => setMode('mcq')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>MCQ</button>
-          <button onClick={() => setMode('input')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === 'input' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>Type Answer</button>
+        <div className="grid grid-cols-3 gap-2">
+          <button type="button" aria-pressed={mode === 'mcq'} onClick={() => setMode('mcq')}
+            className={`flex min-h-[64px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-bold leading-tight transition-colors ${mode === 'mcq' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
+            <ListChecks size={17} />
+            <span>MCQ</span>
+          </button>
+          <button type="button" aria-pressed={mode === 'input'} onClick={() => setMode('input')}
+            className={`flex min-h-[64px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-bold leading-tight transition-colors ${mode === 'input' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
+            <Keyboard size={17} />
+            <span>Type Answer</span>
+          </button>
+          <button type="button" aria-pressed={mode === 'game'} onClick={() => setMode('game')}
+            className={`flex min-h-[64px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-bold leading-tight transition-colors ${mode === 'game' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
+            <CarFront size={17} />
+            <span>MCQ with Game</span>
+          </button>
         </div>
       </div>
 
