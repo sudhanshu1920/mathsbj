@@ -1,5 +1,3 @@
-import { APP_VERSION_NAME } from '@/lib/appVersion';
-
 export const BACKUP_FORMAT = 'MathMasterBackup';
 export const BACKUP_FORMAT_VERSION = 1;
 export const BACKUP_DATA_SCHEMA_VERSION = 1;
@@ -281,7 +279,7 @@ export async function createBackupText(options: {
   const unsigned = {
     format: BACKUP_FORMAT,
     backupFormatVersion: BACKUP_FORMAT_VERSION,
-    appVersion: options.appVersion ?? APP_VERSION_NAME,
+    appVersion: options.appVersion ?? 'unknown',
     createdAt: createdAt.toISOString(),
     dataSchemaVersion: BACKUP_DATA_SCHEMA_VERSION,
     payload: { storage, native: { widgetPreferences } },
