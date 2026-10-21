@@ -6,14 +6,17 @@ import {
   MCQ_GAME_COLLISION_Z,
   MCQ_GAME_GATE_HALF_WIDTH,
   MCQ_GAME_GATE_START_Z,
+  MCQ_GAME_GESTURE_MOVE_TOLERANCE_PX,
   MCQ_GAME_HOLD_THRESHOLD_MS,
   MCQ_GAME_LANE_X,
+  MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS,
   MCQ_GAME_TRAVEL_DISTANCE,
+  MCQ_GAME_BASE_SPEED_MULTIPLIER,
+  advanceMCQGameSpeed,
   clampMCQGameLane,
   classifySteeringGesture,
   createMCQGateMappings,
   detectSweptGateCollision,
-  getMCQGameSpeedMultiplier,
 } from "@/lib/mcqGamePhysics";
 import {
   createMCQ3DScene,
@@ -53,6 +56,9 @@ interface SteeringPress {
   pointerId: number;
   direction: -1 | 1;
   startedAt: number;
+  startX: number;
+  startY: number;
+  movementExceeded: boolean;
   boostTriggered: boolean;
 }
 
@@ -97,11 +103,11 @@ const MCQWithGame = ({
   const onCollisionRef = useRef(onCollision);
   const activeQuestionKeyRef = useRef(String(questionKey));
   const boostingRef = useRef(false);
+  const speedMultiplierRef = useRef(MCQ_GAME_BASE_SPEED_MULTIPLIER);
   const touchGestureRef = useRef<SteeringPress | null>(null);
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const passElapsedMsRef = useRef(0);
-  const sessionElapsedMsRef = useRef(0);
   const previousGateZRef = useRef(MCQ_GAME_GATE_START_Z);
   const gateZRef = useRef(MCQ_GAME_GATE_START_Z);
   const scrollOffsetRef = useRef(0);
@@ -187,7 +193,8 @@ const MCQWithGame = ({
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((typeof event.button === "number" && event.button !== 0) ||
-        disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
+        disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current ||
+        touchGestureRef.current) return;
     const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
     const startX = Number.isFinite(event.clientX) ? event.clientX : 0;
     if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option")) return;
@@ -199,6 +206,9 @@ const MCQWithGame = ({
       pointerId,
       direction,
       startedAt: performance.now(),
+      startX,
+      startY: Number.isFinite(event.clientY) ? event.clientY : 0,
+      movementExceeded: false,
       boostTriggered: false,
     };
 
@@ -210,11 +220,32 @@ const MCQWithGame = ({
 
     holdTimerRef.current = setTimeout(() => {
       const press = touchGestureRef.current;
-      if (!press || press.pointerId !== pointerId || phaseRef.current !== "RUNNING" || disabledRef.current) return;
+      if (!press || press.pointerId !== pointerId ||
+          phaseRef.current === "PAUSED" || phaseRef.current === "ERROR" || document.hidden ||
+          press.movementExceeded) return;
+      // A hold may cross a question boundary: keep accelerating until the
+      // physical pointer is released, even while that answer is being processed.
       press.boostTriggered = true;
       boostingRef.current = true;
       setBoosting(true);
     }, MCQ_GAME_HOLD_THRESHOLD_MS);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const press = touchGestureRef.current;
+    const eventPointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
+    if (!press || (eventPointerId !== null && eventPointerId > 0 && eventPointerId !== press.pointerId)) return;
+    if (press.movementExceeded) return;
+
+    const x = Number.isFinite(event.clientX) ? event.clientX : press.startX;
+    const y = Number.isFinite(event.clientY) ? event.clientY : press.startY;
+    const dx = x - press.startX;
+    const dy = y - press.startY;
+    if (dx * dx + dy * dy <= MCQ_GAME_GESTURE_MOVE_TOLERANCE_PX ** 2) return;
+
+    press.movementExceeded = true;
+    clearHoldTimer();
+    if (press.boostTriggered) endBoost();
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -232,6 +263,10 @@ const MCQWithGame = ({
     const duration = Math.max(0, performance.now() - press.startedAt);
     const result = classifySteeringGesture(duration, press.direction);
 
+    if (press.movementExceeded) {
+      endBoost();
+      return;
+    }
     if (press.boostTriggered || result.kind === "boost") {
       endBoost();
       return;
@@ -260,9 +295,16 @@ const MCQWithGame = ({
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
+    const handleWindowBlur = () => {
+      clearHoldTimer();
+      touchGestureRef.current = null;
+      endBoost();
+    };
+    window.addEventListener("blur", handleWindowBlur);
     void setGameImmersiveMode(true);
 
     return () => {
+      window.removeEventListener("blur", handleWindowBlur);
       clearHoldTimer();
       touchGestureRef.current = null;
       boostingRef.current = false;
@@ -340,9 +382,16 @@ const MCQWithGame = ({
       lastTimestampRef.current = timestamp;
 
       const current = latestPropsRef.current;
-      const speedMultiplier = getMCQGameSpeedMultiplier(boostingRef.current);
+      const previousSpeedMultiplier = speedMultiplierRef.current;
+      const nextSpeedMultiplier = advanceMCQGameSpeed(
+        previousSpeedMultiplier,
+        deltaMs,
+        boostingRef.current,
+      );
+      speedMultiplierRef.current = nextSpeedMultiplier;
+      // Average speed over the frame keeps motion aligned with the updated curve.
+      const speedMultiplier = (previousSpeedMultiplier + nextSpeedMultiplier) / 2;
       const advancedMs = deltaMs * speedMultiplier;
-      sessionElapsedMsRef.current += advancedMs;
 
       const safeDuration = Number.isFinite(current.durationMs) && current.durationMs > 0
         ? Math.max(350, current.durationMs)
@@ -382,7 +431,10 @@ const MCQWithGame = ({
         }
       }
 
-      scrollOffsetRef.current = (sessionElapsedMsRef.current * MCQ_GAME_TRAVEL_DISTANCE / safeDuration) % 8;
+      // Keep the road's world-distance phase continuous between questions;
+      // only the current gate travel uses the configured question duration.
+      scrollOffsetRef.current =
+        (scrollOffsetRef.current + advancedMs * MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS) % 8;
       gateZRef.current = nextGateZ;
 
       if (collisionIndex >= 0 && !submittedRef.current) {
@@ -487,11 +539,8 @@ const MCQWithGame = ({
     passElapsedMsRef.current = 0;
     previousGateZRef.current = MCQ_GAME_GATE_START_Z;
     gateZRef.current = MCQ_GAME_GATE_START_Z;
-    lastTimestampRef.current = null;
-    clearHoldTimer();
-    touchGestureRef.current = null;
-    boostingRef.current = false;
-    setBoosting(false);
+    // Preserve the live speed and an active physical hold across questions.
+    // Gate progress resets for the new options; the road and acceleration do not.
 
     const nextPhase: GamePhase = document.hidden
       ? "PAUSED"
@@ -537,6 +586,7 @@ const MCQWithGame = ({
         data-swipe-ignore-app-section="true"
         data-swipe-ignore-back="true"
         onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
         onContextMenu={(event) => event.preventDefault()}
