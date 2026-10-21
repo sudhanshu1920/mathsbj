@@ -123,6 +123,16 @@ function registerNativePlugin(mainActivity) {
     if (!mainActivity.includes(registration)) throw new Error('MainActivity.java is missing daily notification plugin registration');
     mainActivity = mainActivity.replace(registration, registration + '\n        ' + backupRegistration);
   }
+  const gameImmersiveRegistration = 'registerPlugin(GameImmersivePlugin.class);';
+  if (!mainActivity.includes(gameImmersiveRegistration)) {
+    if (!mainActivity.includes(backupRegistration)) {
+      throw new Error('MainActivity.java is missing backup plugin registration before immersive game registration');
+    }
+    mainActivity = mainActivity.replace(
+      backupRegistration,
+      backupRegistration + '\n        ' + gameImmersiveRegistration,
+    );
+  }
   return mainActivity;
 }
 
@@ -226,6 +236,7 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'DailyTargetReminderReceiver.java',
     'DailyTargetReminderBootReceiver.java',
     'BackupRestorePlugin.java',
+    'GameImmersivePlugin.java',
   ];
   const targetPackageDir = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj');
   await mkdir(targetPackageDir, { recursive: true });
