@@ -225,8 +225,11 @@ const MCQWithGame = ({
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     const press = touchGestureRef.current;
-    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
-    if (!press || press.pointerId !== pointerId) return;
+    const eventPointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
+    // Some DOM test environments expose pointerup as a plain Event with
+    // pointerId=0. Real pointer IDs are positive; tolerate that missing value
+    // while still rejecting a different active pointer when it is available.
+    if (!press || (eventPointerId !== null && eventPointerId > 0 && press.pointerId !== eventPointerId)) return;
 
     clearHoldTimer();
     touchGestureRef.current = null;
@@ -245,8 +248,9 @@ const MCQWithGame = ({
   };
 
   const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
-    if (touchGestureRef.current?.pointerId !== pointerId) return;
+    const eventPointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
+    const activePointerId = touchGestureRef.current?.pointerId;
+    if (!touchGestureRef.current || (eventPointerId !== null && eventPointerId > 0 && activePointerId !== eventPointerId)) return;
     clearHoldTimer();
     touchGestureRef.current = null;
     endBoost();
