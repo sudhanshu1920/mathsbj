@@ -12,6 +12,7 @@ import {
   MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS,
   MCQ_GAME_TRAVEL_DISTANCE,
   MCQ_GAME_BASE_SPEED_MULTIPLIER,
+  MCQ_GAME_MAX_SPEED_MULTIPLIER,
   advanceMCQGameSpeed,
   clampMCQGameLane,
   classifySteeringGesture,
@@ -24,6 +25,7 @@ import {
   type MCQGateFeedback,
 } from "@/lib/mcq3dRenderer";
 import { setGameImmersiveMode } from "@/lib/gameImmersiveMode";
+import { createRacingAudioController, playClick, playSwipe, type RacingAudioController } from "@/lib/sound";
 import "./mcq-game.css";
 
 export interface MCQWithGameOption {
@@ -88,6 +90,7 @@ const MCQWithGame = ({
   const questionPanelRef = useRef<HTMLDivElement | null>(null);
   const gateLabelRefs = useRef<Array<HTMLDivElement | null>>([]);
   const sceneRef = useRef<MCQ3DScene | null>(null);
+  const racingAudioRef = useRef<RacingAudioController | null>(null);
   const frameRef = useRef<number | null>(null);
   const drawCurrentFrameRef = useRef<(() => void) | null>(null);
   const scheduleFrameRef = useRef<(() => void) | null>(null);
@@ -208,6 +211,9 @@ const MCQWithGame = ({
     // Publish selection before invoking React state so a rapid next action
     // cannot read an old lane while the parent rerender is still pending.
     selectedOptionRef.current = mapping.laneIndex;
+    // Play once only when a different option becomes selected.
+    racingAudioRef.current?.unlock();
+    playSwipe();
     onSelectOptionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
   }, []);
 
@@ -226,6 +232,9 @@ const MCQWithGame = ({
     ) return;
 
     // Lock synchronously before entering the heavier existing Quiz Engine path.
+    // Immediate button click cue; correctness tones remain owned by the Quiz Engine.
+    racingAudioRef.current?.unlock();
+    playClick();
     submittedRef.current = true;
     phaseRef.current = "ANSWERING";
     setPhase("ANSWERING");
@@ -240,6 +249,8 @@ const MCQWithGame = ({
     const startX = Number.isFinite(event.clientX) ? event.clientX : 0;
     if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-topbar, .mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option")) return;
 
+    // AudioContext must be resumed directly from a trusted gesture on mobile.
+    racingAudioRef.current?.unlock();
     const rect = event.currentTarget.getBoundingClientRect();
     const direction: -1 | 1 = startX < rect.left + rect.width / 2 ? -1 : 1;
     clearHoldTimer();
@@ -330,6 +341,15 @@ const MCQWithGame = ({
   };
 
   useEffect(() => {
+    const controller = createRacingAudioController(MCQ_GAME_BASE_SPEED_MULTIPLIER, MCQ_GAME_MAX_SPEED_MULTIPLIER);
+    racingAudioRef.current = controller;
+    return () => {
+      controller.dispose();
+      if (racingAudioRef.current === controller) racingAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
     const previousBodyOverflow = document.body.style.overflow;
     const previousOverscroll = document.body.style.overscrollBehavior;
@@ -340,12 +360,18 @@ const MCQWithGame = ({
       clearHoldTimer();
       touchGestureRef.current = null;
       endBoost();
+      racingAudioRef.current?.pause();
+    };
+    const handleWindowFocus = () => {
+      if (!document.hidden) racingAudioRef.current?.resume();
     };
     window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
     void setGameImmersiveMode(true);
 
     return () => {
       window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("focus", handleWindowFocus);
       clearHoldTimer();
       touchGestureRef.current = null;
       boostingRef.current = false;
@@ -461,6 +487,7 @@ const MCQWithGame = ({
         boostingRef.current,
       );
       speedMultiplierRef.current = nextSpeedMultiplier;
+      racingAudioRef.current?.update(nextSpeedMultiplier, boostingRef.current);
       // Average speed over the frame keeps motion aligned with the updated curve.
       const speedMultiplier = (previousSpeedMultiplier + nextSpeedMultiplier) / 2;
       const advancedMs = deltaMs * speedMultiplier;
@@ -522,6 +549,8 @@ const MCQWithGame = ({
           collisionPassConsumedRef.current = true;
           if (selectedOptionRef.current !== mapping.laneIndex) {
             selectedOptionRef.current = mapping.laneIndex;
+            racingAudioRef.current?.unlock();
+            playSwipe();
             onSelectOptionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
           }
         }
@@ -567,6 +596,7 @@ const MCQWithGame = ({
         touchGestureRef.current = null;
         boostingRef.current = false;
         setBoosting(false);
+        racingAudioRef.current?.pause();
         if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
           window.cancelAnimationFrame(frameRef.current);
         }
@@ -577,6 +607,7 @@ const MCQWithGame = ({
 
       const current = latestPropsRef.current;
       void setGameImmersiveMode(true);
+      racingAudioRef.current?.resume();
       const resumePhase: GamePhase = current.feedback
         ? "FEEDBACK"
         : submittedRef.current

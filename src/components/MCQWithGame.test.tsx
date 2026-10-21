@@ -4,6 +4,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MCQWithGame from "@/components/MCQWithGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
 import { createMCQ3DScene } from "@/lib/mcq3dRenderer";
+import { createRacingAudioController, playClick, playSwipe } from "@/lib/sound";
+
+const racingAudioMocks = vi.hoisted(() => ({
+  unlock: vi.fn(),
+  update: vi.fn(),
+  pause: vi.fn(),
+  resume: vi.fn(),
+  dispose: vi.fn(),
+  playClick: vi.fn(),
+  playSwipe: vi.fn(),
+}));
+
+vi.mock("@/lib/sound", () => ({
+  createRacingAudioController: vi.fn(() => ({
+    unlock: racingAudioMocks.unlock,
+    update: racingAudioMocks.update,
+    pause: racingAudioMocks.pause,
+    resume: racingAudioMocks.resume,
+    dispose: racingAudioMocks.dispose,
+  })),
+  playClick: racingAudioMocks.playClick,
+  playSwipe: racingAudioMocks.playSwipe,
+}));
 
 vi.mock("@/lib/mcq3dRenderer", () => ({
   createMCQ3DScene: vi.fn(() => ({
@@ -34,6 +57,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  vi.clearAllMocks();
   // jsdom does not implement PointerEvent by default. Its generic Event fallback
   // drops clientX, which makes both screen halves look like the left zone.
   if (!window.PointerEvent) {
@@ -162,6 +186,34 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(screen.getByRole("button", { name: "Submit selected answer" })).toBeDisabled();
     expect(view.container.querySelectorAll(".mcq-game-gate-letter")).toHaveLength(0);
     expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
+  });
+
+  it("unlocks one racing audio controller for the session and plays selection sound once", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const gate = view.container.querySelector('[data-option-id]') as HTMLElement;
+
+    expect(createRacingAudioController).toHaveBeenCalledTimes(1);
+    fireEvent.click(gate);
+    fireEvent.click(gate);
+
+    expect(playSwipe).toHaveBeenCalledTimes(1);
+    expect(racingAudioMocks.unlock).toHaveBeenCalled();
+    expect(gate).not.toHaveTextContent(/^A$|^B$|^C$|^D$/);
+  });
+
+  it("plays a button cue only for a valid Submit and disposes racing audio on exit", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    fireEvent.click(screen.getByTestId("mcq-game-submit"));
+    expect(playClick).not.toHaveBeenCalled();
+
+    const gate = view.container.querySelector('[data-option-id]') as HTMLElement;
+    fireEvent.click(gate);
+    view.rerender(<MCQWithGame {...gameProps({ selectedOption: 0 })} />);
+    fireEvent.click(screen.getByTestId("mcq-game-submit"));
+
+    expect(playClick).toHaveBeenCalledTimes(1);
+    view.unmount();
+    expect(racingAudioMocks.dispose).toHaveBeenCalledTimes(1);
   });
 
   it("does not submit or skip a question when no answer is selected", () => {

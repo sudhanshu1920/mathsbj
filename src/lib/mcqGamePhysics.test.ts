@@ -42,6 +42,15 @@ describe("3D MCQ racing steering and collision physics", () => {
     expect(clampMCQGameLane(99, 1)).toBe(3);
   });
 
+  it("reaches a clearly higher speed quickly while keeping acceleration time-based", () => {
+    let speed = MCQ_GAME_BASE_SPEED_MULTIPLIER;
+    for (let frame = 0; frame < 15; frame += 1) {
+      speed = advanceMCQGameSpeed(speed, 1000 / 30, true);
+    }
+    expect(speed).toBeGreaterThan(1.4);
+    expect(speed).toBeLessThanOrEqual(MCQ_GAME_MAX_SPEED_MULTIPLIER);
+  });
+
   it("compounds speed as a hold continues and clamps at the configured maximum", () => {
     let speed = MCQ_GAME_BASE_SPEED_MULTIPLIER;
     for (let frame = 0; frame < 5; frame += 1) speed = advanceMCQGameSpeed(speed, 100, true);
