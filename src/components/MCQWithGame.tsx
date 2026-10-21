@@ -182,7 +182,7 @@ const MCQWithGame = ({
     setLane(nextLane);
   }, []);
 
-  const submitFallbackAnswer = useCallback((mappingIndex: number) => {
+  const submitLaneAnswer = useCallback((mappingIndex: number) => {
     const mapping = gateMappingsRef.current[mappingIndex];
     if (!mapping || disabledRef.current || submittedRef.current || feedbackRef.current) return;
     submittedRef.current = true;
@@ -620,7 +620,7 @@ const MCQWithGame = ({
                   disabled={disabled || submittedRef.current || !!feedback}
                   onPointerDown={(event) => event.stopPropagation()}
                   onPointerUp={(event) => event.stopPropagation()}
-                  onClick={() => submitFallbackAnswer(index)}
+                  onClick={() => submitLaneAnswer(index)}
                 >
                   <span className="mcq-game-gate-letter">{LANE_LABELS[index]}</span>
                   <span className="mcq-game-gate-answer">{options[index]?.label ?? String(mapping.optionValue)}</span>
@@ -707,7 +707,7 @@ const MCQWithGame = ({
             aria-label={"Submit selected answer, option " + LANE_LABELS[lane]}
             data-testid="mcq-game-submit"
             disabled={disabled || phase !== "RUNNING" || submittedRef.current || !!feedback}
-            onClick={() => submitFallbackAnswer(laneRef.current)}
+            onClick={() => submitLaneAnswer(laneRef.current)}
           >
             <Send size={19} fill="currentColor" strokeWidth={1.8} aria-hidden="true" />
             <span>Submit</span>
