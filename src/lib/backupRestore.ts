@@ -196,7 +196,7 @@ function validateWidgetPreferences(value: unknown): WidgetPreferenceSnapshot | n
   return { version: 1, global, instances };
 }
 
-function validateStoragePayload(value: unknown): Record<string, string> {
+function validateStoragePayload(value: unknown, validateRecords = true): Record<string, string> {
   if (!isRecord(value)) throw new Error('The backup is missing its saved app data.');
   const keys = Object.keys(value);
   if (keys.length > MAX_BACKUP_ENTRIES) throw new Error('The backup contains too many saved records.');
@@ -207,67 +207,70 @@ function validateStoragePayload(value: unknown): Record<string, string> {
     if (!isBackupStorageKey(key) || typeof item !== 'string') {
       throw new Error('The backup contains an unsupported or unsafe storage record.');
     }
-    if (JSON_OBJECT_STORAGE_KEYS.has(key)) {
-      let saved: unknown;
-      try { saved = JSON.parse(item); } catch { throw new Error('A saved app record is not valid JSON: ' + key); }
-      if (!isRecord(saved)) throw new Error('A saved app record has an invalid structure: ' + key);
-      if (key === 'math-app-settings-v1') {
-        for (const field of ['sound','vibration','keyboardShortcuts']) {
-          if (field in saved && typeof saved[field] !== 'boolean') throw new Error('Invalid setting: ' + field);
-        }
-        if ('font' in saved && !['inter','space-grotesk','nunito','rajdhani'].includes(String(saved.font))) throw new Error('Invalid saved font preference.');
-      }
-      if (key === 'math-app-study-tracker-v1' && saved.version === 3) {
-        if (!Array.isArray(saved.subjects) || !Array.isArray(saved.subjectHistory) || !isRecord(saved.entries) || !isRecord(saved.preferences)) {
-          throw new Error('Study Tracker data is incomplete.');
-        }
-        const subjectIds = new Set<string>();
-        for (const subject of saved.subjects) {
-          if (!isRecord(subject) || typeof subject.id !== 'string' || !subject.id || subjectIds.has(subject.id) ||
-              typeof subject.name !== 'string' || !subject.name.trim() || !Number.isSafeInteger(subject.order) || typeof subject.archived !== 'boolean') {
-            throw new Error('Study Tracker has an invalid or duplicate subject.');
+    if (validateRecords) {
+      if (JSON_OBJECT_STORAGE_KEYS.has(key)) {
+        let saved: unknown;
+        try { saved = JSON.parse(item); } catch { throw new Error('A saved app record is not valid JSON: ' + key); }
+        if (!isRecord(saved)) throw new Error('A saved app record has an invalid structure: ' + key);
+        if (key === 'math-app-settings-v1') {
+          for (const field of ['sound','vibration','keyboardShortcuts']) {
+            if (field in saved && typeof saved[field] !== 'boolean') throw new Error('Invalid setting: ' + field);
           }
-          subjectIds.add(subject.id);
+          if ('font' in saved && !['inter','space-grotesk','nunito','rajdhani'].includes(String(saved.font))) throw new Error('Invalid saved font preference.');
         }
-        const historyDates = new Set<string>();
-        const historicalIds = new Set(subjectIds);
-        for (const snapshot of saved.subjectHistory) {
-          if (!isRecord(snapshot) || !isValidDateKey(snapshot.effectiveDate) ||
-              !Array.isArray(snapshot.subjects) || historyDates.has(snapshot.effectiveDate)) {
-            throw new Error('Study Tracker subject history is invalid.');
+        if (key === 'math-app-study-tracker-v1' && saved.version === 3) {
+          if (!Array.isArray(saved.subjects) || !Array.isArray(saved.subjectHistory) || !isRecord(saved.entries) || !isRecord(saved.preferences)) {
+            throw new Error('Study Tracker data is incomplete.');
           }
-          historyDates.add(snapshot.effectiveDate);
-          const snapshotIds = new Set<string>();
-          for (const subject of snapshot.subjects) {
-            if (!isRecord(subject) || typeof subject.id !== 'string' || !subject.id || snapshotIds.has(subject.id) ||
+          const subjectIds = new Set<string>();
+          for (const subject of saved.subjects) {
+            if (!isRecord(subject) || typeof subject.id !== 'string' || !subject.id || subjectIds.has(subject.id) ||
                 typeof subject.name !== 'string' || !subject.name.trim() || !Number.isSafeInteger(subject.order) || typeof subject.archived !== 'boolean') {
-              throw new Error('Study Tracker subject history contains invalid subjects.');
+              throw new Error('Study Tracker has an invalid or duplicate subject.');
             }
-            snapshotIds.add(subject.id);
-            historicalIds.add(subject.id);
+            subjectIds.add(subject.id);
           }
+          const historyDates = new Set<string>();
+          const historicalIds = new Set(subjectIds);
+          for (const snapshot of saved.subjectHistory) {
+            if (!isRecord(snapshot) || !isValidDateKey(snapshot.effectiveDate) ||
+                !Array.isArray(snapshot.subjects) || historyDates.has(snapshot.effectiveDate)) {
+              throw new Error('Study Tracker subject history is invalid.');
+            }
+            historyDates.add(snapshot.effectiveDate);
+            const snapshotIds = new Set<string>();
+            for (const subject of snapshot.subjects) {
+              if (!isRecord(subject) || typeof subject.id !== 'string' || !subject.id || snapshotIds.has(subject.id) ||
+                  typeof subject.name !== 'string' || !subject.name.trim() || !Number.isSafeInteger(subject.order) || typeof subject.archived !== 'boolean') {
+                throw new Error('Study Tracker subject history contains invalid subjects.');
+              }
+              snapshotIds.add(subject.id);
+              historicalIds.add(subject.id);
+            }
+          }
+          for (const [entryKey, entry] of Object.entries(saved.entries)) {
+            if (!isRecord(entry) || !isValidDateKey(entry.date) ||
+                typeof entry.subjectId !== 'string' || !historicalIds.has(entry.subjectId) ||
+                !['not-started','in-progress','completed'].includes(String(entry.status)) ||
+                !Number.isSafeInteger(entry.minutes) || (entry.minutes as number) < 0 || (entry.minutes as number) > 1440 ||
+                typeof entry.note !== 'string' || typeof entry.updatedAt !== 'string' || !Number.isFinite(Date.parse(entry.updatedAt)) ||
+                entryKey !== entry.date + '|' + entry.subjectId) {
+              throw new Error('Study Tracker contains an invalid daily entry.');
+            }
+          }
+          if (!['table','week','month'].includes(String(saved.preferences.mode))) throw new Error('Study Tracker view preference is invalid.');
+            if (!isValidDateKey(saved.preferences.anchorDate) ||
+                !isValidDateKey(saved.preferences.templateStartDate) ||
+                !isValidDateKey(saved.preferences.templateEndDate) ||
+                saved.preferences.templateStartDate > saved.preferences.templateEndDate) {
+              throw new Error('Study Tracker date preferences are invalid.');
+            }
         }
-        for (const [entryKey, entry] of Object.entries(saved.entries)) {
-          if (!isRecord(entry) || !isValidDateKey(entry.date) ||
-              typeof entry.subjectId !== 'string' || !historicalIds.has(entry.subjectId) ||
-              !['not-started','in-progress','completed'].includes(String(entry.status)) ||
-              !Number.isSafeInteger(entry.minutes) || (entry.minutes as number) < 0 || (entry.minutes as number) > 1440 ||
-              typeof entry.note !== 'string' || typeof entry.updatedAt !== 'string' || !Number.isFinite(Date.parse(entry.updatedAt)) ||
-              entryKey !== entry.date + '|' + entry.subjectId) {
-            throw new Error('Study Tracker contains an invalid daily entry.');
-          }
-        }
-        if (!['table','week','month'].includes(String(saved.preferences.mode))) throw new Error('Study Tracker view preference is invalid.');
-          if (!isValidDateKey(saved.preferences.anchorDate) ||
-              !isValidDateKey(saved.preferences.templateStartDate) ||
-              !isValidDateKey(saved.preferences.templateEndDate) ||
-              saved.preferences.templateStartDate > saved.preferences.templateEndDate) {
-            throw new Error('Study Tracker date preferences are invalid.');
-          }
       }
+      const scalarValidator = SCALAR_STORAGE_VALUES[key];
+      if (scalarValidator && !scalarValidator(item)) throw new Error('A saved preference has an invalid value: ' + key);
+  
     }
-    const scalarValidator = SCALAR_STORAGE_VALUES[key];
-    if (scalarValidator && !scalarValidator(item)) throw new Error('A saved preference has an invalid value: ' + key);
     const keyBytes = utf8Size(key);
     const itemBytes = utf8Size(item);
     if (itemBytes > MAX_ENTRY_BYTES) throw new Error('A saved record is too large: ' + key);
