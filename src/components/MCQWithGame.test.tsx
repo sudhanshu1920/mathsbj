@@ -19,14 +19,30 @@ vi.mock("@/lib/mcq3dRenderer", () => ({
   })),
 }));
 
+const originalPointerEventDescriptor = Object.getOwnPropertyDescriptor(window, "PointerEvent");
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.mocked(createMCQ3DScene).mockReset();
   vi.useRealTimers();
+  if (originalPointerEventDescriptor) {
+    Object.defineProperty(window, "PointerEvent", originalPointerEventDescriptor);
+  } else {
+    Reflect.deleteProperty(window, "PointerEvent");
+  }
 });
 
 beforeEach(() => {
+  // jsdom does not implement PointerEvent by default. Its generic Event fallback
+  // drops clientX, which makes both screen halves look like the left zone.
+  if (!window.PointerEvent) {
+    Object.defineProperty(window, "PointerEvent", {
+      configurable: true,
+      writable: true,
+      value: MouseEvent,
+    });
+  }
   vi.mocked(createMCQ3DScene).mockImplementation(() => ({
     render: vi.fn(() => Array.from({ length: 4 }, (_, index) => ({
       x: 50 + index * 80,
