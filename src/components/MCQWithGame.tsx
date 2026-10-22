@@ -48,6 +48,7 @@ interface MCQWithGameProps {
   progressLabel?: string;
   timerLabel?: string;
   disabled?: boolean;
+  finalSubmitReady: boolean;
   canFinalizeTest: boolean;
   onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
   onFinalSubmit: () => void;
@@ -78,6 +79,7 @@ const MCQWithGame = ({
   progressLabel,
   timerLabel,
   disabled = false,
+  finalSubmitReady,
   canFinalizeTest,
   onSelectOption,
   onFinalSubmit,
@@ -138,6 +140,7 @@ const MCQWithGame = ({
     progressLabel,
     timerLabel,
     disabled,
+    finalSubmitReady,
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
@@ -155,6 +158,7 @@ const MCQWithGame = ({
     progressLabel,
     timerLabel,
     disabled,
+    finalSubmitReady,
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
@@ -171,8 +175,9 @@ const MCQWithGame = ({
   if (mappingsHaveChanged) gateMappingsRef.current = nextMappings;
   const gateMappings = gateMappingsRef.current;
 
-  // The final-submit stage locks driving and answer gates, but not its own button.
-  disabledRef.current = disabled || canFinalizeTest;
+  // Lock driving and answer gates only after a finite test is fully answered.
+  // Infinite sessions may offer whole-session Submit while gameplay is still live.
+  disabledRef.current = disabled || finalSubmitReady;
   feedbackRef.current = feedback;
   selectedOptionRef.current = selectedOption;
   correctLaneRef.current = options.findIndex((option) => String(option.value) === String(correctAnswer));
