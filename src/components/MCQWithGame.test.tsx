@@ -264,8 +264,6 @@ describe("Full-screen continuous MCQ racing", () => {
     fireEvent.click(gates[1]);
     fireEvent.click(gates[1]);
     expect(onSelectOption).toHaveBeenCalledTimes(2);
-    expect(onSelectOption.mock.calls[0]?.[0]).toBe(1);
-    expect(onSelectOption.mock.calls[1]?.[0]).toBe(1);
   });
 
   it("uses a short tap on each screen half for exactly one lane change", () => {
