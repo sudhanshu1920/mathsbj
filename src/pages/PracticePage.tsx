@@ -1086,7 +1086,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     autoSubmitTimerRef.current = undefined;
     answerLockRef.current = false;
     finishLockRef.current = false;
-  }, [onQuizStart]);
+  }, [onQuizStart, setFinalSubmitReady]);
 
   useEffect(() => {
     if (config && !finished) quizStartLockRef.current = false;
