@@ -765,6 +765,9 @@ const MCQWithGame = ({
             className="mcq-game-select-to-picker"
             aria-label="Choose another game"
             disabled={disabled || finalSubmitReady}
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+            onPointerCancel={(event) => event.stopPropagation()}
             onClick={onChangeGame}
           >
             <ArrowLeft size={16} aria-hidden="true" />
