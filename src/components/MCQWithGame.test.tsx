@@ -446,6 +446,8 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(onSubmitAnswer).not.toHaveBeenCalled();
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
 
+      const firstGateNode = view.container.querySelector(".mcq-game-gate-label");
+      expect(view.container.querySelectorAll(".mcq-game-question-panel")).toHaveLength(1);
       const secondOptions = [
         { value: "29", label: "29" },
         { value: "27", label: "27" },
@@ -468,7 +470,9 @@ describe("Full-screen continuous MCQ racing", () => {
       );
 
       expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
+      expect(view.container.querySelectorAll(".mcq-game-question-panel")).toHaveLength(1);
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
+      expect(view.container.querySelector(".mcq-game-gate-label")).toBe(firstGateNode);
       expect(Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"))
         .every((node) => (node.dataset.gateId || "").includes(encodeURIComponent("q-2")))).toBe(true);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
