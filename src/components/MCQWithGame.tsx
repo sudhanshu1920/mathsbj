@@ -218,6 +218,9 @@ const MCQWithGame = ({
 
     const releaseRejectedSelection = () => {
       if (activeQuestionKeyRef.current !== questionKeyAtSelection || feedbackRef.current) return;
+      // A rejected engine commit must release both locks. Otherwise one stale
+      // collision permanently disables automatic option contact for this question.
+      collisionPassConsumedRef.current = false;
       submittedRef.current = false;
       selectedOptionRef.current = latestPropsRef.current.selectedOption;
       phaseRef.current = previousPhase;

@@ -266,6 +266,48 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(onSelectOption).toHaveBeenCalledTimes(2);
   });
 
+  it("restores automatic collision handling after the quiz engine rejects a selection", () => {
+    const raf = installAnimationFrameQueue();
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    let rejectFirstAttempt = true;
+    const onSelectOption = vi.fn(() => {
+      if (rejectFirstAttempt) {
+        rejectFirstAttempt = false;
+        return false;
+      }
+      return true;
+    });
+    const mappings = createMCQGateMappings("q-1", options.map((option) => option.value));
+    const view = render(<MCQWithGame {...gameProps({ onSelectOption })} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      // Enter the left gate. The quiz engine rejects that first commit.
+      fireEvent.pointerDown(stage, { pointerId: 31, button: 0, clientX: 20, clientY: 650 });
+      now = 40;
+      fireEvent.pointerUp(stage, { pointerId: 31, button: 0, clientX: 20, clientY: 650 });
+      for (let timestamp = 0; timestamp <= 300; timestamp += 50) raf.advance(timestamp);
+
+      expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect(onSelectOption.mock.calls[0]).toEqual([0, "26", mappings[0].gateId]);
+
+      // Re-enter a different fixed gate on the same question. Auto-collision
+      // must work again instead of remaining locked after the rejected commit.
+      fireEvent.pointerDown(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
+      now = 80;
+      fireEvent.pointerUp(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
+      for (let timestamp = 350; timestamp <= 700; timestamp += 50) raf.advance(timestamp);
+
+      expect(onSelectOption).toHaveBeenCalledTimes(2);
+      expect(onSelectOption.mock.calls[1]).toEqual([1, "28", mappings[1].gateId]);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("uses a short tap on each screen half for exactly one lane change", () => {
     vi.useFakeTimers();
     const raf = installAnimationFrameQueue();
