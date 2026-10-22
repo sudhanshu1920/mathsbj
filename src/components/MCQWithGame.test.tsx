@@ -448,6 +448,11 @@ describe("Full-screen continuous MCQ racing", () => {
 
       const firstGateNode = view.container.querySelector(".mcq-game-gate-label");
       expect(view.container.querySelectorAll(".mcq-game-question-panel")).toHaveLength(1);
+      const createdScene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
+      expect(createdScene).toBeDefined();
+      const renderer = createdScene!.render as unknown as ReturnType<typeof vi.fn>;
+      const previousFrame = renderer.mock.lastCall?.[0] as { gateZ: number } | undefined;
+      expect(previousFrame).toBeDefined();
       const secondOptions = [
         { value: "29", label: "29" },
         { value: "27", label: "27" },
@@ -473,6 +478,8 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(view.container.querySelectorAll(".mcq-game-question-panel")).toHaveLength(1);
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
       expect(view.container.querySelector(".mcq-game-gate-label")).toBe(firstGateNode);
+      const nextFrame = renderer.mock.lastCall?.[0] as { gateZ: number } | undefined;
+      expect(nextFrame?.gateZ).toBe(previousFrame?.gateZ);
       expect(Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"))
         .every((node) => (node.dataset.gateId || "").includes(encodeURIComponent("q-2")))).toBe(true);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
