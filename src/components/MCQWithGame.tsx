@@ -475,7 +475,6 @@ const MCQWithGame = ({
         : Math.min(100, Math.max(0, timestamp - previousTimestamp));
       lastTimestampRef.current = timestamp;
 
-      const current = latestPropsRef.current;
       const previousSpeedMultiplier = speedMultiplierRef.current;
       const nextSpeedMultiplier = advanceMCQGameSpeed(
         previousSpeedMultiplier,
