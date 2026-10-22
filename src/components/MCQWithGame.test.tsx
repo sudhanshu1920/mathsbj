@@ -498,7 +498,7 @@ describe("Full-screen continuous MCQ racing", () => {
 
   it("holds the current gate row steady until Submit and only respawns it for the next question", () => {
     const raf = installAnimationFrameQueue();
-    let now = 0;
+    const now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const onSelectOption = vi.fn();
     const onSubmitAnswer = vi.fn();
