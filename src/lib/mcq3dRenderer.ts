@@ -500,11 +500,16 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
     return { width: cssWidth, height: cssHeight };
   };
 
-  // Keep the chase camera centered: steering moves the car, not every answer gate.
-  const makeViewProjection = (width: number, height: number) => {
-    const eye: Point3 = [0, 3.45, 7.20];
-    const target: Point3 = [0, 0.92, -4.85];
-    const projection = perspectiveMatrix((52 * Math.PI) / 180, width / height, 0.1, 100);
+  // Portrait layouts need a wider field of view to show all four world-space
+  // gates at once. A fraction of the actual car X tracks steering while keeping
+  // gates, car and colliders in the same underlying coordinate system.
+  const makeViewProjection = (width: number, height: number, carX: number) => {
+    const aspect = width / height;
+    const verticalFovDegrees = aspect < 0.65 ? 120 : aspect < 0.9 ? 100 : 52;
+    const cameraX = Math.min(3.45, Math.max(-3.45, carX)) * 0.20;
+    const eye: Point3 = [cameraX, 3.45, 7.20];
+    const target: Point3 = [cameraX, 0.92, -4.85];
+    const projection = perspectiveMatrix((verticalFovDegrees * Math.PI) / 180, aspect, 0.1, 100);
     const view = lookAtMatrix(eye, target, [0, 1, 0]);
     return multiplyMatrices(projection, view);
   };
@@ -530,7 +535,7 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
     render(frame: MCQ3DRenderFrame): MCQGateProjection[] {
       if (disposed) return [];
       const viewport = syncViewport();
-      const viewProjection = makeViewProjection(viewport.width, viewport.height);
+      const viewProjection = makeViewProjection(viewport.width, viewport.height, frame.carX);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(program);
 
