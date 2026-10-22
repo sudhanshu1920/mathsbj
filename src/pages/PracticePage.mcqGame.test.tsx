@@ -55,6 +55,29 @@ describe("Quiz Arena MCQ with Game mode", () => {
       else Reflect.deleteProperty(window, "cancelAnimationFrame");
     }
   });
+  it("routes the selected 2D game to its own screen while using the same quiz setup", () => {
+    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const view = render(<PracticePage />);
+
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+      expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /2D Math Jump Adventure/i }));
+
+      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
+      expect(screen.getByText(/Selected: 2D Math Jump Adventure/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
+
+      expect(screen.getByTestId("mcq-jump-fullscreen")).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Choose your answer" })).toBeInTheDocument();
+      expect(view.container.querySelectorAll(".mcq-jump-answer")).toHaveLength(4);
+      expect(view.container.querySelectorAll(".mcq-game-fullscreen")).toHaveLength(0);
+    } finally {
+      view.unmount();
+      getContextSpy.mockRestore();
+    }
+  });
+
   it("records each selected gate immediately and reserves top-right Submit for the complete test", async () => {
     const originalRequest = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
     const originalCancel = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
