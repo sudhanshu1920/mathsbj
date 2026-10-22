@@ -644,11 +644,8 @@ const MCQWithGame = ({
     submittedRef.current = false;
     selectedOptionRef.current = latestPropsRef.current.selectedOption;
     collisionPassConsumedRef.current = false;
-    passElapsedMsRef.current = 0;
-    previousGateZRef.current = MCQ_GAME_GATE_START_Z;
-    gateZRef.current = MCQ_GAME_GATE_START_Z;
-    // Preserve the live speed and an active physical hold across questions.
-    // Gate progress resets for the new options; the road and acceleration do not.
+    // Keep gate travel and road distance on the same continuous timeline. Only
+    // the authoritative question/option IDs change; meshes and lane positions stay put.
 
     const nextPhase: GamePhase = document.hidden
       ? "PAUSED"
@@ -659,7 +656,7 @@ const MCQWithGame = ({
     setPhase(nextPhase);
     drawCurrentFrameRef.current?.();
     scheduleFrameRef.current?.();
-  }, [questionKey, clearHoldTimer]);
+  }, [questionKey]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -720,7 +717,7 @@ const MCQWithGame = ({
               {gateMappings.map((mapping, index) => (
                 <button
                   type="button"
-                  key={mapping.gateId}
+                  key={mapping.laneId}
                   className={[
                     "mcq-game-fallback-option",
                     selectedOption === index && !feedback ? "is-selected" : "",
@@ -760,7 +757,7 @@ const MCQWithGame = ({
                 ].filter(Boolean).join(" ");
                 return (
                   <div
-                    key={mapping.gateId}
+                    key={mapping.laneId}
                     ref={(element) => { gateLabelRefs.current[index] = element; }}
                     className={className}
                     role="listitem"
