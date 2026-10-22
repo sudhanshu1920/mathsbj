@@ -55,6 +55,16 @@ describe("Quiz Arena MCQ with Game mode", () => {
       else Reflect.deleteProperty(window, "cancelAnimationFrame");
     }
   });
+  it("routes external Back from the setup picker to the previous answer mode", () => {
+    const view = render(<PracticePage externalBackRequest={0} />);
+    fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+    expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+
+    view.rerender(<PracticePage externalBackRequest={1} />);
+    expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "MCQ" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("routes the selected 2D game to its own screen while using the same quiz setup", () => {
     const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     const view = render(<PracticePage />);
