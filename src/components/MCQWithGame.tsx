@@ -49,7 +49,7 @@ interface MCQWithGameProps {
   timerLabel?: string;
   disabled?: boolean;
   onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => void;
-  onSubmitAnswer: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => void;
+  onSubmitAnswer: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
 }
 
 const DEFAULT_PASS_DURATION_MS = 5200;
@@ -233,14 +233,31 @@ const MCQWithGame = ({
       feedbackRef.current
     ) return;
 
-    // Lock synchronously before entering the heavier existing Quiz Engine path.
-    // Immediate button click cue; correctness tones remain owned by the Quiz Engine.
+    // Lock synchronously before entering the existing Quiz Engine path so a
+    // second tap or a same-frame timer callback cannot settle this question twice.
+    const submissionQuestionKey = activeQuestionKeyRef.current;
+    const previousPhase = phaseRef.current;
+    const releaseRejectedSubmission = () => {
+      // A rejected callback must not leave the current question permanently locked.
+      if (activeQuestionKeyRef.current !== submissionQuestionKey || feedbackRef.current) return;
+      submittedRef.current = false;
+      phaseRef.current = previousPhase;
+      setPhase(previousPhase);
+    };
+
     racingAudioRef.current?.unlock();
     playClick();
     submittedRef.current = true;
     phaseRef.current = "ANSWERING";
     setPhase("ANSWERING");
-    onSubmitAnswerRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
+
+    try {
+      const accepted = onSubmitAnswerRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
+      if (accepted === false) releaseRejectedSubmission();
+    } catch (error) {
+      releaseRejectedSubmission();
+      throw error;
+    }
   }, []);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
