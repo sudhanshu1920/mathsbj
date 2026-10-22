@@ -897,9 +897,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [selectedOption, setSelectedOptionState] = useState<number | null>(null);
   const selectedOptionRef = useRef<number | null>(null);
   const setSelectedOption = useCallback((nextOption: number | null) => {
-    // Keep the submission guard in sync before React schedules the HUD render.
+    // Keep the selection guard synchronized before React schedules the HUD render.
     selectedOptionRef.current = nextOption;
     setSelectedOptionState(nextOption);
+  }, []);
+  const [finalSubmitReady, setFinalSubmitReadyState] = useState(false);
+  const finalSubmitReadyRef = useRef(false);
+  const setFinalSubmitReady = useCallback((ready: boolean) => {
+    // The timer and late gate callbacks must observe final readiness immediately.
+    finalSubmitReadyRef.current = ready;
+    setFinalSubmitReadyState(ready);
   }, []);
   const [timeLeft, setTimeLeft] = useState(0);
   const [challengeTimeLeft, setChallengeTimeLeft] = useState(0);
@@ -1057,6 +1064,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setFeedback(null);
     setInputValue('');
     setSelectedOption(null);
+    setFinalSubmitReady(false);
     setElapsedTime(0);
     setSessionXP(0);
     setTimeLeft(normalizedConfig.timerMode === 'perQuestion' ? normalizedConfig.timerSeconds : 9999);
@@ -1231,6 +1239,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const finishQuiz = useCallback((options?: { playSubmitSound?: boolean }) => {
     if (finishLockRef.current) return;
     finishLockRef.current = true;
+    setFinalSubmitReady(false);
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = undefined;
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
@@ -1248,7 +1257,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     }
     onQuizFinish?.();
     setFinished(true);
-  }, [onQuizFinish]);
+  }, [onQuizFinish, setFinalSubmitReady]);
 
   // One session clock owns elapsed/streak accounting and whichever timer mode
   // was selected. Challenge remaining time is derived from a monotonic deadline
@@ -1262,6 +1271,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = setInterval(() => {
+      if (finalSubmitReadyRef.current) return;
       if (config.timerMode === 'challenge') {
         const deadline = challengeDeadlineRef.current;
         const remaining = deadline === null
@@ -1303,7 +1313,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
-      if (!config || finished || feedback || answerLockRef.current || finishLockRef.current) return;
+      if (!config || finished || feedback || answerLockRef.current || finishLockRef.current || finalSubmitReadyRef.current) return;
       if (
         config.timerMode === 'challenge' &&
         challengeDeadlineRef.current !== null &&
@@ -1474,7 +1484,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           originalQuestionCountRef.current,
         );
         if (isFiniteQuiz && shouldFinishCurrentPool) {
-          finishQuiz({ playSubmitSound: true });
+          if (config.mode === 'game') {
+            // The last answer has already been scored by the existing engine.
+            // Pause question timing and require a separate whole-test submission.
+            questionDeadlineRef.current = null;
+            setTimeLeft(0);
+            setFinalSubmitReady(true);
+          } else {
+            // Preserve the established automatic completion flow for non-game quizzes.
+            finishQuiz({ playSubmitSound: true });
+          }
         } else if (config.infinite && currentQ + 1 >= latestQuestions.length) {
           const generatedNextPool = generateQuestions(config);
           if (generatedNextPool.length === 0) {
@@ -1572,7 +1591,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     xpPopTimerRef.current = undefined;
     answerLockRef.current = false;
     finishLockRef.current = false;
-  }, []);
+    setFinalSubmitReady(false);
+  }, [setFinalSubmitReady]);
 
   const resetToPracticeHome = useCallback(() => {
     clearSessionTimers();
@@ -1594,6 +1614,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setFeedback(null);
     setInputValue('');
     setSelectedOption(null);
+    setFinalSubmitReady(false);
     setElapsedTime(0);
     setTimeLeft(0);
     setChallengeTimeLeft(0);
@@ -1601,7 +1622,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setLevelUp(null);
     setSessionXP(0);
     onQuizReset?.();
-  }, [clearSessionTimers, onQuizReset]);
+  }, [clearSessionTimers, onQuizReset, setFinalSubmitReady]);
 
   const handleExitConfirmed = useCallback(() => {
     if (fromLearning && onExit) {
@@ -2090,6 +2111,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               ? Math.max(350, config.timerSeconds * 1000 - 300)
               : config.timerMode === 'challenge' ? 4800 : 5200}
             disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
+            canFinalizeTest={
+              finalSubmitReady ||
+              (config.infinite && !config.repetitionEnabled && config.timerMode !== 'challenge' && score.correct + score.wrong > 0)
+            }
             onSelectOption={(laneIndex, optionValue, gateId) => {
               const option = gameOptions[laneIndex];
               const gate = gameGateMappings[laneIndex];
@@ -2102,29 +2127,25 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 String(option.value) !== String(optionValue) ||
                 feedback ||
                 answerLockRef.current ||
-                finishLockRef.current
-              ) return;
-              // Selection does not score or advance the quiz.
-              setSelectedOption(gate.laneIndex);
-            }}
-            onSubmitAnswer={(laneIndex, optionValue, gateId) => {
-              const option = gameOptions[laneIndex];
-              const gate = gameGateMappings[laneIndex];
-              if (
-                !option ||
-                !gate ||
-                gate.gateId !== gateId ||
-                gate.questionId !== gameQuestionKey ||
-                gate.laneIndex !== selectedOptionRef.current ||
-                selectedOptionRef.current === null ||
-                String(gate.optionValue) !== String(option.value) ||
-                String(option.value) !== String(optionValue) ||
-                feedback ||
-                answerLockRef.current ||
-                finishLockRef.current
+                finishLockRef.current ||
+                finalSubmitReadyRef.current
               ) return false;
+
+              // Gate selection commits this question through the existing engine.
+              // The component locks synchronously before this callback to prevent
+              // a collision + tap or a rapid second gate from double-recording it.
+              setSelectedOption(gate.laneIndex);
               handleAnswer(gate.optionValue);
               return true;
+            }}
+            onFinalSubmit={() => {
+              if (finalSubmitReadyRef.current) {
+                finishQuiz({ playSubmitSound: true });
+              } else {
+                // Infinite non-challenge sessions have no configured final question;
+                // preserve their existing whole-session Submit behavior.
+                handleSubmitInfinite();
+              }
             }}
           />
         )}
