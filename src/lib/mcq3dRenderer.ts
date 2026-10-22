@@ -22,6 +22,7 @@ export interface MCQ3DRenderFrame {
   gateZ: number;
   scrollOffset: number;
   gateFeedback: readonly MCQGateFeedback[];
+  gateOpacity?: number;
 }
 
 export interface MCQ3DScene {
@@ -210,13 +211,14 @@ function createProgram(gl: WebGLRenderingContext): WebGLProgram {
     "precision mediump float;",
     "uniform vec3 uTint;",
     "uniform vec3 uLightDirection;",
+    "uniform float uOpacity;",
     "varying vec3 vNormal;",
     "varying vec3 vColor;",
     "void main() {",
     "  float diffuse = max(dot(normalize(vNormal), normalize(uLightDirection)), 0.0);",
     "  float lighting = 0.40 + diffuse * 0.60;",
     "  vec3 litColor = vColor * uTint * lighting;",
-    "  gl_FragColor = vec4(litColor, 1.0);",
+    "  gl_FragColor = vec4(litColor, uOpacity);",
     "}",
   ].join("\n");
 
@@ -399,26 +401,36 @@ function buildScrollingMesh(): MeshBuilder {
 
 function buildCarMesh(): MeshBuilder {
   const builder = new MeshBuilder();
-  const body: Color = [0.035, 0.53, 0.82];
+  const body: Color = [0.025, 0.39, 0.72];
   const brightBody: Color = [0.07, 0.78, 0.97];
-  const glass: Color = [0.055, 0.12, 0.20];
-  const rubber: Color = [0.025, 0.035, 0.05];
+  const glass: Color = [0.025, 0.105, 0.18];
+  const rubber: Color = [0.018, 0.026, 0.04];
+  const tailLight: Color = [1.0, 0.055, 0.19];
 
-  builder.addBox(0, 0.30, 0.03, 1.08, 0.42, 2.46, body);
-  builder.addBox(0, 0.44, -0.58, 0.99, 0.19, 1.08, brightBody);
-  builder.addBox(0, 0.69, 0.10, 0.76, 0.48, 1.20, body);
-  builder.addBox(0, 0.80, 0.10, 0.66, 0.22, 0.91, glass);
-  builder.addBox(0, 0.94, 0.14, 0.61, 0.075, 0.87, brightBody);
-  builder.addBox(0, 0.43, -1.18, 0.78, 0.12, 0.18, [0.98, 0.88, 0.54]);
-  builder.addBox(0, 0.42, 1.20, 0.82, 0.12, 0.12, [0.98, 0.12, 0.22]);
-  builder.addBox(0, 0.80, 1.15, 1.12, 0.07, 0.14, [0.035, 0.28, 0.45]);
-  builder.addBox(-0.47, 0.30, -0.92, 0.10, 0.18, 0.28, [0.11, 0.22, 0.29]);
-  builder.addBox(0.47, 0.30, -0.92, 0.10, 0.18, 0.28, [0.11, 0.22, 0.29]);
+  // Lower, wider rear body and a narrower cabin create a sports-coupe profile
+  // without adding textures, runtime mesh rebuilds, or extra draw calls.
+  builder.addBox(0, 0.28, 0.02, 1.08, 0.34, 2.42, body);
+  builder.addBox(0, 0.39, -0.57, 0.94, 0.15, 0.96, brightBody);
+  builder.addBox(0, 0.56, -0.14, 0.76, 0.30, 0.98, body);
+  builder.addBox(0, 0.64, -0.20, 0.62, 0.14, 0.70, glass);
+  builder.addBox(0, 0.73, -0.22, 0.54, 0.045, 0.62, brightBody);
+  builder.addBox(0, 0.38, -1.18, 0.76, 0.10, 0.16, [0.98, 0.82, 0.48]);
+
+  // Distinct rear light bars, diffuser and raised spoiler read clearly from
+  // the player's rear-facing camera at the existing low polygon budget.
+  builder.addBox(-0.35, 0.40, 1.235, 0.32, 0.075, 0.045, tailLight);
+  builder.addBox(0.35, 0.40, 1.235, 0.32, 0.075, 0.045, tailLight);
+  builder.addBox(0, 0.39, 1.238, 0.15, 0.04, 0.04, [1.0, 0.32, 0.40]);
+  builder.addBox(0, 0.17, 1.12, 0.92, 0.075, 0.20, rubber);
+  builder.addBox(-0.51, 0.29, 0.25, 0.045, 0.12, 0.60, [0.025, 0.16, 0.25]);
+  builder.addBox(0.51, 0.29, 0.25, 0.045, 0.12, 0.60, [0.025, 0.16, 0.25]);
+  builder.addBox(0, 0.70, 1.04, 0.84, 0.045, 0.12, [0.025, 0.20, 0.34]);
+  builder.addBox(0, 0.79, 1.13, 1.22, 0.065, 0.14, brightBody);
 
   for (const x of [-0.55, 0.55]) {
     for (const z of [-0.82, 0.84]) {
-      builder.addCylinderX(x, 0.13, z, 0.245, 0.16, rubber, 12);
-      builder.addCylinderX(x + (x > 0 ? 0.085 : -0.085), 0.13, z, 0.115, 0.025, [0.43, 0.55, 0.62], 10);
+      builder.addCylinderX(x, 0.13, z, 0.235, 0.16, rubber, 12);
+      builder.addCylinderX(x + (x > 0 ? 0.085 : -0.085), 0.13, z, 0.105, 0.025, [0.43, 0.61, 0.70], 10);
     }
   }
   return builder;
@@ -458,9 +470,10 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
   const mvpLocation = gl.getUniformLocation(program, "uMvp");
   const tintLocation = gl.getUniformLocation(program, "uTint");
   const lightLocation = gl.getUniformLocation(program, "uLightDirection");
+  const opacityLocation = gl.getUniformLocation(program, "uOpacity");
 
   if (positionLocation < 0 || normalLocation < 0 || colorLocation < 0 ||
-      !mvpLocation || !tintLocation || !lightLocation) {
+      !mvpLocation || !tintLocation || !lightLocation || !opacityLocation) {
     gl.deleteProgram(program);
     throw new Error("Required WebGL shader bindings are unavailable");
   }
@@ -539,6 +552,9 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(program);
 
+      gl.disable(gl.BLEND);
+      gl.depthMask(true);
+      gl.uniform1f(opacityLocation, 1);
       drawMesh(worldMesh, viewProjection, NORMAL_TINT);
       const scrollMatrix = multiplyMatrices(
         viewProjection,
@@ -552,6 +568,15 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
       );
       drawMesh(carMesh, carMatrix, NORMAL_TINT);
 
+      const gateOpacity = Number.isFinite(frame.gateOpacity)
+        ? Math.min(1, Math.max(0, frame.gateOpacity as number))
+        : 1;
+      if (gateOpacity < 1) {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.depthMask(false);
+      }
+      gl.uniform1f(opacityLocation, gateOpacity);
       const projections = MCQ_GAME_LANE_X.map((laneX, index) => {
         const gateMatrix = multiplyMatrices(
           viewProjection,
@@ -583,6 +608,11 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
           visible,
         };
       });
+      if (gateOpacity < 1) {
+        gl.depthMask(true);
+        gl.disable(gl.BLEND);
+      }
+      gl.uniform1f(opacityLocation, 1);
       return projections;
     },
 
