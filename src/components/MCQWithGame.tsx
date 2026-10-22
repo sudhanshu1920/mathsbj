@@ -671,7 +671,7 @@ const MCQWithGame = ({
       scheduleFrameRef.current = null;
       gateLabelRefs.current = [];
     };
-  }, [clearHoldTimer]);
+  }, [clearHoldTimer, selectLaneAnswer]);
 
   useLayoutEffect(() => {
     const nextKey = String(questionKey);
