@@ -253,3 +253,23 @@
 @media (prefers-reduced-motion: reduce) {
   .mcq-jump-answer { transition: none; }
 }
+
+
+.mcq-jump-select-game {
+  display: inline-grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.88);
+  border-radius: .8rem;
+  color: #fff;
+  background: linear-gradient(145deg, #286e9c, #184d7c);
+  box-shadow: 0 4px 0 rgba(13,48,84,.18);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.mcq-jump-select-game:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 520px) {
+  .mcq-jump-select-game { width: 2.15rem; height: 2.15rem; }
+}
