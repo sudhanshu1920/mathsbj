@@ -478,7 +478,7 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(view.container.querySelectorAll(".mcq-game-question-panel")).toHaveLength(1);
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
       expect(view.container.querySelector(".mcq-game-gate-label")).toBe(firstGateNode);
-      const nextFrame = renderer.mock.lastCall?.[0] as { gateZ: number } | undefined;
+      const nextFrame = renderer.mock.lastCall?.[0] as { gateZ: number; gateOpacity?: number } | undefined;
       expect(nextFrame?.gateZ).toBe(MCQ_GAME_GATE_START_Z);
       expect(nextFrame?.gateOpacity).toBe(0);
       expect(Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"))
