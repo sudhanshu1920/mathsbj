@@ -970,6 +970,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [selectedGameVariant, setSelectedGameVariant] = useState<MCQGameVariant>('car');
   const [gameSelectionOpen, setGameSelectionOpen] = useState(false);
   const modeBeforeGameSelectionRef = useRef<PracticeMode>('mcq');
+  const gameSelectionOpenedAtRef = useRef<number | null>(null);
   const [timerMode, setTimerMode] = useState<QuizTimerMode>('perQuestion');
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [challengeMinutes, setChallengeMinutes] = useState<ChallengeMinutes>(1);
@@ -1268,7 +1269,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   // was selected. Challenge remaining time is derived from a monotonic deadline
   // so delayed interval ticks cannot extend the configured duration.
   useEffect(() => {
-    if (!config || finished) {
+    if (!config || finished || gameSelectionOpen) {
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
       sessionIntervalRef.current = undefined;
       return;
@@ -1314,7 +1315,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
       sessionIntervalRef.current = undefined;
     };
-  }, [config, finished, finishQuiz]);
+  }, [config, finished, finishQuiz, gameSelectionOpen]);
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
@@ -1673,6 +1674,43 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     }
   }, [resetToPracticeHome, fromLearning, onExit]);
 
+  const openGameSelectorFromActiveGame = useCallback(() => {
+    if (
+      !config ||
+      config.mode !== 'game' ||
+      finished ||
+      feedback ||
+      answerLockRef.current ||
+      finishLockRef.current ||
+      finalSubmitReadyRef.current
+    ) return;
+    // Freeze deadlines and the session clock while the game selection screen is open.
+    gameSelectionOpenedAtRef.current = performance.now();
+    setGameSelectionOpen(true);
+  }, [config, finished, feedback]);
+
+  const closeGameSelector = useCallback((nextGame?: MCQGameVariant) => {
+    const openedAt = gameSelectionOpenedAtRef.current;
+    if (config && openedAt !== null) {
+      const pausedDuration = Math.max(0, performance.now() - openedAt);
+      if (questionDeadlineRef.current !== null) questionDeadlineRef.current += pausedDuration;
+      if (challengeDeadlineRef.current !== null) challengeDeadlineRef.current += pausedDuration;
+    }
+    gameSelectionOpenedAtRef.current = null;
+    setGameSelectionOpen(false);
+    setShowExitDialog(false);
+
+    if (nextGame !== undefined) {
+      setSelectedGameVariant(nextGame);
+      setMode('game');
+    } else if (config) {
+      // Back from the selector resumes the same quiz question and selected game.
+      setMode('game');
+    } else {
+      setMode(modeBeforeGameSelectionRef.current);
+    }
+  }, [config]);
+
   // Safety net for route changes/unmounts: release every session timer/timeout.
   useEffect(() => {
     return () => clearSessionTimers();
@@ -1688,8 +1726,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (!config || finished) return;
 
     lastExternalBackRequestRef.current = request;
+    if (gameSelectionOpen && config.mode === 'game') {
+      closeGameSelector();
+      return;
+    }
     setShowExitDialog(true);
-  }, [externalBackRequest, config, finished]);
+  }, [externalBackRequest, config, finished, gameSelectionOpen, closeGameSelector]);
 
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);
@@ -1796,6 +1838,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           </div>
         </div>
       </SwipeBack>
+    );
+  }
+
+  if (gameSelectionOpen && mode === 'game') {
+    return (
+      <GameModeSelector
+        selectedGame={selectedGameVariant}
+        onBack={() => closeGameSelector()}
+        onSelect={(game) => closeGameSelector(game)}
+      />
     );
   }
 
@@ -1915,6 +1967,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     };
 
     const sharedGameProps = {
+      onChangeGame: openGameSelectorFromActiveGame,
       questionKey: gameQuestionKey,
       questionLabel: renderQuestionText(),
       options: gameOptions,
@@ -2259,23 +2312,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   });
   const rangesValid = Array.from(selectedTopics).every((tid) => isValidPracticeRange(tid, topicRanges[tid]));
   const canStart = selectedTopics.size > 0 && validPeriodicRange && arithmeticValid && repetitionValid && rangesValid;
-  if (gameSelectionOpen && !config) {
-    return (
-      <GameModeSelector
-        selectedGame={selectedGameVariant}
-        onBack={() => {
-          setGameSelectionOpen(false);
-          setMode(modeBeforeGameSelectionRef.current);
-        }}
-        onSelect={(game) => {
-          setSelectedGameVariant(game);
-          setMode('game');
-          setGameSelectionOpen(false);
-        }}
-      />
-    );
-  }
-
   const questionCountDisabled = isQuestionCountSelectionDisabled(repetitionEnabled, timerMode);
 
   return (
