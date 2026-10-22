@@ -1723,12 +1723,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   useEffect(() => {
     const request = externalBackRequest ?? 0;
     if (request <= lastExternalBackRequestRef.current) return;
-
-    // Consume every new external Back request even while setup/selection is
-    // visible, so an old Back event cannot reopen the exit dialog in a later quiz.
-    lastExternalBackRequestRef.current = request;
+    // During startup, keep the request pending until the active quiz can handle it.
     if (!config || finished) return;
 
+    lastExternalBackRequestRef.current = request;
     if (gameSelectionOpen && config.mode === 'game') {
       closeGameSelector();
       return;
