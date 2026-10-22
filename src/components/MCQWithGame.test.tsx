@@ -139,6 +139,7 @@ function gameProps(overrides: Partial<ComponentProps<typeof MCQWithGame>> = {}) 
     wrongScore: 0,
     durationMs: 1200,
     progressLabel: "1 / 10",
+    finalSubmitReady: false,
     canFinalizeTest: false,
     onSelectOption: vi.fn(),
     onFinalSubmit: vi.fn(),
@@ -586,6 +587,7 @@ describe("Full-screen continuous MCQ racing", () => {
     view.rerender(<MCQWithGame {...gameProps({
       questionKey: "fallback-q",
       selectedOption: 1,
+      finalSubmitReady: true,
       canFinalizeTest: true,
       onSelectOption,
       onFinalSubmit,
