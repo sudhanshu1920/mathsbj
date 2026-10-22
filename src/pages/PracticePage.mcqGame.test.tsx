@@ -78,6 +78,54 @@ describe("Quiz Arena MCQ with Game mode", () => {
     }
   });
 
+  it("switches between both games without submitting or recreating the current quiz session", () => {
+    const originalRequest = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
+    const originalCancel = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => 1,
+    });
+    Object.defineProperty(window, "cancelAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => {},
+    });
+    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const view = render(<PracticePage />);
+
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
+      expect(screen.getByTestId("mcq-game-fullscreen")).toBeInTheDocument();
+      expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
+      expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+      expect(view.container.querySelectorAll(".mcq-game-fullscreen, .mcq-jump-fullscreen")).toHaveLength(0);
+
+      fireEvent.click(screen.getByRole("button", { name: /2D Math Jump Adventure/i }));
+      expect(screen.getByTestId("mcq-jump-fullscreen")).toBeInTheDocument();
+      expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
+      expect(view.container.querySelector(".mcq-jump-score--correct span")?.textContent).toBe("0");
+      expect(view.container.querySelector(".mcq-jump-score--wrong span")?.textContent).toBe("0");
+
+      fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
+      expect(screen.getByTestId("mcq-game-fullscreen")).toBeInTheDocument();
+      expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    } finally {
+      view.unmount();
+      getContextSpy.mockRestore();
+      if (originalRequest) Object.defineProperty(window, "requestAnimationFrame", originalRequest);
+      else Reflect.deleteProperty(window, "requestAnimationFrame");
+      if (originalCancel) Object.defineProperty(window, "cancelAnimationFrame", originalCancel);
+      else Reflect.deleteProperty(window, "cancelAnimationFrame");
+    }
+  });
+
   it("records each selected gate immediately and reserves top-right Submit for the complete test", async () => {
     const originalRequest = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
     const originalCancel = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
