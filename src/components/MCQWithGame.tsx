@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { CarFront, Check, Send, Timer, X } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import {
@@ -636,7 +636,7 @@ const MCQWithGame = ({
     };
   }, [clearHoldTimer]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const nextKey = String(questionKey);
     if (activeQuestionKeyRef.current === nextKey) return;
     activeQuestionKeyRef.current = nextKey;
