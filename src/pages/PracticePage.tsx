@@ -2111,6 +2111,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               ? Math.max(350, config.timerSeconds * 1000 - 300)
               : config.timerMode === 'challenge' ? 4800 : 5200}
             disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
+            finalSubmitReady={finalSubmitReady}
             canFinalizeTest={
               finalSubmitReady ||
               (config.infinite && !config.repetitionEnabled && config.timerMode !== 'challenge' && score.correct + score.wrong > 0)
