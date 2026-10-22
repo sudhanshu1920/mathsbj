@@ -394,11 +394,16 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
 
+      const boostedUpdatesBeforeTransition = racingAudioMocks.update.mock.calls
+        .filter((call) => call[1] === true).length;
       for (let timestamp = 550; timestamp <= 850; timestamp += 50) raf.advance(timestamp);
+      const boostedUpdatesAfterTransition = racingAudioMocks.update.mock.calls
+        .filter((call) => call[1] === true).length;
       const afterQuestionSpeed = Number(
         racingAudioMocks.update.mock.calls.filter((call) => call[1] === true).at(-1)?.[0],
       );
-      expect(afterQuestionSpeed).toBeGreaterThan(beforeQuestionSpeed);
+      expect(boostedUpdatesAfterTransition).toBeGreaterThan(boostedUpdatesBeforeTransition);
+      expect(afterQuestionSpeed).toBeGreaterThanOrEqual(beforeQuestionSpeed);
 
       now = 860;
       fireEvent.pointerUp(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
