@@ -562,9 +562,12 @@ if (exitConfirmStart < 0 || exitConfirmEnd < 0 ||
 const backRequestEffectStart = practice.indexOf('const request = externalBackRequest ?? 0;');
 const backRequestEffectEnd = practice.indexOf('}, [externalBackRequest,', backRequestEffectStart);
 const backRequestEffect = practice.slice(backRequestEffectStart, backRequestEffectEnd);
-if (backRequestEffect.indexOf('if (!config || finished) return;') < 0 ||
-    backRequestEffect.indexOf('if (!config || finished) return;') > backRequestEffect.indexOf('lastExternalBackRequestRef.current = request;')) {
-  fail('Back requests during Quiz startup must remain pending until the active session can show confirmation');
+const startupBackGuardIndex = backRequestEffect.indexOf('if (!config || finished) return;');
+const activeSessionRequestMarkIndex = backRequestEffect.indexOf('lastExternalBackRequestRef.current = request;', startupBackGuardIndex);
+if (startupBackGuardIndex < 0 ||
+    activeSessionRequestMarkIndex < startupBackGuardIndex ||
+    !backRequestEffect.includes("if (gameSelectionOpen && mode === 'game' && !config)")) {
+  fail('Back requests during Quiz startup must remain pending while the explicit game selector handles its own navigation');
 }
 
 // Challenge Timer must share one exclusive mode and one lifecycle-controlled clock.
