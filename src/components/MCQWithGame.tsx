@@ -92,7 +92,7 @@ const MCQWithGame = ({
   const sceneRef = useRef<MCQ3DScene | null>(null);
   const racingAudioRef = useRef<RacingAudioController | null>(null);
   const frameRef = useRef<number | null>(null);
-  const drawCurrentFrameRef = useRef<(() => void) | null>(null);
+  const drawCurrentFrameRef = useRef<((timestamp?: number) => void) | null>(null);
   const scheduleFrameRef = useRef<(() => void) | null>(null);
 
   const laneRef = useRef(lane);
@@ -119,6 +119,8 @@ const MCQWithGame = ({
   const gateZRef = useRef(MCQ_GAME_GATE_START_Z);
   const scrollOffsetRef = useRef(0);
   const lastTimestampRef = useRef<number | null>(null);
+  const gateTransitionStartRef = useRef<number | null>(null);
+  const GATE_TRANSITION_DURATION_MS = 180;
 
   const latestPropsRef = useRef({
     questionKey: String(questionKey),
@@ -423,7 +425,14 @@ const MCQWithGame = ({
     const prefersReducedMotion = typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const renderFrame = () => {
+    const renderFrame = (timestamp?: number) => {
+      const transitionStart = gateTransitionStartRef.current;
+      const currentTime = Number.isFinite(timestamp) ? timestamp as number : performance.now();
+      let gateOpacity = 1;
+      if (transitionStart !== null) {
+        gateOpacity = Math.min(1, Math.max(0, (currentTime - transitionStart) / GATE_TRANSITION_DURATION_MS));
+        if (gateOpacity >= 1) gateTransitionStartRef.current = null;
+      }
       const current = latestPropsRef.current;
       const mappings = gateMappingsRef.current;
       const gateFeedback: MCQGateFeedback[] = mappings.map((mapping) => {
@@ -438,6 +447,7 @@ const MCQWithGame = ({
         gateZ: gateZRef.current,
         scrollOffset: scrollOffsetRef.current,
         gateFeedback,
+        gateOpacity,
       });
 
       const panelBottom = questionPanelBottomRef.current;
@@ -462,6 +472,12 @@ const MCQWithGame = ({
         updatePx("width", projection.width);
         updatePx("height", projection.height);
         updatePx("fontSize", projection.fontSize);
+        const previousOpacity = Number.parseFloat(element.style.opacity);
+        if (!Number.isFinite(previousOpacity) || Math.abs(previousOpacity - gateOpacity) > 0.015) {
+          element.style.opacity = String(gateOpacity);
+        }
+        const pointerEvents = gateOpacity < 0.95 ? "none" : "auto";
+        if (element.style.pointerEvents !== pointerEvents) element.style.pointerEvents = pointerEvents;
       });
     };
     drawCurrentFrameRef.current = renderFrame;
@@ -495,9 +511,24 @@ const MCQWithGame = ({
       const safeDuration = Number.isFinite(current.durationMs) && current.durationMs > 0
         ? Math.max(350, current.durationMs)
         : DEFAULT_PASS_DURATION_MS;
-      passElapsedMsRef.current += advancedMs;
-      const progress = Math.min(1.3, passElapsedMsRef.current / safeDuration);
-      const nextGateZ = MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * progress;
+      const maxGateZ = MCQ_GAME_COLLISION_Z + 0.8;
+      // Selection locks this question's gate row in place until its question ID
+      // changes. Speed/audio/road animation continue on their own session clock.
+      const gateRowLocked = selectedOptionRef.current !== null ||
+        submittedRef.current ||
+        phaseRef.current === "ANSWERING" ||
+        phaseRef.current === "FEEDBACK" ||
+        feedbackRef.current !== null ||
+        disabledRef.current;
+      let nextGateZ = gateZRef.current;
+      if (!gateRowLocked && nextGateZ < maxGateZ) {
+        passElapsedMsRef.current += advancedMs;
+        const progress = Math.min(1.3, passElapsedMsRef.current / safeDuration);
+        nextGateZ = Math.min(
+          maxGateZ,
+          MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * progress,
+        );
+      }
 
       const previousCarX = carXRef.current;
       const targetX = targetCarXRef.current;
@@ -556,16 +587,12 @@ const MCQWithGame = ({
         }
       }
 
-      if (nextGateZ >= MCQ_GAME_COLLISION_Z + 0.8) {
-        passElapsedMsRef.current = 0;
-        collisionPassConsumedRef.current = false;
-        previousGateZRef.current = MCQ_GAME_GATE_START_Z;
-        gateZRef.current = MCQ_GAME_GATE_START_Z;
-      } else {
-        previousGateZRef.current = nextGateZ;
-      }
+      // Never recycle a row while this question is active. A missed row parks
+      // at the near-player limit; a selected row stays exactly where it was
+      // selected. Recycling is synchronized to the next question ID below.
+      previousGateZRef.current = nextGateZ;
 
-      renderFrame();
+      renderFrame(timestamp);
       if (!document.hidden && typeof window.requestAnimationFrame === "function") {
         frameRef.current = window.requestAnimationFrame(animate);
       }
@@ -644,8 +671,13 @@ const MCQWithGame = ({
     submittedRef.current = false;
     selectedOptionRef.current = latestPropsRef.current.selectedOption;
     collisionPassConsumedRef.current = false;
-    // Keep gate travel and road distance on the same continuous timeline. Only
-    // the authoritative question/option IDs change; meshes and lane positions stay put.
+
+    // A new question owns a new gate row. Reset only the gate-approach clock;
+    // preserve car position, road phase, held input, acceleration and audio.
+    passElapsedMsRef.current = 0;
+    previousGateZRef.current = MCQ_GAME_GATE_START_Z;
+    gateZRef.current = MCQ_GAME_GATE_START_Z;
+    gateTransitionStartRef.current = performance.now();
 
     const nextPhase: GamePhase = document.hidden
       ? "PAUSED"
