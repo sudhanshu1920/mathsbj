@@ -560,7 +560,8 @@ if (exitConfirmStart < 0 || exitConfirmEnd < 0 ||
   fail('Learning-origin Quiz exit must clean timers and navigate directly without rendering Quiz setup first');
 }
 const backRequestEffectStart = practice.indexOf('const request = externalBackRequest ?? 0;');
-const backRequestEffect = practice.slice(backRequestEffectStart, practice.indexOf('}, [externalBackRequest, config, finished]);', backRequestEffectStart));
+const backRequestEffectEnd = practice.indexOf('}, [externalBackRequest,', backRequestEffectStart);
+const backRequestEffect = practice.slice(backRequestEffectStart, backRequestEffectEnd);
 if (backRequestEffect.indexOf('if (!config || finished) return;') < 0 ||
     backRequestEffect.indexOf('if (!config || finished) return;') > backRequestEffect.indexOf('lastExternalBackRequestRef.current = request;')) {
   fail('Back requests during Quiz startup must remain pending until the active session can show confirmation');
