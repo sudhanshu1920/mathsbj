@@ -87,10 +87,24 @@ export function buildMCQGameOptions(
     suffix += 1;
   }
 
-  // For repaired data, shuffle the lanes so a repaired question does not
-  // systematically put its correct answer in the same lane.
+  // Shuffle repaired data deterministically. This still distributes answers
+  // across lanes for different questions, but repeated renders of the same
+  // question cannot reorder labels or invalidate an in-flight selection.
+  const seedText = selected.map((option) => String(option.value).trim()).join("\u001f");
+  let seed = 2166136261;
+  for (let index = 0; index < seedText.length; index += 1) {
+    seed ^= seedText.charCodeAt(index);
+    seed = Math.imul(seed, 16777619);
+  }
+  const nextRandom = () => {
+    seed += 0x6d2b79f5;
+    let value = seed;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
   for (let index = selected.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const swapIndex = Math.floor(nextRandom() * (index + 1));
     [selected[index], selected[swapIndex]] = [selected[swapIndex], selected[index]];
   }
 
