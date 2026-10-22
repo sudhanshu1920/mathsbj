@@ -421,23 +421,6 @@ function buildCarMesh(): MeshBuilder {
   return builder;
 }
 
-function buildGateMesh(accent: Color): MeshBuilder {
-  const builder = new MeshBuilder();
-  const panel: Color = [0.045, 0.075, 0.13];
-  const darkEdge: Color = [0.08, 0.16, 0.25];
-
-  builder.addBox(0, 1.20, -0.035, 1.42, 0.82, 0.18, panel);
-  builder.addBox(0, 1.20, 0.075, 1.28, 0.68, 0.035, darkEdge);
-  builder.addBox(-0.68, 0.95, 0, 0.13, 1.90, 0.16, accent);
-  builder.addBox(0.68, 0.95, 0, 0.13, 1.90, 0.16, accent);
-  builder.addBox(0, 1.88, 0, 1.52, 0.16, 0.18, accent);
-  builder.addBox(0, 0.13, 0.035, 1.56, 0.17, 0.34, [0.14, 0.20, 0.28]);
-  builder.addBox(0, 0.22, 0.035, 1.37, 0.045, 0.36, accent);
-  builder.addBox(-0.48, 1.97, 0.01, 0.11, 0.055, 0.20, [0.60, 0.90, 1.0]);
-  builder.addBox(0.48, 1.97, 0.01, 0.11, 0.055, 0.20, [0.60, 0.90, 1.0]);
-  return builder;
-}
-
 export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
   const gl = canvas.getContext("webgl", {
     alpha: false,
