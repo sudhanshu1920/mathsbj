@@ -373,6 +373,12 @@ describe("Full-screen continuous MCQ racing", () => {
       act(() => vi.advanceTimersByTime(300));
       expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
 
+      for (let timestamp = 0; timestamp <= 500; timestamp += 50) raf.advance(timestamp);
+      const beforeQuestionSpeed = Number(
+        racingAudioMocks.update.mock.calls.filter((call) => call[1] === true).at(-1)?.[0],
+      );
+      expect(beforeQuestionSpeed).toBeGreaterThan(1);
+
       view.rerender(<MCQWithGame {...gameProps({
         questionKey: "q-2",
         questionLabel: <p>18 + 9 = ?</p>,
@@ -388,7 +394,13 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
 
-      now = 350;
+      for (let timestamp = 550; timestamp <= 850; timestamp += 50) raf.advance(timestamp);
+      const afterQuestionSpeed = Number(
+        racingAudioMocks.update.mock.calls.filter((call) => call[1] === true).at(-1)?.[0],
+      );
+      expect(afterQuestionSpeed).toBeGreaterThan(beforeQuestionSpeed);
+
+      now = 860;
       fireEvent.pointerUp(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
       expect(screen.getByRole("status")).toHaveTextContent("Racing");
     } finally {
