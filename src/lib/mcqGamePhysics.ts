@@ -98,6 +98,48 @@ export function createMCQGateMappings(
   });
 }
 
+/**
+ * Returns the first contact fraction when the car's lateral sweep ENTERS a
+ * fixed viewport-anchored lane gate. Existing overlap at frame start is not a
+ * new contact; that prevents the starting lane from being submitted merely
+ * because the first animation frame ran. The entire movement segment is
+ * tested, so a fast lateral movement cannot tunnel through a gate hit zone.
+ */
+export interface SweptLaneGateContactInput {
+  previousCarX: number;
+  carX: number;
+  gateX: number;
+  carHalfWidth: number;
+  gateHalfWidth: number;
+}
+
+export function getSweptLaneGateContactFraction(input: SweptLaneGateContactInput): number | null {
+  const values = [
+    input.previousCarX, input.carX, input.gateX,
+    input.carHalfWidth, input.gateHalfWidth,
+  ];
+  if (!values.every(Number.isFinite)) return null;
+
+  const movement = input.carX - input.previousCarX;
+  if (Math.abs(movement) <= Number.EPSILON) return null;
+
+  const contactHalfWidth = Math.max(0, input.carHalfWidth) + Math.max(0, input.gateHalfWidth);
+  const previousDistance = input.previousCarX - input.gateX;
+  if (Math.abs(previousDistance) <= contactHalfWidth) return null;
+
+  // Use the entering edge, not the frame's end position, to identify contact.
+  const enteringEdge = movement > 0
+    ? input.gateX - contactHalfWidth
+    : input.gateX + contactHalfWidth;
+  const crossedEntry = movement > 0
+    ? input.previousCarX < enteringEdge && input.carX >= enteringEdge
+    : input.previousCarX > enteringEdge && input.carX <= enteringEdge;
+  if (!crossedEntry) return null;
+
+  const fraction = (enteringEdge - input.previousCarX) / movement;
+  return Number.isFinite(fraction) ? Math.min(1, Math.max(0, fraction)) : null;
+}
+
 export interface SweptGateCollisionInput {
   previousGateZ: number;
   gateZ: number;

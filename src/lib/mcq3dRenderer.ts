@@ -1,13 +1,10 @@
 import {
   MCQ_GAME_CAR_CENTER_Z,
-  MCQ_GAME_COLLISION_Z,
   MCQ_GAME_LANE_X,
 } from "@/lib/mcqGamePhysics";
 
 type Point3 = readonly [number, number, number];
 type Color = readonly [number, number, number];
-export type MCQGateFeedback = "normal" | "correct" | "wrong";
-
 export interface MCQGateProjection {
   x: number;
   y: number;
@@ -19,10 +16,7 @@ export interface MCQGateProjection {
 
 export interface MCQ3DRenderFrame {
   carX: number;
-  gateZ: number;
   scrollOffset: number;
-  gateFeedback: readonly MCQGateFeedback[];
-  gateOpacity?: number;
 }
 
 export interface MCQ3DScene {
@@ -51,8 +45,6 @@ const LANE_ACCENTS: readonly Color[] = [
 ];
 
 const NORMAL_TINT: Color = [1, 1, 1];
-const CORRECT_TINT: Color = [0.48, 1, 0.55];
-const WRONG_TINT: Color = [1, 0.38, 0.48];
 const FLOATS_PER_VERTEX = 9;
 const BYTES_PER_VERTEX = FLOATS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
@@ -513,15 +505,14 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
     return { width: cssWidth, height: cssHeight };
   };
 
-  // Portrait layouts need a wider field of view to show all four world-space
-  // gates at once. A fraction of the actual car X tracks steering while keeping
-  // gates, car and colliders in the same underlying coordinate system.
-  const makeViewProjection = (width: number, height: number, carX: number) => {
+  // Keep the camera horizontally fixed. Screen-space answer anchors are
+  // projected at the car's fixed depth, so steering moves the car underneath
+  // the options instead of moving the options with a tracking camera.
+  const makeViewProjection = (width: number, height: number) => {
     const aspect = width / height;
     const verticalFovDegrees = aspect < 0.65 ? 120 : aspect < 0.9 ? 100 : aspect < 1.6 ? 80 : 52;
-    const cameraX = Math.min(3.45, Math.max(-3.45, carX)) * 0.20;
-    const eye: Point3 = [cameraX, 3.45, 7.20];
-    const target: Point3 = [cameraX, 0.92, -4.85];
+    const eye: Point3 = [0, 3.45, 7.20];
+    const target: Point3 = [0, 0.92, -4.85];
     const projection = perspectiveMatrix((verticalFovDegrees * Math.PI) / 180, aspect, 0.1, 100);
     const view = lookAtMatrix(eye, target, [0, 1, 0]);
     return multiplyMatrices(projection, view);
@@ -548,7 +539,7 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
     render(frame: MCQ3DRenderFrame): MCQGateProjection[] {
       if (disposed) return [];
       const viewport = syncViewport();
-      const viewProjection = makeViewProjection(viewport.width, viewport.height, frame.carX);
+      const viewProjection = makeViewProjection(viewport.width, viewport.height);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(program);
 
@@ -562,57 +553,44 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
       );
       drawMesh(scrollingMesh, scrollMatrix, NORMAL_TINT);
 
+      // The gate frames share a fixed depth with the car's interaction
+      // plane. Their transforms are independent from the scrolling road.
+      MCQ_GAME_LANE_X.forEach((laneX, index) => {
+        const gateMatrix = multiplyMatrices(
+          viewProjection,
+          translationMatrix(laneX, 0, MCQ_GAME_CAR_CENTER_Z),
+        );
+        drawMesh(gateMeshes[index], gateMatrix, NORMAL_TINT);
+      });
+
       const carMatrix = multiplyMatrices(
         viewProjection,
         translationMatrix(frame.carX, 0, MCQ_GAME_CAR_CENTER_Z),
       );
       drawMesh(carMesh, carMatrix, NORMAL_TINT);
 
-      const gateOpacity = Number.isFinite(frame.gateOpacity)
-        ? Math.min(1, Math.max(0, frame.gateOpacity as number))
-        : 1;
-      if (gateOpacity < 1) {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.depthMask(false);
-      }
-      gl.uniform1f(opacityLocation, gateOpacity);
-      const projections = MCQ_GAME_LANE_X.map((laneX, index) => {
-        const gateMatrix = multiplyMatrices(
-          viewProjection,
-          translationMatrix(laneX, 0, frame.gateZ),
-        );
-        const feedback = frame.gateFeedback[index] || "normal";
-        const tint = feedback === "correct"
-          ? CORRECT_TINT
-          : feedback === "wrong"
-            ? WRONG_TINT
-            : NORMAL_TINT;
-        drawMesh(gateMeshes[index], gateMatrix, tint);
-
-        const center = projectPoint(viewProjection, [laneX, 1.20, frame.gateZ], viewport.width, viewport.height);
-        const left = projectPoint(viewProjection, [laneX - 0.65, 1.20, frame.gateZ], viewport.width, viewport.height);
-        const right = projectPoint(viewProjection, [laneX + 0.65, 1.20, frame.gateZ], viewport.width, viewport.height);
-        const top = projectPoint(viewProjection, [laneX, 1.58, frame.gateZ], viewport.width, viewport.height);
-        const bottom = projectPoint(viewProjection, [laneX, 0.82, frame.gateZ], viewport.width, viewport.height);
+      // Project four gates at a constant car-relative depth. Neither
+      // road scroll, speed nor car steering participates in these anchors.
+      // The DOM labels and the car collision zones share this same lane order.
+      const projections = MCQ_GAME_LANE_X.map((laneX) => {
+        const gateZ = MCQ_GAME_CAR_CENTER_Z;
+        const center = projectPoint(viewProjection, [laneX, 1.20, gateZ], viewport.width, viewport.height);
+        const left = projectPoint(viewProjection, [laneX - 0.65, 1.20, gateZ], viewport.width, viewport.height);
+        const right = projectPoint(viewProjection, [laneX + 0.65, 1.20, gateZ], viewport.width, viewport.height);
+        const top = projectPoint(viewProjection, [laneX, 1.58, gateZ], viewport.width, viewport.height);
+        const bottom = projectPoint(viewProjection, [laneX, 0.82, gateZ], viewport.width, viewport.height);
         const projectedWidth = Math.abs(right.x - left.x) * 0.91;
         const projectedHeight = Math.abs(bottom.y - top.y) * 0.75;
-        const visible = center.visible && left.w > 0 && right.w > 0 && top.w > 0 && bottom.w > 0 &&
-          frame.gateZ <= MCQ_GAME_COLLISION_Z + 1.2;
+        const visible = center.visible && left.w > 0 && right.w > 0 && top.w > 0 && bottom.w > 0;
         return {
           x: center.x,
           y: center.y,
-          width: Math.min(150, Math.max(28, projectedWidth)),
-          height: Math.min(76, Math.max(22, projectedHeight)),
+          width: Math.min(150, Math.max(40, projectedWidth)),
+          height: Math.min(76, Math.max(28, projectedHeight)),
           fontSize: Math.min(17, Math.max(10, projectedWidth * 0.20)),
           visible,
         };
       });
-      if (gateOpacity < 1) {
-        gl.depthMask(true);
-        gl.disable(gl.BLEND);
-      }
-      gl.uniform1f(opacityLocation, 1);
       return projections;
     },
 

@@ -11,6 +11,7 @@ import {
   classifySteeringGesture,
   createMCQGateMappings,
   detectSweptGateCollision,
+  getSweptLaneGateContactFraction,
   advanceMCQGameSpeed,
 } from "@/lib/mcqGamePhysics";
 
@@ -92,6 +93,48 @@ describe("3D MCQ racing steering and collision physics", () => {
       .toBe(MCQ_GAME_BASE_SPEED_MULTIPLIER);
     expect(advanceMCQGameSpeed(MCQ_GAME_MAX_SPEED_MULTIPLIER * 2, 0, true))
       .toBe(MCQ_GAME_MAX_SPEED_MULTIPLIER);
+  });
+
+  it("detects the first swept contact with a fixed gate as the car enters its lane", () => {
+    const contact = getSweptLaneGateContactFraction({
+      previousCarX: MCQ_GAME_LANE_X[1],
+      carX: -2.5,
+      gateX: MCQ_GAME_LANE_X[0],
+      carHalfWidth: MCQ_GAME_CAR_HALF_WIDTH,
+      gateHalfWidth: MCQ_GAME_GATE_HALF_WIDTH,
+    });
+    expect(contact).not.toBeNull();
+    expect(contact).toBeGreaterThan(0);
+    expect(contact).toBeLessThan(1);
+  });
+
+  it("does not treat existing overlap or leaving a lane as a new contact", () => {
+    expect(getSweptLaneGateContactFraction({
+      previousCarX: MCQ_GAME_LANE_X[1],
+      carX: MCQ_GAME_LANE_X[1] + 0.3,
+      gateX: MCQ_GAME_LANE_X[1],
+      carHalfWidth: MCQ_GAME_CAR_HALF_WIDTH,
+      gateHalfWidth: MCQ_GAME_GATE_HALF_WIDTH,
+    })).toBeNull();
+    expect(getSweptLaneGateContactFraction({
+      previousCarX: MCQ_GAME_LANE_X[1],
+      carX: MCQ_GAME_LANE_X[1],
+      gateX: MCQ_GAME_LANE_X[0],
+      carHalfWidth: MCQ_GAME_CAR_HALF_WIDTH,
+      gateHalfWidth: MCQ_GAME_GATE_HALF_WIDTH,
+    })).toBeNull();
+  });
+
+  it("detects a high-speed lateral sweep that enters and exits a gate within one frame", () => {
+    const contact = getSweptLaneGateContactFraction({
+      previousCarX: -5.2,
+      carX: -1.8,
+      gateX: MCQ_GAME_LANE_X[0],
+      carHalfWidth: MCQ_GAME_CAR_HALF_WIDTH,
+      gateHalfWidth: MCQ_GAME_GATE_HALF_WIDTH,
+    });
+    expect(contact).not.toBeNull();
+    expect(contact).toBeCloseTo(((-3.45 - (MCQ_GAME_CAR_HALF_WIDTH + MCQ_GAME_GATE_HALF_WIDTH)) - (-5.2)) / 3.4, 6);
   });
 
   it("registers a real swept contact with the gate in the occupied lane", () => {
