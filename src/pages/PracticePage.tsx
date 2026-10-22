@@ -971,6 +971,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [gameSelectionOpen, setGameSelectionOpen] = useState(false);
   const modeBeforeGameSelectionRef = useRef<PracticeMode>('mcq');
   const gameSelectionOpenedAtRef = useRef<number | null>(null);
+  const gameSelectionOpenRef = useRef(false);
   const [timerMode, setTimerMode] = useState<QuizTimerMode>('perQuestion');
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [challengeMinutes, setChallengeMinutes] = useState<ChallengeMinutes>(1);
@@ -1277,7 +1278,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = setInterval(() => {
-      if (finalSubmitReadyRef.current) return;
+      if (gameSelectionOpenRef.current || finalSubmitReadyRef.current) return;
       if (config.timerMode === 'challenge') {
         const deadline = challengeDeadlineRef.current;
         const remaining = deadline === null
@@ -1603,6 +1604,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const resetToPracticeHome = useCallback(() => {
     clearSessionTimers();
     setShowExitDialog(false);
+    gameSelectionOpenRef.current = false;
+    gameSelectionOpenedAtRef.current = null;
+    setGameSelectionOpen(false);
     setConfig(null);
     questionsRef.current = [];
     originalQuestionsRef.current = [];
@@ -1686,6 +1690,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     ) return;
     // Freeze deadlines and the session clock while the game selection screen is open.
     gameSelectionOpenedAtRef.current = performance.now();
+    gameSelectionOpenRef.current = true;
     setGameSelectionOpen(true);
   }, [config, finished, feedback]);
 
@@ -1697,6 +1702,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       if (challengeDeadlineRef.current !== null) challengeDeadlineRef.current += pausedDuration;
     }
     gameSelectionOpenedAtRef.current = null;
+    gameSelectionOpenRef.current = false;
     setGameSelectionOpen(false);
     setShowExitDialog(false);
 
@@ -2935,6 +2941,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           </button>
           <button type="button" aria-pressed={mode === 'game'} onClick={() => {
               modeBeforeGameSelectionRef.current = mode;
+              gameSelectionOpenRef.current = true;
               setMode('game');
               setGameSelectionOpen(true);
             }}
@@ -2953,6 +2960,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               className="min-h-9 shrink-0 rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary"
               onClick={() => {
                 modeBeforeGameSelectionRef.current = mode;
+                gameSelectionOpenRef.current = true;
                 setGameSelectionOpen(true);
               }}
             >
