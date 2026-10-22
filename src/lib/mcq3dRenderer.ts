@@ -53,11 +53,18 @@ const BYTES_PER_VERTEX = FLOATS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
  * and landscape layouts. The car extends toward the camera, so sizing from a
  * fixed vertical FOV can clip its rear corners in wide-but-not-ultrawide views.
  */
+const MIN_VERTICAL_FOV_DEGREES = 60;
+
 export function getMCQ3DVerticalFovDegrees(aspectRatio: number): number {
   const safeAspectRatio = Number.isFinite(aspectRatio) && aspectRatio > 0
     ? aspectRatio
     : 1;
-  return (2 * Math.atan(1 / safeAspectRatio) * 180) / Math.PI;
+  const horizontalFovPreservingVertical = (2 * Math.atan(1 / safeAspectRatio) * 180) / Math.PI;
+
+  // Preserve enough vertical field of view for the near-camera car geometry.
+  // The horizontal-only formula narrows below 60° on ultra-wide viewports and
+  // clips the tyres at the bottom even though horizontal framing still passes.
+  return Math.max(MIN_VERTICAL_FOV_DEGREES, horizontalFovPreservingVertical);
 }
 
 function normalizeVector(x: number, y: number, z: number): Point3 {
