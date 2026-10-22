@@ -48,8 +48,10 @@ interface MCQWithGameProps {
   progressLabel?: string;
   timerLabel?: string;
   disabled?: boolean;
-  onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => void;
-  onSubmitAnswer: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
+  finalSubmitReady: boolean;
+  canFinalizeTest: boolean;
+  onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
+  onFinalSubmit: () => void;
 }
 
 const DEFAULT_PASS_DURATION_MS = 5200;
@@ -77,8 +79,10 @@ const MCQWithGame = ({
   progressLabel,
   timerLabel,
   disabled = false,
+  finalSubmitReady,
+  canFinalizeTest,
   onSelectOption,
-  onSubmitAnswer,
+  onFinalSubmit,
 }: MCQWithGameProps) => {
   const [lane, setLane] = useState(1);
   const [phase, setPhase] = useState<GamePhase>("INITIALIZING");
@@ -105,7 +109,8 @@ const MCQWithGame = ({
   const selectedOptionRef = useRef(selectedOption);
   const correctLaneRef = useRef(-1);
   const onSelectOptionRef = useRef(onSelectOption);
-  const onSubmitAnswerRef = useRef(onSubmitAnswer);
+  const onFinalSubmitRef = useRef(onFinalSubmit);
+  const finalSubmitInvokedRef = useRef(false);
   const activeQuestionKeyRef = useRef(String(questionKey));
   const boostingRef = useRef(false);
   const speedMultiplierRef = useRef(MCQ_GAME_BASE_SPEED_MULTIPLIER);
@@ -135,8 +140,10 @@ const MCQWithGame = ({
     progressLabel,
     timerLabel,
     disabled,
+    finalSubmitReady,
+    canFinalizeTest,
     onSelectOption,
-    onSubmitAnswer,
+    onFinalSubmit,
   });
   latestPropsRef.current = {
     questionKey: String(questionKey),
@@ -151,8 +158,10 @@ const MCQWithGame = ({
     progressLabel,
     timerLabel,
     disabled,
+    finalSubmitReady,
+    canFinalizeTest,
     onSelectOption,
-    onSubmitAnswer,
+    onFinalSubmit,
   };
 
   const nextMappings = createMCQGateMappings(questionKey, options.map((option) => option.value));
@@ -166,12 +175,14 @@ const MCQWithGame = ({
   if (mappingsHaveChanged) gateMappingsRef.current = nextMappings;
   const gateMappings = gateMappingsRef.current;
 
-  disabledRef.current = disabled;
+  // Lock driving and answer gates only after a finite test is fully answered.
+  // Infinite sessions may offer whole-session Submit while gameplay is still live.
+  disabledRef.current = disabled || finalSubmitReady;
   feedbackRef.current = feedback;
   selectedOptionRef.current = selectedOption;
   correctLaneRef.current = options.findIndex((option) => String(option.value) === String(correctAnswer));
   onSelectOptionRef.current = onSelectOption;
-  onSubmitAnswerRef.current = onSubmitAnswer;
+  onFinalSubmitRef.current = onFinalSubmit;
 
   const clearHoldTimer = useCallback(() => {
     if (holdTimerRef.current !== null) {
@@ -207,57 +218,45 @@ const MCQWithGame = ({
     ) return;
 
     if (selectedOptionRef.current === mapping.laneIndex) return;
-    // Consume this approaching gate pass so a later physical crossing cannot
-    // overwrite an intentional touch selection from the same pass.
-    collisionPassConsumedRef.current = true;
-    // Publish selection before invoking React state so a rapid next action
-    // cannot read an old lane while the parent rerender is still pending.
-    selectedOptionRef.current = mapping.laneIndex;
-    // Play once only when a different option becomes selected.
-    racingAudioRef.current?.unlock();
-    playSwipe();
-    onSelectOptionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
-  }, []);
-
-  const submitLaneAnswer = useCallback(() => {
-    const selectedIndex = selectedOptionRef.current;
-    const mapping = selectedIndex === null ? undefined : gateMappingsRef.current[selectedIndex];
-    const phaseAllowsSubmission = phaseRef.current === "RUNNING" || phaseRef.current === "ERROR";
-    if (
-      !mapping ||
-      !Number.isInteger(selectedIndex) ||
-      mapping.questionId !== activeQuestionKeyRef.current ||
-      !phaseAllowsSubmission ||
-      disabledRef.current ||
-      submittedRef.current ||
-      feedbackRef.current
-    ) return;
-
-    // Lock synchronously before entering the existing Quiz Engine path so a
-    // second tap or a same-frame timer callback cannot settle this question twice.
-    const submissionQuestionKey = activeQuestionKeyRef.current;
+    // A gate selection is the per-question commit event. Lock synchronously
+    // before the existing Quiz Engine callback runs so touch/collision races
+    // cannot record the same answer twice.
+    const questionKeyAtSelection = activeQuestionKeyRef.current;
     const previousPhase = phaseRef.current;
-    const releaseRejectedSubmission = () => {
-      // A rejected callback must not leave the current question permanently locked.
-      if (activeQuestionKeyRef.current !== submissionQuestionKey || feedbackRef.current) return;
+    collisionPassConsumedRef.current = true;
+    selectedOptionRef.current = mapping.laneIndex;
+    submittedRef.current = true;
+    phaseRef.current = "ANSWERING";
+    setPhase("ANSWERING");
+
+    const releaseRejectedSelection = () => {
+      if (activeQuestionKeyRef.current !== questionKeyAtSelection || feedbackRef.current) return;
       submittedRef.current = false;
+      selectedOptionRef.current = latestPropsRef.current.selectedOption;
       phaseRef.current = previousPhase;
       setPhase(previousPhase);
     };
 
     racingAudioRef.current?.unlock();
-    playClick();
-    submittedRef.current = true;
-    phaseRef.current = "ANSWERING";
-    setPhase("ANSWERING");
-
+    playSwipe();
     try {
-      const accepted = onSubmitAnswerRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
-      if (accepted === false) releaseRejectedSubmission();
+      const accepted = onSelectOptionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
+      if (accepted === false) releaseRejectedSelection();
     } catch (error) {
-      releaseRejectedSubmission();
+      releaseRejectedSelection();
       throw error;
     }
+  }, []);
+
+  const submitWholeTest = useCallback(() => {
+    const current = latestPropsRef.current;
+    if (!current.canFinalizeTest || current.disabled || finalSubmitInvokedRef.current) return;
+
+    // This control finalizes a whole session only; it never submits an answer.
+    finalSubmitInvokedRef.current = true;
+    racingAudioRef.current?.unlock();
+    playClick();
+    onFinalSubmitRef.current();
   }, []);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -593,14 +592,8 @@ const MCQWithGame = ({
           !disabledRef.current &&
           !feedbackRef.current
         ) {
-          // Gate contact only selects. Quiz scoring/persistence runs on Submit.
-          collisionPassConsumedRef.current = true;
-          if (selectedOptionRef.current !== mapping.laneIndex) {
-            selectedOptionRef.current = mapping.laneIndex;
-            racingAudioRef.current?.unlock();
-            playSwipe();
-            onSelectOptionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
-          }
+          // Physical collision and explicit gate tap share one commit path.
+          selectLaneAnswer(mapping.laneIndex);
         }
       }
 
@@ -678,7 +671,7 @@ const MCQWithGame = ({
       scheduleFrameRef.current = null;
       gateLabelRefs.current = [];
     };
-  }, [clearHoldTimer]);
+  }, [clearHoldTimer, selectLaneAnswer]);
 
   useLayoutEffect(() => {
     const nextKey = String(questionKey);
@@ -686,6 +679,7 @@ const MCQWithGame = ({
     activeQuestionKeyRef.current = nextKey;
 
     submittedRef.current = false;
+    finalSubmitInvokedRef.current = false;
     selectedOptionRef.current = latestPropsRef.current.selectedOption;
     collisionPassConsumedRef.current = false;
 
@@ -863,10 +857,10 @@ const MCQWithGame = ({
           <button
             type="button"
             className="mcq-game-submit"
-            aria-label="Submit selected answer"
+            aria-label="Submit complete test"
             data-testid="mcq-game-submit"
-            disabled={disabled || (phase !== "RUNNING" && phase !== "ERROR") || selectedOption === null || submittedRef.current || !!feedback}
-            onClick={() => submitLaneAnswer()}
+            disabled={disabled || !canFinalizeTest || finalSubmitInvokedRef.current}
+            onClick={submitWholeTest}
           >
             <Send size={19} fill="currentColor" strokeWidth={1.8} aria-hidden="true" />
             <span>Submit</span>
