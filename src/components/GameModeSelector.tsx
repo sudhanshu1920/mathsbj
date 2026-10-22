@@ -1,5 +1,6 @@
 import { useRef } from "react";
-import { ArrowLeft, CarFront, Check, Gamepad2, Mountain, Sparkles } from "lucide-react";
+import { ArrowLeft, CarFront, Gamepad2, Mountain, Sparkles } from "lucide-react";
+import "./mcq-game-selector.css";
 
 export type MCQGameVariant = "car" | "jump";
 
