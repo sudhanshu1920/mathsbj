@@ -185,7 +185,7 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(screen.getByLabelText("0 incorrect answers")).toBeInTheDocument();
     expect(screen.getByLabelText("Question 5 / 10")).toBeInTheDocument();
     expect(screen.getByLabelText("Time remaining 6s")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Submit selected answer" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Submit complete test" })).toBeDisabled();
     expect(view.container.querySelectorAll(".mcq-game-gate-letter")).toHaveLength(0);
     expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
   });
