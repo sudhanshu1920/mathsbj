@@ -31,7 +31,11 @@ describe("Quiz Arena MCQ with Game mode", () => {
       expect(gameMode).toHaveAttribute("aria-pressed", "false");
 
       fireEvent.click(gameMode);
-      expect(gameMode).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /3D Math Car Racing/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /2D Math Jump Adventure/i })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
+      expect(screen.getByRole("button", { name: "MCQ with Game" })).toHaveAttribute("aria-pressed", "true");
 
       fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
 
@@ -73,6 +77,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
       fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
 
       const options = view.container.querySelectorAll(".mcq-game-fallback-option");
@@ -123,6 +128,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
       fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
 
       for (let question = 1; question <= 10; question += 1) {
