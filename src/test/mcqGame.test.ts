@@ -29,7 +29,6 @@ describe("MCQ with Game options", () => {
     expect(result.filter((option) => String(option.value) === "8")).toHaveLength(1);
   });
 
-
   it("keeps repaired option order stable across rerenders of the same question", () => {
     const source = ["7"];
     const first = buildMCQGameOptions(source, 8);
@@ -38,6 +37,7 @@ describe("MCQ with Game options", () => {
     expect(second).toEqual(first);
     expect(second.map((option) => option.value)).toEqual(first.map((option) => option.value));
   });
+
   it("keeps nonnumeric answer choices unique when repairing text questions", () => {
     const result = buildMCQGameOptions(["H", "He"], "Li", ["Be"]);
 
