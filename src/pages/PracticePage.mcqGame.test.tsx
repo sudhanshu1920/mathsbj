@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import PracticePage from "@/pages/PracticePage";
 
@@ -51,4 +51,55 @@ describe("Quiz Arena MCQ with Game mode", () => {
       else Reflect.deleteProperty(window, "cancelAnimationFrame");
     }
   });
+  it("routes Submit through the existing quiz engine and advances exactly once", async () => {
+    const originalRequest = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
+    const originalCancel = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => 1,
+    });
+    Object.defineProperty(window, "cancelAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => {},
+    });
+    const view = render(<PracticePage />);
+
+    const getProcessedAnswers = () => {
+      const correct = Number(view.container.querySelector(".mcq-game-topbar-stat--correct span")?.textContent ?? 0);
+      const wrong = Number(view.container.querySelector(".mcq-game-topbar-stat--wrong span")?.textContent ?? 0);
+      return correct + wrong;
+    };
+
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+      fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
+
+      const options = view.container.querySelectorAll(".mcq-game-fallback-option");
+      expect(options).toHaveLength(4);
+      fireEvent.click(options[0] as HTMLButtonElement);
+
+      const submit = screen.getByTestId("mcq-game-submit");
+      expect(submit).toBeEnabled();
+      expect(getProcessedAnswers()).toBe(0);
+
+      fireEvent.click(submit);
+      fireEvent.click(submit);
+
+      expect(getProcessedAnswers()).toBe(1);
+      await waitFor(() => {
+        expect(screen.getByLabelText("Question 2 / 10")).toBeInTheDocument();
+      });
+      expect(getProcessedAnswers()).toBe(1);
+    } finally {
+      view.unmount();
+      if (originalRequest) Object.defineProperty(window, "requestAnimationFrame", originalRequest);
+      else Reflect.deleteProperty(window, "requestAnimationFrame");
+      if (originalCancel) Object.defineProperty(window, "cancelAnimationFrame", originalCancel);
+      else Reflect.deleteProperty(window, "cancelAnimationFrame");
+    }
+  });
+
+
 });

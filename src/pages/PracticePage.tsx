@@ -894,7 +894,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [finished, setFinished] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [selectedOption, setSelectedOptionState] = useState<number | null>(null);
+  const selectedOptionRef = useRef<number | null>(null);
+  const setSelectedOption = useCallback((nextOption: number | null) => {
+    // Keep the submission guard in sync before React schedules the HUD render.
+    selectedOptionRef.current = nextOption;
+    setSelectedOptionState(nextOption);
+  }, []);
   const [timeLeft, setTimeLeft] = useState(0);
   const [challengeTimeLeft, setChallengeTimeLeft] = useState(0);
   const [timerRunId, setTimerRunId] = useState(0);
@@ -2109,15 +2115,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 !gate ||
                 gate.gateId !== gateId ||
                 gate.questionId !== gameQuestionKey ||
-                gate.laneIndex !== selectedOption ||
-                selectedOption === null ||
+                gate.laneIndex !== selectedOptionRef.current ||
+                selectedOptionRef.current === null ||
                 String(gate.optionValue) !== String(option.value) ||
                 String(option.value) !== String(optionValue) ||
                 feedback ||
                 answerLockRef.current ||
                 finishLockRef.current
-              ) return;
+              ) return false;
               handleAnswer(gate.optionValue);
+              return true;
             }}
           />
         )}

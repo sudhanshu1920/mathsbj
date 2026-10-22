@@ -260,6 +260,28 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("releases the submit lock when the existing quiz handler rejects a stale submission", () => {
+    let rejectFirstAttempt = true;
+    const onSubmitAnswer = vi.fn(() => {
+      if (rejectFirstAttempt) {
+        rejectFirstAttempt = false;
+        return false;
+      }
+      return true;
+    });
+    render(<MCQWithGame {...gameProps({ selectedOption: 1, onSubmitAnswer })} />);
+    const submit = screen.getByTestId("mcq-game-submit");
+
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    expect(onSubmitAnswer).toHaveBeenCalledTimes(1);
+    expect(submit).toBeEnabled();
+
+    fireEvent.click(submit);
+    expect(onSubmitAnswer).toHaveBeenCalledTimes(2);
+    expect(submit).toBeDisabled();
+  });
+
   it("selects an answer gate without submitting until Submit is pressed", () => {
     const onSelectOption = vi.fn();
     const onSubmitAnswer = vi.fn();
