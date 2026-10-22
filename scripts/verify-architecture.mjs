@@ -22,7 +22,13 @@ const bottomNavTest = read('src/components/BottomNav.test.tsx');
 const bottomNavUi = read('src/components/BottomNav.tsx');
 const offlineReady = read('src/lib/offlineReady.ts');
 const streak = read('src/lib/streak.ts');
+const personalApkWorkflow = read('.github/workflows/android-apk.yml');
+const publicReleaseWorkflow = read('.github/workflows/android-release.yml');
 
+if (!personalApkWorkflow.includes("startsWith(github.event.head_commit.message, '[BUILD_ANDROID_APK]')") ||
+    publicReleaseWorkflow.includes("startsWith(github.event.head_commit.message, '[BUILD_ANDROID_APK]')")) {
+  fail('Artifact-only Android APK builds must not invoke the public GitHub Release/update-feed publisher');
+}
 
 if (!css.includes('padding-bottom: var(--floating-bar-height, 0px);')) {
   fail('floating-bar reserve is not tied to the runtime measurement variable');
