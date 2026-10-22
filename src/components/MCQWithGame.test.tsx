@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MCQWithGame from "@/components/MCQWithGame";
-import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
+import { MCQ_GAME_COLLISION_Z, MCQ_GAME_GATE_START_Z, createMCQGateMappings } from "@/lib/mcqGamePhysics";
 import { createMCQ3DScene } from "@/lib/mcq3dRenderer";
 import { createRacingAudioController, playClick, playSwipe } from "@/lib/sound";
 
@@ -479,7 +479,8 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
       expect(view.container.querySelector(".mcq-game-gate-label")).toBe(firstGateNode);
       const nextFrame = renderer.mock.lastCall?.[0] as { gateZ: number } | undefined;
-      expect(nextFrame?.gateZ).toBe(previousFrame?.gateZ);
+      expect(nextFrame?.gateZ).toBe(MCQ_GAME_GATE_START_Z);
+      expect(nextFrame?.gateOpacity).toBe(0);
       expect(Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"))
         .every((node) => (node.dataset.gateId || "").includes(encodeURIComponent("q-2")))).toBe(true);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
@@ -489,6 +490,65 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(onSelectOption.mock.calls[1]).toEqual([0, "29", createMCQGateMappings("q-2", secondOptions.map((option) => option.value))[0].gateId]);
       expect(onSubmitAnswer).not.toHaveBeenCalled();
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("holds the current gate row steady until Submit and only respawns it for the next question", () => {
+    const raf = installAnimationFrameQueue();
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const onSelectOption = vi.fn();
+    const onSubmitAnswer = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({
+      durationMs: 600,
+      onSelectOption,
+      onSubmitAnswer,
+    })} />);
+    const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
+    expect(scene).toBeDefined();
+    const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
+
+    try {
+      for (let timestamp = 0; timestamp <= 1_200; timestamp += 50) raf.advance(timestamp);
+      expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect(onSubmitAnswer).not.toHaveBeenCalled();
+
+      const selectedFrame = renderer.mock.lastCall?.[0] as { gateZ: number; gateOpacity?: number } | undefined;
+      expect(selectedFrame?.gateZ).toBeCloseTo(MCQ_GAME_COLLISION_Z, 6);
+      const selectedDepth = selectedFrame?.gateZ;
+
+      // A long interval on the same question must never recycle the selected row.
+      for (let timestamp = 1_250; timestamp <= 2_200; timestamp += 50) raf.advance(timestamp);
+      const waitingFrame = renderer.mock.lastCall?.[0] as { gateZ: number } | undefined;
+      expect(waitingFrame?.gateZ).toBe(selectedDepth);
+      expect(onSelectOption).toHaveBeenCalledTimes(1);
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-2",
+        questionLabel: <p>18 + 9 = ?</p>,
+        options: [
+          { value: "29", label: "29" },
+          { value: "27", label: "27" },
+          { value: "31", label: "31" },
+          { value: "25", label: "25" },
+        ],
+        correctAnswer: "27",
+        durationMs: 600,
+        onSelectOption,
+        onSubmitAnswer,
+      })} />);
+
+      const incomingFrame = renderer.mock.lastCall?.[0] as { gateZ: number; gateOpacity?: number } | undefined;
+      expect(incomingFrame?.gateZ).toBe(MCQ_GAME_GATE_START_Z);
+      expect(incomingFrame?.gateOpacity).toBe(0);
+
+      raf.advance(2_250);
+      const transitionedFrame = renderer.mock.lastCall?.[0] as { gateOpacity?: number } | undefined;
+      expect(transitionedFrame?.gateOpacity).toBe(1);
+      expect(onSubmitAnswer).not.toHaveBeenCalled();
     } finally {
       view.unmount();
       raf.restore();
