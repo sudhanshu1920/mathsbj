@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, Check, Pause, Play, RotateCcw, Send, Sparkles, Timer, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, Check, Gamepad2, Pause, Play, RotateCcw, Send, Sparkles, Timer, X } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
 import { createJumpPlatforms, stepJumpPlayer, type JumpPlatform, type JumpPlayerState } from "@/lib/mcqJumpPhysics";
@@ -27,6 +27,7 @@ export interface MCQJumpAdventureProps {
   canFinalizeTest: boolean;
   onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
   onFinalSubmit: () => void;
+  onChangeGame?: () => void;
 }
 
 interface CanvasSize {
@@ -225,6 +226,7 @@ const MCQJumpAdventure = ({
   canFinalizeTest,
   onSelectOption,
   onFinalSubmit,
+  onChangeGame,
 }: MCQJumpAdventureProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const latestPropsRef = useRef({
@@ -671,6 +673,15 @@ const MCQJumpAdventure = ({
           disabled={paused || disabled || !!feedback || finalSubmitReady || submittedRef.current}
           onClick={queueJump}
         ><ArrowDown className="mcq-jump-jump-icon" size={20} aria-hidden="true" /><span>JUMP</span></button>
+        {onChangeGame && (
+          <button
+            type="button"
+            className="mcq-jump-select-game"
+            aria-label="Choose another game"
+            disabled={disabled || !!feedback || finalSubmitReady || submittedRef.current}
+            onClick={onChangeGame}
+          ><Gamepad2 size={17} aria-hidden="true" /></button>
+        )}
         <button type="button" className="mcq-jump-restart-button" aria-label="Restart adventure" onClick={restartGame}>
           <RotateCcw size={17} aria-hidden="true" />
         </button>
