@@ -40,7 +40,8 @@ describe("Quiz Arena MCQ with Game mode", () => {
         view.container.querySelectorAll(".mcq-game-fallback-option, .mcq-game-gate-label"),
       ).toHaveLength(4);
       expect(screen.getByTestId("quiz-overall-progress")).toBeInTheDocument();
-      expect(view.container.querySelector(".mcq-game-question-panel")).toBeInTheDocument();
+      expect(view.container.querySelectorAll(".quiz-question-panel")).toHaveLength(0);
+      expect(view.container.querySelectorAll(".mcq-game-question-panel")).toHaveLength(1);
       expect(view.container.querySelectorAll(".mcq-game-controls")).toHaveLength(0);
     } finally {
       view.unmount();
