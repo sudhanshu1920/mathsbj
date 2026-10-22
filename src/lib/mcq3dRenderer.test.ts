@@ -29,12 +29,28 @@ function projectedHorizontalNdc(point: readonly [number, number, number], aspect
   return point[0] / (depth * aspectRatio * Math.tan((verticalFov * Math.PI) / 360));
 }
 
+function projectedVerticalNdc(point: readonly [number, number, number], aspectRatio: number): number {
+  const eye = [0, 3.45, 7.2] as const;
+  const target = [0, 0.92, -4.85] as const;
+  const forward = [target[0] - eye[0], target[1] - eye[1], target[2] - eye[2]];
+  const length = Math.hypot(forward[0], forward[1], forward[2]);
+  const cameraY =
+    (point[1] - eye[1]) * (-forward[2] / length) +
+    (point[2] - eye[2]) * (forward[1] / length);
+  const depth = cameraDepth(point);
+  const verticalFov = getMCQ3DVerticalFovDegrees(aspectRatio);
+  return cameraY / (depth * Math.tan((verticalFov * Math.PI) / 360));
+}
+
 describe("MCQ 3D responsive camera framing", () => {
-  it("maintains a constant horizontal field of view across supported screen shapes", () => {
+  it("keeps at least a 90-degree horizontal field of view across supported screen shapes", () => {
     for (const aspectRatio of ASPECT_RATIOS) {
-      expect(
-        horizontalFovDegrees(aspectRatio, getMCQ3DVerticalFovDegrees(aspectRatio)),
-      ).toBeCloseTo(90, 8);
+      const horizontalFov = horizontalFovDegrees(
+        aspectRatio,
+        getMCQ3DVerticalFovDegrees(aspectRatio),
+      );
+      expect(horizontalFov).toBeGreaterThanOrEqual(90 - 1e-8);
+      if (aspectRatio <= 1.6) expect(horizontalFov).toBeCloseTo(90, 8);
     }
   });
 
@@ -55,6 +71,22 @@ describe("MCQ 3D responsive camera framing", () => {
           expect(cameraDepth(point)).toBeGreaterThan(0);
           expect(Math.abs(projectedHorizontalNdc(point, aspectRatio))).toBeLessThan(1);
         }
+      }
+    }
+  });
+
+  it("keeps the visible tire bottoms and spoiler top inside the vertical viewport", () => {
+    // These points represent the low tyre edge and high spoiler edge in buildCarMesh
+    // after the car is translated to MCQ_GAME_CAR_CENTER_Z.
+    const verticalExtremes: Array<readonly [number, number, number]> = [
+      [0, -0.105, 2.84],
+      [0, 0.8225, 3.20],
+    ];
+
+    for (const aspectRatio of ASPECT_RATIOS) {
+      for (const point of verticalExtremes) {
+        expect(cameraDepth(point)).toBeGreaterThan(0);
+        expect(Math.abs(projectedVerticalNdc(point, aspectRatio))).toBeLessThan(1);
       }
     }
   });
