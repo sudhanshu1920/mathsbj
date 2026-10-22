@@ -466,12 +466,17 @@ const MCQJumpAdventure = ({
   }, []);
 
   const setMovement = useCallback((direction: "left" | "right", active: boolean) => {
-    if (pausedRef.current) return;
+    const current = latestPropsRef.current;
+    if (pausedRef.current || current.disabled || current.feedback || current.finalSubmitReady || submittedRef.current) {
+      inputRef.current[direction] = false;
+      return;
+    }
     inputRef.current[direction] = active;
   }, []);
 
   const queueJump = useCallback(() => {
-    if (pausedRef.current || latestPropsRef.current.disabled || submittedRef.current) return;
+    const current = latestPropsRef.current;
+    if (pausedRef.current || current.disabled || current.feedback || current.finalSubmitReady || submittedRef.current) return;
     inputRef.current.jumpQueued = true;
   }, []);
 
@@ -518,6 +523,7 @@ const MCQJumpAdventure = ({
       !option ||
       !mapping ||
       current.disabled ||
+      current.finalSubmitReady ||
       current.feedback ||
       current.selectedOption !== null ||
       submittedRef.current
@@ -619,7 +625,7 @@ const MCQJumpAdventure = ({
                 className={classNames}
                 aria-label={"Answer " + String(option.value)}
                 data-option-index={index}
-                disabled={disabled || !!feedback || selectedOption !== null}
+                disabled={disabled || finalSubmitReady || !!feedback || selectedOption !== null}
                 onClick={() => selectAnswer(index)}
               >
                 <span className="mcq-jump-answer-icon" aria-hidden="true">{index + 1}</span>
@@ -638,7 +644,7 @@ const MCQJumpAdventure = ({
             type="button"
             aria-label="Move left"
             className="mcq-jump-control-button"
-            disabled={paused || disabled || !!feedback || submittedRef.current}
+            disabled={paused || disabled || !!feedback || finalSubmitReady || submittedRef.current}
             onPointerDown={(event) => { event.preventDefault(); setMovement("left", true); }}
             onPointerUp={() => setMovement("left", false)}
             onPointerLeave={() => setMovement("left", false)}
@@ -649,7 +655,7 @@ const MCQJumpAdventure = ({
             type="button"
             aria-label="Move right"
             className="mcq-jump-control-button"
-            disabled={paused || disabled || !!feedback || submittedRef.current}
+            disabled={paused || disabled || !!feedback || finalSubmitReady || submittedRef.current}
             onPointerDown={(event) => { event.preventDefault(); setMovement("right", true); }}
             onPointerUp={() => setMovement("right", false)}
             onPointerLeave={() => setMovement("right", false)}
@@ -662,7 +668,7 @@ const MCQJumpAdventure = ({
           type="button"
           className="mcq-jump-jump-button"
           aria-label="Jump"
-          disabled={paused || disabled || !!feedback || submittedRef.current}
+          disabled={paused || disabled || !!feedback || finalSubmitReady || submittedRef.current}
           onClick={queueJump}
         ><ArrowDown className="mcq-jump-jump-icon" size={20} aria-hidden="true" /><span>JUMP</span></button>
         <button type="button" className="mcq-jump-restart-button" aria-label="Restart adventure" onClick={restartGame}>
