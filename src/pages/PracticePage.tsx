@@ -1729,7 +1729,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   useEffect(() => {
     const request = externalBackRequest ?? 0;
     if (request <= lastExternalBackRequestRef.current) return;
-    // During startup, keep the request pending until the active quiz can handle it.
+
+    // An explicit selector is a navigation screen even before a quiz session
+    // exists, so system Back closes it rather than leaking into the next session.
+    if (gameSelectionOpen && mode === 'game' && !config) {
+      lastExternalBackRequestRef.current = request;
+      closeGameSelector();
+      return;
+    }
+
+    // During quiz startup, keep other Back requests pending until the active quiz can handle them.
     if (!config || finished) return;
 
     lastExternalBackRequestRef.current = request;
@@ -1738,7 +1747,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       return;
     }
     setShowExitDialog(true);
-  }, [externalBackRequest, config, finished, gameSelectionOpen, closeGameSelector]);
+  }, [externalBackRequest, config, finished, gameSelectionOpen, closeGameSelector, mode]);
 
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);
