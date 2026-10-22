@@ -505,7 +505,7 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
   // gates, car and colliders in the same underlying coordinate system.
   const makeViewProjection = (width: number, height: number, carX: number) => {
     const aspect = width / height;
-    const verticalFovDegrees = aspect < 0.65 ? 120 : aspect < 0.9 ? 100 : 52;
+    const verticalFovDegrees = aspect < 0.65 ? 120 : aspect < 0.9 ? 100 : aspect < 1.6 ? 80 : 52;
     const cameraX = Math.min(3.45, Math.max(-3.45, carX)) * 0.20;
     const eye: Point3 = [cameraX, 3.45, 7.20];
     const target: Point3 = [cameraX, 0.92, -4.85];
