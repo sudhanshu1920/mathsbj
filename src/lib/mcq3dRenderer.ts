@@ -48,6 +48,18 @@ const NORMAL_TINT: Color = [1, 1, 1];
 const FLOATS_PER_VERTEX = 9;
 const BYTES_PER_VERTEX = FLOATS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
+/**
+ * Keep a stable 90-degree horizontal field of view across portrait, tablet,
+ * and landscape layouts. The car extends toward the camera, so sizing from a
+ * fixed vertical FOV can clip its rear corners in wide-but-not-ultrawide views.
+ */
+export function getMCQ3DVerticalFovDegrees(aspectRatio: number): number {
+  const safeAspectRatio = Number.isFinite(aspectRatio) && aspectRatio > 0
+    ? aspectRatio
+    : 1;
+  return (2 * Math.atan(1 / safeAspectRatio) * 180) / Math.PI;
+}
+
 function normalizeVector(x: number, y: number, z: number): Point3 {
   const length = Math.hypot(x, y, z) || 1;
   return [x / length, y / length, z / length];
@@ -510,7 +522,7 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
   // the options instead of moving the options with a tracking camera.
   const makeViewProjection = (width: number, height: number) => {
     const aspect = width / height;
-    const verticalFovDegrees = aspect < 0.65 ? 120 : aspect < 0.9 ? 100 : aspect < 1.6 ? 80 : 52;
+    const verticalFovDegrees = getMCQ3DVerticalFovDegrees(aspect);
     const eye: Point3 = [0, 3.45, 7.20];
     const target: Point3 = [0, 0.92, -4.85];
     const projection = perspectiveMatrix((verticalFovDegrees * Math.PI) / 180, aspect, 0.1, 100);
