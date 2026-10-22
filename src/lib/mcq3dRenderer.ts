@@ -37,6 +37,13 @@ interface ProjectedPoint {
   visible: boolean;
 }
 
+const LANE_ACCENTS: readonly Color[] = [
+  [0.18, 0.72, 1.0],
+  [0.62, 0.51, 1.0],
+  [1.0, 0.72, 0.30],
+  [0.20, 0.92, 0.73],
+];
+
 const NORMAL_TINT: Color = [1, 1, 1];
 const FLOATS_PER_VERTEX = 9;
 const BYTES_PER_VERTEX = FLOATS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
@@ -421,6 +428,23 @@ function buildCarMesh(): MeshBuilder {
   return builder;
 }
 
+function buildGateMesh(accent: Color): MeshBuilder {
+  const builder = new MeshBuilder();
+  const panel: Color = [0.045, 0.075, 0.13];
+  const darkEdge: Color = [0.08, 0.16, 0.25];
+
+  builder.addBox(0, 1.20, -0.035, 1.42, 0.82, 0.18, panel);
+  builder.addBox(0, 1.20, 0.075, 1.28, 0.68, 0.035, darkEdge);
+  builder.addBox(-0.68, 0.95, 0, 0.13, 1.90, 0.16, accent);
+  builder.addBox(0.68, 0.95, 0, 0.13, 1.90, 0.16, accent);
+  builder.addBox(0, 1.88, 0, 1.52, 0.16, 0.18, accent);
+  builder.addBox(0, 0.13, 0.035, 1.56, 0.17, 0.34, [0.14, 0.20, 0.28]);
+  builder.addBox(0, 0.22, 0.035, 1.37, 0.045, 0.36, accent);
+  builder.addBox(-0.48, 1.97, 0.01, 0.11, 0.055, 0.20, [0.60, 0.90, 1.0]);
+  builder.addBox(0.48, 1.97, 0.01, 0.11, 0.055, 0.20, [0.60, 0.90, 1.0]);
+  return builder;
+}
+
 export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
   const gl = canvas.getContext("webgl", {
     alpha: false,
@@ -449,7 +473,8 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
   const worldMesh = uploadMesh(gl, buildWorldMesh());
   const scrollingMesh = uploadMesh(gl, buildScrollingMesh());
   const carMesh = uploadMesh(gl, buildCarMesh());
-  const allMeshes = [worldMesh, scrollingMesh, carMesh];
+  const gateMeshes = LANE_ACCENTS.map((accent) => uploadMesh(gl, buildGateMesh(accent)));
+  const allMeshes = [worldMesh, scrollingMesh, carMesh, ...gateMeshes];
 
   gl.useProgram(program);
   gl.enable(gl.DEPTH_TEST);
@@ -527,6 +552,16 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
         translationMatrix(0, 0, frame.scrollOffset % 8),
       );
       drawMesh(scrollingMesh, scrollMatrix, NORMAL_TINT);
+
+      // The gate frames share a fixed depth with the car's interaction
+      // plane. Their transforms are independent from the scrolling road.
+      MCQ_GAME_LANE_X.forEach((laneX, index) => {
+        const gateMatrix = multiplyMatrices(
+          viewProjection,
+          translationMatrix(laneX, 0, MCQ_GAME_CAR_CENTER_Z),
+        );
+        drawMesh(gateMeshes[index], gateMatrix, NORMAL_TINT);
+      });
 
       const carMatrix = multiplyMatrices(
         viewProjection,
