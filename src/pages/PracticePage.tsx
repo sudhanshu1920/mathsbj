@@ -1853,7 +1853,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     return (
       <>
-      <SwipeBack onBack={handleExitRequest}>
+      <SwipeBack onBack={handleExitRequest} enabled={config.mode !== 'game'}>
       <div className="quiz-screen quiz-screen--active pb-6">
         <AlertDialog
           open={showExitDialog}
@@ -1969,6 +1969,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           </div>
         )}
 
+{config.mode !== 'game' && (
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQ}
@@ -1993,6 +1994,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             </AnimatePresence>
           </motion.div>
         </AnimatePresence>
+        )}
 
         {/* Floating XP popup */}
         <AnimatePresence>
