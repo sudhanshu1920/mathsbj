@@ -1934,7 +1934,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               )}
             </div>
           )}
-          {config.infinite && !config.repetitionEnabled ? (
+          {config.mode !== 'game' && config.infinite && !config.repetitionEnabled ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Q{currentQ + 1}</span>
               <button onClick={handleSubmitInfinite} disabled={totalAttempts === 0}
