@@ -20,6 +20,8 @@ export interface MCQ3DRenderFrame {
   scrollOffset: number;
   /** World-space Z position of the active answer-gate row. */
   gateZ: number;
+  /** Active gameplay time; this clock stops while the race is paused. */
+  activeElapsedMs: number;
 }
 
 export interface MCQ3DScene {
@@ -57,6 +59,76 @@ const BYTES_PER_VERTEX = FLOATS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
  * fixed vertical FOV can clip its rear corners in wide-but-not-ultrawide views.
  */
 const MIN_VERTICAL_FOV_DEGREES = 60;
+
+interface MCQ3DEnvironmentTheme {
+  sky: Color; ground: Color; road: Color; rail: Color; railGlow: Color; roadGlow: Color;
+  mountainFar: Color; mountainNear: Color; celestial: Color; stars: Color; laneDash: Color;
+  treeTrunk: Color; treeLow: Color; treeMid: Color; treeTop: Color;
+}
+
+const MCQ_3D_ENVIRONMENT_THEMES: readonly MCQ3DEnvironmentTheme[] = [
+  {
+    // Neon night remains the initial environment.
+    sky:[0.018,0.032,0.065], ground:[0.025,0.12,0.105], road:[0.075,0.095,0.13],
+    rail:[0.18,0.23,0.30], railGlow:[0.19,0.66,0.83], roadGlow:[0.17,0.82,0.98],
+    mountainFar:[0.018,0.040,0.095], mountainNear:[0.025,0.060,0.13], celestial:[0.70,0.83,1.0],
+    stars:[0.42,0.66,0.95], laneDash:[0.72,0.80,0.88], treeTrunk:[0.30,0.20,0.13],
+    treeLow:[0.045,0.31,0.25], treeMid:[0.055,0.43,0.32], treeTop:[0.08,0.55,0.39],
+  },
+  {
+    // Sunset drive.
+    sky:[0.16,0.045,0.075], ground:[0.20,0.075,0.065], road:[0.105,0.075,0.105],
+    rail:[0.36,0.16,0.16], railGlow:[1.0,0.48,0.22], roadGlow:[1.0,0.36,0.20],
+    mountainFar:[0.28,0.07,0.12], mountainNear:[0.43,0.12,0.14], celestial:[1.0,0.72,0.35],
+    stars:[1.0,0.70,0.47], laneDash:[0.95,0.76,0.62], treeTrunk:[0.34,0.16,0.09],
+    treeLow:[0.38,0.19,0.10], treeMid:[0.53,0.24,0.10], treeTop:[0.68,0.32,0.12],
+  },
+  {
+    // Arctic ice circuit.
+    sky:[0.025,0.105,0.22], ground:[0.035,0.19,0.27], road:[0.065,0.12,0.20],
+    rail:[0.16,0.31,0.43], railGlow:[0.32,0.85,1.0], roadGlow:[0.28,0.91,1.0],
+    mountainFar:[0.08,0.22,0.38], mountainNear:[0.12,0.34,0.50], celestial:[0.78,0.94,1.0],
+    stars:[0.64,0.88,1.0], laneDash:[0.75,0.91,1.0], treeTrunk:[0.20,0.28,0.34],
+    treeLow:[0.12,0.37,0.48], treeMid:[0.19,0.53,0.64], treeTop:[0.30,0.69,0.78],
+  },
+  {
+    // Emerald forest.
+    sky:[0.012,0.075,0.060], ground:[0.025,0.16,0.09], road:[0.055,0.095,0.075],
+    rail:[0.12,0.25,0.17], railGlow:[0.20,0.78,0.39], roadGlow:[0.18,0.96,0.49],
+    mountainFar:[0.02,0.12,0.08], mountainNear:[0.03,0.21,0.12], celestial:[0.62,1.0,0.72],
+    stars:[0.35,0.91,0.61], laneDash:[0.65,0.88,0.70], treeTrunk:[0.25,0.17,0.10],
+    treeLow:[0.02,0.28,0.13], treeMid:[0.025,0.42,0.17], treeTop:[0.045,0.58,0.24],
+  },
+  {
+    // Violet cosmic highway.
+    sky:[0.052,0.018,0.12], ground:[0.14,0.035,0.18], road:[0.075,0.06,0.13],
+    rail:[0.22,0.12,0.34], railGlow:[0.68,0.37,0.94], roadGlow:[0.82,0.35,1.0],
+    mountainFar:[0.12,0.035,0.25], mountainNear:[0.22,0.06,0.38], celestial:[0.94,0.78,1.0],
+    stars:[0.76,0.56,1.0], laneDash:[0.83,0.76,0.97], treeTrunk:[0.22,0.13,0.28],
+    treeLow:[0.19,0.08,0.33], treeMid:[0.32,0.12,0.48], treeTop:[0.49,0.20,0.66],
+  },
+] as const satisfies readonly MCQ3DEnvironmentTheme[];
+
+export const MCQ_3D_ENVIRONMENT_CHANGE_MIN_MS = 18_000;
+export const MCQ_3D_ENVIRONMENT_CHANGE_MAX_MS = 32_000;
+export const MCQ_3D_ENVIRONMENT_THEME_COUNT = MCQ_3D_ENVIRONMENT_THEMES.length;
+
+function normalizeRandomValue(value: number): number {
+  return Number.isFinite(value) ? Math.min(0.999999, Math.max(0, value)) : 0.5;
+}
+
+/** Random environment changes are scheduled every 18–32 seconds of active play. */
+export function getMCQ3DEnvironmentChangeDelay(randomValue = Math.random()): number {
+  const range = MCQ_3D_ENVIRONMENT_CHANGE_MAX_MS - MCQ_3D_ENVIRONMENT_CHANGE_MIN_MS + 1;
+  return MCQ_3D_ENVIRONMENT_CHANGE_MIN_MS + Math.floor(normalizeRandomValue(randomValue) * range);
+}
+
+/** Selects a valid theme other than the current one. */
+export function getNextMCQ3DEnvironmentThemeIndex(currentThemeIndex: number, randomValue = Math.random()): number {
+  const count = MCQ_3D_ENVIRONMENT_THEMES.length;
+  const current = Number.isInteger(currentThemeIndex) ? ((currentThemeIndex % count) + count) % count : 0;
+  return (current + 1 + Math.floor(normalizeRandomValue(randomValue) * (count - 1))) % count;
+}
 
 export function getMCQ3DVerticalFovDegrees(aspectRatio: number): number {
   const safeAspectRatio = Number.isFinite(aspectRatio) && aspectRatio > 0
@@ -268,6 +340,13 @@ function uploadMesh(gl: WebGLRenderingContext, builder: MeshBuilder): Mesh {
   return { buffer, vertexCount: values.length / FLOATS_PER_VERTEX };
 }
 
+function replaceMeshContent(gl: WebGLRenderingContext, mesh: Mesh, builder: MeshBuilder): void {
+  const values = builder.toFloat32Array();
+  gl.bindBuffer(gl.ARRAY_BUFFER, mesh.buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, values, gl.STATIC_DRAW);
+  mesh.vertexCount = values.length / FLOATS_PER_VERTEX;
+}
+
 function multiplyMatrices(a: Float32Array, b: Float32Array): Float32Array {
   const output = new Float32Array(16);
   for (let column = 0; column < 4; column += 1) {
@@ -352,62 +431,62 @@ function projectPoint(matrix: Float32Array, point: Point3, width: number, height
   };
 }
 
-function buildWorldMesh(): MeshBuilder {
+function buildWorldMesh(theme: MCQ3DEnvironmentTheme): MeshBuilder {
   const builder = new MeshBuilder();
-  builder.addBox(0, -0.38, -6, 160, 0.16, 80, [0.025, 0.12, 0.105]);
-  builder.addBox(0, -0.18, -6, 9.6, 0.2, 52, [0.075, 0.095, 0.13]);
+  builder.addBox(0, -0.38, -6, 160, 0.16, 80, theme.ground);
+  builder.addBox(0, -0.18, -6, 9.6, 0.2, 52, theme.road);
 
-  builder.addBox(-4.76, -0.065, -6, 0.20, 0.06, 52, [0.22, 0.28, 0.34]);
-  builder.addBox(4.76, -0.065, -6, 0.20, 0.06, 52, [0.22, 0.28, 0.34]);
-  builder.addBox(-4.61, -0.055, -6, 0.055, 0.018, 52, [0.17, 0.82, 0.98]);
-  builder.addBox(4.61, -0.055, -6, 0.055, 0.018, 52, [0.17, 0.82, 0.98]);
+  builder.addBox(-4.76, -0.065, -6, 0.20, 0.06, 52, theme.rail);
+  builder.addBox(4.76, -0.065, -6, 0.20, 0.06, 52, theme.rail);
+  builder.addBox(-4.61, -0.055, -6, 0.055, 0.018, 52, theme.roadGlow);
+  builder.addBox(4.61, -0.055, -6, 0.055, 0.018, 52, theme.roadGlow);
 
   for (const side of [-1, 1]) {
-    builder.addBox(side * 5.08, 0.02, -6, 0.13, 0.42, 49, [0.18, 0.23, 0.30]);
-    builder.addBox(side * 5.08, 0.25, -6, 0.10, 0.055, 49, [0.19, 0.66, 0.83]);
-    builder.addBox(side * 5.08, -0.13, -6, 0.20, 0.09, 49, [0.10, 0.14, 0.18]);
+    builder.addBox(side * 5.08, 0.02, -6, 0.13, 0.42, 49, theme.rail);
+    builder.addBox(side * 5.08, 0.25, -6, 0.10, 0.055, 49, theme.railGlow);
+    builder.addBox(side * 5.08, -0.13, -6, 0.20, 0.09, 49, theme.ground);
   }
 
   // Static, low-poly mountain silhouettes and a restrained moon add depth
   // without a skybox texture, extra draw calls, or per-frame allocations.
-  builder.addCone(-15.0, -0.18, -33, 7.2, 6.5, [0.018, 0.040, 0.095], 7);
-  builder.addCone(-20.2, -0.18, -39, 8.6, 8.2, [0.025, 0.060, 0.13], 7);
+  builder.addCone(-15.0, -0.18, -33, 7.2, 6.5, theme.mountainFar, 7);
+  builder.addCone(-20.2, -0.18, -39, 8.6, 8.2, theme.mountainNear, 7);
   builder.addCone(14.2, -0.18, -35, 8.4, 7.4, [0.018, 0.045, 0.11], 7);
   builder.addCone(20.1, -0.18, -42, 9.5, 9.0, [0.028, 0.075, 0.16], 7);
-  builder.addCone(12.2, 9.4, -36, 0.82, 0.12, [0.70, 0.83, 1.0], 12);
+  builder.addCone(12.2, 9.4, -36, 0.82, 0.12, theme.celestial, 12);
   for (const star of [
     [-15, 10.2, -30], [-9, 12.1, -38], [-2, 9.2, -34],
     [3, 12.5, -40], [8, 10.8, -31], [18, 12.4, -39],
   ] as const) {
-    builder.addBox(star[0], star[1], star[2], 0.055, 0.055, 0.04, [0.42, 0.66, 0.95]);
+    builder.addBox(star[0], star[1], star[2], 0.055, 0.055, 0.04, theme.stars);
   }
   return builder;
 }
 
-function buildScrollingMesh(): MeshBuilder {
+function buildScrollingMesh(theme: MCQ3DEnvironmentTheme): MeshBuilder {
   const builder = new MeshBuilder();
   const laneSeparators = [-2.30, 0, 2.30];
   // Four-unit dash spacing divides the eight-unit recycle cycle exactly.
   for (let z = -32; z <= 20; z += 4.0) {
     for (const x of laneSeparators) {
-      builder.addBox(x, -0.068, z, 0.045, 0.018, 1.48, [0.72, 0.80, 0.88]);
+      builder.addBox(x, -0.068, z, 0.045, 0.018, 1.48, theme.laneDash);
     }
   }
 
   for (let z = -30; z <= 18; z += 8) {
     for (const side of [-1, 1]) {
       const x = side * 5.42;
-      builder.addBox(x, 1.48, z, 0.075, 2.85, 0.075, [0.28, 0.35, 0.43]);
-      builder.addBox(x - side * 0.30, 2.92, z, 0.74, 0.075, 0.075, [0.30, 0.40, 0.52]);
-      builder.addBox(x - side * 0.58, 2.86, z, 0.26, 0.11, 0.18, [0.98, 0.66, 0.30]);
-      builder.addBox(x - side * 0.58, 2.80, z, 0.30, 0.035, 0.20, [1.0, 0.82, 0.48]);
-      builder.addBox(x, -0.08, z, 0.28, 0.09, 0.28, [0.12, 0.19, 0.24]);
+      builder.addBox(x, 1.48, z, 0.075, 2.85, 0.075, theme.rail);
+      builder.addBox(x - side * 0.30, 2.92, z, 0.74, 0.075, 0.075, theme.railGlow);
+      builder.addBox(x - side * 0.58, 2.86, z, 0.26, 0.11, 0.18, theme.railGlow);
+      builder.addBox(x - side * 0.58, 2.80, z, 0.30, 0.035, 0.20, theme.celestial);
+      builder.addBox(x, -0.08, z, 0.28, 0.09, 0.28, theme.ground);
 
       const treeX = side * 7.15;
-      builder.addBox(treeX, 0.05, z + 1.0, 0.24, 0.44, 0.24, [0.30, 0.20, 0.13]);
-      builder.addCone(treeX, 0.20, z + 1.0, 0.66, 1.05, [0.045, 0.31, 0.25]);
-      builder.addCone(treeX, 0.72, z + 1.0, 0.49, 0.92, [0.055, 0.43, 0.32]);
-      builder.addCone(treeX, 1.18, z + 1.0, 0.31, 0.76, [0.08, 0.55, 0.39]);
+      builder.addBox(treeX, 0.05, z + 1.0, 0.24, 0.44, 0.24, theme.treeTrunk);
+      builder.addCone(treeX, 0.20, z + 1.0, 0.66, 1.05, theme.treeLow);
+      builder.addCone(treeX, 0.72, z + 1.0, 0.49, 0.92, theme.treeMid);
+      builder.addCone(treeX, 1.18, z + 1.0, 0.31, 0.76, theme.treeTop);
     }
   }
   return builder;
@@ -492,8 +571,11 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
     throw new Error("Required WebGL shader bindings are unavailable");
   }
 
-  const worldMesh = uploadMesh(gl, buildWorldMesh());
-  const scrollingMesh = uploadMesh(gl, buildScrollingMesh());
+  let environmentThemeIndex = 0;
+  let nextEnvironmentChangeAtMs = getMCQ3DEnvironmentChangeDelay();
+  const initialEnvironment = MCQ_3D_ENVIRONMENT_THEMES[environmentThemeIndex];
+  const worldMesh = uploadMesh(gl, buildWorldMesh(initialEnvironment));
+  const scrollingMesh = uploadMesh(gl, buildScrollingMesh(initialEnvironment));
   const carMesh = uploadMesh(gl, buildCarMesh());
   const gateMeshes = LANE_ACCENTS.map((accent) => uploadMesh(gl, buildGateMesh(accent)));
   const allMeshes = [worldMesh, scrollingMesh, carMesh, ...gateMeshes];
@@ -502,7 +584,7 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
   gl.enable(gl.DEPTH_TEST);
   gl.depthFunc(gl.LEQUAL);
   gl.disable(gl.CULL_FACE);
-  gl.clearColor(0.018, 0.032, 0.065, 1);
+  gl.clearColor(...initialEnvironment.sky, 1);
   gl.uniform3f(lightLocation, -0.38, 0.88, 0.42);
 
   let viewportWidth = 0;
@@ -562,6 +644,16 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
       if (disposed) return [];
       const viewport = syncViewport();
       const viewProjection = makeViewProjection(viewport.width, viewport.height);
+      const activeElapsedMs = Number.isFinite(frame.activeElapsedMs) ? Math.max(0, frame.activeElapsedMs) : 0;
+      if (activeElapsedMs >= nextEnvironmentChangeAtMs) {
+        environmentThemeIndex = getNextMCQ3DEnvironmentThemeIndex(environmentThemeIndex);
+        const nextEnvironment = MCQ_3D_ENVIRONMENT_THEMES[environmentThemeIndex];
+        // Reuse environment GPU buffers to avoid allocating meshes during play.
+        replaceMeshContent(gl, worldMesh, buildWorldMesh(nextEnvironment));
+        replaceMeshContent(gl, scrollingMesh, buildScrollingMesh(nextEnvironment));
+        gl.clearColor(...nextEnvironment.sky, 1);
+        nextEnvironmentChangeAtMs = activeElapsedMs + getMCQ3DEnvironmentChangeDelay();
+      }
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(program);
 
