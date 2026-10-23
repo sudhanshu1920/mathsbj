@@ -205,7 +205,7 @@ describe("Full-screen continuous MCQ racing", () => {
     const view = render(<MCQWithGame {...gameProps({ onSelectOption })} />);
     const gate = view.container.querySelector('[data-option-id]') as HTMLElement;
     const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    const laneReadout = view.container.querySelector("[data-testid='mcq-game-lane-readout]");
+    const laneReadout = view.container.querySelector("[data-testid='mcq-game-lane-readout']");
 
     expect(createRacingAudioController).toHaveBeenCalledTimes(1);
     expect(gate).toHaveAttribute("role", "listitem");
