@@ -1,8 +1,8 @@
 import { useRef } from "react";
-import { ArrowLeft, CarFront, Gamepad2, Mountain, Sparkles } from "lucide-react";
+import { ArrowLeft, CarFront, Gamepad2, Mountain, Rocket, Sparkles } from "lucide-react";
 import "./mcq-game-selector.css";
 
-export type MCQGameVariant = "car" | "jump";
+export type MCQGameVariant = "car" | "jump" | "shooter";
 
 interface GameModeSelectorProps {
   selectedGame: MCQGameVariant;
@@ -39,7 +39,7 @@ const GameModeSelector = ({ selectedGame, onBack, onSelect }: GameModeSelectorPr
         <div className="mcq-game-select-intro">
           <span className="mcq-game-select-eyebrow"><Sparkles size={14} aria-hidden="true" /> PICK YOUR ADVENTURE</span>
           <h1>Choose your game</h1>
-          <p>Same Math Quiz Engine. Two different ways to play.</p>
+          <p>Same Math Quiz Engine. Three different ways to play.</p>
         </div>
 
         <div className="mcq-game-select-cards">
@@ -86,9 +86,32 @@ const GameModeSelector = ({ selectedGame, onBack, onSelect }: GameModeSelectorPr
               <span className="mcq-game-select-card-action">Start jumping <span aria-hidden="true">→</span></span>
             </span>
           </button>
+
+          <button
+            type="button"
+            className={"mcq-game-select-card mcq-game-select-card--shooter" + (selectedGame === "shooter" ? " is-selected" : "")}
+            onClick={() => chooseGame("shooter")}
+            aria-label="Math Space Shooter. Aim and fire at mathematical answer targets."
+            data-testid="select-space-shooter"
+          >
+            <span className="mcq-game-select-art mcq-game-select-art--shooter" aria-hidden="true">
+              <span className="mcq-space-select-nebula" />
+              <span className="mcq-space-select-star mcq-space-select-star--one">✦</span>
+              <span className="mcq-space-select-star mcq-space-select-star--two">✧</span>
+              <span className="mcq-space-select-target mcq-space-select-target--one">12</span>
+              <span className="mcq-space-select-target mcq-space-select-target--two">8</span>
+              <span className="mcq-space-select-laser" />
+              <span className="mcq-space-select-ship"><Rocket size={45} strokeWidth={2.2} /></span>
+            </span>
+            <span className="mcq-game-select-card-copy">
+              <span className="mcq-game-select-card-title">Math Space Shooter</span>
+              <span className="mcq-game-select-card-description">Pilot a colorful starship, aim at answer targets, and fire through the shared quiz engine.</span>
+              <span className="mcq-game-select-card-action">Launch mission <span aria-hidden="true">→</span></span>
+            </span>
+          </button>
         </div>
 
-        <p className="mcq-game-select-footnote"><Gamepad2 size={15} aria-hidden="true" /> Choose a game to continue to quiz setup.</p>
+        <p className="mcq-game-select-footnote"><Gamepad2 size={15} aria-hidden="true" /> Start a new game or continue the active quiz with another game mode.</p>
       </main>
     </section>
   );
