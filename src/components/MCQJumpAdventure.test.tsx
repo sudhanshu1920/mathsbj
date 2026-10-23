@@ -78,7 +78,7 @@ describe("2D Math Jump Adventure UI", () => {
     render(<MCQJumpAdventure {...props({ onRestartGame, onChangeGame })} />);
     fireEvent.click(screen.getByRole("button", { name: "Pause adventure" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Restart adventure" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restart quiz" }));
     expect(onRestartGame).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Exit to game selection" }));
