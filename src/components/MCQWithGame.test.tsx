@@ -632,6 +632,33 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(onPauseChange).toHaveBeenNthCalledWith(2, false);
   });
 
+  it("pauses on document visibility changes even if WebGL rendering cannot start", () => {
+    vi.mocked(createMCQ3DScene).mockImplementation(() => {
+      throw new Error("WebGL unavailable");
+    });
+    const onPauseChange = vi.fn();
+    render(<MCQWithGame {...gameProps({ onPauseChange })} />);
+    const originalHidden = Object.getOwnPropertyDescriptor(document, "hidden");
+
+    try {
+      Object.defineProperty(document, "hidden", { configurable: true, value: true });
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+      expect(onPauseChange).toHaveBeenNthCalledWith(1, true);
+
+      Object.defineProperty(document, "hidden", { configurable: true, value: false });
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+      expect(onPauseChange).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByRole("button", { name: "Resume race" }));
+      expect(onPauseChange).toHaveBeenNthCalledWith(2, false);
+    } finally {
+      if (originalHidden) Object.defineProperty(document, "hidden", originalHidden);
+      else Reflect.deleteProperty(document, "hidden");
+    }
+  });
+
   it("preserves lane position across question changes but resets driving state for a new quiz session", () => {
     const raf = installAnimationFrameQueue();
     let now = 10;
