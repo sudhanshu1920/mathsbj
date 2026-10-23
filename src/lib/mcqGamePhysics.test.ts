@@ -6,6 +6,7 @@ import {
   MCQ_GAME_COLLISION_Z,
   MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS,
   resolveMCQGameGateTravelDurationMs,
+  isMCQGameCollisionWithinDeadline,
   MCQ_GAME_GATE_HALF_WIDTH,
   MCQ_GAME_HOLD_THRESHOLD_MS,
   MCQ_GAME_LANE_X,
@@ -27,6 +28,14 @@ describe("3D MCQ racing steering and collision physics", () => {
     expect(resolveMCQGameGateTravelDurationMs(null)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
     expect(resolveMCQGameGateTravelDurationMs(0)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
     expect(resolveMCQGameGateTravelDurationMs(Number.NaN)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
+  });
+
+  it("resolves a collision at the timer boundary ahead of timeout, but rejects a late crossing", () => {
+    expect(isMCQGameCollisionWithinDeadline(5_000, 5_000)).toBe(true);
+    expect(isMCQGameCollisionWithinDeadline(5_050, 5_000)).toBe(true);
+    expect(isMCQGameCollisionWithinDeadline(5_051, 5_000)).toBe(false);
+    expect(isMCQGameCollisionWithinDeadline(Number.NaN, 5_000)).toBe(false);
+    expect(isMCQGameCollisionWithinDeadline(5_000, Number.POSITIVE_INFINITY)).toBe(false);
   });
 
   it("binds each visible answer to one stable option, lane and gate", () => {
