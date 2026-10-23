@@ -66,7 +66,19 @@ describe("Quiz Arena MCQ with Game mode", () => {
   });
 
   it("routes the selected 2D game to its own screen while using the same quiz setup", () => {
-    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const originalRequest = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
+    const originalCancel = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => 1,
+    });
+    Object.defineProperty(window, "cancelAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => {},
+    });
+    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ setTransform: vi.fn() } as unknown as CanvasRenderingContext2D);
     const view = render(<PracticePage />);
 
     try {
@@ -85,6 +97,10 @@ describe("Quiz Arena MCQ with Game mode", () => {
     } finally {
       view.unmount();
       getContextSpy.mockRestore();
+      if (originalRequest) Object.defineProperty(window, "requestAnimationFrame", originalRequest);
+      else Reflect.deleteProperty(window, "requestAnimationFrame");
+      if (originalCancel) Object.defineProperty(window, "cancelAnimationFrame", originalCancel);
+      else Reflect.deleteProperty(window, "cancelAnimationFrame");
     }
   });
 
@@ -101,7 +117,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
       writable: true,
       value: () => {},
     });
-    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ setTransform: vi.fn() } as unknown as CanvasRenderingContext2D);
     const view = render(<PracticePage />);
 
     try {
