@@ -128,6 +128,8 @@ describe("Math Space Shooter", () => {
 
     expect(screen.getByRole("group", { name: "Mathematical answer targets" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /Answer target 2: 28/ })).toBeInTheDocument();
+    expect(view.container.querySelectorAll(".mcq-space-target-mark")).toHaveLength(0);
+    expect(view.container.querySelector(".mcq-space-shell")).not.toHaveClass("is-frozen");
     expect(screen.getByTestId("space-touch-left")).toBeInTheDocument();
     expect(screen.getByTestId("space-touch-right")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit complete test" })).toBeEnabled();
@@ -176,10 +178,12 @@ describe("Math Space Shooter", () => {
     fireEvent.pointerUp(screen.getByTestId("space-touch-right"), { pointerId: 1 });
     fireEvent.blur(window);
     expect(screen.getByRole("dialog", { name: "Mission paused" })).toBeInTheDocument();
+    expect(document.querySelector(".mcq-space-shell")).toHaveClass("is-frozen");
     expect(onPauseChange).toHaveBeenLastCalledWith(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Resume mission" }));
     expect(screen.queryByRole("dialog", { name: "Mission paused" })).not.toBeInTheDocument();
+    expect(document.querySelector(".mcq-space-shell")).not.toHaveClass("is-frozen");
     expect(onPauseChange).toHaveBeenLastCalledWith(false);
   });
 
