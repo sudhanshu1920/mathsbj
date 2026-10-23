@@ -658,6 +658,41 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("moves answer targets toward collision faster while the player holds accelerate", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps({ questionKey: "q-hold-targets", durationMs: 5_000 })} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+    const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
+    const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
+
+    try {
+      expect(raf.advance(0)).toBe(true);
+      fireEvent.pointerDown(stage, { pointerId: 42, button: 0, clientX: 320, clientY: 650 });
+      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      for (let timestamp = 50; timestamp <= 1_000; timestamp += 50) {
+        now = timestamp;
+        expect(raf.advance(timestamp)).toBe(true);
+      }
+
+      const acceleratedFrame = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZ: number };
+      const normalSpeedExpected = MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * (1_000 / 5_000);
+      expect(acceleratedFrame.gateZ).toBeGreaterThan(normalSpeedExpected + 0.25);
+
+      now = 1_050;
+      fireEvent.pointerUp(stage, { pointerId: 42, button: 0, clientX: 320, clientY: 650 });
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("moves targets on elapsed time using the configured duration and does not reset on HUD changes", () => {
     const raf = installAnimationFrameQueue();
     const onSelectOption = vi.fn();
