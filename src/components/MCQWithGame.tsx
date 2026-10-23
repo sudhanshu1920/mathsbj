@@ -142,6 +142,9 @@ const MCQWithGame = ({
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
+    onChangeGame,
+    onRestartGame,
+    onPauseChange,
   });
   latestPropsRef.current = {
     questionKey: String(questionKey),
@@ -161,6 +164,9 @@ const MCQWithGame = ({
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
+    onChangeGame,
+    onRestartGame,
+    onPauseChange,
   };
 
   const nextMappings = createMCQGateMappings(questionKey, options.map((option) => option.value));
