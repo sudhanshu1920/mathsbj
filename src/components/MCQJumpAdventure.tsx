@@ -79,6 +79,7 @@ const drawScene = (
   elapsed: number,
   cameraX: number,
   checkpointX: number,
+  feedback: "correct" | "wrong" | null = null,
 ) => {
   const width = size.width;
   const height = size.height;
@@ -153,14 +154,70 @@ const drawScene = (
   const heroY = player.y;
   const heroW = player.width;
   const heroH = player.height;
-  const bob = player.grounded ? Math.sin(elapsed * 0.011) * 1.1 : 0;
   const running = player.grounded && Math.abs(player.vx) > 1;
-  const footSwing = running ? Math.sin(elapsed * 0.025) * heroW * 0.11 : 0;
+  const jumping = !player.grounded && player.vy < -20;
+  const falling = !player.grounded && !jumping;
+  const celebrating = feedback === "correct";
+  const recovering = feedback === "wrong";
+  const runPhase = elapsed * 0.025;
+  const bob = player.grounded
+    ? celebrating
+      ? Math.abs(Math.sin(elapsed * 0.035)) * heroH * 0.035
+      : running
+        ? Math.abs(Math.sin(runPhase)) * heroH * 0.012
+        : Math.sin(elapsed * 0.011) * 1.1
+    : jumping
+      ? -heroH * 0.02
+      : heroH * 0.018;
+  const footSwing = running ? Math.sin(runPhase) * heroW * 0.11 : 0;
+  const legLift = jumping ? heroH * 0.045 : falling ? heroH * 0.015 : 0;
+  const legSpread = jumping ? heroW * 0.05 : falling ? heroW * 0.03 : 0;
+  const armPose = jumping
+    ? -heroH * 0.22
+    : falling
+      ? heroH * 0.12
+      : celebrating
+        ? -heroH * 0.24
+        : recovering
+          ? heroH * 0.06
+          : running
+            ? Math.sin(runPhase) * heroH * 0.055
+            : heroH * 0.015;
+  const lean = running
+    ? Math.sign(player.vx) * 0.045
+    : jumping
+      ? -0.075
+      : falling
+        ? 0.075
+        : celebrating
+          ? -0.035
+          : recovering
+            ? 0.035
+            : 0;
+  const shadowScale = player.grounded ? 1 : 0.78;
 
   context.fillStyle = "rgba(22, 71, 83, 0.18)";
   context.beginPath();
-  context.ellipse(heroX + heroW * 0.52, heroY + heroH + 3, heroW * 0.55, heroH * 0.095, 0, 0, Math.PI * 2);
+  context.ellipse(heroX + heroW * 0.52, heroY + heroH + 3, heroW * 0.55 * shadowScale, heroH * 0.095, 0, 0, Math.PI * 2);
   context.fill();
+
+  // State-driven cartoon poses never alter the collision hitbox or physics coordinates.
+  const centerX = heroX + heroW * 0.5;
+  const centerY = heroY + heroH * 0.5;
+  context.save();
+  context.translate(centerX, centerY);
+  context.rotate(lean);
+  context.translate(-centerX, -centerY);
+
+  context.strokeStyle = "#ffd5a4";
+  context.lineWidth = Math.max(2.2, heroW * 0.12);
+  context.lineCap = "round";
+  context.beginPath();
+  context.moveTo(heroX + heroW * 0.17, heroY + heroH * 0.49 + bob);
+  context.lineTo(heroX + heroW * 0.07, heroY + heroH * 0.49 + bob + armPose);
+  context.moveTo(heroX + heroW * 0.83, heroY + heroH * 0.49 + bob);
+  context.lineTo(heroX + heroW * 0.93, heroY + heroH * 0.49 + bob + armPose);
+  context.stroke();
 
   context.fillStyle = "#ff9e42";
   drawRoundedRect(context, heroX + heroW * 0.16, heroY + heroH * 0.48 + bob, heroW * 0.68, heroH * 0.45, heroW * 0.22);
@@ -176,27 +233,34 @@ const drawScene = (
   context.fill();
 
   context.fillStyle = "#25334e";
+  const gaze = player.vx < -1 ? -heroW * 0.025 : player.vx > 1 ? heroW * 0.025 : 0;
   context.beginPath();
-  context.arc(heroX + heroW * 0.40, heroY + heroH * 0.25 + bob, heroW * 0.045, 0, Math.PI * 2);
-  context.arc(heroX + heroW * 0.62, heroY + heroH * 0.25 + bob, heroW * 0.045, 0, Math.PI * 2);
+  context.arc(heroX + heroW * 0.40 + gaze, heroY + heroH * 0.25 + bob, heroW * 0.045, 0, Math.PI * 2);
+  context.arc(heroX + heroW * 0.62 + gaze, heroY + heroH * 0.25 + bob, heroW * 0.045, 0, Math.PI * 2);
   context.fill();
 
   context.strokeStyle = "#ad5f37";
   context.lineWidth = Math.max(1.4, heroW * 0.035);
   context.lineCap = "round";
   context.beginPath();
-  context.arc(heroX + heroW * 0.51, heroY + heroH * 0.30 + bob, heroW * 0.11, 0.15, Math.PI - 0.15);
+  if (recovering) {
+    context.arc(heroX + heroW * 0.51, heroY + heroH * 0.34 + bob, heroW * 0.075, Math.PI + 0.2, Math.PI * 2 - 0.2);
+  } else {
+    context.arc(heroX + heroW * 0.51, heroY + heroH * 0.30 + bob, heroW * 0.11, 0.15, Math.PI - 0.15);
+  }
   context.stroke();
 
   context.fillStyle = "#fff";
-  drawRoundedRect(context, heroX + heroW * 0.18 + footSwing, heroY + heroH * 0.88, heroW * 0.27, heroH * 0.12, 4);
+  const shoeY = heroY + heroH * 0.88 - legLift;
+  drawRoundedRect(context, heroX + heroW * 0.18 + footSwing - legSpread * 0.5, shoeY, heroW * 0.27, heroH * 0.12, 4);
   context.fill();
-  drawRoundedRect(context, heroX + heroW * 0.55 - footSwing, heroY + heroH * 0.88, heroW * 0.27, heroH * 0.12, 4);
+  drawRoundedRect(context, heroX + heroW * 0.55 - footSwing + legSpread * 0.5, shoeY, heroW * 0.27, heroH * 0.12, 4);
   context.fill();
 
   context.fillStyle = "rgba(255,255,255,0.75)";
   context.font = "900 " + Math.max(12, Math.min(22, width * 0.045)) + "px system-ui, sans-serif";
   context.fillText("★", heroX + heroW * 0.24, heroY - 7);
+  context.restore();
 
   // A small progress ribbon follows the same world camera without controlling
   // the quiz answer mapping; the answer buttons remain explicit and accessible.
@@ -545,7 +609,7 @@ const MCQJumpAdventure = ({
           }
           playerRef.current = player;
           const cameraX = clamp(player.x - size.width * 0.29, 0, size.worldWidth - size.width);
-          drawScene(context, size, platforms, player, elapsedRef.current, cameraX, player.checkpointX);
+          drawScene(context, size, platforms, player, elapsedRef.current, cameraX, player.checkpointX, latestPropsRef.current.feedback);
         } else {
           accumulator = 0;
         }
