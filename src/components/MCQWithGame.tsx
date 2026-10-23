@@ -913,11 +913,13 @@ const MCQWithGame = ({
           </div>
           <div className="mcq-game-question-content">{questionLabel}</div>
           {feedback && (
-            <div className={`mcq-game-feedback mcq-game-feedback--${feedback}`} role="status">
+            <div className={"mcq-game-feedback mcq-game-feedback--" + (feedback === "correct" ? "correct" : selectedOption === null ? "timeout" : "wrong")} role="status">
               {feedback === "correct"
                 ? <Check size={15} strokeWidth={3} aria-hidden="true" />
-                : <X size={15} strokeWidth={3} aria-hidden="true" />}
-              <span>{feedback === "correct" ? "CORRECT ANSWER" : "INCORRECT ANSWER"}</span>
+                : selectedOption === null
+                  ? <Timer size={15} strokeWidth={2.6} aria-hidden="true" />
+                  : <X size={15} strokeWidth={3} aria-hidden="true" />}
+              <span>{feedback === "correct" ? "CORRECT ANSWER" : selectedOption === null ? "TIME'S UP" : "INCORRECT ANSWER"}</span>
             </div>
           )}
         </div>
