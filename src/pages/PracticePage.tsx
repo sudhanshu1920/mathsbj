@@ -40,7 +40,7 @@ import MCQJumpAdventure from '@/components/MCQJumpAdventure';
 import MCQSpaceShooter from '@/components/MCQSpaceShooter';
 import GameModeSelector, { type MCQGameVariant } from '@/components/GameModeSelector';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
-import { createMCQGateMappings } from '@/lib/mcqGamePhysics';
+import { MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS, MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS, createMCQGateMappings } from '@/lib/mcqGamePhysics';
 
 type PracticeMode = 'mcq' | 'input' | 'game';
 
@@ -932,7 +932,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const answerLockRef = useRef(false);
   // Keep timer callbacks on the latest answer handler without recreating the interval.
   // Production APK build requested after Quiz crash fix.
-  const handleAnswerRef = useRef<(answer: number | string | null) => void>(() => {});
+  const handleAnswerRef = useRef<(answer: number | string | null, contactTimestampMs?: number) => boolean>(() => false);
+  const questionTimeoutTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const challengeTimeoutTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const finishLockRef = useRef(false);
   const answerAdvanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const sessionIntervalRef = useRef<ReturnType<typeof setInterval>>();
@@ -1088,6 +1090,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       : 0);
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     answerAdvanceTimerRef.current = undefined;
+    if (questionTimeoutTimerRef.current) clearTimeout(questionTimeoutTimerRef.current);
+    if (challengeTimeoutTimerRef.current) clearTimeout(challengeTimeoutTimerRef.current);
+    questionTimeoutTimerRef.current = undefined;
+    challengeTimeoutTimerRef.current = undefined;
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
     if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
@@ -1256,8 +1262,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = undefined;
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    if (questionTimeoutTimerRef.current) clearTimeout(questionTimeoutTimerRef.current);
+    if (challengeTimeoutTimerRef.current) clearTimeout(challengeTimeoutTimerRef.current);
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     answerAdvanceTimerRef.current = undefined;
+    questionTimeoutTimerRef.current = undefined;
+    challengeTimeoutTimerRef.current = undefined;
     autoSubmitTimerRef.current = undefined;
     challengeDeadlineRef.current = null;
     questionDeadlineRef.current = null;
@@ -1594,6 +1604,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const clearSessionTimers = useCallback(() => {
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
+    if (questionTimeoutTimerRef.current) clearTimeout(questionTimeoutTimerRef.current);
+    if (challengeTimeoutTimerRef.current) clearTimeout(challengeTimeoutTimerRef.current);
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
     if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
@@ -1601,6 +1613,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     challengeDeadlineRef.current = null;
     questionDeadlineRef.current = null;
     answerAdvanceTimerRef.current = undefined;
+    questionTimeoutTimerRef.current = undefined;
+    challengeTimeoutTimerRef.current = undefined;
     autoSubmitTimerRef.current = undefined;
     levelUpTimerRef.current = undefined;
     xpPopTimerRef.current = undefined;
