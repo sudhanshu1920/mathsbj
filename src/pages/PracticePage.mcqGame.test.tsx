@@ -266,6 +266,29 @@ describe("Quiz Arena MCQ with Game mode", () => {
     }
   });
 
+  it("uses a ten-second target approach when the per-question timer is disabled", async () => {
+    const raf = installAnimationFrameQueue();
+    vi.spyOn(performance, "now").mockImplementation(() => raf.now());
+    const view = render(<PracticePage />);
+
+    try {
+      expect(screen.getByRole("switch", { name: "Per-question timer" })).not.toBeChecked();
+      startSelectedGame(/3D Car Racing/i);
+      expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
+      raf.advanceBy(9_500, 100);
+      expect(getProcessedAnswers(view.container)).toBe(0);
+
+      raf.advanceBy(600, 100);
+      await waitFor(() => {
+        expect(screen.getByLabelText("Question 2 / 10")).toBeInTheDocument();
+      });
+      expect(getProcessedAnswers(view.container)).toBe(1);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("automatically submits once after the final car-collision answer is recorded", async () => {
     const raf = installAnimationFrameQueue();
     vi.spyOn(performance, "now").mockImplementation(() => raf.now());
