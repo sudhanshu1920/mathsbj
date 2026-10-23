@@ -31,7 +31,11 @@ describe("Quiz Arena MCQ with Game mode", () => {
       expect(gameMode).toHaveAttribute("aria-pressed", "false");
 
       fireEvent.click(gameMode);
-      expect(gameMode).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /3D Math Car Racing/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /2D Math Jump Adventure/i })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
+      expect(screen.getByRole("button", { name: "MCQ with Game" })).toHaveAttribute("aria-pressed", "true");
 
       fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
 
@@ -51,6 +55,87 @@ describe("Quiz Arena MCQ with Game mode", () => {
       else Reflect.deleteProperty(window, "cancelAnimationFrame");
     }
   });
+  it("routes external Back from the setup picker to the previous answer mode", () => {
+    const view = render(<PracticePage externalBackRequest={0} />);
+    fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+    expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+
+    view.rerender(<PracticePage externalBackRequest={1} />);
+    expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "MCQ" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("routes the selected 2D game to its own screen while using the same quiz setup", () => {
+    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const view = render(<PracticePage />);
+
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+      expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /2D Math Jump Adventure/i }));
+
+      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
+      expect(screen.getByText(/Selected: 2D Math Jump Adventure/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
+
+      expect(screen.getByTestId("mcq-jump-fullscreen")).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Choose your answer" })).toBeInTheDocument();
+      expect(view.container.querySelectorAll(".mcq-jump-answer")).toHaveLength(4);
+      expect(view.container.querySelectorAll(".mcq-game-fullscreen")).toHaveLength(0);
+    } finally {
+      view.unmount();
+      getContextSpy.mockRestore();
+    }
+  });
+
+  it("switches between both games without submitting or recreating the current quiz session", () => {
+    const originalRequest = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
+    const originalCancel = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => 1,
+    });
+    Object.defineProperty(window, "cancelAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: () => {},
+    });
+    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const view = render(<PracticePage />);
+
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
+      expect(screen.getByTestId("mcq-game-fullscreen")).toBeInTheDocument();
+      expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
+      expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+      expect(view.container.querySelectorAll(".mcq-game-fullscreen, .mcq-jump-fullscreen")).toHaveLength(0);
+
+      fireEvent.click(screen.getByRole("button", { name: /2D Math Jump Adventure/i }));
+      expect(screen.getByTestId("mcq-jump-fullscreen")).toBeInTheDocument();
+      expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
+      expect(view.container.querySelector(".mcq-jump-score--correct span")?.textContent).toBe("0");
+      expect(view.container.querySelector(".mcq-jump-score--wrong span")?.textContent).toBe("0");
+
+      fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
+      expect(screen.getByTestId("mcq-game-fullscreen")).toBeInTheDocument();
+      expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    } finally {
+      view.unmount();
+      getContextSpy.mockRestore();
+      if (originalRequest) Object.defineProperty(window, "requestAnimationFrame", originalRequest);
+      else Reflect.deleteProperty(window, "requestAnimationFrame");
+      if (originalCancel) Object.defineProperty(window, "cancelAnimationFrame", originalCancel);
+      else Reflect.deleteProperty(window, "cancelAnimationFrame");
+    }
+  });
+
   it("records each selected gate immediately and reserves top-right Submit for the complete test", async () => {
     const originalRequest = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
     const originalCancel = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
@@ -73,6 +158,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
       fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
 
       const options = view.container.querySelectorAll(".mcq-game-fallback-option");
@@ -123,6 +209,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
+      fireEvent.click(screen.getByRole("button", { name: /3D Math Car Racing/i }));
       fireEvent.click(screen.getByRole("button", { name: "Start Quiz" }));
 
       for (let question = 1; question <= 10; question += 1) {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { CarFront, Check, Send, Timer, X } from "lucide-react";
+import { ArrowLeft, CarFront, Check, Send, Timer, X } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import {
   MCQ_GAME_CAR_HALF_WIDTH,
@@ -48,6 +48,7 @@ interface MCQWithGameProps {
   canFinalizeTest: boolean;
   onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
   onFinalSubmit: () => void;
+  onChangeGame?: () => void;
 }
 
 interface SteeringPress {
@@ -77,6 +78,7 @@ const MCQWithGame = ({
   canFinalizeTest,
   onSelectOption,
   onFinalSubmit,
+  onChangeGame,
 }: MCQWithGameProps) => {
   const [lane, setLane] = useState(1);
   const [phase, setPhase] = useState<GamePhase>("INITIALIZING");
@@ -755,6 +757,22 @@ const MCQWithGame = ({
               })}
             </div>
           </>
+        )}
+
+        {onChangeGame && (
+          <button
+            type="button"
+            className="mcq-game-select-to-picker"
+            aria-label="Choose another game"
+            disabled={disabled || finalSubmitReady}
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+            onPointerCancel={(event) => event.stopPropagation()}
+            onClick={onChangeGame}
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>Choose game</span>
+          </button>
         )}
 
         <div

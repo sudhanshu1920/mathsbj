@@ -22,7 +22,13 @@ const bottomNavTest = read('src/components/BottomNav.test.tsx');
 const bottomNavUi = read('src/components/BottomNav.tsx');
 const offlineReady = read('src/lib/offlineReady.ts');
 const streak = read('src/lib/streak.ts');
+const personalApkWorkflow = read('.github/workflows/android-apk.yml');
+const publicReleaseWorkflow = read('.github/workflows/android-release.yml');
 
+if (!personalApkWorkflow.includes("startsWith(github.event.head_commit.message, '[BUILD_ANDROID_APK]')") ||
+    publicReleaseWorkflow.includes("startsWith(github.event.head_commit.message, '[BUILD_ANDROID_APK]')")) {
+  fail('Artifact-only Android APK builds must not invoke the public GitHub Release/update-feed publisher');
+}
 
 if (!css.includes('padding-bottom: var(--floating-bar-height, 0px);')) {
   fail('floating-bar reserve is not tied to the runtime measurement variable');
@@ -554,10 +560,14 @@ if (exitConfirmStart < 0 || exitConfirmEnd < 0 ||
   fail('Learning-origin Quiz exit must clean timers and navigate directly without rendering Quiz setup first');
 }
 const backRequestEffectStart = practice.indexOf('const request = externalBackRequest ?? 0;');
-const backRequestEffect = practice.slice(backRequestEffectStart, practice.indexOf('}, [externalBackRequest, config, finished]);', backRequestEffectStart));
-if (backRequestEffect.indexOf('if (!config || finished) return;') < 0 ||
-    backRequestEffect.indexOf('if (!config || finished) return;') > backRequestEffect.indexOf('lastExternalBackRequestRef.current = request;')) {
-  fail('Back requests during Quiz startup must remain pending until the active session can show confirmation');
+const backRequestEffectEnd = practice.indexOf('}, [externalBackRequest,', backRequestEffectStart);
+const backRequestEffect = practice.slice(backRequestEffectStart, backRequestEffectEnd);
+const startupBackGuardIndex = backRequestEffect.indexOf('if (!config || finished) return;');
+const activeSessionRequestMarkIndex = backRequestEffect.indexOf('lastExternalBackRequestRef.current = request;', startupBackGuardIndex);
+if (startupBackGuardIndex < 0 ||
+    activeSessionRequestMarkIndex < startupBackGuardIndex ||
+    !backRequestEffect.includes("if (gameSelectionOpen && mode === 'game' && !config)")) {
+  fail('Back requests during Quiz startup must remain pending while the explicit game selector handles its own navigation');
 }
 
 // Challenge Timer must share one exclusive mode and one lifecycle-controlled clock.

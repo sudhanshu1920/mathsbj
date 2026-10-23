@@ -36,6 +36,8 @@ import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/l
 import { PERCENTAGE_PRESETS, type PercentagePresetId, resolvePercentagePresets, togglePercentagePresetIds } from '@/lib/percentagePresets';
 import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerProgressPercent, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 import MCQWithGame from '@/components/MCQWithGame';
+import MCQJumpAdventure from '@/components/MCQJumpAdventure';
+import GameModeSelector, { type MCQGameVariant } from '@/components/GameModeSelector';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
 import { createMCQGateMappings } from '@/lib/mcqGamePhysics';
 
@@ -965,6 +967,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [count, setCount] = useState(10);
   const [infinite, setInfinite] = useState(false);
   const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
+  const [selectedGameVariant, setSelectedGameVariant] = useState<MCQGameVariant>('car');
+  const [gameSelectionOpen, setGameSelectionOpen] = useState(false);
+  const modeBeforeGameSelectionRef = useRef<PracticeMode>('mcq');
+  const gameSelectionOpenedAtRef = useRef<number | null>(null);
+  const gameSelectionOpenRef = useRef(false);
   const [timerMode, setTimerMode] = useState<QuizTimerMode>('perQuestion');
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [challengeMinutes, setChallengeMinutes] = useState<ChallengeMinutes>(1);
@@ -1263,7 +1270,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   // was selected. Challenge remaining time is derived from a monotonic deadline
   // so delayed interval ticks cannot extend the configured duration.
   useEffect(() => {
-    if (!config || finished) {
+    if (!config || finished || gameSelectionOpen) {
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
       sessionIntervalRef.current = undefined;
       return;
@@ -1271,7 +1278,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = setInterval(() => {
-      if (finalSubmitReadyRef.current) return;
+      if (gameSelectionOpenRef.current || finalSubmitReadyRef.current) return;
       if (config.timerMode === 'challenge') {
         const deadline = challengeDeadlineRef.current;
         const remaining = deadline === null
@@ -1309,7 +1316,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
       sessionIntervalRef.current = undefined;
     };
-  }, [config, finished, finishQuiz]);
+  }, [config, finished, finishQuiz, gameSelectionOpen]);
 
   const handleAnswer = useCallback(
     (answer: number | string | null) => {
@@ -1597,6 +1604,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const resetToPracticeHome = useCallback(() => {
     clearSessionTimers();
     setShowExitDialog(false);
+    gameSelectionOpenRef.current = false;
+    gameSelectionOpenedAtRef.current = null;
+    setGameSelectionOpen(false);
     setConfig(null);
     questionsRef.current = [];
     originalQuestionsRef.current = [];
@@ -1668,6 +1678,45 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     }
   }, [resetToPracticeHome, fromLearning, onExit]);
 
+  const openGameSelectorFromActiveGame = useCallback(() => {
+    if (
+      !config ||
+      config.mode !== 'game' ||
+      finished ||
+      feedback ||
+      answerLockRef.current ||
+      finishLockRef.current ||
+      finalSubmitReadyRef.current
+    ) return;
+    // Freeze deadlines and the session clock while the game selection screen is open.
+    gameSelectionOpenedAtRef.current = performance.now();
+    gameSelectionOpenRef.current = true;
+    setGameSelectionOpen(true);
+  }, [config, finished, feedback]);
+
+  const closeGameSelector = useCallback((nextGame?: MCQGameVariant) => {
+    const openedAt = gameSelectionOpenedAtRef.current;
+    if (config && openedAt !== null) {
+      const pausedDuration = Math.max(0, performance.now() - openedAt);
+      if (questionDeadlineRef.current !== null) questionDeadlineRef.current += pausedDuration;
+      if (challengeDeadlineRef.current !== null) challengeDeadlineRef.current += pausedDuration;
+    }
+    gameSelectionOpenedAtRef.current = null;
+    gameSelectionOpenRef.current = false;
+    setGameSelectionOpen(false);
+    setShowExitDialog(false);
+
+    if (nextGame !== undefined) {
+      setSelectedGameVariant(nextGame);
+      setMode('game');
+    } else if (config) {
+      // Back from the selector resumes the same quiz question and selected game.
+      setMode('game');
+    } else {
+      setMode(modeBeforeGameSelectionRef.current);
+    }
+  }, [config]);
+
   // Safety net for route changes/unmounts: release every session timer/timeout.
   useEffect(() => {
     return () => clearSessionTimers();
@@ -1680,11 +1729,25 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   useEffect(() => {
     const request = externalBackRequest ?? 0;
     if (request <= lastExternalBackRequestRef.current) return;
+
+    // An explicit selector is a navigation screen even before a quiz session
+    // exists, so system Back closes it rather than leaking into the next session.
+    if (gameSelectionOpen && mode === 'game' && !config) {
+      lastExternalBackRequestRef.current = request;
+      closeGameSelector();
+      return;
+    }
+
+    // During quiz startup, keep other Back requests pending until the active quiz can handle them.
     if (!config || finished) return;
 
     lastExternalBackRequestRef.current = request;
+    if (gameSelectionOpen && config.mode === 'game') {
+      closeGameSelector();
+      return;
+    }
     setShowExitDialog(true);
-  }, [externalBackRequest, config, finished]);
+  }, [externalBackRequest, config, finished, gameSelectionOpen, closeGameSelector, mode]);
 
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);
@@ -1794,6 +1857,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     );
   }
 
+  if (gameSelectionOpen && mode === 'game') {
+    return (
+      <GameModeSelector
+        selectedGame={selectedGameVariant}
+        onBack={() => closeGameSelector()}
+        onSelect={(game) => closeGameSelector(game)}
+      />
+    );
+  }
+
   // ACTIVE QUESTION
   if (config && questions.length > 0) {
     const q = questions[currentQ];
@@ -1877,6 +1950,62 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     const gameGateMappings = config.mode === 'game'
       ? createMCQGateMappings(gameQuestionKey, gameOptions.map((option) => option.value))
       : [];
+
+    const handleGameOptionSelect = (laneIndex: number, optionValue: string | number, gateId: string): boolean => {
+      const option = gameOptions[laneIndex];
+      const gate = gameGateMappings[laneIndex];
+      if (
+        !option ||
+        !gate ||
+        gate.gateId !== gateId ||
+        gate.questionId !== gameQuestionKey ||
+        String(gate.optionValue) !== String(option.value) ||
+        String(option.value) !== String(optionValue) ||
+        feedback ||
+        answerLockRef.current ||
+        finishLockRef.current ||
+        finalSubmitReadyRef.current
+      ) return false;
+
+      // Both games use this one guarded entry into the established Quiz Engine.
+      // The UI locks synchronously; this handler independently rejects stale identities.
+      setSelectedOption(gate.laneIndex);
+      handleAnswer(gate.optionValue);
+      return true;
+    };
+
+    const handleGameFinalSubmit = () => {
+      if (finalSubmitReadyRef.current) {
+        finishQuiz({ playSubmitSound: true });
+      } else {
+        handleSubmitInfinite();
+      }
+    };
+
+    const sharedGameProps = {
+      onChangeGame: openGameSelectorFromActiveGame,
+      questionKey: gameQuestionKey,
+      questionLabel: renderQuestionText(),
+      options: gameOptions,
+      progressLabel: String(Math.min(currentQ + 1, questions.length)) + ' / ' + String(questions.length),
+      timerLabel: config.timerMode === 'challenge'
+        ? formatChallengeTime(challengeTimeLeft)
+        : config.timerMode === 'perQuestion' && config.timerSeconds < 9999
+          ? String(Math.max(0, timeLeft)) + 's'
+          : undefined,
+      correctAnswer: q.answer,
+      feedback,
+      selectedOption,
+      correctScore: score.correct,
+      wrongScore: score.wrong,
+      disabled: !!feedback || finished || answerLockRef.current || finishLockRef.current,
+      finalSubmitReady,
+      canFinalizeTest: finalSubmitReady || (
+        config.infinite && !config.repetitionEnabled && config.timerMode !== 'challenge' && score.correct + score.wrong > 0
+      ),
+      onSelectOption: handleGameOptionSelect,
+      onFinalSubmit: handleGameFinalSubmit,
+    };
 
     return (
       <>
@@ -2090,65 +2219,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         )}
 
         {config.mode === 'game' && (
-          <MCQWithGame
-            questionKey={gameQuestionKey}
-            questionLabel={renderQuestionText()}
-            options={gameOptions}
-            progressLabel={String(Math.min(currentQ + 1, questions.length)) + ' / ' + String(questions.length)}
-            timerLabel={config.timerMode === 'challenge'
-              ? formatChallengeTime(challengeTimeLeft)
-              : config.timerMode === 'perQuestion' && config.timerSeconds < 9999
-                ? String(Math.max(0, timeLeft)) + 's'
-                : undefined}
-            correctAnswer={q.answer}
-            feedback={feedback}
-            selectedOption={selectedOption}
-            correctScore={score.correct}
-            wrongScore={score.wrong}
-            durationMs={config.timerMode === 'perQuestion'
-              // Base gate speed reaches collision before the existing question deadline.
-              // Holding accelerates the same gate/world clock without changing that deadline.
-              ? Math.max(350, config.timerSeconds * 1000 - 300)
-              : config.timerMode === 'challenge' ? 4800 : 5200}
-            disabled={!!feedback || finished || answerLockRef.current || finishLockRef.current}
-            finalSubmitReady={finalSubmitReady}
-            canFinalizeTest={
-              finalSubmitReady ||
-              (config.infinite && !config.repetitionEnabled && config.timerMode !== 'challenge' && score.correct + score.wrong > 0)
-            }
-            onSelectOption={(laneIndex, optionValue, gateId) => {
-              const option = gameOptions[laneIndex];
-              const gate = gameGateMappings[laneIndex];
-              if (
-                !option ||
-                !gate ||
-                gate.gateId !== gateId ||
-                gate.questionId !== gameQuestionKey ||
-                String(gate.optionValue) !== String(option.value) ||
-                String(option.value) !== String(optionValue) ||
-                feedback ||
-                answerLockRef.current ||
-                finishLockRef.current ||
-                finalSubmitReadyRef.current
-              ) return false;
-
-              // Gate selection commits this question through the existing engine.
-              // The component locks synchronously before this callback to prevent
-              // a collision + tap or a rapid second gate from double-recording it.
-              setSelectedOption(gate.laneIndex);
-              handleAnswer(gate.optionValue);
-              return true;
-            }}
-            onFinalSubmit={() => {
-              if (finalSubmitReadyRef.current) {
-                finishQuiz({ playSubmitSound: true });
-              } else {
-                // Infinite non-challenge sessions have no configured final question;
-                // preserve their existing whole-session Submit behavior.
-                handleSubmitInfinite();
-              }
-            }}
-          />
+          selectedGameVariant === 'jump'
+            ? <MCQJumpAdventure {...sharedGameProps} />
+            : (
+              <MCQWithGame
+                {...sharedGameProps}
+                durationMs={config.timerMode === 'perQuestion'
+                  // Keep the established racing gate timing and collision flow unchanged.
+                  ? Math.max(350, config.timerSeconds * 1000 - 300)
+                  : config.timerMode === 'challenge' ? 4800 : 5200}
+              />
+            )
         )}
 
         {config.mode === 'input' && (
@@ -2867,12 +2948,35 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             <Keyboard size={17} />
             <span>Type Answer</span>
           </button>
-          <button type="button" aria-pressed={mode === 'game'} onClick={() => setMode('game')}
+          <button type="button" aria-pressed={mode === 'game'} onClick={() => {
+              modeBeforeGameSelectionRef.current = mode;
+              gameSelectionOpenRef.current = true;
+              setMode('game');
+              setGameSelectionOpen(true);
+            }}
             className={`flex min-h-[64px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-bold leading-tight transition-colors ${mode === 'game' ? 'gradient-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
             <CarFront size={17} />
             <span>MCQ with Game</span>
           </button>
         </div>
+        {mode === 'game' && (
+          <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
+            <span className="min-w-0 text-xs font-bold text-foreground">
+              Selected: {selectedGameVariant === 'car' ? '3D Math Car Racing' : '2D Math Jump Adventure'}
+            </span>
+            <button
+              type="button"
+              className="min-h-9 shrink-0 rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary"
+              onClick={() => {
+                modeBeforeGameSelectionRef.current = mode;
+                gameSelectionOpenRef.current = true;
+                setGameSelectionOpen(true);
+              }}
+            >
+              Change Game
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Mutually exclusive per-question Timer / full-session Challenge */}
