@@ -40,7 +40,7 @@ import MCQJumpAdventure from '@/components/MCQJumpAdventure';
 import MCQSpaceShooter from '@/components/MCQSpaceShooter';
 import GameModeSelector, { type MCQGameVariant } from '@/components/GameModeSelector';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
-import { MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS, MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS, createMCQGateMappings } from '@/lib/mcqGamePhysics';
+import { MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS, isMCQGameCollisionWithinDeadline, createMCQGateMappings } from '@/lib/mcqGamePhysics';
 
 type PracticeMode = 'mcq' | 'input' | 'game';
 
@@ -1379,7 +1379,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       const challengeExpired =
         config.timerMode === 'challenge' && challengeDeadlineRef.current !== null &&
         (isCarTargetCollision
-          ? eventTimestampMs > challengeDeadlineRef.current + MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS
+          ? !isMCQGameCollisionWithinDeadline(eventTimestampMs, challengeDeadlineRef.current)
           : eventTimestampMs >= challengeDeadlineRef.current);
       if (challengeExpired) {
         setChallengeTimeLeft(0);
@@ -1395,7 +1395,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         config.timerMode === 'perQuestion' &&
         questionDeadlineRef.current !== null &&
         (isCarTargetCollision
-          ? eventTimestampMs > questionDeadlineRef.current + MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS
+          ? !isMCQGameCollisionWithinDeadline(eventTimestampMs, questionDeadlineRef.current)
           : performance.now() >= questionDeadlineRef.current);
       const lateCarCollision = isCarTargetCollision && questionExpired;
       const finalCarCollisionAccepted = isCarTargetCollision && !lateCarCollision;
