@@ -83,6 +83,7 @@ interface SpaceWorld {
 
 const PROJECTILE_SPEED = 690;
 const PROJECTILE_LIFETIME_MS = 1500;
+const DOUBLE_TAP_WINDOW_MS = 280;
 const MAX_PARTICLES = 36;
 const SHIP_RADIUS = 24;
 
@@ -851,7 +852,7 @@ const MCQSpaceShooter = ({
           aria-label="Right touch zone: single tap moves aim right, double tap fires at aimed target"
           data-testid="space-touch-right"
         />
-        <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets">
+        <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets" style={{ gridTemplateColumns: `repeat(${Math.max(1, options.length)}, minmax(0, 1fr))` }}>
           {options.map((option, index) => {
             const mapping = mappings[index];
             return (
