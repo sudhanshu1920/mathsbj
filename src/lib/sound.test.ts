@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRacingAudioController, playRightAnswer, playWrong, playSubmit } from './sound';
+import { createRacingAudioController, playRightAnswer, playWrong, playSubmit, playJump, playLanding } from './sound';
 import { MCQ_GAME_BASE_SPEED_MULTIPLIER, MCQ_GAME_MAX_SPEED_MULTIPLIER } from './mcqGamePhysics';
 
 const settingsState = vi.hoisted(() => ({ sound: true }));
@@ -205,6 +205,19 @@ it('creates one speed-responsive engine/wind loop, respects Sound OFF, pauses, a
     expect(context.oscillators.every((oscillator) => oscillator.stop.mock.calls.length === 1)).toBe(true);
     expect(context.bufferSources[0].stop).toHaveBeenCalledTimes(1);
     expect(context.gains[0].disconnect).toHaveBeenCalled();
+
+    settingsState.sound = true;
+    const oscillatorCount = context.oscillators.length;
+    playJump();
+    expect(context.oscillators).toHaveLength(oscillatorCount + 3);
+    playLanding();
+    expect(context.oscillators).toHaveLength(oscillatorCount + 4);
+
+    settingsState.sound = false;
+    const mutedOscillatorCount = context.oscillators.length;
+    playJump();
+    playLanding();
+    expect(context.oscillators).toHaveLength(mutedOscillatorCount);
   } finally {
     controller.dispose();
     settingsState.sound = true;
