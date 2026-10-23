@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowLeft, CarFront, Check, Send, Timer, X } from "lucide-react";
+import { ArrowLeft, CarFront, Check, Pause, Play, RotateCcw, Send, Timer, X } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import {
   MCQ_GAME_CAR_HALF_WIDTH,
@@ -33,6 +33,7 @@ type GamePhase = "INITIALIZING" | "RUNNING" | "ANSWERING" | "FEEDBACK" | "PAUSED
 
 interface MCQWithGameProps {
   questionKey: string | number;
+  sessionKey?: string | number;
   questionLabel: ReactNode;
   options: MCQWithGameOption[];
   correctAnswer: MCQGameValue;
@@ -49,6 +50,8 @@ interface MCQWithGameProps {
   onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
   onFinalSubmit: () => void;
   onChangeGame?: () => void;
+  onRestartGame?: () => void;
+  onPauseChange?: (paused: boolean) => void;
 }
 
 interface SteeringPress {
@@ -63,6 +66,7 @@ interface SteeringPress {
 
 const MCQWithGame = ({
   questionKey,
+  sessionKey,
   questionLabel,
   options,
   correctAnswer,
@@ -79,6 +83,8 @@ const MCQWithGame = ({
   onSelectOption,
   onFinalSubmit,
   onChangeGame,
+  onRestartGame,
+  onPauseChange,
 }: MCQWithGameProps) => {
   const [lane, setLane] = useState(1);
   const [phase, setPhase] = useState<GamePhase>("INITIALIZING");
@@ -107,6 +113,7 @@ const MCQWithGame = ({
   const onFinalSubmitRef = useRef(onFinalSubmit);
   const finalSubmitInvokedRef = useRef(false);
   const activeQuestionKeyRef = useRef(String(questionKey));
+  const activeSessionKeyRef = useRef(String(sessionKey ?? "default"));
   const boostingRef = useRef(false);
   const speedMultiplierRef = useRef(MCQ_GAME_BASE_SPEED_MULTIPLIER);
   const touchGestureRef = useRef<SteeringPress | null>(null);
@@ -119,6 +126,7 @@ const MCQWithGame = ({
 
   const latestPropsRef = useRef({
     questionKey: String(questionKey),
+    sessionKey: String(sessionKey ?? "default"),
     questionLabel,
     options,
     correctAnswer,
@@ -134,9 +142,13 @@ const MCQWithGame = ({
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
+    onChangeGame,
+    onRestartGame,
+    onPauseChange,
   });
   latestPropsRef.current = {
     questionKey: String(questionKey),
+    sessionKey: String(sessionKey ?? "default"),
     questionLabel,
     options,
     correctAnswer,
@@ -152,6 +164,9 @@ const MCQWithGame = ({
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
+    onChangeGame,
+    onRestartGame,
+    onPauseChange,
   };
 
   const nextMappings = createMCQGateMappings(questionKey, options.map((option) => option.value));
@@ -184,6 +199,50 @@ const MCQWithGame = ({
     boostingRef.current = false;
     setBoosting(false);
   }, []);
+
+  const setPausedState = useCallback((nextPaused: boolean, force = false) => {
+    const current = latestPropsRef.current;
+    if (nextPaused && !force && (
+      current.disabled ||
+      current.feedback ||
+      current.finalSubmitReady ||
+      submittedRef.current ||
+      phaseRef.current === "ANSWERING"
+    )) return;
+
+    const currentlyPaused = phaseRef.current === "PAUSED";
+    if (currentlyPaused === nextPaused) return;
+
+    if (nextPaused) {
+      phaseRef.current = "PAUSED";
+      setPhase("PAUSED");
+      clearHoldTimer();
+      touchGestureRef.current = null;
+      endBoost();
+      lastTimestampRef.current = null;
+      racingAudioRef.current?.pause();
+      if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
+        window.cancelAnimationFrame(frameRef.current);
+      }
+      frameRef.current = null;
+      current.onPauseChange?.(true);
+      return;
+    }
+
+    if (document.hidden) return;
+    const resumePhase: GamePhase = current.feedback
+      ? "FEEDBACK"
+      : submittedRef.current
+        ? "ANSWERING"
+        : "RUNNING";
+    phaseRef.current = resumePhase;
+    setPhase(resumePhase);
+    lastTimestampRef.current = null;
+    racingAudioRef.current?.resume();
+    void setGameImmersiveMode(true);
+    current.onPauseChange?.(false);
+    scheduleFrameRef.current?.();
+  }, [clearHoldTimer, endBoost]);
 
   const changeLane = useCallback((direction: -1 | 1) => {
     if (disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
@@ -366,22 +425,32 @@ const MCQWithGame = ({
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
-    const handleWindowBlur = () => {
-      clearHoldTimer();
-      touchGestureRef.current = null;
-      endBoost();
-      racingAudioRef.current?.pause();
-    };
+    const handleWindowBlur = () => setPausedState(true, true);
     const handleWindowFocus = () => {
-      if (!document.hidden) racingAudioRef.current?.resume();
+      if (!document.hidden && phaseRef.current !== "PAUSED") racingAudioRef.current?.resume();
+    };
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setPausedState(true, true);
+        return;
+      }
+
+      // Returning to the app never silently resumes the race. The player must
+      // press Resume so the racing loop and quiz timer restart together.
+      if (phaseRef.current !== "PAUSED") {
+        void setGameImmersiveMode(true);
+        racingAudioRef.current?.resume();
+      }
     };
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     void setGameImmersiveMode(true);
 
     return () => {
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearHoldTimer();
       touchGestureRef.current = null;
       boostingRef.current = false;
@@ -390,7 +459,7 @@ const MCQWithGame = ({
       document.body.style.overflow = previousBodyOverflow;
       document.body.style.overscrollBehavior = previousOverscroll;
     };
-  }, [clearHoldTimer]);
+  }, [clearHoldTimer, setPausedState]);
 
   useEffect(() => {
     const panel = questionPanelRef.current;
@@ -551,54 +620,24 @@ const MCQWithGame = ({
     };
 
     const scheduleFrame = () => {
-      if (frameRef.current === null && !document.hidden && typeof window.requestAnimationFrame === "function") {
+      if (frameRef.current === null && !document.hidden &&
+          phaseRef.current !== "PAUSED" &&
+          typeof window.requestAnimationFrame === "function") {
         frameRef.current = window.requestAnimationFrame(animate);
       }
     };
     scheduleFrameRef.current = scheduleFrame;
 
-    const initialPhase: GamePhase = document.hidden
+    const initialPhase: GamePhase = document.hidden || phaseRef.current === "PAUSED"
       ? "PAUSED"
       : latestPropsRef.current.disabled
         ? (latestPropsRef.current.feedback ? "FEEDBACK" : "RUNNING")
         : "RUNNING";
     phaseRef.current = initialPhase;
     setPhase(initialPhase);
+    if (initialPhase === "PAUSED") latestPropsRef.current.onPauseChange?.(true);
     renderFrame();
     scheduleFrame();
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        phaseRef.current = "PAUSED";
-        setPhase("PAUSED");
-        clearHoldTimer();
-        touchGestureRef.current = null;
-        boostingRef.current = false;
-        setBoosting(false);
-        racingAudioRef.current?.pause();
-        if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
-          window.cancelAnimationFrame(frameRef.current);
-        }
-        frameRef.current = null;
-        lastTimestampRef.current = null;
-        return;
-      }
-
-      const current = latestPropsRef.current;
-      void setGameImmersiveMode(true);
-      racingAudioRef.current?.resume();
-      const resumePhase: GamePhase = current.feedback
-        ? "FEEDBACK"
-        : submittedRef.current
-          ? "ANSWERING"
-          : "RUNNING";
-      phaseRef.current = resumePhase;
-      setPhase(resumePhase);
-      lastTimestampRef.current = null;
-      scheduleFrame();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       clearHoldTimer();
@@ -606,29 +645,45 @@ const MCQWithGame = ({
         window.cancelAnimationFrame(frameRef.current);
       }
       frameRef.current = null;
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       scene.dispose();
       if (sceneRef.current === scene) sceneRef.current = null;
       drawCurrentFrameRef.current = null;
       scheduleFrameRef.current = null;
       gateLabelRefs.current = [];
     };
-  }, [clearHoldTimer, selectLaneAnswer]);
+  }, [clearHoldTimer, selectLaneAnswer, setPausedState]);
 
   useLayoutEffect(() => {
     const nextKey = String(questionKey);
-    if (activeQuestionKeyRef.current === nextKey) return;
+    const nextSessionKey = String(sessionKey ?? "default");
+    const questionChanged = activeQuestionKeyRef.current !== nextKey;
+    const sessionChanged = activeSessionKeyRef.current !== nextSessionKey;
+    if (!questionChanged && !sessionChanged) return;
+
     activeQuestionKeyRef.current = nextKey;
+    if (sessionChanged) {
+      activeSessionKeyRef.current = nextSessionKey;
+      clearHoldTimer();
+      touchGestureRef.current = null;
+      laneRef.current = 1;
+      targetCarXRef.current = MCQ_GAME_LANE_X[1];
+      carXRef.current = MCQ_GAME_LANE_X[1];
+      setLane(1);
+      speedMultiplierRef.current = MCQ_GAME_BASE_SPEED_MULTIPLIER;
+      boostingRef.current = false;
+      setBoosting(false);
+      scrollOffsetRef.current = 0;
+      lastTimestampRef.current = null;
+    }
 
     submittedRef.current = false;
     finalSubmitInvokedRef.current = false;
     selectedOptionRef.current = latestPropsRef.current.selectedOption;
     collisionPassConsumedRef.current = false;
 
-    // The same four screen anchors survive each question. Only option identity
-    // and per-question contact locks change; car/road/speed/hold stay continuous.
-
-    const nextPhase: GamePhase = document.hidden
+    // Question changes preserve the race. A genuinely new quiz session resets
+    // the car, boost, speed and road phase without recreating the WebGL scene.
+    const nextPhase: GamePhase = document.hidden || phaseRef.current === "PAUSED"
       ? "PAUSED"
       : latestPropsRef.current.feedback
         ? "FEEDBACK"
@@ -637,13 +692,15 @@ const MCQWithGame = ({
     setPhase(nextPhase);
     drawCurrentFrameRef.current?.();
     scheduleFrameRef.current?.();
-  }, [questionKey]);
+  }, [questionKey, sessionKey, clearHoldTimer]);
 
   useEffect(() => {
     if (!feedback) return;
     submittedRef.current = true;
-    phaseRef.current = "FEEDBACK";
-    setPhase("FEEDBACK");
+    if (phaseRef.current !== "PAUSED") {
+      phaseRef.current = "FEEDBACK";
+      setPhase("FEEDBACK");
+    }
     drawCurrentFrameRef.current?.();
   }, [feedback]);
 
@@ -685,6 +742,9 @@ const MCQWithGame = ({
           } else if (event.key === "ArrowRight") {
             event.preventDefault();
             changeLane(1);
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            setPausedState(phaseRef.current !== "PAUSED");
           }
         }}
       >
@@ -810,6 +870,20 @@ const MCQWithGame = ({
           )}
           <button
             type="button"
+            className="mcq-game-pause"
+            aria-label={phase === "PAUSED" ? "Resume game" : "Pause game"}
+            disabled={phase !== "PAUSED" && (
+              disabled || finalSubmitReady || !!feedback ||
+              phase === "ANSWERING" || submittedRef.current
+            )}
+            onClick={() => setPausedState(phaseRef.current !== "PAUSED")}
+          >
+            {phase === "PAUSED"
+              ? <Play size={18} aria-hidden="true" />
+              : <Pause size={18} aria-hidden="true" />}
+          </button>
+          <button
+            type="button"
             className="mcq-game-submit"
             aria-label="Submit complete test"
             data-testid="mcq-game-submit"
@@ -831,6 +905,46 @@ const MCQWithGame = ({
         >
           <div className="mcq-game-question-content">{questionLabel}</div>
         </div>
+        {phase === "PAUSED" && (
+          <div className="mcq-game-paused-overlay" role="dialog" aria-modal="true" aria-label="Race paused">
+            <div className="mcq-game-paused-card">
+              <Pause size={28} aria-hidden="true" />
+              <strong>Race paused</strong>
+              <span>The car, road animation, and quiz timer are paused.</span>
+              <button
+                type="button"
+                className="mcq-game-paused-action"
+                onClick={() => setPausedState(false)}
+              >
+                <Play size={17} aria-hidden="true" /> Resume race
+              </button>
+              {onRestartGame && (
+                <button
+                  type="button"
+                  className="mcq-game-paused-action mcq-game-paused-action--secondary"
+                  onClick={() => {
+                    setPausedState(false);
+                    latestPropsRef.current.onRestartGame?.();
+                  }}
+                >
+                  <RotateCcw size={17} aria-hidden="true" /> Restart quiz
+                </button>
+              )}
+              {onChangeGame && (
+                <button
+                  type="button"
+                  className="mcq-game-paused-action mcq-game-paused-action--secondary"
+                  onClick={() => {
+                    setPausedState(false);
+                    latestPropsRef.current.onChangeGame?.();
+                  }}
+                >
+                  <ArrowLeft size={17} aria-hidden="true" /> Return to game selection
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <span className="mcq-game-lane-readout sr-only" data-testid="mcq-game-lane-readout" aria-live="polite">{laneAnnouncement}</span>
         <p className="mcq-game-status sr-only" role="status" aria-live="polite">{phaseStatus}</p>
       </div>

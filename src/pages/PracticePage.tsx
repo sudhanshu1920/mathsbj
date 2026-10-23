@@ -2278,6 +2278,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
               : (
                 <MCQWithGame
                   {...sharedGameProps}
+                  sessionKey={questionPoolGenerationRef.current}
+                  onPauseChange={handleJumpPauseChange}
+                  onRestartGame={() => startPractice(config)}
                   durationMs={config.timerMode === 'perQuestion'
                     // Keep the established racing gate timing and collision flow unchanged.
                     ? Math.max(350, config.timerSeconds * 1000 - 300)

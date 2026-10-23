@@ -587,6 +587,112 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("pauses the race loop and quiz timer, then resumes without recreating the 3D scene", () => {
+    const raf = installAnimationFrameQueue();
+    const onPauseChange = vi.fn();
+    const onSelectOption = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({ onPauseChange, onSelectOption })} />);
+
+    try {
+      expect(raf.advance(0)).toBe(true);
+      const updatesBeforePause = racingAudioMocks.update.mock.calls.length;
+
+      fireEvent.click(screen.getByRole("button", { name: "Pause game" }));
+      expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+      expect(onPauseChange).toHaveBeenNthCalledWith(1, true);
+      expect(raf.advance(1000)).toBe(false);
+      expect(racingAudioMocks.update).toHaveBeenCalledTimes(updatesBeforePause);
+      expect(onSelectOption).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Resume race" }));
+      expect(screen.queryByRole("dialog", { name: "Race paused" })).not.toBeInTheDocument();
+      expect(onPauseChange).toHaveBeenNthCalledWith(2, false);
+      expect(raf.advance(1050)).toBe(true);
+      expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
+      expect(onSelectOption).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("stays paused after returning from background until the player explicitly resumes", () => {
+    const onPauseChange = vi.fn();
+    render(<MCQWithGame {...gameProps({ onPauseChange })} />);
+
+    act(() => window.dispatchEvent(new Event("blur")));
+    expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+    expect(onPauseChange).toHaveBeenNthCalledWith(1, true);
+
+    act(() => window.dispatchEvent(new Event("focus")));
+    expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+    expect(onPauseChange).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume race" }));
+    expect(onPauseChange).toHaveBeenNthCalledWith(2, false);
+  });
+
+  it("pauses on document visibility changes even if WebGL rendering cannot start", () => {
+    vi.mocked(createMCQ3DScene).mockImplementation(() => {
+      throw new Error("WebGL unavailable");
+    });
+    const onPauseChange = vi.fn();
+    render(<MCQWithGame {...gameProps({ onPauseChange })} />);
+    const originalHidden = Object.getOwnPropertyDescriptor(document, "hidden");
+
+    try {
+      Object.defineProperty(document, "hidden", { configurable: true, value: true });
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+      expect(onPauseChange).toHaveBeenNthCalledWith(1, true);
+
+      Object.defineProperty(document, "hidden", { configurable: true, value: false });
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+      expect(onPauseChange).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByRole("button", { name: "Resume race" }));
+      expect(onPauseChange).toHaveBeenNthCalledWith(2, false);
+    } finally {
+      if (originalHidden) Object.defineProperty(document, "hidden", originalHidden);
+      else Reflect.deleteProperty(document, "hidden");
+    }
+  });
+
+  it("preserves lane position across question changes but resets driving state for a new quiz session", () => {
+    const raf = installAnimationFrameQueue();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps({ sessionKey: "session-1" })} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, { pointerId: 1, button: 0, clientX: 320, clientY: 650 });
+      now = 40;
+      fireEvent.pointerUp(stage, { pointerId: 1, button: 0, clientX: 320, clientY: 650 });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-2",
+        sessionKey: "session-1",
+        questionLabel: <p>18 + 9 = ?</p>,
+      })} />);
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-3",
+        sessionKey: "session-2",
+        questionLabel: <p>20 + 7 = ?</p>,
+      })} />);
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
+      expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("keeps gate selection available without WebGL and restricts Submit to whole-test finalization", () => {
     vi.mocked(createMCQ3DScene).mockImplementation(() => {
       throw new Error("WebGL unavailable");
