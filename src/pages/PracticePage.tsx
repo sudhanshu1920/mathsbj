@@ -1304,7 +1304,18 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           : getRemainingSeconds(deadline, performance.now());
         setChallengeTimeLeft((previous) => previous === remaining ? previous : remaining);
         if (remaining === 0) {
-          finishQuiz();
+          if (config.mode === 'game' && selectedGameVariant === 'car') {
+            // Allow the racing loop to report a contact in the final deadline frame.
+            if (!challengeTimeoutTimerRef.current) {
+              challengeTimeoutTimerRef.current = setTimeout(() => {
+                challengeTimeoutTimerRef.current = undefined;
+                if (!finishLockRef.current && challengeDeadlineRef.current !== null &&
+                    performance.now() >= challengeDeadlineRef.current) finishQuiz();
+              }, MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS + 30);
+            }
+          } else {
+            finishQuiz();
+          }
           return;
         }
       }
@@ -1325,7 +1336,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         const remaining = deadline === null ? 0 : getRemainingSeconds(deadline, performance.now());
         setTimeLeft((previous) => previous === remaining ? previous : remaining);
         if (remaining === 0 && !answerLockRef.current) {
-          handleAnswerRef.current(null);
+          if (config.mode === 'game' && selectedGameVariant === 'car') {
+            // Defer timeout briefly so collision vs expiry has deterministic ordering.
+            if (!questionTimeoutTimerRef.current) {
+              questionTimeoutTimerRef.current = setTimeout(() => {
+                questionTimeoutTimerRef.current = undefined;
+                if (!answerLockRef.current && !finishLockRef.current) handleAnswerRef.current(null);
+              }, MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS + 30);
+            }
+          } else {
+            handleAnswerRef.current(null);
+          }
         }
       }
     }, 1000);
@@ -1334,32 +1355,45 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
       sessionIntervalRef.current = undefined;
     };
-  }, [config, finished, finishQuiz, gameSelectionOpen]);
+  }, [config, finished, finishQuiz, gameSelectionOpen, selectedGameVariant]);
 
   const handleAnswer = useCallback(
-    (answer: number | string | null) => {
-      if (!config || finished || feedback || answerLockRef.current || finishLockRef.current || finalSubmitReadyRef.current) return;
-      if (
-        config.timerMode === 'challenge' &&
-        challengeDeadlineRef.current !== null &&
-        performance.now() >= challengeDeadlineRef.current
-      ) {
+    (answer: number | string | null, contactTimestampMs?: number): boolean => {
+      if (!config || finished || feedback || answerLockRef.current || finishLockRef.current || finalSubmitReadyRef.current) return false;
+      const isCarTargetCollision =
+        config.mode === 'game' && selectedGameVariant === 'car' && answer !== null &&
+        typeof contactTimestampMs === 'number' && Number.isFinite(contactTimestampMs);
+      const eventTimestampMs = isCarTargetCollision ? contactTimestampMs! : performance.now();
+      const challengeExpired =
+        config.timerMode === 'challenge' && challengeDeadlineRef.current !== null &&
+        (isCarTargetCollision
+          ? eventTimestampMs > challengeDeadlineRef.current + MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS
+          : eventTimestampMs >= challengeDeadlineRef.current);
+      if (challengeExpired) {
         setChallengeTimeLeft(0);
         finishQuiz();
-        return;
+        return false;
       }
       const q = questions[currentQ];
-      if (!q) return;
-      // The countdown deadline is the source of truth, not a delayed interval tick.
-      // A collision delivered after expiry is processed as a timeout, never as an answer.
+      if (!q) return false;
+
+      // Check the timestamp of physical contact, not the later React callback time.
       const questionExpired =
         answer !== null &&
         config.timerMode === 'perQuestion' &&
         questionDeadlineRef.current !== null &&
-        performance.now() >= questionDeadlineRef.current;
+        (isCarTargetCollision
+          ? eventTimestampMs > questionDeadlineRef.current + MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS
+          : performance.now() >= questionDeadlineRef.current);
+      const lateCarCollision = isCarTargetCollision && questionExpired;
+      const finalCarCollisionAccepted = isCarTargetCollision && !lateCarCollision;
       const submittedAnswer = questionExpired ? null : answer;
       if (questionExpired) setTimeLeft(0);
       answerLockRef.current = true;
+      if (questionTimeoutTimerRef.current) clearTimeout(questionTimeoutTimerRef.current);
+      if (challengeTimeoutTimerRef.current) clearTimeout(challengeTimeoutTimerRef.current);
+      questionTimeoutTimerRef.current = undefined;
+      challengeTimeoutTimerRef.current = undefined;
 
       let isCorrect = false;
       if (submittedAnswer !== null) {
@@ -1509,9 +1543,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           originalQuestionCountRef.current,
         );
         if (isFiniteQuiz && shouldFinishCurrentPool) {
-          if (config.mode === 'game') {
-            // The last answer has already been scored by the existing engine.
-            // Pause question timing and require a separate whole-test submission.
+          if (config.mode === 'game' && selectedGameVariant === 'car' && finalCarCollisionAccepted) {
+            // Final physical contact is scored before the existing one-shot completion flow.
+            questionDeadlineRef.current = null;
+            setTimeLeft(0);
+            finishQuiz({ playSubmitSound: true });
+          } else if (config.mode === 'game') {
+            // Preserve manual completion for other games, timeouts and unresolved retries.
             questionDeadlineRef.current = null;
             setTimeLeft(0);
             setFinalSubmitReady(true);
@@ -1555,8 +1593,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         }
         answerLockRef.current = false;
       }, config.mode === 'game' ? 260 : isCorrect ? 350 : 700);
+      return !lateCarCollision;
     },
-    [config, currentQ, questions, score, finished, feedback, finishQuiz]
+    [config, currentQ, questions, score, finished, feedback, finishQuiz, selectedGameVariant]
   );
 
   useEffect(() => {
@@ -2056,7 +2095,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       ? createMCQGateMappings(gameQuestionKey, gameOptions.map((option) => option.value))
       : [];
 
-    const handleGameOptionSelect = (laneIndex: number, optionValue: string | number, gateId: string): boolean => {
+    const handleGameOptionSelect = (
+      laneIndex: number,
+      optionValue: string | number,
+      gateId: string,
+      contactTimestampMs?: number,
+    ): boolean => {
       const option = gameOptions[laneIndex];
       const gate = gameGateMappings[laneIndex];
       if (
@@ -2072,10 +2116,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         finalSubmitReadyRef.current
       ) return false;
 
-      // Both games use this one guarded entry into the established Quiz Engine.
-      // The UI locks synchronously; this handler independently rejects stale identities.
+      // Enter through the existing Quiz Engine and propagate whether it accepted this contact.
+      const accepted = handleAnswer(gate.optionValue, contactTimestampMs);
+      if (!accepted) return false;
       setSelectedOption(gate.laneIndex);
-      handleAnswer(gate.optionValue);
       return true;
     };
 
@@ -2348,10 +2392,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   sessionKey={questionPoolGenerationRef.current}
                   onPauseChange={handleJumpPauseChange}
                   onRestartGame={() => startPractice(config)}
-                  durationMs={config.timerMode === 'perQuestion'
-                    // Keep the established racing gate timing and collision flow unchanged.
-                    ? Math.max(350, config.timerSeconds * 1000 - 300)
-                    : config.timerMode === 'challenge' ? 4800 : 5200}
+                  durationMs={
+                    config.timerMode === 'perQuestion' && config.timerSeconds < 9999
+                      ? config.timerSeconds * 1000
+                      : MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS
+                  }
                 />
               )
         )}
