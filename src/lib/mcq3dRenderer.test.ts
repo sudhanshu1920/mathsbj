@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { getMCQ3DVerticalFovDegrees } from "@/lib/mcq3dRenderer";
+import {
+  getMCQ3DEnvironmentChangeDelay,
+  getMCQ3DVerticalFovDegrees,
+  getNextMCQ3DEnvironmentThemeIndex,
+  MCQ_3D_ENVIRONMENT_CHANGE_MAX_MS,
+  MCQ_3D_ENVIRONMENT_CHANGE_MIN_MS,
+  MCQ_3D_ENVIRONMENT_THEME_COUNT,
+} from "@/lib/mcq3dRenderer";
 
 const ASPECT_RATIOS = [0.45, 0.6, 0.75, 0.9, 1.2, 1.6, 1.8, 2.2] as const;
 
@@ -41,6 +48,30 @@ function projectedVerticalNdc(point: readonly [number, number, number], aspectRa
   const verticalFov = getMCQ3DVerticalFovDegrees(aspectRatio);
   return cameraY / (depth * Math.tan((verticalFov * Math.PI) / 360));
 }
+
+describe("MCQ 3D random environment rotation", () => {
+  it("keeps random background intervals within the active-play range", () => {
+    expect(getMCQ3DEnvironmentChangeDelay(0)).toBe(MCQ_3D_ENVIRONMENT_CHANGE_MIN_MS);
+    expect(getMCQ3DEnvironmentChangeDelay(0.999999)).toBe(MCQ_3D_ENVIRONMENT_CHANGE_MAX_MS);
+    for (const value of [0, 0.25, 0.5, 0.75, 0.999999, Number.NaN]) {
+      const delay = getMCQ3DEnvironmentChangeDelay(value);
+      expect(delay).toBeGreaterThanOrEqual(MCQ_3D_ENVIRONMENT_CHANGE_MIN_MS);
+      expect(delay).toBeLessThanOrEqual(MCQ_3D_ENVIRONMENT_CHANGE_MAX_MS);
+    }
+  });
+
+  it("selects a different valid theme rather than immediately repeating the current one", () => {
+    expect(MCQ_3D_ENVIRONMENT_THEME_COUNT).toBeGreaterThanOrEqual(4);
+    for (let current = 0; current < MCQ_3D_ENVIRONMENT_THEME_COUNT; current += 1) {
+      for (const randomValue of [0, 0.2, 0.5, 0.8, 0.999999]) {
+        const next = getNextMCQ3DEnvironmentThemeIndex(current, randomValue);
+        expect(next).toBeGreaterThanOrEqual(0);
+        expect(next).toBeLessThan(MCQ_3D_ENVIRONMENT_THEME_COUNT);
+        expect(next).not.toBe(current);
+      }
+    }
+  });
+});
 
 describe("MCQ 3D responsive camera framing", () => {
   it("keeps at least a 90-degree horizontal field of view across supported screen shapes", () => {
