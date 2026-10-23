@@ -570,7 +570,7 @@ describe("Full-screen continuous MCQ racing", () => {
       const approachingPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
       expect(approachingPositions).not.toEqual(initialPositions);
       expect(onSelectOption).not.toHaveBeenCalled();
-      expect(renderer.mock.calls.every(([frame]) => Object.keys(frame as object).sort().join(",") === "carX,gateZ,scrollOffset")).toBe(true);
+      expect(renderer.mock.calls.every(([frame]) => Object.keys(frame as object).sort().join(",") === "activeElapsedMs,carX,gateZ,scrollOffset")).toBe(true);
       const gateDepths = renderer.mock.calls.map(([frame]) => (frame as { gateZ: number }).gateZ);
       expect(gateDepths.some((gateZ) => gateZ > -9)).toBe(true);
 
@@ -660,8 +660,8 @@ describe("Full-screen continuous MCQ racing", () => {
   });
 
   it("moves answer targets toward collision faster while the player holds accelerate", () => {
-    const raf = installAnimationFrameQueue();
     vi.useFakeTimers();
+    const raf = installAnimationFrameQueue();
     let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const view = render(<MCQWithGame {...gameProps({ questionKey: "q-hold-targets", durationMs: 5_000 })} />);
