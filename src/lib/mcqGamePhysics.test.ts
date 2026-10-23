@@ -1,3 +1,4 @@
+import { resolveMCQGameGateTravelDurationMs, MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS } from "@/lib/mcqGamePhysics";
 import { describe, expect, it } from "vitest";
 import {
   MCQ_GAME_BASE_SPEED_MULTIPLIER,
@@ -16,6 +17,16 @@ import {
 } from "@/lib/mcqGamePhysics";
 
 describe("3D MCQ racing steering and collision physics", () => {
+  it("uses the selected per-question timer for gate travel and defaults to ten seconds only when absent", () => {
+    expect(resolveMCQGameGateTravelDurationMs(5_000)).toBe(5_000);
+    expect(resolveMCQGameGateTravelDurationMs(10_000)).toBe(10_000);
+    expect(resolveMCQGameGateTravelDurationMs(20_000)).toBe(20_000);
+    expect(resolveMCQGameGateTravelDurationMs(undefined)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
+    expect(resolveMCQGameGateTravelDurationMs(null)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
+    expect(resolveMCQGameGateTravelDurationMs(0)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
+    expect(resolveMCQGameGateTravelDurationMs(Number.NaN)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
+  });
+
   it("binds each visible answer to one stable option, lane and gate", () => {
     const mappings = createMCQGateMappings("question-42", ["26", "28", "22", "33"]);
     expect(mappings).toHaveLength(4);
