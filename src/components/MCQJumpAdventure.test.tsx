@@ -3,9 +3,47 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import MCQJumpAdventure from "@/components/MCQJumpAdventure";
 
+const originalRequestAnimationFrame = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
+const originalCancelAnimationFrame = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
+
+function mockCanvasContext() {
+  const gradient = { addColorStop: vi.fn() };
+  const context = {
+    clearRect: vi.fn(),
+    createLinearGradient: vi.fn(() => gradient),
+    fillRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    ellipse: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    quadraticCurveTo: vi.fn(),
+    closePath: vi.fn(),
+    fill: vi.fn(),
+    stroke: vi.fn(),
+    fillText: vi.fn(),
+    setTransform: vi.fn(),
+  } as unknown as CanvasRenderingContext2D;
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context);
+  Object.defineProperty(window, "requestAnimationFrame", {
+    configurable: true,
+    writable: true,
+    value: () => 1,
+  });
+  Object.defineProperty(window, "cancelAnimationFrame", {
+    configurable: true,
+    writable: true,
+    value: vi.fn(),
+  });
+}
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  if (originalRequestAnimationFrame) Object.defineProperty(window, "requestAnimationFrame", originalRequestAnimationFrame);
+  else Reflect.deleteProperty(window, "requestAnimationFrame");
+  if (originalCancelAnimationFrame) Object.defineProperty(window, "cancelAnimationFrame", originalCancelAnimationFrame);
+  else Reflect.deleteProperty(window, "cancelAnimationFrame");
 });
 
 const options = [
@@ -36,7 +74,7 @@ function props(overrides: Partial<ComponentProps<typeof MCQJumpAdventure>> = {})
 
 describe("2D Math Jump Adventure UI", () => {
   it("renders movement and jump controls with explicit answer tiles", () => {
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    mockCanvasContext();
     render(<MCQJumpAdventure {...props()} />);
     expect(screen.getByRole("button", { name: "Move left" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Move right" })).toBeInTheDocument();
@@ -46,7 +84,7 @@ describe("2D Math Jump Adventure UI", () => {
   });
 
   it("submits a chosen answer exactly once per question through the supplied quiz callback", () => {
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    mockCanvasContext();
     const onSelectOption = vi.fn(() => true);
     render(<MCQJumpAdventure {...props({ onSelectOption })} />);
     const answer = screen.getByRole("button", { name: "Answer 28" });
@@ -57,7 +95,7 @@ describe("2D Math Jump Adventure UI", () => {
   });
 
   it("pauses gameplay and reports pause/resume to the owning quiz timer when focus is lost", () => {
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    mockCanvasContext();
     const onPauseChange = vi.fn();
     render(<MCQJumpAdventure {...props({ onPauseChange })} />);
     fireEvent.pointerDown(screen.getByRole("button", { name: "Move right" }));
@@ -72,7 +110,7 @@ describe("2D Math Jump Adventure UI", () => {
   });
 
   it("exposes functional restart-session and exit actions in the pause menu", () => {
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    mockCanvasContext();
     const onRestartGame = vi.fn();
     const onChangeGame = vi.fn();
     render(<MCQJumpAdventure {...props({ onRestartGame, onChangeGame })} />);
@@ -81,12 +119,12 @@ describe("2D Math Jump Adventure UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "Restart quiz" }));
     expect(onRestartGame).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Exit to game selection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Return to game selector" }));
     expect(onChangeGame).toHaveBeenCalledTimes(1);
   });
 
   it("starts a clean unpaused world when the owning quiz session is restarted", () => {
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    mockCanvasContext();
     const onPauseChange = vi.fn();
     const view = render(<MCQJumpAdventure {...props({ sessionKey: 1, onPauseChange })} />);
     fireEvent.click(screen.getByRole("button", { name: "Pause adventure" }));
@@ -110,7 +148,7 @@ describe("2D Math Jump Adventure UI", () => {
   });
 
   it("uses the top Submit only for finalizing the complete test", () => {
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    mockCanvasContext();
     const onFinalSubmit = vi.fn();
     render(<MCQJumpAdventure {...props({ canFinalizeTest: true, onFinalSubmit })} />);
     const submit = screen.getByTestId("mcq-jump-submit");
