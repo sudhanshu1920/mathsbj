@@ -13,6 +13,7 @@ export interface MCQJumpOption {
 
 export interface MCQJumpAdventureProps {
   questionKey: string | number;
+  sessionKey?: string | number;
   questionLabel: ReactNode;
   options: MCQJumpOption[];
   correctAnswer: MCQGameValue;
@@ -28,6 +29,7 @@ export interface MCQJumpAdventureProps {
   onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
   onFinalSubmit: () => void;
   onChangeGame?: () => void;
+  onRestartGame?: () => void;
   onPauseChange?: (paused: boolean) => void;
 }
 
@@ -213,6 +215,7 @@ const drawScene = (
 
 const MCQJumpAdventure = ({
   questionKey,
+  sessionKey,
   questionLabel,
   options,
   correctAnswer,
@@ -228,10 +231,13 @@ const MCQJumpAdventure = ({
   onSelectOption,
   onFinalSubmit,
   onChangeGame,
+  onRestartGame,
+  onPauseChange,
 }: MCQJumpAdventureProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const latestPropsRef = useRef({
     questionKey,
+    sessionKey,
     options,
     correctAnswer,
     feedback,
@@ -241,10 +247,12 @@ const MCQJumpAdventure = ({
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
+    onRestartGame,
     onPauseChange,
   });
   latestPropsRef.current = {
     questionKey,
+    sessionKey,
     options,
     correctAnswer,
     feedback,
@@ -254,6 +262,7 @@ const MCQJumpAdventure = ({
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
+    onRestartGame,
     onPauseChange,
   };
 
@@ -261,6 +270,7 @@ const MCQJumpAdventure = ({
   const [statusMessage, setStatusMessage] = useState("Keep moving and jump between platforms!");
   const submittedRef = useRef(false);
   const activeQuestionKeyRef = useRef(String(questionKey));
+  const activeSessionKeyRef = useRef(String(sessionKey ?? "default"));
   const finalSubmitInvokedRef = useRef(false);
   const pausedRef = useRef(false);
   const inputRef = useRef<InputState>({ left: false, right: false, jumpQueued: false });
@@ -280,13 +290,49 @@ const MCQJumpAdventure = ({
     if (changed) latestPropsRef.current.onPauseChange?.(nextPaused);
   }, []);
 
+  const resetPlayerToStart = useCallback(() => {
+    const size = sizeRef.current;
+    const platform = platformsRef.current[0];
+    const player = playerRef.current;
+    if (size.width > 0 && platform && player) {
+      const x = clamp(size.width * 0.12, 0, Math.max(0, size.worldWidth - player.width));
+      const y = platform.y - player.height;
+      playerRef.current = {
+        ...player,
+        x,
+        y,
+        vx: 0,
+        vy: 0,
+        grounded: true,
+        checkpointX: x,
+        checkpointY: y,
+      };
+    }
+    inputRef.current.left = false;
+    inputRef.current.right = false;
+    inputRef.current.jumpQueued = false;
+    elapsedRef.current = 0;
+    submittedRef.current = false;
+    finalSubmitInvokedRef.current = false;
+  }, []);
+
   useEffect(() => {
     const nextKey = String(questionKey);
-    if (activeQuestionKeyRef.current === nextKey) return;
+    const nextSession = String(sessionKey ?? "default");
+    const questionChanged = activeQuestionKeyRef.current !== nextKey;
+    const sessionChanged = activeSessionKeyRef.current !== nextSession;
+    if (!questionChanged && !sessionChanged) return;
+
     activeQuestionKeyRef.current = nextKey;
+    activeSessionKeyRef.current = nextSession;
     submittedRef.current = false;
-    setStatusMessage("New question! Choose an answer when you are ready.");
-  }, [questionKey]);
+    if (sessionChanged) {
+      resetPlayerToStart();
+      setPausedState(false, "New adventure ready. Keep moving and jump between platforms!");
+    } else {
+      setStatusMessage("New question! Choose an answer when you are ready.");
+    }
+  }, [questionKey, sessionKey, resetPlayerToStart, setPausedState]);
 
   useEffect(() => {
     const syncImmersiveMode = async () => {
@@ -523,31 +569,14 @@ const MCQJumpAdventure = ({
   }, []);
 
   const restartGame = useCallback(() => {
-    const size = sizeRef.current;
-    const platform = platformsRef.current[0];
-    if (size.width > 0 && platform) {
-      const player = playerRef.current;
-      if (player) {
-        playerRef.current = {
-          ...player,
-          x: size.width * 0.12,
-          y: platform.y - player.height,
-          vx: 0,
-          vy: 0,
-          grounded: true,
-          checkpointX: size.width * 0.12,
-          checkpointY: platform.y - player.height,
-        };
-      }
+    const current = latestPropsRef.current;
+    if (current.onRestartGame) {
+      current.onRestartGame();
+      return;
     }
-    inputRef.current.left = false;
-    inputRef.current.right = false;
-    inputRef.current.jumpQueued = false;
-    elapsedRef.current = 0;
-    submittedRef.current = false;
-    finalSubmitInvokedRef.current = false;
+    resetPlayerToStart();
     setPausedState(false, "Adventure restarted. Keep moving and jump between platforms!");
-  }, []);
+  }, [resetPlayerToStart, setPausedState]);
 
   const selectAnswer = useCallback((index: number) => {
     const current = latestPropsRef.current;
@@ -560,6 +589,7 @@ const MCQJumpAdventure = ({
       questionId !== activeQuestionKeyRef.current ||
       !option ||
       !mapping ||
+      pausedRef.current ||
       current.disabled ||
       current.finalSubmitReady ||
       current.feedback ||
@@ -584,7 +614,7 @@ const MCQJumpAdventure = ({
 
   const submitWholeTest = useCallback(() => {
     const current = latestPropsRef.current;
-    if (!current.canFinalizeTest || current.disabled || finalSubmitInvokedRef.current) return;
+    if (pausedRef.current || !current.canFinalizeTest || current.disabled || finalSubmitInvokedRef.current) return;
     finalSubmitInvokedRef.current = true;
     current.onFinalSubmit();
   }, []);
@@ -614,7 +644,7 @@ const MCQJumpAdventure = ({
         <button type="button" className="mcq-jump-icon-button" onClick={togglePause} aria-label={paused ? "Resume adventure" : "Pause adventure"}>
           {paused ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />}
         </button>
-        <button type="button" className="mcq-jump-submit" data-testid="mcq-jump-submit" aria-label="Submit complete test" disabled={disabled || !canFinalizeTest || finalSubmitInvokedRef.current} onClick={submitWholeTest}>
+        <button type="button" className="mcq-jump-submit" data-testid="mcq-jump-submit" aria-label="Submit complete test" disabled={paused || disabled || !canFinalizeTest || finalSubmitInvokedRef.current} onClick={submitWholeTest}>
           <Send size={15} aria-hidden="true" /><span>Submit</span>
         </button>
       </header>
@@ -625,12 +655,16 @@ const MCQJumpAdventure = ({
       </div>
 
       {paused && (
-        <div className="mcq-jump-paused-overlay" role="status">
+        <div className="mcq-jump-paused-overlay" role="dialog" aria-modal="true" aria-label="Adventure paused">
           <div className="mcq-jump-paused-card">
             <Pause size={27} aria-hidden="true" />
             <strong>Adventure paused</strong>
-            <span>Resume when you are ready.</span>
+            <span>Movement and the quiz timer are paused.</span>
             <button type="button" onClick={togglePause}><Play size={16} aria-hidden="true" /> Resume</button>
+            <button type="button" onClick={restartGame}><RotateCcw size={16} aria-hidden="true" /> Restart adventure</button>
+            {onChangeGame && (
+              <button type="button" onClick={onChangeGame}><Gamepad2 size={16} aria-hidden="true" /> Exit to game selection</button>
+            )}
           </div>
         </div>
       )}
@@ -709,7 +743,7 @@ const MCQJumpAdventure = ({
             type="button"
             className="mcq-jump-select-game"
             aria-label="Choose another game"
-            disabled={disabled || !!feedback || finalSubmitReady || submittedRef.current}
+            disabled={paused || disabled || !!feedback || finalSubmitReady || submittedRef.current}
             onClick={onChangeGame}
           ><Gamepad2 size={17} aria-hidden="true" /></button>
         )}
