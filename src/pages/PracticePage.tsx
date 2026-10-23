@@ -937,6 +937,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const sessionIntervalRef = useRef<ReturnType<typeof setInterval>>();
   const questionDeadlineRef = useRef<number | null>(null);
   const challengeDeadlineRef = useRef<number | null>(null);
+  const gamePausedRef = useRef(false);
+  const gamePauseStartedAtRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
   // externalBackRequest is an edge-triggered signal from the app shell.
@@ -1042,6 +1044,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       setStartError(`No questions could be generated for ${topicNames}. Check the selected custom range and try again.`);
       return;
     }
+    gamePausedRef.current = false;
+    gamePauseStartedAtRef.current = null;
     quizStartLockRef.current = true;
     setStartError(null);
     questionPoolGenerationRef.current += 1;
@@ -1255,6 +1259,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     autoSubmitTimerRef.current = undefined;
     challengeDeadlineRef.current = null;
     questionDeadlineRef.current = null;
+    gamePausedRef.current = false;
+    gamePauseStartedAtRef.current = null;
     if (options?.playSubmitSound) {
       try {
         playSubmit();
@@ -1278,7 +1284,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     sessionIntervalRef.current = setInterval(() => {
-      if (gameSelectionOpenRef.current || finalSubmitReadyRef.current) return;
+      if (gameSelectionOpenRef.current || gamePausedRef.current || finalSubmitReadyRef.current) return;
       if (config.timerMode === 'challenge') {
         const deadline = challengeDeadlineRef.current;
         const remaining = deadline === null
@@ -1606,6 +1612,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setShowExitDialog(false);
     gameSelectionOpenRef.current = false;
     gameSelectionOpenedAtRef.current = null;
+    gamePausedRef.current = false;
+    gamePauseStartedAtRef.current = null;
     setGameSelectionOpen(false);
     setConfig(null);
     questionsRef.current = [];
@@ -1677,6 +1685,25 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       resetToPracticeHome();
     }
   }, [resetToPracticeHome, fromLearning, onExit]);
+
+  const handleJumpPauseChange = useCallback((paused: boolean) => {
+    if (paused) {
+      if (gamePausedRef.current) return;
+      gamePausedRef.current = true;
+      gamePauseStartedAtRef.current = performance.now();
+      return;
+    }
+
+    if (!gamePausedRef.current) return;
+    const pausedAt = gamePauseStartedAtRef.current;
+    if (pausedAt !== null) {
+      const pausedDuration = Math.max(0, performance.now() - pausedAt);
+      if (questionDeadlineRef.current !== null) questionDeadlineRef.current += pausedDuration;
+      if (challengeDeadlineRef.current !== null) challengeDeadlineRef.current += pausedDuration;
+    }
+    gamePausedRef.current = false;
+    gamePauseStartedAtRef.current = null;
+  }, []);
 
   const openGameSelectorFromActiveGame = useCallback(() => {
     if (
@@ -2220,7 +2247,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
         {config.mode === 'game' && (
           selectedGameVariant === 'jump'
-            ? <MCQJumpAdventure {...sharedGameProps} />
+            ? (
+              <MCQJumpAdventure
+                {...sharedGameProps}
+                sessionKey={questionPoolGenerationRef.current}
+                onPauseChange={handleJumpPauseChange}
+                onRestartGame={() => startPractice(config)}
+              />
+            )
             : (
               <MCQWithGame
                 {...sharedGameProps}
