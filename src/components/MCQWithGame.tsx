@@ -88,6 +88,7 @@ const MCQWithGame = ({
 }: MCQWithGameProps) => {
   const [lane, setLane] = useState(1);
   const [phase, setPhase] = useState<GamePhase>("INITIALIZING");
+  const [showRestartConfirmation, setShowRestartConfirmation] = useState(false);
   const [boosting, setBoosting] = useState(false);
   const [rendererError, setRendererError] = useState<string | null>(null);
 
@@ -663,6 +664,7 @@ const MCQWithGame = ({
     activeQuestionKeyRef.current = nextKey;
     if (sessionChanged) {
       activeSessionKeyRef.current = nextSessionKey;
+      setShowRestartConfirmation(false);
       clearHoldTimer();
       touchGestureRef.current = null;
       laneRef.current = 1;
@@ -891,7 +893,7 @@ const MCQWithGame = ({
             onClick={submitWholeTest}
           >
             <Send size={19} fill="currentColor" strokeWidth={1.8} aria-hidden="true" />
-            <span>Submit</span>
+            <span>Submit test</span>
           </button>
         </div>
 
@@ -903,44 +905,92 @@ const MCQWithGame = ({
           onPointerUp={(event) => event.stopPropagation()}
           onPointerCancel={(event) => event.stopPropagation()}
         >
+          <div className="mcq-game-question-heading" aria-hidden="true">
+            <CarFront size={15} strokeWidth={2.6} />
+            <span>NEON NITRO</span>
+            <span className="mcq-game-question-heading-divider">/</span>
+            <span className="mcq-game-question-heading-caption">MATH RACING</span>
+          </div>
           <div className="mcq-game-question-content">{questionLabel}</div>
+          {feedback && (
+            <div className={`mcq-game-feedback mcq-game-feedback--${feedback}`} role="status">
+              {feedback === "correct"
+                ? <Check size={15} strokeWidth={3} aria-hidden="true" />
+                : <X size={15} strokeWidth={3} aria-hidden="true" />}
+              <span>{feedback === "correct" ? "CORRECT ANSWER" : "INCORRECT ANSWER"}</span>
+            </div>
+          )}
         </div>
         {phase === "PAUSED" && (
-          <div className="mcq-game-paused-overlay" role="dialog" aria-modal="true" aria-label="Race paused">
+          <div
+            className="mcq-game-paused-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label={showRestartConfirmation ? "Restart race confirmation" : "Race paused"}
+          >
             <div className="mcq-game-paused-card">
-              <Pause size={28} aria-hidden="true" />
-              <strong>Race paused</strong>
-              <span>The car, road animation, and quiz timer are paused.</span>
-              <button
-                type="button"
-                className="mcq-game-paused-action"
-                onClick={() => setPausedState(false)}
-              >
-                <Play size={17} aria-hidden="true" /> Resume race
-              </button>
-              {onRestartGame && (
-                <button
-                  type="button"
-                  className="mcq-game-paused-action mcq-game-paused-action--secondary"
-                  onClick={() => {
-                    setPausedState(false);
-                    latestPropsRef.current.onRestartGame?.();
-                  }}
-                >
-                  <RotateCcw size={17} aria-hidden="true" /> Restart quiz
-                </button>
-              )}
-              {onChangeGame && (
-                <button
-                  type="button"
-                  className="mcq-game-paused-action mcq-game-paused-action--secondary"
-                  onClick={() => {
-                    setPausedState(false);
-                    latestPropsRef.current.onChangeGame?.();
-                  }}
-                >
-                  <ArrowLeft size={17} aria-hidden="true" /> Return to game selection
-                </button>
+              {showRestartConfirmation ? (
+                <>
+                  <RotateCcw size={28} aria-hidden="true" />
+                  <strong>Restart race?</strong>
+                  <span>Restarting starts a fresh quiz session and resets progress in this run. Your unrelated saved app progress remains unchanged.</span>
+                  <button
+                    type="button"
+                    className="mcq-game-paused-action mcq-game-paused-action--secondary"
+                    onClick={() => setShowRestartConfirmation(false)}
+                  >
+                    Keep race paused
+                  </button>
+                  <button
+                    type="button"
+                    className="mcq-game-paused-action"
+                    onClick={() => {
+                      setShowRestartConfirmation(false);
+                      setPausedState(false);
+                      latestPropsRef.current.onRestartGame?.();
+                    }}
+                  >
+                    <RotateCcw size={17} aria-hidden="true" /> Confirm restart
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Pause size={28} aria-hidden="true" />
+                  <strong>Race paused</strong>
+                  <span>The car, road animation, and quiz timer are paused.</span>
+                  <button
+                    type="button"
+                    className="mcq-game-paused-action"
+                    onClick={() => {
+                      setShowRestartConfirmation(false);
+                      setPausedState(false);
+                    }}
+                  >
+                    <Play size={17} aria-hidden="true" /> Resume race
+                  </button>
+                  {onRestartGame && (
+                    <button
+                      type="button"
+                      className="mcq-game-paused-action mcq-game-paused-action--secondary"
+                      onClick={() => setShowRestartConfirmation(true)}
+                    >
+                      <RotateCcw size={17} aria-hidden="true" /> Restart quiz
+                    </button>
+                  )}
+                  {onChangeGame && (
+                    <button
+                      type="button"
+                      className="mcq-game-paused-action mcq-game-paused-action--secondary"
+                      onClick={() => {
+                        setShowRestartConfirmation(false);
+                        setPausedState(false);
+                        latestPropsRef.current.onChangeGame?.();
+                      }}
+                    >
+                      <ArrowLeft size={17} aria-hidden="true" /> Return to game selection
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
