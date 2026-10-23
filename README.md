@@ -4,12 +4,23 @@ Source code for the MathMaster Android math-learning app.
 
 ## Game modes
 
-Open **Quiz Mode → Answer Mode → MCQ with Game** to choose between two games:
+Open **Quiz Mode → Answer Mode → MCQ with Game** and choose your game:
 
 - **3D Math Car Racing** — the existing 3D racing game with answer gates.
 - **2D Math Jump Adventure** — a colorful platformer with movement, jumping, platform physics, checkpoints, and explicit answer tiles.
+- **Math Space Shooter** — pilot a spaceship, aim at a mathematical answer target, and fire a laser projectile to submit that answer.
 
-Both games use the existing quiz question generation, answer validation, scoring, progress tracking, timers, and result flow. Switching games during an active quiz returns to the selector without intentionally restarting the current question or resetting quiz progress.
+All three games use the existing quiz question generation, answer validation, scoring, progress tracking, timers, and result flow. The Space Shooter uses the same guarded answer-submission path as the other games; aiming at a target does not itself submit an answer. A valid projectile hit submits the target's engine-mapped answer identity once. Switching games during an active quiz returns to the selector without intentionally restarting the current question or resetting quiz progress.
+
+## Math Space Shooter controls and lifecycle
+
+- Tap an answer target to aim, then press **FIRE** to launch a projectile. Only a projectile-target collision submits the answer.
+- Hold **LEFT** or **RIGHT** to move the ship. Keyboard controls use the left/right arrows or **A/D**; **Space** fires at the selected target when the battlefield has keyboard focus.
+- Active projectiles have bounded speed/lifetime and are cleaned up when they expire, leave the playfield, or the question/session changes. Swept collision checks prevent fast shots from tunnelling through answer targets.
+- **Pause** freezes the simulation and configured quiz timer. Resume adjusts the timer deadline so the paused interval is not charged.
+- **Restart quiz** starts a clean quiz session using the existing topic and timer configuration. It does not clear unrelated app progress.
+- **Return to game selection** allows a game switch when answer processing is not in progress. The shared quiz result screen remains authoritative for completion, retry behavior, and score reporting.
+- Backgrounding the app or losing window focus pauses gameplay and clears held movement. Canvas initialization failures show a retry/exit panel instead of silently leaving a blank game.
 
 ## 2D Jump Adventure controls and lifecycle
 
