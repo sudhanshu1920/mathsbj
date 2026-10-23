@@ -857,7 +857,8 @@ const MCQSpaceShooter = ({
           onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(-1); }}
           onContextMenu={(event) => event.preventDefault()}
           disabled={!canInteract()}
-          aria-label="Left touch zone: single tap moves aim left, double tap fires at aimed target"\n          onKeyDown={handleAimControlKeyDown}
+          aria-label="Left touch zone: single tap moves aim left, double tap fires at aimed target"
+          onKeyDown={handleAimControlKeyDown}
           data-testid="space-touch-left"
         />
         <button
@@ -866,7 +867,8 @@ const MCQSpaceShooter = ({
           onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(1); }}
           onContextMenu={(event) => event.preventDefault()}
           disabled={!canInteract()}
-          aria-label="Right touch zone: single tap moves aim right, double tap fires at aimed target"\n          onKeyDown={handleAimControlKeyDown}
+          aria-label="Right touch zone: single tap moves aim right, double tap fires at aimed target"
+          onKeyDown={handleAimControlKeyDown}
           data-testid="space-touch-right"
         />
         <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets" style={{ gridTemplateColumns: `repeat(${Math.max(1, options.length)}, minmax(0, 1fr))` }}>
