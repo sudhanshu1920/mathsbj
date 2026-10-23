@@ -325,16 +325,16 @@ describe("Quiz Arena MCQ with Game mode", () => {
           await waitFor(() => {
             expect(screen.getByRole("button", { name: "Play Again" })).toBeInTheDocument();
           });
-          expect(getProcessedAnswers(view.container)).toBe(before + 1);
+          expect(view.container.querySelector(".quiz-screen--results")).toBeInTheDocument();
+          expect(screen.getByText("Attempted").previousElementSibling).toHaveTextContent("10");
           expect(onQuizFinish).toHaveBeenCalledTimes(1);
         }
       }
 
-      expect(getProcessedAnswers(view.container)).toBe(10);
       expect(onQuizFinish).toHaveBeenCalledTimes(1);
       expect(screen.getByRole("button", { name: "Back to Game Selection" })).toBeInTheDocument();
       expect(view.container.textContent).toContain("Attempted");
-      expect(view.container.textContent).toContain("10");
+      expect(screen.getByText("Attempted").previousElementSibling).toHaveTextContent("10");
     } finally {
       view.unmount();
       raf.restore();
