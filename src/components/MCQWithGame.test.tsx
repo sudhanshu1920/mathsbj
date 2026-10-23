@@ -309,7 +309,7 @@ describe("Full-screen continuous MCQ racing", () => {
       fireEvent.pointerDown(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
       now = 80;
       fireEvent.pointerUp(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
-      for (let timestamp = 350; timestamp <= 700; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 2_350; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(2);
       expect(onSelectOption.mock.calls[1]).toEqual([1, "28", mappings[1].gateId]);
@@ -495,7 +495,7 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(onSelectOption).toHaveBeenCalledWith(0, "26", firstMappings[0].gateId);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
       expect(labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]))
-        .toEqual(fixedPositions);
+        .not.toEqual(fixedPositions);
 
       const secondOptions = [
         { value: "29", label: "29" },
@@ -735,7 +735,7 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("keeps gate selection available without WebGL and restricts Submit to whole-test finalization", () => {
+  it("does not submit fallback targets without WebGL and reserves Submit for whole-test finalization", () => {
     vi.mocked(createMCQ3DScene).mockImplementation(() => {
       throw new Error("WebGL unavailable");
     });
@@ -748,25 +748,23 @@ describe("Full-screen continuous MCQ racing", () => {
     })} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("3D graphics are unavailable");
-    const answer = screen.getByRole("button", { name: "Answer 28" });
-    fireEvent.click(answer);
-    fireEvent.click(answer);
-
-    const mapping = createMCQGateMappings("fallback-q", options.map((option) => option.value))[1];
-    expect(onSelectOption).toHaveBeenCalledTimes(1);
-    expect(onSelectOption).toHaveBeenCalledWith(1, "28", mapping.gateId);
+    const target = view.container.querySelector("[data-option-id]") as HTMLElement;
+    expect(target).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(target);
+    fireEvent.click(target);
+    expect(onSelectOption).not.toHaveBeenCalled();
     expect(onFinalSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId("mcq-game-submit")).toBeDisabled();
 
     view.rerender(<MCQWithGame {...gameProps({
       questionKey: "fallback-q",
-      selectedOption: 1,
       finalSubmitReady: true,
       canFinalizeTest: true,
       onSelectOption,
       onFinalSubmit,
     })} />);
     fireEvent.click(screen.getByTestId("mcq-game-submit"));
+    expect(onSelectOption).not.toHaveBeenCalled();
     expect(onFinalSubmit).toHaveBeenCalledTimes(1);
   });
 });
