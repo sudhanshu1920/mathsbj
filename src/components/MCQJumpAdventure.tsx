@@ -298,18 +298,28 @@ const MCQJumpAdventure = ({
   }, [paused]);
 
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.hidden) {
-        pausedRef.current = true;
-        inputRef.current.left = false;
-        inputRef.current.right = false;
-        inputRef.current.jumpQueued = false;
-        setPaused(true);
-        setStatusMessage("Paused while the app is in the background.");
-      }
+    const clearInputs = () => {
+      inputRef.current.left = false;
+      inputRef.current.right = false;
+      inputRef.current.jumpQueued = false;
     };
+    const pauseForInterruption = (message: string) => {
+      clearInputs();
+      pausedRef.current = true;
+      setPaused(true);
+      setStatusMessage(message);
+    };
+    const handleVisibility = () => {
+      if (document.hidden) pauseForInterruption("Paused while the app is in the background.");
+    };
+    const handleWindowBlur = () => pauseForInterruption("Paused after the app lost focus.");
+
     document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
   }, []);
 
   useEffect(() => {
