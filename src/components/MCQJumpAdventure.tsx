@@ -678,7 +678,7 @@ const MCQJumpAdventure = ({
             <button type="button" onClick={togglePause}><Play size={16} aria-hidden="true" /> Resume</button>
             <button type="button" onClick={restartGame}><RotateCcw size={16} aria-hidden="true" /> Restart quiz</button>
             {onChangeGame && (
-              <button type="button" onClick={onChangeGame}><Gamepad2 size={16} aria-hidden="true" /> Exit to game selection</button>
+              <button type="button" onClick={onChangeGame}><Gamepad2 size={16} aria-hidden="true" /> Return to game selector</button>
             )}
           </div>
         </div>
