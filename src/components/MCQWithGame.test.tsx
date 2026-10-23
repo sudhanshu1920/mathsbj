@@ -162,6 +162,7 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(view.container.querySelectorAll(".mcq-game-controls")).toHaveLength(0);
     expect(view.container.querySelectorAll("button[aria-label='Steer left'], button[aria-label='Steer right']")).toHaveLength(0);
     expect(view.container.querySelector(".mcq-game-question-panel")).toBeInTheDocument();
+    expect(screen.getByText("NEON NITRO")).toBeInTheDocument();
     expect(screen.getByText("14 × 2 = ?")).toBeInTheDocument();
     expect(stage).toHaveAttribute("data-swipe-ignore-back", "true");
   });
@@ -186,6 +187,7 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(screen.getByLabelText("Question 5 / 10")).toBeInTheDocument();
     expect(screen.getByLabelText("Time remaining 6s")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit complete test" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Submit complete test" })).toHaveTextContent("Submit test");
     expect(view.container.querySelectorAll(".mcq-game-gate-letter")).toHaveLength(0);
     expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
   });
@@ -614,6 +616,30 @@ describe("Full-screen continuous MCQ racing", () => {
       view.unmount();
       raf.restore();
     }
+  });
+
+  it("requires explicit confirmation before restarting the racing quiz", () => {
+    const onRestartGame = vi.fn();
+    render(<MCQWithGame {...gameProps({ onRestartGame })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause game" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restart quiz" }));
+
+    expect(onRestartGame).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Restart race confirmation" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep race paused" }));
+    expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+    expect(onRestartGame).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Restart quiz" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm restart" }));
+    expect(onRestartGame).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows textual feedback from the quiz engine alongside gate color feedback", () => {
+    const view = render(<MCQWithGame {...gameProps({ feedback: "wrong", selectedOption: 0 })} />);
+    expect(view.container.querySelector(".mcq-game-feedback")).toHaveTextContent("INCORRECT ANSWER");
   });
 
   it("stays paused after returning from background until the player explicitly resumes", () => {
