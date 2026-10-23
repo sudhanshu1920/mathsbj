@@ -640,7 +640,6 @@
   --race-muted: #aab8d0;
   color: var(--race-text);
   background: var(--race-bg);
-  font-family: "Space Grotesk", "Inter", system-ui, sans-serif;
 }
 
 .mcq-game-stage {
@@ -763,6 +762,7 @@
 
 .mcq-game-feedback--correct { color: var(--race-green); }
 .mcq-game-feedback--wrong { color: var(--race-coral); }
+.mcq-game-feedback--timeout { color: #ffc857; }
 
 .mcq-game-paused-card {
   border-color: rgb(53 217 255 / 0.42);
