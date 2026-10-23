@@ -209,11 +209,18 @@ it('creates one speed-responsive engine/wind loop, respects Sound OFF, pauses, a
     expect(context.gains[0].disconnect).toHaveBeenCalled();
 
     settingsState.sound = true;
+    const priorOscillatorCounts = new Map(
+      MockRacingAudioContext.instances.map((audioContext) => [audioContext, audioContext.oscillators.length]),
+    );
     playJump();
-    const cueContext = MockRacingAudioContext.instances[MockRacingAudioContext.instances.length - 1];
-    expect(cueContext.oscillators).toHaveLength(3);
+    const cueContext = MockRacingAudioContext.instances.find((audioContext) =>
+      audioContext.oscillators.length - (priorOscillatorCounts.get(audioContext) ?? 0) === 3,
+    );
+    expect(cueContext).toBeDefined();
+    if (!cueContext) throw new Error("Jump cue did not create its expected oscillator envelope.");
+    const baseOscillatorCount = priorOscillatorCounts.get(cueContext) ?? 0;
     playLanding();
-    expect(cueContext.oscillators).toHaveLength(4);
+    expect(cueContext.oscillators).toHaveLength(baseOscillatorCount + 4);
 
     settingsState.sound = false;
     const mutedOscillatorCount = cueContext.oscillators.length;
