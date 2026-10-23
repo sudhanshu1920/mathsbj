@@ -52,7 +52,7 @@ describe("MCQ with Game selector", () => {
 
     const start = screen.getByTestId("start-selected-game");
     expect(start).toBeDisabled();
-    expect(screen.getByRole("dialog", { name: "Choose a quiz game" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Choose Your Game" })).toBeInTheDocument();
 
     const jump = screen.getByRole("button", { name: /2D Jump Adventure/i });
     fireEvent.click(jump);
