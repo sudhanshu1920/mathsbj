@@ -1686,6 +1686,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     }
   }, [resetToPracticeHome, fromLearning, onExit]);
 
+  const backToGameSelectorFromResults = useCallback(() => {
+    if (fromLearning) return;
+    resetToPracticeHome();
+    modeBeforeGameSelectionRef.current = 'mcq';
+    gameSelectionOpenRef.current = true;
+    setGameSelectionOpen(true);
+  }, [fromLearning, resetToPracticeHome]);
+
   const handleJumpPauseChange = useCallback((paused: boolean) => {
     if (paused) {
       if (gamePausedRef.current) return;
@@ -1787,7 +1795,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     const totalAttempts = score.correct + score.wrong;
     const accuracy = totalAttempts > 0 ? Math.round((score.correct / totalAttempts) * 100) : 0;
     return (
-      <SwipeBack onBack={handleBackToPractice}>
+      <SwipeBack onBack={config.mode === 'game' && !fromLearning ? backToGameSelectorFromResults : handleBackToPractice}>
         <div className="quiz-screen quiz-screen--results">
           <div className="app-topbar-page flex items-center justify-between gap-2" data-app-topbar>
             <button onClick={handleBackToPractice} className="h-7 w-7 inline-flex items-center justify-center rounded-full text-primary" aria-label="Back">
@@ -1870,9 +1878,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             )}
             {config.infinite && <p className="text-sm text-muted-foreground mb-4">Time: {formatTime(elapsedTime)}</p>}
             <div className="flex gap-3">
-              <button onClick={() => startPractice(config)} className="quiz-result-action min-h-11 flex-1 rounded-xl gradient-primary text-primary-foreground text-sm font-semibold">Retry</button>
+              <button onClick={() => startPractice(config)} className="quiz-result-action min-h-11 flex-1 rounded-xl gradient-primary text-primary-foreground text-sm font-semibold">{config.mode === 'game' ? 'Play Again' : 'Retry'}</button>
               {fromLearning ? (
                 <button onClick={() => onExit?.()} className="quiz-result-action min-h-11 flex-1 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold">Back to Learning</button>
+              ) : config.mode === 'game' ? (
+                <button onClick={backToGameSelectorFromResults} className="quiz-result-action min-h-11 flex-1 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold">Back to Game Selection</button>
               ) : (
                 <button onClick={handleBackToPractice} className="quiz-result-action min-h-11 flex-1 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold">Back to Practice</button>
               )}
