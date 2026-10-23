@@ -819,7 +819,7 @@ const MCQWithGame = ({
                   </div>
                 );
               })}
-            </div>            </div>
+            </div>
           </div>
         ) : (
           <>
