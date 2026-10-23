@@ -28,6 +28,7 @@ export interface MCQJumpAdventureProps {
   onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
   onFinalSubmit: () => void;
   onChangeGame?: () => void;
+  onPauseChange?: (paused: boolean) => void;
 }
 
 interface CanvasSize {
@@ -240,6 +241,7 @@ const MCQJumpAdventure = ({
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
+    onPauseChange,
   });
   latestPropsRef.current = {
     questionKey,
@@ -252,6 +254,7 @@ const MCQJumpAdventure = ({
     canFinalizeTest,
     onSelectOption,
     onFinalSubmit,
+    onPauseChange,
   };
 
   const [paused, setPaused] = useState(false);
@@ -265,6 +268,17 @@ const MCQJumpAdventure = ({
   const sizeRef = useRef<CanvasSize>({ width: 0, height: 0, worldWidth: 0 });
   const platformsRef = useRef<JumpPlatform[]>([]);
   const elapsedRef = useRef(0);
+
+  const setPausedState = useCallback((nextPaused: boolean, message: string) => {
+    const changed = pausedRef.current !== nextPaused;
+    pausedRef.current = nextPaused;
+    inputRef.current.left = false;
+    inputRef.current.right = false;
+    inputRef.current.jumpQueued = false;
+    setPaused(nextPaused);
+    setStatusMessage(message);
+    if (changed) latestPropsRef.current.onPauseChange?.(nextPaused);
+  }, []);
 
   useEffect(() => {
     const nextKey = String(questionKey);
@@ -284,6 +298,10 @@ const MCQJumpAdventure = ({
     };
     void syncImmersiveMode();
     return () => {
+      if (pausedRef.current) {
+        pausedRef.current = false;
+        latestPropsRef.current.onPauseChange?.(false);
+      }
       void setGameImmersiveMode(false).catch(() => undefined);
     };
   }, []);
@@ -298,21 +316,14 @@ const MCQJumpAdventure = ({
   }, [paused]);
 
   useEffect(() => {
-    const clearInputs = () => {
-      inputRef.current.left = false;
-      inputRef.current.right = false;
-      inputRef.current.jumpQueued = false;
-    };
-    const pauseForInterruption = (message: string) => {
-      clearInputs();
-      pausedRef.current = true;
-      setPaused(true);
-      setStatusMessage(message);
-    };
     const handleVisibility = () => {
-      if (document.hidden) pauseForInterruption("Paused while the app is in the background.");
+      if (document.hidden) {
+        setPausedState(true, "Paused while the app is in the background.");
+      }
     };
-    const handleWindowBlur = () => pauseForInterruption("Paused after the app lost focus.");
+    const handleWindowBlur = () => {
+      setPausedState(true, "Paused after the app lost focus.");
+    };
 
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("blur", handleWindowBlur);
@@ -320,12 +331,34 @@ const MCQJumpAdventure = ({
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("blur", handleWindowBlur);
     };
-  }, []);
+  }, [setPausedState]);
 
   useEffect(() => {
+    const clearInputs = () => {
+      inputRef.current.left = false;
+      inputRef.current.right = false;
+      inputRef.current.jumpQueued = false;
+    };
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setPausedState(true, "Adventure paused.");
+        return;
+      }
       const target = event.target as HTMLElement | null;
       if (target?.closest?.("button, input, textarea, select, [contenteditable='true']")) return;
+
+      const current = latestPropsRef.current;
+      const inputAllowed = !pausedRef.current &&
+        !current.disabled &&
+        !current.feedback &&
+        !current.finalSubmitReady &&
+        !submittedRef.current;
+      if (!inputAllowed) {
+        clearInputs();
+        return;
+      }
+
       if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
         event.preventDefault();
         inputRef.current.left = true;
@@ -335,8 +368,6 @@ const MCQJumpAdventure = ({
       } else if (event.code === "Space" || event.key === "ArrowUp") {
         event.preventDefault();
         inputRef.current.jumpQueued = true;
-      } else if (event.key === "Escape") {
-        setPaused(true);
       }
     };
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -349,7 +380,7 @@ const MCQJumpAdventure = ({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, []);
+  }, [setPausedState]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -428,9 +459,9 @@ const MCQJumpAdventure = ({
       if (player && size.width > 0 && size.height > 0) {
         const elapsed = lastTimestamp === null ? 0 : clamp(timestamp - lastTimestamp, 0, 100);
         lastTimestamp = timestamp;
-        elapsedRef.current += elapsed;
 
         if (!pausedRef.current) {
+          elapsedRef.current += elapsed;
           accumulator += elapsed / 1000;
           let steps = 0;
           while (accumulator >= fixedStep && steps < 12) {
@@ -455,12 +486,11 @@ const MCQJumpAdventure = ({
             steps += 1;
           }
           playerRef.current = player;
+          const cameraX = clamp(player.x - size.width * 0.29, 0, size.worldWidth - size.width);
+          drawScene(context, size, platforms, player, elapsedRef.current, cameraX, player.checkpointX);
         } else {
           accumulator = 0;
         }
-
-        const cameraX = clamp(player.x - size.width * 0.29, 0, size.worldWidth - size.width);
-        drawScene(context, size, platforms, player, elapsedRef.current, cameraX, player.checkpointX);
       }
       animationFrame = window.requestAnimationFrame(frame);
     };
@@ -516,11 +546,7 @@ const MCQJumpAdventure = ({
     elapsedRef.current = 0;
     submittedRef.current = false;
     finalSubmitInvokedRef.current = false;
-    if (pausedRef.current) {
-      pausedRef.current = false;
-      setPaused(false);
-    }
-    setStatusMessage("Adventure restarted. Keep moving and jump between platforms!");
+    setPausedState(false, "Adventure restarted. Keep moving and jump between platforms!");
   }, []);
 
   const selectAnswer = useCallback((index: number) => {
@@ -565,13 +591,8 @@ const MCQJumpAdventure = ({
 
   const togglePause = useCallback(() => {
     const nextPaused = !pausedRef.current;
-    pausedRef.current = nextPaused;
-    inputRef.current.left = false;
-    inputRef.current.right = false;
-    inputRef.current.jumpQueued = false;
-    setPaused(nextPaused);
-    setStatusMessage(nextPaused ? "Adventure paused." : "Adventure resumed. Have fun!");
-  }, []);
+    setPausedState(nextPaused, nextPaused ? "Adventure paused." : "Adventure resumed. Have fun!");
+  }, [setPausedState]);
 
   const correctIndex = options.findIndex((option) => String(option.value) === String(correctAnswer));
 
