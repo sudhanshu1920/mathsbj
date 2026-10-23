@@ -40,7 +40,7 @@ import MCQJumpAdventure from '@/components/MCQJumpAdventure';
 import MCQSpaceShooter from '@/components/MCQSpaceShooter';
 import GameModeSelector, { type MCQGameVariant } from '@/components/GameModeSelector';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
-import { MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS, isMCQGameCollisionWithinDeadline, createMCQGateMappings } from '@/lib/mcqGamePhysics';
+import { MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS, MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS, isMCQGameCollisionWithinDeadline, createMCQGateMappings } from '@/lib/mcqGamePhysics';
 
 type PracticeMode = 'mcq' | 'input' | 'game';
 
