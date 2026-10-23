@@ -322,3 +322,64 @@
 @media (prefers-reduced-motion: reduce) {
   .mcq-space-select-ship { transform: none; }
 }
+
+
+/* Keep the racing card visually aligned with the in-game NEON NITRO theme. */
+.mcq-game-select-card--racing {
+  border-color: rgb(53 217 255 / 0.3);
+  color: #f4f7ff;
+  background: linear-gradient(155deg, #10192b, #080d19);
+  box-shadow: 0 15px 45px rgb(4 12 27 / 0.24);
+}
+
+.mcq-game-select-card--racing:hover {
+  transform: translateY(-3px);
+  border-color: rgb(53 217 255 / 0.72);
+  box-shadow: 0 18px 46px rgb(53 217 255 / 0.12), 0 15px 45px rgb(4 12 27 / 0.28);
+}
+
+.mcq-game-select-art--car {
+  background:
+    radial-gradient(ellipse at 67% 15%, rgb(53 217 255 / 0.25), transparent 32%),
+    linear-gradient(155deg, #080d19 0%, #142544 62%, #10192b 100%);
+}
+
+.mcq-game-select-card--racing .mcq-game-select-sun {
+  background: #35d9ff;
+  box-shadow: 0 0 28px rgb(53 217 255 / 0.68);
+}
+
+.mcq-game-select-card--racing .mcq-game-select-road {
+  border-color: rgb(53 217 255 / 0.5);
+  background: repeating-linear-gradient(180deg, #111d31 0 20px, #1a2a42 21px 38px);
+  box-shadow: 0 -10px 36px rgb(53 217 255 / 0.13);
+}
+
+.mcq-game-select-card--racing .mcq-game-select-road::after {
+  background: repeating-linear-gradient(180deg, #35d9ff 0 13px, transparent 14px 29px);
+  opacity: 0.8;
+}
+
+.mcq-game-select-card--racing .mcq-game-select-car {
+  border-color: #a7f0ff;
+  background: linear-gradient(145deg, #35d9ff, #3478ff);
+  filter: drop-shadow(0 0 14px rgb(53 217 255 / 0.38));
+}
+
+.mcq-game-select-card--racing .mcq-game-select-card-title {
+  color: #f4f7ff;
+}
+
+.mcq-game-select-card--racing .mcq-game-select-card-description {
+  color: #aab8d0;
+}
+
+.mcq-game-select-card--racing .mcq-game-select-card-action {
+  color: #35d9ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcq-game-select-card--racing:hover {
+    transform: none;
+  }
+}
