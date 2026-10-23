@@ -616,6 +616,41 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("uses elapsed time across a dropped frame and still detects the exact swept contact once", () => {
+    const raf = installAnimationFrameQueue();
+    const onSelectOption = vi.fn();
+    const mappings = createMCQGateMappings("q-dropped-frame", options.map((option) => option.value));
+    const view = render(<MCQWithGame {...gameProps({
+      questionKey: "q-dropped-frame",
+      durationMs: 1_000,
+      onSelectOption,
+    })} />);
+    const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
+    const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
+
+    try {
+      expect(raf.advance(0)).toBe(true);
+      expect(raf.advance(300)).toBe(true);
+      const afterDrop = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZ: number };
+      expect(afterDrop.gateZ).toBeCloseTo(MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * 0.3, 1);
+      expect(onSelectOption).not.toHaveBeenCalled();
+
+      expect(raf.advance(990)).toBe(true);
+      const beforeContact = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZ: number };
+      expect(beforeContact.gateZ).toBeLessThan(MCQ_GAME_COLLISION_Z);
+      expect(raf.advance(1_010)).toBe(true);
+
+      expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
+      expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(1_000, 6);
+      expect(raf.advance(1_500)).toBe(true);
+      expect(onSelectOption).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("moves targets on elapsed time using the configured duration and does not reset on HUD changes", () => {
     const raf = installAnimationFrameQueue();
     const onSelectOption = vi.fn();
