@@ -1309,8 +1309,13 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             if (!challengeTimeoutTimerRef.current) {
               challengeTimeoutTimerRef.current = setTimeout(() => {
                 challengeTimeoutTimerRef.current = undefined;
-                if (!finishLockRef.current && challengeDeadlineRef.current !== null &&
-                    performance.now() >= challengeDeadlineRef.current) finishQuiz();
+                if (
+                  !finishLockRef.current &&
+                  !gamePausedRef.current &&
+                  !gameSelectionOpenRef.current &&
+                  challengeDeadlineRef.current !== null &&
+                  performance.now() >= challengeDeadlineRef.current
+                ) finishQuiz();
               }, MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS + 30);
             }
           } else {
@@ -1341,7 +1346,14 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             if (!questionTimeoutTimerRef.current) {
               questionTimeoutTimerRef.current = setTimeout(() => {
                 questionTimeoutTimerRef.current = undefined;
-                if (!answerLockRef.current && !finishLockRef.current) handleAnswerRef.current(null);
+                if (
+                  !answerLockRef.current &&
+                  !finishLockRef.current &&
+                  !gamePausedRef.current &&
+                  !gameSelectionOpenRef.current &&
+                  questionDeadlineRef.current !== null &&
+                  performance.now() >= questionDeadlineRef.current
+                ) handleAnswerRef.current(null);
               }, MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS + 30);
             }
           } else {
