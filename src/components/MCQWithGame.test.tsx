@@ -484,18 +484,21 @@ describe("Full-screen continuous MCQ racing", () => {
       const labels = Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"));
       const fixedPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
 
-      // The car sweeps left out of its starting lane and enters lane 1's gate
-      // collider. The exact visible option/gate identity is submitted once.
+      // The option row visibly approaches before the gate reaches the contact plane.
+      for (let timestamp = 0; timestamp <= 1_000; timestamp += 50) raf.advance(timestamp);
+      const approachingPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
+      expect(approachingPositions).not.toEqual(fixedPositions);
+
+      // The car steers left and reaches the approaching left gate. Only its
+      // physically contacted target is committed to the quiz callback.
       fireEvent.pointerDown(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
       now = 40;
       fireEvent.pointerUp(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
-      for (let timestamp = 0; timestamp <= 2_300; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 1_050; timestamp <= 2_300; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption).toHaveBeenCalledWith(0, "26", firstMappings[0].gateId);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
-      expect(labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]))
-        .not.toEqual(fixedPositions);
 
       const secondOptions = [
         { value: "29", label: "29" },
