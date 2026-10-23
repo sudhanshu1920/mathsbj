@@ -22,6 +22,7 @@ describe("3D MCQ racing steering and collision physics", () => {
     expect(resolveMCQGameGateTravelDurationMs(5_000)).toBe(5_000);
     expect(resolveMCQGameGateTravelDurationMs(10_000)).toBe(10_000);
     expect(resolveMCQGameGateTravelDurationMs(20_000)).toBe(20_000);
+    expect(resolveMCQGameGateTravelDurationMs(30_000)).toBe(30_000);
     expect(resolveMCQGameGateTravelDurationMs(undefined)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
     expect(resolveMCQGameGateTravelDurationMs(null)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
     expect(resolveMCQGameGateTravelDurationMs(0)).toBe(MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS);
