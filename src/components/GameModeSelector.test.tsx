@@ -11,14 +11,14 @@ describe("MCQ with Game selector", () => {
     expect(screen.getByRole("button", { name: /2D Jump Adventure/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Space Shooter/i })).toBeInTheDocument();
     expect(screen.getAllByRole("button").filter((button) =>
-      /3D Math Car Racing|2D Math Jump Adventure|Math Space Shooter/.test(button.getAttribute("aria-label") || ""),
+      /3D Car Racing|2D Jump Adventure|Space Shooter/.test(button.getAttribute("aria-label") || ""),
     )).toHaveLength(3);
   });
 
   it("routes a selected game through one guarded action", () => {
     const onSelect = vi.fn();
     render(<GameModeSelector selectedGame="car" onBack={vi.fn()} onSelect={onSelect} />);
-    const jump = screen.getByRole("button", { name: /2D Math Jump Adventure/i });
+    const jump = screen.getByRole("button", { name: /2D Jump Adventure/i });
     fireEvent.click(jump);
     fireEvent.click(jump);
     expect(onSelect).toHaveBeenCalledTimes(1);
@@ -28,7 +28,7 @@ describe("MCQ with Game selector", () => {
   it("routes Space Shooter through the same guarded selector action", () => {
     const onSelect = vi.fn();
     render(<GameModeSelector selectedGame="car" onBack={vi.fn()} onSelect={onSelect} />);
-    const shooter = screen.getByRole("button", { name: /Math Space Shooter/i });
+    const shooter = screen.getByRole("button", { name: /Space Shooter/i });
     fireEvent.click(shooter);
     fireEvent.click(shooter);
     expect(onSelect).toHaveBeenCalledTimes(1);
