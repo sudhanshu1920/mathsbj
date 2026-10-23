@@ -583,7 +583,11 @@ const MCQWithGame = ({
       const gateTravelDurationMs = resolveMCQGameGateTravelDurationMs(
         latestPropsRef.current.durationMs,
       );
-      gateElapsedMsRef.current += frameElapsedMs;
+      // The hold-to-accelerate control scales target travel time as well as
+      // road motion, so holding advances the answer gates toward collision sooner.
+      // Use uncapped active elapsed time to keep the configured duration stable
+      // across dropped frames; only the speed integration timestep is bounded.
+      gateElapsedMsRef.current += frameElapsedMs * speedMultiplier;
       const nextGateZ = MCQ_GAME_GATE_START_Z +
         MCQ_GAME_TRAVEL_DISTANCE * (gateElapsedMsRef.current / gateTravelDurationMs);
       const gateTravelThisFrame = nextGateZ - previousGateZ;
