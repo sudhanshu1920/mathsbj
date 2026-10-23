@@ -100,6 +100,8 @@ class MockAudioParam {
   value = 0;
   targets: number[] = [];
   setValueAtTime(value: number) { this.value = value; }
+  linearRampToValueAtTime(value: number) { this.value = value; this.targets.push(value); }
+  exponentialRampToValueAtTime(value: number) { this.value = value; this.targets.push(value); }
   setTargetAtTime(value: number) { this.value = value; this.targets.push(value); }
 }
 class MockAudioNode {
