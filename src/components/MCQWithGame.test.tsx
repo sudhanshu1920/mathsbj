@@ -5,6 +5,7 @@ import MCQWithGame from "@/components/MCQWithGame";
 import {
   createMCQGateMappings,
   MCQ_GAME_COLLISION_Z,
+  MCQ_GAME_HOLD_THRESHOLD_MS,
   MCQ_GAME_GATE_START_Z,
   MCQ_GAME_TRAVEL_DISTANCE,
 } from "@/lib/mcqGamePhysics";
