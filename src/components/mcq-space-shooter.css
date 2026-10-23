@@ -740,3 +740,7 @@
   .mcq-space-brand strong { max-width: 6.3rem; font-size: .5rem; }
   .mcq-space-submit { padding-inline: .12rem; font-size: .46rem; }
 }
+
+/* Asteroid artwork sits above the invisible hit zones: tapping a target alone never fires. */
+.mcq-space-target-grid { z-index: 5; pointer-events: auto; }
+.mcq-space-target { pointer-events: auto; }
