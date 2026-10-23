@@ -744,3 +744,76 @@
 /* Asteroid artwork sits above the invisible hit zones: tapping a target alone never fires. */
 .mcq-space-target-grid { z-index: 5; pointer-events: auto; }
 .mcq-space-target { pointer-events: auto; }
+
+
+/* Floating asteroid motion is deliberately small so answer text stays steady and targets remain separate. */
+.mcq-space-target {
+  --target-float-duration: 3.8s;
+  --target-float-delay: -0.65s;
+  --target-float-x: 2px;
+  --target-float-y: -4px;
+  animation: mcq-space-target-drift var(--target-float-duration) ease-in-out var(--target-float-delay) infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+.mcq-space-target:nth-child(1) {
+  --target-float-duration: 3.7s;
+  --target-float-delay: -1.1s;
+  --target-float-x: 2px;
+  --target-float-y: -4px;
+}
+.mcq-space-target:nth-child(2) {
+  --target-float-duration: 4.35s;
+  --target-float-delay: -2.1s;
+  --target-float-x: -2px;
+  --target-float-y: 4px;
+}
+.mcq-space-target:nth-child(3) {
+  --target-float-duration: 3.95s;
+  --target-float-delay: -.35s;
+  --target-float-x: 1px;
+  --target-float-y: -5px;
+}
+.mcq-space-target:nth-child(4) {
+  --target-float-duration: 4.6s;
+  --target-float-delay: -2.7s;
+  --target-float-x: -2px;
+  --target-float-y: 3px;
+}
+@keyframes mcq-space-target-drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(var(--target-float-x, 0px), var(--target-float-y, -4px), 0); }
+}
+.mcq-space-target.is-aimed {
+  --target-float-x: 1px;
+  animation-name: mcq-space-target-drift, mcq-space-aim-glow;
+  animation-duration: var(--target-float-duration, 3.8s), 1.25s;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-delay: var(--target-float-delay, 0s), 0s;
+  animation-iteration-count: infinite, infinite;
+  animation-direction: normal, alternate;
+}
+@keyframes mcq-space-aim-glow {
+  from { box-shadow: inset 0 0 0 2px rgba(0, 229, 255, .72), 0 0 5px rgba(0, 229, 255, .18); }
+  to { box-shadow: inset 0 0 0 3px #00e5ff, 0 0 13px rgba(0, 229, 255, .6); }
+}
+/* Pause/final submission freezes the CSS scene without resetting its animation phase. */
+.mcq-space-shell.is-frozen .mcq-space-target {
+  animation-play-state: paused;
+  will-change: auto;
+}
+.mcq-space-target-label {
+  font-size: clamp(.86rem, 3vw, 1.55rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.mcq-space-target-mark { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .mcq-space-target,
+  .mcq-space-target.is-aimed {
+    animation: none !important;
+    transform: none !important;
+    will-change: auto;
+  }
+}

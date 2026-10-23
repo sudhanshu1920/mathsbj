@@ -11,7 +11,7 @@ import {
   type SpaceRect,
 } from "@/lib/mcqSpaceShooterPhysics";
 import { setGameImmersiveMode } from "@/lib/gameImmersiveMode";
-import { playClick, playSwipe } from "@/lib/sound";
+import { playClick, playSpaceExplosion, playSpaceLaser } from "@/lib/sound";
 import "./mcq-space-shooter.css";
 
 export interface MCQSpaceShooterOption {
@@ -84,7 +84,7 @@ interface SpaceWorld {
 const PROJECTILE_SPEED = 690;
 const PROJECTILE_LIFETIME_MS = 1500;
 const DOUBLE_TAP_WINDOW_MS = 280;
-const MAX_PARTICLES = 36;
+const MAX_PARTICLES = 48;
 const SHIP_RADIUS = 24;
 
 const createWorld = (): SpaceWorld => ({
@@ -112,18 +112,21 @@ function createStars(width: number, height: number): SpaceStar[] {
 }
 
 function createHitParticles(world: SpaceWorld, x: number, y: number): void {
-  const colors = ["#8df7ff", "#75a7ff", "#ffe18a", "#ff8fca"];
-  for (let i = 0; i < 12 && world.particles.length < MAX_PARTICLES; i += 1) {
-    const angle = (Math.PI * 2 * i) / 12;
-    const speed = 38 + (i % 4) * 18;
+  // One bounded burst per confirmed collision: bright sparks plus slower pixel debris.
+  const colors = ["#bafaff", "#00e5ff", "#75a7ff", "#ffe18a", "#ff8fca", "#ff9b28"];
+  const burstCount = 24;
+  for (let i = 0; i < burstCount && world.particles.length < MAX_PARTICLES; i += 1) {
+    const angle = (Math.PI * 2 * i) / burstCount + (i % 3) * 0.07;
+    const debris = i % 3 === 0;
+    const speed = debris ? 34 + (i % 4) * 12 : 82 + (i % 5) * 22;
     world.particles.push({
       x,
       y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       ageMs: 0,
-      lifetimeMs: 250 + (i % 5) * 55,
-      radius: 1.8 + (i % 3) * 0.7,
+      lifetimeMs: debris ? 420 + (i % 4) * 65 : 220 + (i % 4) * 45,
+      radius: debris ? 2.7 + (i % 3) * 0.8 : 1.7 + (i % 3) * 0.55,
       color: colors[i % colors.length]!,
     });
   }
@@ -418,8 +421,8 @@ const MCQSpaceShooter = ({
       optionValue: mapping.optionValue,
     });
     world.nextProjectileId += 1;
-    playClick();
-    setStatusMessage("Laser fired. Track the shot to its target.");
+    playSpaceLaser();
+    setStatusMessage("LASER FIRED · TRACK THE SHOT TO ITS TARGET");
   }, [canInteract]);
 
   const handleDirectionalTap = useCallback((direction: -1 | 1) => {
@@ -480,8 +483,8 @@ const MCQSpaceShooter = ({
     submittedRef.current = true;
     worldRef.current.heldDirection = 0;
     worldRef.current.projectiles.length = 0;
-    setStatusMessage("Direct hit! Checking the answer with the Math Quiz Engine…");
-    playSwipe();
+    setStatusMessage("DIRECT HIT · ASTEROID DESTROYED · CHECKING ANSWER");
+    playSpaceExplosion();
 
     try {
       const accepted = current.onSelectOption(
@@ -634,6 +637,9 @@ const MCQSpaceShooter = ({
               projectile.targetId === mapping.gateId &&
               mapping.questionId === projectile.questionKey
             ) {
+              // Read the live DOM rect each frame. CSS floating transforms therefore
+              // move both the visible sprite and its collision rectangle together.
+              // The projectile still resolves only against its immutable target ID.
               const targetRect = target.getBoundingClientRect();
               if (targetRect.width > 0 && targetRect.height > 0) {
                 const collisionRect: SpaceRect = {
@@ -790,7 +796,10 @@ const MCQSpaceShooter = ({
   const restartBlocked = disabled || !!feedback || submittedRef.current;
 
   return (
-    <section className="mcq-space-shell" aria-label="Math Space Shooter">
+    <section
+      className={`mcq-space-shell${paused || disabled || !!feedback || finalSubmitReady || submittedRef.current || finalSubmitInvokedRef.current ? " is-frozen" : ""}`}
+      aria-label="Math Space Shooter"
+    >
       <header className="mcq-space-topbar">
         <button
           type="button"
@@ -885,7 +894,6 @@ const MCQSpaceShooter = ({
                 data-target-id={mapping?.gateId}
                 data-testid={`space-target-${index}`}
               >
-                <span className="mcq-space-target-mark" aria-hidden="true">{index + 1}</span>
                 <span className="mcq-space-target-label">{option.label}</span>
                 <span className="mcq-space-target-spark" aria-hidden="true">✦</span>
               </div>
