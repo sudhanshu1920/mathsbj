@@ -692,7 +692,7 @@ const MCQJumpAdventure = ({
                 className={classNames}
                 aria-label={"Answer " + String(option.value)}
                 data-option-index={index}
-                disabled={disabled || finalSubmitReady || !!feedback || selectedOption !== null}
+                disabled={paused || disabled || finalSubmitReady || !!feedback || selectedOption !== null}
                 onClick={() => selectAnswer(index)}
               >
                 <span className="mcq-jump-answer-icon" aria-hidden="true">{index + 1}</span>
