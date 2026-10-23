@@ -453,15 +453,20 @@ const MCQJumpAdventure = ({
       inputRef.current.jumpQueued = false;
     };
     const handleKeyDown = (event: KeyboardEvent) => {
+      const current = latestPropsRef.current;
       if (event.key === "Escape") {
         event.preventDefault();
-        setPausedState(true, "Adventure paused.");
+        const canPause = !pausedRef.current &&
+          !current.disabled &&
+          !current.feedback &&
+          !current.finalSubmitReady &&
+          !submittedRef.current;
+        if (canPause) setPausedState(true, "Adventure paused.");
         return;
       }
       const target = event.target as HTMLElement | null;
       if (target?.closest?.("button, input, textarea, select, [contenteditable='true']")) return;
 
-      const current = latestPropsRef.current;
       const inputAllowed = !pausedRef.current &&
         !current.disabled &&
         !current.feedback &&
