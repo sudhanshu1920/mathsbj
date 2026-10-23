@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { ArrowLeft, Pause, Play, RotateCcw, Rocket, Timer, Trophy, Zap } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
@@ -443,6 +443,23 @@ const MCQSpaceShooter = ({
     pendingDirectionalTapRef.current = { direction, timer };
   }, [canInteract, fireProjectile, moveAim]);
 
+  const handleAimControlKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const key = event.key.toLowerCase();
+    if (key === "arrowleft" || key === "a") {
+      event.preventDefault();
+      clearPendingDirectionalTap();
+      moveAim(-1);
+    } else if (key === "arrowright" || key === "d") {
+      event.preventDefault();
+      clearPendingDirectionalTap();
+      moveAim(1);
+    } else if (event.code === "Space" || event.key === "Enter") {
+      event.preventDefault();
+      clearPendingDirectionalTap();
+      fireProjectile();
+    }
+  };
+
   const resolveProjectileHit = useCallback((projectile: SpaceProjectile) => {
     const current = latestPropsRef.current;
     const mapping = mappingsRef.current[projectile.targetIndex];
@@ -840,7 +857,7 @@ const MCQSpaceShooter = ({
           onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(-1); }}
           onContextMenu={(event) => event.preventDefault()}
           disabled={!canInteract()}
-          aria-label="Left touch zone: single tap moves aim left, double tap fires at aimed target"
+          aria-label="Left touch zone: single tap moves aim left, double tap fires at aimed target"\n          onKeyDown={handleAimControlKeyDown}
           data-testid="space-touch-left"
         />
         <button
@@ -849,7 +866,7 @@ const MCQSpaceShooter = ({
           onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(1); }}
           onContextMenu={(event) => event.preventDefault()}
           disabled={!canInteract()}
-          aria-label="Right touch zone: single tap moves aim right, double tap fires at aimed target"
+          aria-label="Right touch zone: single tap moves aim right, double tap fires at aimed target"\n          onKeyDown={handleAimControlKeyDown}
           data-testid="space-touch-right"
         />
         <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets" style={{ gridTemplateColumns: `repeat(${Math.max(1, options.length)}, minmax(0, 1fr))` }}>
