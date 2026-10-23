@@ -3,7 +3,10 @@ import { ArrowLeft, CarFront, Check, Pause, Play, RotateCcw, Send, Timer, X } fr
 import type { MCQGameValue } from "@/lib/mcqGame";
 import {
   MCQ_GAME_CAR_HALF_WIDTH,
+  MCQ_GAME_COLLISION_Z,
+  MCQ_GAME_GATE_CLEARANCE_Z,
   MCQ_GAME_GATE_HALF_WIDTH,
+  MCQ_GAME_GATE_START_Z,
   MCQ_GAME_GESTURE_MOVE_TOLERANCE_PX,
   MCQ_GAME_HOLD_THRESHOLD_MS,
   MCQ_GAME_LANE_X,
@@ -14,7 +17,7 @@ import {
   clampMCQGameLane,
   classifySteeringGesture,
   createMCQGateMappings,
-  getSweptLaneGateContactFraction,
+  detectSweptGateCollision,
 } from "@/lib/mcqGamePhysics";
 import {
   createMCQ3DScene,
@@ -123,6 +126,7 @@ const MCQWithGame = ({
   const collisionPassConsumedRef = useRef(false);
   const questionPanelBottomRef = useRef(0);
   const scrollOffsetRef = useRef(0);
+  const gateZRef = useRef<number>(MCQ_GAME_GATE_START_Z);
   const lastTimestampRef = useRef<number | null>(null);
 
   const latestPropsRef = useRef({
@@ -493,7 +497,7 @@ const MCQWithGame = ({
     } catch {
       phaseRef.current = "ERROR";
       setPhase("ERROR");
-      setRendererError("3D graphics are unavailable. Select an answer to continue.");
+      setRendererError("3D graphics are unavailable. Answer targets cannot be submitted without real car contact.");
       return;
     }
 
@@ -507,6 +511,7 @@ const MCQWithGame = ({
       const projections = scene.render({
         carX: carXRef.current,
         scrollOffset: scrollOffsetRef.current,
+        gateZ: gateZRef.current,
       });
 
       const panelBottom = questionPanelBottomRef.current;
@@ -568,33 +573,56 @@ const MCQWithGame = ({
       const nextCarX = previousCarX + (targetX - previousCarX) * carAlpha;
       carXRef.current = nextCarX;
 
+      const previousGateZ = gateZRef.current;
+      const nextGateZ = previousGateZ + advancedMs * MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS;
+      const gateTravelThisFrame = nextGateZ - previousGateZ;
+      const gateCrossingFraction = gateTravelThisFrame > 0 &&
+        previousGateZ < MCQ_GAME_COLLISION_Z &&
+        nextGateZ >= MCQ_GAME_COLLISION_Z
+        ? (MCQ_GAME_COLLISION_Z - previousGateZ) / gateTravelThisFrame
+        : null;
+      const carXAtGateContact = gateCrossingFraction === null
+        ? nextCarX
+        : previousCarX + (nextCarX - previousCarX) * gateCrossingFraction;
+
       let collisionIndex = -1;
-      let earliestContactFraction = Number.POSITIVE_INFINITY;
+      let closestContactDistance = Number.POSITIVE_INFINITY;
       if (
         phaseRef.current === "RUNNING" &&
         !disabledRef.current &&
         !feedbackRef.current &&
         !submittedRef.current &&
-        !collisionPassConsumedRef.current
+        !collisionPassConsumedRef.current &&
+        gateCrossingFraction !== null
       ) {
         for (const mapping of gateMappingsRef.current) {
           if (mapping.questionId !== activeQuestionKeyRef.current) continue;
-          const contactFraction = getSweptLaneGateContactFraction({
+          const hasWorldSpaceContact = detectSweptGateCollision({
+            previousGateZ,
+            gateZ: nextGateZ,
+            collisionZ: MCQ_GAME_COLLISION_Z,
             previousCarX,
             carX: nextCarX,
             gateX: MCQ_GAME_LANE_X[mapping.laneIndex],
             carHalfWidth: MCQ_GAME_CAR_HALF_WIDTH,
             gateHalfWidth: MCQ_GAME_GATE_HALF_WIDTH,
           });
-          if (contactFraction !== null && contactFraction < earliestContactFraction) {
-            earliestContactFraction = contactFraction;
+          if (!hasWorldSpaceContact) continue;
+
+          // Wide sprites can graze two adjacent hitboxes at once near a lane
+          // boundary. Resolve that rare ambiguity to the gate nearest the
+          // car centre at the exact Z-plane crossing, then submit only once.
+          const lateralDistance = Math.abs(carXAtGateContact - MCQ_GAME_LANE_X[mapping.laneIndex]);
+          if (lateralDistance < closestContactDistance) {
+            closestContactDistance = lateralDistance;
             collisionIndex = mapping.laneIndex;
           }
         }
       }
 
-      // The only scrolling state is the environment. Option labels stay
-      // anchored to the viewport and their collider positions stay lane-fixed.
+      // Gates and the road advance in the same forward simulation time. The
+      // gate's screen-space label is projected from this exact world-space Z.
+      gateZRef.current = nextGateZ;
       scrollOffsetRef.current =
         (scrollOffsetRef.current + advancedMs * MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS) % 8;
 
@@ -606,14 +634,19 @@ const MCQWithGame = ({
           !disabledRef.current &&
           !feedbackRef.current
         ) {
-          // Select the exact lane whose collider was first entered during this
-          // frame; the existing quiz callback commits the answer exactly once.
+          // A target contact is the only per-answer commit path. selectLaneAnswer
+          // claims the current question synchronously before invoking Quiz Engine.
           selectLaneAnswer(mapping.laneIndex);
         }
       }
 
-      // Keep animating after answer submission; only input/contact processing
-      // is locked. The road phase, car position and speed remain continuous.
+      // Missing every gate does not answer the question. Once the row is fully
+      // past the car, respawn the same question's targets at the far spawn plane
+      // so the player gets another physical approach rather than a dead session.
+      if (gateZRef.current > MCQ_GAME_COLLISION_Z + MCQ_GAME_GATE_CLEARANCE_Z) {
+        gateZRef.current = MCQ_GAME_GATE_START_Z;
+      }
+
       renderFrame();
       if (!document.hidden && typeof window.requestAnimationFrame === "function") {
         frameRef.current = window.requestAnimationFrame(animate);
@@ -662,6 +695,9 @@ const MCQWithGame = ({
     if (!questionChanged && !sessionChanged) return;
 
     activeQuestionKeyRef.current = nextKey;
+    // Each question/session receives a fresh gate wave. No old target's world
+    // position can leak into the next question even though the WebGL scene stays mounted.
+    gateZRef.current = MCQ_GAME_GATE_START_Z;
     if (sessionChanged) {
       activeSessionKeyRef.current = nextSessionKey;
       setShowRestartConfirmation(false);
@@ -756,29 +792,34 @@ const MCQWithGame = ({
               <CarFront size={22} aria-hidden="true" />
               <span>{rendererError}</span>
             </div>
-            <div className="mcq-game-fallback-options">
-              {gateMappings.map((mapping, index) => (
-                <button
-                  type="button"
-                  key={mapping.laneId}
-                  className={[
-                    "mcq-game-fallback-option",
-                    selectedOption === index && !feedback ? "is-selected" : "",
-                    feedback && selectedOption === index ? feedback === "correct" ? "is-correct" : "is-wrong" : "",
-                    feedback && correctLane === index ? "is-answer" : "",
-                  ].filter(Boolean).join(" ")}
-                  aria-label={"Answer " + String(mapping.optionValue)}
-                  data-option-id={mapping.optionId}
-                  data-lane-id={mapping.laneId}
-                  disabled={disabled || submittedRef.current || !!feedback}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onPointerUp={(event) => event.stopPropagation()}
-                  onClick={() => selectLaneAnswer(index)}
-                >
-                  <span className="mcq-game-gate-answer">{options[index]?.label ?? String(mapping.optionValue)}</span>
-                </button>
-              ))}
-            </div>
+            <div className="mcq-game-fallback-options" role="list" aria-label="Unavailable answer targets">
+              {gateMappings.map((mapping, index) => {
+                const isSelected = selectedOption === index;
+                const isCorrect = feedback !== null && correctLane === index;
+                return (
+                  <div
+                    key={mapping.laneId}
+                    className={[
+                      "mcq-game-fallback-option",
+                      isSelected && !feedback ? "is-selected" : "",
+                      isSelected && feedback === "correct" ? "is-correct" : "",
+                      isSelected && feedback === "wrong" ? "is-wrong" : "",
+                      isCorrect ? "is-answer" : "",
+                    ].filter(Boolean).join(" ")}
+                    role="listitem"
+                    aria-label={"Answer target " + String(mapping.optionValue) + " unavailable"}
+                    aria-disabled="true"
+                    data-option-id={mapping.optionId}
+                    data-lane-id={mapping.laneId}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  >
+                    <span className="mcq-game-gate-answer">{options[index]?.label ?? String(mapping.optionValue)}</span>
+                  </div>
+                );
+              })}
+            </div>            </div>
           </div>
         ) : (
           <>
@@ -811,7 +852,6 @@ const MCQWithGame = ({
                     onPointerDown={(event) => event.stopPropagation()}
                     onPointerUp={(event) => event.stopPropagation()}
                     onPointerCancel={(event) => event.stopPropagation()}
-                    onClick={() => selectLaneAnswer(index)}
                   >
                     <span className="mcq-game-gate-answer">{options[index]?.label ?? String(mapping.optionValue)}</span>
                   </div>
