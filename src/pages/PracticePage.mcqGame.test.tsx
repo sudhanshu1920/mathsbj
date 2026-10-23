@@ -103,8 +103,14 @@ function startSelectedGame(label: RegExp) {
 }
 
 function enablePerQuestionTimer(seconds = 5) {
-  fireEvent.click(screen.getByRole("switch", { name: "Per-question timer" }));
+  const toggle = screen.getByRole("switch", { name: "Per-question timer" });
+  if (toggle.getAttribute("aria-checked") !== "true") fireEvent.click(toggle);
   fireEvent.click(screen.getByRole("button", { name: String(seconds) + "s" }));
+}
+
+function disablePerQuestionTimer() {
+  const toggle = screen.getByRole("switch", { name: "Per-question timer" });
+  if (toggle.getAttribute("aria-checked") === "true") fireEvent.click(toggle);
 }
 
 function getProcessedAnswers(container: HTMLElement) {
@@ -272,6 +278,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
     const view = render(<PracticePage />);
 
     try {
+      disablePerQuestionTimer();
       expect(screen.getByRole("switch", { name: "Per-question timer" })).not.toBeChecked();
       startSelectedGame(/3D Car Racing/i);
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
