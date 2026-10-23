@@ -289,6 +289,26 @@ export const createRacingAudioController = (baseSpeedMultiplier: number, maximum
 export const playClick = () => { if (!enabled()) return; playTones([{ f: 880, d: 0.04, t: 'triangle', v: 0.6 }], 0.04); };
 export const playSwipe = () => { if (!enabled()) return; playTones([{ f: 520, d: 0.06, t: 'sine', v: 0.5 }, { f: 760, d: 0.05, t: 'sine', v: 0.4 }], 0.04); };
 
+// Space Shooter cues are synthesized locally, reuse the app AudioContext, and respect Settings → Sound.
+export const playSpaceLaser = () => {
+  if (!enabled()) return;
+  playTones([
+    { f: 1320, d: 0.035, t: "square", v: 0.55 },
+    { f: 880, d: 0.055, t: "triangle", v: 0.42 },
+    { f: 560, d: 0.045, t: "sine", v: 0.25 },
+  ], 0.028);
+};
+
+export const playSpaceExplosion = () => {
+  if (!enabled()) return;
+  playTones([
+    { f: 185, d: 0.095, t: "sawtooth", v: 0.42 },
+    { f: 310, d: 0.075, t: "square", v: 0.28 },
+    { f: 125, d: 0.13, t: "triangle", v: 0.36 },
+    { f: 520, d: 0.055, t: "sine", v: 0.18 },
+  ], 0.038);
+};
+
 // Short, quiet arcade cues share the app's audio context and respect Settings → Sound.
 export const playJump = () => {
   if (!enabled()) return;
