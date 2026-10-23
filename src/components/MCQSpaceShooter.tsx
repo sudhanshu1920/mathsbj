@@ -302,7 +302,7 @@ const MCQSpaceShooter = ({
 
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(options.length > 0 ? 0 : null);
   const [paused, setPaused] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("Tap an answer target to aim, then fire the laser.");
+  const [statusMessage, setStatusMessage] = useState("SINGLE TAP LEFT/RIGHT TO AIM · DOUBLE TAP TO FIRE");
   const [rendererError, setRendererError] = useState(false);
   const [rendererAttempt, setRendererAttempt] = useState(0);
   const pausedRef = useRef(false);
@@ -837,7 +837,7 @@ const MCQSpaceShooter = ({
         <button
           type="button"
           className="mcq-space-touch-zone mcq-space-touch-zone--left"
-          onPointerUp={(event) => { event.preventDefault(); handleDirectionalTap(-1); }}
+          onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(-1); }}
           onContextMenu={(event) => event.preventDefault()}
           disabled={!canInteract()}
           aria-label="Left touch zone: single tap moves aim left, double tap fires at aimed target"
@@ -846,7 +846,7 @@ const MCQSpaceShooter = ({
         <button
           type="button"
           className="mcq-space-touch-zone mcq-space-touch-zone--right"
-          onPointerUp={(event) => { event.preventDefault(); handleDirectionalTap(1); }}
+          onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(1); }}
           onContextMenu={(event) => event.preventDefault()}
           disabled={!canInteract()}
           aria-label="Right touch zone: single tap moves aim right, double tap fires at aimed target"
