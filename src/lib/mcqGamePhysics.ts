@@ -28,6 +28,13 @@ export function resolveMCQGameGateTravelDurationMs(durationMs: number | null | u
     ? durationMs
     : MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS;
 }
+
+/** Keeps a contact at the quiz deadline ahead of a timeout callback from a neighboring frame. */
+export function isMCQGameCollisionWithinDeadline(contactTimestampMs: number, deadlineMs: number): boolean {
+  return Number.isFinite(contactTimestampMs) &&
+    Number.isFinite(deadlineMs) &&
+    contactTimestampMs <= deadlineMs + MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS;
+}
 export const MCQ_GAME_HOLD_THRESHOLD_MS = 180;
 export const MCQ_GAME_BASE_SPEED_MULTIPLIER = 1;
 export const MCQ_GAME_MAX_SPEED_MULTIPLIER = 3.25;
