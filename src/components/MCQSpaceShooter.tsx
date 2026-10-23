@@ -747,7 +747,7 @@ const MCQSpaceShooter = ({
 
   const handleFinalSubmit = () => {
     const current = latestPropsRef.current;
-    if (current.disabled || finalSubmitInvokedRef.current) return;
+    if (current.disabled || finalSubmitInvokedRef.current || submittedRef.current) return;
     finalSubmitInvokedRef.current = true;
     submittedRef.current = true;
     clearPendingDirectionalTap();
