@@ -19,6 +19,8 @@ export const MCQ_GAME_GATE_CLEARANCE_Z = 0.45;
 export const MCQ_GAME_GATE_HALF_WIDTH = 0.6;
 export const MCQ_GAME_TRAVEL_DISTANCE = MCQ_GAME_COLLISION_Z - MCQ_GAME_GATE_START_Z;
 export const MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS = 10_000;
+// Allows at most one short rendering-scheduler boundary when collision and timer expiry coincide.
+export const MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS = 50;
 
 /** Uses the selected per-question timer when valid; an absent/disabled timer gets the 10s default. */
 export function resolveMCQGameGateTravelDurationMs(durationMs: number | null | undefined): number {
