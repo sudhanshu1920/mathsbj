@@ -94,6 +94,16 @@ describe("2D Math Jump Adventure UI", () => {
     expect(onSelectOption).toHaveBeenCalledWith(1, "28", expect.stringContaining("question-1"));
   });
 
+  it("does not open Pause in the middle of an answer submission", () => {
+    mockCanvasContext();
+    const onSelectOption = vi.fn(() => true);
+    render(<MCQJumpAdventure {...props({ onSelectOption })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Answer 28" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onSelectOption).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Adventure paused" })).not.toBeInTheDocument();
+  });
+
   it("pauses gameplay and reports pause/resume to the owning quiz timer when focus is lost", () => {
     mockCanvasContext();
     const onPauseChange = vi.fn();
