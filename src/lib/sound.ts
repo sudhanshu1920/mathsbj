@@ -287,7 +287,21 @@ export const createRacingAudioController = (baseSpeedMultiplier: number, maximum
 };
 
 export const playClick = () => { if (!enabled()) return; playTones([{ f: 880, d: 0.04, t: 'triangle', v: 0.6 }], 0.04); };
-export const playSwipe = () => { if (!enabled()) return; playTones([{ f: 520, d: 0.06, t: 'sine', v: 0.5 }, { f: 760, d: 0.05, t: 'sine', v: 0.4 }], 0.04); };
+export const playSwipe = () => { if (!enabled()) return; playTones([{ f: 520, d: 0.06, t: 'sine', v: 0.5 }, { f: 760, d: 0.05, t: 'sine', v: 0.4 }], 0.04);
+
+// Short, quiet arcade cues share the app's audio context and respect Settings → Sound.
+export const playJump = () => {
+  if (!enabled()) return;
+  playTones([
+    { f: 350, d: 0.045, t: 'sine', v: 0.55 },
+    { f: 520, d: 0.075, t: 'triangle', v: 0.42 },
+    { f: 690, d: 0.08, t: 'sine', v: 0.28 },
+  ], 0.035);
+};
+export const playLanding = () => {
+  if (!enabled()) return;
+  playTones([{ f: 205, d: 0.045, t: 'triangle', v: 0.35 }], 0.025);
+};
 export const playSuccess = () => { if (!enabled()) return; playTones([{ f: 660, d: 0.09, t: 'triangle' }, { f: 880, d: 0.10, t: 'triangle' }, { f: 1175, d: 0.14, t: 'triangle' }], 0.06); };
 type AudioCueName = 'right-answer' | 'wrong-answer' | 'submit';
 
