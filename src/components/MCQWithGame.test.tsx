@@ -624,7 +624,7 @@ describe("Full-screen continuous MCQ racing", () => {
     const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
     try {
       for (let timestamp = 0; timestamp <= 2_500; timestamp += 50) raf.advance(timestamp);
-      const halfway = renderer.mock.calls.at(-1)?.[0] as { gateZ: number };
+      const halfway = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZ: number };
       expect(halfway.gateZ).toBeCloseTo(MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * 0.5, 1);
 
       view.rerender(<MCQWithGame {...gameProps({
@@ -635,7 +635,7 @@ describe("Full-screen continuous MCQ racing", () => {
         onSelectOption,
       })} />);
       for (let timestamp = 2_550; timestamp <= 3_000; timestamp += 50) raf.advance(timestamp);
-      const sixtyPercent = renderer.mock.calls.at(-1)?.[0] as { gateZ: number };
+      const sixtyPercent = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZ: number };
       expect(sixtyPercent.gateZ).toBeCloseTo(MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * 0.6, 1);
       expect(onSelectOption).not.toHaveBeenCalled();
     } finally {
