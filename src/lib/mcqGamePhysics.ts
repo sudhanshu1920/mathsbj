@@ -18,6 +18,14 @@ export const MCQ_GAME_GATE_START_Z = -9.0;
 export const MCQ_GAME_GATE_CLEARANCE_Z = 0.45;
 export const MCQ_GAME_GATE_HALF_WIDTH = 0.6;
 export const MCQ_GAME_TRAVEL_DISTANCE = MCQ_GAME_COLLISION_Z - MCQ_GAME_GATE_START_Z;
+export const MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS = 10_000;
+
+/** Uses the selected per-question timer when valid; an absent/disabled timer gets the 10s default. */
+export function resolveMCQGameGateTravelDurationMs(durationMs: number | null | undefined): number {
+  return typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs > 0
+    ? durationMs
+    : MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS;
+}
 export const MCQ_GAME_HOLD_THRESHOLD_MS = 180;
 export const MCQ_GAME_BASE_SPEED_MULTIPLIER = 1;
 export const MCQ_GAME_MAX_SPEED_MULTIPLIER = 3.25;
