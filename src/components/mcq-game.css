@@ -623,3 +623,203 @@
 @media (max-width: 380px) {
   .mcq-game-select-to-picker { min-height: 2.35rem; padding: 0 0.6rem; font-size: 0.7rem; }
 }
+
+
+/* NEON NITRO design system: restrained neon on midnight surfaces. */
+.mcq-game-shell {
+  --race-bg: #080d19;
+  --race-surface: #10192b;
+  --race-elevated: #17243a;
+  --race-cyan: #35d9ff;
+  --race-blue: #3478ff;
+  --race-purple: #9470ff;
+  --race-orange: #ff9c42;
+  --race-green: #39d98a;
+  --race-coral: #ff5b6e;
+  --race-text: #f4f7ff;
+  --race-muted: #aab8d0;
+  color: var(--race-text);
+  background: var(--race-bg);
+  font-family: "Space Grotesk", "Inter", system-ui, sans-serif;
+}
+
+.mcq-game-stage {
+  background:
+    radial-gradient(ellipse at 50% 15%, rgb(52 120 255 / 0.23), transparent 47%),
+    radial-gradient(ellipse at 50% 62%, rgb(53 217 255 / 0.07), transparent 52%),
+    linear-gradient(180deg, #10192b 0%, #0b1221 48%, #080d19 100%);
+}
+
+.mcq-game-gate-label {
+  border-width: 1.5px;
+  border-radius: 0.62rem;
+  background: linear-gradient(155deg, rgb(13 28 49 / 0.96), rgb(8 13 25 / 0.98));
+  box-shadow: 0 0 12px rgb(53 217 255 / 0.14), inset 0 0 0 1px rgb(255 255 255 / 0.035);
+}
+
+.mcq-game-gate-label[data-lane-id="lane-1"] {
+  border-color: var(--race-cyan);
+  box-shadow: 0 0 12px rgb(53 217 255 / 0.24), inset 0 0 0 1px rgb(53 217 255 / 0.1);
+}
+
+.mcq-game-gate-label[data-lane-id="lane-2"] {
+  border-color: var(--race-purple);
+  box-shadow: 0 0 12px rgb(148 112 255 / 0.2), inset 0 0 0 1px rgb(148 112 255 / 0.09);
+}
+
+.mcq-game-gate-label[data-lane-id="lane-3"] {
+  border-color: var(--race-orange);
+  box-shadow: 0 0 12px rgb(255 156 66 / 0.2), inset 0 0 0 1px rgb(255 156 66 / 0.08);
+}
+
+.mcq-game-gate-label[data-lane-id="lane-4"] {
+  border-color: var(--race-green);
+  box-shadow: 0 0 12px rgb(57 217 138 / 0.2), inset 0 0 0 1px rgb(57 217 138 / 0.08);
+}
+
+.mcq-game-topbar {
+  border-color: rgb(53 217 255 / 0.3);
+  background: linear-gradient(105deg, rgb(8 13 25 / 0.97), rgb(16 25 43 / 0.96));
+  box-shadow: 0 8px 26px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+.mcq-game-submit {
+  border-color: rgb(53 217 255 / 0.85);
+  background: linear-gradient(110deg, #3478ff 0%, #2259dc 58%, #1b4cc0 100%);
+  box-shadow: 0 0 14px rgb(52 120 255 / 0.24), inset 0 1px 0 rgb(255 255 255 / 0.2);
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.mcq-game-submit:focus-visible,
+.mcq-game-pause:focus-visible,
+.mcq-game-paused-action:focus-visible {
+  outline-color: var(--race-cyan);
+}
+
+.mcq-game-pause {
+  border-color: rgb(53 217 255 / 0.5);
+  background: linear-gradient(145deg, #17243a, #0b1221);
+}
+
+.mcq-game-question-panel {
+  border-color: var(--race-cyan);
+  background: linear-gradient(150deg, rgb(16 25 43 / 0.98), rgb(8 13 25 / 0.97));
+  box-shadow: 0 0 10px rgb(53 217 255 / 0.36), 0 0 25px rgb(52 120 255 / 0.18),
+    inset 0 0 0 1px rgb(53 217 255 / 0.11);
+}
+
+.mcq-game-question-panel::after {
+  background: var(--race-cyan);
+  filter: drop-shadow(0 3px 5px rgb(53 217 255 / 0.45));
+}
+
+.mcq-game-question-panel::before {
+  background: #10192b;
+}
+
+.mcq-game-question-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  margin: 0 0 0.45rem;
+  color: var(--race-cyan);
+  font-size: clamp(0.58rem, 1.5vw, 0.72rem);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  line-height: 1.1;
+}
+
+.mcq-game-question-heading svg {
+  flex: 0 0 auto;
+}
+
+.mcq-game-question-heading-divider,
+.mcq-game-question-heading-caption {
+  color: var(--race-muted);
+}
+
+.mcq-game-question-content {
+  color: var(--race-text);
+  text-shadow: 0 2px 12px rgb(0 0 0 / 0.25);
+}
+
+.mcq-game-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  margin-top: 0.7rem;
+  font-size: clamp(0.62rem, 1.55vw, 0.74rem);
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  line-height: 1.25;
+}
+
+.mcq-game-feedback svg {
+  flex: 0 0 auto;
+}
+
+.mcq-game-feedback--correct { color: var(--race-green); }
+.mcq-game-feedback--wrong { color: var(--race-coral); }
+
+.mcq-game-paused-card {
+  border-color: rgb(53 217 255 / 0.42);
+  background: linear-gradient(150deg, rgb(16 25 43 / 0.99), rgb(8 13 25 / 0.99));
+}
+
+.mcq-game-paused-card > svg {
+  color: var(--race-cyan);
+}
+
+.mcq-game-paused-action--secondary {
+  border-color: rgb(170 184 208 / 0.24);
+  color: var(--race-muted);
+  background: rgb(23 36 58 / 0.94);
+}
+
+.mcq-game-renderer-fallback {
+  background:
+    radial-gradient(ellipse at 50% 18%, rgb(52 120 255 / 0.17), transparent 62%),
+    linear-gradient(180deg, #10192b, #080d19);
+}
+
+.mcq-game-fallback-option {
+  border-color: rgb(53 217 255 / 0.36);
+  background: linear-gradient(155deg, #17243a, #10192b);
+}
+
+@media (max-width: 480px) {
+  .mcq-game-question-heading {
+    gap: 0.26rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+  }
+
+  .mcq-game-feedback {
+    margin-top: 0.55rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+  }
+}
+
+@media (max-width: 380px) {
+  .mcq-game-submit {
+    gap: 0.15rem;
+    padding-inline: 0.32rem;
+    font-size: 0.66rem;
+    letter-spacing: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcq-game-shell *,
+  .mcq-game-shell *::before,
+  .mcq-game-shell *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
