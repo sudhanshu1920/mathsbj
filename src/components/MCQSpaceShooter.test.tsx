@@ -147,7 +147,10 @@ describe("Math Space Shooter", () => {
     mockLayout(view);
 
     // Tapping visible asteroid artwork is never an answer-submit action.
-    fireEvent.click(screen.getByTestId("space-target-0"));
+    const asteroid = screen.getByTestId("space-target-0");
+    fireEvent.click(asteroid);
+    fireEvent.pointerUp(asteroid, { pointerId: 1 });
+    fireEvent.pointerUp(asteroid, { pointerId: 1 });
     expect(onSelectOption).not.toHaveBeenCalled();
 
     const rightZone = screen.getByTestId("space-touch-right");
