@@ -287,7 +287,12 @@ describe("Full-screen continuous MCQ racing", () => {
     let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);
     let rejectFirstAttempt = true;
-    const onSelectOption = vi.fn(() => {
+    const onSelectOption = vi.fn((
+      _laneIndex: number,
+      _optionValue: string | number,
+      _gateId: string,
+      _contactTimestampMs?: number,
+    ): boolean => {
       if (rejectFirstAttempt) {
         rejectFirstAttempt = false;
         return false;
