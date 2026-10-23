@@ -687,3 +687,16 @@
     transition: none;
   }
 }
+
+
+/* Original, CSS-drawn Math Slice Ninja artwork. */
+.mcq-game-select-card--slice{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1fr);flex-direction:row;border-color:rgba(94,218,255,.32);background:linear-gradient(155deg,#111832,#0b1024)}
+.mcq-game-select-card--slice:hover{transform:translateY(-3px);border-color:rgba(99,237,255,.8);box-shadow:0 18px 44px rgba(72,194,255,.14)}
+.mcq-game-select-art--slice{position:relative;display:block;min-height:170px;overflow:hidden;isolation:isolate;background:radial-gradient(ellipse at 23% 18%,rgba(27,207,255,.34),transparent 42%),radial-gradient(ellipse at 76% 65%,rgba(205,64,255,.29),transparent 45%),linear-gradient(140deg,#06152c,#19133d 65%,#33174d)}
+.mcq-slice-select-star{position:absolute;z-index:1;color:#dbfbff;text-shadow:0 0 10px rgba(114,233,255,.9)}.mcq-slice-select-star--one{left:17%;top:15%}.mcq-slice-select-star--two{right:16%;top:18%;font-size:1.25rem}
+.mcq-slice-select-orb{position:absolute;z-index:2;display:grid;width:clamp(2.35rem,5vw,3.1rem);aspect-ratio:1;place-items:center;border:2px solid rgba(245,254,255,.9);border-radius:40%;color:#fff;background:radial-gradient(circle at 25% 18%,#ffe0ad,#ff7c58 55%,#b22a6a);box-shadow:0 0 20px rgba(255,113,112,.4),inset 0 2px 0 rgba(255,255,255,.24);font-size:.83rem;font-weight:950;transform:rotate(10deg)}
+.mcq-slice-select-orb--one{left:20%;top:24%}.mcq-slice-select-orb--two{left:44%;top:49%;background:radial-gradient(circle at 25% 18%,#b6fff0,#28c9c2 55%,#1465a4);transform:rotate(-8deg)}.mcq-slice-select-orb--three{right:19%;top:27%;background:radial-gradient(circle at 25% 18%,#f3d1ff,#bf58e7 55%,#5832bd);transform:rotate(14deg)}
+.mcq-slice-select-trail{position:absolute;z-index:3;left:21%;top:63%;width:68%;height:3px;border-radius:99px;background:linear-gradient(90deg,transparent,#c3ffff 25%,#6fe7ff 75%,transparent);box-shadow:0 0 12px rgba(100,238,255,.95);transform:rotate(-24deg)}
+.mcq-slice-select-blade{position:absolute;z-index:4;right:13%;bottom:12%;display:grid;width:3rem;height:3rem;place-items:center;border:1px solid rgba(155,244,255,.36);border-radius:1rem;color:#baf8ff;background:rgba(16,83,145,.52);box-shadow:0 0 20px rgba(75,207,255,.25);transform:rotate(-24deg)}
+@media(max-width:700px){.mcq-game-select-card--slice{grid-column:auto;grid-template-columns:minmax(0,1fr)}.mcq-game-select-card--slice .mcq-game-select-art--slice{height:155px;min-height:155px}}
+@media(prefers-reduced-motion:reduce){.mcq-game-select-card--slice{transition:none}}

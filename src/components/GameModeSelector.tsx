@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
-import { ArrowLeft, CarFront, Check, Gamepad2, Mountain, Play, Rocket, Sparkles, X } from "lucide-react";
+import { ArrowLeft, CarFront, Check, Gamepad2, Mountain, Play, Rocket, Scissors, Sparkles, X } from "lucide-react";
 import "./mcq-game-selector.css";
 
-export type MCQGameVariant = "car" | "jump" | "shooter";
+export type MCQGameVariant = "car" | "jump" | "shooter" | "slice";
 type SelectorVariant = "screen" | "modal";
 
 interface GameModeSelectorProps {
@@ -43,6 +43,7 @@ const GAME_OPTIONS: ReadonlyArray<{
     action: "Select shooter",
     ariaLabel: "Space Shooter. Aim, shoot and solve.",
   },
+  { id: "slice", title: "Math Slice Ninja", description: "Swipe. Slice. Solve.", action: "Select Slice Ninja", ariaLabel: "Math Slice Ninja. Swipe, slice and solve." },
 ];
 
 const GameModeSelector = ({
@@ -145,7 +146,7 @@ const GameModeSelector = ({
             <h1 id={isModal ? "mcq-game-select-title" : undefined}>
               {isModal ? "Choose Your Game" : "Choose your game"}
             </h1>
-            <p>{isModal ? "Select a game, then press Start Quiz." : "Same Math Quiz Engine. Three different ways to play."}</p>
+            <p>{isModal ? "Select a game, then press Start Quiz." : "Same Math Quiz Engine. Four different ways to play."}</p>
           </div>
 
           <div className={"mcq-game-select-cards" + (isModal ? " mcq-game-select-cards--modal" : "")}>
@@ -228,6 +229,21 @@ const GameModeSelector = ({
                   {isModal ? (selectedChoice === "shooter" ? <><Check size={14} aria-hidden="true" /> Selected</> : GAME_OPTIONS[2].action) : "Launch mission"}
                   {!isModal && <span aria-hidden="true">→</span>}
                 </span>
+              </span>
+            </button>
+            <button type="button"
+              className={"mcq-game-select-card mcq-game-select-card--slice" + (selectedChoice === "slice" ? " is-selected" : "")}
+              onClick={() => chooseGame("slice")} aria-label={GAME_OPTIONS[3].ariaLabel}
+              aria-pressed={selectedChoice === "slice"} data-testid="select-math-slice-ninja" disabled={starting}>
+              <span className="mcq-game-select-art mcq-game-select-art--slice" aria-hidden="true">
+                <span className="mcq-slice-select-star mcq-slice-select-star--one">✦</span><span className="mcq-slice-select-star mcq-slice-select-star--two">✧</span>
+                <span className="mcq-slice-select-orb mcq-slice-select-orb--one">12</span><span className="mcq-slice-select-orb mcq-slice-select-orb--two">8</span>
+                <span className="mcq-slice-select-orb mcq-slice-select-orb--three">96</span><span className="mcq-slice-select-trail" />
+                <span className="mcq-slice-select-blade"><Scissors size={39} strokeWidth={2.3}/></span>
+              </span>
+              <span className="mcq-game-select-card-copy"><span className="mcq-game-select-card-title">{GAME_OPTIONS[3].title}</span>
+                <span className="mcq-game-select-card-description">{GAME_OPTIONS[3].description}</span>
+                <span className="mcq-game-select-card-action">{isModal ? (selectedChoice === "slice" ? <><Check size={14} aria-hidden="true"/> Selected</> : GAME_OPTIONS[3].action) : "Swipe to slice"}{!isModal && <span aria-hidden="true">→</span>}</span>
               </span>
             </button>
           </div>

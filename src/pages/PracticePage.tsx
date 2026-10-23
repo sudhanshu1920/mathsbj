@@ -38,6 +38,7 @@ import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, ge
 import MCQWithGame from '@/components/MCQWithGame';
 import MCQJumpAdventure from '@/components/MCQJumpAdventure';
 import MCQSpaceShooter from '@/components/MCQSpaceShooter';
+import MCQSliceNinja from '@/components/MCQSliceNinja';
 import GameModeSelector, { type MCQGameVariant } from '@/components/GameModeSelector';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
 import { MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS, MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS, isMCQGameCollisionWithinDeadline, createMCQGateMappings } from '@/lib/mcqGamePhysics';
@@ -2139,7 +2140,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       // Space Shooter can explicitly end a finite test early. Other game modes
       // keep their existing final-submit policy unchanged.
       if (finishLockRef.current || answerLockRef.current || feedback || finished) return false;
-      if (finalSubmitReadyRef.current || (config.mode === 'game' && selectedGameVariant === 'shooter')) {
+      if (finalSubmitReadyRef.current || (config.mode === 'game' && (selectedGameVariant === 'shooter' || selectedGameVariant === 'slice'))) {
         finishQuiz({ playSubmitSound: true });
         return true;
       }
@@ -2402,7 +2403,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                   onRestartGame={() => startPractice(config)}
                 />
               )
-              : (
+              : selectedGameVariant === 'slice'
+                ? (
+                  <MCQSliceNinja
+                    {...sharedGameProps}
+                    sessionKey={questionPoolGenerationRef.current}
+                    onPauseChange={handleJumpPauseChange}
+                    onRestartGame={() => startPractice(config)}
+                  />
+                )
+                : (
                 <MCQWithGame
                   {...sharedGameProps}
                   sessionKey={questionPoolGenerationRef.current}
@@ -3148,7 +3158,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         {mode === 'game' && (
           <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
             <span className="min-w-0 text-xs font-bold text-foreground">
-              Selected: {selectedGameVariant === 'car' ? '3D Math Car Racing' : selectedGameVariant === 'jump' ? '2D Math Jump Adventure' : 'Math Space Shooter'}
+              Selected: {selectedGameVariant === 'car' ? '3D Math Car Racing' : selectedGameVariant === 'jump' ? '2D Math Jump Adventure' : selectedGameVariant === 'shooter' ? 'Math Space Shooter' : 'Math Slice Ninja'}
             </span>
             <button
               type="button"

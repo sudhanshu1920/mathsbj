@@ -9,8 +9,9 @@ Open **Quiz Mode → Answer Mode → MCQ with Game** and choose your game:
 - **3D Math Car Racing** — the existing 3D racing game with answer gates.
 - **2D Math Jump Adventure** — a colorful platformer with movement, jumping, platform physics, checkpoints, and explicit answer tiles.
 - **Math Space Shooter** — pilot a spaceship, aim at a mathematical answer target, and fire a laser projectile to submit that answer.
+- **Math Slice Ninja** — swipe through flying answer orbs; each valid cut splits the target and submits the selected option through the shared quiz callback.
 
-All three games use the existing quiz question generation, answer validation, scoring, progress tracking, timers, and result flow. The Space Shooter uses the same guarded answer-submission path as the other games; aiming at a target does not itself submit an answer. A valid projectile hit submits the target's engine-mapped answer identity once. Switching games during an active quiz returns to the selector without intentionally restarting the current question or resetting quiz progress.
+All four games use the existing quiz question generation, answer validation, scoring, progress tracking, timers, and result flow. The Space Shooter uses the same guarded answer-submission path as the other games; aiming at a target does not itself submit an answer. A valid projectile hit submits the target's engine-mapped answer identity once. Switching games during an active quiz returns to the selector without intentionally restarting the current question or resetting quiz progress.
 
 ## Math Space Shooter controls and lifecycle
 
@@ -31,6 +32,14 @@ All three games use the existing quiz question generation, answer validation, sc
 - **Return to game selector** lets you switch games when answer processing is not in progress. The completed result screen offers **Play Again** and **Back to Game Selection**.
 - Falling returns the character to the last safe checkpoint. Canvas initialization failures show a retry/exit panel rather than silently leaving a blank game.
 - Jump and landing cues reuse the app's existing Sound setting. Animation and sound effects do not determine answer correctness.
+
+## Math Slice Ninja controls and lifecycle
+
+- Swipe through a flying answer orb. Continuous collision checks account for the swipe path and target movement; a tap alone never submits.
+- Each orb belongs to the active question and maps to its actual option identity. An accepted slice enters the shared Quiz Engine callback once.
+- Original Canvas-rendered orb halves, bounded particles and a fading trail avoid bundling a separate Pygame runtime or assets with unclear redistribution rights.
+- Pause freezes the game simulation and notifies the shared timer controller. Restart uses existing quiz configuration. Submit Test remains separate from slicing one answer.
+- Sound respects the app's current Sound setting. Leaving the game cancels its animation loop and active pointer gesture.
 
 ## Personal-use signed Android APK
 

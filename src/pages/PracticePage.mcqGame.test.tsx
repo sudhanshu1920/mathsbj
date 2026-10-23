@@ -9,6 +9,7 @@ const rendererMocks = vi.hoisted(() => ({
 vi.mock("@/lib/mcq3dRenderer", () => ({
   createMCQ3DScene: rendererMocks.createMCQ3DScene,
 }));
+vi.mock("@/components/MCQSliceNinja", () => ({ default: () => <section data-testid="mcq-slice-fullscreen" aria-label="Math Slice Ninja">Math Slice Ninja</section> }));
 
 afterEach(() => {
   cleanup();
@@ -131,6 +132,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
       expect(screen.getByRole("button", { name: /3D Car Racing/i })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /2D Jump Adventure/i })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Space Shooter/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Math Slice Ninja/i })).toBeInTheDocument();
       expect(screen.getByTestId("start-selected-game")).toBeDisabled();
 
       fireEvent.click(screen.getByRole("button", { name: /2D Jump Adventure/i }));
@@ -294,6 +296,19 @@ describe("Quiz Arena MCQ with Game mode", () => {
       view.unmount();
       raf.restore();
     }
+  });
+
+  it("starts Math Slice Ninja only after selecting its card and pressing Start Quiz", () => {
+    const view = render(<PracticePage />);
+    try {
+      openGameSelection();
+      fireEvent.click(screen.getByRole("button", { name: /Math Slice Ninja/i }));
+      expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+      expect(screen.queryByTestId("mcq-slice-fullscreen")).not.toBeInTheDocument();
+      fireEvent.click(screen.getByTestId("start-selected-game"));
+      expect(screen.getByTestId("mcq-slice-fullscreen")).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Math Slice Ninja" })).toBeInTheDocument();
+    } finally { view.unmount(); }
   });
 
   it("automatically submits once after the final car-collision answer is recorded", async () => {

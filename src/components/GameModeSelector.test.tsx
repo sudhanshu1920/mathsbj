@@ -5,14 +5,15 @@ import GameModeSelector from "@/components/GameModeSelector";
 afterEach(cleanup);
 
 describe("MCQ with Game selector", () => {
-  it("shows the existing racing and jump games plus Space Shooter", () => {
+  it("shows the existing games plus Math Slice Ninja", () => {
     render(<GameModeSelector selectedGame="car" onBack={vi.fn()} onSelect={vi.fn()} />);
     expect(screen.getByRole("button", { name: /3D Car Racing/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /2D Jump Adventure/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Space Shooter/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Math Slice Ninja/i })).toBeInTheDocument();
     expect(screen.getAllByRole("button").filter((button) =>
-      /3D Car Racing|2D Jump Adventure|Space Shooter/.test(button.getAttribute("aria-label") || ""),
-    )).toHaveLength(3);
+      /3D Car Racing|2D Jump Adventure|Space Shooter|Math Slice Ninja/.test(button.getAttribute("aria-label") || ""),
+    )).toHaveLength(4);
   });
 
   it("routes a selected game through one guarded action", () => {
@@ -35,6 +36,21 @@ describe("MCQ with Game selector", () => {
     expect(onSelect).toHaveBeenCalledWith("shooter");
   });
 
+
+  it("selects Math Slice Ninja without launching until Start Quiz", () => {
+    const onSelect = vi.fn();
+    const onStart = vi.fn(() => true);
+    render(<GameModeSelector selectedGame="car" variant="modal" onBack={vi.fn()} onSelect={onSelect} onStart={onStart} />);
+    const card = screen.getByRole("button", { name: /Math Slice Ninja/i });
+    fireEvent.click(card);
+    expect(card).toHaveAttribute("aria-pressed", "true");
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("slice");
+    expect(onStart).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("start-selected-game"));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(onStart).toHaveBeenCalledWith("slice");
+  });
 
   it("requires an explicit choice and launches only from Start Quiz in the compact popup", () => {
     const onSelect = vi.fn();

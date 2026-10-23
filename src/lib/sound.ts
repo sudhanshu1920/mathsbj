@@ -288,6 +288,7 @@ export const createRacingAudioController = (baseSpeedMultiplier: number, maximum
 
 export const playClick = () => { if (!enabled()) return; playTones([{ f: 880, d: 0.04, t: 'triangle', v: 0.6 }], 0.04); };
 export const playSwipe = () => { if (!enabled()) return; playTones([{ f: 520, d: 0.06, t: 'sine', v: 0.5 }, { f: 760, d: 0.05, t: 'sine', v: 0.4 }], 0.04); };
+export const playSlice = () => { if (!enabled()) return; playTones([{ f: 1040, d: 0.035, t: 'sawtooth', v: 0.55 }, { f: 690, d: 0.07, t: 'triangle', v: 0.62 }], 0.045); };
 
 // Space Shooter cues are synthesized locally, reuse the app AudioContext, and respect Settings → Sound.
 export const playSpaceLaser = () => {
