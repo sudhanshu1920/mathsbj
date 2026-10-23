@@ -60,7 +60,7 @@ const GameModeSelector = ({ selectedGame, onBack, onSelect }: GameModeSelectorPr
             <span className="mcq-game-select-card-copy">
               <span className="mcq-game-select-card-title">3D Math Car Racing</span>
               <span className="mcq-game-select-card-description">Steer into answer gates to solve each question. Hold a side to boost.</span>
-              <span className="mcq-game-select-card-action">Start racing <span aria-hidden="true">→</span></span>
+              <span className="mcq-game-select-card-action">Select racing <span aria-hidden="true">→</span></span>
             </span>
           </button>
 
