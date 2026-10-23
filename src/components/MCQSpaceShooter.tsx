@@ -190,7 +190,7 @@ function drawSpaceFrame(context: CanvasRenderingContext2D, world: SpaceWorld): v
     context.fillStyle = "#ffae5b";
     context.beginPath();
     context.moveTo(-7, 15);
-    context.lineTo(0, 29 + Math.random() * 5);
+    context.lineTo(0, 29 + Math.sin((world.lastTimestamp ?? 0) / 45) * 3);
     context.lineTo(7, 15);
     context.closePath();
     context.fill();
@@ -719,6 +719,11 @@ const MCQSpaceShooter = ({
     }
   };
 
+  const handleChangeGame = () => {
+    if (pausedRef.current) setPausedState(false, "Opening game selection.");
+    latestPropsRef.current.onChangeGame?.();
+  };
+
   const handleFinalSubmit = () => {
     const current = latestPropsRef.current;
     if (!current.canFinalizeTest || current.disabled || finalSubmitInvokedRef.current) return;
@@ -737,7 +742,7 @@ const MCQSpaceShooter = ({
         <button
           type="button"
           className="mcq-space-icon-button"
-          onClick={() => onChangeGame?.()}
+          onClick={handleChangeGame}
           disabled={!onChangeGame || leaveBlocked}
           aria-label="Return to game selection"
         >
@@ -905,6 +910,16 @@ const MCQSpaceShooter = ({
                 disabled={restartBlocked}
               >
                 <RotateCcw size={16} aria-hidden="true" /> Restart quiz
+              </button>
+            )}
+            {onChangeGame && (
+              <button
+                type="button"
+                className="mcq-space-pause-secondary"
+                onClick={handleChangeGame}
+                disabled={submissionBlocked}
+              >
+                <ArrowLeft size={16} aria-hidden="true" /> Back to game selection
               </button>
             )}
           </section>
