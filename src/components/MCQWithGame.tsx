@@ -423,13 +423,28 @@ const MCQWithGame = ({
     const handleWindowFocus = () => {
       if (!document.hidden && phaseRef.current !== "PAUSED") racingAudioRef.current?.resume();
     };
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setPausedState(true, true);
+        return;
+      }
+
+      // Returning to the app never silently resumes the race. The player must
+      // press Resume so the racing loop and quiz timer restart together.
+      if (phaseRef.current !== "PAUSED") {
+        void setGameImmersiveMode(true);
+        racingAudioRef.current?.resume();
+      }
+    };
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     void setGameImmersiveMode(true);
 
     return () => {
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearHoldTimer();
       touchGestureRef.current = null;
       boostingRef.current = false;
@@ -618,29 +633,12 @@ const MCQWithGame = ({
     renderFrame();
     scheduleFrame();
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setPausedState(true, true);
-        return;
-      }
-
-      // Returning to the app never silently resumes the race. The player must
-      // press Resume so the racing loop and quiz timer restart together.
-      if (phaseRef.current !== "PAUSED") {
-        void setGameImmersiveMode(true);
-        racingAudioRef.current?.resume();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => {
       clearHoldTimer();
       if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
         window.cancelAnimationFrame(frameRef.current);
       }
       frameRef.current = null;
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       scene.dispose();
       if (sceneRef.current === scene) sceneRef.current = null;
       drawCurrentFrameRef.current = null;
