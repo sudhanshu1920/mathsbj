@@ -138,7 +138,7 @@ function drawSpaceFrame(context: CanvasRenderingContext2D, world: SpaceWorld): v
 
   // Procedural pixel planets are drawn with coarse square cells.
   const drawPlanet = (cx: number, cy: number, radius: number, base: string, shade: string, glow: string) => {
-    const cell = Math.max(3, Math.min(7, Math.round(width / 155)));
+    const cell = Math.max(3, Math.round(radius / 7));
     for (let py = -radius; py <= radius; py += cell) {
       for (let px = -radius; px <= radius; px += cell) {
         if (px * px + py * py > radius * radius) continue;
