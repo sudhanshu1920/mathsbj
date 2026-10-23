@@ -14,6 +14,8 @@ export const MCQ_GAME_CAR_CENTER_Z = 2;
 export const MCQ_GAME_CAR_HALF_WIDTH = 0.47;
 export const MCQ_GAME_COLLISION_Z = 0.75;
 export const MCQ_GAME_GATE_START_Z = -9.0;
+// A gate stays slightly beyond the contact plane before the next wave respawns.
+export const MCQ_GAME_GATE_CLEARANCE_Z = 0.45;
 export const MCQ_GAME_GATE_HALF_WIDTH = 0.6;
 export const MCQ_GAME_TRAVEL_DISTANCE = MCQ_GAME_COLLISION_Z - MCQ_GAME_GATE_START_Z;
 export const MCQ_GAME_HOLD_THRESHOLD_MS = 180;

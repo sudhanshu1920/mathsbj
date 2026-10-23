@@ -1,5 +1,6 @@
 import {
   MCQ_GAME_CAR_CENTER_Z,
+  MCQ_GAME_GATE_START_Z,
   MCQ_GAME_LANE_X,
 } from "@/lib/mcqGamePhysics";
 
@@ -17,6 +18,8 @@ export interface MCQGateProjection {
 export interface MCQ3DRenderFrame {
   carX: number;
   scrollOffset: number;
+  /** World-space Z position of the active answer-gate row. */
+  gateZ: number;
 }
 
 export interface MCQ3DScene {
@@ -572,12 +575,14 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
       );
       drawMesh(scrollingMesh, scrollMatrix, NORMAL_TINT);
 
-      // The gate frames share a fixed depth with the car's interaction
-      // plane. Their transforms are independent from the scrolling road.
+      // Answer gates are real world-space objects. They start ahead of the car
+      // and move toward it through frame.gateZ; they do not inherit the road
+      // mesh's recycling transform or the car's world transform.
+      const gateZ = Number.isFinite(frame.gateZ) ? frame.gateZ : MCQ_GAME_GATE_START_Z;
       MCQ_GAME_LANE_X.forEach((laneX, index) => {
         const gateMatrix = multiplyMatrices(
           viewProjection,
-          translationMatrix(laneX, 0, MCQ_GAME_CAR_CENTER_Z),
+          translationMatrix(laneX, 0, gateZ),
         );
         drawMesh(gateMeshes[index], gateMatrix, NORMAL_TINT);
       });
@@ -588,11 +593,10 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
       );
       drawMesh(carMesh, carMatrix, NORMAL_TINT);
 
-      // Project four gates at a constant car-relative depth. Neither
-      // road scroll, speed nor car steering participates in these anchors.
-      // The DOM labels and the car collision zones share this same lane order.
+      // Project labels from the same world-space gate transform as the meshes.
+      // This keeps the readable option number attached to the visible gate while
+      // it approaches; collision uses this same gateZ in the game loop.
       const projections = MCQ_GAME_LANE_X.map((laneX) => {
-        const gateZ = MCQ_GAME_CAR_CENTER_Z;
         const center = projectPoint(viewProjection, [laneX, 1.20, gateZ], viewport.width, viewport.height);
         const left = projectPoint(viewProjection, [laneX - 0.65, 1.20, gateZ], viewport.width, viewport.height);
         const right = projectPoint(viewProjection, [laneX + 0.65, 1.20, gateZ], viewport.width, viewport.height);

@@ -30,14 +30,18 @@ vi.mock("@/lib/sound", () => ({
 
 vi.mock("@/lib/mcq3dRenderer", () => ({
   createMCQ3DScene: vi.fn(() => ({
-    render: vi.fn(() => Array.from({ length: 4 }, (_, index) => ({
-      x: 50 + index * 80,
-      y: 280,
-      width: 62,
-      height: 42,
-      fontSize: 12,
-      visible: true,
-    }))),
+    render: vi.fn((frame: { gateZ: number }) => {
+      const progress = Math.max(0, Math.min(1, (frame.gateZ + 9) / 9.75));
+      const perspective = 0.55 + progress * 0.75;
+      return Array.from({ length: 4 }, (_, index) => ({
+        x: 200 + (index - 1.5) * 48 * perspective,
+        y: 275 + progress * 250,
+        width: 24 + progress * 64,
+        height: 18 + progress * 38,
+        fontSize: 9 + progress * 7,
+        visible: true,
+      }));
+    }),
     dispose: vi.fn(),
   })),
 }));
@@ -68,14 +72,18 @@ beforeEach(() => {
     });
   }
   vi.mocked(createMCQ3DScene).mockImplementation(() => ({
-    render: vi.fn(() => Array.from({ length: 4 }, (_, index) => ({
-      x: 50 + index * 80,
-      y: 280,
-      width: 62,
-      height: 42,
-      fontSize: 12,
-      visible: true,
-    }))),
+    render: vi.fn((frame: { gateZ: number }) => {
+      const progress = Math.max(0, Math.min(1, (frame.gateZ + 9) / 9.75));
+      const perspective = 0.55 + progress * 0.75;
+      return Array.from({ length: 4 }, (_, index) => ({
+        x: 200 + (index - 1.5) * 48 * perspective,
+        y: 275 + progress * 250,
+        width: 24 + progress * 64,
+        height: 18 + progress * 38,
+        fontSize: 9 + progress * 7,
+        visible: true,
+      }));
+    }),
     dispose: vi.fn(),
   }));
 });
@@ -162,6 +170,7 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(view.container.querySelectorAll(".mcq-game-controls")).toHaveLength(0);
     expect(view.container.querySelectorAll("button[aria-label='Steer left'], button[aria-label='Steer right']")).toHaveLength(0);
     expect(view.container.querySelector(".mcq-game-question-panel")).toBeInTheDocument();
+    expect(screen.getByText("NEON NITRO")).toBeInTheDocument();
     expect(screen.getByText("14 × 2 = ?")).toBeInTheDocument();
     expect(stage).toHaveAttribute("data-swipe-ignore-back", "true");
   });
@@ -186,24 +195,32 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(screen.getByLabelText("Question 5 / 10")).toBeInTheDocument();
     expect(screen.getByLabelText("Time remaining 6s")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit complete test" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Submit complete test" })).toHaveTextContent("Submit test");
     expect(view.container.querySelectorAll(".mcq-game-gate-letter")).toHaveLength(0);
     expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
   });
 
-  it("unlocks one racing audio controller for the session and plays selection sound once", () => {
-    const view = render(<MCQWithGame {...gameProps()} />);
+  it("does not submit or steer when an answer target is tapped", () => {
+    const onSelectOption = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({ onSelectOption })} />);
     const gate = view.container.querySelector('[data-option-id]') as HTMLElement;
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    const laneReadout = view.container.querySelector("[data-testid='mcq-game-lane-readout']");
 
     expect(createRacingAudioController).toHaveBeenCalledTimes(1);
-    fireEvent.click(gate);
+    expect(gate).toHaveAttribute("role", "listitem");
+    fireEvent.pointerDown(gate, { pointerId: 5, button: 0, clientX: 80, clientY: 280 });
+    fireEvent.pointerUp(gate, { pointerId: 5, button: 0, clientX: 80, clientY: 280 });
     fireEvent.click(gate);
 
-    expect(playSwipe).toHaveBeenCalledTimes(1);
-    expect(racingAudioMocks.unlock).toHaveBeenCalled();
-    expect(gate).not.toHaveTextContent(/^A$|^B$|^C$|^D$/);
+    expect(onSelectOption).not.toHaveBeenCalled();
+    expect(laneReadout).toHaveTextContent("Lane 2");
+    expect(playSwipe).not.toHaveBeenCalled();
+    expect(racingAudioMocks.unlock).not.toHaveBeenCalled();
+    expect(stage).toBeInTheDocument();
   });
 
-  it("commits gate selection through its callback but never finalizes a question", () => {
+  it("keeps answer-target taps separate from the whole-test Submit action", () => {
     const onSelectOption = vi.fn();
     const onFinalSubmit = vi.fn();
     const view = render(<MCQWithGame {...gameProps({ onSelectOption, onFinalSubmit })} />);
@@ -217,7 +234,7 @@ describe("Full-screen continuous MCQ racing", () => {
     const gate = view.container.querySelector('[data-option-id]') as HTMLElement;
     fireEvent.click(gate);
     fireEvent.click(gate);
-    expect(onSelectOption).toHaveBeenCalledTimes(1);
+    expect(onSelectOption).not.toHaveBeenCalled();
     expect(onFinalSubmit).not.toHaveBeenCalled();
     expect(submit).toBeDisabled();
   });
@@ -249,21 +266,15 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(onFinalSubmit).not.toHaveBeenCalled();
   });
 
-  it("recovers a rejected gate selection and permits a fresh valid selection", () => {
-    let rejectFirstAttempt = true;
-    const onSelectOption = vi.fn(() => {
-      if (rejectFirstAttempt) {
-        rejectFirstAttempt = false;
-        return false;
-      }
-      return true;
-    });
+  it("does not create a submission lock when the player only taps a rendered gate", () => {
+    const onSelectOption = vi.fn();
     const view = render(<MCQWithGame {...gameProps({ onSelectOption })} />);
     const gates = view.container.querySelectorAll(".mcq-game-gate-label");
 
     fireEvent.click(gates[1]);
     fireEvent.click(gates[1]);
-    expect(onSelectOption).toHaveBeenCalledTimes(2);
+    expect(onSelectOption).not.toHaveBeenCalled();
+    expect(gates[1]).not.toHaveClass("mcq-game-gate--selected");
   });
 
   it("restores automatic collision handling after the quiz engine rejects a selection", () => {
@@ -288,7 +299,7 @@ describe("Full-screen continuous MCQ racing", () => {
       fireEvent.pointerDown(stage, { pointerId: 31, button: 0, clientX: 20, clientY: 650 });
       now = 40;
       fireEvent.pointerUp(stage, { pointerId: 31, button: 0, clientX: 20, clientY: 650 });
-      for (let timestamp = 0; timestamp <= 300; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 0; timestamp <= 2_300; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0]).toEqual([0, "26", mappings[0].gateId]);
@@ -298,7 +309,7 @@ describe("Full-screen continuous MCQ racing", () => {
       fireEvent.pointerDown(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
       now = 80;
       fireEvent.pointerUp(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
-      for (let timestamp = 350; timestamp <= 700; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 2_350; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(2);
       expect(onSelectOption.mock.calls[1]).toEqual([1, "28", mappings[1].gateId]);
@@ -473,18 +484,21 @@ describe("Full-screen continuous MCQ racing", () => {
       const labels = Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"));
       const fixedPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
 
-      // The car sweeps left out of its starting lane and enters lane 1's gate
-      // collider. The exact visible option/gate identity is submitted once.
+      // The option row visibly approaches before the gate reaches the contact plane.
+      for (let timestamp = 0; timestamp <= 1_000; timestamp += 50) raf.advance(timestamp);
+      const approachingPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
+      expect(approachingPositions).not.toEqual(fixedPositions);
+
+      // The car steers left and reaches the approaching left gate. Only its
+      // physically contacted target is committed to the quiz callback.
       fireEvent.pointerDown(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
       now = 40;
       fireEvent.pointerUp(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
-      for (let timestamp = 0; timestamp <= 300; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 1_050; timestamp <= 2_300; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption).toHaveBeenCalledWith(0, "26", firstMappings[0].gateId);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
-      expect(labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]))
-        .toEqual(fixedPositions);
 
       const secondOptions = [
         { value: "29", label: "29" },
@@ -516,7 +530,7 @@ describe("Full-screen continuous MCQ racing", () => {
       fireEvent.pointerDown(stage, { pointerId: 5, button: 0, clientX: 320, clientY: 650 });
       now = 80;
       fireEvent.pointerUp(stage, { pointerId: 5, button: 0, clientX: 320, clientY: 650 });
-      for (let timestamp = 350; timestamp <= 600; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 2_350; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
       const nextMapping = createMCQGateMappings("q-2", secondOptions.map((option) => option.value))[1];
       expect(onSelectOption).toHaveBeenCalledTimes(2);
       expect(onSelectOption.mock.calls[1]).toEqual([1, "27", nextMapping.gateId]);
@@ -527,22 +541,24 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("keeps gate anchors fixed across road animation and question updates without time-based answers", () => {
+  it("moves the answer-gate row toward the car and resets its world depth on each question", () => {
     const raf = installAnimationFrameQueue();
     const onSelectOption = vi.fn();
-    const view = render(<MCQWithGame {...gameProps({ durationMs: 600, onSelectOption })} />);
+    const view = render(<MCQWithGame {...gameProps({ durationMs: 600, disabled: true, onSelectOption })} />);
     const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
     expect(scene).toBeDefined();
     const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
 
     try {
       const labels = Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"));
-      const fixedPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
-      for (let timestamp = 0; timestamp <= 2_200; timestamp += 50) raf.advance(timestamp);
+      const initialPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
+      for (let timestamp = 0; timestamp <= 1_000; timestamp += 50) raf.advance(timestamp);
+      const approachingPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
+      expect(approachingPositions).not.toEqual(initialPositions);
       expect(onSelectOption).not.toHaveBeenCalled();
-      expect(labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]))
-        .toEqual(fixedPositions);
-      expect(renderer.mock.calls.every(([frame]) => Object.keys(frame as object).sort().join(",") === "carX,scrollOffset")).toBe(true);
+      expect(renderer.mock.calls.every(([frame]) => Object.keys(frame as object).sort().join(",") === "carX,gateZ,scrollOffset")).toBe(true);
+      const gateDepths = renderer.mock.calls.map(([frame]) => (frame as { gateZ: number }).gateZ);
+      expect(gateDepths.some((gateZ) => gateZ > -9)).toBe(true);
 
       const secondOptions = [
         { value: "29", label: "29" },
@@ -556,17 +572,16 @@ describe("Full-screen continuous MCQ racing", () => {
         options: secondOptions,
         correctAnswer: "27",
         durationMs: 600,
+        disabled: true,
         onSelectOption,
       })} />);
 
       expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
       expect(screen.getByText("29")).toBeInTheDocument();
       expect(screen.getByText("27")).toBeInTheDocument();
-      expect(labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]))
-        .toEqual(fixedPositions);
+      const lastFrame = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZ: number };
+      expect(lastFrame.gateZ).toBeCloseTo(-9, 6);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
-      raf.advance(2_250);
-      expect(onSelectOption).not.toHaveBeenCalled();
     } finally {
       view.unmount();
       raf.restore();
@@ -614,6 +629,36 @@ describe("Full-screen continuous MCQ racing", () => {
       view.unmount();
       raf.restore();
     }
+  });
+
+  it("requires explicit confirmation before restarting the racing quiz", () => {
+    const onRestartGame = vi.fn();
+    render(<MCQWithGame {...gameProps({ onRestartGame })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause game" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restart quiz" }));
+
+    expect(onRestartGame).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Restart race confirmation" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep race paused" }));
+    expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+    expect(onRestartGame).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Restart quiz" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm restart" }));
+    expect(onRestartGame).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows textual feedback from the quiz engine alongside gate color feedback", () => {
+    const view = render(<MCQWithGame {...gameProps({ feedback: "wrong", selectedOption: 0 })} />);
+    expect(view.container.querySelector(".mcq-game-feedback")).toHaveTextContent("INCORRECT ANSWER");
+  });
+
+  it("labels a timed-out question as time up rather than an incorrect answer", () => {
+    const view = render(<MCQWithGame {...gameProps({ feedback: "wrong", selectedOption: null })} />);
+    expect(view.container.querySelector(".mcq-game-feedback")).toHaveTextContent("TIME'S UP");
+    expect(view.container.querySelector(".mcq-game-feedback")).not.toHaveTextContent("INCORRECT ANSWER");
   });
 
   it("stays paused after returning from background until the player explicitly resumes", () => {
@@ -693,7 +738,7 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("keeps gate selection available without WebGL and restricts Submit to whole-test finalization", () => {
+  it("does not submit fallback targets without WebGL and reserves Submit for whole-test finalization", () => {
     vi.mocked(createMCQ3DScene).mockImplementation(() => {
       throw new Error("WebGL unavailable");
     });
@@ -706,25 +751,23 @@ describe("Full-screen continuous MCQ racing", () => {
     })} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("3D graphics are unavailable");
-    const answer = screen.getByRole("button", { name: "Answer 28" });
-    fireEvent.click(answer);
-    fireEvent.click(answer);
-
-    const mapping = createMCQGateMappings("fallback-q", options.map((option) => option.value))[1];
-    expect(onSelectOption).toHaveBeenCalledTimes(1);
-    expect(onSelectOption).toHaveBeenCalledWith(1, "28", mapping.gateId);
+    const target = view.container.querySelector("[data-option-id]") as HTMLElement;
+    expect(target).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(target);
+    fireEvent.click(target);
+    expect(onSelectOption).not.toHaveBeenCalled();
     expect(onFinalSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId("mcq-game-submit")).toBeDisabled();
 
     view.rerender(<MCQWithGame {...gameProps({
       questionKey: "fallback-q",
-      selectedOption: 1,
       finalSubmitReady: true,
       canFinalizeTest: true,
       onSelectOption,
       onFinalSubmit,
     })} />);
     fireEvent.click(screen.getByTestId("mcq-game-submit"));
+    expect(onSelectOption).not.toHaveBeenCalled();
     expect(onFinalSubmit).toHaveBeenCalledTimes(1);
   });
 });
