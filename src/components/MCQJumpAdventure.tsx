@@ -580,9 +580,16 @@ const MCQJumpAdventure = ({
 
         if (!pausedRef.current) {
           elapsedRef.current += elapsed;
-          accumulator += elapsed / 1000;
+          const current = latestPropsRef.current;
+          const physicsEnabled = !current.disabled &&
+            !current.feedback &&
+            !current.finalSubmitReady &&
+            !submittedRef.current;
+          if (physicsEnabled) accumulator += elapsed / 1000;
+          else accumulator = 0;
+
           let steps = 0;
-          while (accumulator >= fixedStep && steps < 12) {
+          while (physicsEnabled && accumulator >= fixedStep && steps < 12) {
             const input = inputRef.current;
             const axis = Number(input.right) - Number(input.left);
             const wasGrounded = player.grounded;
@@ -609,7 +616,7 @@ const MCQJumpAdventure = ({
           }
           playerRef.current = player;
           const cameraX = clamp(player.x - size.width * 0.29, 0, size.worldWidth - size.width);
-          drawScene(context, size, platforms, player, elapsedRef.current, cameraX, player.checkpointX, latestPropsRef.current.feedback);
+          drawScene(context, size, platforms, player, elapsedRef.current, cameraX, player.checkpointX, current.feedback);
         } else {
           accumulator = 0;
         }
