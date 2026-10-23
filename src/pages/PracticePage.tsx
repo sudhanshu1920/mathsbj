@@ -2135,12 +2135,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       return true;
     };
 
-    const handleGameFinalSubmit = () => {
-      if (finalSubmitReadyRef.current) {
+    const handleGameFinalSubmit = (): boolean => {
+      // Space Shooter can explicitly end a finite test early. Other game modes
+      // keep their existing final-submit policy unchanged.
+      if (finishLockRef.current || answerLockRef.current || feedback || finished) return false;
+      if (finalSubmitReadyRef.current || (config.mode === 'game' && selectedGameVariant === 'shooter')) {
         finishQuiz({ playSubmitSound: true });
-      } else {
-        handleSubmitInfinite();
+        return true;
       }
+      handleSubmitInfinite();
+      return finishLockRef.current;
     };
 
     const sharedGameProps = {

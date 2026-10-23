@@ -465,3 +465,282 @@
   .mcq-space-target { animation: none; transition: none; }
   .mcq-space-shell * { scroll-behavior: auto !important; }
 }
+
+
+/* --- Space Shooter: retro pixel-art arcade skin (scoped to this game only) --- */
+.mcq-space-shell {
+  color: #fff;
+  font-family: "Courier New", ui-monospace, monospace;
+  background: #050719;
+}
+.mcq-space-topbar {
+  border-bottom: 2px solid #0c86ff;
+  background: #050719;
+  gap: .45rem;
+  padding: max(env(safe-area-inset-top), .35rem) .25rem .4rem;
+}
+.mcq-space-icon-button,
+.mcq-space-brand-icon {
+  border: 2px solid #00e5ff;
+  border-radius: 0;
+  background: #08122f;
+  box-shadow: 3px 3px 0 #102e7a;
+}
+.mcq-space-brand-icon { color: #fff; }
+.mcq-space-brand strong {
+  color: #fff;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-weight: 900;
+  letter-spacing: .025em;
+  text-shadow: 2px 2px 0 #164fff;
+}
+.mcq-space-brand small { color: #00e5ff; letter-spacing: .12em; }
+.mcq-space-submit {
+  min-height: 2.5rem;
+  border: 2px solid #ffbd2e;
+  border-radius: 0;
+  padding-inline: .55rem;
+  color: #fff4b3;
+  background: #241533;
+  box-shadow: 3px 3px 0 #9b4d00;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: clamp(.58rem, 2vw, .72rem);
+  font-weight: 900;
+}
+.mcq-space-hud {
+  align-items: center;
+  margin-bottom: .45rem;
+  padding: .55rem .65rem;
+  border: 2px solid #00dfff;
+  border-radius: 0;
+  background: #080d2a;
+  box-shadow: inset 0 0 0 2px #102c72, 4px 4px 0 rgba(0, 0, 0, .42);
+}
+.mcq-space-eyebrow {
+  color: #00e5ff;
+  font-family: "Courier New", ui-monospace, monospace;
+  letter-spacing: .11em;
+}
+.mcq-space-question-label {
+  margin-top: .2rem;
+  color: #fff;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: clamp(1.1rem, 4vw, 2rem);
+  font-weight: 950;
+  line-height: 1.15;
+  text-align: center;
+  text-shadow: 2px 2px 0 #203a90;
+  text-overflow: clip;
+}
+.mcq-space-question { text-align: center; }
+.mcq-space-stats { max-width: 52%; gap: .3rem; }
+.mcq-space-stat {
+  min-height: 1.75rem;
+  border: 2px solid #247bff;
+  border-radius: 0;
+  padding: .17rem .38rem;
+  color: #eaf9ff;
+  background: #06152e;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: clamp(.59rem, 1.9vw, .72rem);
+}
+.mcq-space-stat--correct { border-color: #39ff58; color: #8effa0; }
+.mcq-space-stat--wrong { border-color: #ff3157; color: #ff92a2; }
+.mcq-space-stat--timer { border-color: #ffbd2e; color: #ffe28a; }
+.mcq-space-playfield {
+  border: 2px solid #087fff;
+  border-radius: 0;
+  background: #050719;
+  box-shadow: inset 0 0 0 2px #091d4c, 0 0 22px rgba(0, 229, 255, .12);
+}
+.mcq-space-canvas { image-rendering: pixelated; }
+.mcq-space-target-grid {
+  top: 31%;
+  right: 2.5%;
+  left: 2.5%;
+  height: 33%;
+  grid-template-rows: minmax(0, 1fr);
+  gap: clamp(.18rem, .95vw, .65rem);
+  pointer-events: none;
+}
+.mcq-space-target {
+  min-height: 0;
+  border: 2px solid rgba(255,255,255,.32);
+  border-radius: 0;
+  padding: .35rem .15rem;
+  color: #fff;
+  background: #174dba;
+  box-shadow: none;
+  filter: drop-shadow(0 0 4px rgba(0, 229, 255, .35));
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: clamp(.72rem, 2.5vw, 1.45rem);
+  font-weight: 950;
+  line-height: 1.1;
+  text-shadow: 2px 2px 0 rgba(0,0,0,.55);
+  overflow-wrap: anywhere;
+  clip-path: polygon(13% 0, 25% 5%, 39% 0, 53% 5%, 68% 0, 77% 5%, 82% 15%, 95% 21%, 100% 37%, 95% 48%, 100% 61%, 91% 73%, 84% 79%, 79% 94%, 63% 100%, 50% 95%, 36% 100%, 26% 91%, 15% 86%, 8% 75%, 0 61%, 5% 48%, 0 34%, 8% 22%, 10% 9%);
+  animation: none;
+  transition: filter 100ms linear;
+}
+.mcq-space-target::before {
+  content: "";
+  position: absolute;
+  inset: 8% 8%;
+  pointer-events: none;
+  opacity: .32;
+  background:
+    linear-gradient(90deg, transparent 0 14%, rgba(255,255,255,.7) 14% 21%, transparent 21% 72%, rgba(0,0,0,.45) 72% 82%, transparent 82%),
+    linear-gradient(0deg, transparent 0 25%, rgba(0,0,0,.35) 25% 38%, transparent 38% 69%, rgba(255,255,255,.28) 69% 76%, transparent 76%);
+  image-rendering: pixelated;
+}
+.mcq-space-target--0 { background: #0755d6; border-color: #00bfff; filter: drop-shadow(0 0 5px #0755d6); }
+.mcq-space-target--1 { background: #7411ab; border-color: #ff39d4; filter: drop-shadow(0 0 5px #a317e7); }
+.mcq-space-target--2 { background: #087b36; border-color: #39ff58; filter: drop-shadow(0 0 5px #0daa45); }
+.mcq-space-target--3 { background: #a43605; border-color: #ff9b28; filter: drop-shadow(0 0 5px #ff781e); }
+.mcq-space-target-label { position: relative; z-index: 1; max-width: 100%; }
+.mcq-space-target-mark {
+  top: 14%;
+  left: 16%;
+  min-width: 1rem;
+  height: 1rem;
+  border: 1px solid rgba(255,255,255,.45);
+  border-radius: 0;
+  color: #fff;
+  background: #06102b;
+  font-family: "Courier New", ui-monospace, monospace;
+}
+.mcq-space-target-spark { display: none; }
+.mcq-space-target.is-aimed {
+  border-color: #fff;
+  filter: brightness(1.22) drop-shadow(0 0 8px #00e5ff);
+  box-shadow: inset 0 0 0 3px #00e5ff;
+}
+.mcq-space-target.is-aimed::after {
+  content: "AIM";
+  position: absolute;
+  right: 14%;
+  top: 13%;
+  z-index: 2;
+  padding: .1rem .22rem;
+  border: 1px solid #fff;
+  color: #07101e;
+  background: #8efffb;
+  font-size: clamp(.45rem, 1.25vw, .65rem);
+  line-height: 1.1;
+  letter-spacing: .04em;
+  text-shadow: none;
+}
+.mcq-space-touch-zone {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  opacity: 0;
+  color: transparent;
+  background: transparent;
+  box-shadow: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: crosshair;
+}
+.mcq-space-touch-zone--left { left: 0; }
+.mcq-space-touch-zone--right { right: 0; }
+.mcq-space-touch-zone:disabled { opacity: 0; }
+.mcq-space-touch-zone:focus-visible {
+  opacity: .18;
+  outline: 2px solid #00e5ff;
+  outline-offset: -4px;
+  background: #00e5ff;
+}
+.mcq-space-status {
+  z-index: 5;
+  bottom: 7%;
+  color: #8efaff;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: clamp(.55rem, 1.7vw, .72rem);
+  font-weight: 900;
+  letter-spacing: .035em;
+  text-shadow: 2px 2px 0 #050719, -1px -1px 0 #050719;
+}
+.mcq-space-controls {
+  padding-top: .2rem;
+}
+.mcq-space-controls-hint {
+  min-height: 1.55rem;
+  padding-top: .2rem;
+  color: #5eddfb;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: clamp(.55rem, 1.8vw, .68rem);
+  letter-spacing: .03em;
+}
+.mcq-space-restart {
+  border: 1px solid #466bab;
+  border-radius: 0;
+  color: #c9eaff;
+  background: #08122f;
+  font-family: "Courier New", ui-monospace, monospace;
+}
+.mcq-space-pause-scrim {
+  background: rgba(2, 7, 18, .88);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.mcq-space-pause-card {
+  border: 3px solid #00e5ff;
+  border-radius: 0;
+  background: #080d2a;
+  box-shadow: 5px 5px 0 #1745a6;
+  font-family: "Courier New", ui-monospace, monospace;
+}
+.mcq-space-pause-icon,
+.mcq-space-resume,
+.mcq-space-pause-secondary {
+  border-radius: 0;
+}
+@media (max-height: 650px) {
+  .mcq-space-target-grid { top: 31%; height: 34%; }
+}
+@media (max-width: 520px) {
+  .mcq-space-hud { align-items: stretch; flex-direction: column; }
+  .mcq-space-stats { max-width: 100%; justify-content: center; }
+  .mcq-space-question-label { font-size: clamp(1.1rem, 5vw, 1.55rem); }
+}
+@media (max-width: 390px) {
+  .mcq-space-target-grid { right: 1.5%; left: 1.5%; gap: .1rem; }
+  .mcq-space-target { padding-inline: .05rem; font-size: clamp(.68rem, 3vw, .9rem); }
+  .mcq-space-target-mark { min-width: .75rem; height: .75rem; font-size: .5rem; }
+  .mcq-space-brand strong { font-size: .62rem; }
+  .mcq-space-submit { padding-inline: .25rem; font-size: .56rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mcq-space-target { animation: none; transition: none; }
+}
+
+/* Compact HUD sizing keeps controls reachable on narrow phones. */
+@media (max-width: 430px) {
+  .mcq-space-topbar { gap: .2rem; padding-inline: .05rem; }
+  .mcq-space-icon-button { width: 2.1rem; height: 2.05rem; }
+  .mcq-space-brand { gap: .25rem; }
+  .mcq-space-brand-icon { width: 1.85rem; height: 1.85rem; }
+  .mcq-space-brand strong { max-width: 7.8rem; font-size: clamp(.5rem, 2.45vw, .64rem); letter-spacing: 0; }
+  .mcq-space-brand small { display: none; }
+  .mcq-space-top-actions { gap: .2rem; }
+  .mcq-space-submit { min-height: 2.05rem; gap: .12rem; padding-inline: .2rem; font-size: clamp(.47rem, 1.8vw, .59rem); }
+  .mcq-space-submit svg { width: 12px; height: 12px; }
+}
+@media (max-width: 350px) {
+  .mcq-space-topbar { gap: .14rem; }
+  .mcq-space-icon-button { width: 1.9rem; height: 1.9rem; }
+  .mcq-space-brand-icon { display: none; }
+  .mcq-space-brand strong { max-width: 6.3rem; font-size: .5rem; }
+  .mcq-space-submit { padding-inline: .12rem; font-size: .46rem; }
+}
+
+/* Asteroid artwork sits above the invisible hit zones: tapping a target alone never fires. */
+.mcq-space-target-grid { z-index: 5; pointer-events: auto; }
+.mcq-space-target { pointer-events: auto; }
