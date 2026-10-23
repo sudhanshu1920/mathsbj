@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Rocket, Timer, Trophy, Zap } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowLeft, Pause, Play, RotateCcw, Rocket, Timer, Trophy, Zap } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
 import {
@@ -35,7 +35,7 @@ export interface MCQSpaceShooterProps {
   finalSubmitReady: boolean;
   canFinalizeTest: boolean;
   onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
-  onFinalSubmit: () => void;
+  onFinalSubmit: () => boolean | void;
   onChangeGame?: () => void;
   onRestartGame?: () => void;
   onPauseChange?: (paused: boolean) => void;
@@ -83,7 +83,6 @@ interface SpaceWorld {
 
 const PROJECTILE_SPEED = 690;
 const PROJECTILE_LIFETIME_MS = 1500;
-const MAX_ACTIVE_PROJECTILES = 6;
 const MAX_PARTICLES = 36;
 const SHIP_RADIUS = 24;
 
@@ -132,105 +131,99 @@ function createHitParticles(world: SpaceWorld, x: number, y: number): void {
 function drawSpaceFrame(context: CanvasRenderingContext2D, world: SpaceWorld): void {
   const { width, height } = world;
   context.clearRect(0, 0, width, height);
-  context.fillStyle = "#061329";
+  context.imageSmoothingEnabled = false;
+  context.fillStyle = "#050719";
   context.fillRect(0, 0, width, height);
 
-  context.fillStyle = "rgba(34, 91, 177, 0.12)";
-  context.beginPath();
-  context.ellipse(width * 0.18, height * 0.27, width * 0.42, height * 0.34, -0.4, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = "rgba(122, 42, 171, 0.10)";
-  context.beginPath();
-  context.ellipse(width * 0.87, height * 0.5, width * 0.33, height * 0.4, 0.3, 0, Math.PI * 2);
-  context.fill();
+  // Procedural pixel planets are drawn with coarse square cells.
+  const drawPlanet = (cx: number, cy: number, radius: number, base: string, shade: string, glow: string) => {
+    const cell = Math.max(3, Math.min(7, Math.round(width / 155)));
+    for (let py = -radius; py <= radius; py += cell) {
+      for (let px = -radius; px <= radius; px += cell) {
+        if (px * px + py * py > radius * radius) continue;
+        context.fillStyle = py < -radius * 0.42 || px < -radius * 0.42 ? glow : (px + py) % (cell * 3) === 0 ? shade : base;
+        context.fillRect(Math.round(cx + px), Math.round(cy + py), cell, cell);
+      }
+    }
+    const craters = [[-0.28, -0.14, 0.13], [0.28, 0.18, 0.18], [-0.02, 0.42, 0.1]];
+    for (const [dx, dy, size] of craters) {
+      context.fillStyle = shade;
+      context.fillRect(cx + dx * radius, cy + dy * radius, Math.max(cell * 2, radius * size), Math.max(cell, radius * size * 0.55));
+    }
+  };
+  drawPlanet(-width * 0.012, height * 0.16, Math.min(width, height) * 0.13, "#452080", "#26114b", "#a52fcb");
+  drawPlanet(width * 1.015, height * 0.2, Math.min(width, height) * 0.12, "#07538b", "#05305d", "#18a9e5");
+  drawPlanet(-width * 0.015, height * 0.99, Math.min(width, height) * 0.17, "#087fa6", "#054568", "#25d2ed");
+  drawPlanet(width * 1.025, height * 0.99, Math.min(width, height) * 0.16, "#8c2b42", "#4c172d", "#f16a41");
 
-  for (const star of world.stars) {
+  for (let index = 0; index < world.stars.length; index += 1) {
+    const star = world.stars[index]!;
     context.globalAlpha = star.alpha;
-    context.fillStyle = "#d9f8ff";
-    context.beginPath();
-    context.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-    context.fill();
+    context.fillStyle = index % 13 === 0 ? "#f8b93d" : index % 5 === 0 ? "#28dfff" : "#d9f8ff";
+    const size = Math.max(1, Math.round(star.radius * 1.4));
+    context.fillRect(Math.round(star.x), Math.round(star.y), size, size);
+    if (index % 17 === 0) {
+      context.fillRect(Math.round(star.x - 1), Math.round(star.y - 4), 3, 9);
+      context.fillRect(Math.round(star.x - 4), Math.round(star.y - 1), 9, 3);
+    }
   }
   context.globalAlpha = 1;
 
   for (const projectile of world.projectiles) {
-    context.save();
-    context.lineCap = "round";
-    context.strokeStyle = "rgba(74, 225, 255, 0.42)";
-    context.lineWidth = 7;
-    context.beginPath();
-    context.moveTo(projectile.x - projectile.vx * 0.032, projectile.y - projectile.vy * 0.032);
-    context.lineTo(projectile.x, projectile.y);
-    context.stroke();
-    context.shadowColor = "#63efff";
-    context.shadowBlur = 12;
-    context.strokeStyle = "#bafaff";
-    context.lineWidth = 2.5;
-    context.beginPath();
-    context.moveTo(projectile.x - projectile.vx * 0.018, projectile.y - projectile.vy * 0.018);
-    context.lineTo(projectile.x, projectile.y);
-    context.stroke();
-    context.restore();
+    const unitX = projectile.vx / PROJECTILE_SPEED;
+    const unitY = projectile.vy / PROJECTILE_SPEED;
+    context.fillStyle = "rgba(0, 229, 255, .42)";
+    for (let step = 5; step >= 0; step -= 1) {
+      context.fillRect(Math.round(projectile.x - unitX * step * 5 - 2), Math.round(projectile.y - unitY * step * 5 - 2), 5, 5);
+    }
+    context.fillStyle = "#bafaff";
+    context.fillRect(Math.round(projectile.x - 2), Math.round(projectile.y - 2), 4, 4);
   }
 
   for (const particle of world.particles) {
     context.globalAlpha = Math.max(0, 1 - particle.ageMs / particle.lifetimeMs);
     context.fillStyle = particle.color;
-    context.beginPath();
-    context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-    context.fill();
+    const size = Math.max(2, Math.round(particle.radius * 2));
+    context.fillRect(Math.round(particle.x / size) * size, Math.round(particle.y / size) * size, size, size);
   }
   context.globalAlpha = 1;
 
-  const shipY = Math.max(34, height - 42);
+  const shipY = Math.max(42, height - 42);
   const shipX = clampSpaceShipX(world.shipX, width, SHIP_RADIUS);
+  const pixel = Math.max(2.5, Math.min(4, width / 120));
+  const sprite = [
+    "......WWW.......",
+    ".....WCCCW......",
+    "....WCCCCCW.....",
+    "...BBCCCCCBB....",
+    "..BBBCCCCCBBB...",
+    ".BBBBCCGCCBBBB..",
+    "RRBBBCCGCCBBBRR.",
+    "..RBBCCGCCBBR...",
+    "...RR.....RR....",
+    "...RR.....RR....",
+    "....O.....O.....",
+    ".....O...O......",
+  ];
+  const colors: Record<string, string> = { W: "#ffffff", C: "#31cfff", B: "#1d65ff", G: "#073c92", R: "#ff3c54", O: "#ff9b28" };
   context.save();
-  context.translate(shipX, shipY);
-  if (world.heldDirection !== 0) {
-    context.fillStyle = "#ffae5b";
-    context.beginPath();
-    context.moveTo(-7, 15);
-    context.lineTo(0, 29 + Math.sin((world.lastTimestamp ?? 0) / 45) * 3);
-    context.lineTo(7, 15);
-    context.closePath();
-    context.fill();
-    context.fillStyle = "#fff0a7";
-    context.beginPath();
-    context.moveTo(-3, 15);
-    context.lineTo(0, 23);
-    context.lineTo(3, 15);
-    context.closePath();
-    context.fill();
+  for (let row = 0; row < sprite.length; row += 1) {
+    const line = sprite[row]!;
+    for (let col = 0; col < line.length; col += 1) {
+      const mark = line[col]!;
+      if (mark === ".") continue;
+      context.fillStyle = colors[mark]!;
+      context.fillRect(Math.round(shipX - (line.length * pixel) / 2 + col * pixel), Math.round(shipY - sprite.length * pixel + row * pixel), Math.ceil(pixel), Math.ceil(pixel));
+    }
   }
-  context.shadowColor = "#5edfff";
-  context.shadowBlur = 18;
-  context.fillStyle = "#55bfff";
-  context.beginPath();
-  context.moveTo(0, -23);
-  context.lineTo(20, 13);
-  context.lineTo(7, 9);
-  context.lineTo(0, 15);
-  context.lineTo(-7, 9);
-  context.lineTo(-20, 13);
-  context.closePath();
-  context.fill();
-  context.shadowBlur = 0;
-  context.fillStyle = "#d7fbff";
-  context.beginPath();
-  context.moveTo(0, -15);
-  context.lineTo(6, 5);
-  context.lineTo(0, 2);
-  context.lineTo(-6, 5);
-  context.closePath();
-  context.fill();
-  context.fillStyle = "#ffb36c";
-  context.beginPath();
-  context.ellipse(-14, 10, 3.5, 6.5, -0.4, 0, Math.PI * 2);
-  context.ellipse(14, 10, 3.5, 6.5, 0.4, 0, Math.PI * 2);
-  context.fill();
+  if (world.heldDirection !== 0) {
+    context.fillStyle = "#ff9b28";
+    context.fillRect(shipX - 3, shipY + 2, 6, 13);
+    context.fillStyle = "#fff4a3";
+    context.fillRect(shipX - 1, shipY + 2, 2, 8);
+  }
   context.restore();
 }
-
 const MCQSpaceShooter = ({
   questionKey,
   sessionKey,
@@ -254,7 +247,7 @@ const MCQSpaceShooter = ({
 }: MCQSpaceShooterProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playfieldRef = useRef<HTMLDivElement | null>(null);
-  const targetRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const targetRefs = useRef<Array<HTMLDivElement | null>>([]);
   const worldRef = useRef<SpaceWorld>(createWorld());
   const latestPropsRef = useRef<MCQSpaceShooterProps>({
     questionKey,
@@ -306,7 +299,7 @@ const MCQSpaceShooter = ({
   const mappingsRef = useRef(mappings);
   mappingsRef.current = mappings;
 
-  const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
+  const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(options.length > 0 ? 0 : null);
   const [paused, setPaused] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Tap an answer target to aim, then fire the laser.");
   const [rendererError, setRendererError] = useState(false);
@@ -316,7 +309,14 @@ const MCQSpaceShooter = ({
   const finalSubmitInvokedRef = useRef(false);
   const activeQuestionKeyRef = useRef(String(questionKey));
   const activeSessionKeyRef = useRef(String(sessionKey ?? "default"));
-  const selectedTargetRef = useRef<number | null>(null);
+  const selectedTargetRef = useRef<number | null>(options.length > 0 ? 0 : null);
+  const pendingDirectionalTapRef = useRef<{ direction: -1 | 1; timer: ReturnType<typeof setTimeout> } | null>(null);
+
+  const clearPendingDirectionalTap = useCallback(() => {
+    const pending = pendingDirectionalTapRef.current;
+    if (pending) clearTimeout(pending.timer);
+    pendingDirectionalTapRef.current = null;
+  }, []);
 
   const canInteract = useCallback(() => {
     const current = latestPropsRef.current;
@@ -326,6 +326,7 @@ const MCQSpaceShooter = ({
       !current.feedback &&
       !current.finalSubmitReady &&
       !submittedRef.current &&
+      !finalSubmitInvokedRef.current &&
       activeQuestionKeyRef.current === String(current.questionKey)
     );
   }, []);
@@ -337,18 +338,30 @@ const MCQSpaceShooter = ({
     }
     if (pausedRef.current === nextPaused) return;
     pausedRef.current = nextPaused;
+    clearPendingDirectionalTap();
     worldRef.current.heldDirection = 0;
     worldRef.current.lastTimestamp = null;
     setPaused(nextPaused);
     setStatusMessage(message);
     latestPropsRef.current.onPauseChange?.(nextPaused);
-  }, []);
+  }, [clearPendingDirectionalTap]);
 
-  const selectTarget = useCallback((index: number) => {
-    if (!canInteract() || !mappingsRef.current[index] || !latestPropsRef.current.options[index]) return;
-    selectedTargetRef.current = index;
-    setSelectedTargetIndex(index);
-    setStatusMessage("Target locked. Fire when you are ready.");
+  const moveAim = useCallback((direction: -1 | 1) => {
+    const current = latestPropsRef.current;
+    const count = current.options.length;
+    if (!canInteract() || count === 0) return;
+    const previous = selectedTargetRef.current;
+    const next = previous === null
+      ? (direction > 0 ? 0 : count - 1)
+      : Math.max(0, Math.min(count - 1, previous + direction));
+    if (next === previous) {
+      setStatusMessage(direction < 0 ? "LEFT EDGE REACHED" : "RIGHT EDGE REACHED");
+      return;
+    }
+    if (!mappingsRef.current[next]) return;
+    selectedTargetRef.current = next;
+    setSelectedTargetIndex(next);
+    setStatusMessage("AIM LOCKED · TARGET " + String(next + 1) + " OF " + String(count));
   }, [canInteract]);
 
   const fireProjectile = useCallback(() => {
@@ -372,12 +385,8 @@ const MCQSpaceShooter = ({
       setStatusMessage("That target is no longer active. Aim again.");
       return;
     }
-    if (world.projectiles.length >= MAX_ACTIVE_PROJECTILES) {
-      setStatusMessage("Laser bank is recharging. Try again in a moment.");
-      return;
-    }
-    if (world.projectiles.some((projectile) => projectile.targetId === mapping.gateId)) {
-      setStatusMessage("A laser is already travelling toward that target.");
+    if (world.projectiles.length > 0) {
+      setStatusMessage("LASER IN FLIGHT · WAIT FOR IMPACT");
       return;
     }
 
@@ -411,6 +420,27 @@ const MCQSpaceShooter = ({
     playClick();
     setStatusMessage("Laser fired. Track the shot to its target.");
   }, [canInteract]);
+
+  const handleDirectionalTap = useCallback((direction: -1 | 1) => {
+    if (!canInteract()) return;
+    const pending = pendingDirectionalTapRef.current;
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingDirectionalTapRef.current = null;
+      if (pending.direction === direction) {
+        // Cancel the deferred single tap so one double tap fires only once.
+        fireProjectile();
+        return;
+      }
+      moveAim(pending.direction);
+    }
+    const timer = setTimeout(() => {
+      if (pendingDirectionalTapRef.current?.timer !== timer) return;
+      pendingDirectionalTapRef.current = null;
+      moveAim(direction);
+    }, DOUBLE_TAP_WINDOW_MS);
+    pendingDirectionalTapRef.current = { direction, timer };
+  }, [canInteract, fireProjectile, moveAim]);
 
   const resolveProjectileHit = useCallback((projectile: SpaceProjectile) => {
     const current = latestPropsRef.current;
@@ -462,17 +492,18 @@ const MCQSpaceShooter = ({
 
     activeQuestionKeyRef.current = nextQuestion;
     activeSessionKeyRef.current = nextSession;
+    clearPendingDirectionalTap();
     submittedRef.current = false;
     worldRef.current.projectiles.length = 0;
     worldRef.current.particles.length = 0;
     worldRef.current.heldDirection = 0;
     worldRef.current.shipX = worldRef.current.width / 2;
-    selectedTargetRef.current = null;
-    setSelectedTargetIndex(null);
+    selectedTargetRef.current = options.length > 0 ? 0 : null;
+    setSelectedTargetIndex(options.length > 0 ? 0 : null);
     if (sessionChanged) finalSubmitInvokedRef.current = false;
     if (pausedRef.current) setPausedState(false, "Mission resumed.");
-    else setStatusMessage("New question acquired. Tap a target to aim.");
-  }, [questionKey, sessionKey, setPausedState]);
+    else setStatusMessage("NEW TARGETS ACQUIRED · TAP LEFT/RIGHT ONCE TO AIM");
+  }, [questionKey, sessionKey, setPausedState, clearPendingDirectionalTap, options.length]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -518,7 +549,7 @@ const MCQSpaceShooter = ({
       };
     }
 
-    context.imageSmoothingEnabled = true;
+    context.imageSmoothingEnabled = false;
     const resizeObserver = typeof ResizeObserver !== "undefined"
       ? new ResizeObserver(resize)
       : null;
@@ -640,10 +671,14 @@ const MCQSpaceShooter = ({
   useEffect(() => {
     void setGameImmersiveMode(true).catch(() => undefined);
     return () => {
+      clearPendingDirectionalTap();
+      worldRef.current.projectiles.length = 0;
+      worldRef.current.particles.length = 0;
+      worldRef.current.heldDirection = 0;
       if (pausedRef.current) latestPropsRef.current.onPauseChange?.(false);
       void setGameImmersiveMode(false).catch(() => undefined);
     };
-  }, []);
+  }, [clearPendingDirectionalTap]);
 
   useEffect(() => {
     const stopMovement = () => {
@@ -655,10 +690,10 @@ const MCQSpaceShooter = ({
       if (!canInteract()) return;
       if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
         event.preventDefault();
-        worldRef.current.heldDirection = -1;
+        moveAim(-1);
       } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
         event.preventDefault();
-        worldRef.current.heldDirection = 1;
+        moveAim(1);
       } else if (event.code === "Space") {
         event.preventDefault();
         fireProjectile();
@@ -694,22 +729,7 @@ const MCQSpaceShooter = ({
       window.removeEventListener("blur", onWindowBlur);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [canInteract, fireProjectile, setPausedState]);
-
-  const handleMoveDown = (direction: -1 | 1, event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (!canInteract()) return;
-    event.preventDefault();
-    worldRef.current.heldDirection = direction;
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture is optional; pointer cancellation and lifecycle handlers still clear movement.
-    }
-  };
-  const handleMoveUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    worldRef.current.heldDirection = 0;
-  };
+  }, [canInteract, fireProjectile, moveAim, setPausedState]);
 
   const choosePause = () => {
     if (pausedRef.current) {
@@ -726,10 +746,25 @@ const MCQSpaceShooter = ({
 
   const handleFinalSubmit = () => {
     const current = latestPropsRef.current;
-    if (!current.canFinalizeTest || current.disabled || finalSubmitInvokedRef.current) return;
+    if (current.disabled || finalSubmitInvokedRef.current) return;
     finalSubmitInvokedRef.current = true;
+    submittedRef.current = true;
+    clearPendingDirectionalTap();
+    worldRef.current.heldDirection = 0;
+    worldRef.current.projectiles.length = 0;
     playClick();
-    current.onFinalSubmit();
+    try {
+      const accepted = current.onFinalSubmit();
+      if (accepted === false) {
+        finalSubmitInvokedRef.current = false;
+        submittedRef.current = false;
+        setStatusMessage("TEST SUBMISSION BLOCKED · TRY AGAIN AFTER ANSWER FEEDBACK");
+      }
+    } catch {
+      finalSubmitInvokedRef.current = false;
+      submittedRef.current = false;
+      setStatusMessage("TEST SUBMISSION FAILED · YOUR QUIZ IS STILL ACTIVE");
+    }
   };
 
   const submissionBlocked = disabled || !!feedback || finalSubmitReady || submittedRef.current;
@@ -756,18 +791,17 @@ const MCQSpaceShooter = ({
           </span>
         </div>
         <div className="mcq-space-top-actions">
-          {canFinalizeTest && (
-            <button
-              type="button"
-              className="mcq-space-submit"
-              onClick={handleFinalSubmit}
-              disabled={disabled || finalSubmitInvokedRef.current}
-              aria-label="Submit complete test"
-            >
-              <Trophy size={15} aria-hidden="true" />
-              <span>Submit</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className="mcq-space-submit"
+            onClick={handleFinalSubmit}
+            disabled={disabled || finalSubmitInvokedRef.current}
+            aria-label="Submit complete test"
+            data-testid="space-submit-test"
+          >
+            <Trophy size={15} aria-hidden="true" />
+            <span>SUBMIT TEST</span>
+          </button>
           <button
             type="button"
             className="mcq-space-icon-button"
@@ -799,26 +833,42 @@ const MCQSpaceShooter = ({
 
       <div className="mcq-space-playfield" ref={playfieldRef} role="group" aria-label="Space battlefield">
         <canvas ref={canvasRef} className="mcq-space-canvas" aria-hidden="true" />
+        <button
+          type="button"
+          className="mcq-space-touch-zone mcq-space-touch-zone--left"
+          onPointerUp={(event) => { event.preventDefault(); handleDirectionalTap(-1); }}
+          onContextMenu={(event) => event.preventDefault()}
+          disabled={!canInteract()}
+          aria-label="Left touch zone: single tap moves aim left, double tap fires at aimed target"
+          data-testid="space-touch-left"
+        />
+        <button
+          type="button"
+          className="mcq-space-touch-zone mcq-space-touch-zone--right"
+          onPointerUp={(event) => { event.preventDefault(); handleDirectionalTap(1); }}
+          onContextMenu={(event) => event.preventDefault()}
+          disabled={!canInteract()}
+          aria-label="Right touch zone: single tap moves aim right, double tap fires at aimed target"
+          data-testid="space-touch-right"
+        />
         <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets">
           {options.map((option, index) => {
             const mapping = mappings[index];
             return (
-              <button
+              <div
                 key={mapping?.gateId ?? `${String(questionKey)}-${index}`}
                 ref={(element) => { targetRefs.current[index] = element; }}
-                type="button"
                 className={`mcq-space-target mcq-space-target--${index % 4}${selectedTargetIndex === index ? " is-aimed" : ""}`}
-                onClick={() => selectTarget(index)}
-                disabled={submissionBlocked || paused}
-                aria-label={`Aim at answer ${String(option.value)}`}
-                aria-pressed={selectedTargetIndex === index}
+                role="img"
+                aria-label={`Answer target ${index + 1}: ${String(option.value)}${selectedTargetIndex === index ? ", aim locked" : ""}`}
+                aria-current={selectedTargetIndex === index ? "true" : undefined}
                 data-target-id={mapping?.gateId}
                 data-testid={`space-target-${index}`}
               >
                 <span className="mcq-space-target-mark" aria-hidden="true">{index + 1}</span>
                 <span className="mcq-space-target-label">{option.label}</span>
                 <span className="mcq-space-target-spark" aria-hidden="true">✦</span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -836,49 +886,9 @@ const MCQSpaceShooter = ({
       </div>
 
       <footer className="mcq-space-controls">
-        <div className="mcq-space-control-row">
-          <button
-            type="button"
-            className="mcq-space-move-button"
-            onPointerDown={(event) => handleMoveDown(-1, event)}
-            onPointerUp={handleMoveUp}
-            onPointerCancel={handleMoveUp}
-            onLostPointerCapture={handleMoveUp}
-            onContextMenu={(event) => event.preventDefault()}
-            disabled={!canInteract()}
-            aria-label="Move spaceship left"
-          >
-            <ChevronLeft size={25} aria-hidden="true" />
-            <span>LEFT</span>
-          </button>
-          <button
-            type="button"
-            className="mcq-space-fire-button"
-            onClick={fireProjectile}
-            disabled={!canInteract() || selectedTargetIndex === null}
-            aria-label="Fire laser at selected answer"
-            data-testid="space-fire"
-          >
-            <Zap size={22} aria-hidden="true" />
-            <span>FIRE</span>
-          </button>
-          <button
-            type="button"
-            className="mcq-space-move-button"
-            onPointerDown={(event) => handleMoveDown(1, event)}
-            onPointerUp={handleMoveUp}
-            onPointerCancel={handleMoveUp}
-            onLostPointerCapture={handleMoveUp}
-            onContextMenu={(event) => event.preventDefault()}
-            disabled={!canInteract()}
-            aria-label="Move spaceship right"
-          >
-            <ChevronRight size={25} aria-hidden="true" />
-            <span>RIGHT</span>
-          </button>
-        </div>
         <div className="mcq-space-controls-hint">
-          <span>Tap target to aim</span><span aria-hidden="true">·</span><span>Hold LEFT / RIGHT to move</span><span aria-hidden="true">·</span><span>FIRE to answer</span>
+          <span>SINGLE TAP · MOVE AIM</span><span aria-hidden="true">◆</span>
+          <span>DOUBLE TAP · FIRE LASER</span>
           {onRestartGame && (
             <button
               type="button"
