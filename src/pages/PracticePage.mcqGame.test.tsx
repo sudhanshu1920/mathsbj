@@ -59,6 +59,13 @@ function installAnimationFrameQueue() {
 
   return {
     advanceBy(durationMs: number, stepMs = 50) {
+      // Run the pending frame at the current clock before advancing elapsed time.
+      // This gives the first target row a true T0 instead of discarding one step.
+      const firstAtStart = callbacks.entries().next().value as [number, FrameRequestCallback] | undefined;
+      if (firstAtStart) {
+        callbacks.delete(firstAtStart[0]);
+        act(() => firstAtStart[1](timestamp));
+      }
       const steps = Math.ceil(durationMs / stepMs);
       for (let step = 0; step < steps; step += 1) {
         timestamp += stepMs;
@@ -67,6 +74,9 @@ function installAnimationFrameQueue() {
         callbacks.delete(first[0]);
         act(() => first[1](timestamp));
       }
+    },
+    now() {
+      return timestamp;
     },
     restore() {
       if (originalRequest) Object.defineProperty(window, "requestAnimationFrame", originalRequest);
@@ -90,6 +100,11 @@ function startSelectedGame(label: RegExp) {
   expect(screen.getByTestId("start-selected-game")).toBeEnabled();
   fireEvent.click(screen.getByTestId("start-selected-game"));
   expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
+}
+
+function enablePerQuestionTimer(seconds = 5) {
+  fireEvent.click(screen.getByRole("switch", { name: "Per-question timer" }));
+  fireEvent.click(screen.getByRole("button", { name: String(seconds) + "s" }));
 }
 
 function getProcessedAnswers(container: HTMLElement) {
@@ -212,9 +227,11 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
   it("does not submit when an answer target is tapped, but submits one answer on real car-gate contact", async () => {
     const raf = installAnimationFrameQueue();
+    vi.spyOn(performance, "now").mockImplementation(() => raf.now());
     const view = render(<PracticePage />);
 
     try {
+      enablePerQuestionTimer(5);
       startSelectedGame(/3D Car Racing/i);
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
 
@@ -235,7 +252,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
       fireEvent.click(submit);
       expect(getProcessedAnswers(view.container)).toBe(0);
 
-      raf.advanceBy(2_500);
+      raf.advanceBy(5_100, 100);
       await waitFor(() => {
         expect(screen.getByLabelText("Question 2 / 10")).toBeInTheDocument();
       });
@@ -249,11 +266,14 @@ describe("Quiz Arena MCQ with Game mode", () => {
     }
   });
 
-  it("keeps Submit Test separate and finalizes only after all questions were answered by collisions", async () => {
+  it("automatically submits once after the final car-collision answer is recorded", async () => {
     const raf = installAnimationFrameQueue();
-    const view = render(<PracticePage />);
+    vi.spyOn(performance, "now").mockImplementation(() => raf.now());
+    const onQuizFinish = vi.fn();
+    const view = render(<PracticePage onQuizFinish={onQuizFinish} />);
 
     try {
+      enablePerQuestionTimer(5);
       startSelectedGame(/3D Car Racing/i);
 
       for (let question = 1; question <= 10; question += 1) {
@@ -265,7 +285,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
         fireEvent.click(targets[1]);
         expect(getProcessedAnswers(view.container)).toBe(before);
 
-        raf.advanceBy(2_500);
+        raf.advanceBy(5_100, 100);
         if (question < 10) {
           await waitFor(() => {
             expect(screen.getByLabelText("Question " + (question + 1) + " / 10")).toBeInTheDocument();
@@ -273,21 +293,16 @@ describe("Quiz Arena MCQ with Game mode", () => {
           expect(getProcessedAnswers(view.container)).toBe(before + 1);
         } else {
           await waitFor(() => {
-            expect(screen.getByTestId("mcq-game-submit")).toBeEnabled();
+            expect(screen.getByRole("button", { name: "Play Again" })).toBeInTheDocument();
           });
           expect(getProcessedAnswers(view.container)).toBe(before + 1);
+          expect(onQuizFinish).toHaveBeenCalledTimes(1);
         }
       }
 
       expect(getProcessedAnswers(view.container)).toBe(10);
-      const finalSubmit = screen.getByTestId("mcq-game-submit");
-      fireEvent.click(finalSubmit);
-      fireEvent.click(finalSubmit);
-
-      await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Play Again" })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Back to Game Selection" })).toBeInTheDocument();
-      });
+      expect(onQuizFinish).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Back to Game Selection" })).toBeInTheDocument();
       expect(view.container.textContent).toContain("Attempted");
       expect(view.container.textContent).toContain("10");
     } finally {
