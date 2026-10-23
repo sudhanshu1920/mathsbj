@@ -101,7 +101,7 @@ function mockLayout(view: ReturnType<typeof render>) {
     x: 0, y: 0, left: 0, top: 0, right: 400, bottom: 600,
     width: 400, height: 600, toJSON: () => ({}),
   } as DOMRect);
-  const target = screen.getByTestId("space-target-1");
+  const target = screen.getByTestId("space-target-0");
   vi.spyOn(target, "getBoundingClientRect").mockReturnValue({
     x: 130, y: 70, left: 130, top: 70, right: 270, bottom: 140,
     width: 140, height: 70, toJSON: () => ({}),
@@ -112,6 +112,7 @@ function mockLayout(view: ReturnType<typeof render>) {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   if (originalRequestAnimationFrame) Object.defineProperty(window, "requestAnimationFrame", originalRequestAnimationFrame);
   else Reflect.deleteProperty(window, "requestAnimationFrame");
@@ -126,10 +127,13 @@ describe("Math Space Shooter", () => {
     const view = render(<MCQSpaceShooter {...shooterProps({ onRestartGame })} />);
 
     expect(screen.getByRole("group", { name: "Mathematical answer targets" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Aim at answer 28" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Move spaceship left" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Move spaceship right" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Fire laser at selected answer" })).toBeDisabled();
+    expect(screen.getByRole("img", { name: /Answer target 2: 28/ })).toBeInTheDocument();
+    expect(screen.getByTestId("space-touch-left")).toBeInTheDocument();
+    expect(screen.getByTestId("space-touch-right")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit complete test" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Move spaceship left" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Move spaceship right" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Fire laser at selected answer" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pause game" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Restart quiz" })).toBeInTheDocument();
     expect(view.container.querySelector("canvas")).toHaveAttribute("aria-hidden", "true");
@@ -142,26 +146,31 @@ describe("Math Space Shooter", () => {
     const view = render(<MCQSpaceShooter {...shooterProps({ onSelectOption })} />);
     mockLayout(view);
 
-    fireEvent.click(screen.getByRole("button", { name: "Aim at answer 28" }));
+    // Tapping visible asteroid artwork is never an answer-submit action.
+    fireEvent.click(screen.getByTestId("space-target-0"));
     expect(onSelectOption).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Fire laser at selected answer" }));
+
+    const rightZone = screen.getByTestId("space-touch-right");
+    fireEvent.pointerUp(rightZone, { pointerId: 1 });
+    fireEvent.pointerUp(rightZone, { pointerId: 1 });
     expect(onSelectOption).not.toHaveBeenCalled();
 
     for (let frame = 0; frame < 38; frame += 1) frames.advance(frame * 40);
     expect(onSelectOption).toHaveBeenCalledTimes(1);
-    expect(onSelectOption).toHaveBeenCalledWith(1, "28", expect.stringContaining("question-1"));
+    expect(onSelectOption).toHaveBeenCalledWith(0, "26", expect.stringContaining("question-1"));
 
-    fireEvent.click(screen.getByRole("button", { name: "Fire laser at selected answer" }));
+    fireEvent.pointerUp(rightZone, { pointerId: 1 });
+    fireEvent.pointerUp(rightZone, { pointerId: 1 });
     expect(onSelectOption).toHaveBeenCalledTimes(1);
     frames.restore();
   });
 
-  it("pauses on focus loss, clears held movement, and reports pause and resume to the owning quiz timer", () => {
+  it("pauses on focus loss, clears a pending directional tap, and informs the quiz timer", () => {
     mockCanvasContext();
     const onPauseChange = vi.fn();
     render(<MCQSpaceShooter {...shooterProps({ onPauseChange })} />);
 
-    fireEvent.pointerDown(screen.getByRole("button", { name: "Move spaceship right" }));
+    fireEvent.pointerUp(screen.getByTestId("space-touch-right"), { pointerId: 1 });
     fireEvent.blur(window);
     expect(screen.getByRole("dialog", { name: "Mission paused" })).toBeInTheDocument();
     expect(onPauseChange).toHaveBeenLastCalledWith(true);
@@ -178,8 +187,9 @@ describe("Math Space Shooter", () => {
     const view = render(<MCQSpaceShooter {...shooterProps({ onSelectOption })} />);
     mockLayout(view);
 
-    fireEvent.click(screen.getByRole("button", { name: "Aim at answer 28" }));
-    fireEvent.click(screen.getByRole("button", { name: "Fire laser at selected answer" }));
+    const rightZone = screen.getByTestId("space-touch-right");
+    fireEvent.pointerUp(rightZone, { pointerId: 1 });
+    fireEvent.pointerUp(rightZone, { pointerId: 1 });
     frames.advance(0);
 
     view.rerender(<MCQSpaceShooter {...shooterProps({ questionKey: "question-2", onSelectOption })} />);
@@ -188,18 +198,38 @@ describe("Math Space Shooter", () => {
     frames.restore();
   });
 
-  it("keeps whole-test submission separate from firing an answer", () => {
+  it("shows Submit Test before completion and keeps it separate from answer firing", () => {
     mockCanvasContext();
     const onSelectOption = vi.fn(() => true);
     const onFinalSubmit = vi.fn();
     render(<MCQSpaceShooter {...shooterProps({
-      canFinalizeTest: true,
+      canFinalizeTest: false,
       onSelectOption,
       onFinalSubmit,
     })} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Submit complete test" }));
+    const submit = screen.getByRole("button", { name: "Submit complete test" });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    fireEvent.click(submit);
     expect(onFinalSubmit).toHaveBeenCalledTimes(1);
     expect(onSelectOption).not.toHaveBeenCalled();
+  });
+
+  it("moves aim exactly one target after a single directional tap", () => {
+    mockCanvasContext();
+    vi.useFakeTimers();
+    render(<MCQSpaceShooter {...shooterProps()} />);
+    const rightZone = screen.getByTestId("space-touch-right");
+    const leftZone = screen.getByTestId("space-touch-left");
+
+    expect(screen.getByTestId("space-target-0")).toHaveAttribute("aria-current", "true");
+    fireEvent.pointerUp(rightZone, { pointerId: 1 });
+    act(() => vi.advanceTimersByTime(281));
+    expect(screen.getByTestId("space-target-1")).toHaveAttribute("aria-current", "true");
+
+    fireEvent.pointerUp(leftZone, { pointerId: 1 });
+    act(() => vi.advanceTimersByTime(281));
+    expect(screen.getByTestId("space-target-0")).toHaveAttribute("aria-current", "true");
   });
 });
