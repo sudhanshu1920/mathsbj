@@ -1,10 +1,11 @@
-import { resolveMCQGameGateTravelDurationMs, MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS } from "@/lib/mcqGamePhysics";
 import { describe, expect, it } from "vitest";
 import {
   MCQ_GAME_BASE_SPEED_MULTIPLIER,
   MCQ_GAME_MAX_SPEED_MULTIPLIER,
   MCQ_GAME_CAR_HALF_WIDTH,
   MCQ_GAME_COLLISION_Z,
+  MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS,
+  resolveMCQGameGateTravelDurationMs,
   MCQ_GAME_GATE_HALF_WIDTH,
   MCQ_GAME_HOLD_THRESHOLD_MS,
   MCQ_GAME_LANE_X,
