@@ -4,6 +4,7 @@ import type { MCQGameValue } from "@/lib/mcqGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
 import { createJumpPlatforms, stepJumpPlayer, type JumpPlatform, type JumpPlayerState } from "@/lib/mcqJumpPhysics";
 import { setGameImmersiveMode } from "@/lib/gameImmersiveMode";
+import { playJump, playLanding } from "@/lib/sound";
 import "./mcq-jump.css";
 
 export interface MCQJumpOption {
@@ -268,6 +269,8 @@ const MCQJumpAdventure = ({
 
   const [paused, setPaused] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Keep moving and jump between platforms!");
+  const [rendererError, setRendererError] = useState(false);
+  const [rendererAttempt, setRendererAttempt] = useState(0);
   const submittedRef = useRef(false);
   const activeQuestionKeyRef = useRef(String(questionKey));
   const activeSessionKeyRef = useRef(String(sessionKey ?? "default"));
@@ -432,7 +435,11 @@ const MCQJumpAdventure = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const context = canvas.getContext("2d");
-    if (!context) return;
+    if (!context) {
+      setRendererError(true);
+      return;
+    }
+    setRendererError(false);
 
     let animationFrame: number | null = null;
     let lastTimestamp: number | null = null;
@@ -513,6 +520,7 @@ const MCQJumpAdventure = ({
           while (accumulator >= fixedStep && steps < 12) {
             const input = inputRef.current;
             const axis = Number(input.right) - Number(input.left);
+            const wasGrounded = player.grounded;
             player = stepJumpPlayer(
               player,
               {
@@ -527,6 +535,9 @@ const MCQJumpAdventure = ({
               size.height,
               fixedStep,
             );
+            if (!wasGrounded && player.grounded) {
+              try { playLanding(); } catch { /* Audio must never interrupt physics. */ }
+            }
             input.jumpQueued = false;
             accumulator -= fixedStep;
             steps += 1;
@@ -551,7 +562,7 @@ const MCQJumpAdventure = ({
       inputRef.current.jumpQueued = false;
       playerRef.current = null;
     };
-  }, []);
+  }, [rendererAttempt]);
 
   const setMovement = useCallback((direction: "left" | "right", active: boolean) => {
     const current = latestPropsRef.current;
@@ -566,6 +577,9 @@ const MCQJumpAdventure = ({
     const current = latestPropsRef.current;
     if (pausedRef.current || current.disabled || current.feedback || current.finalSubmitReady || submittedRef.current) return;
     inputRef.current.jumpQueued = true;
+    if (playerRef.current?.grounded) {
+      try { playJump(); } catch { /* Audio must never interrupt input handling. */ }
+    }
   }, []);
 
   const restartGame = useCallback(() => {
@@ -759,6 +773,23 @@ const MCQJumpAdventure = ({
         </div>
       )}
       <p className="mcq-jump-status" role="status" aria-live="polite">{statusMessage}</p>
+      {rendererError && (
+        <div className="mcq-jump-render-error" role="alert" aria-label="Game graphics unavailable">
+          <div className="mcq-jump-render-error-card">
+            <Sparkles size={27} aria-hidden="true" />
+            <strong>Game graphics could not start</strong>
+            <span>This device did not provide a 2D drawing context. Retry graphics or return to game selection.</span>
+            <button
+              type="button"
+              onClick={() => {
+                setRendererError(false);
+                setRendererAttempt((attempt) => attempt + 1);
+              }}
+            >Retry graphics</button>
+            {onChangeGame && <button type="button" onClick={onChangeGame}>Exit to game selection</button>}
+          </div>
+        </div>
+      )}
     </section>
   );
 };
