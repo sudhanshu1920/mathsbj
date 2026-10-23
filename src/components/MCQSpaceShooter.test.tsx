@@ -219,7 +219,7 @@ describe("Math Space Shooter", () => {
     expect(onSelectOption).not.toHaveBeenCalled();
   });
 
-  it("moves aim exactly one target after a single directional tap", () => {
+  it("moves aim one target per single tap and preserves keyboard aim controls", () => {
     mockCanvasContext();
     vi.useFakeTimers();
     render(<MCQSpaceShooter {...shooterProps()} />);
@@ -234,5 +234,8 @@ describe("Math Space Shooter", () => {
     fireEvent.pointerUp(leftZone, { pointerId: 1 });
     act(() => vi.advanceTimersByTime(281));
     expect(screen.getByTestId("space-target-0")).toHaveAttribute("aria-current", "true");
+
+    fireEvent.keyDown(leftZone, { key: "ArrowRight" });
+    expect(screen.getByTestId("space-target-1")).toHaveAttribute("aria-current", "true");
   });
 });
