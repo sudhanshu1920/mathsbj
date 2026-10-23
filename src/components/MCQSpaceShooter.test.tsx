@@ -106,6 +106,7 @@ function mockLayout(view: ReturnType<typeof render>) {
     x: 130, y: 70, left: 130, top: 70, right: 270, bottom: 140,
     width: 140, height: 70, toJSON: () => ({}),
   } as DOMRect);
+  fireEvent(window, new Event("resize"));
   return { playfield, target, container: view.container };
 }
 
