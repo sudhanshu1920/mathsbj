@@ -11,6 +11,16 @@ Open **Quiz Mode → Answer Mode → MCQ with Game** to choose between two games
 
 Both games use the existing quiz question generation, answer validation, scoring, progress tracking, timers, and result flow. Switching games during an active quiz returns to the selector without intentionally restarting the current question or resetting quiz progress.
 
+## 2D Jump Adventure controls and lifecycle
+
+- Hold **Left** or **Right** to move; tap **Jump** to jump from a valid grounded state.
+- Select one of the visible answer tiles to submit through the existing Quiz Engine. The correct/incorrect response, score and next question come from the shared quiz flow.
+- **Pause** stops movement and the configured quiz timer. Resume adjusts the timer deadline so the paused interval is not charged.
+- **Restart quiz** starts a clean quiz session using the existing topic and timer configuration. It does not clear unrelated app progress.
+- **Return to game selector** lets you switch games when answer processing is not in progress. The completed result screen offers **Play Again** and **Back to Game Selection**.
+- Falling returns the character to the last safe checkpoint. Canvas initialization failures show a retry/exit panel rather than silently leaving a blank game.
+- Jump and landing cues reuse the app's existing Sound setting. Animation and sound effects do not determine answer correctness.
+
 ## Personal-use signed Android APK
 
 For a signed APK artifact without publishing a public release or update-feed entry, use the artifact-only workflow at `.github/workflows/android-apk.yml`. It runs lint and unit tests, builds the Android release APK, verifies its application ID, version and production signing certificate, calculates the APK SHA-256 checksum, and uploads the APK as the `math-master-android-release` artifact.
