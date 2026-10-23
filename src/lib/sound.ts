@@ -287,7 +287,7 @@ export const createRacingAudioController = (baseSpeedMultiplier: number, maximum
 };
 
 export const playClick = () => { if (!enabled()) return; playTones([{ f: 880, d: 0.04, t: 'triangle', v: 0.6 }], 0.04); };
-export const playSwipe = () => { if (!enabled()) return; playTones([{ f: 520, d: 0.06, t: 'sine', v: 0.5 }, { f: 760, d: 0.05, t: 'sine', v: 0.4 }], 0.04);
+export const playSwipe = () => { if (!enabled()) return; playTones([{ f: 520, d: 0.06, t: 'sine', v: 0.5 }, { f: 760, d: 0.05, t: 'sine', v: 0.4 }], 0.04); };
 
 // Short, quiet arcade cues share the app's audio context and respect Settings → Sound.
 export const playJump = () => {
