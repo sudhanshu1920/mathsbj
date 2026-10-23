@@ -307,7 +307,8 @@ describe("Full-screen continuous MCQ racing", () => {
       for (let timestamp = 0; timestamp <= 2_300; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(1);
-      expect(onSelectOption.mock.calls[0]).toEqual([0, "26", mappings[0].gateId]);
+      expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([0, "26", mappings[0].gateId]);
+      expect(onSelectOption.mock.calls[0][3]).toEqual(expect.any(Number));
 
       // Re-enter a different fixed gate on the same question. Auto-collision
       // must work again instead of remaining locked after the rejected commit.
@@ -317,7 +318,8 @@ describe("Full-screen continuous MCQ racing", () => {
       for (let timestamp = 2_350; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(2);
-      expect(onSelectOption.mock.calls[1]).toEqual([1, "28", mappings[1].gateId]);
+      expect(onSelectOption.mock.calls[1].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
+      expect(onSelectOption.mock.calls[1][3]).toEqual(expect.any(Number));
     } finally {
       view.unmount();
       raf.restore();
