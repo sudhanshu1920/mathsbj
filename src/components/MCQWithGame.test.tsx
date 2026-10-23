@@ -642,6 +642,12 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(view.container.querySelector(".mcq-game-feedback")).toHaveTextContent("INCORRECT ANSWER");
   });
 
+  it("labels a timed-out question as time up rather than an incorrect answer", () => {
+    const view = render(<MCQWithGame {...gameProps({ feedback: "wrong", selectedOption: null })} />);
+    expect(view.container.querySelector(".mcq-game-feedback")).toHaveTextContent("TIME'S UP");
+    expect(view.container.querySelector(".mcq-game-feedback")).not.toHaveTextContent("INCORRECT ANSWER");
+  });
+
   it("stays paused after returning from background until the player explicitly resumes", () => {
     const onPauseChange = vi.fn();
     render(<MCQWithGame {...gameProps({ onPauseChange })} />);
