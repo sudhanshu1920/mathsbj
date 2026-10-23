@@ -207,17 +207,17 @@ it('creates one speed-responsive engine/wind loop, respects Sound OFF, pauses, a
     expect(context.gains[0].disconnect).toHaveBeenCalled();
 
     settingsState.sound = true;
-    const oscillatorCount = context.oscillators.length;
     playJump();
-    expect(context.oscillators).toHaveLength(oscillatorCount + 3);
+    const cueContext = MockRacingAudioContext.instances[MockRacingAudioContext.instances.length - 1];
+    expect(cueContext.oscillators).toHaveLength(3);
     playLanding();
-    expect(context.oscillators).toHaveLength(oscillatorCount + 4);
+    expect(cueContext.oscillators).toHaveLength(4);
 
     settingsState.sound = false;
-    const mutedOscillatorCount = context.oscillators.length;
+    const mutedOscillatorCount = cueContext.oscillators.length;
     playJump();
     playLanding();
-    expect(context.oscillators).toHaveLength(mutedOscillatorCount);
+    expect(cueContext.oscillators).toHaveLength(mutedOscillatorCount);
   } finally {
     controller.dispose();
     settingsState.sound = true;
