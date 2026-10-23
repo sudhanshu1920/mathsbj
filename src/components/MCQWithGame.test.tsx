@@ -602,7 +602,7 @@ describe("Full-screen continuous MCQ racing", () => {
     const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
     try {
       for (let timestamp = 0; timestamp <= 1_200; timestamp += 50) raf.advance(timestamp);
-      const beforeContact = renderer.mock.calls.at(-1)?.[0] as { gateZ: number };
+      const beforeContact = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZ: number };
       expect(beforeContact.gateZ).toBeLessThan(MCQ_GAME_COLLISION_Z);
       expect(onSelectOption).not.toHaveBeenCalled();
 
