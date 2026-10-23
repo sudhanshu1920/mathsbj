@@ -231,3 +231,94 @@
 @media (prefers-reduced-motion: reduce) {
   .mcq-game-select-card { transition: none; }
 }
+
+/* The Space Shooter joins the existing two game cards without changing their layout. */
+.mcq-game-select-card--shooter {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1fr);
+  flex-direction: row;
+}
+.mcq-game-select-card--shooter .mcq-game-select-art--shooter {
+  height: 185px;
+  min-height: 150px;
+}
+.mcq-game-select-art--shooter {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 25% 22%, rgba(43, 131, 255, .48), transparent 42%),
+    radial-gradient(ellipse at 77% 69%, rgba(178, 56, 218, .42), transparent 40%),
+    linear-gradient(145deg, #071630, #11113a 65%, #32164b);
+}
+.mcq-space-select-nebula {
+  position: absolute;
+  inset: 18% 10%;
+  border: 1px solid rgba(107, 210, 255, .25);
+  border-radius: 50%;
+  transform: rotate(-18deg);
+  box-shadow: 0 0 22px rgba(80, 194, 255, .12), inset 0 0 18px rgba(183, 120, 255, .1);
+}
+.mcq-space-select-star {
+  position: absolute;
+  z-index: 1;
+  color: #d4f6ff;
+  text-shadow: 0 0 10px rgba(119, 226, 255, .75);
+}
+.mcq-space-select-star--one { top: 15%; left: 20%; font-size: 1rem; }
+.mcq-space-select-star--two { right: 18%; top: 28%; font-size: 1.25rem; }
+.mcq-space-select-target {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  width: clamp(2.2rem, 5vw, 3rem);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 2px solid rgba(207, 244, 255, .8);
+  border-radius: 38%;
+  color: white;
+  background: linear-gradient(145deg, #ab4cdb, #4a56c1);
+  box-shadow: 0 0 18px rgba(113, 174, 255, .35), inset 0 2px 0 rgba(255,255,255,.2);
+  font-size: .9rem;
+  font-weight: 950;
+  transform: rotate(12deg);
+}
+.mcq-space-select-target--one { top: 26%; left: 58%; }
+.mcq-space-select-target--two { top: 51%; left: 75%; background: linear-gradient(145deg, #10bfc2, #1771a8); }
+.mcq-space-select-laser {
+  position: absolute;
+  z-index: 2;
+  left: 39%;
+  top: 30%;
+  width: 3px;
+  height: 48%;
+  border-radius: 99px;
+  background: linear-gradient(to top, rgba(255, 191, 95, 0), #80edff 38%, #e5ffff);
+  box-shadow: 0 0 10px rgba(89, 227, 255, .9);
+  transform: rotate(34deg);
+  transform-origin: bottom center;
+}
+.mcq-space-select-ship {
+  position: absolute;
+  z-index: 3;
+  left: 26%;
+  bottom: 15%;
+  display: grid;
+  width: 3.6rem;
+  height: 3.6rem;
+  place-items: center;
+  border: 1px solid rgba(154, 238, 255, .38);
+  border-radius: 1.15rem;
+  color: #b7f4ff;
+  background: rgba(35, 92, 169, .45);
+  box-shadow: 0 0 22px rgba(58, 169, 255, .2);
+  transform: rotate(-34deg);
+}
+@media (max-width: 700px) {
+  .mcq-game-select-card--shooter { grid-column: auto; grid-template-columns: minmax(0, 1fr); }
+  .mcq-game-select-card--shooter .mcq-game-select-art--shooter { height: 155px; min-height: 155px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mcq-space-select-ship { transform: none; }
+}
