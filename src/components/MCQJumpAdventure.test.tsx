@@ -97,6 +97,18 @@ describe("2D Math Jump Adventure UI", () => {
     expect(onPauseChange).toHaveBeenLastCalledWith(false);
   });
 
+  it("shows a recoverable graphics error with retry and selector actions when 2D rendering is unavailable", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const onChangeGame = vi.fn();
+    render(<MCQJumpAdventure {...props({ onChangeGame })} />);
+
+    expect(screen.getByRole("alert", { name: "Game graphics unavailable" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry graphics" }));
+    expect(screen.getByRole("alert", { name: "Game graphics unavailable" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Exit to game selection" }));
+    expect(onChangeGame).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the top Submit only for finalizing the complete test", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     const onFinalSubmit = vi.fn();
