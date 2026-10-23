@@ -56,13 +56,45 @@ describe("2D Math Jump Adventure UI", () => {
     expect(onSelectOption).toHaveBeenCalledWith(1, "28", expect.stringContaining("question-1"));
   });
 
-  it("pauses and clears active controls when the app loses window focus", () => {
+  it("pauses gameplay and reports pause/resume to the owning quiz timer when focus is lost", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
-    render(<MCQJumpAdventure {...props()} />);
+    const onPauseChange = vi.fn();
+    render(<MCQJumpAdventure {...props({ onPauseChange })} />);
     fireEvent.pointerDown(screen.getByRole("button", { name: "Move right" }));
     fireEvent.blur(window);
-    expect(screen.getByText("Adventure paused")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Adventure paused" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+    expect(onPauseChange).toHaveBeenLastCalledWith(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    expect(screen.queryByRole("dialog", { name: "Adventure paused" })).not.toBeInTheDocument();
+    expect(onPauseChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("exposes functional restart-session and exit actions in the pause menu", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const onRestartGame = vi.fn();
+    const onChangeGame = vi.fn();
+    render(<MCQJumpAdventure {...props({ onRestartGame, onChangeGame })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pause adventure" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Restart adventure" }));
+    expect(onRestartGame).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Exit to game selection" }));
+    expect(onChangeGame).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts a clean unpaused world when the owning quiz session is restarted", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const onPauseChange = vi.fn();
+    const view = render(<MCQJumpAdventure {...props({ sessionKey: 1, onPauseChange })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pause adventure" }));
+    expect(screen.getByRole("dialog", { name: "Adventure paused" })).toBeInTheDocument();
+
+    view.rerender(<MCQJumpAdventure {...props({ sessionKey: 2, questionKey: "question-2", onPauseChange })} />);
+    expect(screen.queryByRole("dialog", { name: "Adventure paused" })).not.toBeInTheDocument();
+    expect(onPauseChange).toHaveBeenLastCalledWith(false);
   });
 
   it("uses the top Submit only for finalizing the complete test", () => {
