@@ -273,3 +273,47 @@
 @media (max-width: 520px) {
   .mcq-jump-select-game { width: 2.15rem; height: 2.15rem; }
 }
+
+
+.mcq-jump-render-error {
+  position: absolute;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: rgba(17, 53, 79, .88);
+  backdrop-filter: blur(8px);
+}
+.mcq-jump-render-error-card {
+  display: flex;
+  width: min(100%, 340px);
+  flex-direction: column;
+  align-items: center;
+  gap: .75rem;
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: 1.35rem;
+  padding: 1.4rem;
+  color: #193e60;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(0,0,0,.25);
+  text-align: center;
+}
+.mcq-jump-render-error-card strong { font-size: 1.08rem; font-weight: 950; }
+.mcq-jump-render-error-card span { color: #5c7489; font-size: .82rem; line-height: 1.45; }
+.mcq-jump-render-error-card button {
+  display: inline-flex;
+  min-height: 2.7rem;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border: 1px solid #cfe1f0;
+  border-radius: .8rem;
+  padding: 0 .9rem;
+  color: #14568d;
+  background: #f1f8ff;
+  font-size: .84rem;
+  font-weight: 900;
+}
+.mcq-jump-render-error-card button:first-of-type { color: #fff; background: #1877d5; border-color: #1877d5; }
+.mcq-jump-render-error-card button:focus-visible { outline: 3px solid #153a5f; outline-offset: 3px; }
