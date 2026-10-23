@@ -437,6 +437,7 @@ const MCQJumpAdventure = ({
     const context = canvas.getContext("2d");
     if (!context) {
       setRendererError(true);
+      setPausedState(true, "Graphics are unavailable. Retry or exit to game selection.");
       return;
     }
     setRendererError(false);
@@ -562,7 +563,7 @@ const MCQJumpAdventure = ({
       inputRef.current.jumpQueued = false;
       playerRef.current = null;
     };
-  }, [rendererAttempt]);
+  }, [rendererAttempt, setPausedState]);
 
   const setMovement = useCallback((direction: "left" | "right", active: boolean) => {
     const current = latestPropsRef.current;
