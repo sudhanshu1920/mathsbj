@@ -5,13 +5,14 @@ import GameModeSelector from "@/components/GameModeSelector";
 afterEach(cleanup);
 
 describe("MCQ with Game selector", () => {
-  it("shows exactly the existing 3D racing game and the new 2D jump adventure", () => {
+  it("shows the existing racing and jump games plus Space Shooter", () => {
     render(<GameModeSelector selectedGame="car" onBack={vi.fn()} onSelect={vi.fn()} />);
     expect(screen.getByRole("button", { name: /3D Math Car Racing/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /2D Math Jump Adventure/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Math Space Shooter/i })).toBeInTheDocument();
     expect(screen.getAllByRole("button").filter((button) =>
-      /3D Math Car Racing|2D Math Jump Adventure/.test(button.getAttribute("aria-label") || ""),
-    )).toHaveLength(2);
+      /3D Math Car Racing|2D Math Jump Adventure|Math Space Shooter/.test(button.getAttribute("aria-label") || ""),
+    )).toHaveLength(3);
   });
 
   it("routes a selected game through one guarded action", () => {
@@ -22,6 +23,16 @@ describe("MCQ with Game selector", () => {
     fireEvent.click(jump);
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect).toHaveBeenCalledWith("jump");
+  });
+
+  it("routes Space Shooter through the same guarded selector action", () => {
+    const onSelect = vi.fn();
+    render(<GameModeSelector selectedGame="car" onBack={vi.fn()} onSelect={onSelect} />);
+    const shooter = screen.getByRole("button", { name: /Math Space Shooter/i });
+    fireEvent.click(shooter);
+    fireEvent.click(shooter);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("shooter");
   });
 
   it("returns to answer-mode setup without starting a game when Back is selected", () => {

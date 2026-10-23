@@ -37,6 +37,7 @@ import { PERCENTAGE_PRESETS, type PercentagePresetId, resolvePercentagePresets, 
 import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerProgressPercent, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
 import MCQWithGame from '@/components/MCQWithGame';
 import MCQJumpAdventure from '@/components/MCQJumpAdventure';
+import MCQSpaceShooter from '@/components/MCQSpaceShooter';
 import GameModeSelector, { type MCQGameVariant } from '@/components/GameModeSelector';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
 import { createMCQGateMappings } from '@/lib/mcqGamePhysics';
@@ -2265,15 +2266,24 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 onRestartGame={() => startPractice(config)}
               />
             )
-            : (
-              <MCQWithGame
-                {...sharedGameProps}
-                durationMs={config.timerMode === 'perQuestion'
-                  // Keep the established racing gate timing and collision flow unchanged.
-                  ? Math.max(350, config.timerSeconds * 1000 - 300)
-                  : config.timerMode === 'challenge' ? 4800 : 5200}
-              />
-            )
+            : selectedGameVariant === 'shooter'
+              ? (
+                <MCQSpaceShooter
+                  {...sharedGameProps}
+                  sessionKey={questionPoolGenerationRef.current}
+                  onPauseChange={handleJumpPauseChange}
+                  onRestartGame={() => startPractice(config)}
+                />
+              )
+              : (
+                <MCQWithGame
+                  {...sharedGameProps}
+                  durationMs={config.timerMode === 'perQuestion'
+                    // Keep the established racing gate timing and collision flow unchanged.
+                    ? Math.max(350, config.timerSeconds * 1000 - 300)
+                    : config.timerMode === 'challenge' ? 4800 : 5200}
+                />
+              )
         )}
 
         {config.mode === 'input' && (
@@ -3006,7 +3016,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         {mode === 'game' && (
           <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
             <span className="min-w-0 text-xs font-bold text-foreground">
-              Selected: {selectedGameVariant === 'car' ? '3D Math Car Racing' : '2D Math Jump Adventure'}
+              Selected: {selectedGameVariant === 'car' ? '3D Math Car Racing' : selectedGameVariant === 'jump' ? '2D Math Jump Adventure' : 'Math Space Shooter'}
             </span>
             <button
               type="button"
