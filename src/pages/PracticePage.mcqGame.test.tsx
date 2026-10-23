@@ -239,10 +239,16 @@ describe("Quiz Arena MCQ with Game mode", () => {
       fireEvent.click(finalSubmit);
       fireEvent.click(finalSubmit);
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Play Again" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Back to Game Selection" })).toBeInTheDocument();
       });
       expect(view.container.textContent).toContain("Attempted");
       expect(view.container.textContent).toContain("10");
+
+      fireEvent.click(screen.getByRole("button", { name: "Back to Game Selection" }));
+      expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /3D Math Car Racing/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /2D Math Jump Adventure/i })).toBeInTheDocument();
     } finally {
       view.unmount();
       if (originalRequest) Object.defineProperty(window, "requestAnimationFrame", originalRequest);
