@@ -2,7 +2,12 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MCQWithGame from "@/components/MCQWithGame";
-import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
+import {
+  createMCQGateMappings,
+  MCQ_GAME_COLLISION_Z,
+  MCQ_GAME_GATE_START_Z,
+  MCQ_GAME_TRAVEL_DISTANCE,
+} from "@/lib/mcqGamePhysics";
 import { createMCQ3DScene } from "@/lib/mcq3dRenderer";
 import { createRacingAudioController, playClick, playSwipe } from "@/lib/sound";
 
@@ -497,7 +502,7 @@ describe("Full-screen continuous MCQ racing", () => {
       for (let timestamp = 1_050; timestamp <= 2_300; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(1);
-      expect(onSelectOption).toHaveBeenCalledWith(0, "26", firstMappings[0].gateId);
+      expect(onSelectOption).toHaveBeenCalledWith(0, "26", firstMappings[0].gateId, expect.any(Number));
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
 
       const secondOptions = [
@@ -533,7 +538,8 @@ describe("Full-screen continuous MCQ racing", () => {
       for (let timestamp = 2_350; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
       const nextMapping = createMCQGateMappings("q-2", secondOptions.map((option) => option.value))[1];
       expect(onSelectOption).toHaveBeenCalledTimes(2);
-      expect(onSelectOption.mock.calls[1]).toEqual([1, "27", nextMapping.gateId]);
+      expect(onSelectOption.mock.calls[1].slice(0, 3)).toEqual([1, "27", nextMapping.gateId]);
+      expect(onSelectOption.mock.calls[1][3]).toEqual(expect.any(Number));
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
     } finally {
       view.unmount();
@@ -588,14 +594,50 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("does not use the question timer or road scroll as a substitute for gate contact", () => {
+  it("does not submit before the selected target travel duration, then submits exactly at physical contact", () => {
     const raf = installAnimationFrameQueue();
     const onSelectOption = vi.fn();
-    const view = render(<MCQWithGame {...gameProps({ questionKey: "q-fast", durationMs: 350, onSelectOption })} />);
+    const view = render(<MCQWithGame {...gameProps({ questionKey: "q-timed", durationMs: 1_500, onSelectOption })} />);
+    const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
+    const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
     try {
-      for (let timestamp = 0; timestamp <= 1_500; timestamp += 25) raf.advance(timestamp);
+      for (let timestamp = 0; timestamp <= 1_200; timestamp += 50) raf.advance(timestamp);
+      const beforeContact = renderer.mock.calls.at(-1)?.[0] as { gateZ: number };
+      expect(beforeContact.gateZ).toBeLessThan(MCQ_GAME_COLLISION_Z);
       expect(onSelectOption).not.toHaveBeenCalled();
+
+      for (let timestamp = 1_250; timestamp <= 1_550; timestamp += 50) raf.advance(timestamp);
+      expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect(onSelectOption.mock.calls[0][3]).toEqual(expect.any(Number));
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("moves targets on elapsed time using the configured duration and does not reset on HUD changes", () => {
+    const raf = installAnimationFrameQueue();
+    const onSelectOption = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({ questionKey: "q-speed", durationMs: 5_000, disabled: true, onSelectOption })} />);
+    const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
+    const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
+    try {
+      for (let timestamp = 0; timestamp <= 2_500; timestamp += 50) raf.advance(timestamp);
+      const halfway = renderer.mock.calls.at(-1)?.[0] as { gateZ: number };
+      expect(halfway.gateZ).toBeCloseTo(MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * 0.5, 1);
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-speed",
+        durationMs: 5_000,
+        timerLabel: "2s",
+        disabled: true,
+        onSelectOption,
+      })} />);
+      for (let timestamp = 2_550; timestamp <= 3_000; timestamp += 50) raf.advance(timestamp);
+      const sixtyPercent = renderer.mock.calls.at(-1)?.[0] as { gateZ: number };
+      expect(sixtyPercent.gateZ).toBeCloseTo(MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * 0.6, 1);
+      expect(onSelectOption).not.toHaveBeenCalled();
     } finally {
       view.unmount();
       raf.restore();
