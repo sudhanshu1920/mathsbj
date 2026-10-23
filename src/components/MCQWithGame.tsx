@@ -130,6 +130,7 @@ const MCQWithGame = ({
   const scrollOffsetRef = useRef(0);
   const gateZRef = useRef<number>(MCQ_GAME_GATE_START_Z);
   const gateElapsedMsRef = useRef(0);
+  const activeRaceElapsedMsRef = useRef(0);
   const lastTimestampRef = useRef<number | null>(null);
 
   const latestPropsRef = useRef({
@@ -515,6 +516,7 @@ const MCQWithGame = ({
         carX: carXRef.current,
         scrollOffset: scrollOffsetRef.current,
         gateZ: gateZRef.current,
+        activeElapsedMs: activeRaceElapsedMsRef.current,
       });
 
       const panelBottom = questionPanelBottomRef.current;
@@ -559,6 +561,7 @@ const MCQWithGame = ({
       // Keep steering/boost simulation bounded after a slow frame, but let target
       // travel consume real active elapsed time so frame rate cannot change its deadline.
       const deltaMs = Math.min(100, frameElapsedMs);
+      activeRaceElapsedMsRef.current += frameElapsedMs;
       lastTimestampRef.current = timestamp;
 
       const previousSpeedMultiplier = speedMultiplierRef.current;
@@ -731,6 +734,7 @@ const MCQWithGame = ({
       boostingRef.current = false;
       setBoosting(false);
       scrollOffsetRef.current = 0;
+      activeRaceElapsedMsRef.current = 0;
       lastTimestampRef.current = null;
     }
 
