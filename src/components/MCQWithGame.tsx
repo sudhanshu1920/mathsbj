@@ -7,6 +7,8 @@ import {
   MCQ_GAME_GATE_CLEARANCE_Z,
   MCQ_GAME_GATE_HALF_WIDTH,
   MCQ_GAME_GATE_START_Z,
+  MCQ_GAME_TRAVEL_DISTANCE,
+  MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS,
   MCQ_GAME_GESTURE_MOVE_TOLERANCE_PX,
   MCQ_GAME_HOLD_THRESHOLD_MS,
   MCQ_GAME_LANE_X,
@@ -18,6 +20,7 @@ import {
   classifySteeringGesture,
   createMCQGateMappings,
   detectSweptGateCollision,
+  resolveMCQGameGateTravelDurationMs,
 } from "@/lib/mcqGamePhysics";
 import {
   createMCQ3DScene,
@@ -50,7 +53,7 @@ interface MCQWithGameProps {
   disabled?: boolean;
   finalSubmitReady: boolean;
   canFinalizeTest: boolean;
-  onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string) => boolean | void;
+  onSelectOption: (laneIndex: number, optionValue: MCQGameValue, gateId: string, contactTimestampMs?: number) => boolean | void;
   onFinalSubmit: () => void;
   onChangeGame?: () => void;
   onRestartGame?: () => void;
@@ -127,6 +130,7 @@ const MCQWithGame = ({
   const questionPanelBottomRef = useRef(0);
   const scrollOffsetRef = useRef(0);
   const gateZRef = useRef<number>(MCQ_GAME_GATE_START_Z);
+  const gateElapsedMsRef = useRef(0);
   const lastTimestampRef = useRef<number | null>(null);
 
   const latestPropsRef = useRef({
@@ -258,7 +262,7 @@ const MCQWithGame = ({
     setLane(nextLane);
   }, []);
 
-  const selectLaneAnswer = useCallback((mappingIndex: number) => {
+  const selectLaneAnswer = useCallback((mappingIndex: number, contactTimestampMs?: number) => {
     const mapping = gateMappingsRef.current[mappingIndex];
     const phaseAllowsSelection = phaseRef.current === "RUNNING" || phaseRef.current === "ERROR";
     if (
@@ -296,7 +300,7 @@ const MCQWithGame = ({
     racingAudioRef.current?.unlock();
     playSwipe();
     try {
-      const accepted = onSelectOptionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId);
+      const accepted = onSelectOptionRef.current(mapping.laneIndex, mapping.optionValue, mapping.gateId, contactTimestampMs);
       if (accepted === false) releaseRejectedSelection();
     } catch (error) {
       releaseRejectedSelection();
@@ -550,9 +554,12 @@ const MCQWithGame = ({
       }
 
       const previousTimestamp = lastTimestampRef.current;
-      const deltaMs = previousTimestamp === null
+      const frameElapsedMs = previousTimestamp === null
         ? 0
-        : Math.min(100, Math.max(0, timestamp - previousTimestamp));
+        : Math.max(0, timestamp - previousTimestamp);
+      // Keep steering/boost simulation bounded after a slow frame, but let target
+      // travel consume real active elapsed time so frame rate cannot change its deadline.
+      const deltaMs = Math.min(100, frameElapsedMs);
       lastTimestampRef.current = timestamp;
 
       const previousSpeedMultiplier = speedMultiplierRef.current;
@@ -574,7 +581,12 @@ const MCQWithGame = ({
       carXRef.current = nextCarX;
 
       const previousGateZ = gateZRef.current;
-      const nextGateZ = previousGateZ + advancedMs * MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS;
+      const gateTravelDurationMs = resolveMCQGameGateTravelDurationMs(
+        latestPropsRef.current.durationMs,
+      );
+      gateElapsedMsRef.current += frameElapsedMs;
+      const nextGateZ = MCQ_GAME_GATE_START_Z +
+        MCQ_GAME_TRAVEL_DISTANCE * (gateElapsedMsRef.current / gateTravelDurationMs);
       const gateTravelThisFrame = nextGateZ - previousGateZ;
       const gateCrossingFraction = gateTravelThisFrame > 0 &&
         previousGateZ < MCQ_GAME_COLLISION_Z &&
@@ -584,6 +596,9 @@ const MCQWithGame = ({
       const carXAtGateContact = gateCrossingFraction === null
         ? nextCarX
         : previousCarX + (nextCarX - previousCarX) * gateCrossingFraction;
+      const contactTimestampMs = gateCrossingFraction === null
+        ? undefined
+        : (previousTimestamp ?? timestamp) + frameElapsedMs * gateCrossingFraction;
 
       let collisionIndex = -1;
       let closestContactDistance = Number.POSITIVE_INFINITY;
@@ -636,7 +651,7 @@ const MCQWithGame = ({
         ) {
           // A target contact is the only per-answer commit path. selectLaneAnswer
           // claims the current question synchronously before invoking Quiz Engine.
-          selectLaneAnswer(mapping.laneIndex);
+          selectLaneAnswer(mapping.laneIndex, contactTimestampMs);
         }
       }
 
@@ -644,6 +659,7 @@ const MCQWithGame = ({
       // past the car, respawn the same question's targets at the far spawn plane
       // so the player gets another physical approach rather than a dead session.
       if (gateZRef.current > MCQ_GAME_COLLISION_Z + MCQ_GAME_GATE_CLEARANCE_Z) {
+        gateElapsedMsRef.current = 0;
         gateZRef.current = MCQ_GAME_GATE_START_Z;
       }
 
@@ -698,6 +714,7 @@ const MCQWithGame = ({
     // Each question/session receives a fresh gate wave. No old target's world
     // position can leak into the next question even though the WebGL scene stays mounted.
     gateZRef.current = MCQ_GAME_GATE_START_Z;
+    gateElapsedMsRef.current = 0;
     if (sessionChanged) {
       activeSessionKeyRef.current = nextSessionKey;
       setShowRestartConfirmation(false);
