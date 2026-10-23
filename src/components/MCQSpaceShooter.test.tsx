@@ -12,6 +12,8 @@ vi.mock("@/lib/gameImmersiveMode", () => ({
 vi.mock("@/lib/sound", () => ({
   playClick: vi.fn(),
   playSwipe: vi.fn(),
+  playSpaceLaser: vi.fn(),
+  playSpaceExplosion: vi.fn(),
 }));
 
 function mockCanvasContext() {
