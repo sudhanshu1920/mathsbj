@@ -56,6 +56,15 @@ describe("2D Math Jump Adventure UI", () => {
     expect(onSelectOption).toHaveBeenCalledWith(1, "28", expect.stringContaining("question-1"));
   });
 
+  it("pauses and clears active controls when the app loses window focus", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    render(<MCQJumpAdventure {...props()} />);
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Move right" }));
+    fireEvent.blur(window);
+    expect(screen.getByText("Adventure paused")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+  });
+
   it("uses the top Submit only for finalizing the complete test", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     const onFinalSubmit = vi.fn();
