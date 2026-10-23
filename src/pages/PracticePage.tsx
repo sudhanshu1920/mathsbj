@@ -1001,9 +1001,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setTablesProModeState(enabled);
   }, []);
 
-  const startPractice = useCallback((cfg: PracticeConfig) => {
+  const startPractice = useCallback((cfg: PracticeConfig): boolean => {
     // Guard rapid/programmatic duplicate starts as well as the disabled setup button.
-    if (quizStartLockRef.current) return;
+    if (quizStartLockRef.current) return false;
     const invalidTopic = cfg.topics.find((topic) => !isValidPracticeRange(topic.id, topic.range));
     if (invalidTopic) {
       setStartError(
@@ -1013,7 +1013,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             ? 'Select at least one valid Percentage preset range.'
             : `Check the selected range for ${invalidTopic.label}.`,
       );
-      return;
+      return false;
     }
 
     const normalizedConfig: PracticeConfig = {
@@ -1043,7 +1043,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (generatedQuestions.length === 0) {
       const topicNames = normalizedConfig.topics.map((topic) => topic.label).join(', ');
       setStartError(`No questions could be generated for ${topicNames}. Check the selected custom range and try again.`);
-      return;
+      return false;
     }
     gamePausedRef.current = false;
     gamePauseStartedAtRef.current = null;
@@ -1098,6 +1098,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     autoSubmitTimerRef.current = undefined;
     answerLockRef.current = false;
     finishLockRef.current = false;
+    return true;
   }, [onQuizStart, setFinalSubmitReady]);
 
   useEffect(() => {
@@ -1753,6 +1754,57 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     }
   }, [config]);
 
+  const startQuizFromSetup = useCallback((modeOverride: PracticeMode = mode): boolean => {
+    const topics = Array.from(selectedTopics).map((tid) => {
+      const info = TOPICS.find((topic) => topic.id === tid)!;
+      return { id: tid, label: info.label, range: topicRanges[tid] };
+    });
+    const cfg: PracticeConfig = {
+      topics,
+      count,
+      infinite,
+      mode: modeOverride,
+      timerMode,
+      timerSeconds,
+      challengeDurationSeconds: timerMode === "challenge"
+        ? getChallengeDurationSeconds(challengeMinutes)
+        : undefined,
+      sequential,
+      repetitionEnabled,
+      repetitionByTopic: repetitionEnabled
+        ? Object.fromEntries(Array.from(selectedTopics).map((tid) => [
+            tid,
+            sanitizeRepetition(topicRepetitions[tid]),
+          ]))
+        : {},
+    };
+    return startPractice(cfg);
+  }, [
+    mode,
+    selectedTopics,
+    topicRanges,
+    count,
+    infinite,
+    timerMode,
+    timerSeconds,
+    challengeMinutes,
+    sequential,
+    repetitionEnabled,
+    topicRepetitions,
+    startPractice,
+  ]);
+
+  const startSelectedGame = useCallback((game: MCQGameVariant): boolean => {
+    if (config) {
+      closeGameSelector(game);
+      return true;
+    }
+    setSelectedGameVariant(game);
+    const started = startQuizFromSetup("game");
+    if (started) closeGameSelector(game);
+    return started;
+  }, [config, closeGameSelector, startQuizFromSetup]);
+
   // Safety net for route changes/unmounts: release every session timer/timeout.
   useEffect(() => {
     return () => clearSessionTimers();
@@ -1895,10 +1947,11 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     );
   }
 
-  if (gameSelectionOpen && mode === 'game') {
+  if (gameSelectionOpen && mode === 'game' && config) {
     return (
       <GameModeSelector
         selectedGame={selectedGameVariant}
+        variant="screen"
         onBack={() => closeGameSelector()}
         onSelect={(game) => closeGameSelector(game)}
       />
@@ -3119,26 +3172,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       <motion.button
         whileTap={{ scale: MOTION.scale.press }}
         disabled={!canStart}
-        onClick={() => {
-          const topics = Array.from(selectedTopics).map(tid => {
-            const info = TOPICS.find(t => t.id === tid)!;
-            return { id: tid, label: info.label, range: topicRanges[tid] };
-          });
-          const cfg: PracticeConfig = {
-            topics, count, infinite, mode,
-            timerMode,
-            timerSeconds,
-            challengeDurationSeconds: timerMode === 'challenge'
-              ? getChallengeDurationSeconds(challengeMinutes)
-              : undefined,
-            sequential,
-             repetitionEnabled,
-             repetitionByTopic: repetitionEnabled
-               ? Object.fromEntries(Array.from(selectedTopics).map((tid) => [tid, sanitizeRepetition(topicRepetitions[tid])]))
-               : {},
-           };
-          startPractice(cfg);
-        }}
+        onClick={() => { startQuizFromSetup(); }}
         className={`quiz-start-cta w-full min-h-12 py-3 rounded-xl font-display font-bold text-base shadow-sm mt-2 transition-colors flex items-center justify-center gap-2 ${
           canStart
             ? 'gradient-primary text-primary-foreground shadow-primary/30'
@@ -3160,7 +3194,22 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         </p>
       )}
     </div>
-  );
+    {gameSelectionOpen && mode === "game" && !config && (
+      <GameModeSelector
+        selectedGame={selectedGameVariant}
+        variant="modal"
+        canStartQuiz={canStart}
+        errorMessage={startError}
+        onBack={() => closeGameSelector()}
+        onSelect={(game) => {
+          setSelectedGameVariant(game);
+          setStartError(null);
+        }}
+        onStart={startSelectedGame}
+      />
+    )}
+  </>);
+
 };
 
 export default PracticePage;
