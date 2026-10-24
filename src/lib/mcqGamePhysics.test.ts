@@ -4,6 +4,9 @@ import {
   MCQ_GAME_MAX_SPEED_MULTIPLIER,
   MCQ_GAME_CAR_HALF_WIDTH,
   MCQ_GAME_COLLISION_Z,
+  MCQ_GAME_GATE_START_Z,
+  MCQ_GAME_TRAVEL_DISTANCE,
+  MCQ_GAME_GATE_APPROACH_FRACTIONS,
   MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS,
   resolveMCQGameGateTravelDurationMs,
   isMCQGameCollisionWithinDeadline,
@@ -13,6 +16,7 @@ import {
   clampMCQGameLane,
   classifySteeringGesture,
   createMCQGateMappings,
+  createMCQGateApproachStartZs,
   detectSweptGateCollision,
   getSweptLaneGateContactFraction,
   advanceMCQGameSpeed,
@@ -47,6 +51,25 @@ describe("3D MCQ racing steering and collision physics", () => {
     expect(mappings.map((mapping) => mapping.laneId)).toEqual(["lane-1", "lane-2", "lane-3", "lane-4"]);
     expect(new Set(mappings.map((mapping) => mapping.gateId)).size).toBe(4);
     expect(mappings.every((mapping) => mapping.questionId === "question-42")).toBe(true);
+  });
+
+  it("gives each answer gate a stable, unique depth with a contact window before timeout", () => {
+    const starts = createMCQGateApproachStartZs("question-depth-42");
+    expect(starts).toHaveLength(4);
+    expect(new Set(starts).size).toBe(4);
+    expect(createMCQGateApproachStartZs("question-depth-42")).toEqual(starts);
+    expect(createMCQGateApproachStartZs("question-depth-42", 2)).toHaveLength(2);
+
+    const expectedFractions = [...MCQ_GAME_GATE_APPROACH_FRACTIONS].sort((a, b) => a - b);
+    const fractions = starts
+      .map((startZ) => (MCQ_GAME_COLLISION_Z - startZ) / MCQ_GAME_TRAVEL_DISTANCE)
+      .sort((a, b) => a - b);
+    fractions.forEach((fraction, index) => {
+      expect(fraction).toBeCloseTo(expectedFractions[index], 8);
+      expect(fraction).toBeGreaterThan(0);
+      expect(fraction).toBeLessThan(1);
+    });
+    expect(starts.every((startZ) => startZ > MCQ_GAME_GATE_START_Z)).toBe(true);
   });
 
   it("maps short presses to exactly one directional tap", () => {
