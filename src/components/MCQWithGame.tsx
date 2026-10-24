@@ -382,6 +382,7 @@ const MCQWithGame = ({
 
     clearHoldTimer(pointerId);
     const timer = setTimeout(() => {
+      if (holdTimersRef.current.get(pointerId) === timer) holdTimersRef.current.delete(pointerId);
       const activePress = activePointersRef.current.get(pointerId);
       if (!activePress || activePress !== press ||
           phaseRef.current !== "RUNNING" || disabledRef.current || submittedRef.current ||
