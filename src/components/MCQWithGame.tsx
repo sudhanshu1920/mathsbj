@@ -361,9 +361,11 @@ const MCQWithGame = ({
       if (!press || press.pointerId !== pointerId ||
           phaseRef.current === "PAUSED" || phaseRef.current === "ERROR" || document.hidden ||
           press.movementExceeded) return;
-      // A hold may cross a question boundary: keep accelerating until the
-      // physical pointer is released, even while that answer is being processed.
+      // A hold steers one lane in the pressed direction and boosts at the same
+      // time. The lane transition stays smooth in the frame loop and never repeats
+      // while held, so long presses cannot run uncontrolled across the whole road.
       press.boostTriggered = true;
+      changeLane(press.direction);
       boostingRef.current = true;
       setBoosting(true);
     }, MCQ_GAME_HOLD_THRESHOLD_MS);
