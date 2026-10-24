@@ -8,7 +8,7 @@ describe("MCQ with Game selector", () => {
   it("shows the existing games plus Math Slice Ninja", () => {
     render(<GameModeSelector selectedGame="car" onBack={vi.fn()} onSelect={vi.fn()} />);
     expect(screen.getByRole("button", { name: /3D Car Racing/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /2D Jump Adventure/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Jump Adventure/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Space Shooter/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Math Slice Ninja/i })).toBeInTheDocument();
     expect(screen.getAllByRole("button").filter((button) =>
@@ -16,10 +16,22 @@ describe("MCQ with Game selector", () => {
     )).toHaveLength(4);
   });
 
+  it("renders a compact modal with only four game names and functional actions", () => {
+    render(<GameModeSelector selectedGame="car" variant="modal" onBack={vi.fn()} onSelect={vi.fn()} onStart={vi.fn(() => true)} />);
+    expect(screen.getByRole("dialog", { name: "Choose a quiz game" })).toBeInTheDocument();
+    for (const name of ["Car Racing", "Jump Adventure", "Space Shooter", "Math Slice Ninja"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+    expect(screen.queryByText(/Race and solve|Jump and answer|Aim, shoot and solve|Swipe\. Slice\. Solve|Choose Your Game|MATH ARCADE|SELECT ONE TO CONTINUE/i)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(6);
+    expect(screen.getByRole("button", { name: "Cancel game selection" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Quiz" })).toBeDisabled();
+  });
+
   it("routes a selected game through one guarded action", () => {
     const onSelect = vi.fn();
     render(<GameModeSelector selectedGame="car" onBack={vi.fn()} onSelect={onSelect} />);
-    const jump = screen.getByRole("button", { name: /2D Jump Adventure/i });
+    const jump = screen.getByRole("button", { name: /Jump Adventure/i });
     fireEvent.click(jump);
     fireEvent.click(jump);
     expect(onSelect).toHaveBeenCalledTimes(1);
@@ -68,9 +80,9 @@ describe("MCQ with Game selector", () => {
 
     const start = screen.getByTestId("start-selected-game");
     expect(start).toBeDisabled();
-    expect(screen.getByRole("dialog", { name: "Choose Your Game" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Choose a quiz game" })).toBeInTheDocument();
 
-    const jump = screen.getByRole("button", { name: /2D Jump Adventure/i });
+    const jump = screen.getByRole("button", { name: /Jump Adventure/i });
     fireEvent.click(jump);
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect).toHaveBeenCalledWith("jump");

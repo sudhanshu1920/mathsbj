@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, CarFront, Check, Gamepad2, Mountain, Play, Rocket, Scissors, Sparkles, X } from "lucide-react";
 import "./mcq-game-selector.css";
 
@@ -46,6 +46,19 @@ const GAME_OPTIONS: ReadonlyArray<{
   { id: "slice", title: "Math Slice Ninja", description: "Swipe. Slice. Solve.", action: "Select Slice Ninja", ariaLabel: "Math Slice Ninja. Swipe, slice and solve." },
 ];
 
+const MODAL_GAME_NAMES: Record<MCQGameVariant, string> = {
+  car: "Car Racing",
+  jump: "Jump Adventure",
+  shooter: "Space Shooter",
+  slice: "Math Slice Ninja",
+};
+const MODAL_GAME_TEST_IDS: Record<MCQGameVariant, string> = {
+  car: "select-car-racing",
+  jump: "select-jump-adventure",
+  shooter: "select-space-shooter",
+  slice: "select-math-slice-ninja",
+};
+
 const GameModeSelector = ({
   selectedGame,
   onBack,
@@ -63,6 +76,18 @@ const GameModeSelector = ({
   const [starting, setStarting] = useState(false);
   const [localStartError, setLocalStartError] = useState<string | null>(null);
   const isModal = variant === "modal";
+
+  useEffect(() => {
+    if (!isModal || starting) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onBack();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModal, onBack, starting]);
 
   const chooseGame = (game: MCQGameVariant) => {
     if (starting) return;
@@ -83,7 +108,13 @@ const GameModeSelector = ({
     setStarting(true);
     setLocalStartError(null);
     try {
-      const started = onStart?.(selectedChoice);
+      if (!onStart) {
+        startLockedRef.current = false;
+        setStarting(false);
+        setLocalStartError("Quiz start is unavailable. Close this dialog and try again.");
+        return;
+      }
+      const started = onStart(selectedChoice);
       if (started === false) {
         startLockedRef.current = false;
         setStarting(false);
@@ -105,17 +136,17 @@ const GameModeSelector = ({
         className={isModal ? "mcq-game-select-dialog" : "mcq-game-select-page"}
         role={isModal ? "dialog" : undefined}
         aria-modal={isModal ? true : undefined}
-        aria-labelledby={isModal ? "mcq-game-select-title" : undefined}
+        aria-label={isModal ? "Choose a quiz game" : undefined}
       >
         <header className={"mcq-game-select-topbar" + (isModal ? " mcq-game-select-topbar--modal" : "")}>
           {isModal ? (
             <>
-              <span className="mcq-game-select-kicker">MATH ARCADE</span>
               <button
                 type="button"
                 className="mcq-game-select-close"
                 onClick={onBack}
                 aria-label="Cancel game selection"
+                disabled={starting}
               >
                 <X size={18} aria-hidden="true" />
               </button>
@@ -138,6 +169,7 @@ const GameModeSelector = ({
         </header>
 
         <main className={"mcq-game-select-content" + (isModal ? " mcq-game-select-content--modal" : "")}>
+          {!isModal && (
           <div className="mcq-game-select-intro">
             <span className="mcq-game-select-eyebrow">
               <Sparkles size={14} aria-hidden="true" />
@@ -148,8 +180,27 @@ const GameModeSelector = ({
             </h1>
             <p>{isModal ? "Select a game, then press Start Quiz." : "Same Math Quiz Engine. Four different ways to play."}</p>
           </div>
+          )}
 
-          <div className={"mcq-game-select-cards" + (isModal ? " mcq-game-select-cards--modal" : "")}>
+          {isModal ? (
+            <div className="mcq-game-select-cards mcq-game-select-cards--modal" role="group" aria-label="Select a game">
+              {GAME_OPTIONS.map((game) => (
+                <button
+                  key={game.id}
+                  type="button"
+                  className={"mcq-game-select-card mcq-game-select-modal-option" + (selectedChoice === game.id ? " is-selected" : "")}
+                  onClick={() => chooseGame(game.id)}
+                  aria-label={MODAL_GAME_NAMES[game.id]}
+                  aria-pressed={selectedChoice === game.id}
+                  data-testid={MODAL_GAME_TEST_IDS[game.id]}
+                  disabled={starting}
+                >
+                  <span className="mcq-game-select-card-title">{MODAL_GAME_NAMES[game.id]}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+          <div className="mcq-game-select-cards">
             <button
               type="button"
               className={"mcq-game-select-card mcq-game-select-card--racing" + (selectedChoice === "car" ? " is-selected" : "")}
@@ -247,6 +298,7 @@ const GameModeSelector = ({
               </span>
             </button>
           </div>
+          )}
 
           {!isModal && (
             <p className="mcq-game-select-footnote">
@@ -261,9 +313,6 @@ const GameModeSelector = ({
 
         {isModal && (
           <footer className="mcq-game-select-actions">
-            <button type="button" className="mcq-game-select-cancel" onClick={onBack} disabled={starting}>
-              Cancel
-            </button>
             <button
               type="button"
               className="mcq-game-select-start"
