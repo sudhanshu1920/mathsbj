@@ -305,7 +305,7 @@
 .mcq-game-question-panel {
   position: absolute;
   z-index: 10;
-  top: clamp(6.15rem, 14.5vh, 10.5rem);
+  top: calc(clamp(6.15rem, 14.5vh, 10.5rem) + 0.22rem);
   left: 50%;
   width: min(76vw, 600px);
   max-width: calc(100vw - 1.25rem);
@@ -352,7 +352,7 @@
   min-width: 0;
   max-width: 100%;
   color: #f8fbff;
-  font-size: clamp(1.5rem, 5.4vw, 3.2rem);
+  font-size: calc(clamp(1.5rem, 5.4vw, 3.2rem) * 1.06);
   font-weight: 950;
   line-height: 1.12;
   overflow-wrap: anywhere;
@@ -374,7 +374,7 @@
 }
 
 .mcq-game-question-content .text-lg {
-  font-size: clamp(0.85rem, 3vw, 1.05rem) !important;
+  font-size: calc(clamp(0.85rem, 3vw, 1.05rem) * 1.06) !important;
 }
 
 .mcq-game-question-content .text-muted-foreground {
@@ -533,14 +533,14 @@
   .mcq-game-pause svg { width: 16px; height: 16px; }
 
   .mcq-game-question-panel {
-    top: clamp(5.6rem, 13.2vh, 7.5rem);
+    top: calc(clamp(5.6rem, 13.2vh, 7.5rem) + 0.18rem);
     width: min(88vw, 600px);
     padding: 0.75rem 0.7rem 0.8rem;
     border-radius: 0.9rem;
   }
 
   .mcq-game-question-content {
-    font-size: clamp(1.3rem, 6.2vw, 2rem);
+    font-size: calc(clamp(1.3rem, 6.2vw, 2rem) * 1.06);
   }
 
   .mcq-game-renderer-fallback {
@@ -578,13 +578,13 @@
   }
 
   .mcq-game-question-panel {
-    top: 5.1rem;
+    top: 5.28rem;
     max-height: 29vh;
     padding-block: 0.55rem;
   }
 
   .mcq-game-question-content {
-    font-size: clamp(1.15rem, 3.5vw, 1.8rem);
+    font-size: calc(clamp(1.15rem, 3.5vw, 1.8rem) * 1.06);
   }
 
   .mcq-game-renderer-fallback {
