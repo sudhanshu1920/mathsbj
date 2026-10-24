@@ -43,6 +43,11 @@ export interface MCQWithGameOption {
 
 type GamePhase = "INITIALIZING" | "RUNNING" | "ANSWERING" | "FEEDBACK" | "PAUSED" | "ERROR";
 
+/** Keep the browser's pointer identity exact; pointer ID 0 is valid and must not alias another finger. */
+function getUsablePointerId(pointerId: number): number | null {
+  return Number.isFinite(pointerId) && pointerId >= 0 ? pointerId : null;
+}
+
 interface MCQWithGameProps {
   questionKey: string | number;
   sessionKey?: string | number;
@@ -344,8 +349,8 @@ const MCQWithGame = ({
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((typeof event.button === "number" && event.button !== 0) ||
         disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
-    const pointerId = Number.isFinite(event.pointerId) && event.pointerId > 0 ? event.pointerId : 1;
-    if (activePointersRef.current.has(pointerId)) return;
+    const pointerId = getUsablePointerId(event.pointerId);
+    if (pointerId === null || activePointersRef.current.has(pointerId)) return;
     const startX = Number.isFinite(event.clientX) ? event.clientX : 0;
     if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-topbar, .mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option, .mcq-game-paused-overlay")) return;
 
@@ -398,14 +403,9 @@ const MCQWithGame = ({
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId) && event.pointerId > 0
-      ? event.pointerId
-      : null;
-    let press = eventPointerId === null ? undefined : activePointersRef.current.get(eventPointerId);
-    const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
-    if (!press && !identityIsReliable && activePointersRef.current.size === 1) {
-      press = activePointersRef.current.values().next().value as MCQSteeringPointer | undefined;
-    }
+    const eventPointerId = getUsablePointerId(event.pointerId);
+    if (eventPointerId === null) return;
+    const press = activePointersRef.current.get(eventPointerId);
     if (!press || press.movementExceeded) return;
 
     const x = Number.isFinite(event.clientX) ? event.clientX : press.startX;
@@ -451,36 +451,22 @@ const MCQWithGame = ({
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId) && event.pointerId > 0
-      ? event.pointerId
-      : null;
-    const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
-    let pointerId = eventPointerId;
-    if (pointerId === null || !activePointersRef.current.has(pointerId)) {
-      // Synthetic test events may omit pointer identity; only a single active
-      // pointer can be safely resolved without it.
-      if (!identityIsReliable && activePointersRef.current.size === 1) {
-        pointerId = activePointersRef.current.keys().next().value as number;
-      } else {
-        return;
-      }
-    }
+    const pointerId = getUsablePointerId(event.pointerId);
+    if (pointerId === null) return;
     releasePointer(pointerId, true);
   };
 
   const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId) && event.pointerId > 0
-      ? event.pointerId
-      : null;
-    const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
-    let pointerId = eventPointerId;
-    if (pointerId === null || !activePointersRef.current.has(pointerId)) {
-      if (!identityIsReliable && activePointersRef.current.size === 1) {
-        pointerId = activePointersRef.current.keys().next().value as number;
-      } else {
-        return;
-      }
-    }
+    const pointerId = getUsablePointerId(event.pointerId);
+    if (pointerId === null) return;
+    releasePointer(pointerId, false);
+  };
+
+  const handleLostPointerCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pointerId = getUsablePointerId(event.pointerId);
+    if (pointerId === null || !activePointersRef.current.has(pointerId)) return;
+    // Capture can be lost before pointerup (for example during WebView/app transitions).
+    // Treat that pointer as cancelled, but preserve any other active finger.
     releasePointer(pointerId, false);
   };
 
@@ -933,6 +919,7 @@ const MCQWithGame = ({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
+        onLostPointerCapture={handleLostPointerCapture}
         onContextMenu={(event) => event.preventDefault()}
         onKeyDown={(event) => {
           if (event.key === "ArrowLeft") {
