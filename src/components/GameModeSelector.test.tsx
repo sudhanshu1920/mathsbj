@@ -28,6 +28,33 @@ describe("MCQ with Game selector", () => {
     expect(screen.getByRole("button", { name: "Start Quiz" })).toBeDisabled();
   });
 
+  it("shows the matching icon before each game name in the compact popup", () => {
+    render(
+      <GameModeSelector
+        selectedGame="car"
+        variant="modal"
+        onBack={vi.fn()}
+        onSelect={vi.fn()}
+        onStart={vi.fn(() => true)}
+      />,
+    );
+
+    const expectedIcons = [
+      ["select-car-racing", "lucide-car-front"],
+      ["select-jump-adventure", "lucide-mountain"],
+      ["select-space-shooter", "lucide-rocket"],
+      ["select-math-slice-ninja", "lucide-scissors"],
+    ] as const;
+
+    for (const [testId, iconClass] of expectedIcons) {
+      const option = screen.getByTestId(testId);
+      const icon = option.querySelector("svg");
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveClass(iconClass);
+      expect(option.querySelector("svg")?.compareDocumentPosition(option.querySelector(".mcq-game-select-card-title")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
   it("routes a selected game through one guarded action", () => {
     const onSelect = vi.fn();
     render(<GameModeSelector selectedGame="car" onBack={vi.fn()} onSelect={onSelect} />);
