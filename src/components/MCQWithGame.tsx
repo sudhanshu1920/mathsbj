@@ -484,6 +484,14 @@ const MCQWithGame = ({
     releasePointer(pointerId, false);
   };
 
+  const handleLostPointerCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
+    if (pointerId === null || !activePointersRef.current.has(pointerId)) return;
+    // Pointer capture can be lost before pointerup during WebView/app transitions.
+    // Cancel only the affected contact; other held fingers remain valid.
+    releasePointer(pointerId, false);
+  };
+
   useEffect(() => {
     const controller = createRacingAudioController(MCQ_GAME_BASE_SPEED_MULTIPLIER, MCQ_GAME_MAX_SPEED_MULTIPLIER);
     racingAudioRef.current = controller;
@@ -933,6 +941,7 @@ const MCQWithGame = ({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
+        onLostPointerCapture={handleLostPointerCapture}
         onContextMenu={(event) => event.preventDefault()}
         onKeyDown={(event) => {
           if (event.key === "ArrowLeft") {
