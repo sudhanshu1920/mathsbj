@@ -18,7 +18,7 @@ describe("MCQ with Game selector", () => {
 
   it("renders a compact modal with only four game names and functional actions", () => {
     render(<GameModeSelector selectedGame="car" variant="modal" onBack={vi.fn()} onSelect={vi.fn()} onStart={vi.fn(() => true)} />);
-    expect(screen.getByRole("dialog", { name: "Choose a quiz game" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Choose Your Game" })).toBeInTheDocument();
     for (const name of ["Car Racing", "Jump Adventure", "Space Shooter", "Math Slice Ninja"]) {
       expect(screen.getByRole("button", { name })).toBeInTheDocument();
     }
@@ -80,7 +80,7 @@ describe("MCQ with Game selector", () => {
 
     const start = screen.getByTestId("start-selected-game");
     expect(start).toBeDisabled();
-    expect(screen.getByRole("dialog", { name: "Choose a quiz game" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Choose Your Game" })).toBeInTheDocument();
 
     const jump = screen.getByRole("button", { name: /Jump Adventure/i });
     fireEvent.click(jump);
