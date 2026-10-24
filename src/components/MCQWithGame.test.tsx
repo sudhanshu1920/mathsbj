@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MCQWithGame from "@/components/MCQWithGame";
 import {
   createMCQGateMappings,
+  createMCQGateApproachStartZs,
   MCQ_GAME_COLLISION_Z,
   MCQ_GAME_HOLD_THRESHOLD_MS,
   MCQ_GAME_GATE_START_Z,
@@ -604,6 +605,39 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("stages answer targets at different depths and consumes missed gates without submitting", () => {
+    const raf = installAnimationFrameQueue();
+    const onSelectOption = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({
+      questionKey: "q-depth-wave",
+      durationMs: 1_200,
+      disabled: true,
+      onSelectOption,
+    })} />);
+    const renderer = vi.mocked(createMCQ3DScene).mock.results[0]?.value.render as unknown as ReturnType<typeof vi.fn>;
+    try {
+      const initialFrame = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as {
+        gateZs: number[];
+        gateActive: boolean[];
+      };
+      expect(initialFrame.gateZs).toEqual(createMCQGateApproachStartZs("q-depth-wave"));
+      expect(new Set(initialFrame.gateZs).size).toBe(4);
+      expect(initialFrame.gateActive).toEqual([true, true, true, true]);
+
+      for (let timestamp = 0; timestamp <= 700; timestamp += 50) raf.advance(timestamp);
+      const laterFrame = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as {
+        gateZs: number[];
+        gateActive: boolean[];
+      };
+      expect(laterFrame.gateZs).not.toEqual(initialFrame.gateZs);
+      expect(laterFrame.gateActive.filter(Boolean)).toHaveLength(3);
+      expect(onSelectOption).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("moves the answer-gate row toward the car and resets its world depth on each question", () => {
     const raf = installAnimationFrameQueue();
     const onSelectOption = vi.fn();
@@ -619,7 +653,7 @@ describe("Full-screen continuous MCQ racing", () => {
       const approachingPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
       expect(approachingPositions).not.toEqual(initialPositions);
       expect(onSelectOption).not.toHaveBeenCalled();
-      expect(renderer.mock.calls.every(([frame]) => Object.keys(frame as object).sort().join(",") === "activeElapsedMs,carX,gateZ,scrollOffset")).toBe(true);
+      expect(renderer.mock.calls.every(([frame]) => Object.keys(frame as object).sort().join(",") === "activeElapsedMs,carX,gateActive,gateZ,gateZs,scrollOffset,steerAngle")).toBe(true);
       const gateDepths = renderer.mock.calls.map(([frame]) => (frame as { gateZ: number }).gateZ);
       expect(gateDepths.some((gateZ) => gateZ > -9)).toBe(true);
 
