@@ -1,4 +1,21 @@
 export interface SlicePoint { x: number; y: number }
+
+/**
+ * Place a newly launched orb fully inside the visible playfield, including
+ * room for its glow. Invalid dimensions fail closed instead of leaking NaN
+ * coordinates into rendering or swipe hit testing.
+ */
+export function resolveSliceSpawnY(height: number, radius: number, edgePadding: number): number {
+  if (!Number.isFinite(height) || !Number.isFinite(radius) ||
+      !Number.isFinite(edgePadding) || height <= 0 || radius < 0 || edgePadding < 0) {
+    return 0;
+  }
+
+  const minCenter = radius + edgePadding;
+  const maxCenter = height - radius - edgePadding;
+  if (maxCenter < minCenter) return height / 2;
+  return Math.max(minCenter, Math.min(maxCenter, maxCenter));
+}
 export interface SliceTargetMotion { id:string;questionKey:string|number;optionIndex:number;previousX:number;previousY:number;x:number;y:number;radius:number;active:boolean;sliced:boolean }
 export interface SwipeHit<T extends SliceTargetMotion>{target:T;t:number}
 const finite=(p:SlicePoint)=>Number.isFinite(p.x)&&Number.isFinite(p.y);
