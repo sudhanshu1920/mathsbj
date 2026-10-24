@@ -104,6 +104,8 @@ jobs:
           plugin_dir="android/app/src/main/java/com/sudhanshu/mathsbj"
           mkdir -p "$plugin_dir"
           cat > "$plugin_dir/ImmersiveModePlugin.java" <<'JAVA'
+          package com.sudhanshu.mathsbj;
+          
           import android.os.Build;
           import android.view.View;
           import android.view.Window;
@@ -218,7 +220,7 @@ jobs:
               }
           
               @Override
-              protected void onResume() {
+              public void onResume() {
                   super.onResume();
                   if (getWindow() != null) {
                       getWindow().getDecorView().post(() -> {
