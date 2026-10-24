@@ -20,3 +20,13 @@ Validation completed before release: TypeScript typecheck, architecture regressi
 - Add regression tests for version ordering, notification dismissal, displayed versions, and update initiation.
 
 Background notifications while the app is fully closed are not enabled because this repository has no Firebase Cloud Messaging or equivalent push-notification configuration.
+
+
+## 2026-10-24 — Game selector and math-game UI polish
+
+- Replace the initial MCQ with Game dialog content with four compact choices: Car Racing, Jump Adventure, Space Shooter, and Math Slice Ninja; keep only Close and Start Quiz actions in the modal.
+- Keep explicit game selection and guarded Start Quiz routing, preserve existing full-screen game gallery behavior, and support Escape dismissal.
+- Increase math question and answer typography by 6% across the four game modes, with modest responsive question/option position adjustments.
+- Add a slow, bounded five-palette Math Slice Ninja background crossfade that is independent of quiz-world state and respects reduced-motion preferences.
+- Keep answer submission mapped to the existing quiz engine; shift the slice-target spawn origin within the same canvas coordinate system.
+- Add regression coverage for modal contents and functional controls.
