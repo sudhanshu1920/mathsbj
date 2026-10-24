@@ -823,3 +823,11 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Raise the projected racing scene and its matching gate labels together.
+   This increases question-to-target spacing without changing lane/depth collision physics. */
+.mcq-game-canvas,
+.mcq-game-gate-overlay {
+  translate: 0 -0.18rem;
+}
