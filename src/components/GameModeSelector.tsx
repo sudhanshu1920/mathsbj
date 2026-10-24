@@ -184,20 +184,31 @@ const GameModeSelector = ({
 
           {isModal ? (
             <div className="mcq-game-select-cards mcq-game-select-cards--modal" role="group" aria-label="Select a game">
-              {GAME_OPTIONS.map((game) => (
-                <button
-                  key={game.id}
-                  type="button"
-                  className={"mcq-game-select-card mcq-game-select-modal-option" + (selectedChoice === game.id ? " is-selected" : "")}
-                  onClick={() => chooseGame(game.id)}
-                  aria-label={MODAL_GAME_NAMES[game.id]}
-                  aria-pressed={selectedChoice === game.id}
-                  data-testid={MODAL_GAME_TEST_IDS[game.id]}
-                  disabled={starting}
-                >
-                  <span className="mcq-game-select-card-title">{MODAL_GAME_NAMES[game.id]}</span>
-                </button>
-              ))}
+              {GAME_OPTIONS.map((game) => {
+                const GameIcon = {
+                  car: CarFront,
+                  jump: Mountain,
+                  shooter: Rocket,
+                  slice: Scissors,
+                }[game.id];
+                return (
+                  <button
+                    key={game.id}
+                    type="button"
+                    className={"mcq-game-select-card mcq-game-select-modal-option" + (selectedChoice === game.id ? " is-selected" : "")}
+                    onClick={() => chooseGame(game.id)}
+                    aria-label={MODAL_GAME_NAMES[game.id]}
+                    aria-pressed={selectedChoice === game.id}
+                    data-testid={MODAL_GAME_TEST_IDS[game.id]}
+                    disabled={starting}
+                  >
+                    <span className="mcq-game-select-modal-icon" aria-hidden="true">
+                      <GameIcon size={22} strokeWidth={2.1} />
+                    </span>
+                    <span className="mcq-game-select-card-title">{MODAL_GAME_NAMES[game.id]}</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
           <div className="mcq-game-select-cards">

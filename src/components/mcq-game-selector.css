@@ -733,6 +733,7 @@
 .mcq-game-select-content--modal { flex: 0 1 auto; overflow-y: auto; padding: .1rem .65rem .65rem; }
 .mcq-game-select-cards--modal { gap: .4rem; }
 .mcq-game-select-cards--modal .mcq-game-select-modal-option {
+  gap: .65rem;
   display: flex;
   min-height: 47px;
   grid-template-columns: minmax(0, 1fr);
@@ -750,6 +751,13 @@
 .mcq-game-select-cards--modal .mcq-game-select-modal-option:hover:not(:disabled):not(.is-selected) {
   border-color: hsl(var(--primary) / .45);
   background: hsl(var(--accent) / .5);
+}
+.mcq-game-select-cards--modal .mcq-game-select-modal-icon {
+  display: inline-flex;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
 }
 .mcq-game-select-cards--modal .mcq-game-select-modal-option .mcq-game-select-card-title {
   font-size: .96rem;
