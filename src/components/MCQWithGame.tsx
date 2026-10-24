@@ -290,6 +290,13 @@ const MCQWithGame = ({
     ) return;
 
     if (selectedOptionRef.current === mapping.laneIndex) return;
+
+    // Stop every gameplay pointer on answer commit so a held finger cannot
+    // keep accelerating while the Quiz Engine transitions to feedback.
+    clearHoldTimer();
+    activePointersRef.current.clear();
+    syncBoostState();
+
     // A gate selection is the per-question commit event. Lock synchronously
     // before the existing Quiz Engine callback runs so touch/collision races
     // cannot record the same answer twice.
@@ -321,7 +328,7 @@ const MCQWithGame = ({
       releaseRejectedSelection();
       throw error;
     }
-  }, []);
+  }, [clearHoldTimer, syncBoostState]);
 
   const submitWholeTest = useCallback(() => {
     const current = latestPropsRef.current;
