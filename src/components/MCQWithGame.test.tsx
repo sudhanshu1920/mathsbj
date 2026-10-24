@@ -181,6 +181,55 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(stage).toHaveAttribute("data-swipe-ignore-back", "true");
   });
 
+  it("keeps the game selector in the top HUD and prevents HUD touches from steering", () => {
+    const onChangeGame = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({ onChangeGame })} />);
+    const topbar = view.container.querySelector(".mcq-game-topbar");
+    const chooseGame = screen.getByRole("button", { name: "Choose another game" });
+
+    expect(topbar).toContainElement(chooseGame);
+    expect(chooseGame.parentElement).toBe(topbar);
+
+    fireEvent.pointerDown(chooseGame, {
+      button: 0,
+      pointerId: 42,
+      pointerType: "touch",
+      clientX: 5,
+      clientY: 780,
+    });
+    fireEvent.pointerUp(chooseGame, {
+      pointerId: 42,
+      pointerType: "touch",
+      clientX: 5,
+      clientY: 780,
+    });
+    expect(screen.getByTestId("mcq-game-lane-readout")).toHaveTextContent("Lane 2");
+
+    fireEvent.click(chooseGame);
+    expect(onChangeGame).toHaveBeenCalledTimes(1);
+  });
+
+  it("repositions the question from the measured HUD height after viewport changes", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const topbar = view.container.querySelector(".mcq-game-topbar") as HTMLDivElement;
+    const panel = view.container.querySelector(".mcq-game-question-panel") as HTMLDivElement;
+    const stage = view.container.querySelector(".mcq-game-stage") as HTMLDivElement;
+
+    vi.spyOn(topbar, "getBoundingClientRect").mockReturnValue({
+      x: 0, y: 8, left: 0, top: 8, right: 360, bottom: 112, width: 360, height: 104,
+      toJSON: () => ({}),
+    } as DOMRect);
+    vi.spyOn(panel, "getBoundingClientRect").mockReturnValue({
+      x: 20, y: 124, left: 20, top: 124, right: 340, bottom: 190, width: 320, height: 66,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.resize(window);
+
+    const gap = window.innerHeight <= 520 ? 8 : 12;
+    expect(stage.style.getPropertyValue("--mcq-game-question-top")).toBe(`${112 + gap}px`);
+  });
+
   it("renders separate reference-style status and floating question HUDs", () => {
     const view = render(
       <MCQWithGame

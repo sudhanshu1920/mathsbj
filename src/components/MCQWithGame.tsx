@@ -99,6 +99,7 @@ const MCQWithGame = ({
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const topbarRef = useRef<HTMLDivElement | null>(null);
   const questionPanelRef = useRef<HTMLDivElement | null>(null);
   const gateLabelRefs = useRef<Array<HTMLDivElement | null>>([]);
   const sceneRef = useRef<MCQ3DScene | null>(null);
@@ -472,24 +473,38 @@ const MCQWithGame = ({
 
   useEffect(() => {
     const panel = questionPanelRef.current;
-    if (!panel) return;
+    const topbar = topbarRef.current;
+    const stage = stageRef.current;
+    if (!panel || !topbar || !stage) return;
 
-    const measurePanel = () => {
+    // Keep the question anchored to the *actual* HUD height. The HUD wraps on
+    // small phones, so a fixed top offset can put the question underneath it.
+    const measureLayout = () => {
+      const topbarBottom = topbar.getBoundingClientRect().bottom;
+      const questionGap = window.innerHeight <= 520 ? 8 : 12;
+      stage.style.setProperty(
+        "--mcq-game-question-top",
+        `${Math.ceil(topbarBottom + questionGap)}px`,
+      );
       questionPanelBottomRef.current = panel.getBoundingClientRect().bottom + 8;
     };
-    measurePanel();
+    measureLayout();
 
     let observer: ResizeObserver | undefined;
     if (typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(measurePanel);
+      observer = new ResizeObserver(measureLayout);
+      observer.observe(topbar);
       observer.observe(panel);
     }
-    window.addEventListener("resize", measurePanel);
+    window.addEventListener("resize", measureLayout);
+    window.addEventListener("orientationchange", measureLayout);
     return () => {
       observer?.disconnect();
-      window.removeEventListener("resize", measurePanel);
+      window.removeEventListener("resize", measureLayout);
+      window.removeEventListener("orientationchange", measureLayout);
+      stage.style.removeProperty("--mcq-game-question-top");
     };
-  }, [questionKey]);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -885,23 +900,8 @@ const MCQWithGame = ({
           </>
         )}
 
-        {onChangeGame && (
-          <button
-            type="button"
-            className="mcq-game-select-to-picker"
-            aria-label="Choose another game"
-            disabled={disabled || finalSubmitReady}
-            onPointerDown={(event) => event.stopPropagation()}
-            onPointerUp={(event) => event.stopPropagation()}
-            onPointerCancel={(event) => event.stopPropagation()}
-            onClick={onChangeGame}
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            <span>Choose game</span>
-          </button>
-        )}
-
         <div
+          ref={topbarRef}
           className="mcq-game-topbar"
           role="group"
           aria-label="Quiz status and submission"
@@ -909,6 +909,21 @@ const MCQWithGame = ({
           onPointerUp={(event) => event.stopPropagation()}
           onPointerCancel={(event) => event.stopPropagation()}
         >
+          {onChangeGame && (
+            <button
+              type="button"
+              className="mcq-game-select-to-picker"
+              aria-label="Choose another game"
+              disabled={disabled || finalSubmitReady}
+              onPointerDown={(event) => event.stopPropagation()}
+              onPointerUp={(event) => event.stopPropagation()}
+              onPointerCancel={(event) => event.stopPropagation()}
+              onClick={onChangeGame}
+            >
+              <ArrowLeft size={16} aria-hidden="true" />
+              <span>Choose game</span>
+            </button>
+          )}
           <div className="mcq-game-topbar-stat mcq-game-topbar-stat--correct" aria-label={String(correctScore) + " correct answers"}>
             <Check size={21} strokeWidth={3.2} aria-hidden="true" />
             <span>{correctScore}</span>

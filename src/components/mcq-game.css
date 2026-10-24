@@ -147,7 +147,9 @@
   min-height: clamp(3.15rem, 6.8vh, 4.6rem);
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: clamp(0.3rem, 1.8vw, 1.25rem);
+  row-gap: clamp(0.25rem, 0.8vh, 0.45rem);
   padding: 0.42rem clamp(0.42rem, 1vw, 0.65rem) 0.42rem clamp(0.7rem, 2vw, 1.4rem);
   transform: translateX(-50%);
   border: 1px solid rgb(82 183 255 / 0.34);
@@ -305,7 +307,7 @@
 .mcq-game-question-panel {
   position: absolute;
   z-index: 10;
-  top: calc(clamp(6.15rem, 14.5vh, 10.5rem) + 0.22rem);
+  top: var(--mcq-game-question-top, calc(clamp(6.15rem, 14.5vh, 10.5rem) + 0.22rem));
   left: 50%;
   width: min(76vw, 600px);
   max-width: calc(100vw - 1.25rem);
@@ -533,7 +535,7 @@
   .mcq-game-pause svg { width: 16px; height: 16px; }
 
   .mcq-game-question-panel {
-    top: calc(clamp(5.6rem, 13.2vh, 7.5rem) + 0.18rem);
+    top: var(--mcq-game-question-top, calc(clamp(5.6rem, 13.2vh, 7.5rem) + 0.18rem));
     width: min(88vw, 600px);
     padding: 0.75rem 0.7rem 0.8rem;
     border-radius: 0.9rem;
@@ -578,7 +580,7 @@
   }
 
   .mcq-game-question-panel {
-    top: 5.28rem;
+    top: var(--mcq-game-question-top, 5.28rem);
     max-height: 29vh;
     padding-block: 0.55rem;
   }
@@ -598,30 +600,34 @@
 
 
 .mcq-game-select-to-picker {
-  position: absolute;
-  z-index: 14;
-  bottom: max(env(safe-area-inset-bottom), 0.65rem);
-  left: max(env(safe-area-inset-left), 0.65rem);
+  position: relative;
+  z-index: 1;
   display: inline-flex;
-  min-height: 2.6rem;
+  min-width: 0;
+  min-height: clamp(2.45rem, 5.8vh, 4.15rem);
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0.32rem;
   border: 1px solid rgb(148 219 255 / 0.6);
-  border-radius: 0.85rem;
-  padding: 0 0.85rem;
+  border-radius: 0.8rem;
+  padding: 0 clamp(0.48rem, 1.2vw, 0.85rem);
   color: #f7fbff;
   background: rgb(5 22 42 / 0.88);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
-  font-size: 0.78rem;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.2);
+  font-size: clamp(0.7rem, 1.6vw, 0.82rem);
   font-weight: 850;
+  white-space: nowrap;
   touch-action: manipulation;
-  backdrop-filter: blur(8px);
 }
 .mcq-game-select-to-picker:disabled { opacity: 0.45; cursor: not-allowed; }
 .mcq-game-select-to-picker:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-@media (max-width: 380px) {
-  .mcq-game-select-to-picker { min-height: 2.35rem; padding: 0 0.6rem; font-size: 0.7rem; }
+@media (max-width: 480px) {
+  .mcq-game-select-to-picker {
+    min-height: 2.5rem;
+    padding-inline: 0.5rem;
+    font-size: 0.7rem;
+  }
 }
 
 
