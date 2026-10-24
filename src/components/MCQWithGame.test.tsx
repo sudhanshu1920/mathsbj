@@ -78,7 +78,15 @@ beforeEach(() => {
     Object.defineProperty(window, "PointerEvent", {
       configurable: true,
       writable: true,
-      value: MouseEvent,
+      value: class TestPointerEvent extends MouseEvent {
+        pointerId: number;
+        pointerType: string;
+        constructor(type: string, init: PointerEventInit = {}) {
+          super(type, init);
+          this.pointerId = init.pointerId ?? 0;
+          this.pointerType = init.pointerType ?? "";
+        }
+      },
     });
   }
   vi.mocked(createMCQ3DScene).mockImplementation(() => ({
