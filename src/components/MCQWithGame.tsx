@@ -2,6 +2,12 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Pointer
 import { ArrowLeft, CarFront, Check, Pause, Play, RotateCcw, Send, Timer, X } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import {
+  hasActiveMCQDrivingPointer,
+  hasActiveMCQSpeedBoost,
+  resolveMCQSteeringDirection,
+  type MCQSteeringPointer,
+} from "@/lib/mcqGameControls";
+import {
   MCQ_GAME_CAR_HALF_WIDTH,
   MCQ_GAME_COLLISION_Z,
   MCQ_GAME_GATE_CLEARANCE_Z,
@@ -60,16 +66,6 @@ interface MCQWithGameProps {
   onPauseChange?: (paused: boolean) => void;
 }
 
-interface SteeringPress {
-  pointerId: number;
-  direction: -1 | 1;
-  startedAt: number;
-  startX: number;
-  startY: number;
-  movementExceeded: boolean;
-  boostTriggered: boolean;
-}
-
 const MCQWithGame = ({
   questionKey,
   sessionKey,
@@ -124,8 +120,12 @@ const MCQWithGame = ({
   const activeSessionKeyRef = useRef(String(sessionKey ?? "default"));
   const boostingRef = useRef(false);
   const speedMultiplierRef = useRef(MCQ_GAME_BASE_SPEED_MULTIPLIER);
-  const touchGestureRef = useRef<SteeringPress | null>(null);
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Pointer IDs and hold timers are independent: lifting one finger cannot release another.
+  const activePointersRef = useRef<Map<number, MCQSteeringPointer>>(new Map());
+  const holdTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const pointerActivationOrderRef = useRef(0);
+  const speedDisplayRef = useRef<HTMLSpanElement | null>(null);
+  const speedLinesRef = useRef<HTMLDivElement | null>(null);
 
   const collisionPassConsumedRef = useRef(false);
   const questionPanelBottomRef = useRef(0);
@@ -205,16 +205,23 @@ const MCQWithGame = ({
   onSelectOptionRef.current = onSelectOption;
   onFinalSubmitRef.current = onFinalSubmit;
 
-  const clearHoldTimer = useCallback(() => {
-    if (holdTimerRef.current !== null) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
+  const clearHoldTimer = useCallback((pointerId?: number) => {
+    if (pointerId !== undefined) {
+      const timer = holdTimersRef.current.get(pointerId);
+      if (timer !== undefined) clearTimeout(timer);
+      holdTimersRef.current.delete(pointerId);
+      return;
     }
+    for (const timer of holdTimersRef.current.values()) clearTimeout(timer);
+    holdTimersRef.current.clear();
   }, []);
 
-  const endBoost = useCallback(() => {
-    boostingRef.current = false;
-    setBoosting(false);
+  const syncBoostState = useCallback(() => {
+    const nextBoosting = hasActiveMCQSpeedBoost(activePointersRef.current);
+    if (boostingRef.current !== nextBoosting) {
+      boostingRef.current = nextBoosting;
+      setBoosting(nextBoosting);
+    }
   }, []);
 
   const setPausedState = useCallback((nextPaused: boolean, force = false) => {
@@ -234,8 +241,8 @@ const MCQWithGame = ({
       phaseRef.current = "PAUSED";
       setPhase("PAUSED");
       clearHoldTimer();
-      touchGestureRef.current = null;
-      endBoost();
+      activePointersRef.current.clear();
+      syncBoostState();
       lastTimestampRef.current = null;
       racingAudioRef.current?.pause();
       if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
@@ -259,7 +266,7 @@ const MCQWithGame = ({
     void setGameImmersiveMode(true);
     current.onPauseChange?.(false);
     scheduleFrameRef.current?.();
-  }, [clearHoldTimer, endBoost]);
+  }, [clearHoldTimer, syncBoostState]);
 
   const changeLane = useCallback((direction: -1 | 1) => {
     if (disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
@@ -283,6 +290,13 @@ const MCQWithGame = ({
     ) return;
 
     if (selectedOptionRef.current === mapping.laneIndex) return;
+
+    // Stop every gameplay pointer on answer commit so a held finger cannot
+    // keep accelerating while the Quiz Engine transitions to feedback.
+    clearHoldTimer();
+    activePointersRef.current.clear();
+    syncBoostState();
+
     // A gate selection is the per-question commit event. Lock synchronously
     // before the existing Quiz Engine callback runs so touch/collision races
     // cannot record the same answer twice.
@@ -314,7 +328,7 @@ const MCQWithGame = ({
       releaseRejectedSelection();
       throw error;
     }
-  }, []);
+  }, [clearHoldTimer, syncBoostState]);
 
   const submitWholeTest = useCallback(() => {
     const current = latestPropsRef.current;
@@ -329,53 +343,70 @@ const MCQWithGame = ({
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((typeof event.button === "number" && event.button !== 0) ||
-        disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current ||
-        touchGestureRef.current) return;
-    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
+        disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
+    const pointerId = Number.isFinite(event.pointerId) && event.pointerId > 0 ? event.pointerId : 1;
+    if (activePointersRef.current.has(pointerId)) return;
     const startX = Number.isFinite(event.clientX) ? event.clientX : 0;
-    if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-topbar, .mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option")) return;
+    if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-topbar, .mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option, .mcq-game-paused-overlay")) return;
 
-    // AudioContext must be resumed directly from a trusted gesture on mobile.
+    // Resume Web Audio directly in the trusted gesture on mobile.
     racingAudioRef.current?.unlock();
     const rect = event.currentTarget.getBoundingClientRect();
     const direction: -1 | 1 = startX < rect.left + rect.width / 2 ? -1 : 1;
-    clearHoldTimer();
-    touchGestureRef.current = {
+    const previousDirection = resolveMCQSteeringDirection(activePointersRef.current);
+    const press: MCQSteeringPointer = {
       pointerId,
       direction,
       startedAt: performance.now(),
+      activationOrder: ++pointerActivationOrderRef.current,
       startX,
       startY: Number.isFinite(event.clientY) ? event.clientY : 0,
       movementExceeded: false,
       boostTriggered: false,
+      laneMoveApplied: false,
     };
+    activePointersRef.current.set(pointerId, press);
+
+    // When a second finger changes direction, the newest direction takes
+    // control immediately. Same-direction extra fingers do not cause a double lane jump.
+    if (previousDirection !== null) {
+      if (previousDirection !== direction) changeLane(direction);
+      press.laneMoveApplied = true;
+    }
 
     try {
       event.currentTarget.setPointerCapture(pointerId);
     } catch {
-      // Pointer capture is unavailable in some test browsers; window-level interaction state still works.
+      // Pointer capture is unavailable in some test browsers; IDs remain isolated in our active-pointer map.
     }
 
-    holdTimerRef.current = setTimeout(() => {
-      const press = touchGestureRef.current;
-      if (!press || press.pointerId !== pointerId ||
-          phaseRef.current === "PAUSED" || phaseRef.current === "ERROR" || document.hidden ||
-          press.movementExceeded) return;
-      // A hold steers one lane in the pressed direction and boosts at the same
-      // time. The lane transition stays smooth in the frame loop and never repeats
-      // while held, so long presses cannot run uncontrolled across the whole road.
-      press.boostTriggered = true;
-      changeLane(press.direction);
-      boostingRef.current = true;
-      setBoosting(true);
+    clearHoldTimer(pointerId);
+    const timer = setTimeout(() => {
+      if (holdTimersRef.current.get(pointerId) === timer) holdTimersRef.current.delete(pointerId);
+      const activePress = activePointersRef.current.get(pointerId);
+      if (!activePress || activePress !== press ||
+          phaseRef.current !== "RUNNING" || disabledRef.current || submittedRef.current ||
+          document.hidden || activePress.movementExceeded) return;
+      activePress.boostTriggered = true;
+      if (!activePress.laneMoveApplied) {
+        changeLane(activePress.direction);
+        activePress.laneMoveApplied = true;
+      }
+      syncBoostState();
     }, MCQ_GAME_HOLD_THRESHOLD_MS);
+    holdTimersRef.current.set(pointerId, timer);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const press = touchGestureRef.current;
-    const eventPointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
-    if (!press || (eventPointerId !== null && eventPointerId > 0 && eventPointerId !== press.pointerId)) return;
-    if (press.movementExceeded) return;
+    const eventPointerId = Number.isFinite(event.pointerId) && event.pointerId > 0
+      ? event.pointerId
+      : null;
+    let press = eventPointerId === null ? undefined : activePointersRef.current.get(eventPointerId);
+    const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
+    if (!press && !identityIsReliable && activePointersRef.current.size === 1) {
+      press = activePointersRef.current.values().next().value as MCQSteeringPointer | undefined;
+    }
+    if (!press || press.movementExceeded) return;
 
     const x = Number.isFinite(event.clientX) ? event.clientX : press.startX;
     const y = Number.isFinite(event.clientY) ? event.clientY : press.startY;
@@ -384,48 +415,73 @@ const MCQWithGame = ({
     if (dx * dx + dy * dy <= MCQ_GAME_GESTURE_MOVE_TOLERANCE_PX ** 2) return;
 
     press.movementExceeded = true;
-    clearHoldTimer();
-    if (press.boostTriggered) endBoost();
+    clearHoldTimer(press.pointerId);
+    syncBoostState();
+  };
+
+  const releasePointer = (pointerId: number, allowTap: boolean) => {
+    const press = activePointersRef.current.get(pointerId);
+    if (!press) return;
+    const directionBeforeRelease = resolveMCQSteeringDirection(activePointersRef.current);
+    clearHoldTimer(pointerId);
+    activePointersRef.current.delete(pointerId);
+
+    const duration = Math.max(0, performance.now() - press.startedAt);
+    if (allowTap && !press.movementExceeded && !press.boostTriggered &&
+        duration < MCQ_GAME_HOLD_THRESHOLD_MS && !press.laneMoveApplied) {
+      changeLane(press.direction);
+      press.laneMoveApplied = true;
+    }
+
+    // If the newest direction was lifted, hand control back to the most recently
+    // activated remaining pointer. Its prior hold/speed state is not reset.
+    const resumedDirection = resolveMCQSteeringDirection(activePointersRef.current);
+    if (directionBeforeRelease === press.direction && resumedDirection !== null &&
+        resumedDirection !== directionBeforeRelease) {
+      const resumedPress = [...activePointersRef.current.values()]
+        .filter((candidate) => !candidate.movementExceeded)
+        .reduce<MCQSteeringPointer | null>(
+          (latest, candidate) => !latest || candidate.activationOrder > latest.activationOrder ? candidate : latest,
+          null,
+        );
+      changeLane(resumedDirection);
+      if (resumedPress) resumedPress.laneMoveApplied = true;
+    }
+    syncBoostState();
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const press = touchGestureRef.current;
-    const eventPointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
-    // Some DOM test environments synthesize pointerup with an ID unrelated
-    // to the pointerdown when PointerEvent is unsupported. Real browsers fill
-    // pointerType on both events, so enforce identity whenever it is reliable.
+    const eventPointerId = Number.isFinite(event.pointerId) && event.pointerId > 0
+      ? event.pointerId
+      : null;
     const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
-    if (!press || (identityIsReliable && eventPointerId !== null && eventPointerId > 0 &&
-        press.pointerId !== eventPointerId)) return;
-
-    clearHoldTimer();
-    touchGestureRef.current = null;
-    const duration = Math.max(0, performance.now() - press.startedAt);
-    const result = classifySteeringGesture(duration, press.direction);
-
-    if (press.movementExceeded) {
-      endBoost();
-      return;
+    let pointerId = eventPointerId;
+    if (pointerId === null || !activePointersRef.current.has(pointerId)) {
+      // Synthetic test events may omit pointer identity; only a single active
+      // pointer can be safely resolved without it.
+      if (!identityIsReliable && activePointersRef.current.size === 1) {
+        pointerId = activePointersRef.current.keys().next().value as number;
+      } else {
+        return;
+      }
     }
-    if (press.boostTriggered || result.kind === "boost") {
-      endBoost();
-      return;
-    }
-    // Side and direction are fixed on pointer-down; release coordinates are
-    // deliberately irrelevant so small touch jitter never drops a short tap.
-    endBoost();
-    changeLane(result.direction);
+    releasePointer(pointerId, true);
   };
 
   const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
-    const activePointerId = touchGestureRef.current?.pointerId;
+    const eventPointerId = Number.isFinite(event.pointerId) && event.pointerId > 0
+      ? event.pointerId
+      : null;
     const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
-    if (!touchGestureRef.current || (identityIsReliable && eventPointerId !== null && eventPointerId > 0 &&
-        activePointerId !== eventPointerId)) return;
-    clearHoldTimer();
-    touchGestureRef.current = null;
-    endBoost();
+    let pointerId = eventPointerId;
+    if (pointerId === null || !activePointersRef.current.has(pointerId)) {
+      if (!identityIsReliable && activePointersRef.current.size === 1) {
+        pointerId = activePointersRef.current.keys().next().value as number;
+      } else {
+        return;
+      }
+    }
+    releasePointer(pointerId, false);
   };
 
   useEffect(() => {
@@ -471,7 +527,7 @@ const MCQWithGame = ({
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearHoldTimer();
-      touchGestureRef.current = null;
+      activePointersRef.current.clear();
       boostingRef.current = false;
       void setGameImmersiveMode(false);
       document.documentElement.style.overflow = previousHtmlOverflow;
@@ -536,6 +592,27 @@ const MCQWithGame = ({
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const renderFrame = () => {
+      const actualSpeed = speedMultiplierRef.current;
+      const speedDisplay = speedDisplayRef.current;
+      if (speedDisplay) {
+        const speedText = Math.round(actualSpeed * 100) + "%";
+        if (speedDisplay.textContent !== speedText) speedDisplay.textContent = speedText;
+      }
+      const speedLines = speedLinesRef.current;
+      if (speedLines) {
+        const intensity = Math.max(0, Math.min(0.56,
+          ((actualSpeed - MCQ_GAME_BASE_SPEED_MULTIPLIER) /
+            (MCQ_GAME_MAX_SPEED_MULTIPLIER - MCQ_GAME_BASE_SPEED_MULTIPLIER)) * 0.56,
+        ));
+        const opacity = String(intensity);
+        if (speedLines.style.opacity !== opacity) speedLines.style.opacity = opacity;
+        const duration = Math.max(0.22, 1.25 / actualSpeed);
+        const animationDuration = String(duration) + "s";
+        if (speedLines.style.animationDuration !== animationDuration) {
+          speedLines.style.animationDuration = animationDuration;
+        }
+      }
+
       const projections = scene.render({
         carX: carXRef.current,
         steerAngle: steerAngleRef.current,
@@ -595,7 +672,7 @@ const MCQWithGame = ({
       const nextSpeedMultiplier = advanceMCQGameSpeed(
         previousSpeedMultiplier,
         deltaMs,
-        boostingRef.current,
+        hasActiveMCQDrivingPointer(activePointersRef.current),
       );
       speedMultiplierRef.current = nextSpeedMultiplier;
       racingAudioRef.current?.update(nextSpeedMultiplier, boostingRef.current);
@@ -778,7 +855,8 @@ const MCQWithGame = ({
       activeSessionKeyRef.current = nextSessionKey;
       setShowRestartConfirmation(false);
       clearHoldTimer();
-      touchGestureRef.current = null;
+      activePointersRef.current.clear();
+      syncBoostState();
       laneRef.current = 1;
       targetCarXRef.current = MCQ_GAME_LANE_X[1];
       carXRef.current = MCQ_GAME_LANE_X[1];
@@ -808,9 +886,14 @@ const MCQWithGame = ({
     setPhase(nextPhase);
     drawCurrentFrameRef.current?.();
     scheduleFrameRef.current?.();
-  }, [questionKey, sessionKey, clearHoldTimer]);
+  }, [questionKey, sessionKey, clearHoldTimer, syncBoostState]);
 
   useEffect(() => {
+    if (feedback || disabled || finalSubmitReady) {
+      clearHoldTimer();
+      activePointersRef.current.clear();
+      syncBoostState();
+    }
     if (!feedback) return;
     submittedRef.current = true;
     if (phaseRef.current !== "PAUSED") {
@@ -818,7 +901,7 @@ const MCQWithGame = ({
       setPhase("FEEDBACK");
     }
     drawCurrentFrameRef.current?.();
-  }, [feedback]);
+  }, [feedback, disabled, finalSubmitReady, clearHoldTimer, syncBoostState]);
 
   const correctLane = options.findIndex((option) => String(option.value) === String(correctAnswer));
   const laneAnnouncement = "Lane " + String(lane + 1);
@@ -906,6 +989,7 @@ const MCQWithGame = ({
               className="mcq-game-canvas"
               aria-label="Interactive 3D road, low-poly car and four answer gates"
             />
+            <div ref={speedLinesRef} className="mcq-game-speed-lines" aria-hidden="true" />
             <div className="mcq-game-gate-overlay" role="list" aria-label="Four answer gates">
               {gateMappings.map((mapping, index) => {
                 const isSelected = selectedOption === index;
@@ -975,6 +1059,10 @@ const MCQWithGame = ({
           <span className="mcq-game-topbar-divider" aria-hidden="true" />
           <div className="mcq-game-topbar-stat mcq-game-topbar-stat--progress" aria-label={"Question " + (progressLabel || "—")}>
             <span>{progressLabel || "—"}</span>
+          </div>
+          <div className="mcq-game-topbar-stat mcq-game-topbar-stat--speed" aria-label="Actual driving speed">
+            <span aria-hidden="true">SPD</span>
+            <span ref={speedDisplayRef}>100%</span>
           </div>
           {timerLabel && (
             <>

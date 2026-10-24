@@ -52,6 +52,53 @@
   pointer-events: none;
 }
 
+.mcq-game-speed-lines {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transition: opacity 90ms linear;
+}
+
+.mcq-game-speed-lines::before,
+.mcq-game-speed-lines::after {
+  position: absolute;
+  top: -18%;
+  bottom: -18%;
+  width: 27%;
+  content: "";
+  background-image: repeating-linear-gradient(
+    177deg,
+    transparent 0 20px,
+    rgb(150 226 255 / 0.0) 20px 23px,
+    rgb(150 226 255 / 0.36) 24px 25px,
+    transparent 27px 52px
+  );
+  background-size: 100% 180px;
+  animation: mcq-game-speed-streak-scroll 1s linear infinite;
+  filter: drop-shadow(0 0 5px rgb(58 183 255 / 0.42));
+}
+
+.mcq-game-speed-lines::before {
+  left: -3%;
+  mask-image: linear-gradient(90deg, #000 0%, rgb(0 0 0 / 0.72) 38%, transparent 100%);
+  transform: skewX(-12deg);
+}
+
+.mcq-game-speed-lines::after {
+  right: -3%;
+  mask-image: linear-gradient(270deg, #000 0%, rgb(0 0 0 / 0.72) 38%, transparent 100%);
+  transform: skewX(12deg);
+}
+
+@keyframes mcq-game-speed-streak-scroll {
+  from { background-position: 0 0; }
+  to { background-position: 0 180px; }
+}
+
 .mcq-game-gate-label {
   position: absolute;
   display: flex;
@@ -61,12 +108,14 @@
   gap: 0;
   overflow: hidden;
   transform: translate3d(-50%, -50%, 0);
-  border: 1px solid rgb(125 211 252 / 0.78);
-  border-radius: 0.3rem;
-  padding: 0.08rem 0.1rem;
+  border: 1.5px solid rgb(125 211 252 / 0.86);
+  border-radius: 0.72rem;
+  padding: 0.14rem 0.2rem;
   color: #f8fbff;
-  background: linear-gradient(160deg, rgb(8 28 48 / 0.92), rgb(15 25 43 / 0.96));
-  box-shadow: 0 0 12px rgb(34 211 238 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.025);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 25%), linear-gradient(155deg, rgb(6 24 43 / 0.97), rgb(9 15 31 / 0.98));
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.24), 0 0 13px rgb(34 211 238 / 0.16), inset 0 0 0 1px rgb(255 255 255 / 0.065);
   font-weight: 900;
   line-height: 1.08;
   text-align: center;
@@ -178,6 +227,8 @@
 .mcq-game-topbar-stat--wrong { color: #ff4058; }
 .mcq-game-topbar-stat--progress { letter-spacing: 0.025em; }
 .mcq-game-topbar-stat--timer { color: #f7faff; }
+.mcq-game-topbar-stat--speed { color: #75e8ff; letter-spacing: 0.01em; }
+.mcq-game-topbar-stat--speed span:first-child { color: #a7bfd5; font-size: 0.72em; font-weight: 900; }
 .mcq-game-topbar-stat--timer.is-low-time { color: #ff879e; }
 
 .mcq-game-topbar-divider {
