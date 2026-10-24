@@ -412,7 +412,7 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("treats a long press as speed boost without repeated lane changes, then restores normal speed", () => {
+  it("steers one lane during a long press while retaining the speed boost, then restores normal speed", () => {
     const raf = installAnimationFrameQueue();
     vi.useFakeTimers();
     let now = 10;
@@ -424,12 +424,12 @@ describe("Full-screen continuous MCQ racing", () => {
     try {
       fireEvent.pointerDown(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
       act(() => vi.advanceTimersByTime(300));
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
       expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
 
       now = 320;
       fireEvent.pointerUp(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
       expect(screen.getByRole("status")).toHaveTextContent("Racing");
     } finally {
       view.unmount();
