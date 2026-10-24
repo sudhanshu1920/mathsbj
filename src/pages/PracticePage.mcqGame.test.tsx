@@ -274,7 +274,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
     }
   });
 
-  it("uses a ten-second target approach when the per-question timer is disabled", async () => {
+  it("uses staggered answer-gate contact windows when the per-question timer is disabled", async () => {
     const raf = installAnimationFrameQueue();
     vi.spyOn(performance, "now").mockImplementation(() => raf.now());
     const view = render(<PracticePage />);
@@ -284,10 +284,14 @@ describe("Quiz Arena MCQ with Game mode", () => {
       expect(screen.getByRole("switch", { name: "Per-question timer" })).not.toBeChecked();
       startSelectedGame(/Car Racing/i);
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
-      raf.advanceBy(9_500, 100);
+
+      // No target should reach the car before the earliest 52% approach window.
+      raf.advanceBy(4_000, 100);
       expect(getProcessedAnswers(view.container)).toBe(0);
 
-      raf.advanceBy(600, 100);
+      // With the timer disabled the game uses its existing ten-second target travel
+      // default; a physical gate contact can resolve the question before 10s.
+      raf.advanceBy(4_700, 100);
       await waitFor(() => {
         expect(screen.getByLabelText("Question 2 / 10")).toBeInTheDocument();
       });

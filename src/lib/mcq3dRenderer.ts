@@ -17,9 +17,15 @@ export interface MCQGateProjection {
 
 export interface MCQ3DRenderFrame {
   carX: number;
+  /** Visual steering yaw applied to the car mesh while it changes lanes. */
+  steerAngle: number;
   scrollOffset: number;
-  /** World-space Z position of the active answer-gate row. */
+  /** Legacy row clock retained for diagnostics and compatibility with test renderers. */
   gateZ: number;
+  /** Per-lane world-space depth. Missing entries fall back to gateZ. */
+  gateZs?: readonly number[];
+  /** False once a gate has passed the contact plane without a collision. */
+  gateActive?: readonly boolean[];
   /** Active gameplay time; this clock stops while the race is paused. */
   activeElapsedMs: number;
 }
@@ -405,6 +411,18 @@ function translationMatrix(x: number, y: number, z: number): Float32Array {
   ]);
 }
 
+function rotationYMatrix(radians: number): Float32Array {
+  const angle = Number.isFinite(radians) ? Math.max(-0.28, Math.min(0.28, radians)) : 0;
+  const cosine = Math.cos(angle);
+  const sine = Math.sin(angle);
+  return new Float32Array([
+    cosine, 0, -sine, 0,
+    0, 1, 0, 0,
+    sine, 0, cosine, 0,
+    0, 0, 0, 1,
+  ]);
+}
+
 function projectPoint(matrix: Float32Array, point: Point3, width: number, height: number): ProjectedPoint {
   const x = point[0];
   const y = point[1];
@@ -609,14 +627,14 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
     return { width: cssWidth, height: cssHeight };
   };
 
-  // Keep the camera horizontally fixed. Screen-space answer anchors are
-  // projected at the car's fixed depth, so steering moves the car underneath
-  // the options instead of moving the options with a tracking camera.
-  const makeViewProjection = (width: number, height: number) => {
+  // Follow a restrained fraction of the car's lateral movement. The camera,
+  // car, gate meshes and option-label projections share this same view matrix.
+  const makeViewProjection = (width: number, height: number, carX: number) => {
     const aspect = width / height;
     const verticalFovDegrees = getMCQ3DVerticalFovDegrees(aspect);
-    const eye: Point3 = [0, 3.45, 7.20];
-    const target: Point3 = [0, 0.92, -4.85];
+    const cameraFollowX = (Number.isFinite(carX) ? carX : 0) * 0.22;
+    const eye: Point3 = [cameraFollowX, 3.45, 7.20];
+    const target: Point3 = [cameraFollowX, 0.92, -4.85];
     const projection = perspectiveMatrix((verticalFovDegrees * Math.PI) / 180, aspect, 0.1, 100);
     const view = lookAtMatrix(eye, target, [0, 1, 0]);
     return multiplyMatrices(projection, view);
@@ -643,7 +661,7 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
     render(frame: MCQ3DRenderFrame): MCQGateProjection[] {
       if (disposed) return [];
       const viewport = syncViewport();
-      const viewProjection = makeViewProjection(viewport.width, viewport.height);
+      const viewProjection = makeViewProjection(viewport.width, viewport.height, frame.carX);
       const activeElapsedMs = Number.isFinite(frame.activeElapsedMs) ? Math.max(0, frame.activeElapsedMs) : 0;
       if (activeElapsedMs >= nextEnvironmentChangeAtMs) {
         environmentThemeIndex = getNextMCQ3DEnvironmentThemeIndex(environmentThemeIndex);
@@ -667,28 +685,31 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
       );
       drawMesh(scrollingMesh, scrollMatrix, NORMAL_TINT);
 
-      // Answer gates are real world-space objects. They start ahead of the car
-      // and move toward it through frame.gateZ; they do not inherit the road
-      // mesh's recycling transform or the car's world transform.
-      const gateZ = Number.isFinite(frame.gateZ) ? frame.gateZ : MCQ_GAME_GATE_START_Z;
+      // Each answer gate occupies its own stable world-space depth. Gates that
+      // the car has passed are hidden until the next wave is spawned.
+      const fallbackGateZ = Number.isFinite(frame.gateZ) ? frame.gateZ : MCQ_GAME_GATE_START_Z;
+      const gateZs = MCQ_GAME_LANE_X.map((_, index) => {
+        const value = frame.gateZs?.[index];
+        return typeof value === "number" && Number.isFinite(value) ? value : fallbackGateZ;
+      });
+      const gateActive = MCQ_GAME_LANE_X.map((_, index) => frame.gateActive?.[index] !== false);
       MCQ_GAME_LANE_X.forEach((laneX, index) => {
-        const gateMatrix = multiplyMatrices(
-          viewProjection,
-          translationMatrix(laneX, 0, gateZ),
-        );
+        if (!gateActive[index]) return;
+        const gateMatrix = multiplyMatrices(viewProjection, translationMatrix(laneX, 0, gateZs[index]));
         drawMesh(gateMeshes[index], gateMatrix, NORMAL_TINT);
       });
 
-      const carMatrix = multiplyMatrices(
-        viewProjection,
+      const carModel = multiplyMatrices(
         translationMatrix(frame.carX, 0, MCQ_GAME_CAR_CENTER_Z),
+        rotationYMatrix(frame.steerAngle),
       );
+      const carMatrix = multiplyMatrices(viewProjection, carModel);
       drawMesh(carMesh, carMatrix, NORMAL_TINT);
 
-      // Project labels from the same world-space gate transform as the meshes.
-      // This keeps the readable option number attached to the visible gate while
-      // it approaches; collision uses this same gateZ in the game loop.
-      const projections = MCQ_GAME_LANE_X.map((laneX) => {
+      // Labels use each gate's exact mesh depth and the same tracking camera,
+      // keeping what the player sees consistent with the collision world.
+      const projections = MCQ_GAME_LANE_X.map((laneX, index) => {
+        const gateZ = gateZs[index];
         const center = projectPoint(viewProjection, [laneX, 1.20, gateZ], viewport.width, viewport.height);
         const left = projectPoint(viewProjection, [laneX - 0.65, 1.20, gateZ], viewport.width, viewport.height);
         const right = projectPoint(viewProjection, [laneX + 0.65, 1.20, gateZ], viewport.width, viewport.height);
@@ -696,7 +717,7 @@ export function createMCQ3DScene(canvas: HTMLCanvasElement): MCQ3DScene {
         const bottom = projectPoint(viewProjection, [laneX, 0.82, gateZ], viewport.width, viewport.height);
         const projectedWidth = Math.abs(right.x - left.x) * 0.91;
         const projectedHeight = Math.abs(bottom.y - top.y) * 0.75;
-        const visible = center.visible && left.w > 0 && right.w > 0 && top.w > 0 && bottom.w > 0;
+        const visible = gateActive[index] && center.visible && left.w > 0 && right.w > 0 && top.w > 0 && bottom.w > 0;
         return {
           x: center.x,
           y: center.y,
