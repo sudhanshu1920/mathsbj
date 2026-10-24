@@ -82,7 +82,7 @@
 .mcq-jump-question {
   position: absolute;
   z-index: 10;
-  top: calc(max(env(safe-area-inset-top), .45rem) + 4rem);
+  top: calc(max(env(safe-area-inset-top), .45rem) + 4.2rem);
   left: 50%;
   width: min(86vw, 610px);
   max-height: 20vh;
@@ -99,12 +99,12 @@
 }
 .mcq-jump-question-kicker { display: inline-flex; align-items: center; gap: .3rem; color: #1478ba; font-size: .61rem; font-weight: 1000; letter-spacing: .14em; }
 .mcq-jump-question-text { margin-top: .15rem; font-weight: 950; line-height: 1.18; }
-.mcq-jump-question-text > * { font-size: clamp(1.1rem, 4.2vw, 2rem) !important; }
+.mcq-jump-question-text > * { font-size: calc(clamp(1.1rem, 4.2vw, 2rem) * 1.06) !important; }
 .mcq-jump-question-text sup { font-size: .72em !important; }
 .mcq-jump-answer-panel {
   position: absolute;
   z-index: 14;
-  bottom: calc(4.55rem + env(safe-area-inset-bottom));
+  bottom: calc(4.9rem + env(safe-area-inset-bottom));
   left: 50%;
   width: min(94vw, 850px);
   transform: translateX(-50%);
@@ -145,7 +145,7 @@
 .mcq-jump-answer:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 2px 0 #c9e5f1; }
 .mcq-jump-answer:disabled { cursor: default; }
 .mcq-jump-answer-icon { display: inline-grid; width: 1.25rem; height: 1.25rem; flex: 0 0 auto; place-items: center; border-radius: 50%; color: #fff; background: #3289c9; font-size: .65rem; }
-.mcq-jump-answer-value { display: flex; min-width: 0; max-width: 100%; align-items: center; justify-content: center; overflow-wrap: anywhere; font-size: clamp(.8rem, 2.2vw, 1.2rem); }
+.mcq-jump-answer-value { display: flex; min-width: 0; max-width: 100%; align-items: center; justify-content: center; overflow-wrap: anywhere; font-size: calc(clamp(.8rem, 2.2vw, 1.2rem) * 1.06); }
 .mcq-jump-answer-mark { flex: 0 0 auto; }
 .mcq-jump-answer.is-selected { border-color: #3a8bfb; background: #e5f3ff; }
 .mcq-jump-answer.is-correct { border-color: #0ea96b; color: #0b7048; background: #d6ffed; box-shadow: 0 3px 0 #99e9c5; }
@@ -240,12 +240,12 @@
   .mcq-jump-submit { min-height: 2.15rem; padding: 0 .52rem; font-size: .72rem; }
   .mcq-jump-submit svg { width: 13px; height: 13px; }
   .mcq-jump-question { width: 92vw; }
-  .mcq-jump-question-text > * { font-size: clamp(1rem, 5vw, 1.65rem) !important; }
-  .mcq-jump-answer-panel { bottom: calc(4.25rem + env(safe-area-inset-bottom)); width: 96vw; padding: .42rem; }
+  .mcq-jump-question-text > * { font-size: calc(clamp(1rem, 5vw, 1.65rem) * 1.06) !important; }
+  .mcq-jump-answer-panel { bottom: calc(4.6rem + env(safe-area-inset-bottom)); width: 96vw; padding: .42rem; }
   .mcq-jump-answer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
   .mcq-jump-answer { min-height: 2.55rem; gap: .25rem; padding: .32rem .4rem; border-radius: .75rem; }
   .mcq-jump-answer-icon { width: 1.1rem; height: 1.1rem; font-size: .6rem; }
-  .mcq-jump-answer-value { font-size: .85rem; }
+  .mcq-jump-answer-value { font-size: calc(.85rem * 1.06); }
   .mcq-jump-answer-heading { font-size: .6rem; }
   .mcq-jump-control-hint { display: none; }
   .mcq-jump-controls { gap: .35rem; }
