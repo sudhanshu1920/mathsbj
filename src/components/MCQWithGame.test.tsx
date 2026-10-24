@@ -571,6 +571,52 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("cleans up only the pointer that loses capture and preserves another held finger", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, {
+        pointerId: 71,
+        pointerType: "touch",
+        button: 0,
+        clientX: 80,
+        clientY: 650,
+      });
+      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      fireEvent.pointerDown(stage, {
+        pointerId: 72,
+        pointerType: "touch",
+        button: 0,
+        clientX: 320,
+        clientY: 650,
+      });
+      fireEvent.lostPointerCapture(stage, { pointerId: 72, pointerType: "touch" });
+
+      // Losing RIGHT capture must not clear the still-held LEFT pointer or its boost.
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+      now = 260;
+      fireEvent.pointerUp(stage, {
+        pointerId: 71,
+        pointerType: "touch",
+        button: 0,
+        clientX: 80,
+        clientY: 650,
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("keeps RIGHT hold active when a newer LEFT pointer is released first", () => {
     const raf = installAnimationFrameQueue();
     vi.useFakeTimers();
