@@ -14,6 +14,8 @@ export const MCQ_GAME_CAR_CENTER_Z = 2;
 export const MCQ_GAME_CAR_HALF_WIDTH = 0.47;
 export const MCQ_GAME_COLLISION_Z = 0.75;
 export const MCQ_GAME_GATE_START_Z = -9.0;
+// Staggered answer gates create several contact windows before question timeout.
+export const MCQ_GAME_GATE_APPROACH_FRACTIONS = [0.52, 0.63, 0.74, 0.85] as const;
 // A gate stays slightly beyond the contact plane before the next wave respawns.
 export const MCQ_GAME_GATE_CLEARANCE_Z = 0.45;
 export const MCQ_GAME_GATE_HALF_WIDTH = 0.6;
@@ -21,6 +23,27 @@ export const MCQ_GAME_TRAVEL_DISTANCE = MCQ_GAME_COLLISION_Z - MCQ_GAME_GATE_STA
 export const MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS = 10_000;
 // Allows at most one short rendering-scheduler boundary when collision and timer expiry coincide.
 export const MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS = 50;
+
+/**
+ * Creates a stable per-question permutation of gate depths. All gates move at
+ * the same world speed, but cross the car plane at distinct 52–85% timer windows.
+ */
+export function createMCQGateApproachStartZs(questionKey: string | number, gateCount = 4): number[] {
+  const count = Number.isFinite(gateCount) ? Math.min(4, Math.max(0, Math.trunc(gateCount))) : 4;
+  const positions = MCQ_GAME_GATE_APPROACH_FRACTIONS.map(
+    (fraction) => MCQ_GAME_COLLISION_Z - MCQ_GAME_TRAVEL_DISTANCE * fraction,
+  );
+  let seed = 2166136261;
+  for (const character of String(questionKey)) {
+    seed = Math.imul(seed ^ character.charCodeAt(0), 16777619) >>> 0;
+  }
+  for (let index = positions.length - 1; index > 0; index -= 1) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const swapIndex = seed % (index + 1);
+    [positions[index], positions[swapIndex]] = [positions[swapIndex], positions[index]];
+  }
+  return positions.slice(0, count);
+}
 
 /** Uses the selected per-question timer when valid; an absent/disabled timer gets the 10s default. */
 export function resolveMCQGameGateTravelDurationMs(durationMs: number | null | undefined): number {
