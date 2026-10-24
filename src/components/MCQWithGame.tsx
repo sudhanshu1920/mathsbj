@@ -344,7 +344,7 @@ const MCQWithGame = ({
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((typeof event.button === "number" && event.button !== 0) ||
         disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
-    const pointerId = Number.isFinite(event.pointerId) && event.pointerId > 0 ? event.pointerId : 1;
+    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
     if (activePointersRef.current.has(pointerId)) return;
     const startX = Number.isFinite(event.clientX) ? event.clientX : 0;
     if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-topbar, .mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option, .mcq-game-paused-overlay")) return;
@@ -398,7 +398,7 @@ const MCQWithGame = ({
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId) && event.pointerId > 0
+    const eventPointerId = Number.isFinite(event.pointerId)
       ? event.pointerId
       : null;
     let press = eventPointerId === null ? undefined : activePointersRef.current.get(eventPointerId);
@@ -451,7 +451,7 @@ const MCQWithGame = ({
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId) && event.pointerId > 0
+    const eventPointerId = Number.isFinite(event.pointerId)
       ? event.pointerId
       : null;
     const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
@@ -469,7 +469,7 @@ const MCQWithGame = ({
   };
 
   const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId) && event.pointerId > 0
+    const eventPointerId = Number.isFinite(event.pointerId)
       ? event.pointerId
       : null;
     const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
@@ -608,8 +608,8 @@ const MCQWithGame = ({
         if (speedLines.style.opacity !== opacity) speedLines.style.opacity = opacity;
         const duration = Math.max(0.22, 1.25 / actualSpeed);
         const animationDuration = String(duration) + "s";
-        if (speedLines.style.animationDuration !== animationDuration) {
-          speedLines.style.animationDuration = animationDuration;
+        if (speedLines.style.getPropertyValue("--mcq-game-speed-streak-duration") !== animationDuration) {
+          speedLines.style.setProperty("--mcq-game-speed-streak-duration", animationDuration);
         }
       }
 
