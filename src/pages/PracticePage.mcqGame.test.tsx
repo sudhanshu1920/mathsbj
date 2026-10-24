@@ -129,18 +129,18 @@ describe("Quiz Arena MCQ with Game mode", () => {
       fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
       expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
       expect(view.container.querySelector(".quiz-screen--setup")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /3D Car Racing/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /2D Jump Adventure/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Car Racing/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Jump Adventure/i })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Space Shooter/i })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Math Slice Ninja/i })).toBeInTheDocument();
       expect(screen.getByTestId("start-selected-game")).toBeDisabled();
 
-      fireEvent.click(screen.getByRole("button", { name: /2D Jump Adventure/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Jump Adventure/i }));
       expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
       expect(screen.queryByTestId("mcq-jump-fullscreen")).not.toBeInTheDocument();
       expect(screen.getByTestId("start-selected-game")).toBeEnabled();
 
-      fireEvent.click(screen.getByRole("button", { name: /3D Car Racing/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Car Racing/i }));
       expect(screen.getByTestId("select-car-racing")).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByTestId("select-jump-adventure")).toHaveAttribute("aria-pressed", "false");
       expect(screen.queryByTestId("mcq-game-fullscreen")).not.toBeInTheDocument();
@@ -163,7 +163,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
     fireEvent.click(screen.getByRole("button", { name: "MCQ with Game" }));
     expect(screen.getByTestId("start-selected-game")).toBeDisabled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel game selection" }));
 
     expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
     expect(screen.queryByTestId("mcq-game-fullscreen")).not.toBeInTheDocument();
@@ -179,7 +179,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       openGameSelection();
-      fireEvent.click(screen.getByRole("button", { name: /2D Jump Adventure/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Jump Adventure/i }));
       expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
       expect(screen.queryByTestId("mcq-jump-fullscreen")).not.toBeInTheDocument();
 
@@ -240,7 +240,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       enablePerQuestionTimer(5);
-      startSelectedGame(/3D Car Racing/i);
+      startSelectedGame(/Car Racing/i);
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
 
       const initialTargets = view.container.querySelectorAll(".mcq-game-gate-label");
@@ -282,7 +282,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
     try {
       disablePerQuestionTimer();
       expect(screen.getByRole("switch", { name: "Per-question timer" })).not.toBeChecked();
-      startSelectedGame(/3D Car Racing/i);
+      startSelectedGame(/Car Racing/i);
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
       raf.advanceBy(9_500, 100);
       expect(getProcessedAnswers(view.container)).toBe(0);
@@ -319,7 +319,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       enablePerQuestionTimer(5);
-      startSelectedGame(/3D Car Racing/i);
+      startSelectedGame(/Car Racing/i);
 
       for (let question = 1; question <= 10; question += 1) {
         const targets = view.container.querySelectorAll(".mcq-game-gate-label");
@@ -363,21 +363,21 @@ describe("Quiz Arena MCQ with Game mode", () => {
     const view = render(<PracticePage />);
 
     try {
-      startSelectedGame(/3D Car Racing/i);
+      startSelectedGame(/Car Racing/i);
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
       expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
       expect(view.container.querySelectorAll(".mcq-game-fullscreen, .mcq-jump-fullscreen")).toHaveLength(0);
 
-      fireEvent.click(screen.getByRole("button", { name: /2D Jump Adventure/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Jump Adventure/i }));
       expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       expect(screen.getByTestId("mcq-jump-fullscreen")).toBeInTheDocument();
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
       expect(view.container.querySelector(".mcq-jump-score--correct span")).toHaveTextContent("0");
 
       fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
-      fireEvent.click(screen.getByRole("button", { name: /3D Car Racing/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Car Racing/i }));
       expect(screen.getByTestId("mcq-game-fullscreen")).toBeInTheDocument();
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
     } finally {
