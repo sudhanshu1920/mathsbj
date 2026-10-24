@@ -114,6 +114,35 @@ describe("MCQ with Game selector", () => {
     expect(start).toBeDisabled();
   });
 
+  it("keeps the explicit game selection when the app theme class changes", () => {
+    const originalClassName = document.documentElement.className;
+    try {
+      const onSelect = vi.fn();
+      render(
+        <GameModeSelector
+          selectedGame="car"
+          variant="modal"
+          onBack={vi.fn()}
+          onSelect={onSelect}
+          onStart={vi.fn(() => true)}
+        />,
+      );
+
+      const jump = screen.getByRole("button", { name: "Jump Adventure" });
+      fireEvent.click(jump);
+      expect(jump).toHaveAttribute("aria-pressed", "true");
+
+      document.documentElement.classList.add("light");
+      expect(jump).toHaveAttribute("aria-pressed", "true");
+      document.documentElement.classList.remove("light");
+      document.documentElement.classList.add("dark");
+      expect(jump).toHaveAttribute("aria-pressed", "true");
+      expect(onSelect).toHaveBeenCalledTimes(1);
+    } finally {
+      document.documentElement.className = originalClassName;
+    }
+  });
+
   it("returns to answer-mode setup without starting a game when Back is selected", () => {
     const onBack = vi.fn();
     render(<GameModeSelector selectedGame="car" onBack={onBack} onSelect={vi.fn()} />);
