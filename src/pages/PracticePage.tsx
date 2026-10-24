@@ -1639,7 +1639,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           return;
         }
         setFeedback(null);
-            setSelectedOption(null);
+        setSelectedOption(null);
         // A retry is appended synchronously to questionsRef, so always read
         // the authoritative queue after the feedback delay rather than the
         // questions array captured by this callback's render.
