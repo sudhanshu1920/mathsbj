@@ -105,50 +105,70 @@ jobs:
           mkdir -p "$plugin_dir"
           cat > "$plugin_dir/ImmersiveModePlugin.java" <<'JAVA'
           package com.sudhanshu.mathsbj;
-
+          
           import android.os.Build;
           import android.view.View;
           import android.view.Window;
           import android.view.WindowInsets;
           import android.view.WindowInsetsController;
-
+          
           import com.getcapacitor.Plugin;
           import com.getcapacitor.PluginCall;
           import com.getcapacitor.PluginMethod;
           import com.getcapacitor.annotation.CapacitorPlugin;
-
+          
           @CapacitorPlugin(name = "ImmersiveMode")
           public class ImmersiveModePlugin extends Plugin {
-              @PluginMethod
-              public void enter(PluginCall call) { setImmersive(true, call); }
-
-              @PluginMethod
-              public void exit(PluginCall call) { setImmersive(false, call); }
-
-              private void setImmersive(boolean enabled, PluginCall call) {
-                  getActivity().runOnUiThread(() -> {
-                      Window window = getActivity().getWindow();
-                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                          WindowInsetsController controller = window.getInsetsController();
-                          if (controller != null) {
-                              int bars = WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars();
-                              if (enabled) {
-                                  controller.hide(bars);
-                                  controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-                              } else {
-                                  controller.show(bars);
-                                  controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_DEFAULT);
-                              }
-                          }
-                          window.setDecorFitsSystemWindows(false);
-                      } else {
-                          int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                              | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                              | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-                          if (enabled) flags |= View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                              | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
-                          window.getDecorView().setSystemUiVisibility(flags);
+              private static volatile boolean immersiveEnabled = false;
+          
+              public static boolean isImmersiveEnabled() {
+                  return immersiveEnabled;
+              }
+          
+              public static void applySystemUiMode(Window window, boolean enabled) {
+                  if (window == null) return;
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                      window.setDecorFitsSystemWindows(false);
+                  }
+          
+                  View decor = window.getDecorView();
+                  int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                      | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                      | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+                  if (enabled) {
+                      flags |= View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                          | View.SYSTEM_UI_FLAG_FULLSCREEN
+                          | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+                  }
+                  decor.setSystemUiVisibility(flags);
+          
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                      WindowInsetsController controller = window.getInsetsController();
+                      if (controller != null) {
+                          int bars = WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars();
+                          controller.setSystemBarsBehavior(enabled
+                              ? WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                              : WindowInsetsController.BEHAVIOR_DEFAULT);
+                          if (enabled) controller.hide(bars);
+                          else controller.show(bars);
                       }
+                  }
+              }
+          
+              @PluginMethod
+              public void enter(PluginCall call) {
+                  setImmersive(true, call);
+              }
+          
+              @PluginMethod
+              public void exit(PluginCall call) {
+                  setImmersive(false, call);
+              }
+          
+              private void setImmersive(boolean enabled, PluginCall call) {
+                  immersiveEnabled = enabled;
+                  getActivity().runOnUiThread(() -> {
+                      applySystemUiMode(getActivity().getWindow(), enabled);
                       call.resolve();
                   });
               }
@@ -156,15 +176,15 @@ jobs:
           JAVA
           cat > "$plugin_dir/MainActivity.java" <<'JAVA'
           package com.sudhanshu.mathsbj;
-
+          
           import android.graphics.Color;
           import android.os.Build;
           import android.os.Bundle;
           import android.view.View;
           import android.view.Window;
-
+          
           import com.getcapacitor.BridgeActivity;
-
+          
           public class MainActivity extends BridgeActivity {
               @Override
               public void onCreate(Bundle savedInstanceState) {
@@ -184,6 +204,28 @@ jobs:
                               | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                               | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                       );
+                  }
+              }
+          
+              private void restoreGameSystemUiPolicy() {
+                  ImmersiveModePlugin.applySystemUiMode(
+                      getWindow(), ImmersiveModePlugin.isImmersiveEnabled()
+                  );
+              }
+          
+              @Override
+              public void onWindowFocusChanged(boolean hasFocus) {
+                  super.onWindowFocusChanged(hasFocus);
+                  if (hasFocus) restoreGameSystemUiPolicy();
+              }
+          
+              @Override
+              public void onResume() {
+                  super.onResume();
+                  if (getWindow() != null) {
+                      getWindow().getDecorView().post(() -> {
+                          if (hasWindowFocus()) restoreGameSystemUiPolicy();
+                      });
                   }
               }
           }

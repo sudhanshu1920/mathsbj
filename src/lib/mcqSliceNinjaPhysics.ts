@@ -14,7 +14,12 @@ export function resolveSliceSpawnY(height: number, radius: number, edgePadding: 
   const minCenter = radius + edgePadding;
   const maxCenter = height - radius - edgePadding;
   if (maxCenter < minCenter) return height / 2;
-  return Math.max(minCenter, Math.min(maxCenter, maxCenter));
+
+  // Leave additional launch clearance below the orb; do not launch from the
+  // last fully-visible row, which makes the target appear clipped at entry.
+  const safeRange = maxCenter - minCenter;
+  const launchInset = Math.min(height * 0.08, safeRange * 0.28);
+  return maxCenter - launchInset;
 }
 export interface SliceTargetMotion { id:string;questionKey:string|number;optionIndex:number;previousX:number;previousY:number;x:number;y:number;radius:number;active:boolean;sliced:boolean }
 export interface SwipeHit<T extends SliceTargetMotion>{target:T;t:number}
