@@ -136,7 +136,7 @@ const GameModeSelector = ({
         className={isModal ? "mcq-game-select-dialog" : "mcq-game-select-page"}
         role={isModal ? "dialog" : undefined}
         aria-modal={isModal ? true : undefined}
-        aria-label={isModal ? "Choose a quiz game" : undefined}
+        aria-label={isModal ? "Choose Your Game" : undefined}
       >
         <header className={"mcq-game-select-topbar" + (isModal ? " mcq-game-select-topbar--modal" : "")}>
           {isModal ? (
