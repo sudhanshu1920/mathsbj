@@ -702,6 +702,7 @@
 @media(prefers-reduced-motion:reduce){.mcq-game-select-card--slice{transition:none}}
 
 
+/* Compact popup options use matching Lucide icons before each game name. */
 /* Compact four-choice picker; the full-screen gallery remains unchanged. */
 .mcq-game-select-shell--modal {
   overflow: auto;
