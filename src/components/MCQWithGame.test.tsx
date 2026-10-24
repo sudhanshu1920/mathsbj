@@ -445,6 +445,87 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("releases a touch pointer with ID 0 without leaving speed boost stuck", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, {
+        pointerId: 0,
+        pointerType: "touch",
+        button: 0,
+        clientX: 80,
+        clientY: 650,
+      });
+      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      now = 250;
+      fireEvent.pointerUp(stage, {
+        pointerId: 0,
+        pointerType: "touch",
+        button: 0,
+        clientX: 80,
+        clientY: 650,
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("cleans up only the pointer that loses capture and preserves another held finger", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, {
+        pointerId: 71,
+        pointerType: "touch",
+        button: 0,
+        clientX: 80,
+        clientY: 650,
+      });
+      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      fireEvent.pointerDown(stage, {
+        pointerId: 72,
+        pointerType: "touch",
+        button: 0,
+        clientX: 320,
+        clientY: 650,
+      });
+      fireEvent.lostPointerCapture(stage, { pointerId: 72, pointerType: "touch" });
+
+      // Losing the newer RIGHT pointer must not clear the still-held LEFT pointer.
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+      now = 260;
+      fireEvent.pointerUp(stage, {
+        pointerId: 71,
+        pointerType: "touch",
+        button: 0,
+        clientX: 80,
+        clientY: 650,
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("keeps LEFT hold acceleration active while a RIGHT pointer taps and releases independently", () => {
     const raf = installAnimationFrameQueue();
     vi.useFakeTimers();
