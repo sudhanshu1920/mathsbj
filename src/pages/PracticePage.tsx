@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, memo } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Timer, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame, Plus, Minus, ListChecks, Keyboard, CarFront } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
@@ -885,6 +885,129 @@ const TopicIconForTopic = ({ topicId }: { topicId: AppTopicId }) => {
   );
 };
 
+
+interface AnswerInputPanelProps {
+  question: Question;
+  feedback: 'correct' | 'wrong' | null;
+  onAnswer: (answer: number | string | null) => boolean;
+}
+
+/**
+ * Own the answer draft outside PracticePage's large quiz/setup render tree.
+ * Key presses now render this small panel rather than the entire PracticePage.
+ * Validation still submits through the same authoritative quiz handler.
+ */
+export const AnswerInputPanel = memo(function AnswerInputPanel({
+  question,
+  feedback,
+  onAnswer,
+}: AnswerInputPanelProps) {
+  const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const inputValueRef = useRef('');
+  const questionRef = useRef(question);
+  const feedbackRef = useRef(feedback);
+
+  // These refs protect the delayed auto-submit from stale drafts/feedback.
+  questionRef.current = question;
+  feedbackRef.current = feedback;
+
+  const updateInputValue = useCallback((nextValue: string) => {
+    inputValueRef.current = nextValue;
+    setInputValue(nextValue);
+  }, []);
+
+  useEffect(() => {
+    if (question.answerType === 'text' || question.answerType === 'trig') {
+      inputRef.current?.focus();
+    }
+  }, [question]);
+
+  useEffect(() => {
+    const draft = inputValue;
+    if (!draft.trim() || feedback || question.answerType === 'text') return;
+    if (!isLikelyComplete(draft)) return;
+
+    const timer = window.setTimeout(() => {
+      // A keypress or question/feedback change invalidates this candidate.
+      if (
+        inputValueRef.current !== draft ||
+        questionRef.current !== question ||
+        feedbackRef.current !== null
+      ) return;
+
+      if (question.answerType === 'trig') {
+        if (isTrigAnswerCorrect(draft.trim(), String(question.answer))) onAnswer(draft.trim());
+      } else if (typeof question.answer === 'number') {
+        const numVal = parseMathValue(draft);
+        if (numVal !== null) {
+          const matches = question.validationAnswer !== undefined && question.answerPrecision !== undefined
+            ? isRootAnswerCorrect(numVal, question.validationAnswer, question.answerPrecision)
+            : Math.abs(numVal - question.answer) < 1e-9;
+          if (matches) onAnswer(numVal);
+        }
+      } else if (normalizeAnswer(draft.trim(), String(question.answer))) {
+        onAnswer(draft.trim());
+      }
+    }, 150);
+
+    return () => window.clearTimeout(timer);
+  }, [inputValue, feedback, question, onAnswer]);
+
+  return (
+    <div className="quiz-answer-input flex flex-col items-center gap-3 mt-3">
+      {question.answerType === 'text' || question.answerType === 'trig' ? (
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="text"
+          value={inputValue}
+          onChange={(event) => updateInputValue(event.target.value)}
+          placeholder={question.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Type symbol or element name'}
+          className="w-full max-w-xs glass-lite rounded-xl px-3 py-3 text-center text-xl sm:text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-colors"
+        />
+      ) : (
+        <>
+          <div
+            className="w-full max-w-xs glass-lite rounded-xl px-3 text-center text-xl sm:text-2xl font-display font-bold text-foreground h-14 flex items-center justify-center overflow-hidden"
+            aria-live="polite"
+          >
+            {inputValue ? (
+              <span className="truncate">{inputValue}</span>
+            ) : (
+              <span className="text-muted-foreground text-base font-normal">
+                {question.answerType === 'fraction'
+                  ? 'Type fraction e.g. 1/3'
+                  : question.answerType === 'mixed-pct'
+                    ? 'Type e.g. 16 2/3 %'
+                    : question.answerType === 'decimal-pct'
+                      ? 'Type answer e.g. 16.67%'
+                      : 'Type your answer'}
+              </span>
+            )}
+          </div>
+          <MathKeypad
+            value={inputValue}
+            onChange={updateInputValue}
+            onSubmit={() => onAnswer(inputValue.trim())}
+            variant="full"
+            disabled={!!feedback}
+            hideOk
+          />
+        </>
+      )}
+      <button
+        type="button"
+        disabled={!!feedback || !inputValue.trim()}
+        onClick={() => onAnswer(inputValue.trim())}
+        className="w-full max-w-[360px] min-w-[180px] min-h-11 rounded-xl gradient-primary text-primary-foreground font-display font-bold tracking-wide text-sm sm:text-base active:scale-[0.99] transition-transform disabled:opacity-60 disabled:pointer-events-none"
+      >
+        Submit
+      </button>
+    </div>
+  );
+});
+
 const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras, onExit, onExitCancelled, externalBackRequest, fromLearning, onQuizStart, onQuizFinish, onQuizReset }: PracticePageProps) => {
   const [config, setConfig] = useState<PracticeConfig | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -896,7 +1019,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [currentQ, setCurrentQ] = useState(0);
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
   const [finished, setFinished] = useState(false);
-  const [inputValue, setInputValue] = useState('');
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [selectedOption, setSelectedOptionState] = useState<number | null>(null);
   const selectedOptionRef = useRef<number | null>(null);
@@ -943,8 +1065,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const challengeDeadlineRef = useRef<number | null>(null);
   const gamePausedRef = useRef(false);
   const gamePauseStartedAtRef = useRef<number | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout>>();
   // externalBackRequest is an edge-triggered signal from the app shell.
   // Ignore the initial value and consume each new request exactly once.
   const lastExternalBackRequestRef = useRef(externalBackRequest ?? 0);
@@ -1077,7 +1197,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setScore({ correct: 0, wrong: 0 });
     setFinished(false);
     setFeedback(null);
-    setInputValue('');
     setSelectedOption(null);
     setFinalSubmitReady(false);
     setElapsedTime(0);
@@ -1095,14 +1214,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (challengeTimeoutTimerRef.current) clearTimeout(challengeTimeoutTimerRef.current);
     questionTimeoutTimerRef.current = undefined;
     challengeTimeoutTimerRef.current = undefined;
-    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
     if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
     levelUpTimerRef.current = undefined;
     xpPopTimerRef.current = undefined;
     setLevelUp(null);
     setXpPop(null);
-    autoSubmitTimerRef.current = undefined;
     answerLockRef.current = false;
     finishLockRef.current = false;
     return true;
@@ -1265,11 +1382,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     if (questionTimeoutTimerRef.current) clearTimeout(questionTimeoutTimerRef.current);
     if (challengeTimeoutTimerRef.current) clearTimeout(challengeTimeoutTimerRef.current);
-    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     answerAdvanceTimerRef.current = undefined;
     questionTimeoutTimerRef.current = undefined;
     challengeTimeoutTimerRef.current = undefined;
-    autoSubmitTimerRef.current = undefined;
     challengeDeadlineRef.current = null;
     questionDeadlineRef.current = null;
     gamePausedRef.current = false;
@@ -1524,7 +1639,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           return;
         }
         setFeedback(null);
-        setInputValue('');
         setSelectedOption(null);
         // A retry is appended synchronously to questionsRef, so always read
         // the authoritative queue after the feedback delay rather than the
@@ -1622,43 +1736,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     finishQuiz({ playSubmitSound: true });
   }, [config, score, finishQuiz]);
 
-  useEffect(() => {
-    if (!config || config.mode !== 'input' || !inputValue.trim() || feedback) return;
-    const q = questions[currentQ];
-    if (!q || q.answerType === 'text') return;
-    // Avoid premature checking while user is still typing (e.g. "33", "1/").
-    if (!isLikelyComplete(inputValue)) return;
-    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
-    autoSubmitTimerRef.current = setTimeout(() => {
-      if (q.answerType === 'trig') {
-        if (isTrigAnswerCorrect(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
-      } else if (typeof q.answer === 'number') {
-        const numVal = parseMathValue(inputValue);
-        if (numVal !== null) {
-          const matches = q.validationAnswer !== undefined && q.answerPrecision !== undefined
-            ? isRootAnswerCorrect(numVal, q.validationAnswer, q.answerPrecision)
-            : Math.abs(numVal - q.answer) < 1e-9;
-          if (matches) handleAnswer(numVal);
-        }
-      } else {
-        if (normalizeAnswer(inputValue.trim(), String(q.answer))) handleAnswer(inputValue.trim());
-      }
-    }, 150);
-    return () => {
-      if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
-    };
-  }, [inputValue, config, currentQ, questions, feedback, handleAnswer]);
-
-  useEffect(() => {
-    if (config?.mode === 'input' && inputRef.current) inputRef.current.focus();
-  }, [currentQ, config]);
 
   const clearSessionTimers = useCallback(() => {
     if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
     if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current);
     if (questionTimeoutTimerRef.current) clearTimeout(questionTimeoutTimerRef.current);
     if (challengeTimeoutTimerRef.current) clearTimeout(challengeTimeoutTimerRef.current);
-    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     if (levelUpTimerRef.current) clearTimeout(levelUpTimerRef.current);
     if (xpPopTimerRef.current) clearTimeout(xpPopTimerRef.current);
     sessionIntervalRef.current = undefined;
@@ -1667,7 +1750,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     answerAdvanceTimerRef.current = undefined;
     questionTimeoutTimerRef.current = undefined;
     challengeTimeoutTimerRef.current = undefined;
-    autoSubmitTimerRef.current = undefined;
     levelUpTimerRef.current = undefined;
     xpPopTimerRef.current = undefined;
     answerLockRef.current = false;
@@ -1698,7 +1780,6 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setScore({ correct: 0, wrong: 0 });
     setFinished(false);
     setFeedback(null);
-    setInputValue('');
     setSelectedOption(null);
     setFinalSubmitReady(false);
     setElapsedTime(0);
@@ -2428,57 +2509,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         )}
 
         {config.mode === 'input' && (
-          <div className="quiz-answer-input flex flex-col items-center gap-3 mt-3">
-            {q.answerType === 'text' || q.answerType === 'trig' ? (
-              <input
-                ref={inputRef}
-                type="text"
-                inputMode="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder={q.answerType === 'trig' ? 'e.g. 1/2, √3/2, Not Defined' : 'Type symbol or element name'}
-                autoFocus
-                className="w-full max-w-xs glass-lite rounded-xl px-3 py-3 text-center text-xl sm:text-2xl font-display font-bold text-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-colors"
-              />
-            ) : (
-              <>
-                <div
-                  className="w-full max-w-xs glass-lite rounded-xl px-3 text-center text-xl sm:text-2xl font-display font-bold text-foreground h-14 flex items-center justify-center overflow-hidden"
-                  aria-live="polite"
-                >
-                  {inputValue ? (
-                    <span className="truncate">{inputValue}</span>
-                  ) : (
-                    <span className="text-muted-foreground text-base font-normal">
-                      {q.answerType === 'fraction'
-                        ? 'Type fraction e.g. 1/3'
-                        : q.answerType === 'mixed-pct'
-                          ? 'Type e.g. 16 2/3 %'
-                          : q.answerType === 'decimal-pct'
-                            ? 'Type answer e.g. 16.67%'
-                            : 'Type your answer'}
-                    </span>
-                  )}
-                </div>
-                <MathKeypad
-                  value={inputValue}
-                  onChange={setInputValue}
-                  onSubmit={() => handleAnswer(inputValue.trim())}
-                  variant="full"
-                  disabled={!!feedback}
-                  hideOk
-                />
-              </>
-            )}
-            <button
-              type="button"
-              disabled={!!feedback || !inputValue.trim()}
-              onClick={() => handleAnswer(inputValue.trim())}
-              className="w-full max-w-[360px] min-w-[180px] min-h-11 rounded-xl gradient-primary text-primary-foreground font-display font-bold tracking-wide text-sm sm:text-base active:scale-[0.99] transition-transform disabled:opacity-60 disabled:pointer-events-none"
-            >
-              Submit
-            </button>
-          </div>
+          <AnswerInputPanel
+            key={`${questionPoolGenerationRef.current}:${currentQ}`}
+            question={q}
+            feedback={feedback}
+            onAnswer={handleAnswer}
+          />
         )}
       </div>
       </SwipeBack>
