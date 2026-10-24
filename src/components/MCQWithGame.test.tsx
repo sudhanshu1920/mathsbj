@@ -437,6 +437,73 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("keeps LEFT hold acceleration active while a RIGHT pointer taps and releases independently", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, { pointerId: 41, button: 0, clientX: 80, clientY: 650 });
+      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1");
+
+      // The opposite pointer changes the active steering direction without
+      // overwriting the LEFT pointer or cancelling its hold timer.
+      fireEvent.pointerDown(stage, { pointerId: 42, button: 0, clientX: 320, clientY: 650 });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
+      now = 250;
+      fireEvent.pointerUp(stage, { pointerId: 42, button: 0, clientX: 320, clientY: 650 });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1");
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      for (let timestamp = 0; timestamp <= 350; timestamp += 50) raf.advance(timestamp);
+      expect(racingAudioMocks.update.mock.calls.some((call) => call[1] === true && Number(call[0]) > 1)).toBe(true);
+
+      now = 400;
+      fireEvent.pointerUp(stage, { pointerId: 41, button: 0, clientX: 80, clientY: 650 });
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("keeps RIGHT hold active when a newer LEFT pointer is released first", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, { pointerId: 51, button: 0, clientX: 320, clientY: 650 });
+      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
+
+      fireEvent.pointerDown(stage, { pointerId: 52, button: 0, clientX: 80, clientY: 650 });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
+      now = 250;
+      fireEvent.pointerUp(stage, { pointerId: 52, button: 0, clientX: 80, clientY: 650 });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      now = 400;
+      fireEvent.pointerUp(stage, { pointerId: 51, button: 0, clientX: 320, clientY: 650 });
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("does not convert a large pointer drag into an accidental lane tap", () => {
     const raf = installAnimationFrameQueue();
     let now = 10;
