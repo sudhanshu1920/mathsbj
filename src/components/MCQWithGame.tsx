@@ -540,7 +540,7 @@ const MCQWithGame = ({
         updatePx("top", projection.y);
         updatePx("width", projection.width);
         updatePx("height", projection.height);
-        updatePx("fontSize", projection.fontSize);
+        updatePx("fontSize", projection.fontSize * 1.06);
         if (element.style.opacity !== "1") element.style.opacity = "1";
         if (element.style.pointerEvents !== "auto") element.style.pointerEvents = "auto";
       });
