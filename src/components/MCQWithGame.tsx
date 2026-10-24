@@ -18,6 +18,7 @@ import {
   clampMCQGameLane,
   classifySteeringGesture,
   createMCQGateMappings,
+  createMCQGateApproachStartZs,
   detectSweptGateCollision,
   resolveMCQGameGateTravelDurationMs,
 } from "@/lib/mcqGamePhysics";
@@ -129,7 +130,13 @@ const MCQWithGame = ({
   const collisionPassConsumedRef = useRef(false);
   const questionPanelBottomRef = useRef(0);
   const scrollOffsetRef = useRef(0);
+  // The row clock is retained for diagnostics; each answer gate owns its depth and pass state.
   const gateZRef = useRef<number>(MCQ_GAME_GATE_START_Z);
+  const gateStartZsRef = useRef(createMCQGateApproachStartZs(questionKey, Math.min(4, options.length)));
+  const gateZsRef = useRef<number[]>([...gateStartZsRef.current]);
+  const gateActiveRef = useRef<boolean[]>(Array.from({ length: 4 }, (_, index) => index < options.length));
+  const gatePassedRef = useRef<boolean[]>([false, false, false, false]);
+  const steerAngleRef = useRef(0);
   const gateElapsedMsRef = useRef(0);
   const activeRaceElapsedMsRef = useRef(0);
   const lastTimestampRef = useRef<number | null>(null);
@@ -529,8 +536,11 @@ const MCQWithGame = ({
     const renderFrame = () => {
       const projections = scene.render({
         carX: carXRef.current,
+        steerAngle: steerAngleRef.current,
         scrollOffset: scrollOffsetRef.current,
         gateZ: gateZRef.current,
+        gateZs: gateZsRef.current,
+        gateActive: gateActiveRef.current,
         activeElapsedMs: activeRaceElapsedMsRef.current,
       });
 
@@ -596,92 +606,115 @@ const MCQWithGame = ({
       const carAlpha = prefersReducedMotion ? 1 : 1 - Math.exp(-deltaMs / 62);
       const nextCarX = previousCarX + (targetX - previousCarX) * carAlpha;
       carXRef.current = nextCarX;
+      const desiredSteerAngle = deltaMs > 0
+        ? Math.max(-0.22, Math.min(0.22, (nextCarX - previousCarX) * -0.12))
+        : 0;
+      steerAngleRef.current += (desiredSteerAngle - steerAngleRef.current) * (1 - Math.exp(-deltaMs / 75));
 
-      const previousGateZ = gateZRef.current;
       const gateTravelDurationMs = resolveMCQGameGateTravelDurationMs(
         latestPropsRef.current.durationMs,
       );
-      // The hold-to-accelerate control scales target travel time as well as
-      // road motion, so holding advances the answer gates toward collision sooner.
-      // Use uncapped active elapsed time to keep the configured duration stable
-      // across dropped frames; only the speed integration timestep is bounded.
-      gateElapsedMsRef.current += frameElapsedMs * speedMultiplier;
-      const nextGateZ = MCQ_GAME_GATE_START_Z +
-        MCQ_GAME_TRAVEL_DISTANCE * (gateElapsedMsRef.current / gateTravelDurationMs);
-      const gateTravelThisFrame = nextGateZ - previousGateZ;
-      const gateCrossingFraction = gateTravelThisFrame > 0 &&
-        previousGateZ < MCQ_GAME_COLLISION_Z &&
-        nextGateZ >= MCQ_GAME_COLLISION_Z
-        ? (MCQ_GAME_COLLISION_Z - previousGateZ) / gateTravelThisFrame
-        : null;
-      const carXAtGateContact = gateCrossingFraction === null
-        ? nextCarX
-        : previousCarX + (nextCarX - previousCarX) * gateCrossingFraction;
-      const contactTimestampMs = gateCrossingFraction === null
-        ? undefined
-        : (previousTimestamp ?? timestamp) + frameElapsedMs * gateCrossingFraction;
+      // A shared time-based clock moves all targets at one world speed, but each
+      // gate has its own initial depth and therefore its own physical contact time.
+      // This preserves frame-rate-independent travel and current hold-to-accelerate behavior.
+      const nextGateElapsedMs = gateElapsedMsRef.current + frameElapsedMs * speedMultiplier;
+      const previousGateZs = gateZsRef.current;
+      const nextGateZs = gateStartZsRef.current.map(
+        (startZ) => startZ + MCQ_GAME_TRAVEL_DISTANCE * (nextGateElapsedMs / gateTravelDurationMs),
+      );
+      const crossingFractions = nextGateZs.map((nextZ, index) => {
+        const previousZ = previousGateZs[index] ?? MCQ_GAME_GATE_START_Z;
+        const gateTravel = nextZ - previousZ;
+        return gateTravel > 0 && previousZ < MCQ_GAME_COLLISION_Z && nextZ >= MCQ_GAME_COLLISION_Z
+          ? (MCQ_GAME_COLLISION_Z - previousZ) / gateTravel
+          : null;
+      });
 
       let collisionIndex = -1;
+      let collisionContactTimestampMs: number | undefined;
+      let earliestContactFraction = Number.POSITIVE_INFINITY;
       let closestContactDistance = Number.POSITIVE_INFINITY;
       if (
         phaseRef.current === "RUNNING" &&
         !disabledRef.current &&
         !feedbackRef.current &&
         !submittedRef.current &&
-        !collisionPassConsumedRef.current &&
-        gateCrossingFraction !== null
+        !collisionPassConsumedRef.current
       ) {
         for (const mapping of gateMappingsRef.current) {
-          if (mapping.questionId !== activeQuestionKeyRef.current) continue;
+          const laneIndex = mapping.laneIndex;
+          const crossingFraction = crossingFractions[laneIndex];
+          if (
+            mapping.questionId !== activeQuestionKeyRef.current ||
+            gatePassedRef.current[laneIndex] ||
+            crossingFraction === null ||
+            crossingFraction === undefined
+          ) continue;
           const hasWorldSpaceContact = detectSweptGateCollision({
-            previousGateZ,
-            gateZ: nextGateZ,
+            previousGateZ: previousGateZs[laneIndex] ?? MCQ_GAME_GATE_START_Z,
+            gateZ: nextGateZs[laneIndex],
             collisionZ: MCQ_GAME_COLLISION_Z,
             previousCarX,
             carX: nextCarX,
-            gateX: MCQ_GAME_LANE_X[mapping.laneIndex],
+            gateX: MCQ_GAME_LANE_X[laneIndex],
             carHalfWidth: MCQ_GAME_CAR_HALF_WIDTH,
             gateHalfWidth: MCQ_GAME_GATE_HALF_WIDTH,
           });
           if (!hasWorldSpaceContact) continue;
 
-          // Wide sprites can graze two adjacent hitboxes at once near a lane
-          // boundary. Resolve that rare ambiguity to the gate nearest the
-          // car centre at the exact Z-plane crossing, then submit only once.
-          const lateralDistance = Math.abs(carXAtGateContact - MCQ_GAME_LANE_X[mapping.laneIndex]);
-          if (lateralDistance < closestContactDistance) {
+          // If a dropped frame spans multiple gates, first actual contact wins;
+          // lateral distance only breaks an exact-time tie.
+          const carXAtContact = previousCarX + (nextCarX - previousCarX) * crossingFraction;
+          const lateralDistance = Math.abs(carXAtContact - MCQ_GAME_LANE_X[laneIndex]);
+          if (crossingFraction < earliestContactFraction - 1e-6 ||
+              (Math.abs(crossingFraction - earliestContactFraction) <= 1e-6 && lateralDistance < closestContactDistance)) {
+            earliestContactFraction = crossingFraction;
             closestContactDistance = lateralDistance;
-            collisionIndex = mapping.laneIndex;
+            collisionIndex = laneIndex;
+            collisionContactTimestampMs = (previousTimestamp ?? timestamp) + frameElapsedMs * crossingFraction;
           }
         }
       }
 
-      // Gates and the road advance in the same forward simulation time. The
-      // gate's screen-space label is projected from this exact world-space Z.
-      gateZRef.current = nextGateZ;
+      // Consume each gate independently. Near misses do not submit, and even a
+      // dropped frame crossing several targets can only commit the earliest actual contact.
+      crossingFractions.forEach((fraction, laneIndex) => {
+        if (fraction === null || fraction === undefined) return;
+        gatePassedRef.current[laneIndex] = true;
+        if (laneIndex !== collisionIndex) gateActiveRef.current[laneIndex] = false;
+      });
+
+      gateElapsedMsRef.current = nextGateElapsedMs;
+      gateZRef.current = MCQ_GAME_GATE_START_Z +
+        MCQ_GAME_TRAVEL_DISTANCE * (nextGateElapsedMs / gateTravelDurationMs);
+      gateZsRef.current = nextGateZs;
       scrollOffsetRef.current =
         (scrollOffsetRef.current + advancedMs * MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS) % 8;
 
       if (collisionIndex >= 0 && !submittedRef.current && !collisionPassConsumedRef.current) {
-        const mapping = gateMappingsRef.current[collisionIndex];
+        const mapping = gateMappingsRef.current.find((candidate) => candidate.laneIndex === collisionIndex);
         if (
           mapping &&
           mapping.questionId === activeQuestionKeyRef.current &&
           !disabledRef.current &&
           !feedbackRef.current
         ) {
-          // A target contact is the only per-answer commit path. selectLaneAnswer
-          // claims the current question synchronously before invoking Quiz Engine.
-          selectLaneAnswer(mapping.laneIndex, contactTimestampMs);
+          // Only the existing Quiz Engine callback commits an answer.
+          selectLaneAnswer(mapping.laneIndex, collisionContactTimestampMs);
         }
       }
 
-      // Missing every gate does not answer the question. Once the row is fully
-      // past the car, respawn the same question's targets at the far spawn plane
-      // so the player gets another physical approach rather than a dead session.
-      if (gateZRef.current > MCQ_GAME_COLLISION_Z + MCQ_GAME_GATE_CLEARANCE_Z) {
+      // Recycle only after every answer target has crossed and cleared the car plane.
+      const allTargetsPassed = gateMappingsRef.current.length > 0 && gateMappingsRef.current.every(
+        (mapping) => gatePassedRef.current[mapping.laneIndex] &&
+          nextGateZs[mapping.laneIndex] >= MCQ_GAME_COLLISION_Z + MCQ_GAME_GATE_CLEARANCE_Z,
+      );
+      if (allTargetsPassed && phaseRef.current === "RUNNING" && !submittedRef.current) {
         gateElapsedMsRef.current = 0;
         gateZRef.current = MCQ_GAME_GATE_START_Z;
+        gateZsRef.current = [...gateStartZsRef.current];
+        gateActiveRef.current = Array.from({ length: 4 }, (_, index) => index < gateMappingsRef.current.length);
+        gatePassedRef.current = [false, false, false, false];
       }
 
       renderFrame();
@@ -732,9 +765,12 @@ const MCQWithGame = ({
     if (!questionChanged && !sessionChanged) return;
 
     activeQuestionKeyRef.current = nextKey;
-    // Each question/session receives a fresh gate wave. No old target's world
-    // position can leak into the next question even though the WebGL scene stays mounted.
+    // Each question/session receives a fresh depth-staggered wave and collision state.
     gateZRef.current = MCQ_GAME_GATE_START_Z;
+    gateStartZsRef.current = createMCQGateApproachStartZs(nextKey, gateMappingsRef.current.length);
+    gateZsRef.current = [...gateStartZsRef.current];
+    gateActiveRef.current = Array.from({ length: 4 }, (_, index) => index < gateMappingsRef.current.length);
+    gatePassedRef.current = [false, false, false, false];
     gateElapsedMsRef.current = 0;
     if (sessionChanged) {
       activeSessionKeyRef.current = nextSessionKey;
@@ -746,6 +782,7 @@ const MCQWithGame = ({
       carXRef.current = MCQ_GAME_LANE_X[1];
       setLane(1);
       speedMultiplierRef.current = MCQ_GAME_BASE_SPEED_MULTIPLIER;
+      steerAngleRef.current = 0;
       boostingRef.current = false;
       setBoosting(false);
       scrollOffsetRef.current = 0;
