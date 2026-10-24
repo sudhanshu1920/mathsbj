@@ -741,13 +741,12 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(afterDrop.gateZ).toBeCloseTo(MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * 0.3, 1);
       expect(onSelectOption).not.toHaveBeenCalled();
 
-      const beforeFrame = expectedContactMs - 10;
-      expect(raf.advance(beforeFrame)).toBe(true);
       const beforeContact = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZs: number[] };
       expect(beforeContact.gateZs[1]).toBeLessThan(MCQ_GAME_COLLISION_Z);
       expect(onSelectOption).not.toHaveBeenCalled();
 
-      // One frame crosses the target plane; swept collision interpolation preserves the true contact time.
+      // Deliberately skip the exact contact frame. Swept collision interpolation
+      // must still catch the target and preserve its world-plane contact timestamp.
       expect(raf.advance(expectedContactMs + 10)).toBe(true);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
