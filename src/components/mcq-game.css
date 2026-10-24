@@ -78,7 +78,7 @@
     transparent 27px 52px
   );
   background-size: 100% 180px;
-  animation: mcq-game-speed-streak-scroll 1s linear infinite;
+  animation: mcq-game-speed-streak-scroll var(--mcq-game-speed-streak-duration, 1s) linear infinite;
   filter: drop-shadow(0 0 5px rgb(58 183 255 / 0.42));
 }
 

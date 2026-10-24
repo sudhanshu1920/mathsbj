@@ -481,6 +481,96 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("keeps pointer ID 0 independent from pointer ID 1 and synchronizes streak timing with actual speed", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    const speedLines = view.container.querySelector(".mcq-game-speed-lines") as HTMLDivElement;
+    setStageBounds(stage);
+    const initialStreakDuration = Number.parseFloat(
+      speedLines.style.getPropertyValue("--mcq-game-speed-streak-duration"),
+    );
+
+    try {
+      fireEvent.pointerDown(stage, {
+        pointerId: 0, pointerType: "touch", button: 0, clientX: 80, clientY: 650,
+      });
+      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      // ID zero is a valid PointerEvent identity; it must not alias the legacy fallback ID 1.
+      fireEvent.pointerDown(stage, {
+        pointerId: 1, pointerType: "touch", button: 0, clientX: 320, clientY: 650,
+      });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
+
+      now = 250;
+      fireEvent.pointerUp(stage, {
+        pointerId: 1, pointerType: "touch", button: 0, clientX: 320, clientY: 650,
+      });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1");
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      for (let timestamp = 0; timestamp <= 400; timestamp += 50) raf.advance(timestamp);
+      const acceleratedStreakDuration = Number.parseFloat(
+        speedLines.style.getPropertyValue("--mcq-game-speed-streak-duration"),
+      );
+      expect(initialStreakDuration).toBeGreaterThan(0);
+      expect(acceleratedStreakDuration).toBeLessThan(initialStreakDuration);
+      expect(racingAudioMocks.update.mock.calls.some((call) => call[1] === true && Number(call[0]) > 1)).toBe(true);
+
+      now = 450;
+      fireEvent.pointerUp(stage, {
+        pointerId: 0, pointerType: "touch", button: 0, clientX: 80, clientY: 650,
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("cancelling one touch releases only that pointer while the other hold keeps accelerating", () => {
+    const raf = installAnimationFrameQueue();
+    vi.useFakeTimers();
+    let now = 10;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    setStageBounds(stage);
+
+    try {
+      fireEvent.pointerDown(stage, {
+        pointerId: 61, pointerType: "touch", button: 0, clientX: 80, clientY: 650,
+      });
+      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      fireEvent.pointerDown(stage, {
+        pointerId: 62, pointerType: "touch", button: 0, clientX: 320, clientY: 650,
+      });
+      fireEvent.pointerCancel(stage, {
+        pointerId: 62, pointerType: "touch", button: 0, clientX: 320, clientY: 650,
+      });
+      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1");
+      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+
+      now = 450;
+      fireEvent.pointerUp(stage, {
+        pointerId: 61, pointerType: "touch", button: 0, clientX: 80, clientY: 650,
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+      for (let timestamp = 0; timestamp <= 150; timestamp += 50) raf.advance(timestamp);
+      expect(racingAudioMocks.update.mock.calls.some((call) => call[1] === false)).toBe(true);
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("keeps RIGHT hold active when a newer LEFT pointer is released first", () => {
     const raf = installAnimationFrameQueue();
     vi.useFakeTimers();
