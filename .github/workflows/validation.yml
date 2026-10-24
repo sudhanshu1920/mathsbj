@@ -84,6 +84,8 @@ jobs:
           public class AppUpdaterPlugin extends Plugin {}
           JAVA
           cat > "$plugin_dir/ImmersiveModePlugin.java" <<'JAVA'
+          package com.sudhanshu.mathsbj;
+          
           import android.os.Build;
           import android.view.View;
           import android.view.Window;
@@ -184,7 +186,7 @@ jobs:
               }
           
               @Override
-              protected void onResume() {
+              public void onResume() {
                   super.onResume();
                   if (getWindow() != null) {
                       getWindow().getDecorView().post(() -> {
