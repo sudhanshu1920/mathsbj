@@ -37,17 +37,20 @@ vi.mock("@/lib/sound", () => ({
 
 vi.mock("@/lib/mcq3dRenderer", () => ({
   createMCQ3DScene: vi.fn(() => ({
-    render: vi.fn((frame: { gateZ: number }) => {
-      const progress = Math.max(0, Math.min(1, (frame.gateZ + 9) / 9.75));
-      const perspective = 0.55 + progress * 0.75;
-      return Array.from({ length: 4 }, (_, index) => ({
-        x: 200 + (index - 1.5) * 48 * perspective,
-        y: 275 + progress * 250,
-        width: 24 + progress * 64,
-        height: 18 + progress * 38,
-        fontSize: 9 + progress * 7,
-        visible: true,
-      }));
+    render: vi.fn((frame: { gateZ: number; gateZs?: readonly number[]; gateActive?: readonly boolean[] }) => {
+      return Array.from({ length: 4 }, (_, index) => {
+        const gateZ = frame.gateZs?.[index] ?? frame.gateZ;
+        const progress = Math.max(0, Math.min(1, (gateZ + 9) / 9.75));
+        const perspective = 0.55 + progress * 0.75;
+        return {
+          x: 200 + (index - 1.5) * 48 * perspective,
+          y: 275 + progress * 250,
+          width: 24 + progress * 64,
+          height: 18 + progress * 38,
+          fontSize: 9 + progress * 7,
+          visible: frame.gateActive?.[index] !== false,
+        };
+      });
     }),
     dispose: vi.fn(),
   })),
@@ -79,17 +82,20 @@ beforeEach(() => {
     });
   }
   vi.mocked(createMCQ3DScene).mockImplementation(() => ({
-    render: vi.fn((frame: { gateZ: number }) => {
-      const progress = Math.max(0, Math.min(1, (frame.gateZ + 9) / 9.75));
-      const perspective = 0.55 + progress * 0.75;
-      return Array.from({ length: 4 }, (_, index) => ({
-        x: 200 + (index - 1.5) * 48 * perspective,
-        y: 275 + progress * 250,
-        width: 24 + progress * 64,
-        height: 18 + progress * 38,
-        fontSize: 9 + progress * 7,
-        visible: true,
-      }));
+    render: vi.fn((frame: { gateZ: number; gateZs?: readonly number[]; gateActive?: readonly boolean[] }) => {
+      return Array.from({ length: 4 }, (_, index) => {
+        const gateZ = frame.gateZs?.[index] ?? frame.gateZ;
+        const progress = Math.max(0, Math.min(1, (gateZ + 9) / 9.75));
+        const perspective = 0.55 + progress * 0.75;
+        return {
+          x: 200 + (index - 1.5) * 48 * perspective,
+          y: 275 + progress * 250,
+          width: 24 + progress * 64,
+          height: 18 + progress * 38,
+          fontSize: 9 + progress * 7,
+          visible: frame.gateActive?.[index] !== false,
+        };
+      });
     }),
     dispose: vi.fn(),
   }));
@@ -356,22 +362,21 @@ describe("Full-screen continuous MCQ racing", () => {
     setStageBounds(stage);
 
     try {
-      // Enter the left gate. The quiz engine rejects that first commit.
       fireEvent.pointerDown(stage, { pointerId: 31, button: 0, clientX: 20, clientY: 650 });
       now = 40;
       fireEvent.pointerUp(stage, { pointerId: 31, button: 0, clientX: 20, clientY: 650 });
-      for (let timestamp = 0; timestamp <= 2_300; timestamp += 50) raf.advance(timestamp);
+      // Stop before the next wave reaches the car; this first contact is rejected.
+      for (let timestamp = 0; timestamp <= 1_100; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([0, "26", mappings[0].gateId]);
       expect(onSelectOption.mock.calls[0][3]).toEqual(expect.any(Number));
 
-      // Re-enter a different fixed gate on the same question. Auto-collision
-      // must work again instead of remaining locked after the rejected commit.
+      // Re-enter lane 2 of the next wave. A rejected contact must not leave a stale answer lock.
       fireEvent.pointerDown(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
       now = 80;
       fireEvent.pointerUp(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
-      for (let timestamp = 2_350; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 1_150; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(2);
       expect(onSelectOption.mock.calls[1].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
@@ -545,20 +550,17 @@ describe("Full-screen continuous MCQ racing", () => {
 
     try {
       const labels = Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"));
-      const fixedPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
+      const initialPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
 
-      // The option row visibly approaches before the gate reaches the contact plane.
-      for (let timestamp = 0; timestamp <= 1_000; timestamp += 50) raf.advance(timestamp);
-      const approachingPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
-      expect(approachingPositions).not.toEqual(fixedPositions);
-
-      // The car steers left and reaches the approaching left gate. Only its
-      // physically contacted target is committed to the quiz callback.
+      // Choose the left lane early enough to contact that lane's staggered target,
+      // rather than waiting until the original middle-lane target has passed.
       fireEvent.pointerDown(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
       now = 40;
       fireEvent.pointerUp(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
-      for (let timestamp = 1_050; timestamp <= 2_300; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 0; timestamp <= 1_150; timestamp += 50) raf.advance(timestamp);
 
+      const approachingPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
+      expect(approachingPositions).not.toEqual(initialPositions);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption).toHaveBeenCalledWith(0, "26", firstMappings[0].gateId, expect.any(Number));
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
@@ -582,18 +584,20 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(view.container.querySelectorAll(".mcq-game-question-panel")).toHaveLength(1);
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
       expect(view.container.querySelector(".mcq-game-gate-label")).toBe(firstGateNode);
-      expect(labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]))
-        .toEqual(fixedPositions);
+      const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
+      const renderSpy = scene!.render as unknown as ReturnType<typeof vi.fn>;
+      const secondWaveFrame = renderSpy.mock.calls[renderSpy.mock.calls.length - 1]?.[0] as { gateZs: number[] };
+      expect(secondWaveFrame).toBeDefined();
+      expect(new Set(secondWaveFrame.gateZs).size).toBe(4);
       expect(Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"))
         .every((node) => (node.dataset.gateId || "").includes(encodeURIComponent("q-2")))).toBe(true);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
 
-      // A second lateral entry on the next question submits its current option;
-      // it does not reinitialize the renderer or require a per-question Submit.
+      // The next question can select its own exact lane using the same renderer.
       fireEvent.pointerDown(stage, { pointerId: 5, button: 0, clientX: 320, clientY: 650 });
       now = 80;
       fireEvent.pointerUp(stage, { pointerId: 5, button: 0, clientX: 320, clientY: 650 });
-      for (let timestamp = 2_350; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 1_200; timestamp <= 3_900; timestamp += 50) raf.advance(timestamp);
       const nextMapping = createMCQGateMappings("q-2", secondOptions.map((option) => option.value))[1];
       expect(onSelectOption).toHaveBeenCalledTimes(2);
       expect(onSelectOption.mock.calls[1].slice(0, 3)).toEqual([1, "27", nextMapping.gateId]);
@@ -685,21 +689,32 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("does not submit before the selected target travel duration, then submits exactly at physical contact", () => {
+  it("submits each gate at its own configured physical contact time", () => {
     const raf = installAnimationFrameQueue();
     const onSelectOption = vi.fn();
-    const view = render(<MCQWithGame {...gameProps({ questionKey: "q-timed", durationMs: 1_500, onSelectOption })} />);
+    const questionKey = "q-timed";
+    const durationMs = 1_500;
+    const gateStartZ = createMCQGateApproachStartZs(questionKey)[1];
+    const expectedContactMs = (MCQ_GAME_COLLISION_Z - gateStartZ) / MCQ_GAME_TRAVEL_DISTANCE * durationMs;
+    const view = render(<MCQWithGame {...gameProps({ questionKey, durationMs, onSelectOption })} />);
     const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
     const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
     try {
-      for (let timestamp = 0; timestamp <= 1_200; timestamp += 50) raf.advance(timestamp);
-      const beforeContact = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZ: number };
-      expect(beforeContact.gateZ).toBeLessThan(MCQ_GAME_COLLISION_Z);
+      expect(raf.advance(0)).toBe(true);
+      const contactFrame = Math.ceil(expectedContactMs / 50) * 50;
+      for (let timestamp = 50; timestamp < contactFrame; timestamp += 50) raf.advance(timestamp);
+      const beforeContact = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZs: number[] };
+      expect(beforeContact.gateZs[1]).toBeLessThan(MCQ_GAME_COLLISION_Z);
       expect(onSelectOption).not.toHaveBeenCalled();
 
-      for (let timestamp = 1_250; timestamp <= 1_550; timestamp += 50) raf.advance(timestamp);
+      expect(raf.advance(contactFrame)).toBe(true);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
-      expect(onSelectOption.mock.calls[0][3]).toEqual(expect.any(Number));
+      expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([
+        1, "28", createMCQGateMappings(questionKey, options.map((option) => option.value))[1].gateId,
+      ]);
+      expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(expectedContactMs, 6);
+      expect(raf.advance(contactFrame + 50)).toBe(true);
+      expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
     } finally {
       view.unmount();
@@ -710,12 +725,12 @@ describe("Full-screen continuous MCQ racing", () => {
   it("uses elapsed time across a dropped frame and still detects the exact swept contact once", () => {
     const raf = installAnimationFrameQueue();
     const onSelectOption = vi.fn();
-    const mappings = createMCQGateMappings("q-dropped-frame", options.map((option) => option.value));
-    const view = render(<MCQWithGame {...gameProps({
-      questionKey: "q-dropped-frame",
-      durationMs: 1_000,
-      onSelectOption,
-    })} />);
+    const questionKey = "q-dropped-frame";
+    const durationMs = 1_000;
+    const mappings = createMCQGateMappings(questionKey, options.map((option) => option.value));
+    const targetStartZ = createMCQGateApproachStartZs(questionKey)[1];
+    const expectedContactMs = (MCQ_GAME_COLLISION_Z - targetStartZ) / MCQ_GAME_TRAVEL_DISTANCE * durationMs;
+    const view = render(<MCQWithGame {...gameProps({ questionKey, durationMs, onSelectOption })} />);
     const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
     const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
 
@@ -726,15 +741,18 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(afterDrop.gateZ).toBeCloseTo(MCQ_GAME_GATE_START_Z + MCQ_GAME_TRAVEL_DISTANCE * 0.3, 1);
       expect(onSelectOption).not.toHaveBeenCalled();
 
-      expect(raf.advance(990)).toBe(true);
-      const beforeContact = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZ: number };
-      expect(beforeContact.gateZ).toBeLessThan(MCQ_GAME_COLLISION_Z);
-      expect(raf.advance(1_010)).toBe(true);
+      const beforeFrame = expectedContactMs - 10;
+      expect(raf.advance(beforeFrame)).toBe(true);
+      const beforeContact = renderer.mock.calls[renderer.mock.calls.length - 1]?.[0] as { gateZs: number[] };
+      expect(beforeContact.gateZs[1]).toBeLessThan(MCQ_GAME_COLLISION_Z);
+      expect(onSelectOption).not.toHaveBeenCalled();
 
+      // One frame crosses the target plane; swept collision interpolation preserves the true contact time.
+      expect(raf.advance(expectedContactMs + 10)).toBe(true);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
-      expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(1_000, 6);
-      expect(raf.advance(1_500)).toBe(true);
+      expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(expectedContactMs, 6);
+      expect(raf.advance(expectedContactMs + 60)).toBe(true);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
     } finally {
       view.unmount();
