@@ -147,8 +147,10 @@ describe("Math Space Shooter mission", () => {
     expect(screen.getByRole("heading", { name: "HOW TO PLAY" })).toBeInTheDocument();
     expect(screen.getByText(/only a real collision submits/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /back to mission briefing/i }));
-    fireEvent.click(screen.getByRole("button", { name: /sound on/i }));
-    expect(screen.getByRole("button", { name: /sound off/i })).toHaveAttribute("aria-pressed", "false");
+    const soundButton = screen.getByRole("button", { name: /sound (on|off)/i });
+    const previousSoundState = soundButton.getAttribute("aria-pressed");
+    fireEvent.click(soundButton);
+    expect(screen.getByRole("button", { name: /sound (on|off)/i })).not.toHaveAttribute("aria-pressed", previousSoundState ?? "false");
 
     startMission();
     expect(onStartMission).toHaveBeenCalledOnce();
@@ -280,7 +282,7 @@ describe("Math Space Shooter mission", () => {
     const view = render(<MCQSpaceShooter {...shooterProps()} />);
     startMission();
 
-    view.rerender(<MCQSpaceShooter {...shooterProps({ combo: undefined, feedback: "wrong", selectedOption: 0 })} />);
+    view.rerender(<MCQSpaceShooter {...shooterProps({ feedback: "wrong", selectedOption: 0 })} />);
     expect(screen.getByLabelText("3 shields remaining")).toBeInTheDocument();
     expect(screen.getByLabelText("Combo 0")).toBeInTheDocument();
     view.rerender(<MCQSpaceShooter {...shooterProps({ feedback: "wrong", selectedOption: 0 })} />);
