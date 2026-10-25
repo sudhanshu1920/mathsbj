@@ -5,17 +5,17 @@ import MCQSpaceShooter from "@/components/MCQSpaceShooter";
 
 const originalRequestAnimationFrame = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
 const originalCancelAnimationFrame = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
-const originalPointerEvent = Object.getOwnPropertyDescriptor(window, "PointerEvent");
 
-if (typeof window.PointerEvent === "undefined") {
-  class TestPointerEvent extends MouseEvent {
-    readonly pointerId: number;
-    constructor(type: string, init: PointerEventInit = {}) {
-      super(type, init);
-      this.pointerId = init.pointerId ?? 0;
-    }
+class TestPointerEvent extends MouseEvent {
+  readonly pointerId: number;
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init);
+    this.pointerId = init.pointerId ?? 0;
   }
-  Object.defineProperty(window, "PointerEvent", { configurable: true, writable: true, value: TestPointerEvent });
+}
+
+function firePointer(target: Element, type: string, pointerId: number) {
+  fireEvent(target, new TestPointerEvent(type, { pointerId, bubbles: true, cancelable: true }));
 }
 
 vi.mock("@/lib/gameImmersiveMode", () => ({
@@ -140,8 +140,6 @@ afterEach(() => {
   else Reflect.deleteProperty(window, "requestAnimationFrame");
   if (originalCancelAnimationFrame) Object.defineProperty(window, "cancelAnimationFrame", originalCancelAnimationFrame);
   else Reflect.deleteProperty(window, "cancelAnimationFrame");
-  if (originalPointerEvent) Object.defineProperty(window, "PointerEvent", originalPointerEvent);
-  else Reflect.deleteProperty(window, "PointerEvent");
 });
 
 describe("Math Space Shooter mission", () => {
@@ -157,6 +155,7 @@ describe("Math Space Shooter mission", () => {
 
     fireEvent.click(screen.getByTestId("space-difficulty-hard"));
     expect(screen.getByTestId("space-difficulty-hard")).toHaveAttribute("aria-pressed", "true");
+    expect(window.localStorage.getItem("math-space-shooter-difficulty-v1")).toBe("hard");
     fireEvent.click(screen.getByRole("button", { name: /how to play/i }));
     expect(screen.getByRole("heading", { name: "HOW TO PLAY" })).toBeInTheDocument();
     expect(screen.getByText(/only a real collision submits/i)).toBeInTheDocument();
@@ -201,8 +200,8 @@ describe("Math Space Shooter mission", () => {
 
     fireEvent.click(screen.getByTestId("space-target-0"));
     expect(onSelectOption).not.toHaveBeenCalled();
-    fireEvent.pointerDown(screen.getByTestId("space-control-fire"), { pointerId: 77 });
-    fireEvent.pointerUp(screen.getByTestId("space-control-fire"), { pointerId: 77 });
+    firePointer(screen.getByTestId("space-control-fire"), "pointerdown", 77);
+    firePointer(screen.getByTestId("space-control-fire"), "pointerup", 77);
     expect(onSelectOption).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("space-control-fire"));
@@ -223,23 +222,23 @@ describe("Math Space Shooter mission", () => {
     const right = screen.getByTestId("space-control-right");
     const boost = screen.getByTestId("space-control-boost");
 
-    fireEvent.pointerDown(left, { pointerId: 101 });
-    fireEvent.pointerDown(right, { pointerId: 202 });
-    fireEvent.pointerDown(boost, { pointerId: 303 });
+    firePointer(left, "pointerdown", 101);
+    firePointer(right, "pointerdown", 202);
+    firePointer(boost, "pointerdown", 303);
     expect(left).toHaveAttribute("aria-pressed", "true");
     expect(right).toHaveAttribute("aria-pressed", "true");
     expect(boost).toHaveAttribute("aria-pressed", "true");
 
-    fireEvent.pointerUp(left, { pointerId: 101 });
+    firePointer(left, "pointerup", 101);
     expect(left).toHaveAttribute("aria-pressed", "false");
     expect(right).toHaveAttribute("aria-pressed", "true");
     expect(boost).toHaveAttribute("aria-pressed", "true");
 
-    fireEvent.lostPointerCapture(right, { pointerId: 202 });
+    firePointer(right, "lostpointercapture", 202);
     expect(right).toHaveAttribute("aria-pressed", "false");
     expect(boost).toHaveAttribute("aria-pressed", "true");
 
-    fireEvent.pointerCancel(boost, { pointerId: 303 });
+    firePointer(boost, "pointercancel", 303);
     expect(boost).toHaveAttribute("aria-pressed", "false");
   });
 
@@ -249,8 +248,8 @@ describe("Math Space Shooter mission", () => {
     render(<MCQSpaceShooter {...shooterProps({ onPauseChange })} />);
     startMission();
 
-    fireEvent.pointerDown(screen.getByTestId("space-control-left"), { pointerId: 1 });
-    fireEvent.pointerDown(screen.getByTestId("space-control-boost"), { pointerId: 2 });
+    firePointer(screen.getByTestId("space-control-left"), "pointerdown", 1);
+    firePointer(screen.getByTestId("space-control-boost"), "pointerdown", 2);
     fireEvent.blur(window);
     expect(screen.getByRole("dialog", { name: "Mission paused" })).toBeInTheDocument();
     expect(screen.getByTestId("space-control-left")).toHaveAttribute("aria-pressed", "false");
