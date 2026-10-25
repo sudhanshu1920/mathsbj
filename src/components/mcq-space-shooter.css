@@ -1185,3 +1185,31 @@
 @media (prefers-reduced-motion: reduce) {
   .mcq-space-countdown-card strong { animation: none; }
 }
+
+/* The menu keeps its own light-weight starfield while the simulation is paused. */
+.mcq-space-menu-scrim::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  opacity: .68;
+  background-image:
+    radial-gradient(circle at 18px 24px, rgba(190, 246, 255, .95) 1px, transparent 1.65px),
+    radial-gradient(circle at 58px 46px, rgba(156, 160, 255, .8) 1px, transparent 1.75px),
+    radial-gradient(circle at 105px 87px, rgba(255, 215, 151, .75) 1.3px, transparent 2px);
+  background-size: 78px 78px, 132px 132px, 205px 205px;
+  background-position: 0 0, 45px 72px, 115px 30px;
+  animation: mcq-space-menu-star-drift 34s linear infinite;
+}
+.mcq-space-menu-scrim > .mcq-space-menu-card {
+  position: relative;
+  z-index: 1;
+}
+@keyframes mcq-space-menu-star-drift {
+  from { background-position: 0 0, 45px 72px, 115px 30px; }
+  to { background-position: 78px 156px, -87px -132px, 320px 235px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mcq-space-menu-scrim::before { animation: none !important; }
+}
