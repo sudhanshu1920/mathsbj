@@ -88,8 +88,8 @@ export function getSpaceQuestionComplexity(question: SpaceShooterDifficultyQuest
     if (String(question.text ?? "").includes("×") || String(question.text ?? "").includes("÷")) complexity += 2;
   } else if (topic === "tables") {
     const match = /([\d,]+)\s*×\s*([\d,]+)/.exec(String(question.text ?? ""));
-    const left = match ? safeMagnitude(match[1]!.replaceAll(",", "")) : largest;
-    const right = match ? safeMagnitude(match[2]!.replaceAll(",", "")) : 1;
+    const left = match ? safeMagnitude(match[1]!.replace(/,/g, "")) : largest;
+    const right = match ? safeMagnitude(match[2]!.replace(/,/g, "")) : 1;
     complexity = 2 + Math.log10(left + 1) * 2 + Math.log10(right + 1) * 2 + Math.log10(answer + 1);
   } else if (topic === "squares" || topic === "cubes" || topic === "roots" || topic === "square-roots" || topic === "cube-roots") {
     complexity = 1.5 + Math.log10(largest + 1) * 4;
