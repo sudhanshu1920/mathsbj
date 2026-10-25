@@ -20,6 +20,10 @@ import {
   detectSweptGateCollision,
   getSweptLaneGateContactFraction,
   advanceMCQGameSpeed,
+  advanceMCQGameSteering,
+  resolveMCQGameLaneIndex,
+  MCQ_GAME_STEERING_MIN_X,
+  MCQ_GAME_STEERING_MAX_X,
 } from "@/lib/mcqGamePhysics";
 
 describe("3D MCQ racing steering and collision physics", () => {
@@ -88,6 +92,29 @@ describe("3D MCQ racing steering and collision physics", () => {
     expect(clampMCQGameLane(2, -1)).toBe(1);
     expect(clampMCQGameLane(1, 1)).toBe(2);
     expect(clampMCQGameLane(99, 1)).toBe(3);
+  });
+
+  it("advances held steering smoothly by elapsed time and clamps to both road edges", () => {
+    const fromCenter = advanceMCQGameSteering(0, -1, 100);
+    expect(fromCenter).toBeLessThan(0);
+    expect(fromCenter).toBeCloseTo(-0.54, 6);
+    expect(advanceMCQGameSteering(0, 1, 100)).toBeCloseTo(0.54, 6);
+    expect(advanceMCQGameSteering(MCQ_GAME_STEERING_MAX_X, 1, 100)).toBe(MCQ_GAME_STEERING_MAX_X);
+    expect(advanceMCQGameSteering(MCQ_GAME_STEERING_MIN_X, -1, 100)).toBe(MCQ_GAME_STEERING_MIN_X);
+    expect(advanceMCQGameSteering(0, 1, Number.POSITIVE_INFINITY)).toBe(0);
+    expect(advanceMCQGameSteering(Number.NaN, 0, 100)).toBe(-1.15);
+    expect(advanceMCQGameSteering(0, 1, 10_000)).toBeCloseTo(0.54, 6);
+  });
+
+  it("resolves nearest display lanes from continuous steering positions", () => {
+    expect(resolveMCQGameLaneIndex(MCQ_GAME_STEERING_MIN_X)).toBe(0);
+    expect(resolveMCQGameLaneIndex(-2.4)).toBe(0);
+    expect(resolveMCQGameLaneIndex(-1.15)).toBe(1);
+    expect(resolveMCQGameLaneIndex(0)).toBe(1);
+    expect(resolveMCQGameLaneIndex(0.25)).toBe(2);
+    expect(resolveMCQGameLaneIndex(1.15)).toBe(2);
+    expect(resolveMCQGameLaneIndex(MCQ_GAME_STEERING_MAX_X)).toBe(3);
+    expect(resolveMCQGameLaneIndex(Number.NaN)).toBe(1);
   });
 
   it("reaches a clearly higher speed quickly while keeping acceleration time-based", () => {
