@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  advanceSpaceShooterBoost,
   advanceSpaceProjectile,
   clampSpaceShipX,
   getSpaceAimVelocity,
@@ -7,6 +8,17 @@ import {
 } from "@/lib/mcqSpaceShooterPhysics";
 
 describe("Math Space Shooter physics", () => {
+  it("ramps boost smoothly and returns toward normal after release", () => {
+    expect(advanceSpaceShooterBoost(1, true, 1.7, 0)).toBe(1);
+    const accelerating = advanceSpaceShooterBoost(1, true, 1.7, 16);
+    expect(accelerating).toBeGreaterThan(1);
+    expect(accelerating).toBeLessThan(1.7);
+    const released = advanceSpaceShooterBoost(1.7, false, 1.7, 16);
+    expect(released).toBeGreaterThan(1);
+    expect(released).toBeLessThan(1.7);
+    expect(advanceSpaceShooterBoost(Number.NaN, true, Number.NaN, 1000)).toBe(1);
+    expect(advanceSpaceShooterBoost(1, true, 99, 1000)).toBeLessThanOrEqual(3);
+  });
   it("clamps the ship inside the playable width, including narrow screens", () => {
     expect(clampSpaceShipX(2, 400, 24)).toBe(24);
     expect(clampSpaceShipX(900, 400, 24)).toBe(376);

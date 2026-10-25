@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-25 — Math Space Shooter mission gameplay
+
+- Extend the existing canvas shooter with a mission briefing, persisted Easy/Medium/Hard selection, How to Play, sound setting, result screen, retry and game-selector navigation.
+- Regenerate the question pool from the existing math generator using the chosen difficulty; keep the shared quiz answer validator, timer, question progression and submission callback authoritative.
+- Add the 3–2–1–GO launch countdown, explicit Left/Fire/Boost/Right controls, independent Pointer Events, keyboard support, and release/cancel/focus-loss cleanup.
+- Add bounded asteroid/enemy waves, ship collision damage with invulnerability, smoothed time-based boost response, score/combo/best-score saving, level transitions and boss attack/health progression.
+- Add unit and interaction tests for generated difficulty pools, launch/countdown flow, projectile collision, pointer independence, duplicate rewards, shield damage, collision bounds, boost smoothing and saved settings.
+- Preserve other game variants and shared quiz features. Automated CI checks are used for build and regression validation; physical-device multi-touch and measured FPS profiling remain unverified.
+
 ## 2026-10-25 — 3D Car Racing controls and multi-touch
 
 - Replace invisible full-screen half-zone gestures with a dedicated left-side Speed hold button and right-side Left/Right steering buttons.

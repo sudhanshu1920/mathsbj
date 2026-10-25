@@ -23,6 +23,29 @@ export interface SpaceProjectileStep extends SpacePoint {
 }
 
 const MAX_SIMULATION_STEP_MS = 50;
+const MAX_BOOST_MULTIPLIER = 3;
+const BOOST_RESPONSE_TIME_MS = 130;
+
+/** Smooth, elapsed-time boost ramping and release with bounded simulation delta. */
+export function advanceSpaceShooterBoost(
+  currentMultiplier: number,
+  isHeld: boolean,
+  maximumMultiplier: number,
+  elapsedMs: number,
+): number {
+  const safeMaximum = Number.isFinite(maximumMultiplier)
+    ? Math.min(MAX_BOOST_MULTIPLIER, Math.max(1, maximumMultiplier))
+    : 1;
+  const current = Number.isFinite(currentMultiplier)
+    ? Math.min(MAX_BOOST_MULTIPLIER, Math.max(1, currentMultiplier))
+    : 1;
+  const elapsed = Number.isFinite(elapsedMs)
+    ? Math.min(MAX_SIMULATION_STEP_MS, Math.max(0, elapsedMs))
+    : 0;
+  const target = isHeld ? safeMaximum : 1;
+  const response = 1 - Math.exp(-elapsed / BOOST_RESPONSE_TIME_MS);
+  return Math.min(MAX_BOOST_MULTIPLIER, Math.max(1, current + (target - current) * response));
+}
 
 export function clampSpaceShipX(x: number, width: number, radius = 24): number {
   if (!Number.isFinite(width) || width <= 0) return 0;

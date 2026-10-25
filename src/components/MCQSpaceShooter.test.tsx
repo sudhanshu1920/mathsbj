@@ -6,6 +6,18 @@ import MCQSpaceShooter from "@/components/MCQSpaceShooter";
 const originalRequestAnimationFrame = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
 const originalCancelAnimationFrame = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
 
+class TestPointerEvent extends MouseEvent {
+  readonly pointerId: number;
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init);
+    this.pointerId = init.pointerId ?? 0;
+  }
+}
+
+function firePointer(target: Element, type: string, pointerId: number) {
+  fireEvent(target, new TestPointerEvent(type, { pointerId, bubbles: true, cancelable: true }));
+}
+
 vi.mock("@/lib/gameImmersiveMode", () => ({
   setGameImmersiveMode: vi.fn(async () => undefined),
 }));
@@ -97,6 +109,13 @@ function shooterProps(overrides: Partial<ComponentProps<typeof MCQSpaceShooter>>
   };
 }
 
+function startMission() {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  fireEvent.click(screen.getByTestId("space-start-mission"));
+  act(() => vi.advanceTimersByTime(2750));
+  vi.useRealTimers();
+}
+
 function mockLayout(view: ReturnType<typeof render>) {
   const playfield = screen.getByRole("group", { name: "Space battlefield" });
   vi.spyOn(playfield, "getBoundingClientRect").mockReturnValue({
@@ -116,106 +135,210 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  try {
+    window.localStorage.removeItem("math-space-shooter-best-v1");
+    window.localStorage.removeItem("math-space-shooter-difficulty-v1");
+  } catch { /* Storage is optional in restricted test environments. */ }
   if (originalRequestAnimationFrame) Object.defineProperty(window, "requestAnimationFrame", originalRequestAnimationFrame);
   else Reflect.deleteProperty(window, "requestAnimationFrame");
   if (originalCancelAnimationFrame) Object.defineProperty(window, "cancelAnimationFrame", originalCancelAnimationFrame);
   else Reflect.deleteProperty(window, "cancelAnimationFrame");
 });
 
-describe("Math Space Shooter", () => {
-  it("renders readable answer targets and explicit movement, aim, fire, pause and restart controls", () => {
+describe("Math Space Shooter mission", () => {
+  it("shows a working mission briefing, difficulty picker, instructions, sound and exit controls", () => {
     mockCanvasContext();
-    const onRestartGame = vi.fn();
-    const view = render(<MCQSpaceShooter {...shooterProps({ onRestartGame })} />);
+    const onStartMission = vi.fn(() => true);
+    const onChangeGame = vi.fn();
+    render(<MCQSpaceShooter {...shooterProps({ onStartMission, onChangeGame })} />);
 
-    expect(screen.getByRole("group", { name: "Mathematical answer targets" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /Answer target 2: 28/ })).toBeInTheDocument();
-    expect(view.container.querySelectorAll(".mcq-space-target-mark")).toHaveLength(0);
-    expect(view.container.querySelector(".mcq-space-shell")).not.toHaveClass("is-frozen");
-    expect(screen.getByTestId("space-touch-left")).toBeInTheDocument();
-    expect(screen.getByTestId("space-touch-right")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Submit complete test" })).toBeEnabled();
-    expect(screen.queryByRole("button", { name: "Move spaceship left" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Move spaceship right" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Fire laser at selected answer" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pause game" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Restart quiz" })).toBeInTheDocument();
-    expect(view.container.querySelector("canvas")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByRole("dialog", { name: "MATH SPACE SHOOTER" })).toBeInTheDocument();
+    expect(screen.getByTestId("space-difficulty-medium")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: /continue mission/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("space-difficulty-hard"));
+    expect(screen.getByTestId("space-difficulty-hard")).toHaveAttribute("aria-pressed", "true");
+    expect(window.localStorage.getItem("math-space-shooter-difficulty-v1")).toBe("hard");
+    fireEvent.click(screen.getByRole("button", { name: /how to play/i }));
+    expect(screen.getByRole("heading", { name: "HOW TO PLAY" })).toBeInTheDocument();
+    expect(screen.getByText(/only a real collision submits/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /back to mission briefing/i }));
+    const soundButton = screen.getByRole("button", { name: /sound (on|off)/i });
+    const previousSoundState = soundButton.getAttribute("aria-pressed");
+    fireEvent.click(soundButton);
+    expect(screen.getByRole("button", { name: /sound (on|off)/i })).not.toHaveAttribute("aria-pressed", previousSoundState ?? "false");
+    fireEvent.click(screen.getByRole("button", { name: /sound (on|off)/i }));
+    expect(screen.getByRole("button", { name: /sound (on|off)/i })).toHaveAttribute("aria-pressed", previousSoundState ?? "false");
+
+    startMission();
+    expect(onStartMission).toHaveBeenCalledOnce();
+    expect(onStartMission).toHaveBeenCalledWith("hard");
+    expect(screen.queryByRole("dialog", { name: "MATH SPACE SHOOTER" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("space-control-fire")).toBeEnabled();
+    expect(onChangeGame).not.toHaveBeenCalled();
   });
 
-  it("aiming is not an answer submission; a swept laser hit submits through the shared quiz callback once", () => {
+  it("runs a 3-2-1-GO countdown while keeping the parent quiz timer paused", () => {
+    mockCanvasContext();
+    const onPauseChange = vi.fn();
+    render(<MCQSpaceShooter {...shooterProps({ onPauseChange })} />);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fireEvent.click(screen.getByTestId("space-start-mission"));
+
+    const countdown = screen.getByRole("status", { name: "Mission start countdown" });
+    expect(countdown).toHaveTextContent("3");
+    expect(onPauseChange).toHaveBeenLastCalledWith(true);
+    act(() => vi.advanceTimersByTime(800));
+    expect(screen.getByRole("status", { name: "Mission start countdown" })).toHaveTextContent("2");
+    act(() => vi.advanceTimersByTime(800));
+    expect(screen.getByRole("status", { name: "Mission start countdown" })).toHaveTextContent("1");
+    act(() => vi.advanceTimersByTime(800));
+    expect(screen.getByRole("status", { name: "Mission start countdown" })).toHaveTextContent("GO!");
+    expect(onPauseChange).toHaveBeenLastCalledWith(true);
+    act(() => vi.advanceTimersByTime(350));
+    expect(screen.queryByRole("status", { name: "Mission start countdown" })).not.toBeInTheDocument();
+    expect(onPauseChange).toHaveBeenLastCalledWith(false);
+    vi.useRealTimers();
+  });
+
+  it("renders real answer targets and four explicit movement, fire and boost controls", () => {
+    mockCanvasContext();
+    render(<MCQSpaceShooter {...shooterProps()} />);
+
+    expect(screen.getByRole("group", { name: "Mathematical answer targets" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Aim at answer 2: 28" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Steer spaceship left" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Steer spaceship right" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Fire laser at selected answer" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Hold to boost spaceship speed" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Pause game" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit complete test" })).toBeDisabled();
+    expect(screen.getByTestId("space-start-mission")).toBeEnabled();
+  });
+
+  it("selecting a target does not submit; only a swept laser collision calls the shared quiz callback once", () => {
     mockCanvasContext();
     const frames = installFrameQueue();
     const onSelectOption = vi.fn(() => true);
     const view = render(<MCQSpaceShooter {...shooterProps({ onSelectOption })} />);
+    startMission();
     mockLayout(view);
 
-    // Tapping visible asteroid artwork is never an answer-submit action.
-    const asteroid = screen.getByTestId("space-target-0");
-    fireEvent.click(asteroid);
-    fireEvent.pointerUp(asteroid, { pointerId: 1 });
-    fireEvent.pointerUp(asteroid, { pointerId: 1 });
+    fireEvent.click(screen.getByTestId("space-target-0"));
+    expect(onSelectOption).not.toHaveBeenCalled();
+    firePointer(screen.getByTestId("space-control-fire"), "pointerdown", 77);
+    firePointer(screen.getByTestId("space-control-fire"), "pointerup", 77);
     expect(onSelectOption).not.toHaveBeenCalled();
 
-    const rightZone = screen.getByTestId("space-touch-right");
-    fireEvent.pointerUp(rightZone, { pointerId: 1 });
-    fireEvent.pointerUp(rightZone, { pointerId: 1 });
-    expect(onSelectOption).not.toHaveBeenCalled();
-
+    fireEvent.click(screen.getByTestId("space-control-fire"));
     for (let frame = 0; frame < 38; frame += 1) frames.advance(frame * 40);
     expect(onSelectOption).toHaveBeenCalledTimes(1);
     expect(onSelectOption).toHaveBeenCalledWith(0, "26", expect.stringContaining("question-1"));
 
-    fireEvent.pointerUp(rightZone, { pointerId: 1 });
-    fireEvent.pointerUp(rightZone, { pointerId: 1 });
+    fireEvent.click(screen.getByTestId("space-control-fire"));
     expect(onSelectOption).toHaveBeenCalledTimes(1);
     frames.restore();
   });
 
-  it("pauses on focus loss, clears a pending directional tap, and informs the quiz timer", () => {
+  it("keeps simultaneous pointer controls independent across pointer-up, cancel and capture loss", () => {
+    mockCanvasContext();
+    render(<MCQSpaceShooter {...shooterProps()} />);
+    startMission();
+    const left = screen.getByTestId("space-control-left");
+    const right = screen.getByTestId("space-control-right");
+    const boost = screen.getByTestId("space-control-boost");
+
+    firePointer(left, "pointerdown", 101);
+    firePointer(right, "pointerdown", 202);
+    firePointer(boost, "pointerdown", 303);
+    expect(left).toHaveAttribute("aria-pressed", "true");
+    expect(right).toHaveAttribute("aria-pressed", "true");
+    expect(boost).toHaveAttribute("aria-pressed", "true");
+
+    firePointer(left, "pointerup", 101);
+    expect(left).toHaveAttribute("aria-pressed", "false");
+    expect(right).toHaveAttribute("aria-pressed", "true");
+    expect(boost).toHaveAttribute("aria-pressed", "true");
+
+    firePointer(right, "lostpointercapture", 202);
+    expect(right).toHaveAttribute("aria-pressed", "false");
+    expect(boost).toHaveAttribute("aria-pressed", "true");
+
+    firePointer(boost, "pointercancel", 303);
+    expect(boost).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("pauses on focus loss, clears all held controls and informs the quiz timer", () => {
     mockCanvasContext();
     const onPauseChange = vi.fn();
     render(<MCQSpaceShooter {...shooterProps({ onPauseChange })} />);
+    startMission();
 
-    fireEvent.pointerUp(screen.getByTestId("space-touch-right"), { pointerId: 1 });
+    firePointer(screen.getByTestId("space-control-left"), "pointerdown", 1);
+    firePointer(screen.getByTestId("space-control-boost"), "pointerdown", 2);
     fireEvent.blur(window);
     expect(screen.getByRole("dialog", { name: "Mission paused" })).toBeInTheDocument();
-    expect(document.querySelector(".mcq-space-shell")).toHaveClass("is-frozen");
+    expect(screen.getByTestId("space-control-left")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("space-control-boost")).toHaveAttribute("aria-pressed", "false");
     expect(onPauseChange).toHaveBeenLastCalledWith(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Resume mission" }));
     expect(screen.queryByRole("dialog", { name: "Mission paused" })).not.toBeInTheDocument();
-    expect(document.querySelector(".mcq-space-shell")).not.toHaveClass("is-frozen");
     expect(onPauseChange).toHaveBeenLastCalledWith(false);
   });
 
-  it("discards in-flight projectiles when the question identity changes", () => {
+  it("discards an in-flight laser when the question identity changes", () => {
     mockCanvasContext();
     const frames = installFrameQueue();
     const onSelectOption = vi.fn(() => true);
     const view = render(<MCQSpaceShooter {...shooterProps({ onSelectOption })} />);
+    startMission();
     mockLayout(view);
 
-    const rightZone = screen.getByTestId("space-touch-right");
-    fireEvent.pointerUp(rightZone, { pointerId: 1 });
-    fireEvent.pointerUp(rightZone, { pointerId: 1 });
+    fireEvent.click(screen.getByTestId("space-target-0"));
+    fireEvent.click(screen.getByTestId("space-control-fire"));
     frames.advance(0);
-
     view.rerender(<MCQSpaceShooter {...shooterProps({ questionKey: "question-2", onSelectOption })} />);
     for (let frame = 1; frame < 38; frame += 1) frames.advance(frame * 40);
     expect(onSelectOption).not.toHaveBeenCalled();
     frames.restore();
   });
 
-  it("shows Submit Test before completion and keeps it separate from answer firing", () => {
+  it("awards the score and combo exactly once per accepted correct-answer event", () => {
+    mockCanvasContext();
+    const view = render(<MCQSpaceShooter {...shooterProps()} />);
+    startMission();
+
+    const correct = shooterProps({ feedback: "correct", selectedOption: 1 });
+    view.rerender(<MCQSpaceShooter {...correct} />);
+    expect(screen.getByLabelText("Mission score 100")).toBeInTheDocument();
+    expect(screen.getByLabelText("Combo 1")).toBeInTheDocument();
+    view.rerender(<MCQSpaceShooter {...correct} />);
+    expect(screen.getByLabelText("Mission score 100")).toBeInTheDocument();
+    expect(screen.getByLabelText("Combo 1")).toBeInTheDocument();
+  });
+
+  it("applies one shield penalty to one wrong-answer event and resets combo", () => {
+    mockCanvasContext();
+    const view = render(<MCQSpaceShooter {...shooterProps()} />);
+    startMission();
+    view.rerender(<MCQSpaceShooter {...shooterProps({ feedback: "correct", selectedOption: 1 })} />);
+    expect(screen.getByLabelText("Combo 1")).toBeInTheDocument();
+    view.rerender(<MCQSpaceShooter {...shooterProps()} />);
+
+    view.rerender(<MCQSpaceShooter {...shooterProps({ feedback: "wrong", selectedOption: 0 })} />);
+    expect(screen.getByLabelText("3 shields remaining")).toBeInTheDocument();
+    expect(screen.getByLabelText("Combo 0")).toBeInTheDocument();
+    view.rerender(<MCQSpaceShooter {...shooterProps({ feedback: "wrong", selectedOption: 0 })} />);
+    expect(screen.getByLabelText("3 shields remaining")).toBeInTheDocument();
+  });
+
+  it("guards manual submit against duplicate taps and keeps it separate from firing", () => {
     mockCanvasContext();
     const onSelectOption = vi.fn(() => true);
     const onFinalSubmit = vi.fn();
-    render(<MCQSpaceShooter {...shooterProps({
-      canFinalizeTest: false,
-      onSelectOption,
-      onFinalSubmit,
-    })} />);
+    render(<MCQSpaceShooter {...shooterProps({ onSelectOption, onFinalSubmit })} />);
+    startMission();
 
     const submit = screen.getByRole("button", { name: "Submit complete test" });
     expect(submit).toBeEnabled();
@@ -223,25 +346,5 @@ describe("Math Space Shooter", () => {
     fireEvent.click(submit);
     expect(onFinalSubmit).toHaveBeenCalledTimes(1);
     expect(onSelectOption).not.toHaveBeenCalled();
-  });
-
-  it("moves aim one target per single tap and preserves keyboard aim controls", () => {
-    mockCanvasContext();
-    vi.useFakeTimers();
-    render(<MCQSpaceShooter {...shooterProps()} />);
-    const rightZone = screen.getByTestId("space-touch-right");
-    const leftZone = screen.getByTestId("space-touch-left");
-
-    expect(screen.getByTestId("space-target-0")).toHaveAttribute("aria-current", "true");
-    fireEvent.pointerUp(rightZone, { pointerId: 1 });
-    act(() => vi.advanceTimersByTime(281));
-    expect(screen.getByTestId("space-target-1")).toHaveAttribute("aria-current", "true");
-
-    fireEvent.pointerUp(leftZone, { pointerId: 1 });
-    act(() => vi.advanceTimersByTime(281));
-    expect(screen.getByTestId("space-target-0")).toHaveAttribute("aria-current", "true");
-
-    fireEvent.keyDown(leftZone, { key: "ArrowRight" });
-    expect(screen.getByTestId("space-target-1")).toHaveAttribute("aria-current", "true");
   });
 });
