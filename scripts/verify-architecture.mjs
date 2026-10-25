@@ -873,9 +873,9 @@ if (!practice.includes('resolvePercentagePresets(range).length > 0') ||
     !practice.includes('percentagePresetId?: PercentagePresetId')) {
   fail('Percentage preset validation and question-source identities are missing');
 }
-if (!practice.includes('selectQuestionsAcrossPresetRanges(baseQuestions, config.count, config.sequential)') ||
-    !practice.includes('selectQuestionsWithPresetCoverage(baseQuestions, config.count, selectedPresetIds, config.sequential)')) {
-  fail('Finite quizzes must retain question coverage for every selected Percentage preset');
+if (!practice.includes('selectQuestionsAcrossPresetRanges(questionCandidates, config.count, config.sequential)') ||
+    !practice.includes('selectQuestionsWithPresetCoverage(questionCandidates, config.count, selectedPresetIds, config.sequential)')) {
+  fail('Finite quizzes must retain question coverage for every selected Percentage preset after mode-specific filtering');
 }
 if (!percentagePresets.includes('normalizePercentagePresetIds') ||
     !percentagePresets.includes('togglePercentagePresetIds') ||
@@ -921,7 +921,7 @@ const digitMultiSelectUiTests = read('src/pages/PracticePage.digitMultiSelect.te
 const digitMultiSelectGeneratorTests = read('src/test/practiceQuestionGeneration.test.ts');
 if (!practice.includes('operand1DigitCounts?: number[]') ||
     !practice.includes('getSelectedDigitCounts(range, 1)') ||
-    !practice.includes('selectQuestionsWithDigitCoverage(baseQuestions, config.count, config.sequential)') ||
+    !practice.includes('selectQuestionsWithDigitCoverage(questionCandidates, config.count, config.sequential)') ||
     !practice.includes('grid grid-cols-5 gap-1 sm:gap-1.5') ||
     !practice.includes('{digits}D') ||
     !digitMultiSelectUiTests.includes('selects multiple digits independently') ||
