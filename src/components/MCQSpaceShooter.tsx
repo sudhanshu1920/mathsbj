@@ -631,24 +631,6 @@ const MCQSpaceShooter = ({
     persistBestScore(score);
   }, [bestScore]);
 
-  const moveAim = useCallback((direction: -1 | 1) => {
-    const current = latestPropsRef.current;
-    const count = current.options.length;
-    if (!canInteract() || count === 0) return;
-    const previous = selectedTargetRef.current;
-    const next = previous === null
-      ? (direction > 0 ? 0 : count - 1)
-      : Math.max(0, Math.min(count - 1, previous + direction));
-    if (next === previous) {
-      setStatusMessage(direction < 0 ? "LEFT EDGE REACHED" : "RIGHT EDGE REACHED");
-      return;
-    }
-    if (!mappingsRef.current[next]) return;
-    selectedTargetRef.current = next;
-    setSelectedTargetIndex(next);
-    setStatusMessage("AIM LOCKED · TARGET " + String(next + 1) + " OF " + String(count));
-  }, [canInteract]);
-
   const fireProjectile = useCallback(() => {
     if (!canInteract()) return;
     const current = latestPropsRef.current;
@@ -792,7 +774,11 @@ const MCQSpaceShooter = ({
   }, [questionKey, sessionKey, setPausedState, clearPendingDirectionalTap, clearActiveControls, options.length]);
 
   useEffect(() => {
-    if (!feedback || selectedOption === null) return;
+    if (!feedback) {
+      processedFeedbackRef.current = null;
+      return;
+    }
+    if (selectedOption === null) return;
     const eventKey = `${String(sessionKey ?? "default")}:${String(questionKey)}`;
     if (processedFeedbackRef.current === eventKey) return;
     processedFeedbackRef.current = eventKey;
@@ -1100,7 +1086,7 @@ const MCQSpaceShooter = ({
       window.removeEventListener("keyup", onGlobalKeyUp);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [canInteract, fireProjectile, moveAim, setPausedState, clearActiveControls, endControl]);
+  }, [canInteract, fireProjectile, setPausedState, clearActiveControls, endControl, beginControl]);
 
   const handlePointerControlDown = (event: ReactPointerEvent<HTMLButtonElement>, action: SpaceControlAction) => {
     event.preventDefault();
@@ -1189,7 +1175,7 @@ const MCQSpaceShooter = ({
 
   const handleFinalSubmit = () => {
     const current = latestPropsRef.current;
-    if (current.disabled || finalSubmitInvokedRef.current || submittedRef.current) return;
+    if (current.disabled || pausedRef.current || menuOpenRef.current || gameOverRef.current || finalSubmitInvokedRef.current || submittedRef.current) return;
     finalSubmitInvokedRef.current = true;
     submittedRef.current = true;
     clearPendingDirectionalTap();
@@ -1246,7 +1232,7 @@ const MCQSpaceShooter = ({
             type="button"
             className="mcq-space-submit"
             onClick={handleFinalSubmit}
-            disabled={disabled || finalSubmitInvokedRef.current}
+            disabled={disabled || paused || menuOpen || gameOver || finalSubmitInvokedRef.current}
             aria-label="Submit complete test"
             data-testid="space-submit-test"
           >
@@ -1374,7 +1360,7 @@ const MCQSpaceShooter = ({
             onPointerCancel={handlePointerControlEnd}
             onLostPointerCapture={(event) => endControl(event.pointerId)}
             onKeyDown={(event) => handleControlKeyDown(event, "right")}
-            onKeyUp={(event) => endControl(`keyboard:right`)}
+            onKeyUp={(event) => { const key = event.key.toLowerCase(); if (key === "arrowright" || key === "d") endControl("keyboard:right"); }}
             onClick={(event) => handleControlClick(event, "right")}
             onContextMenu={(event) => event.preventDefault()}
             disabled={!canInteract()}
