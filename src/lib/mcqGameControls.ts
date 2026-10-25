@@ -26,7 +26,7 @@ export function resolveMCQSteeringDirection(
   return latest?.direction ?? null;
 }
 
-/** Any live directional hold can accelerate; moved/cancelled gestures cannot leave acceleration stuck. */
+/** Explicit steering-only pointers never accelerate; speed/legacy pointers remain independent. */
 export function hasActiveMCQDrivingPointer(
   pointers: ReadonlyMap<number, MCQSteeringPointer>,
 ): boolean {
