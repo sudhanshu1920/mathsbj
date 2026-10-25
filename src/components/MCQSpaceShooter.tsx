@@ -490,6 +490,7 @@ const MCQSpaceShooter = ({
     const current = latestPropsRef.current;
     return (
       !pausedRef.current &&
+      countdownRef.current === null &&
       !menuOpenRef.current &&
       !gameOverRef.current &&
       !current.disabled &&
