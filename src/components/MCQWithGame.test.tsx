@@ -184,12 +184,17 @@ function setStageBounds(stage: HTMLElement) {
 }
 
 describe("Full-screen continuous MCQ racing", () => {
-  it("has no visible steering buttons and a fixed floating question panel", () => {
+  it("renders dedicated Speed, Left and Right controls in a fixed screen-space layout", () => {
     const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    const stage = screen.getByRole("group", { name: /four answer lanes/i });
 
-    expect(view.container.querySelectorAll(".mcq-game-controls")).toHaveLength(0);
-    expect(view.container.querySelectorAll("button[aria-label='Steer left'], button[aria-label='Steer right']")).toHaveLength(0);
+    expect(view.container.querySelectorAll(".mcq-game-controls")).toHaveLength(1);
+    expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("mcq-game-steer-left")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("mcq-game-steer-right")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /Accelerate \(hold\)/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Steer left" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Steer right" })).toBeEnabled();
     expect(view.container.querySelector(".mcq-game-question-panel")).toBeInTheDocument();
     expect(screen.getByText("NEON NITRO")).toBeInTheDocument();
     expect(screen.getByText("14 × 2 = ?")).toBeInTheDocument();
@@ -274,7 +279,7 @@ describe("Full-screen continuous MCQ racing", () => {
     const onSelectOption = vi.fn();
     const view = render(<MCQWithGame {...gameProps({ onSelectOption })} />);
     const gate = view.container.querySelector('[data-option-id]') as HTMLElement;
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    const stage = screen.getByRole("group", { name: /four answer lanes/i });
     const laneReadout = view.container.querySelector("[data-testid='mcq-game-lane-readout']");
 
     expect(createRacingAudioController).toHaveBeenCalledTimes(1);
@@ -366,7 +371,7 @@ describe("Full-screen continuous MCQ racing", () => {
     });
     const mappings = createMCQGateMappings("q-1", options.map((option) => option.value));
     const view = render(<MCQWithGame {...gameProps({ onSelectOption })} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    const stage = screen.getByRole("group", { name: /four answer lanes/i });
     setStageBounds(stage);
 
     try {
@@ -395,302 +400,160 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("uses a short tap on each screen half for exactly one lane change", () => {
-    vi.useFakeTimers();
+  it("accelerates immediately on Speed press and coasts after that pointer releases", () => {
     const raf = installAnimationFrameQueue();
-    let now = 100;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    setStageBounds(stage);
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const view = render(<MCQWithGame {...gameProps({ durationMs: 30_000 })} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+    const right = screen.getByTestId("mcq-game-steer-right");
+    const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
+    const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
 
     try {
-      fireEvent.pointerDown(stage, { pointerId: 1, button: 0, clientX: 80, clientY: 650 });
-      now = 150;
-      fireEvent.pointerUp(stage, { pointerId: 1, button: 0, clientX: 80, clientY: 650 });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1");
-
-      fireEvent.pointerDown(stage, { pointerId: 1, button: 0, clientX: 320, clientY: 650 });
-      now = 200;
-      fireEvent.pointerUp(stage, { pointerId: 1, button: 0, clientX: 320, clientY: 650 });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
-    } finally {
-      view.unmount();
-      raf.restore();
-    }
-  });
-
-  it("steers one lane during a long press while retaining the speed boost, then restores normal speed", () => {
-    const raf = installAnimationFrameQueue();
-    vi.useFakeTimers();
-    let now = 10;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    setStageBounds(stage);
-
-    try {
-      fireEvent.pointerDown(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
-      act(() => vi.advanceTimersByTime(300));
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-
-      now = 320;
-      fireEvent.pointerUp(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
-      expect(screen.getByRole("status")).toHaveTextContent("Racing");
-    } finally {
-      view.unmount();
-      raf.restore();
-    }
-  });
-
-  it("keeps LEFT hold acceleration active while a RIGHT pointer taps and releases independently", () => {
-    const raf = installAnimationFrameQueue();
-    vi.useFakeTimers();
-    let now = 10;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    setStageBounds(stage);
-
-    try {
-      fireEvent.pointerDown(stage, { pointerId: 41, button: 0, clientX: 80, clientY: 650 });
-      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1");
-
-      // The opposite pointer changes the active steering direction without
-      // overwriting the LEFT pointer or cancelling its hold timer.
-      fireEvent.pointerDown(stage, { pointerId: 42, button: 0, clientX: 320, clientY: 650 });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
-      now = 250;
-      fireEvent.pointerUp(stage, { pointerId: 42, button: 0, clientX: 320, clientY: 650 });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1");
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-
-      for (let timestamp = 0; timestamp <= 350; timestamp += 50) raf.advance(timestamp);
-      expect(racingAudioMocks.update.mock.calls.some((call) => call[1] === true && Number(call[0]) > 1)).toBe(true);
-
-      now = 400;
-      fireEvent.pointerUp(stage, { pointerId: 41, button: 0, clientX: 80, clientY: 650 });
-      expect(screen.getByRole("status")).toHaveTextContent("Racing");
-    } finally {
-      view.unmount();
-      raf.restore();
-    }
-  });
-
-  it("keeps pointer ID 0 independent from pointer ID 1 and synchronizes streak timing with actual speed", () => {
-    const raf = installAnimationFrameQueue();
-    vi.useFakeTimers();
-    let now = 10;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    const speedLines = view.container.querySelector(".mcq-game-speed-lines") as HTMLDivElement;
-    setStageBounds(stage);
-    const initialStreakDuration = Number.parseFloat(
-      speedLines.style.getPropertyValue("--mcq-game-speed-streak-duration"),
-    );
-
-    try {
-      fireEvent.pointerDown(stage, {
-        pointerId: 0, pointerType: "touch", button: 0, clientX: 80, clientY: 650,
-      });
-      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-
-      // ID zero is a valid PointerEvent identity; it must not alias the legacy fallback ID 1.
-      fireEvent.pointerDown(stage, {
-        pointerId: 1, pointerType: "touch", button: 0, clientX: 320, clientY: 650,
-      });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
-
-      now = 250;
-      fireEvent.pointerUp(stage, {
-        pointerId: 1, pointerType: "touch", button: 0, clientX: 320, clientY: 650,
-      });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1");
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+      fireEvent.pointerDown(speed, { pointerId: 1, pointerType: "touch", button: 0 });
+      fireEvent.pointerDown(right, { pointerId: 2, pointerType: "touch", button: 0 });
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      expect(right).toHaveAttribute("aria-pressed", "true");
 
       for (let timestamp = 0; timestamp <= 400; timestamp += 50) raf.advance(timestamp);
-      const acceleratedStreakDuration = Number.parseFloat(
-        speedLines.style.getPropertyValue("--mcq-game-speed-streak-duration"),
-      );
-      expect(initialStreakDuration).toBeGreaterThan(0);
-      expect(acceleratedStreakDuration).toBeLessThan(initialStreakDuration);
-      expect(racingAudioMocks.update.mock.calls.some((call) => call[1] === true && Number(call[0]) > 1)).toBe(true);
+      const bothActiveFrame = renderer.mock.calls.at(-1)?.[0] as { carX: number };
+      const acceleratedSpeed = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(bothActiveFrame.carX).toBeGreaterThan(-1.15);
+      expect(acceleratedSpeed).toBeGreaterThan(1);
 
-      now = 450;
-      fireEvent.pointerUp(stage, {
-        pointerId: 0, pointerType: "touch", button: 0, clientX: 80, clientY: 650,
-      });
-      expect(screen.getByRole("status")).toHaveTextContent("Racing");
+      fireEvent.pointerUp(right, { pointerId: 2, pointerType: "touch" });
+      expect(right).toHaveAttribute("aria-pressed", "false");
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      raf.advance(450);
+      const continuedSpeed = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(continuedSpeed).toBeGreaterThan(acceleratedSpeed);
+
+      fireEvent.pointerUp(speed, { pointerId: 1, pointerType: "touch" });
+      expect(speed).toHaveAttribute("aria-pressed", "false");
+      raf.advance(500);
+      const coastSpeed = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(coastSpeed).toBeLessThan(continuedSpeed);
+      expect(coastSpeed).toBeGreaterThan(1);
     } finally {
       view.unmount();
       raf.restore();
     }
   });
 
-  it("cancelling one touch releases only that pointer while the other hold keeps accelerating", () => {
+  it("keeps steering active when Speed releases and restores older steering when the newest direction lifts", () => {
     const raf = installAnimationFrameQueue();
-    vi.useFakeTimers();
-    let now = 10;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    setStageBounds(stage);
-
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const view = render(<MCQWithGame {...gameProps({ durationMs: 30_000 })} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+    const left = screen.getByTestId("mcq-game-steer-left");
+    const right = screen.getByTestId("mcq-game-steer-right");
     try {
-      fireEvent.pointerDown(stage, {
-        pointerId: 61, pointerType: "touch", button: 0, clientX: 80, clientY: 650,
-      });
-      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
+      fireEvent.pointerDown(left, { pointerId: 11, pointerType: "touch", button: 0 });
+      fireEvent.pointerDown(speed, { pointerId: 12, pointerType: "touch", button: 0 });
+      fireEvent.pointerDown(right, { pointerId: 13, pointerType: "touch", button: 0 });
+      expect(right).toHaveAttribute("aria-pressed", "true");
+      expect(left).toHaveAttribute("aria-pressed", "false");
 
-      fireEvent.pointerDown(stage, {
-        pointerId: 62, pointerType: "touch", button: 0, clientX: 320, clientY: 650,
-      });
-      fireEvent.pointerCancel(stage, {
-        pointerId: 62, pointerType: "touch", button: 0, clientX: 320, clientY: 650,
-      });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 1");
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-
-      now = 450;
-      fireEvent.pointerUp(stage, {
-        pointerId: 61, pointerType: "touch", button: 0, clientX: 80, clientY: 650,
-      });
-      expect(screen.getByRole("status")).toHaveTextContent("Racing");
-      for (let timestamp = 0; timestamp <= 150; timestamp += 50) raf.advance(timestamp);
-      expect(racingAudioMocks.update.mock.calls.some((call) => call[1] === false)).toBe(true);
-    } finally {
-      view.unmount();
-      raf.restore();
-    }
-  });
-
-  it("cleans up only the pointer that loses capture and preserves another held finger", () => {
-    const raf = installAnimationFrameQueue();
-    vi.useFakeTimers();
-    let now = 10;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    setStageBounds(stage);
-
-    try {
-      fireEvent.pointerDown(stage, {
-        pointerId: 71,
-        pointerType: "touch",
-        button: 0,
-        clientX: 80,
-        clientY: 650,
-      });
-      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-
-      fireEvent.pointerDown(stage, {
-        pointerId: 72,
-        pointerType: "touch",
-        button: 0,
-        clientX: 320,
-        clientY: 650,
-      });
-      fireEvent.lostPointerCapture(stage, { pointerId: 72, pointerType: "touch" });
-
-      // Losing RIGHT capture must not clear the still-held LEFT pointer or its boost.
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-      now = 260;
-      fireEvent.pointerUp(stage, {
-        pointerId: 71,
-        pointerType: "touch",
-        button: 0,
-        clientX: 80,
-        clientY: 650,
-      });
-      expect(screen.getByRole("status")).toHaveTextContent("Racing");
-    } finally {
-      view.unmount();
-      raf.restore();
-    }
-  });
-
-  it("keeps RIGHT hold active when a newer LEFT pointer is released first", () => {
-    const raf = installAnimationFrameQueue();
-    vi.useFakeTimers();
-    let now = 10;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    setStageBounds(stage);
-
-    try {
-      fireEvent.pointerDown(stage, { pointerId: 51, button: 0, clientX: 320, clientY: 650 });
-      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
-
-      fireEvent.pointerDown(stage, { pointerId: 52, button: 0, clientX: 80, clientY: 650 });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
-      now = 250;
-      fireEvent.pointerUp(stage, { pointerId: 52, button: 0, clientX: 80, clientY: 650 });
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-
-      now = 400;
-      fireEvent.pointerUp(stage, { pointerId: 51, button: 0, clientX: 320, clientY: 650 });
-      expect(screen.getByRole("status")).toHaveTextContent("Racing");
-    } finally {
-      view.unmount();
-      raf.restore();
-    }
-  });
-
-  it("does not convert a large pointer drag into an accidental lane tap", () => {
-    const raf = installAnimationFrameQueue();
-    let now = 10;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    setStageBounds(stage);
-
-    try {
-      fireEvent.pointerDown(stage, { pointerId: 5, button: 0, clientX: 80, clientY: 650 });
-      fireEvent.pointerMove(stage, { pointerId: 5, clientX: 115, clientY: 650 });
-      now = 50;
-      fireEvent.pointerUp(stage, { pointerId: 5, button: 0, clientX: 115, clientY: 650 });
-
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']"))
-        .toHaveTextContent("Lane 2");
-      expect(screen.getByRole("status")).toHaveTextContent("Racing");
-    } finally {
-      view.unmount();
-      raf.restore();
-    }
-  });
-
-  it("preserves an active hold when the question changes", () => {
-    const raf = installAnimationFrameQueue();
-    vi.useFakeTimers();
-    let now = 10;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    setStageBounds(stage);
-
-    try {
-      fireEvent.pointerDown(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
-      act(() => vi.advanceTimersByTime(300));
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-
+      fireEvent.pointerUp(speed, { pointerId: 12, pointerType: "touch" });
+      expect(speed).toHaveAttribute("aria-pressed", "false");
+      expect(right).toHaveAttribute("aria-pressed", "true");
       for (let timestamp = 0; timestamp <= 500; timestamp += 50) raf.advance(timestamp);
-      const beforeQuestionSpeed = Number(
-        racingAudioMocks.update.mock.calls.filter((call) => call[1] === true).at(-1)?.[0],
-      );
-      expect(beforeQuestionSpeed).toBeGreaterThan(1);
+      const rightwardFrame = vi.mocked(createMCQ3DScene).mock.results[0]?.value.render as unknown as ReturnType<typeof vi.fn>;
+      expect((rightwardFrame.mock.calls.at(-1)?.[0] as { carX: number }).carX).toBeGreaterThan(-1.15);
 
+      fireEvent.pointerUp(right, { pointerId: 13, pointerType: "touch" });
+      expect(left).toHaveAttribute("aria-pressed", "true");
+      for (let timestamp = 550; timestamp <= 850; timestamp += 50) raf.advance(timestamp);
+      expect((rightwardFrame.mock.calls.at(-1)?.[0] as { carX: number }).carX).toBeLessThan(1.15);
+    } finally {
+      fireEvent.pointerCancel(left, { pointerId: 11, pointerType: "touch" });
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("uses the most recently activated steering direction and falls back when it releases", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const left = screen.getByTestId("mcq-game-steer-left");
+    const right = screen.getByTestId("mcq-game-steer-right");
+    try {
+      fireEvent.pointerDown(left, { pointerId: 21, pointerType: "touch", button: 0 });
+      expect(left).toHaveAttribute("aria-pressed", "true");
+      fireEvent.pointerDown(right, { pointerId: 22, pointerType: "touch", button: 0 });
+      expect(right).toHaveAttribute("aria-pressed", "true");
+      expect(left).toHaveAttribute("aria-pressed", "false");
+      fireEvent.pointerUp(right, { pointerId: 22, pointerType: "touch" });
+      expect(left).toHaveAttribute("aria-pressed", "true");
+      fireEvent.pointerUp(left, { pointerId: 21, pointerType: "touch" });
+      expect(left).toHaveAttribute("aria-pressed", "false");
+      expect(right).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("cancels only the pointer that is released or cancelled", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+    const right = screen.getByTestId("mcq-game-steer-right");
+    try {
+      fireEvent.pointerDown(speed, { pointerId: 31, pointerType: "touch", button: 0 });
+      fireEvent.pointerDown(right, { pointerId: 32, pointerType: "touch", button: 0 });
+      fireEvent.pointerCancel(speed, { pointerId: 31, pointerType: "touch" });
+      expect(speed).toHaveAttribute("aria-pressed", "false");
+      expect(right).toHaveAttribute("aria-pressed", "true");
+      fireEvent.lostPointerCapture(right, { pointerId: 32, pointerType: "touch" });
+      expect(right).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("does not let touches on the question or answer gates activate any driving control", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const question = view.container.querySelector(".mcq-game-question-panel") as HTMLElement;
+    const gate = view.container.querySelector(".mcq-game-gate-label") as HTMLElement;
+    try {
+      fireEvent.pointerDown(question, { pointerId: 40, pointerType: "touch", button: 0 });
+      fireEvent.pointerDown(gate, { pointerId: 41, pointerType: "touch", button: 0 });
+      expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByTestId("mcq-game-steer-left")).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByTestId("mcq-game-steer-right")).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("steers continuously by elapsed time and clamps against the road boundary", () => {
+    const raf = installAnimationFrameQueue();
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const view = render(<MCQWithGame {...gameProps({ durationMs: 30_000 })} />);
+    const left = screen.getByTestId("mcq-game-steer-left");
+    const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
+    const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
+    try {
+      fireEvent.pointerDown(left, { pointerId: 51, pointerType: "touch", button: 0 });
+      for (let timestamp = 0; timestamp <= 1_500; timestamp += 50) raf.advance(timestamp);
+      const frame = renderer.mock.calls.at(-1)?.[0] as { carX: number };
+      expect(frame.carX).toBeCloseTo(-3.45, 1);
+      expect(screen.getByTestId("mcq-game-lane-readout")).toHaveTextContent("Lane 1");
+      fireEvent.pointerUp(left, { pointerId: 51, pointerType: "touch" });
+      expect(left).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("preserves speed across question changes while invalidating stale gate collisions", () => {
+    const raf = installAnimationFrameQueue();
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const view = render(<MCQWithGame {...gameProps({ durationMs: 30_000 })} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+    try {
+      fireEvent.pointerDown(speed, { pointerId: 8, pointerType: "touch", button: 0 });
+      for (let timestamp = 0; timestamp <= 400; timestamp += 50) raf.advance(timestamp);
+      const before = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
       view.rerender(<MCQWithGame {...gameProps({
         questionKey: "q-2",
         questionLabel: <p>18 + 9 = ?</p>,
@@ -701,48 +564,15 @@ describe("Full-screen continuous MCQ racing", () => {
           { value: "25", label: "25" },
         ],
         correctAnswer: "27",
+        durationMs: 30_000,
       })} />);
-
       expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
-      expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
-
-      for (let timestamp = 550; timestamp <= 850; timestamp += 50) raf.advance(timestamp);
-      const afterQuestionSpeed = Number(
-        racingAudioMocks.update.mock.calls.filter((call) => call[1] === true).at(-1)?.[0],
-      );
-      // The session speed value must not snap back on the question-key change;
-      // continuous speed integration itself is covered by the physics unit tests.
-      expect(afterQuestionSpeed).toBeGreaterThanOrEqual(beforeQuestionSpeed);
-      expect(createRacingAudioController).toHaveBeenCalledTimes(1);
-
-      now = 860;
-      fireEvent.pointerUp(stage, { pointerId: 8, button: 0, clientX: 320, clientY: 650 });
-      expect(screen.getByRole("status")).toHaveTextContent("Racing");
-    } finally {
-      view.unmount();
-      raf.restore();
-    }
-  });
-
-  it("does not steer when the initial pointer-down is on the question panel or an answer gate", () => {
-    const raf = installAnimationFrameQueue();
-    let now = 10;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
-    const view = render(<MCQWithGame {...gameProps()} />);
-    const question = view.container.querySelector(".mcq-game-question-panel") as HTMLElement;
-    const gate = view.container.querySelector(".mcq-game-gate-label") as HTMLElement;
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
-    setStageBounds(stage);
-
-    try {
-      fireEvent.pointerDown(question, { pointerId: 1, button: 0, clientX: 80, clientY: 20 });
-      now = 40;
-      fireEvent.pointerUp(question, { pointerId: 1, button: 0, clientX: 80, clientY: 20 });
-      fireEvent.pointerDown(gate, { pointerId: 2, button: 0, clientX: 80, clientY: 280 });
-      now = 70;
-      fireEvent.pointerUp(gate, { pointerId: 2, button: 0, clientX: 80, clientY: 280 });
-
-      expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 2");
+      expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "true");
+      for (let timestamp = 450; timestamp <= 750; timestamp += 50) raf.advance(timestamp);
+      const after = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(after).toBeGreaterThanOrEqual(before);
+      fireEvent.pointerUp(screen.getByTestId("mcq-game-accelerate"), { pointerId: 8, pointerType: "touch" });
+      expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "false");
     } finally {
       view.unmount();
       raf.restore();
@@ -756,7 +586,7 @@ describe("Full-screen continuous MCQ racing", () => {
     const onSelectOption = vi.fn();
     const firstMappings = createMCQGateMappings("q-1", options.map((option) => option.value));
     const view = render(<MCQWithGame {...gameProps({ onSelectOption })} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    const stage = screen.getByRole("group", { name: /four answer lanes/i });
     setStageBounds(stage);
 
     try {
@@ -976,7 +806,7 @@ describe("Full-screen continuous MCQ racing", () => {
     let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const view = render(<MCQWithGame {...gameProps({ questionKey: "q-hold-targets", durationMs: 5_000 })} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    const stage = screen.getByRole("group", { name: /four answer lanes/i });
     setStageBounds(stage);
     const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
     const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
@@ -1140,7 +970,7 @@ describe("Full-screen continuous MCQ racing", () => {
     let now = 10;
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const view = render(<MCQWithGame {...gameProps({ sessionKey: "session-1" })} />);
-    const stage = screen.getByRole("group", { name: /tap the left or right side/i });
+    const stage = screen.getByRole("group", { name: /four answer lanes/i });
     setStageBounds(stage);
 
     try {
