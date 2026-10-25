@@ -114,6 +114,7 @@ interface SpaceWorld {
   bossActive: boolean;
   bossHealth: number;
   bossMaxHealth: number;
+  bossAttackPulseMs: number;
   lastTimestamp: number | null;
 }
 
@@ -168,6 +169,7 @@ const createWorld = (): SpaceWorld => ({
   bossActive: false,
   bossHealth: 0,
   bossMaxHealth: 0,
+  bossAttackPulseMs: 0,
   lastTimestamp: null,
 });
 
@@ -285,6 +287,12 @@ function drawSpaceFrame(context: CanvasRenderingContext2D, world: SpaceWorld): v
     context.fillRect(bossX + bossWidth * .42, bossY - 6, bossWidth * .2, 18);
     context.fillStyle = "#ffb34d";
     context.fillRect(bossX - 10, bossY - 5, 20, 10);
+    if (world.bossAttackPulseMs > 0) {
+      context.fillStyle = "#ff4f73";
+      context.fillRect(bossX - 3, bossY + 23, 6, 20);
+      context.fillRect(bossX - 18, bossY + 23, 4, 12);
+      context.fillRect(bossX + 14, bossY + 23, 4, 12);
+    }
     context.fillStyle = "rgba(15, 9, 34, .92)";
     context.fillRect(bossX - bossWidth * .5, bossY + 22, bossWidth, 5);
     context.fillStyle = "#ff527b";
@@ -371,7 +379,7 @@ const MCQSpaceShooter = ({
 }: MCQSpaceShooterProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playfieldRef = useRef<HTMLDivElement | null>(null);
-  const targetRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const targetRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const worldRef = useRef<SpaceWorld>(createWorld());
   const latestPropsRef = useRef<MCQSpaceShooterProps>({
     questionKey,
@@ -442,6 +450,7 @@ const MCQSpaceShooter = ({
     try { return getSettings().sound; } catch { return true; }
   });
   const [statusMessage, setStatusMessage] = useState("AIM · FIRE · SOLVE");
+  const [levelNotice, setLevelNotice] = useState<number | null>(null);
   const [rendererError, setRendererError] = useState(false);
   const [rendererAttempt, setRendererAttempt] = useState(0);
   const pausedRef = useRef(false);
@@ -457,6 +466,8 @@ const MCQSpaceShooter = ({
   const controlSequenceRef = useRef(0);
   const processedFeedbackRef = useRef<string | null>(null);
   const damagePlayerRef = useRef<(message: string) => void>(() => undefined);
+  const levelNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastLevelRef = useRef(getSpaceShooterLevel(correctScore, difficulty));
   const submittedRef = useRef(false);
   const finalSubmitInvokedRef = useRef(false);
   const activeQuestionKeyRef = useRef(String(questionKey));
@@ -571,6 +582,14 @@ const MCQSpaceShooter = ({
     clearPendingDirectionalTap();
     clearActiveControls();
     const current = latestPropsRef.current;
+    livesRef.current = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current].lives;
+    setLives(livesRef.current);
+    comboRef.current = 0;
+    missionScoreRef.current = 0;
+    setCombo(0);
+    setMissionScore(0);
+    gameOverRef.current = false;
+    setGameOver(false);
     let accepted: boolean | void;
     try {
       accepted = current.onStartMission?.(difficultyRef.current);
@@ -602,9 +621,11 @@ const MCQSpaceShooter = ({
     setPausedState(true, "Mission briefing.", true);
     return () => {
       clearPendingDirectionalTap();
-      clearActiveControls();
+      activeControlsRef.current.clear();
+      worldRef.current.heldDirection = 0;
+      worldRef.current.boostHeld = false;
     };
-  }, [setPausedState, clearPendingDirectionalTap, clearActiveControls]);
+  }, [setPausedState, clearPendingDirectionalTap]);
 
   useEffect(() => {
     if (!configuredDifficulty) return;
@@ -630,6 +651,24 @@ const MCQSpaceShooter = ({
     if (score !== bestScore) setBestScore(score);
     persistBestScore(score);
   }, [bestScore]);
+
+  useEffect(() => {
+    const currentLevel = getSpaceShooterLevel(correctScore, difficulty);
+    const previousLevel = lastLevelRef.current;
+    if (currentLevel > previousLevel && !menuOpen && !gameOver) {
+      setLevelNotice(currentLevel);
+      if (levelNoticeTimerRef.current !== null) clearTimeout(levelNoticeTimerRef.current);
+      levelNoticeTimerRef.current = setTimeout(() => {
+        setLevelNotice(null);
+        levelNoticeTimerRef.current = null;
+      }, 1650);
+    }
+    lastLevelRef.current = currentLevel;
+  }, [correctScore, difficulty, menuOpen, gameOver]);
+
+  useEffect(() => () => {
+    if (levelNoticeTimerRef.current !== null) clearTimeout(levelNoticeTimerRef.current);
+  }, []);
 
   const fireProjectile = useCallback(() => {
     if (!canInteract()) return;
@@ -750,6 +789,7 @@ const MCQSpaceShooter = ({
     worldRef.current.hazards.length = 0;
     worldRef.current.hazardSpawnElapsedMs = 0;
     worldRef.current.invulnerableMs = 0;
+    worldRef.current.bossAttackPulseMs = 0;
     worldRef.current.heldDirection = 0;
     worldRef.current.boostHeld = false;
     worldRef.current.shipX = worldRef.current.width / 2;
@@ -868,6 +908,7 @@ const MCQSpaceShooter = ({
         world.bossHealth = bossState.health;
         world.bossMaxHealth = bossState.maximumHealth;
         world.invulnerableMs = Math.max(0, world.invulnerableMs - elapsedMs);
+        world.bossAttackPulseMs = Math.max(0, world.bossAttackPulseMs - elapsedMs);
 
         for (const star of world.stars) {
           star.y += star.speed * elapsedSeconds * (world.boostHeld ? 1.7 : 1);
@@ -900,19 +941,26 @@ const MCQSpaceShooter = ({
           );
 
           world.hazardSpawnElapsedMs += elapsedMs;
-          const spawnInterval = Math.max(540, rules.hazardSpawnMs - (world.level - 1) * 65);
+          const regularSpawnInterval = Math.max(540, rules.hazardSpawnMs - (world.level - 1) * 65);
+          const spawnInterval = bossState.active ? Math.min(850, regularSpawnInterval) : regularSpawnInterval;
           if (world.hazardSpawnElapsedMs >= spawnInterval && world.hazards.length < MAX_HAZARDS && world.width > 0) {
             world.hazardSpawnElapsedMs %= spawnInterval;
             const size = 22 + Math.random() * 15;
+            const bossAttack = bossState.active && !bossState.defeated && Math.random() < 0.68;
             world.hazards.push({
               id: world.nextHazardId++,
-              x: size + Math.random() * Math.max(1, world.width - size * 2),
-              y: -size,
+              x: bossAttack
+                ? clampSpaceShipX(world.width / 2 + (Math.random() - 0.5) * world.width * 0.28, world.width, size / 2)
+                : size + Math.random() * Math.max(1, world.width - size * 2),
+              y: bossAttack ? Math.max(44, world.height * 0.17) + 24 : -size,
               size,
-              speed: rules.hazardSpeed + Math.min(90, (world.level - 1) * 7) + Math.random() * 22,
-              drift: (Math.random() - 0.5) * 72,
-              kind: Math.random() < 0.38 ? "enemy" : "asteroid",
+              speed: bossAttack
+                ? rules.hazardSpeed * 1.55 + world.level * 7
+                : rules.hazardSpeed + Math.min(90, (world.level - 1) * 7) + Math.random() * 22,
+              drift: (Math.random() - 0.5) * (bossAttack ? 42 : 72),
+              kind: bossAttack || Math.random() < 0.38 ? "enemy" : "asteroid",
             });
+            if (bossAttack) world.bossAttackPulseMs = 480;
           }
 
           const shipY = Math.max(42, world.height - 42);
@@ -1023,7 +1071,6 @@ const MCQSpaceShooter = ({
   }, [clearPendingDirectionalTap]);
 
   useEffect(() => {
-    const stopMovement = () => clearActiveControls();
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest?.("button, input, textarea, select, [contenteditable='true']")) return;
@@ -1076,8 +1123,9 @@ const MCQSpaceShooter = ({
     window.addEventListener("keyup", onGlobalKeyUp);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
-      stopMovement();
-      clearActiveControls();
+      activeControlsRef.current.clear();
+      worldRef.current.heldDirection = 0;
+      worldRef.current.boostHeld = false;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onWindowBlur);
