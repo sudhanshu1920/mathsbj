@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-25 — MCQ with Game completion reliability
+
+- Automatically complete finite-question MCQ-with-Game sessions across Car Racing, Jump Adventure, Space Shooter, and Math Slice Ninja after the final non-timeout answer is accepted by the shared Quiz Engine and recorded.
+- Preserve existing retry/repetition queue rules and timer behavior; timeout outcomes do not masquerade as a player-selected final answer.
+- Keep Infinite sessions open until the whole-test Submit Test action is used, including when no answer has yet been recorded; do not fabricate an unanswered-question attempt.
+- Add integration regression tests for finite Jump Adventure completion, Infinite mode beyond ten answers, and manual completion with zero attempts.
+
+Validation passed: TypeScript typecheck, architecture regression checks, lint, unit tests, web build, and Android debug APK build in GitHub Actions.
+
+
 ## 2026-10-09 — Quiz startup and exit transition stability
 
 - Hide the Floating Bar from the explicit quiz startup phase, before the Practice page mounts.
