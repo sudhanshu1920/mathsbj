@@ -11,6 +11,7 @@ export interface SpaceShooterDifficultyQuestion {
   superscript?: string;
   questionFraction?: { n: number; d: number };
   trigFunctionId?: string;
+  percentagePresetId?: string;
 }
 
 export interface SpaceShooterDifficultyConfig {
@@ -131,7 +132,8 @@ export function selectSpaceShooterQuestions<T extends SpaceShooterDifficultyQues
 
   const groups = new Map<string, Array<{ question: T; originalIndex: number; complexity: number }>>();
   questions.forEach((question, originalIndex) => {
-    const topicKey = String(question.topicId ?? "general");
+    const topicKey = String(question.topicId ?? "general") +
+      (question.topicId === "percentage" ? `::preset:${String(question.percentagePresetId ?? "custom")}` : "");
     const items = groups.get(topicKey) ?? [];
     items.push({ question, originalIndex, complexity: getSpaceQuestionComplexity(question) });
     groups.set(topicKey, items);
