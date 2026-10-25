@@ -584,14 +584,6 @@ const MCQSpaceShooter = ({
     clearPendingDirectionalTap();
     clearActiveControls();
     const current = latestPropsRef.current;
-    livesRef.current = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current].lives;
-    setLives(livesRef.current);
-    comboRef.current = 0;
-    missionScoreRef.current = 0;
-    setCombo(0);
-    setMissionScore(0);
-    gameOverRef.current = false;
-    setGameOver(false);
     let accepted: boolean | void;
     try {
       accepted = current.onStartMission?.(difficultyRef.current);
@@ -602,6 +594,14 @@ const MCQSpaceShooter = ({
       setStatusMessage("MISSION COULD NOT START · CHECK QUIZ SETUP");
       return;
     }
+    livesRef.current = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current].lives;
+    setLives(livesRef.current);
+    comboRef.current = 0;
+    missionScoreRef.current = 0;
+    setCombo(0);
+    setMissionScore(0);
+    gameOverRef.current = false;
+    setGameOver(false);
     menuOpenRef.current = false;
     gameOverRef.current = false;
     setMenuOpen(false);
@@ -909,6 +909,13 @@ const MCQSpaceShooter = ({
       world.lastTimestamp = timestamp;
       const elapsedSeconds = elapsedMs / 1000;
       const current = latestPropsRef.current;
+
+      // The overlay owns presentation while the mission is stopped. Keep timing
+      // references fresh but avoid redrawing the procedural background at 60fps.
+      if (pausedRef.current || menuOpenRef.current || gameOverRef.current) {
+        frameId = window.requestAnimationFrame(tick);
+        return;
+      }
 
       if (!pausedRef.current && !menuOpenRef.current && !gameOverRef.current) {
         const rules = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current];
