@@ -116,13 +116,13 @@ function startMission() {
   vi.useRealTimers();
 }
 
-function mockLayout(view: ReturnType<typeof render>) {
+function mockLayout(view: ReturnType<typeof render>, targetIndex = 0) {
   const playfield = screen.getByRole("group", { name: "Space battlefield" });
   vi.spyOn(playfield, "getBoundingClientRect").mockReturnValue({
     x: 0, y: 0, left: 0, top: 0, right: 400, bottom: 600,
     width: 400, height: 600, toJSON: () => ({}),
   } as DOMRect);
-  const target = screen.getByTestId("space-target-0");
+  const target = screen.getByTestId(`space-target-${targetIndex}`);
   vi.spyOn(target, "getBoundingClientRect").mockReturnValue({
     x: 130, y: 70, left: 130, top: 70, right: 270, bottom: 140,
     width: 140, height: 70, toJSON: () => ({}),
@@ -240,8 +240,27 @@ describe("Math Space Shooter mission", () => {
     frames.restore();
   });
 
-  it("keeps simultaneous pointer controls independent across pointer-up, cancel and capture loss", () => {
+  it("submits the correct option identity for the active question after its target moves", () => {
     mockCanvasContext();
+    const frames = installFrameQueue();
+    const onSelectOption = vi.fn(() => true);
+    const view = render(<MCQSpaceShooter {...shooterProps({ onSelectOption })} />);
+    startMission();
+    const { target } = mockLayout(view, 1);
+
+    const originalTop = target.style.top;
+    frames.advance(0);
+    expect(target.style.top).not.toBe(originalTop);
+    fireEvent.click(target);
+    fireEvent.click(screen.getByTestId("space-control-fire"));
+    for (let frame = 1; frame < 38; frame += 1) frames.advance(frame * 40);
+
+    expect(onSelectOption).toHaveBeenCalledOnce();
+    expect(onSelectOption).toHaveBeenCalledWith(1, "28", expect.stringContaining("question-1"));
+    frames.restore();
+  });
+
+  it("keeps simultaneous pointer controls independent across pointer-up, cancel and capture loss", () =>    mockCanvasContext();
     render(<MCQSpaceShooter {...shooterProps()} />);
     startMission();
     const left = screen.getByTestId("space-control-left");
