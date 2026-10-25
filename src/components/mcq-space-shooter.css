@@ -1213,3 +1213,112 @@
 @media (prefers-reduced-motion: reduce) {
   .mcq-space-menu-scrim::before { animation: none !important; }
 }
+
+
+/* Active answer targets are simulation-positioned: their real DOM rectangles are used for laser collision checks. */
+.mcq-space-target-grid {
+  position: absolute !important;
+  inset: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  display: block !important;
+  width: 100%;
+  height: auto !important;
+  gap: 0 !important;
+  grid-template-columns: none !important;
+  grid-template-rows: none !important;
+  pointer-events: none;
+}
+.mcq-space-target {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: min(17%, 9.75rem);
+  min-width: 0 !important;
+  height: clamp(3.25rem, 8.5vh, 5.5rem);
+  min-height: 0;
+  margin: 0;
+  padding: .35rem .2rem;
+  transform: translate3d(-50%, -50%, 0) !important;
+  transform-origin: center;
+  animation: none !important;
+  transition: filter 120ms linear, border-color 120ms linear, box-shadow 120ms linear;
+  will-change: left, top;
+  pointer-events: auto;
+}
+.mcq-space-target:disabled { opacity: 1; }
+.mcq-space-target-label {
+  display: block;
+  max-width: 100%;
+  color: #fff !important;
+  font-size: clamp(.78rem, 2.7vw, 1.4rem);
+  font-weight: 950;
+  line-height: 1.1;
+  opacity: 1 !important;
+  filter: none !important;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-shadow: 2px 2px 0 #06102b, -1px -1px 0 #06102b;
+}
+.mcq-space-target-label :where(*) {
+  color: #fff !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+.mcq-space-target.is-aimed { z-index: 2; }
+.mcq-space-shell.is-frozen .mcq-space-target { will-change: auto; }
+
+/* High-contrast question card prevents the prompt from disappearing against the playfield. */
+.mcq-space-question {
+  align-self: stretch;
+  min-height: 3.5rem;
+  padding: .42rem .55rem;
+  border: 2px solid #00dfff;
+  background: #03091f;
+  box-shadow: inset 0 0 0 2px #102c72, 0 0 14px rgba(0, 229, 255, .16);
+}
+.mcq-space-question-label {
+  display: flex;
+  min-height: 2.1rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: .25rem;
+  color: #fff !important;
+  font-size: clamp(1.16rem, 3.6vw, 2rem);
+  font-weight: 950;
+  line-height: 1.15;
+  opacity: 1 !important;
+  filter: none !important;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-shadow: 0 0 1px #fff, 2px 2px 0 #102a8f, 0 0 12px rgba(0, 229, 255, .3);
+}
+.mcq-space-question-label :where(*) {
+  color: #fff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: inherit;
+}
+@media (max-width: 520px) {
+  .mcq-space-question { width: 100%; }
+  .mcq-space-question-label { min-height: 2rem; }
+}
+@media (max-width: 390px) {
+  .mcq-space-target { height: clamp(3.1rem, 8vh, 4.5rem); }
+  .mcq-space-target-label { font-size: clamp(.72rem, 3.1vw, 1rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mcq-space-target { animation: none !important; transition: none; }
+}
+
+/* Reduced-motion rules must not override the centered coordinates used by the target physics. */
+@media (prefers-reduced-motion: reduce) {
+  .mcq-space-shell .mcq-space-target,
+  .mcq-space-shell .mcq-space-target.is-aimed {
+    transform: translate3d(-50%, -50%, 0) !important;
+  }
+}
+

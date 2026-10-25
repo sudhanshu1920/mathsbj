@@ -3,11 +3,14 @@ import { ArrowLeft, BookOpen, Pause, Play, RotateCcw, Rocket, Shield, Timer, Tro
 import type { MCQGameValue } from "@/lib/mcqGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
 import {
+  advanceSpaceAnswerTargetMotion,
   advanceSpaceShooterBoost,
   advanceSpaceProjectile,
+  createSpaceAnswerTargetMotions,
   clampSpaceShipX,
   getSpaceAimVelocity,
   sweptSpaceProjectileHitsRect,
+  type SpaceAnswerTargetMotion,
   type SpaceProjectileMotion,
   type SpaceRect,
 } from "@/lib/mcqSpaceShooterPhysics";
@@ -109,6 +112,7 @@ interface SpaceWorld {
   projectiles: SpaceProjectile[];
   particles: SpaceParticle[];
   hazards: SpaceHazard[];
+  answerTargets: SpaceAnswerTargetMotion[];
   nextProjectileId: number;
   nextHazardId: number;
   hazardSpawnElapsedMs: number;
@@ -165,6 +169,7 @@ const createWorld = (): SpaceWorld => ({
   projectiles: [],
   particles: [],
   hazards: [],
+  answerTargets: [],
   nextProjectileId: 1,
   nextHazardId: 1,
   hazardSpawnElapsedMs: 0,
@@ -438,6 +443,32 @@ const MCQSpaceShooter = ({
   );
   const mappingsRef = useRef(mappings);
   mappingsRef.current = mappings;
+
+  const resetAnswerTargetMotion = useCallback(() => {
+    const world = worldRef.current;
+    if (world.width <= 0 || world.height <= 0) {
+      world.answerTargets = [];
+      return;
+    }
+    const count = Math.max(1, latestPropsRef.current.options.length);
+    const laneWidth = world.width / count;
+    const sizes = latestPropsRef.current.options.map((_, index) => {
+      const target = targetRefs.current[index];
+      const targetWidth = Math.max(1, Math.min(156, world.width * 0.17, laneWidth * 0.82));
+      const targetHeight = target && target.offsetHeight > 0
+        ? target.offsetHeight
+        : Math.min(88, Math.max(52, world.height * 0.09));
+      if (target) target.style.width = `${targetWidth}px`;
+      return { width: targetWidth, height: targetHeight };
+    });
+    world.answerTargets = createSpaceAnswerTargetMotions(world.width, world.height, sizes);
+    world.answerTargets.forEach((motion, index) => {
+      const target = targetRefs.current[index];
+      if (!target) return;
+      target.style.left = `${motion.x}px`;
+      target.style.top = `${motion.y}px`;
+    });
+  }, []);
 
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(options.length > 0 ? 0 : null);
   const [paused, setPaused] = useState(false);
@@ -850,6 +881,7 @@ const MCQSpaceShooter = ({
     worldRef.current.boostHeld = false;
     worldRef.current.boostFactor = 1;
     worldRef.current.shipX = worldRef.current.width / 2;
+    resetAnswerTargetMotion();
     selectedTargetRef.current = options.length > 0 ? 0 : null;
     setSelectedTargetIndex(options.length > 0 ? 0 : null);
     if (sessionChanged) {
@@ -868,7 +900,7 @@ const MCQSpaceShooter = ({
     }
     if (pausedRef.current && countdownRef.current === null) setPausedState(false, "Mission resumed.");
     else setStatusMessage("NEW TARGETS ACQUIRED · AIM AND FIRE");
-  }, [questionKey, sessionKey, setPausedState, clearPendingDirectionalTap, clearActiveControls, options.length]);
+  }, [questionKey, sessionKey, setPausedState, clearPendingDirectionalTap, clearActiveControls, options.length, resetAnswerTargetMotion]);
 
   useEffect(() => {
     if (!feedback) {
@@ -924,6 +956,7 @@ const MCQSpaceShooter = ({
       canvas.height = Math.round(rect.height * pixelRatio);
       context?.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       world.stars = createStars(rect.width, rect.height);
+      resetAnswerTargetMotion();
     };
 
     try {
@@ -1004,6 +1037,29 @@ const MCQSpaceShooter = ({
           activeQuestionKeyRef.current === String(current.questionKey);
 
         if (canSimulateCombat) {
+          if (world.answerTargets.length !== current.options.length) resetAnswerTargetMotion();
+          for (let targetIndex = 0; targetIndex < world.answerTargets.length; targetIndex += 1) {
+            const motion = world.answerTargets[targetIndex]!;
+            const nextMotion = advanceSpaceAnswerTargetMotion(
+              motion,
+              {
+                width: world.width,
+                height: world.height,
+                bottom: Math.min(
+                  world.height * 0.82,
+                  Math.max(0, Math.max(42, world.height - 42) - motion.height - 12),
+                ),
+              },
+              elapsedMs,
+            );
+            world.answerTargets[targetIndex] = nextMotion;
+            const targetElement = targetRefs.current[targetIndex];
+            if (targetElement) {
+              targetElement.style.left = `${nextMotion.x}px`;
+              targetElement.style.top = `${nextMotion.y}px`;
+            }
+          }
+
           world.shipX = clampSpaceShipX(
             world.shipX + world.heldDirection * rules.shipSpeed * world.boostFactor * elapsedSeconds,
             world.width,
@@ -1061,6 +1117,32 @@ const MCQSpaceShooter = ({
           const stageRect = playfield.getBoundingClientRect();
           for (let index = world.projectiles.length - 1; index >= 0; index -= 1) {
             const projectile = world.projectiles[index]!;
+            // Answer targets are intentionally mobile, so keep the laser guided toward
+            // its original target identity. This prevents normal target drift from
+            // making a correctly aimed answer shot miss purely due to animation timing.
+            const guidanceTarget = targetRefs.current[projectile.targetIndex];
+            const guidanceMapping = mappingsRef.current[projectile.targetIndex];
+            if (
+              guidanceTarget &&
+              guidanceMapping &&
+              projectile.questionKey === String(current.questionKey) &&
+              projectile.targetId === guidanceMapping.gateId &&
+              guidanceMapping.questionId === projectile.questionKey
+            ) {
+              const guidanceRect = guidanceTarget.getBoundingClientRect();
+              if (guidanceRect.width > 0 && guidanceRect.height > 0) {
+                const guidedVelocity = getSpaceAimVelocity(
+                  projectile,
+                  {
+                    x: guidanceRect.left + guidanceRect.width / 2 - stageRect.left,
+                    y: guidanceRect.top + guidanceRect.height / 2 - stageRect.top,
+                  },
+                  PROJECTILE_SPEED,
+                );
+                projectile.vx = guidedVelocity.x;
+                projectile.vy = guidedVelocity.y;
+              }
+            }
             const oldPoint = { x: projectile.x, y: projectile.y };
             const next = advanceSpaceProjectile(projectile, elapsedMs);
             projectile.x = next.x;
@@ -1130,7 +1212,7 @@ const MCQSpaceShooter = ({
       window.removeEventListener("resize", resize);
       if (frameId !== null) window.cancelAnimationFrame(frameId);
     };
-  }, [rendererAttempt, resolveProjectileHit]);
+  }, [rendererAttempt, resolveProjectileHit, resetAnswerTargetMotion]);
 
   useEffect(() => {
     void setGameImmersiveMode(true).catch(() => undefined);
@@ -1329,8 +1411,6 @@ const MCQSpaceShooter = ({
   const difficultyConfig = SPACE_SHOOTER_DIFFICULTIES[difficulty];
   const level = getSpaceShooterLevel(correctScore, difficulty);
   const boss = getSpaceShooterBossState(correctScore, difficulty);
-  const targetCount = Math.max(1, options.length);
-
   return (
     <section
       className={`mcq-space-shell${paused || disabled || !!feedback || finalSubmitReady || submittedRef.current || finalSubmitInvokedRef.current ? " is-frozen" : ""}`}
@@ -1380,7 +1460,7 @@ const MCQSpaceShooter = ({
       <section className="mcq-space-hud" aria-label="Mission status">
         <div className="mcq-space-question">
           <span className="mcq-space-eyebrow"><Zap size={12} aria-hidden="true" /> {difficultyConfig.label} · LEVEL {level}</span>
-          <div className="mcq-space-question-label">{questionLabel}</div>
+          <div className="mcq-space-question-label" data-testid="space-question-label">{questionLabel}</div>
         </div>
         <div className="mcq-space-stats">
           <span className="mcq-space-stat mcq-space-stat--score" aria-label={`Mission score ${missionScore}`}>★ {missionScore}</span>
@@ -1400,7 +1480,7 @@ const MCQSpaceShooter = ({
           <span>LEVEL {level}</span>
           {boss.active && <span className="mcq-space-boss-tag">BOSS · {boss.health}/{boss.maximumHealth} HP</span>}
         </div>
-        <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets" style={{ gridTemplateColumns: `repeat(${targetCount}, minmax(0, 1fr))` }}>
+        <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets">
           {options.map((option, index) => {
             const mapping = mappings[index];
             const feedbackClass = feedback && selectedOption === index

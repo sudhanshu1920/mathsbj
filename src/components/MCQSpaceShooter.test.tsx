@@ -116,17 +116,33 @@ function startMission() {
   vi.useRealTimers();
 }
 
-function mockLayout(view: ReturnType<typeof render>) {
+function mockLayout(view: ReturnType<typeof render>, targetIndex = 0, trackTargetMotion = false) {
   const playfield = screen.getByRole("group", { name: "Space battlefield" });
   vi.spyOn(playfield, "getBoundingClientRect").mockReturnValue({
     x: 0, y: 0, left: 0, top: 0, right: 400, bottom: 600,
     width: 400, height: 600, toJSON: () => ({}),
   } as DOMRect);
-  const target = screen.getByTestId("space-target-0");
-  vi.spyOn(target, "getBoundingClientRect").mockReturnValue({
-    x: 130, y: 70, left: 130, top: 70, right: 270, bottom: 140,
-    width: 140, height: 70, toJSON: () => ({}),
-  } as DOMRect);
+  const target = screen.getByTestId(`space-target-${targetIndex}`);
+  vi.spyOn(target, "getBoundingClientRect").mockImplementation(() => {
+    if (trackTargetMotion) {
+      const centerX = Number.parseFloat(target.style.left);
+      const centerY = Number.parseFloat(target.style.top);
+      const width = Number.parseFloat(target.style.width) || 64;
+      const height = Number.parseFloat(target.style.height) || 56;
+      const safeCenterX = Number.isFinite(centerX) ? centerX : 200;
+      const safeCenterY = Number.isFinite(centerY) ? centerY : 70;
+      const left = safeCenterX - width / 2;
+      const top = safeCenterY - height / 2;
+      return {
+        x: left, y: top, left, top, right: left + width, bottom: top + height,
+        width, height, toJSON: () => ({}),
+      } as DOMRect;
+    }
+    return {
+      x: 130, y: 70, left: 130, top: 70, right: 270, bottom: 140,
+      width: 140, height: 70, toJSON: () => ({}),
+    } as DOMRect;
+  });
   fireEvent(window, new Event("resize"));
   return { playfield, target, container: view.container };
 }
@@ -237,6 +253,26 @@ describe("Math Space Shooter mission", () => {
 
     fireEvent.click(screen.getByTestId("space-control-fire"));
     expect(onSelectOption).toHaveBeenCalledTimes(1);
+    frames.restore();
+  });
+
+  it("submits the correct option identity for the active question after its target moves", () => {
+    mockCanvasContext();
+    const frames = installFrameQueue();
+    const onSelectOption = vi.fn(() => true);
+    const view = render(<MCQSpaceShooter {...shooterProps({ onSelectOption })} />);
+    startMission();
+    const { target } = mockLayout(view, 1, true);
+
+    const originalTop = target.style.top;
+    frames.advance(0);
+    expect(target.style.top).not.toBe(originalTop);
+    fireEvent.click(target);
+    fireEvent.click(screen.getByTestId("space-control-fire"));
+    for (let frame = 1; frame < 38; frame += 1) frames.advance(frame * 40);
+
+    expect(onSelectOption).toHaveBeenCalledOnce();
+    expect(onSelectOption).toHaveBeenCalledWith(1, "28", expect.stringContaining("question-1"));
     frames.restore();
   });
 

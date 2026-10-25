@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  advanceSpaceAnswerTargetMotion,
   advanceSpaceShooterBoost,
+  createSpaceAnswerTargetMotions,
   advanceSpaceProjectile,
   clampSpaceShipX,
   getSpaceAimVelocity,
@@ -8,6 +10,48 @@ import {
 } from "@/lib/mcqSpaceShooterPhysics";
 
 describe("Math Space Shooter physics", () => {
+  it("spawns answer targets from the top in distinct randomized lanes", () => {
+    const targets = createSpaceAnswerTargetMotions(
+      400,
+      600,
+      Array.from({ length: 4 }, () => ({ width: 64, height: 56 })),
+      () => 0.5,
+    );
+
+    expect(targets).toHaveLength(4);
+    expect(targets.some((target) => target.y < 0)).toBe(true);
+    expect(new Set(targets.map((target) => Math.round(target.x))).size).toBe(4);
+    expect(targets.every((target) => target.x >= target.leftBound && target.x <= target.rightBound)).toBe(true);
+  });
+
+  it("moves answer targets down, bounces them inside their lane, and respawns them at the top", () => {
+    const target = {
+      x: 50,
+      y: 100,
+      vx: 40,
+      fallSpeed: 50,
+      width: 60,
+      height: 50,
+      turnInMs: 1000,
+      leftBound: 30,
+      rightBound: 70,
+    };
+
+    const moved = advanceSpaceAnswerTargetMotion(target, { width: 400, height: 600 }, 16, () => 0.5);
+    expect(moved.x).toBeCloseTo(50.64);
+    expect(moved.y).toBeCloseTo(100.8);
+    expect(moved.vx).toBe(40);
+
+    const bounced = advanceSpaceAnswerTargetMotion({ ...target, x: 69.9, vx: 50 }, { width: 400, height: 600 }, 40, () => 0.5);
+    expect(bounced.x).toBe(70);
+    expect(bounced.vx).toBeLessThan(0);
+
+    const respawned = advanceSpaceAnswerTargetMotion({ ...target, y: 520 }, { width: 400, height: 600, bottom: 480 }, 40, () => 0.5);
+    expect(respawned.y).toBeLessThan(0);
+    expect(respawned.x).toBeGreaterThanOrEqual(respawned.leftBound);
+    expect(respawned.x).toBeLessThanOrEqual(respawned.rightBound);
+  });
+
   it("ramps boost smoothly and returns toward normal after release", () => {
     expect(advanceSpaceShooterBoost(1, true, 1.7, 0)).toBe(1);
     const accelerating = advanceSpaceShooterBoost(1, true, 1.7, 16);
