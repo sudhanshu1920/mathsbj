@@ -260,7 +260,8 @@ describe("Math Space Shooter mission", () => {
     frames.restore();
   });
 
-  it("keeps simultaneous pointer controls independent across pointer-up, cancel and capture loss", () =>    mockCanvasContext();
+  it("keeps simultaneous pointer controls independent across pointer-up, cancel and capture loss", () => {
+    mockCanvasContext();
     render(<MCQSpaceShooter {...shooterProps()} />);
     startMission();
     const left = screen.getByTestId("space-control-left");
