@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-25 — 3D Car Racing controls and multi-touch
+
+- Replace invisible full-screen half-zone gestures with a dedicated left-side Speed hold button and right-side Left/Right steering buttons.
+- Track each active pointer independently by role; release/cancel/lost-capture events affect only their own active pointer, and the latest held steering direction wins until it releases.
+- Advance acceleration and continuous steering in the existing animation loop using bounded elapsed-time physics; retain coasting, max speed, road bounds and speed-driven visual effects.
+- Cache screen-space control bounds to keep moving answer-gate labels from being obscured by buttons, and add alternating road-shoulder reflectors to the existing scrolling mesh without additional draw calls.
+- Preserve the single 3D scene/render loop, answer-gate IDs and collision checks, current Quiz Engine answer callback, scoring, timer, progress, navigation and unrelated game modes.
+- Add regressions for simultaneous Speed+steering, independent releases, stale pointer-capture events, steering priority/road bounds, speed coasting and rejected-collision recovery.
+
+Validation passed in GitHub Actions: 57 test files / 420 tests, TypeScript typecheck, architecture regression, lint, web build, native Android debug APK compile and artifact upload. No physical-device or emulator multi-touch/FPS profiling was performed.
+
 ## 2026-10-25 — MCQ with Game completion reliability
 
 - Automatically complete finite-question MCQ-with-Game sessions across Car Racing, Jump Adventure, Space Shooter, and Math Slice Ninja after the final non-timeout answer is accepted by the shared Quiz Engine and recorded.
