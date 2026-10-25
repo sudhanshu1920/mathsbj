@@ -306,8 +306,6 @@ const MCQWithGame = ({
       phaseRef.current = "PAUSED";
       setPhase("PAUSED");
       clearActiveControls();
-      activePointersRef.current.clear();
-      syncBoostState();
       lastTimestampRef.current = null;
       racingAudioRef.current?.pause();
       if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
@@ -331,7 +329,7 @@ const MCQWithGame = ({
     void setGameImmersiveMode(true);
     current.onPauseChange?.(false);
     scheduleFrameRef.current?.();
-  }, [clearActiveControls, syncBoostState]);
+  }, [clearActiveControls]);
 
   const changeLane = useCallback((direction: -1 | 1) => {
     if (disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
@@ -359,8 +357,6 @@ const MCQWithGame = ({
     // Stop every gameplay pointer on answer commit so a held finger cannot
     // keep accelerating while the Quiz Engine transitions to feedback.
     clearActiveControls();
-    activePointersRef.current.clear();
-    syncBoostState();
 
     // A gate selection is the per-question commit event. Lock synchronously
     // before the existing Quiz Engine callback runs so touch/collision races
@@ -393,7 +389,7 @@ const MCQWithGame = ({
       releaseRejectedSelection();
       throw error;
     }
-  }, [clearActiveControls, syncBoostState]);
+  }, [clearActiveControls]);
 
   const submitWholeTest = useCallback(() => {
     const current = latestPropsRef.current;
@@ -787,8 +783,6 @@ const MCQWithGame = ({
       activeSessionKeyRef.current = nextSessionKey;
       setShowRestartConfirmation(false);
       clearActiveControls();
-      activePointersRef.current.clear();
-      syncBoostState();
       laneRef.current = 1;
       targetCarXRef.current = MCQ_GAME_LANE_X[1];
       carXRef.current = MCQ_GAME_LANE_X[1];
@@ -825,8 +819,6 @@ const MCQWithGame = ({
   useEffect(() => {
     if (feedback || disabled || finalSubmitReady) {
       clearActiveControls();
-      activePointersRef.current.clear();
-      syncBoostState();
     }
     if (!feedback) return;
     submittedRef.current = true;
@@ -835,7 +827,7 @@ const MCQWithGame = ({
       setPhase("FEEDBACK");
     }
     drawCurrentFrameRef.current?.();
-  }, [feedback, disabled, finalSubmitReady, clearActiveControls, syncBoostState]);
+  }, [feedback, disabled, finalSubmitReady, clearActiveControls]);
 
   const correctLane = options.findIndex((option) => String(option.value) === String(correctAnswer));
   const laneAnnouncement = "Lane " + String(lane + 1);
