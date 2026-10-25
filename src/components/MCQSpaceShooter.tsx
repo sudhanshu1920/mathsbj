@@ -1325,12 +1325,15 @@ const MCQSpaceShooter = ({
         <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets" style={{ gridTemplateColumns: `repeat(${targetCount}, minmax(0, 1fr))` }}>
           {options.map((option, index) => {
             const mapping = mappings[index];
+            const feedbackClass = feedback && selectedOption === index
+              ? (feedback === "correct" ? " is-destroyed" : " is-hit-wrong")
+              : "";
             return (
               <button
                 type="button"
                 key={mapping?.gateId ?? `${String(questionKey)}-${index}`}
                 ref={(element) => { targetRefs.current[index] = element; }}
-                className={`mcq-space-target mcq-space-target--${index % 4}${selectedTargetIndex === index ? " is-aimed" : ""}`}
+                className={`mcq-space-target mcq-space-target--${index % 4}${selectedTargetIndex === index ? " is-aimed" : ""}${feedbackClass}`}
                 onClick={() => selectAnswerTarget(index)}
                 disabled={!canInteract()}
                 aria-label={`Aim at answer ${index + 1}: ${String(option.value)}`}
@@ -1340,12 +1343,17 @@ const MCQSpaceShooter = ({
                 data-testid={`space-target-${index}`}
               >
                 <span className="mcq-space-target-label">{option.label}</span>
-                <span className="mcq-space-target-spark" aria-hidden="true">✦</span>
+                <span className="mcq-space-target-spark" aria-hidden="true">{feedback && selectedOption === index ? (feedback === "correct" ? "✓" : "×") : "✦"}</span>
               </button>
             );
           })}
         </div>
         <div className="mcq-space-status" role="status" aria-live="polite">{statusMessage}</div>
+        {levelNotice !== null && !paused && !menuOpen && !gameOver && (
+          <div className="mcq-space-level-notice" role="status" aria-live="polite">
+            {levelNotice % 3 === 0 ? "⚠ BOSS INCOMING" : `LEVEL ${levelNotice} REACHED`}
+          </div>
+        )}
 
         {rendererError && (
           <div className="mcq-space-renderer-error" role="alert">
