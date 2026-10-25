@@ -52,7 +52,7 @@ export const SPACE_SHOOTER_DIFFICULTIES: Record<SpaceShooterDifficulty, SpaceSho
     boostMultiplier: 1.4,
     hazardSpeed: 154,
     hazardSpawnMs: 1080,
-    questionsPerLevel: 4,
+    questionsPerLevel: 5,
     bossHits: 4,
   },
 };
