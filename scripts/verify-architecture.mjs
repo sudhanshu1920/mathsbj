@@ -921,7 +921,7 @@ const digitMultiSelectUiTests = read('src/pages/PracticePage.digitMultiSelect.te
 const digitMultiSelectGeneratorTests = read('src/test/practiceQuestionGeneration.test.ts');
 if (!practice.includes('operand1DigitCounts?: number[]') ||
     !practice.includes('getSelectedDigitCounts(range, 1)') ||
-    !practice.includes('selectQuestionsWithDigitCoverage(baseQuestions, config.count, config.sequential)') ||
+    !practice.includes('selectQuestionsWithDigitCoverage(questionCandidates, config.count, config.sequential)') ||
     !practice.includes('grid grid-cols-5 gap-1 sm:gap-1.5') ||
     !practice.includes('{digits}D') ||
     !digitMultiSelectUiTests.includes('selects multiple digits independently') ||
