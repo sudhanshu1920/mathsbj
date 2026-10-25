@@ -439,6 +439,7 @@ const MCQSpaceShooter = ({
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(options.length > 0 ? 0 : null);
   const [paused, setPaused] = useState(false);
   const [menuOpen, setMenuOpen] = useState(true);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [difficulty, setDifficulty] = useState<SpaceShooterDifficulty>(loadStoredDifficulty);
   const [heldControls, setHeldControls] = useState({ left: false, right: false, boost: false });
@@ -456,6 +457,8 @@ const MCQSpaceShooter = ({
   const [rendererAttempt, setRendererAttempt] = useState(0);
   const pausedRef = useRef(false);
   const menuOpenRef = useRef(true);
+  const countdownRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const difficultyRef = useRef(difficulty);
   const configuredDifficultyRef = useRef(configuredDifficulty);
   difficultyRef.current = difficulty;
@@ -543,7 +546,10 @@ const MCQSpaceShooter = ({
       const current = latestPropsRef.current;
       if (current.disabled || current.feedback || current.finalSubmitReady || submittedRef.current) return;
     }
-    if (pausedRef.current === nextPaused) return;
+    if (pausedRef.current === nextPaused) {
+      if (force) latestPropsRef.current.onPauseChange?.(nextPaused);
+      return;
+    }
     pausedRef.current = nextPaused;
     clearPendingDirectionalTap();
     clearActiveControls();
@@ -552,6 +558,37 @@ const MCQSpaceShooter = ({
     setStatusMessage(message);
     latestPropsRef.current.onPauseChange?.(nextPaused);
   }, [clearPendingDirectionalTap, clearActiveControls]);
+
+  const cancelCountdown = useCallback((updateUi = true) => {
+    if (countdownTimerRef.current !== null) clearTimeout(countdownTimerRef.current);
+    countdownTimerRef.current = null;
+    countdownRef.current = null;
+    if (updateUi) setCountdown(null);
+  }, []);
+
+  const startCountdown = useCallback(() => {
+    cancelCountdown(false);
+    countdownRef.current = 3;
+    setCountdown(3);
+    const advance = () => {
+      const current = countdownRef.current;
+      if (current === null) return;
+      if (current > 0) {
+        const next = current - 1;
+        countdownRef.current = next;
+        setCountdown(next);
+        countdownTimerRef.current = setTimeout(advance, next === 0 ? 350 : 800);
+        return;
+      }
+      countdownRef.current = null;
+      countdownTimerRef.current = null;
+      setCountdown(null);
+      worldRef.current.lastTimestamp = null;
+      setStatusMessage("GO · MISSION START");
+      setPausedState(false, "Mission started.", true);
+    };
+    countdownTimerRef.current = setTimeout(advance, 800);
+  }, [cancelCountdown, setPausedState]);
 
   const handlePlayerDamage = useCallback((message: string) => {
     if (gameOverRef.current || pausedRef.current || menuOpenRef.current) return;
@@ -606,10 +643,11 @@ const MCQSpaceShooter = ({
     gameOverRef.current = false;
     setMenuOpen(false);
     setGameOver(false);
-    setPausedState(false, "MISSION START · TARGETS ONLINE");
-    setStatusMessage("MISSION START · TARGETS ONLINE");
+    setStatusMessage("PREPARE FOR LAUNCH · 3");
+    setPausedState(true, "Countdown before launch.", true);
+    startCountdown();
     playClick();
-  }, [clearPendingDirectionalTap, clearActiveControls, disabled, feedback, finalSubmitReady, setPausedState]);
+  }, [clearPendingDirectionalTap, clearActiveControls, disabled, feedback, finalSubmitReady, setPausedState, startCountdown]);
 
   const selectAnswerTarget = useCallback((index: number) => {
     if (!canInteract() || index < 0 || index >= latestPropsRef.current.options.length || !mappingsRef.current[index]) return;
@@ -626,6 +664,9 @@ const MCQSpaceShooter = ({
       activeControlsRef.current.clear();
       worldRef.current.heldDirection = 0;
       worldRef.current.boostHeld = false;
+      if (countdownTimerRef.current !== null) clearTimeout(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+      countdownRef.current = null;
     };
   }, [setPausedState, clearPendingDirectionalTap]);
 
@@ -820,7 +861,7 @@ const MCQSpaceShooter = ({
       worldRef.current.level = 1;
       worldRef.current.bossActive = false;
     }
-    if (pausedRef.current) setPausedState(false, "Mission resumed.");
+    if (pausedRef.current && countdownRef.current === null) setPausedState(false, "Mission resumed.");
     else setStatusMessage("NEW TARGETS ACQUIRED · AIM AND FIRE");
   }, [questionKey, sessionKey, setPausedState, clearPendingDirectionalTap, clearActiveControls, options.length]);
 
@@ -1120,11 +1161,13 @@ const MCQSpaceShooter = ({
     };
     const onVisibilityChange = () => {
       if (document.visibilityState !== "visible") {
+        cancelCountdown();
         clearActiveControls();
         setPausedState(true, "Paused while the app is in the background.", true);
       }
     };
     const onWindowBlur = () => {
+      cancelCountdown();
       clearActiveControls();
       setPausedState(true, "Paused after the app lost focus.", true);
     };
@@ -1156,7 +1199,7 @@ const MCQSpaceShooter = ({
       window.removeEventListener("keyup", onGlobalKeyUp);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [canInteract, fireProjectile, setPausedState, clearActiveControls, endControl, beginControl]);
+  }, [canInteract, fireProjectile, setPausedState, clearActiveControls, endControl, beginControl, cancelCountdown]);
 
   const handlePointerControlDown = (event: ReactPointerEvent<HTMLButtonElement>, action: SpaceControlAction) => {
     event.preventDefault();
@@ -1209,6 +1252,7 @@ const MCQSpaceShooter = ({
   };
 
   const restartMission = () => {
+    cancelCountdown();
     clearActiveControls();
     clearPendingDirectionalTap();
     worldRef.current.projectiles.length = 0;
@@ -1239,6 +1283,7 @@ const MCQSpaceShooter = ({
   };
 
   const handleChangeGame = () => {
+    cancelCountdown();
     if (pausedRef.current) setPausedState(false, "Opening game selection.");
     latestPropsRef.current.onChangeGame?.();
   };
@@ -1313,7 +1358,7 @@ const MCQSpaceShooter = ({
             type="button"
             className="mcq-space-icon-button"
             onClick={choosePause}
-            disabled={menuOpen || gameOver || (!paused && !canInteract())}
+            disabled={menuOpen || gameOver || countdown !== null || (!paused && !canInteract())}
             aria-label={paused && !menuOpen && !gameOver ? "Resume game" : "Pause game"}
           >
             {paused ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />}
@@ -1526,7 +1571,17 @@ const MCQSpaceShooter = ({
         </div>
       )}
 
-      {paused && !menuOpen && !gameOver && (
+      {countdown !== null && !menuOpen && !gameOver && (
+        <div className="mcq-space-countdown-scrim" role="status" aria-label="Mission start countdown" aria-live="assertive">
+          <div className="mcq-space-countdown-card">
+            <span className="mcq-space-countdown-label">SYSTEMS ONLINE</span>
+            <strong key={countdown}>{countdown === 0 ? "GO!" : countdown}</strong>
+            <span className="mcq-space-countdown-subtitle">PREPARE FOR LAUNCH</span>
+          </div>
+        </div>
+      )}
+
+      {paused && !menuOpen && !gameOver && countdown === null && (
         <div className="mcq-space-pause-scrim">
           <section className="mcq-space-pause-card" role="dialog" aria-modal="true" aria-labelledby="mcq-space-paused-title">
             <span className="mcq-space-pause-icon"><Pause size={24} aria-hidden="true" /></span>
