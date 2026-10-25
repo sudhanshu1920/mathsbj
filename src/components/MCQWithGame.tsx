@@ -120,7 +120,6 @@ const MCQWithGame = ({
   const activeQuestionKeyRef = useRef(String(questionKey));
   const activeSessionKeyRef = useRef(String(sessionKey ?? "default"));
   const boostingRef = useRef(false);
-  const steeringDirectionRef = useRef<MCQSteeringDirection | null>(null);
   const speedMultiplierRef = useRef(MCQ_GAME_BASE_SPEED_MULTIPLIER);
   // Each real touchscreen pointer belongs to one explicit control. Releasing one ID
   // never alters another active speed or steering button.
@@ -217,7 +216,6 @@ const MCQWithGame = ({
 
   const syncSteeringState = useCallback(() => {
     const nextDirection = resolveMCQSteeringDirection(activePointersRef.current);
-    steeringDirectionRef.current = nextDirection;
     setSteeringDirection((previous) => previous === nextDirection ? previous : nextDirection);
   }, []);
 
@@ -228,7 +226,6 @@ const MCQWithGame = ({
   }, [syncBoostState, syncSteeringState]);
 
   const clearActiveControls = useCallback(() => {
-    if (activePointersRef.current.size === 0) return;
     activePointersRef.current.clear();
     syncBoostState();
     syncSteeringState();
@@ -445,7 +442,6 @@ const MCQWithGame = ({
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearActiveControls();
-      activePointersRef.current.clear();
       boostingRef.current = false;
       void setGameImmersiveMode(false);
       document.documentElement.style.overflow = previousHtmlOverflow;
@@ -790,7 +786,6 @@ const MCQWithGame = ({
       speedMultiplierRef.current = MCQ_GAME_BASE_SPEED_MULTIPLIER;
       steerAngleRef.current = 0;
       boostingRef.current = false;
-      steeringDirectionRef.current = null;
       setBoosting(false);
       setSteeringDirection(null);
       scrollOffsetRef.current = 0;
@@ -814,7 +809,7 @@ const MCQWithGame = ({
     setPhase(nextPhase);
     drawCurrentFrameRef.current?.();
     scheduleFrameRef.current?.();
-  }, [questionKey, sessionKey, clearActiveControls, syncBoostState]);
+  }, [questionKey, sessionKey, clearActiveControls]);
 
   useEffect(() => {
     if (feedback || disabled || finalSubmitReady) {
