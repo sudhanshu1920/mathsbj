@@ -110,7 +110,10 @@ function shooterProps(overrides: Partial<ComponentProps<typeof MCQSpaceShooter>>
 }
 
 function startMission() {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   fireEvent.click(screen.getByTestId("space-start-mission"));
+  act(() => vi.advanceTimersByTime(2750));
+  vi.useRealTimers();
 }
 
 function mockLayout(view: ReturnType<typeof render>) {
@@ -173,6 +176,29 @@ describe("Math Space Shooter mission", () => {
     expect(screen.queryByRole("dialog", { name: "MATH SPACE SHOOTER" })).not.toBeInTheDocument();
     expect(screen.getByTestId("space-control-fire")).toBeEnabled();
     expect(onChangeGame).not.toHaveBeenCalled();
+  });
+
+  it("runs a 3-2-1-GO countdown while keeping the parent quiz timer paused", () => {
+    mockCanvasContext();
+    const onPauseChange = vi.fn();
+    render(<MCQSpaceShooter {...shooterProps({ onPauseChange })} />);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fireEvent.click(screen.getByTestId("space-start-mission"));
+
+    const countdown = screen.getByRole("status", { name: "Mission start countdown" });
+    expect(countdown).toHaveTextContent("3");
+    expect(onPauseChange).toHaveBeenLastCalledWith(true);
+    act(() => vi.advanceTimersByTime(800));
+    expect(screen.getByRole("status", { name: "Mission start countdown" })).toHaveTextContent("2");
+    act(() => vi.advanceTimersByTime(800));
+    expect(screen.getByRole("status", { name: "Mission start countdown" })).toHaveTextContent("1");
+    act(() => vi.advanceTimersByTime(800));
+    expect(screen.getByRole("status", { name: "Mission start countdown" })).toHaveTextContent("GO!");
+    expect(onPauseChange).toHaveBeenLastCalledWith(true);
+    act(() => vi.advanceTimersByTime(350));
+    expect(screen.queryByRole("status", { name: "Mission start countdown" })).not.toBeInTheDocument();
+    expect(onPauseChange).toHaveBeenLastCalledWith(false);
+    vi.useRealTimers();
   });
 
   it("renders real answer targets and four explicit movement, fire and boost controls", () => {
