@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  doesSpaceHazardHitShip,
   getSpaceShooterBestScore,
   getSpaceShooterBossState,
   getSpaceShooterLevel,
@@ -19,6 +20,17 @@ const tableQuestions = Array.from({ length: 30 }, (_, index) => {
 });
 
 describe("Math Space Shooter mission rules", () => {
+  it("applies ship collision only inside the collision bounds and outside invulnerability", () => {
+    const collision = {
+      hazardX: 100, hazardY: 500, hazardSize: 30,
+      shipX: 100, shipY: 500, shipRadius: 24, invulnerableMs: 0,
+    };
+    expect(doesSpaceHazardHitShip(collision)).toBe(true);
+    expect(doesSpaceHazardHitShip({ ...collision, invulnerableMs: 50 })).toBe(false);
+    expect(doesSpaceHazardHitShip({ ...collision, hazardX: 220 })).toBe(false);
+    expect(doesSpaceHazardHitShip({ ...collision, hazardX: Number.NaN })).toBe(false);
+  });
+
   it("normalizes unknown difficulty and clamps invalid persistent scores", () => {
     expect(normalizeSpaceShooterDifficulty("hard")).toBe("hard");
     expect(normalizeSpaceShooterDifficulty("extreme")).toBe("medium");
