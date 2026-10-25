@@ -1514,8 +1514,10 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           ? !isMCQGameCollisionWithinDeadline(eventTimestampMs, questionDeadlineRef.current)
           : performance.now() >= questionDeadlineRef.current);
       const lateCarCollision = isCarTargetCollision && questionExpired;
-      const finalCarCollisionAccepted = isCarTargetCollision && !lateCarCollision;
       const submittedAnswer = questionExpired ? null : answer;
+      // Only a non-timeout answer is eligible to trigger finite game auto-submit.
+      // The existing timer path records timeouts separately as null outcomes.
+      const finalGameAnswerAccepted = config.mode === 'game' && submittedAnswer !== null;
       if (questionExpired) setTimeLeft(0);
       answerLockRef.current = true;
       if (questionTimeoutTimerRef.current) clearTimeout(questionTimeoutTimerRef.current);
@@ -1670,16 +1672,18 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           originalQuestionCountRef.current,
         );
         if (isFiniteQuiz && shouldFinishCurrentPool) {
-          if (config.mode === 'game' && selectedGameVariant === 'car' && finalCarCollisionAccepted) {
-            // Final physical contact is scored before the existing one-shot completion flow.
+          if (config.mode === 'game') {
+            // All games share the same completion contract: auto-submit only after
+            // this final question's answer has been accepted and recorded. A timeout
+            // (null answer) keeps the explicit-submit fallback instead of masquerading
+            // as a player-selected answer.
             questionDeadlineRef.current = null;
             setTimeLeft(0);
-            finishQuiz({ playSubmitSound: true });
-          } else if (config.mode === 'game') {
-            // Preserve manual completion for other games, timeouts and unresolved retries.
-            questionDeadlineRef.current = null;
-            setTimeLeft(0);
-            setFinalSubmitReady(true);
+            if (finalGameAnswerAccepted) {
+              finishQuiz({ playSubmitSound: true });
+            } else {
+              setFinalSubmitReady(true);
+            }
           } else {
             // Preserve the established automatic completion flow for non-game quizzes.
             finishQuiz({ playSubmitSound: true });
@@ -2218,10 +2222,20 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     };
 
     const handleGameFinalSubmit = (): boolean => {
-      // Space Shooter can explicitly end a finite test early. Other game modes
-      // keep their existing final-submit policy unchanged.
+      // Ignore repeated taps and never race an answer that is still being recorded.
       if (finishLockRef.current || answerLockRef.current || feedback || finished) return false;
-      if (finalSubmitReadyRef.current || (config.mode === 'game' && (selectedGameVariant === 'shooter' || selectedGameVariant === 'slice'))) {
+
+      // Infinite MCQ-with-Game sessions finish only through this explicit whole-test
+      // action, including when the current question is unanswered. No fake attempt
+      // is added; previously recorded answers remain the complete result dataset.
+      const isInfiniteGameSession = config.infinite &&
+        !config.repetitionEnabled &&
+        config.timerMode !== 'challenge';
+      if (
+        finalSubmitReadyRef.current ||
+        isInfiniteGameSession ||
+        (config.mode === 'game' && (selectedGameVariant === 'shooter' || selectedGameVariant === 'slice'))
+      ) {
         finishQuiz({ playSubmitSound: true });
         return true;
       }
@@ -2248,7 +2262,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       disabled: !!feedback || finished || answerLockRef.current || finishLockRef.current,
       finalSubmitReady,
       canFinalizeTest: finalSubmitReady || (
-        config.infinite && !config.repetitionEnabled && config.timerMode !== 'challenge' && score.correct + score.wrong > 0
+        config.infinite && !config.repetitionEnabled && config.timerMode !== 'challenge'
       ),
       onSelectOption: handleGameOptionSelect,
       onFinalSubmit: handleGameFinalSubmit,
