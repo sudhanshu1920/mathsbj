@@ -14,6 +14,7 @@ import { setGameImmersiveMode } from "@/lib/gameImmersiveMode";
 import { playClick, playSpaceExplosion, playSpaceLaser } from "@/lib/sound";
 import { getSettings, setSound } from "@/lib/settings";
 import {
+  doesSpaceHazardHitShip,
   getSpaceShooterBestScore,
   getSpaceShooterBossState,
   getSpaceShooterLevel,
@@ -450,7 +451,7 @@ const MCQSpaceShooter = ({
     try { return getSettings().sound; } catch { return true; }
   });
   const [statusMessage, setStatusMessage] = useState("AIM · FIRE · SOLVE");
-  const [levelNotice, setLevelNotice] = useState<number | null>(null);
+  const [levelNotice, setLevelNotice] = useState<string | null>(null);
   const [rendererError, setRendererError] = useState(false);
   const [rendererAttempt, setRendererAttempt] = useState(0);
   const pausedRef = useRef(false);
@@ -661,7 +662,12 @@ const MCQSpaceShooter = ({
     const currentLevel = getSpaceShooterLevel(correctScore, difficulty);
     const previousLevel = lastLevelRef.current;
     if (currentLevel > previousLevel && !menuOpen && !gameOver) {
-      setLevelNotice(currentLevel);
+      const notice = currentLevel % 3 === 0
+        ? "BOSS INCOMING"
+        : previousLevel % 3 === 0
+          ? "BOSS DEFEATED · SECTOR CLEARED"
+          : `LEVEL ${currentLevel} REACHED`;
+      setLevelNotice(notice);
       if (levelNoticeTimerRef.current !== null) clearTimeout(levelNoticeTimerRef.current);
       levelNoticeTimerRef.current = setTimeout(() => {
         setLevelNotice(null);
@@ -977,11 +983,15 @@ const MCQSpaceShooter = ({
               world.hazards.splice(index, 1);
               continue;
             }
-            if (
-              world.invulnerableMs <= 0 &&
-              Math.abs(hazard.x - world.shipX) < hazard.size * 0.5 + SHIP_RADIUS * 0.55 &&
-              Math.abs(hazard.y - shipY) < hazard.size * 0.45 + 14
-            ) {
+            if (doesSpaceHazardHitShip({
+              hazardX: hazard.x,
+              hazardY: hazard.y,
+              hazardSize: hazard.size,
+              shipX: world.shipX,
+              shipY,
+              shipRadius: SHIP_RADIUS,
+              invulnerableMs: world.invulnerableMs,
+            })) {
               createHitParticles(world, hazard.x, hazard.y);
               world.hazards.splice(index, 1);
               damagePlayerRef.current("Ship destroyed by space hazards.");
@@ -1356,7 +1366,7 @@ const MCQSpaceShooter = ({
         <div className="mcq-space-status" role="status" aria-live="polite">{statusMessage}</div>
         {levelNotice !== null && !paused && !menuOpen && !gameOver && (
           <div className="mcq-space-level-notice" role="status" aria-live="polite">
-            {levelNotice % 3 === 0 ? "⚠ BOSS INCOMING" : `LEVEL ${levelNotice} REACHED`}
+            {levelNotice.includes("BOSS INCOMING") ? "⚠ " : ""}{levelNotice}
           </div>
         )}
 
