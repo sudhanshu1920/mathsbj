@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { ArrowLeft, BookOpen, Pause, Play, RotateCcw, Rocket, Shield, Timer, Trophy, Volume2, VolumeX, Zap } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
@@ -1138,14 +1138,14 @@ const MCQSpaceShooter = ({
     };
   }, [canInteract, fireProjectile, moveAim, setPausedState, clearActiveControls, endControl]);
 
-  const handlePointerControlDown = (event: React.PointerEvent<HTMLButtonElement>, action: SpaceControlAction) => {
+  const handlePointerControlDown = (event: ReactPointerEvent<HTMLButtonElement>, action: SpaceControlAction) => {
     event.preventDefault();
     if (!canInteract()) return;
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Some WebViews omit pointer capture. */ }
     beginControl(event.pointerId, action);
   };
 
-  const handlePointerControlEnd = (event: React.PointerEvent<HTMLButtonElement>) => {
+  const handlePointerControlEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     endControl(event.pointerId);
     try {
@@ -1162,7 +1162,7 @@ const MCQSpaceShooter = ({
     beginControl(`keyboard:${action}`, action);
   };
 
-  const handleControlClick = (event: React.MouseEvent<HTMLButtonElement>, action: SpaceControlAction) => {
+  const handleControlClick = (event: ReactMouseEvent<HTMLButtonElement>, action: SpaceControlAction) => {
     // Keyboard/switch access produces detail=0; pointer activation is managed by Pointer Events.
     if (event.detail !== 0) return;
     if (action === "boost") {
@@ -1282,16 +1282,16 @@ const MCQSpaceShooter = ({
 
       <section className="mcq-space-hud" aria-label="Mission status">
         <div className="mcq-space-question">
-          <span className="mcq-space-eyebrow"><Zap size={12} aria-hidden="true" /> TARGET QUESTION</span>
+          <span className="mcq-space-eyebrow"><Zap size={12} aria-hidden="true" /> {difficultyConfig.label} · LEVEL {level}</span>
           <div className="mcq-space-question-label">{questionLabel}</div>
         </div>
         <div className="mcq-space-stats">
-          <span className="mcq-space-stat mcq-space-stat--correct" aria-label={`${correctScore} correct answers`}>
-            <span aria-hidden="true">✓</span> {correctScore}
-          </span>
-          <span className="mcq-space-stat mcq-space-stat--wrong" aria-label={`${wrongScore} incorrect answers`}>
-            <span aria-hidden="true">×</span> {wrongScore}
-          </span>
+          <span className="mcq-space-stat mcq-space-stat--score" aria-label={`Mission score ${missionScore}`}>★ {missionScore}</span>
+          <span className="mcq-space-stat mcq-space-stat--correct" aria-label={`${correctScore} correct answers`}><span aria-hidden="true">✓</span> {correctScore}</span>
+          <span className="mcq-space-stat mcq-space-stat--wrong" aria-label={`${wrongScore} incorrect answers`}><span aria-hidden="true">×</span> {wrongScore}</span>
+          <span className="mcq-space-stat mcq-space-stat--shield" aria-label={`${lives} shields remaining`}><Shield size={12} aria-hidden="true" /> {lives}</span>
+          <span className="mcq-space-stat" aria-label={`Combo ${combo}`}>COMBO {combo}</span>
+          {bestScore > 0 && <span className="mcq-space-stat" aria-label={`Best score ${bestScore}`}>BEST {bestScore}</span>}
           {progressLabel && <span className="mcq-space-stat" aria-label={`Question ${progressLabel}`}>{progressLabel}</span>}
           {timerLabel && <span className="mcq-space-stat mcq-space-stat--timer" aria-label={`Time remaining ${timerLabel}`}><Timer size={13} aria-hidden="true" /> {timerLabel}</span>}
         </div>
@@ -1406,7 +1406,70 @@ const MCQSpaceShooter = ({
         </div>
       </footer>
 
-      {paused && (
+      {menuOpen && (
+        <div className="mcq-space-menu-scrim" role="dialog" aria-modal="true" aria-labelledby="mcq-space-menu-title">
+          <div className="mcq-space-menu-card">
+            <div className="mcq-space-menu-logo"><Rocket size={32} aria-hidden="true" /></div>
+            <p className="mcq-space-menu-eyebrow">ARCADE MISSION SYSTEM</p>
+            <h1 id="mcq-space-menu-title">MATH SPACE SHOOTER</h1>
+            <p className="mcq-space-menu-subtitle">Lock on to the answer. Fire to solve. Defend your ship.</p>
+            <div className="mcq-space-difficulty-picker" role="group" aria-label="Mission difficulty">
+              {(["easy", "medium", "hard"] as const).map((levelChoice) => (
+                <button key={levelChoice} type="button" className={`mcq-space-difficulty-button${difficulty === levelChoice ? " is-selected" : ""}`} aria-pressed={difficulty === levelChoice} onClick={() => handleDifficultySelect(levelChoice)} data-testid={`space-difficulty-${levelChoice}`}>
+                  <strong>{levelChoice === "easy" ? "CADET" : levelChoice === "medium" ? "PILOT" : "ACE"}</strong>
+                  <span>{levelChoice === "easy" ? "5 SHIELDS" : levelChoice === "medium" ? "4 SHIELDS" : "3 SHIELDS"}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mcq-space-menu-stats">
+              <span><Trophy size={15} aria-hidden="true" /> BEST {bestScore}</span>
+              <span><Shield size={15} aria-hidden="true" /> {difficultyConfig.lives} SHIELDS</span>
+              <span><Zap size={15} aria-hidden="true" /> {difficultyConfig.boostMultiplier.toFixed(2)}× BOOST</span>
+            </div>
+            {!showInstructions ? (
+              <>
+                <button type="button" className="mcq-space-menu-primary" onClick={startMission} disabled={disabled || !!feedback || finalSubmitReady} data-testid="space-start-mission"><Play size={20} aria-hidden="true" /> START MISSION</button>
+                <button type="button" className="mcq-space-menu-secondary" onClick={() => setShowInstructions(true)}><BookOpen size={17} aria-hidden="true" /> HOW TO PLAY</button>
+              </>
+            ) : (
+              <div className="mcq-space-instructions">
+                <h2>HOW TO PLAY</h2>
+                <p><strong>1.</strong> Choose an answer target or steer your spaceship left/right.</p>
+                <p><strong>2.</strong> Tap <strong>FIRE</strong> to launch a laser. Only a real collision submits the active quiz answer.</p>
+                <p><strong>3.</strong> Hold <strong>BOOST</strong> while steering. Asteroids and enemy ships damage shields.</p>
+                <p><strong>4.</strong> Correct answers build score and combo. Reach level 3 for a boss encounter.</p>
+                <button type="button" className="mcq-space-menu-secondary" onClick={() => setShowInstructions(false)}>BACK TO MISSION BRIEFING</button>
+              </div>
+            )}
+            <button type="button" className="mcq-space-menu-secondary mcq-space-sound-toggle" onClick={toggleSound} aria-pressed={soundEnabled}>
+              {soundEnabled ? <Volume2 size={17} aria-hidden="true" /> : <VolumeX size={17} aria-hidden="true" />} SOUND {soundEnabled ? "ON" : "OFF"}
+            </button>
+            {onChangeGame && <button type="button" className="mcq-space-menu-exit" onClick={handleChangeGame}><ArrowLeft size={16} aria-hidden="true" /> BACK TO GAMES</button>}
+          </div>
+        </div>
+      )}
+
+      {(gameOver || (finalSubmitReady && !menuOpen)) && (
+        <div className="mcq-space-menu-scrim" role="dialog" aria-modal="true" aria-labelledby="mcq-space-result-title">
+          <div className="mcq-space-menu-card mcq-space-result-card">
+            <div className="mcq-space-menu-logo">{gameOver ? <Shield size={30} aria-hidden="true" /> : <Trophy size={30} aria-hidden="true" />}</div>
+            <p className="mcq-space-menu-eyebrow">{gameOver ? "MISSION FAILED" : "MISSION COMPLETE"}</p>
+            <h2 id="mcq-space-result-title">{gameOver ? "SHIP DESTROYED" : "SECTOR CLEARED"}</h2>
+            <div className="mcq-space-results-stats">
+              <span>MISSION SCORE<strong>{missionScore}</strong></span>
+              <span>COMBO<strong>{combo}</strong></span>
+              <span>SHIELDS<strong>{lives}</strong></span>
+              <span>BEST SCORE<strong>{bestScore}</strong></span>
+            </div>
+            <p>{gameOver ? "Your shields are depleted. Retry the mission or return to the game selector." : "Excellent work, pilot. Submit the quiz when you are ready."}</p>
+            {onRestartGame && <button type="button" className="mcq-space-menu-primary" onClick={restartMission}><RotateCcw size={18} aria-hidden="true" /> RETRY MISSION</button>}
+            {finalSubmitReady && <button type="button" className="mcq-space-menu-secondary" onClick={handleFinalSubmit}><Trophy size={17} aria-hidden="true" /> SUBMIT TEST</button>}
+            {onChangeGame && <button type="button" className="mcq-space-menu-secondary" onClick={handleChangeGame} disabled={!!feedback || submittedRef.current}><ArrowLeft size={16} aria-hidden="true" /> BACK TO GAMES</button>}
+          </div>
+        </div>
+      )}
+
+      {paused && !menuOpen && !gameOver && (
         <div className="mcq-space-pause-scrim">
           <section className="mcq-space-pause-card" role="dialog" aria-modal="true" aria-labelledby="mcq-space-paused-title">
             <span className="mcq-space-pause-icon"><Pause size={24} aria-hidden="true" /></span>
