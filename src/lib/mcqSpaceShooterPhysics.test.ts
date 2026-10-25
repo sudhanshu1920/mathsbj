@@ -16,7 +16,7 @@ describe("Math Space Shooter physics", () => {
     const released = advanceSpaceShooterBoost(1.7, false, 1.7, 16);
     expect(released).toBeGreaterThan(1);
     expect(released).toBeLessThan(1.7);
-    expect(advanceSpaceShooterBoost(Number.NaN, true, 99, 1000)).toBe(1);
+    expect(advanceSpaceShooterBoost(Number.NaN, true, Number.NaN, 1000)).toBe(1);
     expect(advanceSpaceShooterBoost(1, true, 99, 1000)).toBeLessThanOrEqual(3);
   });
   it("clamps the ship inside the playable width, including narrow screens", () => {
