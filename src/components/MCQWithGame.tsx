@@ -242,6 +242,7 @@ const MCQWithGame = ({
     event.stopPropagation();
     if (
       (typeof event.button === "number" && event.button !== 0) ||
+      !Number.isFinite(event.pointerId) ||
       disabledRef.current ||
       phaseRef.current !== "RUNNING" ||
       submittedRef.current ||
@@ -249,7 +250,7 @@ const MCQWithGame = ({
       activePointersRef.current.has(event.pointerId)
     ) return;
 
-    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
+    const pointerId = event.pointerId;
     const press: MCQSteeringPointer = {
       pointerId,
       control,
@@ -276,15 +277,10 @@ const MCQWithGame = ({
   const endControlPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    let pointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
-    const isReliableTouch = event.pointerType === "touch" || event.pointerType === "pen";
-    if (pointerId === null || !activePointersRef.current.has(pointerId)) {
-      if (!isReliableTouch && activePointersRef.current.size === 1) {
-        pointerId = activePointersRef.current.keys().next().value as number;
-      } else {
-        return;
-      }
-    }
+    const pointerId = event.pointerId;
+    // Pointer Events always carry a pointer ID. An inactive/stale ID is ignored;
+    // never infer a missing mouse ID from a different finger still holding a control.
+    if (!Number.isFinite(pointerId) || !activePointersRef.current.has(pointerId)) return;
     releaseControlPointer(pointerId);
   };
 
