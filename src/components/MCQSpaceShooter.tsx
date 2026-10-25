@@ -455,7 +455,7 @@ const MCQSpaceShooter = ({
     const sizes = latestPropsRef.current.options.map((_, index) => {
       const target = targetRefs.current[index];
       const targetWidth = Math.max(1, Math.min(156, world.width * 0.17, laneWidth * 0.82));
-      const targetHeight = target?.offsetHeight > 0
+      const targetHeight = target && target.offsetHeight > 0
         ? target.offsetHeight
         : Math.min(88, Math.max(52, world.height * 0.09));
       if (target) target.style.width = `${targetWidth}px`;
