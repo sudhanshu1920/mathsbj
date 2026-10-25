@@ -439,9 +439,9 @@ const MCQSpaceShooter = ({
   const [paused, setPaused] = useState(false);
   const [menuOpen, setMenuOpen] = useState(true);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [difficulty, setDifficulty] = useState<SpaceShooterDifficulty>(() => normalizeSpaceShooterDifficulty(configuredDifficulty ?? loadStoredDifficulty()));
+  const [difficulty, setDifficulty] = useState<SpaceShooterDifficulty>(loadStoredDifficulty);
   const [heldControls, setHeldControls] = useState({ left: false, right: false, boost: false });
-  const [lives, setLives] = useState(() => SPACE_SHOOTER_DIFFICULTIES[normalizeSpaceShooterDifficulty(configuredDifficulty ?? loadStoredDifficulty())].lives);
+  const [lives, setLives] = useState(() => SPACE_SHOOTER_DIFFICULTIES[loadStoredDifficulty()].lives);
   const [combo, setCombo] = useState(0);
   const [missionScore, setMissionScore] = useState(0);
   const [bestScore, setBestScore] = useState(loadStoredBestScore);
@@ -456,6 +456,7 @@ const MCQSpaceShooter = ({
   const pausedRef = useRef(false);
   const menuOpenRef = useRef(true);
   const difficultyRef = useRef(difficulty);
+  const configuredDifficultyRef = useRef(configuredDifficulty);
   difficultyRef.current = difficulty;
   const gameOverRef = useRef(false);
   const livesRef = useRef(lives);
@@ -628,6 +629,10 @@ const MCQSpaceShooter = ({
   }, [setPausedState, clearPendingDirectionalTap]);
 
   useEffect(() => {
+    // Preserve saved difficulty on first mount. React to subsequent session
+    // updates only, e.g. when START MISSION regenerates the question pool.
+    if (configuredDifficultyRef.current === configuredDifficulty) return;
+    configuredDifficultyRef.current = configuredDifficulty;
     if (!configuredDifficulty) return;
     const next = normalizeSpaceShooterDifficulty(configuredDifficulty);
     difficultyRef.current = next;
