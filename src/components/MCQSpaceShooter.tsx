@@ -763,8 +763,10 @@ const MCQSpaceShooter = ({
 
     submittedRef.current = true;
     worldRef.current.heldDirection = 0;
+    worldRef.current.boostHeld = false;
+    clearActiveControls();
     worldRef.current.projectiles.length = 0;
-    setStatusMessage("DIRECT HIT · ASTEROID DESTROYED · CHECKING ANSWER");
+    setStatusMessage("DIRECT HIT · TARGET DESTROYED · CHECKING ANSWER");
     playSpaceExplosion();
 
     try {
@@ -907,9 +909,18 @@ const MCQSpaceShooter = ({
       const elapsedSeconds = elapsedMs / 1000;
       const current = latestPropsRef.current;
 
-      if (!pausedRef.current) {
+      if (!pausedRef.current && !menuOpenRef.current && !gameOverRef.current) {
+        const rules = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current];
+        const currentLevel = getSpaceShooterLevel(current.correctScore, difficultyRef.current);
+        const bossState = getSpaceShooterBossState(current.correctScore, difficultyRef.current);
+        world.level = currentLevel;
+        world.bossActive = bossState.active;
+        world.bossHealth = bossState.health;
+        world.bossMaxHealth = bossState.maximumHealth;
+        world.invulnerableMs = Math.max(0, world.invulnerableMs - elapsedMs);
+
         for (const star of world.stars) {
-          star.y += star.speed * elapsedSeconds;
+          star.y += star.speed * elapsedSeconds * (world.boostHeld ? 1.7 : 1);
           if (star.y > world.height + 2) {
             star.y = -2;
             star.x = Math.random() * world.width;
@@ -924,18 +935,56 @@ const MCQSpaceShooter = ({
           if (particle.ageMs >= particle.lifetimeMs) world.particles.splice(index, 1);
         }
 
-        if (
+        const canSimulateCombat =
           !current.disabled &&
           !current.feedback &&
           !current.finalSubmitReady &&
           !submittedRef.current &&
-          activeQuestionKeyRef.current === String(current.questionKey)
-        ) {
+          activeQuestionKeyRef.current === String(current.questionKey);
+
+        if (canSimulateCombat) {
           world.shipX = clampSpaceShipX(
-            world.shipX + world.heldDirection * 265 * elapsedSeconds,
+            world.shipX + world.heldDirection * rules.shipSpeed * (world.boostHeld ? rules.boostMultiplier : 1) * elapsedSeconds,
             world.width,
             SHIP_RADIUS,
           );
+
+          world.hazardSpawnElapsedMs += elapsedMs;
+          const spawnInterval = Math.max(540, rules.hazardSpawnMs - (world.level - 1) * 65);
+          if (world.hazardSpawnElapsedMs >= spawnInterval && world.hazards.length < MAX_HAZARDS && world.width > 0) {
+            world.hazardSpawnElapsedMs %= spawnInterval;
+            const size = 22 + Math.random() * 15;
+            world.hazards.push({
+              id: world.nextHazardId++,
+              x: size + Math.random() * Math.max(1, world.width - size * 2),
+              y: -size,
+              size,
+              speed: rules.hazardSpeed + Math.min(90, (world.level - 1) * 7) + Math.random() * 22,
+              drift: (Math.random() - 0.5) * 72,
+              kind: Math.random() < 0.38 ? "enemy" : "asteroid",
+            });
+          }
+
+          const shipY = Math.max(42, world.height - 42);
+          for (let index = world.hazards.length - 1; index >= 0; index -= 1) {
+            const hazard = world.hazards[index]!;
+            hazard.y += hazard.speed * elapsedSeconds;
+            hazard.x = clampSpaceShipX(hazard.x + hazard.drift * elapsedSeconds, world.width, hazard.size / 2);
+            if (hazard.y > world.height + hazard.size) {
+              world.hazards.splice(index, 1);
+              continue;
+            }
+            if (
+              world.invulnerableMs <= 0 &&
+              Math.abs(hazard.x - world.shipX) < hazard.size * 0.5 + SHIP_RADIUS * 0.55 &&
+              Math.abs(hazard.y - shipY) < hazard.size * 0.45 + 14
+            ) {
+              createHitParticles(world, hazard.x, hazard.y);
+              world.hazards.splice(index, 1);
+              damagePlayerRef.current("Ship destroyed by space hazards.");
+              if (gameOverRef.current || pausedRef.current) break;
+            }
+          }
 
           const stageRect = playfield.getBoundingClientRect();
           for (let index = world.projectiles.length - 1; index >= 0; index -= 1) {
@@ -1159,8 +1208,9 @@ const MCQSpaceShooter = ({
     finalSubmitInvokedRef.current = true;
     submittedRef.current = true;
     clearPendingDirectionalTap();
-    worldRef.current.heldDirection = 0;
+    clearActiveControls();
     worldRef.current.projectiles.length = 0;
+    worldRef.current.hazards.length = 0;
     playClick();
     try {
       const accepted = current.onFinalSubmit();
@@ -1249,43 +1299,30 @@ const MCQSpaceShooter = ({
 
       <div className="mcq-space-playfield" ref={playfieldRef} role="group" aria-label="Space battlefield">
         <canvas ref={canvasRef} className="mcq-space-canvas" aria-hidden="true" />
-        <button
-          type="button"
-          className="mcq-space-touch-zone mcq-space-touch-zone--left"
-          onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(-1); }}
-          onContextMenu={(event) => event.preventDefault()}
-          disabled={!canInteract()}
-          aria-label="Left touch zone: single tap moves aim left, double tap fires at aimed target"
-          onKeyDown={handleAimControlKeyDown}
-          data-testid="space-touch-left"
-        />
-        <button
-          type="button"
-          className="mcq-space-touch-zone mcq-space-touch-zone--right"
-          onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(1); }}
-          onContextMenu={(event) => event.preventDefault()}
-          disabled={!canInteract()}
-          aria-label="Right touch zone: single tap moves aim right, double tap fires at aimed target"
-          onKeyDown={handleAimControlKeyDown}
-          data-testid="space-touch-right"
-        />
-        <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets" style={{ gridTemplateColumns: `repeat(${Math.max(1, options.length)}, minmax(0, 1fr))` }}>
+        <div className="mcq-space-playfield-overline" aria-hidden="true">
+          <span>LEVEL {level}</span>
+          {boss.active && <span className="mcq-space-boss-tag">BOSS · {boss.health}/{boss.maximumHealth} HP</span>}
+        </div>
+        <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets" style={{ gridTemplateColumns: `repeat(${targetCount}, minmax(0, 1fr))` }}>
           {options.map((option, index) => {
             const mapping = mappings[index];
             return (
-              <div
+              <button
+                type="button"
                 key={mapping?.gateId ?? `${String(questionKey)}-${index}`}
                 ref={(element) => { targetRefs.current[index] = element; }}
                 className={`mcq-space-target mcq-space-target--${index % 4}${selectedTargetIndex === index ? " is-aimed" : ""}`}
-                role="img"
-                aria-label={`Answer target ${index + 1}: ${String(option.value)}${selectedTargetIndex === index ? ", aim locked" : ""}`}
+                onClick={() => selectAnswerTarget(index)}
+                disabled={!canInteract()}
+                aria-label={`Aim at answer ${index + 1}: ${String(option.value)}`}
+                aria-pressed={selectedTargetIndex === index}
                 aria-current={selectedTargetIndex === index ? "true" : undefined}
                 data-target-id={mapping?.gateId}
                 data-testid={`space-target-${index}`}
               >
                 <span className="mcq-space-target-label">{option.label}</span>
                 <span className="mcq-space-target-spark" aria-hidden="true">✦</span>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -1302,17 +1339,66 @@ const MCQSpaceShooter = ({
         )}
       </div>
 
-      <footer className="mcq-space-controls">
+      <footer className="mcq-space-controls" aria-label="Spacecraft controls">
+        <div className="mcq-space-control-row">
+          <button
+            type="button"
+            className={`mcq-space-move-button mcq-space-steer-button${heldControls.left ? " is-active" : ""}`}
+            onPointerDown={(event) => handlePointerControlDown(event, "left")}
+            onPointerUp={handlePointerControlEnd}
+            onPointerCancel={handlePointerControlEnd}
+            onLostPointerCapture={(event) => endControl(event.pointerId)}
+            onKeyDown={(event) => handleControlKeyDown(event, "left")}
+            onKeyUp={(event) => endControl(`keyboard:left`)}
+            onClick={(event) => handleControlClick(event, "left")}
+            onContextMenu={(event) => event.preventDefault()}
+            disabled={!canInteract()}
+            aria-label="Steer spaceship left"
+            aria-pressed={heldControls.left}
+            data-testid="space-control-left"
+          >◀ LEFT</button>
+          <button
+            type="button"
+            className={`mcq-space-fire-button${worldRef.current.boostHeld ? " is-active" : ""}`}
+            onPointerDown={(event) => handlePointerControlDown(event, "boost")}
+            onPointerUp={handlePointerControlEnd}
+            onPointerCancel={handlePointerControlEnd}
+            onLostPointerCapture={(event) => endControl(event.pointerId)}
+            onKeyDown={(event) => handleControlKeyDown(event, "boost")}
+            onKeyUp={(event) => endControl(`keyboard:boost`)}
+            onClick={(event) => handleControlClick(event, "boost")}
+            onContextMenu={(event) => event.preventDefault()}
+            disabled={!canInteract()}
+            aria-label="Hold to boost spaceship speed"
+            aria-pressed={heldControls.boost}
+            data-testid="space-control-boost"
+          ><Zap size={17} aria-hidden="true" /><span>BOOST</span></button>
+          <button
+            type="button"
+            className={`mcq-space-move-button mcq-space-steer-button${heldControls.right ? " is-active" : ""}`}
+            onPointerDown={(event) => handlePointerControlDown(event, "right")}
+            onPointerUp={handlePointerControlEnd}
+            onPointerCancel={handlePointerControlEnd}
+            onLostPointerCapture={(event) => endControl(event.pointerId)}
+            onKeyDown={(event) => handleControlKeyDown(event, "right")}
+            onKeyUp={(event) => endControl(`keyboard:right`)}
+            onClick={(event) => handleControlClick(event, "right")}
+            onContextMenu={(event) => event.preventDefault()}
+            disabled={!canInteract()}
+            aria-label="Steer spaceship right"
+            aria-pressed={heldControls.right}
+            data-testid="space-control-right"
+          >RIGHT ▶</button>
+        </div>
         <div className="mcq-space-controls-hint">
-          <span>SINGLE TAP · MOVE AIM</span><span aria-hidden="true">◆</span>
-          <span>DOUBLE TAP · FIRE LASER</span>
+          <span>HOLD LEFT / RIGHT TO STEER</span><span aria-hidden="true">◆</span><span>HOLD BOOST TO ACCELERATE</span>
           {onRestartGame && (
             <button
               type="button"
               className="mcq-space-restart"
-              onClick={() => onRestartGame()}
+              onClick={restartMission}
               disabled={restartBlocked}
-              aria-label="Restart quiz"
+              aria-label="Restart mission"
             >
               <RotateCcw size={13} aria-hidden="true" /> Restart
             </button>
