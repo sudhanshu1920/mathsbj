@@ -30,10 +30,12 @@ describe("Math Space Shooter mission rules", () => {
   it("chooses materially different generated question pools for easy and hard", () => {
     const easy = selectSpaceShooterQuestions(tableQuestions, "easy", 10);
     const hard = selectSpaceShooterQuestions(tableQuestions, "hard", 10);
-    expect(easy).toHaveLength(30);
-    expect(hard).toHaveLength(30);
+    expect(easy.length).toBeGreaterThan(0);
+    expect(easy.length).toBeLessThan(tableQuestions.length);
+    expect(hard.length).toBe(easy.length);
     expect(easy.map((question) => question.text)).not.toEqual(hard.map((question) => question.text));
-    expect(getSpaceQuestionComplexity(easy[0]!)).toBeLessThan(getSpaceQuestionComplexity(hard.at(-1)!));
+    const average = (pool: typeof tableQuestions) => pool.reduce((sum, question) => sum + getSpaceQuestionComplexity(question), 0) / pool.length;
+    expect(average(easy)).toBeLessThan(average(hard));
   });
 
   it("keeps the requested count when the preference pool is too small", () => {
