@@ -210,3 +210,24 @@ export function getSpaceShooterBestScore(value: unknown): number {
   if (!Number.isFinite(numeric)) return 0;
   return Math.max(0, Math.min(1_000_000_000, Math.floor(numeric)));
 }
+
+export interface SpaceShooterHazardCollisionInput {
+  hazardX: number;
+  hazardY: number;
+  hazardSize: number;
+  shipX: number;
+  shipY: number;
+  shipRadius: number;
+  invulnerableMs: number;
+}
+
+/** Deterministic ship/hazard collision rule shared with unit tests. */
+export function doesSpaceHazardHitShip(input: SpaceShooterHazardCollisionInput): boolean {
+  const values = Object.values(input);
+  if (!values.every(Number.isFinite) || input.invulnerableMs > 0) return false;
+  const hazardHalfWidth = Math.max(0, input.hazardSize) * 0.5;
+  const hazardHalfHeight = Math.max(0, input.hazardSize) * 0.45;
+  const shipRadius = Math.max(0, input.shipRadius);
+  return Math.abs(input.hazardX - input.shipX) < hazardHalfWidth + shipRadius * 0.55 &&
+    Math.abs(input.hazardY - input.shipY) < hazardHalfHeight + 14;
+}
