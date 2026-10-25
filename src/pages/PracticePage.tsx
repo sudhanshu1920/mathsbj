@@ -38,6 +38,7 @@ import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, ge
 import MCQWithGame from '@/components/MCQWithGame';
 import MCQJumpAdventure from '@/components/MCQJumpAdventure';
 import MCQSpaceShooter from '@/components/MCQSpaceShooter';
+import { selectSpaceShooterQuestions, type SpaceShooterDifficulty } from '@/lib/mcqSpaceShooterMission';
 import MCQSliceNinja from '@/components/MCQSliceNinja';
 import GameModeSelector, { type MCQGameVariant } from '@/components/GameModeSelector';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
@@ -71,6 +72,7 @@ interface TopicRange {
 }
 
 interface PracticeConfig {
+  spaceShooterDifficulty?: SpaceShooterDifficulty;
   topics: { id: string; label: string; range: TopicRange }[];
   count: number;
   infinite: boolean;
@@ -680,20 +682,30 @@ export function generateQuestions(config: PracticeConfig): Question[] {
     !config.repetitionEnabled &&
     !config.infinite &&
     config.timerMode !== 'challenge';
+  // Space Shooter difficulty filters only the existing generated question pool.
+  // The shared question generator, answer-option builder and Quiz Engine validation
+  // remain authoritative; difficulty never fabricates answers.
+  const questionCandidates = config.mode === 'game' && config.spaceShooterDifficulty
+    ? selectSpaceShooterQuestions(
+        baseQuestions,
+        config.spaceShooterDifficulty,
+        isFiniteQuestionSelection ? config.count : 0,
+      )
+    : baseQuestions;
   const selectedPresetIds = config.topics
     .filter((topic) => topic.id === 'percentage' && topic.range.pctRangeMode === 'preset')
     .flatMap((topic) => resolvePercentagePresets(topic.range).map((preset) => preset.id));
-  let questionSource = baseQuestions;
+  let questionSource = questionCandidates;
   if (isFiniteQuestionSelection && selectedPresetIds.length > 0) {
     questionSource = config.topics.length === 1 && config.topics[0]?.id === 'percentage'
-      ? selectQuestionsAcrossPresetRanges(baseQuestions, config.count, config.sequential)
-      : selectQuestionsWithPresetCoverage(baseQuestions, config.count, selectedPresetIds, config.sequential);
+      ? selectQuestionsAcrossPresetRanges(questionCandidates, config.count, config.sequential)
+      : selectQuestionsWithPresetCoverage(questionCandidates, config.count, selectedPresetIds, config.sequential);
   } else if (
     isFiniteQuestionSelection &&
     config.topics.length === 1 &&
     config.topics[0]?.id === 'addition-subtraction-digits'
   ) {
-    questionSource = selectQuestionsWithDigitCoverage(baseQuestions, config.count, config.sequential);
+    questionSource = selectQuestionsWithDigitCoverage(questionCandidates, config.count, config.sequential);
   }
 
   const allQuestions = buildQuestionPool(questionSource, {
@@ -1094,6 +1106,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [infinite, setInfinite] = useState(false);
   const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
   const [selectedGameVariant, setSelectedGameVariant] = useState<MCQGameVariant>('car');
+  const selectedGameVariantRef = useRef(selectedGameVariant);
+  selectedGameVariantRef.current = selectedGameVariant;
   const [gameSelectionOpen, setGameSelectionOpen] = useState(false);
   const modeBeforeGameSelectionRef = useRef<PracticeMode>('mcq');
   const gameSelectionOpenedAtRef = useRef<number | null>(null);
@@ -1124,7 +1138,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setTablesProModeState(enabled);
   }, []);
 
-  const startPractice = useCallback((cfg: PracticeConfig): boolean => {
+  const startPractice = useCallback((cfg: PracticeConfig, difficultyOverride?: SpaceShooterDifficulty): boolean => {
     // Guard rapid/programmatic duplicate starts as well as the disabled setup button.
     if (quizStartLockRef.current) return false;
     const invalidTopic = cfg.topics.find((topic) => !isValidPracticeRange(topic.id, topic.range));
@@ -1141,6 +1155,9 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     const normalizedConfig: PracticeConfig = {
       ...cfg,
+      spaceShooterDifficulty: cfg.mode === 'game' && selectedGameVariantRef.current === 'shooter'
+        ? (difficultyOverride ?? cfg.spaceShooterDifficulty ?? 'medium')
+        : undefined,
       // Timer mode is a single source of truth; a Challenge can never leave
       // the per-question countdown enabled in the underlying session config.
       timerMode: cfg.timerMode,
@@ -2494,6 +2511,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                 <MCQSpaceShooter
                   {...sharedGameProps}
                   sessionKey={questionPoolGenerationRef.current}
+                  difficulty={config.spaceShooterDifficulty}
+                  onStartMission={(difficulty) => startPractice(config, difficulty)}
                   onPauseChange={handleJumpPauseChange}
                   onRestartGame={() => startPractice(config)}
                 />

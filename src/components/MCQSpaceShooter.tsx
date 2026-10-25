@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { ArrowLeft, Pause, Play, RotateCcw, Rocket, Timer, Trophy, Zap } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { ArrowLeft, BookOpen, Pause, Play, RotateCcw, Rocket, Shield, Timer, Trophy, Volume2, VolumeX, Zap } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
 import {
@@ -12,6 +12,15 @@ import {
 } from "@/lib/mcqSpaceShooterPhysics";
 import { setGameImmersiveMode } from "@/lib/gameImmersiveMode";
 import { playClick, playSpaceExplosion, playSpaceLaser } from "@/lib/sound";
+import { getSettings, setSound } from "@/lib/settings";
+import {
+  getSpaceShooterBestScore,
+  getSpaceShooterBossState,
+  getSpaceShooterLevel,
+  normalizeSpaceShooterDifficulty,
+  SPACE_SHOOTER_DIFFICULTIES,
+  type SpaceShooterDifficulty,
+} from "@/lib/mcqSpaceShooterMission";
 import "./mcq-space-shooter.css";
 
 export interface MCQSpaceShooterOption {
@@ -39,6 +48,8 @@ export interface MCQSpaceShooterProps {
   onChangeGame?: () => void;
   onRestartGame?: () => void;
   onPauseChange?: (paused: boolean) => void;
+  difficulty?: SpaceShooterDifficulty;
+  onStartMission?: (difficulty: SpaceShooterDifficulty) => boolean | void;
 }
 
 interface SpaceStar {
@@ -68,24 +79,76 @@ interface SpaceParticle {
   color: string;
 }
 
+interface SpaceHazard {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  speed: number;
+  drift: number;
+  kind: "asteroid" | "enemy";
+}
+
+type SpaceControlAction = "left" | "right" | "boost";
+interface ActiveSpaceControl {
+  action: SpaceControlAction;
+  sequence: number;
+}
+
 interface SpaceWorld {
   width: number;
   height: number;
   pixelRatio: number;
   shipX: number;
   heldDirection: -1 | 0 | 1;
+  boostHeld: boolean;
   stars: SpaceStar[];
   projectiles: SpaceProjectile[];
   particles: SpaceParticle[];
+  hazards: SpaceHazard[];
   nextProjectileId: number;
+  nextHazardId: number;
+  hazardSpawnElapsedMs: number;
+  invulnerableMs: number;
+  level: number;
+  bossActive: boolean;
+  bossHealth: number;
+  bossMaxHealth: number;
+  bossAttackPulseMs: number;
   lastTimestamp: number | null;
 }
 
 const PROJECTILE_SPEED = 690;
 const PROJECTILE_LIFETIME_MS = 1500;
-const DOUBLE_TAP_WINDOW_MS = 280;
 const MAX_PARTICLES = 48;
+const MAX_HAZARDS = 4;
 const SHIP_RADIUS = 24;
+const SHOOTER_DIFFICULTY_KEY = "math-space-shooter-difficulty-v1";
+const SHOOTER_BEST_SCORE_KEY = "math-space-shooter-best-v1";
+
+function loadStoredDifficulty(): SpaceShooterDifficulty {
+  try {
+    return normalizeSpaceShooterDifficulty(window.localStorage.getItem(SHOOTER_DIFFICULTY_KEY));
+  } catch {
+    return "medium";
+  }
+}
+
+function loadStoredBestScore(): number {
+  try {
+    return getSpaceShooterBestScore(window.localStorage.getItem(SHOOTER_BEST_SCORE_KEY));
+  } catch {
+    return 0;
+  }
+}
+
+function persistBestScore(value: number): void {
+  try {
+    window.localStorage.setItem(SHOOTER_BEST_SCORE_KEY, String(getSpaceShooterBestScore(value)));
+  } catch {
+    // Private browsing/storage restrictions must never interrupt gameplay.
+  }
+}
 
 const createWorld = (): SpaceWorld => ({
   width: 0,
@@ -93,10 +156,20 @@ const createWorld = (): SpaceWorld => ({
   pixelRatio: 1,
   shipX: 0,
   heldDirection: 0,
+  boostHeld: false,
   stars: [],
   projectiles: [],
   particles: [],
+  hazards: [],
   nextProjectileId: 1,
+  nextHazardId: 1,
+  hazardSpawnElapsedMs: 0,
+  invulnerableMs: 0,
+  level: 1,
+  bossActive: false,
+  bossHealth: 0,
+  bossMaxHealth: 0,
+  bossAttackPulseMs: 0,
   lastTimestamp: null,
 });
 
@@ -173,6 +246,59 @@ function drawSpaceFrame(context: CanvasRenderingContext2D, world: SpaceWorld): v
   }
   context.globalAlpha = 1;
 
+  for (const hazard of world.hazards) {
+    context.save();
+    context.translate(Math.round(hazard.x), Math.round(hazard.y));
+    if (hazard.kind === "enemy") {
+      context.fillStyle = "#a62c56";
+      context.fillRect(-hazard.size * .5, -hazard.size * .25, hazard.size, hazard.size * .5);
+      context.fillStyle = "#ff6386";
+      context.fillRect(-hazard.size * .34, -hazard.size * .12, hazard.size * .68, hazard.size * .18);
+      context.fillStyle = "#ffd9e4";
+      context.fillRect(-hazard.size * .18, -hazard.size * .04, hazard.size * .1, hazard.size * .08);
+      context.fillRect(hazard.size * .08, -hazard.size * .04, hazard.size * .1, hazard.size * .08);
+      context.fillStyle = "#662044";
+      context.fillRect(-hazard.size * .68, 0, hazard.size * .25, hazard.size * .12);
+      context.fillRect(hazard.size * .43, 0, hazard.size * .25, hazard.size * .12);
+    } else {
+      const size = hazard.size;
+      context.fillStyle = "#6d7894";
+      context.fillRect(-size * .28, -size * .5, size * .55, size * .2);
+      context.fillRect(-size * .46, -size * .3, size * .75, size * .6);
+      context.fillRect(-size * .27, size * .3, size * .5, size * .18);
+      context.fillStyle = "#343e5b";
+      context.fillRect(-size * .2, -size * .12, size * .19, size * .18);
+      context.fillRect(size * .13, size * .08, size * .15, size * .13);
+      context.fillStyle = "#ffbd68";
+      context.fillRect(-size * .11, -size * .35, size * .12, size * .08);
+    }
+    context.restore();
+  }
+
+  if (world.bossActive) {
+    const bossX = width / 2;
+    const bossY = Math.max(44, height * .17);
+    const bossWidth = Math.min(116, width * .35);
+    context.fillStyle = "#6c185f";
+    context.fillRect(bossX - bossWidth * .5, bossY - 13, bossWidth, 26);
+    context.fillStyle = "#d841a9";
+    context.fillRect(bossX - bossWidth * .42, bossY - 18, bossWidth * .84, 10);
+    context.fillRect(bossX - bossWidth * .62, bossY - 6, bossWidth * .2, 18);
+    context.fillRect(bossX + bossWidth * .42, bossY - 6, bossWidth * .2, 18);
+    context.fillStyle = "#ffb34d";
+    context.fillRect(bossX - 10, bossY - 5, 20, 10);
+    if (world.bossAttackPulseMs > 0) {
+      context.fillStyle = "#ff4f73";
+      context.fillRect(bossX - 3, bossY + 23, 6, 20);
+      context.fillRect(bossX - 18, bossY + 23, 4, 12);
+      context.fillRect(bossX + 14, bossY + 23, 4, 12);
+    }
+    context.fillStyle = "rgba(15, 9, 34, .92)";
+    context.fillRect(bossX - bossWidth * .5, bossY + 22, bossWidth, 5);
+    context.fillStyle = "#ff527b";
+    context.fillRect(bossX - bossWidth * .5, bossY + 22, bossWidth * Math.max(0, world.bossHealth) / Math.max(1, world.bossMaxHealth), 5);
+  }
+
   for (const projectile of world.projectiles) {
     const unitX = projectile.vx / PROJECTILE_SPEED;
     const unitY = projectile.vy / PROJECTILE_SPEED;
@@ -248,10 +374,12 @@ const MCQSpaceShooter = ({
   onChangeGame,
   onRestartGame,
   onPauseChange,
+  difficulty: configuredDifficulty = "medium",
+  onStartMission,
 }: MCQSpaceShooterProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playfieldRef = useRef<HTMLDivElement | null>(null);
-  const targetRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const targetRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const worldRef = useRef<SpaceWorld>(createWorld());
   const latestPropsRef = useRef<MCQSpaceShooterProps>({
     questionKey,
@@ -273,6 +401,8 @@ const MCQSpaceShooter = ({
     onChangeGame,
     onRestartGame,
     onPauseChange,
+    difficulty: configuredDifficulty,
+    onStartMission,
   });
   latestPropsRef.current = {
     questionKey,
@@ -294,6 +424,8 @@ const MCQSpaceShooter = ({
     onChangeGame,
     onRestartGame,
     onPauseChange,
+    difficulty: configuredDifficulty,
+    onStartMission,
   };
 
   const mappings = useMemo(
@@ -305,10 +437,38 @@ const MCQSpaceShooter = ({
 
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(options.length > 0 ? 0 : null);
   const [paused, setPaused] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("SINGLE TAP LEFT/RIGHT TO AIM · DOUBLE TAP TO FIRE");
+  const [menuOpen, setMenuOpen] = useState(true);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [difficulty, setDifficulty] = useState<SpaceShooterDifficulty>(loadStoredDifficulty);
+  const [heldControls, setHeldControls] = useState({ left: false, right: false, boost: false });
+  const [lives, setLives] = useState(() => SPACE_SHOOTER_DIFFICULTIES[loadStoredDifficulty()].lives);
+  const [combo, setCombo] = useState(0);
+  const [missionScore, setMissionScore] = useState(0);
+  const [bestScore, setBestScore] = useState(loadStoredBestScore);
+  const [gameOver, setGameOver] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try { return getSettings().sound; } catch { return true; }
+  });
+  const [statusMessage, setStatusMessage] = useState("AIM · FIRE · SOLVE");
+  const [levelNotice, setLevelNotice] = useState<number | null>(null);
   const [rendererError, setRendererError] = useState(false);
   const [rendererAttempt, setRendererAttempt] = useState(0);
   const pausedRef = useRef(false);
+  const menuOpenRef = useRef(true);
+  const difficultyRef = useRef(difficulty);
+  const configuredDifficultyRef = useRef(configuredDifficulty);
+  difficultyRef.current = difficulty;
+  const gameOverRef = useRef(false);
+  const livesRef = useRef(lives);
+  livesRef.current = lives;
+  const comboRef = useRef(0);
+  const missionScoreRef = useRef(0);
+  const activeControlsRef = useRef(new Map<number | string, ActiveSpaceControl>());
+  const controlSequenceRef = useRef(0);
+  const processedFeedbackRef = useRef<string | null>(null);
+  const damagePlayerRef = useRef<(message: string) => void>(() => undefined);
+  const levelNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastLevelRef = useRef(getSpaceShooterLevel(correctScore, difficulty));
   const submittedRef = useRef(false);
   const finalSubmitInvokedRef = useRef(false);
   const activeQuestionKeyRef = useRef(String(questionKey));
@@ -326,6 +486,8 @@ const MCQSpaceShooter = ({
     const current = latestPropsRef.current;
     return (
       !pausedRef.current &&
+      !menuOpenRef.current &&
+      !gameOverRef.current &&
       !current.disabled &&
       !current.feedback &&
       !current.finalSubmitReady &&
@@ -335,6 +497,46 @@ const MCQSpaceShooter = ({
     );
   }, []);
 
+  const syncActiveControls = useCallback(() => {
+    const active = [...activeControlsRef.current.values()];
+    let mostRecentSteering: ActiveSpaceControl | null = null;
+    for (const control of active) {
+      if ((control.action === "left" || control.action === "right") &&
+          (!mostRecentSteering || control.sequence > mostRecentSteering.sequence)) {
+        mostRecentSteering = control;
+      }
+    }
+    worldRef.current.heldDirection = mostRecentSteering
+      ? (mostRecentSteering.action === "left" ? -1 : 1)
+      : 0;
+    worldRef.current.boostHeld = active.some((control) => control.action === "boost");
+    setHeldControls({
+      left: active.some((control) => control.action === "left"),
+      right: active.some((control) => control.action === "right"),
+      boost: worldRef.current.boostHeld,
+    });
+  }, []);
+
+  const clearActiveControls = useCallback(() => {
+    activeControlsRef.current.clear();
+    worldRef.current.heldDirection = 0;
+    worldRef.current.boostHeld = false;
+    setHeldControls((previous) => previous.left || previous.right || previous.boost
+      ? { left: false, right: false, boost: false }
+      : previous);
+  }, []);
+
+  const beginControl = useCallback((id: number | string, action: SpaceControlAction) => {
+    if (!canInteract()) return;
+    activeControlsRef.current.set(id, { action, sequence: ++controlSequenceRef.current });
+    syncActiveControls();
+  }, [canInteract, syncActiveControls]);
+
+  const endControl = useCallback((id: number | string) => {
+    if (!activeControlsRef.current.delete(id)) return;
+    syncActiveControls();
+  }, [syncActiveControls]);
+
   const setPausedState = useCallback((nextPaused: boolean, message: string, force = false) => {
     if (nextPaused && !force) {
       const current = latestPropsRef.current;
@@ -343,30 +545,135 @@ const MCQSpaceShooter = ({
     if (pausedRef.current === nextPaused) return;
     pausedRef.current = nextPaused;
     clearPendingDirectionalTap();
-    worldRef.current.heldDirection = 0;
+    clearActiveControls();
     worldRef.current.lastTimestamp = null;
     setPaused(nextPaused);
     setStatusMessage(message);
     latestPropsRef.current.onPauseChange?.(nextPaused);
-  }, [clearPendingDirectionalTap]);
+  }, [clearPendingDirectionalTap, clearActiveControls]);
 
-  const moveAim = useCallback((direction: -1 | 1) => {
+  const handlePlayerDamage = useCallback((message: string) => {
+    if (gameOverRef.current || pausedRef.current || menuOpenRef.current) return;
+    const nextLives = Math.max(0, livesRef.current - 1);
+    livesRef.current = nextLives;
+    setLives(nextLives);
+    worldRef.current.invulnerableMs = 1100;
+    worldRef.current.heldDirection = 0;
+    worldRef.current.boostHeld = false;
+    clearActiveControls();
+    playSpaceExplosion();
+    setStatusMessage(nextLives > 0 ? `HULL HIT · ${nextLives} SHIELD${nextLives === 1 ? "" : "S"} LEFT` : "SHIP DESTROYED · MISSION OVER");
+    if (nextLives === 0) {
+      gameOverRef.current = true;
+      setGameOver(true);
+      setPausedState(true, message, true);
+    }
+  }, [clearActiveControls, setPausedState]);
+  damagePlayerRef.current = handlePlayerDamage;
+
+  const handleDifficultySelect = useCallback((value: SpaceShooterDifficulty) => {
+    const next = normalizeSpaceShooterDifficulty(value);
+    setDifficulty(next);
+    try { window.localStorage.setItem(SHOOTER_DIFFICULTY_KEY, next); } catch { /* Storage is optional. */ }
+    playClick();
+  }, []);
+
+  const startMission = useCallback(() => {
+    if (disabled || feedback || finalSubmitReady || submittedRef.current) return;
+    clearPendingDirectionalTap();
+    clearActiveControls();
     const current = latestPropsRef.current;
-    const count = current.options.length;
-    if (!canInteract() || count === 0) return;
-    const previous = selectedTargetRef.current;
-    const next = previous === null
-      ? (direction > 0 ? 0 : count - 1)
-      : Math.max(0, Math.min(count - 1, previous + direction));
-    if (next === previous) {
-      setStatusMessage(direction < 0 ? "LEFT EDGE REACHED" : "RIGHT EDGE REACHED");
+    livesRef.current = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current].lives;
+    setLives(livesRef.current);
+    comboRef.current = 0;
+    missionScoreRef.current = 0;
+    setCombo(0);
+    setMissionScore(0);
+    gameOverRef.current = false;
+    setGameOver(false);
+    let accepted: boolean | void;
+    try {
+      accepted = current.onStartMission?.(difficultyRef.current);
+    } catch {
+      accepted = false;
+    }
+    if (accepted === false) {
+      setStatusMessage("MISSION COULD NOT START · CHECK QUIZ SETUP");
       return;
     }
-    if (!mappingsRef.current[next]) return;
-    selectedTargetRef.current = next;
-    setSelectedTargetIndex(next);
-    setStatusMessage("AIM LOCKED · TARGET " + String(next + 1) + " OF " + String(count));
+    menuOpenRef.current = false;
+    gameOverRef.current = false;
+    setMenuOpen(false);
+    setGameOver(false);
+    setPausedState(false, "MISSION START · TARGETS ONLINE");
+    setStatusMessage("MISSION START · TARGETS ONLINE");
+    playClick();
+  }, [clearPendingDirectionalTap, clearActiveControls, disabled, feedback, finalSubmitReady, setPausedState]);
+
+  const selectAnswerTarget = useCallback((index: number) => {
+    if (!canInteract() || index < 0 || index >= latestPropsRef.current.options.length || !mappingsRef.current[index]) return;
+    selectedTargetRef.current = index;
+    setSelectedTargetIndex(index);
+    setStatusMessage(`AIM LOCKED · TARGET ${index + 1} OF ${latestPropsRef.current.options.length}`);
+    playClick();
   }, [canInteract]);
+
+  useEffect(() => {
+    setPausedState(true, "Mission briefing.", true);
+    return () => {
+      clearPendingDirectionalTap();
+      activeControlsRef.current.clear();
+      worldRef.current.heldDirection = 0;
+      worldRef.current.boostHeld = false;
+    };
+  }, [setPausedState, clearPendingDirectionalTap]);
+
+  useEffect(() => {
+    // Preserve saved difficulty on first mount. React to subsequent session
+    // updates only, e.g. when START MISSION regenerates the question pool.
+    if (configuredDifficultyRef.current === configuredDifficulty) return;
+    configuredDifficultyRef.current = configuredDifficulty;
+    if (!configuredDifficulty) return;
+    const next = normalizeSpaceShooterDifficulty(configuredDifficulty);
+    difficultyRef.current = next;
+    setDifficulty(next);
+  }, [configuredDifficulty]);
+
+  useEffect(() => {
+    const updateSound = () => {
+      try { setSoundEnabled(getSettings().sound); } catch { setSoundEnabled(true); }
+    };
+    window.addEventListener("settings-updated", updateSound);
+    window.addEventListener("storage", updateSound);
+    return () => {
+      window.removeEventListener("settings-updated", updateSound);
+      window.removeEventListener("storage", updateSound);
+    };
+  }, []);
+
+  useEffect(() => {
+    const score = getSpaceShooterBestScore(bestScore);
+    if (score !== bestScore) setBestScore(score);
+    persistBestScore(score);
+  }, [bestScore]);
+
+  useEffect(() => {
+    const currentLevel = getSpaceShooterLevel(correctScore, difficulty);
+    const previousLevel = lastLevelRef.current;
+    if (currentLevel > previousLevel && !menuOpen && !gameOver) {
+      setLevelNotice(currentLevel);
+      if (levelNoticeTimerRef.current !== null) clearTimeout(levelNoticeTimerRef.current);
+      levelNoticeTimerRef.current = setTimeout(() => {
+        setLevelNotice(null);
+        levelNoticeTimerRef.current = null;
+      }, 1650);
+    }
+    lastLevelRef.current = currentLevel;
+  }, [correctScore, difficulty, menuOpen, gameOver]);
+
+  useEffect(() => () => {
+    if (levelNoticeTimerRef.current !== null) clearTimeout(levelNoticeTimerRef.current);
+  }, []);
 
   const fireProjectile = useCallback(() => {
     if (!canInteract()) return;
@@ -425,43 +732,7 @@ const MCQSpaceShooter = ({
     setStatusMessage("LASER FIRED · TRACK THE SHOT TO ITS TARGET");
   }, [canInteract]);
 
-  const handleDirectionalTap = useCallback((direction: -1 | 1) => {
-    if (!canInteract()) return;
-    const pending = pendingDirectionalTapRef.current;
-    if (pending) {
-      clearTimeout(pending.timer);
-      pendingDirectionalTapRef.current = null;
-      if (pending.direction === direction) {
-        // Cancel the deferred single tap so one double tap fires only once.
-        fireProjectile();
-        return;
-      }
-      moveAim(pending.direction);
-    }
-    const timer = setTimeout(() => {
-      if (pendingDirectionalTapRef.current?.timer !== timer) return;
-      pendingDirectionalTapRef.current = null;
-      moveAim(direction);
-    }, DOUBLE_TAP_WINDOW_MS);
-    pendingDirectionalTapRef.current = { direction, timer };
-  }, [canInteract, fireProjectile, moveAim]);
 
-  const handleAimControlKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    const key = event.key.toLowerCase();
-    if (key === "arrowleft" || key === "a") {
-      event.preventDefault();
-      clearPendingDirectionalTap();
-      moveAim(-1);
-    } else if (key === "arrowright" || key === "d") {
-      event.preventDefault();
-      clearPendingDirectionalTap();
-      moveAim(1);
-    } else if (event.code === "Space" || event.key === "Enter") {
-      event.preventDefault();
-      clearPendingDirectionalTap();
-      fireProjectile();
-    }
-  };
 
   const resolveProjectileHit = useCallback((projectile: SpaceProjectile) => {
     const current = latestPropsRef.current;
@@ -482,8 +753,10 @@ const MCQSpaceShooter = ({
 
     submittedRef.current = true;
     worldRef.current.heldDirection = 0;
+    worldRef.current.boostHeld = false;
+    clearActiveControls();
     worldRef.current.projectiles.length = 0;
-    setStatusMessage("DIRECT HIT · ASTEROID DESTROYED · CHECKING ANSWER");
+    setStatusMessage("DIRECT HIT · TARGET DESTROYED · CHECKING ANSWER");
     playSpaceExplosion();
 
     try {
@@ -514,24 +787,67 @@ const MCQSpaceShooter = ({
     activeQuestionKeyRef.current = nextQuestion;
     activeSessionKeyRef.current = nextSession;
     clearPendingDirectionalTap();
+    clearActiveControls();
     submittedRef.current = false;
     worldRef.current.projectiles.length = 0;
     worldRef.current.particles.length = 0;
+    worldRef.current.hazards.length = 0;
+    worldRef.current.hazardSpawnElapsedMs = 0;
+    worldRef.current.invulnerableMs = 0;
+    worldRef.current.bossAttackPulseMs = 0;
     worldRef.current.heldDirection = 0;
+    worldRef.current.boostHeld = false;
     worldRef.current.shipX = worldRef.current.width / 2;
     selectedTargetRef.current = options.length > 0 ? 0 : null;
     setSelectedTargetIndex(options.length > 0 ? 0 : null);
-    if (sessionChanged) finalSubmitInvokedRef.current = false;
+    if (sessionChanged) {
+      finalSubmitInvokedRef.current = false;
+      processedFeedbackRef.current = null;
+      gameOverRef.current = false;
+      livesRef.current = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current].lives;
+      missionScoreRef.current = 0;
+      comboRef.current = 0;
+      setLives(livesRef.current);
+      setMissionScore(0);
+      setCombo(0);
+      setGameOver(false);
+      worldRef.current.level = 1;
+      worldRef.current.bossActive = false;
+    }
     if (pausedRef.current) setPausedState(false, "Mission resumed.");
-    else setStatusMessage("NEW TARGETS ACQUIRED · TAP LEFT/RIGHT ONCE TO AIM");
-  }, [questionKey, sessionKey, setPausedState, clearPendingDirectionalTap, options.length]);
+    else setStatusMessage("NEW TARGETS ACQUIRED · AIM AND FIRE");
+  }, [questionKey, sessionKey, setPausedState, clearPendingDirectionalTap, clearActiveControls, options.length]);
 
   useEffect(() => {
-    if (!feedback) return;
+    if (!feedback) {
+      processedFeedbackRef.current = null;
+      return;
+    }
+    if (selectedOption === null) return;
+    const eventKey = `${String(sessionKey ?? "default")}:${String(questionKey)}`;
+    if (processedFeedbackRef.current === eventKey) return;
+    processedFeedbackRef.current = eventKey;
     worldRef.current.projectiles.length = 0;
     worldRef.current.heldDirection = 0;
-    setStatusMessage(feedback === "correct" ? "Correct hit! Excellent piloting." : "Target hit. Review the answer feedback.");
-  }, [feedback]);
+    worldRef.current.boostHeld = false;
+
+    if (feedback === "correct") {
+      const nextCombo = Math.min(999, comboRef.current + 1);
+      comboRef.current = nextCombo;
+      setCombo(nextCombo);
+      const award = 100 + Math.min(500, (nextCombo - 1) * 10);
+      const nextScore = getSpaceShooterBestScore(missionScoreRef.current + award);
+      missionScoreRef.current = nextScore;
+      setMissionScore(nextScore);
+      if (nextScore > bestScore) setBestScore(nextScore);
+      setStatusMessage(nextCombo > 1 ? `DIRECT HIT · COMBO ×${nextCombo} · +${award}` : `DIRECT HIT · +${award} POINTS`);
+    } else {
+      comboRef.current = 0;
+      setCombo(0);
+      setStatusMessage("WRONG ANSWER · SHIELD DAMAGED");
+      damagePlayerRef.current("Your shields are depleted. Retry the mission or return to games.");
+    }
+  }, [feedback, selectedOption, questionKey, sessionKey, bestScore]);
 
   useEffect(() => {
     let context: CanvasRenderingContext2D | null = null;
@@ -588,9 +904,19 @@ const MCQSpaceShooter = ({
       const elapsedSeconds = elapsedMs / 1000;
       const current = latestPropsRef.current;
 
-      if (!pausedRef.current) {
+      if (!pausedRef.current && !menuOpenRef.current && !gameOverRef.current) {
+        const rules = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current];
+        const currentLevel = getSpaceShooterLevel(current.correctScore, difficultyRef.current);
+        const bossState = getSpaceShooterBossState(current.correctScore, difficultyRef.current);
+        world.level = currentLevel;
+        world.bossActive = bossState.active;
+        world.bossHealth = bossState.health;
+        world.bossMaxHealth = bossState.maximumHealth;
+        world.invulnerableMs = Math.max(0, world.invulnerableMs - elapsedMs);
+        world.bossAttackPulseMs = Math.max(0, world.bossAttackPulseMs - elapsedMs);
+
         for (const star of world.stars) {
-          star.y += star.speed * elapsedSeconds;
+          star.y += star.speed * elapsedSeconds * (world.boostHeld ? 1.7 : 1);
           if (star.y > world.height + 2) {
             star.y = -2;
             star.x = Math.random() * world.width;
@@ -605,18 +931,63 @@ const MCQSpaceShooter = ({
           if (particle.ageMs >= particle.lifetimeMs) world.particles.splice(index, 1);
         }
 
-        if (
+        const canSimulateCombat =
           !current.disabled &&
           !current.feedback &&
           !current.finalSubmitReady &&
           !submittedRef.current &&
-          activeQuestionKeyRef.current === String(current.questionKey)
-        ) {
+          activeQuestionKeyRef.current === String(current.questionKey);
+
+        if (canSimulateCombat) {
           world.shipX = clampSpaceShipX(
-            world.shipX + world.heldDirection * 265 * elapsedSeconds,
+            world.shipX + world.heldDirection * rules.shipSpeed * (world.boostHeld ? rules.boostMultiplier : 1) * elapsedSeconds,
             world.width,
             SHIP_RADIUS,
           );
+
+          world.hazardSpawnElapsedMs += elapsedMs;
+          const regularSpawnInterval = Math.max(540, rules.hazardSpawnMs - (world.level - 1) * 65);
+          const spawnInterval = bossState.active ? Math.min(850, regularSpawnInterval) : regularSpawnInterval;
+          if (world.hazardSpawnElapsedMs >= spawnInterval && world.hazards.length < MAX_HAZARDS && world.width > 0) {
+            world.hazardSpawnElapsedMs %= spawnInterval;
+            const size = 22 + Math.random() * 15;
+            const bossAttack = bossState.active && !bossState.defeated && Math.random() < 0.68;
+            world.hazards.push({
+              id: world.nextHazardId++,
+              x: bossAttack
+                ? clampSpaceShipX(world.width / 2 + (Math.random() - 0.5) * world.width * 0.28, world.width, size / 2)
+                : size + Math.random() * Math.max(1, world.width - size * 2),
+              y: bossAttack ? Math.max(44, world.height * 0.17) + 24 : -size,
+              size,
+              speed: bossAttack
+                ? rules.hazardSpeed * 1.55 + world.level * 7
+                : rules.hazardSpeed + Math.min(90, (world.level - 1) * 7) + Math.random() * 22,
+              drift: (Math.random() - 0.5) * (bossAttack ? 42 : 72),
+              kind: bossAttack || Math.random() < 0.38 ? "enemy" : "asteroid",
+            });
+            if (bossAttack) world.bossAttackPulseMs = 480;
+          }
+
+          const shipY = Math.max(42, world.height - 42);
+          for (let index = world.hazards.length - 1; index >= 0; index -= 1) {
+            const hazard = world.hazards[index]!;
+            hazard.y += hazard.speed * elapsedSeconds;
+            hazard.x = clampSpaceShipX(hazard.x + hazard.drift * elapsedSeconds, world.width, hazard.size / 2);
+            if (hazard.y > world.height + hazard.size) {
+              world.hazards.splice(index, 1);
+              continue;
+            }
+            if (
+              world.invulnerableMs <= 0 &&
+              Math.abs(hazard.x - world.shipX) < hazard.size * 0.5 + SHIP_RADIUS * 0.55 &&
+              Math.abs(hazard.y - shipY) < hazard.size * 0.45 + 14
+            ) {
+              createHitParticles(world, hazard.x, hazard.y);
+              world.hazards.splice(index, 1);
+              damagePlayerRef.current("Ship destroyed by space hazards.");
+              if (gameOverRef.current || pausedRef.current) break;
+            }
+          }
 
           const stageRect = playfield.getBoundingClientRect();
           for (let index = world.projectiles.length - 1; index >= 0; index -= 1) {
@@ -705,55 +1076,142 @@ const MCQSpaceShooter = ({
   }, [clearPendingDirectionalTap]);
 
   useEffect(() => {
-    const stopMovement = () => {
-      worldRef.current.heldDirection = 0;
-    };
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest?.("button, input, textarea, select, [contenteditable='true']")) return;
       if (!canInteract()) return;
-      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+      const key = event.key.toLowerCase();
+      if (key === "arrowleft" || key === "a") {
         event.preventDefault();
-        moveAim(-1);
-      } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+        beginControl("keyboard:left", "left");
+      } else if (key === "arrowright" || key === "d") {
         event.preventDefault();
-        moveAim(1);
+        beginControl("keyboard:right", "right");
+      } else if (key === "shift" || key === "x") {
+        event.preventDefault();
+        beginControl("keyboard:boost", "boost");
       } else if (event.code === "Space") {
         event.preventDefault();
         fireProjectile();
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
-      if (
-        event.key === "ArrowLeft" ||
-        event.key === "ArrowRight" ||
-        event.key.toLowerCase() === "a" ||
-        event.key.toLowerCase() === "d"
-      ) stopMovement();
+      const key = event.key.toLowerCase();
+      if (key === "arrowleft" || key === "a") endControl("keyboard:left");
+      if (key === "arrowright" || key === "d") endControl("keyboard:right");
+      if (key === "shift" || key === "x") endControl("keyboard:boost");
     };
     const onVisibilityChange = () => {
       if (document.visibilityState !== "visible") {
-        stopMovement();
+        clearActiveControls();
         setPausedState(true, "Paused while the app is in the background.", true);
       }
     };
     const onWindowBlur = () => {
-      stopMovement();
+      clearActiveControls();
       setPausedState(true, "Paused after the app lost focus.", true);
+    };
+    const onGlobalPointerUp = (event: PointerEvent) => endControl(event.pointerId);
+    const onGlobalPointerCancel = (event: PointerEvent) => endControl(event.pointerId);
+    const onGlobalKeyUp = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if (key === "arrowleft" || key === "a") endControl("keyboard:left");
+      if (key === "arrowright" || key === "d") endControl("keyboard:right");
+      if (key === "shift" || key === "x") endControl("keyboard:boost");
     };
 
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onWindowBlur);
+    window.addEventListener("pointerup", onGlobalPointerUp);
+    window.addEventListener("pointercancel", onGlobalPointerCancel);
+    window.addEventListener("keyup", onGlobalKeyUp);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
-      stopMovement();
+      activeControlsRef.current.clear();
+      worldRef.current.heldDirection = 0;
+      worldRef.current.boostHeld = false;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onWindowBlur);
+      window.removeEventListener("pointerup", onGlobalPointerUp);
+      window.removeEventListener("pointercancel", onGlobalPointerCancel);
+      window.removeEventListener("keyup", onGlobalKeyUp);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [canInteract, fireProjectile, moveAim, setPausedState]);
+  }, [canInteract, fireProjectile, setPausedState, clearActiveControls, endControl, beginControl]);
+
+  const handlePointerControlDown = (event: ReactPointerEvent<HTMLButtonElement>, action: SpaceControlAction) => {
+    event.preventDefault();
+    if (!canInteract()) return;
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Some WebViews omit pointer capture. */ }
+    beginControl(event.pointerId, action);
+  };
+
+  const handlePointerControlEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    endControl(event.pointerId);
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch { /* Capture may have been released by the platform. */ }
+  };
+
+  const handleControlKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, action: SpaceControlAction) => {
+    const key = event.key.toLowerCase();
+    const expected = action === "left" ? ["arrowleft", "a"] : action === "right" ? ["arrowright", "d"] : ["shift", "x"];
+    if (!expected.includes(key)) return;
+    event.preventDefault();
+    if (event.repeat) return;
+    beginControl(`keyboard:${action}`, action);
+  };
+
+  const handleControlClick = (event: ReactMouseEvent<HTMLButtonElement>, action: SpaceControlAction) => {
+    // Pointer holds are handled by Pointer Events. A synthesized keyboard/switch click
+    // should remain useful without creating an indefinitely-held steering direction.
+    if (event.detail !== 0 || !canInteract()) return;
+    if (action === "left" || action === "right") {
+      const direction = action === "left" ? -1 : 1;
+      worldRef.current.shipX = clampSpaceShipX(
+        worldRef.current.shipX + direction * 52,
+        worldRef.current.width,
+        SHIP_RADIUS,
+      );
+      setStatusMessage(action === "left" ? "SHIP STEERED LEFT" : "SHIP STEERED RIGHT");
+      return;
+    }
+    const id = "keyboard:boost";
+    if (activeControlsRef.current.has(id)) endControl(id);
+    else beginControl(id, action);
+  };
+
+  const toggleSound = () => {
+    const next = !soundEnabled;
+    try { setSound(next); } catch { /* Audio setting cannot block gameplay. */ }
+    setSoundEnabled(next);
+    playClick();
+  };
+
+  const restartMission = () => {
+    clearActiveControls();
+    clearPendingDirectionalTap();
+    worldRef.current.projectiles.length = 0;
+    worldRef.current.hazards.length = 0;
+    worldRef.current.particles.length = 0;
+    menuOpenRef.current = false;
+    setMenuOpen(false);
+    if (onRestartGame) onRestartGame();
+    else {
+      gameOverRef.current = false;
+      setGameOver(false);
+      setLives(difficultyRef.current ? SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current].lives : 4);
+      livesRef.current = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current].lives;
+      setCombo(0);
+      comboRef.current = 0;
+      setMissionScore(0);
+      missionScoreRef.current = 0;
+      setPausedState(false, "MISSION RESTARTED");
+    }
+  };
 
   const choosePause = () => {
     if (pausedRef.current) {
@@ -770,12 +1228,13 @@ const MCQSpaceShooter = ({
 
   const handleFinalSubmit = () => {
     const current = latestPropsRef.current;
-    if (current.disabled || finalSubmitInvokedRef.current || submittedRef.current) return;
+    if (current.disabled || pausedRef.current || menuOpenRef.current || gameOverRef.current || finalSubmitInvokedRef.current || submittedRef.current) return;
     finalSubmitInvokedRef.current = true;
     submittedRef.current = true;
     clearPendingDirectionalTap();
-    worldRef.current.heldDirection = 0;
+    clearActiveControls();
     worldRef.current.projectiles.length = 0;
+    worldRef.current.hazards.length = 0;
     playClick();
     try {
       const accepted = current.onFinalSubmit();
@@ -794,6 +1253,10 @@ const MCQSpaceShooter = ({
   const submissionBlocked = disabled || !!feedback || finalSubmitReady || submittedRef.current;
   const leaveBlocked = submissionBlocked || paused;
   const restartBlocked = disabled || !!feedback || submittedRef.current;
+  const difficultyConfig = SPACE_SHOOTER_DIFFICULTIES[difficulty];
+  const level = getSpaceShooterLevel(correctScore, difficulty);
+  const boss = getSpaceShooterBossState(correctScore, difficulty);
+  const targetCount = Math.max(1, options.length);
 
   return (
     <section
@@ -822,7 +1285,7 @@ const MCQSpaceShooter = ({
             type="button"
             className="mcq-space-submit"
             onClick={handleFinalSubmit}
-            disabled={disabled || finalSubmitInvokedRef.current}
+            disabled={disabled || paused || menuOpen || gameOver || finalSubmitInvokedRef.current}
             aria-label="Submit complete test"
             data-testid="space-submit-test"
           >
@@ -833,8 +1296,8 @@ const MCQSpaceShooter = ({
             type="button"
             className="mcq-space-icon-button"
             onClick={choosePause}
-            disabled={!paused && !canInteract()}
-            aria-label={paused ? "Resume game" : "Pause game"}
+            disabled={menuOpen || gameOver || (!paused && !canInteract())}
+            aria-label={paused && !menuOpen && !gameOver ? "Resume game" : "Pause game"}
           >
             {paused ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />}
           </button>
@@ -843,16 +1306,16 @@ const MCQSpaceShooter = ({
 
       <section className="mcq-space-hud" aria-label="Mission status">
         <div className="mcq-space-question">
-          <span className="mcq-space-eyebrow"><Zap size={12} aria-hidden="true" /> TARGET QUESTION</span>
+          <span className="mcq-space-eyebrow"><Zap size={12} aria-hidden="true" /> {difficultyConfig.label} · LEVEL {level}</span>
           <div className="mcq-space-question-label">{questionLabel}</div>
         </div>
         <div className="mcq-space-stats">
-          <span className="mcq-space-stat mcq-space-stat--correct" aria-label={`${correctScore} correct answers`}>
-            <span aria-hidden="true">✓</span> {correctScore}
-          </span>
-          <span className="mcq-space-stat mcq-space-stat--wrong" aria-label={`${wrongScore} incorrect answers`}>
-            <span aria-hidden="true">×</span> {wrongScore}
-          </span>
+          <span className="mcq-space-stat mcq-space-stat--score" aria-label={`Mission score ${missionScore}`}>★ {missionScore}</span>
+          <span className="mcq-space-stat mcq-space-stat--correct" aria-label={`${correctScore} correct answers`}><span aria-hidden="true">✓</span> {correctScore}</span>
+          <span className="mcq-space-stat mcq-space-stat--wrong" aria-label={`${wrongScore} incorrect answers`}><span aria-hidden="true">×</span> {wrongScore}</span>
+          <span className="mcq-space-stat mcq-space-stat--shield" aria-label={`${lives} shields remaining`}><Shield size={12} aria-hidden="true" /> {lives}</span>
+          <span className="mcq-space-stat" aria-label={`Combo ${combo}`}>COMBO {combo}</span>
+          {bestScore > 0 && <span className="mcq-space-stat" aria-label={`Best score ${bestScore}`}>BEST {bestScore}</span>}
           {progressLabel && <span className="mcq-space-stat" aria-label={`Question ${progressLabel}`}>{progressLabel}</span>}
           {timerLabel && <span className="mcq-space-stat mcq-space-stat--timer" aria-label={`Time remaining ${timerLabel}`}><Timer size={13} aria-hidden="true" /> {timerLabel}</span>}
         </div>
@@ -860,47 +1323,42 @@ const MCQSpaceShooter = ({
 
       <div className="mcq-space-playfield" ref={playfieldRef} role="group" aria-label="Space battlefield">
         <canvas ref={canvasRef} className="mcq-space-canvas" aria-hidden="true" />
-        <button
-          type="button"
-          className="mcq-space-touch-zone mcq-space-touch-zone--left"
-          onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(-1); }}
-          onContextMenu={(event) => event.preventDefault()}
-          disabled={!canInteract()}
-          aria-label="Left touch zone: single tap moves aim left, double tap fires at aimed target"
-          onKeyDown={handleAimControlKeyDown}
-          data-testid="space-touch-left"
-        />
-        <button
-          type="button"
-          className="mcq-space-touch-zone mcq-space-touch-zone--right"
-          onPointerUp={(event) => { event.preventDefault(); event.currentTarget.blur(); handleDirectionalTap(1); }}
-          onContextMenu={(event) => event.preventDefault()}
-          disabled={!canInteract()}
-          aria-label="Right touch zone: single tap moves aim right, double tap fires at aimed target"
-          onKeyDown={handleAimControlKeyDown}
-          data-testid="space-touch-right"
-        />
-        <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets" style={{ gridTemplateColumns: `repeat(${Math.max(1, options.length)}, minmax(0, 1fr))` }}>
+        <div className="mcq-space-playfield-overline" aria-hidden="true">
+          <span>LEVEL {level}</span>
+          {boss.active && <span className="mcq-space-boss-tag">BOSS · {boss.health}/{boss.maximumHealth} HP</span>}
+        </div>
+        <div className="mcq-space-target-grid" role="group" aria-label="Mathematical answer targets" style={{ gridTemplateColumns: `repeat(${targetCount}, minmax(0, 1fr))` }}>
           {options.map((option, index) => {
             const mapping = mappings[index];
+            const feedbackClass = feedback && selectedOption === index
+              ? (feedback === "correct" ? " is-destroyed" : " is-hit-wrong")
+              : "";
             return (
-              <div
+              <button
+                type="button"
                 key={mapping?.gateId ?? `${String(questionKey)}-${index}`}
                 ref={(element) => { targetRefs.current[index] = element; }}
-                className={`mcq-space-target mcq-space-target--${index % 4}${selectedTargetIndex === index ? " is-aimed" : ""}`}
-                role="img"
-                aria-label={`Answer target ${index + 1}: ${String(option.value)}${selectedTargetIndex === index ? ", aim locked" : ""}`}
+                className={`mcq-space-target mcq-space-target--${index % 4}${selectedTargetIndex === index ? " is-aimed" : ""}${feedbackClass}`}
+                onClick={() => selectAnswerTarget(index)}
+                disabled={!canInteract()}
+                aria-label={`Aim at answer ${index + 1}: ${String(option.value)}`}
+                aria-pressed={selectedTargetIndex === index}
                 aria-current={selectedTargetIndex === index ? "true" : undefined}
                 data-target-id={mapping?.gateId}
                 data-testid={`space-target-${index}`}
               >
                 <span className="mcq-space-target-label">{option.label}</span>
-                <span className="mcq-space-target-spark" aria-hidden="true">✦</span>
-              </div>
+                <span className="mcq-space-target-spark" aria-hidden="true">{feedback && selectedOption === index ? (feedback === "correct" ? "✓" : "×") : "✦"}</span>
+              </button>
             );
           })}
         </div>
         <div className="mcq-space-status" role="status" aria-live="polite">{statusMessage}</div>
+        {levelNotice !== null && !paused && !menuOpen && !gameOver && (
+          <div className="mcq-space-level-notice" role="status" aria-live="polite">
+            {levelNotice % 3 === 0 ? "⚠ BOSS INCOMING" : `LEVEL ${levelNotice} REACHED`}
+          </div>
+        )}
 
         {rendererError && (
           <div className="mcq-space-renderer-error" role="alert">
@@ -913,17 +1371,74 @@ const MCQSpaceShooter = ({
         )}
       </div>
 
-      <footer className="mcq-space-controls">
+      <footer className="mcq-space-controls" aria-label="Spacecraft controls">
+        <div className="mcq-space-control-row">
+          <button
+            type="button"
+            className={`mcq-space-move-button mcq-space-steer-button${heldControls.left ? " is-active" : ""}`}
+            onPointerDown={(event) => handlePointerControlDown(event, "left")}
+            onPointerUp={handlePointerControlEnd}
+            onPointerCancel={handlePointerControlEnd}
+            onLostPointerCapture={(event) => endControl(event.pointerId)}
+            onKeyDown={(event) => handleControlKeyDown(event, "left")}
+            onKeyUp={(event) => { const key = event.key.toLowerCase(); if (key === "arrowleft" || key === "a") endControl("keyboard:left"); }}
+            onClick={(event) => handleControlClick(event, "left")}
+            onContextMenu={(event) => event.preventDefault()}
+            disabled={!canInteract()}
+            aria-label="Steer spaceship left"
+            aria-pressed={heldControls.left}
+            data-testid="space-control-left"
+          >◀ LEFT</button>
+          <button
+            type="button"
+            className={`mcq-space-shoot-button`}
+            onClick={fireProjectile}
+            disabled={!canInteract()}
+            aria-label="Fire laser at selected answer"
+            data-testid="space-control-fire"
+          ><span aria-hidden="true">✦</span> FIRE</button>
+          <button
+            type="button"
+            className={`mcq-space-boost-button${heldControls.boost ? " is-active" : ""}`}
+            onPointerDown={(event) => handlePointerControlDown(event, "boost")}
+            onPointerUp={handlePointerControlEnd}
+            onPointerCancel={handlePointerControlEnd}
+            onLostPointerCapture={(event) => endControl(event.pointerId)}
+            onKeyDown={(event) => handleControlKeyDown(event, "boost")}
+            onKeyUp={(event) => { const key = event.key.toLowerCase(); if (key === "shift" || key === "x") endControl("keyboard:boost"); }}
+            onClick={(event) => handleControlClick(event, "boost")}
+            onContextMenu={(event) => event.preventDefault()}
+            disabled={!canInteract()}
+            aria-label="Hold to boost spaceship speed"
+            aria-pressed={heldControls.boost}
+            data-testid="space-control-boost"
+          ><Zap size={17} aria-hidden="true" /><span>BOOST</span></button>
+          <button
+            type="button"
+            className={`mcq-space-move-button mcq-space-steer-button${heldControls.right ? " is-active" : ""}`}
+            onPointerDown={(event) => handlePointerControlDown(event, "right")}
+            onPointerUp={handlePointerControlEnd}
+            onPointerCancel={handlePointerControlEnd}
+            onLostPointerCapture={(event) => endControl(event.pointerId)}
+            onKeyDown={(event) => handleControlKeyDown(event, "right")}
+            onKeyUp={(event) => { const key = event.key.toLowerCase(); if (key === "arrowright" || key === "d") endControl("keyboard:right"); }}
+            onClick={(event) => handleControlClick(event, "right")}
+            onContextMenu={(event) => event.preventDefault()}
+            disabled={!canInteract()}
+            aria-label="Steer spaceship right"
+            aria-pressed={heldControls.right}
+            data-testid="space-control-right"
+          >RIGHT ▶</button>
+        </div>
         <div className="mcq-space-controls-hint">
-          <span>SINGLE TAP · MOVE AIM</span><span aria-hidden="true">◆</span>
-          <span>DOUBLE TAP · FIRE LASER</span>
+          <span>HOLD LEFT / RIGHT TO STEER</span><span aria-hidden="true">◆</span><span>HOLD BOOST TO ACCELERATE</span>
           {onRestartGame && (
             <button
               type="button"
               className="mcq-space-restart"
-              onClick={() => onRestartGame()}
+              onClick={restartMission}
               disabled={restartBlocked}
-              aria-label="Restart quiz"
+              aria-label="Restart mission"
             >
               <RotateCcw size={13} aria-hidden="true" /> Restart
             </button>
@@ -931,7 +1446,70 @@ const MCQSpaceShooter = ({
         </div>
       </footer>
 
-      {paused && (
+      {menuOpen && (
+        <div className="mcq-space-menu-scrim" role="dialog" aria-modal="true" aria-labelledby="mcq-space-menu-title">
+          <div className="mcq-space-menu-card">
+            <div className="mcq-space-menu-logo"><Rocket size={32} aria-hidden="true" /></div>
+            <p className="mcq-space-menu-eyebrow">ARCADE MISSION SYSTEM</p>
+            <h1 id="mcq-space-menu-title">MATH SPACE SHOOTER</h1>
+            <p className="mcq-space-menu-subtitle">Lock on to the answer. Fire to solve. Defend your ship.</p>
+            <div className="mcq-space-difficulty-picker" role="group" aria-label="Mission difficulty">
+              {(["easy", "medium", "hard"] as const).map((levelChoice) => (
+                <button key={levelChoice} type="button" className={`mcq-space-difficulty-button${difficulty === levelChoice ? " is-selected" : ""}`} aria-pressed={difficulty === levelChoice} onClick={() => handleDifficultySelect(levelChoice)} data-testid={`space-difficulty-${levelChoice}`}>
+                  <strong>{levelChoice === "easy" ? "CADET" : levelChoice === "medium" ? "PILOT" : "ACE"}</strong>
+                  <span>{levelChoice === "easy" ? "5 SHIELDS" : levelChoice === "medium" ? "4 SHIELDS" : "3 SHIELDS"}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mcq-space-menu-stats">
+              <span><Trophy size={15} aria-hidden="true" /> BEST {bestScore}</span>
+              <span><Shield size={15} aria-hidden="true" /> {difficultyConfig.lives} SHIELDS</span>
+              <span><Zap size={15} aria-hidden="true" /> {difficultyConfig.boostMultiplier.toFixed(2)}× BOOST</span>
+            </div>
+            {!showInstructions ? (
+              <>
+                <button type="button" className="mcq-space-menu-primary" onClick={startMission} disabled={disabled || !!feedback || finalSubmitReady} data-testid="space-start-mission"><Play size={20} aria-hidden="true" /> START MISSION</button>
+                <button type="button" className="mcq-space-menu-secondary" onClick={() => setShowInstructions(true)}><BookOpen size={17} aria-hidden="true" /> HOW TO PLAY</button>
+              </>
+            ) : (
+              <div className="mcq-space-instructions">
+                <h2>HOW TO PLAY</h2>
+                <p><strong>1.</strong> Choose an answer target or steer your spaceship left/right.</p>
+                <p><strong>2.</strong> Tap <strong>FIRE</strong> to launch a laser. Only a real collision submits the active quiz answer.</p>
+                <p><strong>3.</strong> Hold <strong>BOOST</strong> while steering. Asteroids and enemy ships damage shields.</p>
+                <p><strong>4.</strong> Correct answers build score and combo. Reach level 3 for a boss encounter.</p>
+                <button type="button" className="mcq-space-menu-secondary" onClick={() => setShowInstructions(false)}>BACK TO MISSION BRIEFING</button>
+              </div>
+            )}
+            <button type="button" className="mcq-space-menu-secondary mcq-space-sound-toggle" onClick={toggleSound} aria-pressed={soundEnabled}>
+              {soundEnabled ? <Volume2 size={17} aria-hidden="true" /> : <VolumeX size={17} aria-hidden="true" />} SOUND {soundEnabled ? "ON" : "OFF"}
+            </button>
+            {onChangeGame && <button type="button" className="mcq-space-menu-exit" onClick={handleChangeGame}><ArrowLeft size={16} aria-hidden="true" /> BACK TO GAMES</button>}
+          </div>
+        </div>
+      )}
+
+      {(gameOver || (finalSubmitReady && !menuOpen)) && (
+        <div className="mcq-space-menu-scrim" role="dialog" aria-modal="true" aria-labelledby="mcq-space-result-title">
+          <div className="mcq-space-menu-card mcq-space-result-card">
+            <div className="mcq-space-menu-logo">{gameOver ? <Shield size={30} aria-hidden="true" /> : <Trophy size={30} aria-hidden="true" />}</div>
+            <p className="mcq-space-menu-eyebrow">{gameOver ? "MISSION FAILED" : "MISSION COMPLETE"}</p>
+            <h2 id="mcq-space-result-title">{gameOver ? "SHIP DESTROYED" : "SECTOR CLEARED"}</h2>
+            <div className="mcq-space-results-stats">
+              <span>MISSION SCORE<strong>{missionScore}</strong></span>
+              <span>COMBO<strong>{combo}</strong></span>
+              <span>SHIELDS<strong>{lives}</strong></span>
+              <span>BEST SCORE<strong>{bestScore}</strong></span>
+            </div>
+            <p>{gameOver ? "Your shields are depleted. Retry the mission or return to the game selector." : "Excellent work, pilot. Submit the quiz when you are ready."}</p>
+            {onRestartGame && <button type="button" className="mcq-space-menu-primary" onClick={restartMission}><RotateCcw size={18} aria-hidden="true" /> RETRY MISSION</button>}
+            {finalSubmitReady && <button type="button" className="mcq-space-menu-secondary" onClick={handleFinalSubmit}><Trophy size={17} aria-hidden="true" /> SUBMIT TEST</button>}
+            {onChangeGame && <button type="button" className="mcq-space-menu-secondary" onClick={handleChangeGame} disabled={!!feedback || submittedRef.current}><ArrowLeft size={16} aria-hidden="true" /> BACK TO GAMES</button>}
+          </div>
+        </div>
+      )}
+
+      {paused && !menuOpen && !gameOver && (
         <div className="mcq-space-pause-scrim">
           <section className="mcq-space-pause-card" role="dialog" aria-modal="true" aria-labelledby="mcq-space-paused-title">
             <span className="mcq-space-pause-icon"><Pause size={24} aria-hidden="true" /></span>
