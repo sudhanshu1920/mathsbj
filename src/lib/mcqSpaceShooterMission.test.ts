@@ -53,6 +53,13 @@ describe("Math Space Shooter mission rules", () => {
       active: true, defeated: true, health: 0, maximumHealth: 3,
     });
     expect(getSpaceShooterBossState(12, "medium").active).toBe(false);
+    expect(getSpaceShooterLevel(10, "hard")).toBe(3);
+    expect(getSpaceShooterBossState(10, "hard")).toEqual({
+      active: true, defeated: false, health: 4, maximumHealth: 4,
+    });
+    expect(getSpaceShooterBossState(14, "hard")).toEqual({
+      active: true, defeated: true, health: 0, maximumHealth: 4,
+    });
   });
 
   it("treats wrong answers as non-progress and exposes greater hazard pressure per difficulty", async () => {
