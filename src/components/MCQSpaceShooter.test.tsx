@@ -151,6 +151,8 @@ describe("Math Space Shooter mission", () => {
     const previousSoundState = soundButton.getAttribute("aria-pressed");
     fireEvent.click(soundButton);
     expect(screen.getByRole("button", { name: /sound (on|off)/i })).not.toHaveAttribute("aria-pressed", previousSoundState ?? "false");
+    fireEvent.click(screen.getByRole("button", { name: /sound (on|off)/i }));
+    expect(screen.getByRole("button", { name: /sound (on|off)/i })).toHaveAttribute("aria-pressed", previousSoundState ?? "false");
 
     startMission();
     expect(onStartMission).toHaveBeenCalledOnce();
@@ -281,6 +283,9 @@ describe("Math Space Shooter mission", () => {
     mockCanvasContext();
     const view = render(<MCQSpaceShooter {...shooterProps()} />);
     startMission();
+    view.rerender(<MCQSpaceShooter {...shooterProps({ feedback: "correct", selectedOption: 1 })} />);
+    expect(screen.getByLabelText("Combo 1")).toBeInTheDocument();
+    view.rerender(<MCQSpaceShooter {...shooterProps()} />);
 
     view.rerender(<MCQSpaceShooter {...shooterProps({ feedback: "wrong", selectedOption: 0 })} />);
     expect(screen.getByLabelText("3 shields remaining")).toBeInTheDocument();
