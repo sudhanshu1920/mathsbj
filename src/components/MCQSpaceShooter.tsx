@@ -1042,7 +1042,14 @@ const MCQSpaceShooter = ({
             const motion = world.answerTargets[targetIndex]!;
             const nextMotion = advanceSpaceAnswerTargetMotion(
               motion,
-              { width: world.width, height: world.height, bottom: world.height * 0.82 },
+              {
+                width: world.width,
+                height: world.height,
+                bottom: Math.min(
+                  world.height * 0.82,
+                  Math.max(0, Math.max(42, world.height - 42) - motion.height - 12),
+                ),
+              },
               elapsedMs,
             );
             world.answerTargets[targetIndex] = nextMotion;
