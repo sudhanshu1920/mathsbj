@@ -360,6 +360,110 @@ describe("Quiz Arena MCQ with Game mode", () => {
     }
   }, 15_000);
 
+  it("automatically completes finite Jump Adventure after the final accepted answer", async () => {
+    const raf = installAnimationFrameQueue();
+    const contextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({ setTransform: vi.fn() } as unknown as CanvasRenderingContext2D);
+    const onQuizFinish = vi.fn();
+    const view = render(<PracticePage onQuizFinish={onQuizFinish} />);
+
+    try {
+      startSelectedGame(/Jump Adventure/i);
+
+      for (let question = 1; question <= 10; question += 1) {
+        const answer = screen.getByRole("group", { name: "Choose your answer" })
+          .querySelector("button:not(:disabled)") as HTMLButtonElement | null;
+        expect(answer).not.toBeNull();
+        fireEvent.click(answer!);
+
+        if (question < 10) {
+          await waitFor(() => {
+            expect(screen.getByLabelText("Question " + (question + 1) + " / 10")).toBeInTheDocument();
+          });
+        } else {
+          await waitFor(() => {
+            expect(screen.getByRole("button", { name: "Play Again" })).toBeInTheDocument();
+          });
+        }
+      }
+
+      expect(onQuizFinish).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Attempted").previousElementSibling).toHaveTextContent("10");
+    } finally {
+      view.unmount();
+      contextSpy.mockRestore();
+      raf.restore();
+    }
+  }, 15_000);
+
+  it("keeps Infinite mode active beyond ten answers and completes only on manual Submit Test", async () => {
+    const raf = installAnimationFrameQueue();
+    const contextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({ setTransform: vi.fn() } as unknown as CanvasRenderingContext2D);
+    const onQuizFinish = vi.fn();
+    const view = render(<PracticePage onQuizFinish={onQuizFinish} />);
+
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "∞" }));
+      startSelectedGame(/Jump Adventure/i);
+
+      const initialProgress = screen.getByLabelText(/^Question 1 \/ \d+$/).getAttribute("aria-label") || "";
+      const totalQuestions = Number(initialProgress.split("/")[1]?.trim());
+      expect(totalQuestions).toBeGreaterThan(10);
+      expect(screen.getByTestId("mcq-jump-submit")).toBeEnabled();
+
+      for (let question = 1; question <= 11; question += 1) {
+        const answer = screen.getByRole("group", { name: "Choose your answer" })
+          .querySelector("button:not(:disabled)") as HTMLButtonElement | null;
+        expect(answer).not.toBeNull();
+        fireEvent.click(answer!);
+        await waitFor(() => {
+          expect(screen.getByLabelText("Question " + (question + 1) + " / " + totalQuestions)).toBeInTheDocument();
+        });
+        expect(screen.queryByRole("button", { name: "Play Again" })).not.toBeInTheDocument();
+      }
+
+      expect(onQuizFinish).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Submit complete test" }));
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Play Again" })).toBeInTheDocument();
+      });
+      expect(onQuizFinish).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Attempted").previousElementSibling).toHaveTextContent("11");
+    } finally {
+      view.unmount();
+      contextSpy.mockRestore();
+      raf.restore();
+    }
+  }, 15_000);
+
+  it("allows Infinite Submit Test before the first answer without fabricating an attempt", async () => {
+    const raf = installAnimationFrameQueue();
+    const contextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({ setTransform: vi.fn() } as unknown as CanvasRenderingContext2D);
+    const onQuizFinish = vi.fn();
+    const view = render(<PracticePage onQuizFinish={onQuizFinish} />);
+
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "∞" }));
+      startSelectedGame(/Jump Adventure/i);
+
+      const submit = screen.getByRole("button", { name: "Submit complete test" });
+      expect(submit).toBeEnabled();
+      fireEvent.click(submit);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Play Again" })).toBeInTheDocument();
+      });
+      expect(onQuizFinish).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Attempted").previousElementSibling).toHaveTextContent("0");
+    } finally {
+      view.unmount();
+      contextSpy.mockRestore();
+      raf.restore();
+    }
+  }, 15_000);
+
   it("switches games during an active quiz without starting a second quiz session", () => {
     const raf = installAnimationFrameQueue();
     const contextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext")
