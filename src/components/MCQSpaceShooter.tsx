@@ -3,6 +3,7 @@ import { ArrowLeft, BookOpen, Pause, Play, RotateCcw, Rocket, Shield, Timer, Tro
 import type { MCQGameValue } from "@/lib/mcqGame";
 import { createMCQGateMappings } from "@/lib/mcqGamePhysics";
 import {
+  advanceSpaceShooterBoost,
   advanceSpaceProjectile,
   clampSpaceShipX,
   getSpaceAimVelocity,
@@ -103,6 +104,7 @@ interface SpaceWorld {
   shipX: number;
   heldDirection: -1 | 0 | 1;
   boostHeld: boolean;
+  boostFactor: number;
   stars: SpaceStar[];
   projectiles: SpaceProjectile[];
   particles: SpaceParticle[];
@@ -158,6 +160,7 @@ const createWorld = (): SpaceWorld => ({
   shipX: 0,
   heldDirection: 0,
   boostHeld: false,
+  boostFactor: 1,
   stars: [],
   projectiles: [],
   particles: [],
@@ -845,6 +848,7 @@ const MCQSpaceShooter = ({
     worldRef.current.bossAttackPulseMs = 0;
     worldRef.current.heldDirection = 0;
     worldRef.current.boostHeld = false;
+    worldRef.current.boostFactor = 1;
     worldRef.current.shipX = worldRef.current.width / 2;
     selectedTargetRef.current = options.length > 0 ? 0 : null;
     setSelectedTargetIndex(options.length > 0 ? 0 : null);
@@ -969,9 +973,15 @@ const MCQSpaceShooter = ({
         world.bossMaxHealth = bossState.maximumHealth;
         world.invulnerableMs = Math.max(0, world.invulnerableMs - elapsedMs);
         world.bossAttackPulseMs = Math.max(0, world.bossAttackPulseMs - elapsedMs);
+        world.boostFactor = advanceSpaceShooterBoost(
+          world.boostFactor,
+          world.boostHeld,
+          rules.boostMultiplier,
+          elapsedMs,
+        );
 
         for (const star of world.stars) {
-          star.y += star.speed * elapsedSeconds * (world.boostHeld ? 1.7 : 1);
+          star.y += star.speed * elapsedSeconds * (1 + (world.boostFactor - 1) * 0.8);
           if (star.y > world.height + 2) {
             star.y = -2;
             star.x = Math.random() * world.width;
@@ -995,7 +1005,7 @@ const MCQSpaceShooter = ({
 
         if (canSimulateCombat) {
           world.shipX = clampSpaceShipX(
-            world.shipX + world.heldDirection * rules.shipSpeed * (world.boostHeld ? rules.boostMultiplier : 1) * elapsedSeconds,
+            world.shipX + world.heldDirection * rules.shipSpeed * world.boostFactor * elapsedSeconds,
             world.width,
             SHIP_RADIUS,
           );
