@@ -1072,3 +1072,68 @@
   .mcq-space-menu-card *,
   .mcq-space-results-stats * { animation: none !important; transition: none !important; }
 }
+
+/* Four distinct controls remain large, separated hit targets on narrow phones. */
+.mcq-space-control-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .82fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(.18rem, 1.2vw, .55rem);
+  align-items: stretch;
+}
+.mcq-space-level-notice {
+  position: absolute;
+  z-index: 5;
+  top: 39%;
+  left: 50%;
+  max-width: calc(100% - 1rem);
+  transform: translate(-50%, -50%);
+  border: 2px solid #62f7ff;
+  padding: .7rem 1rem;
+  color: #e5ffff;
+  background: rgba(7, 19, 51, .96);
+  box-shadow: 4px 4px 0 rgba(28, 80, 190, .85), 0 0 24px rgba(0, 229, 255, .28);
+  font-size: clamp(.75rem, 3vw, 1.12rem);
+  font-weight: 1000;
+  letter-spacing: .12em;
+  text-align: center;
+  animation: mcq-space-level-arrival 1.65s steps(4, end) both;
+  pointer-events: none;
+}
+@keyframes mcq-space-level-arrival {
+  0% { opacity: 0; translate: 0 12px; }
+  12%, 80% { opacity: 1; translate: 0 0; }
+  100% { opacity: 0; translate: 0 -5px; }
+}
+.mcq-space-target.is-destroyed {
+  border-color: #a9ffed;
+  color: #b3fff2;
+  animation: mcq-space-target-destroyed .34s steps(4,end) forwards;
+  pointer-events: none;
+}
+.mcq-space-target.is-destroyed .mcq-space-target-spark {
+  color: #fff;
+  font-size: 1.65rem;
+}
+.mcq-space-target.is-hit-wrong {
+  border-color: #ff506f;
+  color: #fff0f3;
+  background: linear-gradient(145deg, rgba(153, 31, 64, .97), rgba(62, 20, 56, .98));
+  animation: mcq-space-target-wrong .22s steps(3,end) both;
+}
+@keyframes mcq-space-target-destroyed {
+  0% { opacity: 1; transform: scale(1); filter: brightness(1.8); }
+  45% { opacity: .92; transform: scale(1.05) rotate(2deg); filter: brightness(2.3) saturate(.3); }
+  100% { opacity: .24; transform: scale(.82); filter: saturate(.1); }
+}
+@keyframes mcq-space-target-wrong {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mcq-space-target.is-destroyed,
+  .mcq-space-target.is-hit-wrong,
+  .mcq-space-level-notice { animation: none !important; }
+  .mcq-space-target.is-destroyed { opacity: .35; }
+}
