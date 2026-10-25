@@ -1296,8 +1296,8 @@ const MCQSpaceShooter = ({
             type="button"
             className="mcq-space-icon-button"
             onClick={choosePause}
-            disabled={!paused && !canInteract()}
-            aria-label={paused ? "Resume game" : "Pause game"}
+            disabled={menuOpen || gameOver || (!paused && !canInteract())}
+            aria-label={paused && !menuOpen && !gameOver ? "Resume game" : "Pause game"}
           >
             {paused ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />}
           </button>
