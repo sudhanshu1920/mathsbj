@@ -1106,6 +1106,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const [infinite, setInfinite] = useState(false);
   const [mode, setMode] = useState<PracticeMode>(initialMode || 'mcq');
   const [selectedGameVariant, setSelectedGameVariant] = useState<MCQGameVariant>('car');
+  const selectedGameVariantRef = useRef(selectedGameVariant);
+  selectedGameVariantRef.current = selectedGameVariant;
   const [gameSelectionOpen, setGameSelectionOpen] = useState(false);
   const modeBeforeGameSelectionRef = useRef<PracticeMode>('mcq');
   const gameSelectionOpenedAtRef = useRef<number | null>(null);
@@ -1153,7 +1155,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
 
     const normalizedConfig: PracticeConfig = {
       ...cfg,
-      spaceShooterDifficulty: cfg.mode === 'game' && selectedGameVariant === 'shooter'
+      spaceShooterDifficulty: cfg.mode === 'game' && selectedGameVariantRef.current === 'shooter'
         ? (difficultyOverride ?? cfg.spaceShooterDifficulty ?? 'medium')
         : undefined,
       // Timer mode is a single source of truth; a Challenge can never leave
@@ -1238,7 +1240,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     answerLockRef.current = false;
     finishLockRef.current = false;
     return true;
-  }, [onQuizStart, setFinalSubmitReady, selectedGameVariant]);
+  }, [onQuizStart, setFinalSubmitReady]);
 
   useEffect(() => {
     if (config && !finished) quizStartLockRef.current = false;
