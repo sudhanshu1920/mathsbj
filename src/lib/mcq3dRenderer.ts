@@ -489,6 +489,13 @@ function buildScrollingMesh(theme: MCQ3DEnvironmentTheme): MeshBuilder {
     for (const x of laneSeparators) {
       builder.addBox(x, -0.068, z, 0.045, 0.018, 1.48, theme.laneDash);
     }
+
+    // High-contrast shoulder reflectors improve road depth and edge awareness.
+    // They share the existing scrolling mesh/buffer, adding no new draw calls.
+    const reflectorColor = Math.trunc((z + 32) / 4) % 2 === 0 ? theme.roadGlow : theme.laneDash;
+    for (const side of [-1, 1]) {
+      builder.addBox(side * 4.43, -0.052, z, 0.13, 0.026, 1.26, reflectorColor);
+    }
   }
 
   for (let z = -30; z <= 18; z += 8) {

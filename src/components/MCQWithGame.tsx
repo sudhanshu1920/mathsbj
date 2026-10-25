@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowLeft, CarFront, Check, Pause, Play, RotateCcw, Send, Timer, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CarFront, Check, Gauge, Pause, Play, RotateCcw, Send, Timer, X } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import {
   hasActiveMCQDrivingPointer,
   hasActiveMCQSpeedBoost,
   resolveMCQSteeringDirection,
+  type MCQSteeringDirection,
   type MCQSteeringPointer,
 } from "@/lib/mcqGameControls";
 import {
@@ -14,15 +15,14 @@ import {
   MCQ_GAME_GATE_HALF_WIDTH,
   MCQ_GAME_GATE_START_Z,
   MCQ_GAME_TRAVEL_DISTANCE,
-  MCQ_GAME_GESTURE_MOVE_TOLERANCE_PX,
-  MCQ_GAME_HOLD_THRESHOLD_MS,
   MCQ_GAME_LANE_X,
   MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS,
   MCQ_GAME_BASE_SPEED_MULTIPLIER,
   MCQ_GAME_MAX_SPEED_MULTIPLIER,
   advanceMCQGameSpeed,
+  advanceMCQGameSteering,
   clampMCQGameLane,
-  classifySteeringGesture,
+  resolveMCQGameLaneIndex,
   createMCQGateMappings,
   createMCQGateApproachStartZs,
   detectSweptGateCollision,
@@ -92,12 +92,15 @@ const MCQWithGame = ({
   const [phase, setPhase] = useState<GamePhase>("INITIALIZING");
   const [showRestartConfirmation, setShowRestartConfirmation] = useState(false);
   const [boosting, setBoosting] = useState(false);
+  const [steeringDirection, setSteeringDirection] = useState<MCQSteeringDirection | null>(null);
   const [rendererError, setRendererError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const topbarRef = useRef<HTMLDivElement | null>(null);
   const questionPanelRef = useRef<HTMLDivElement | null>(null);
+  const controlsRef = useRef<HTMLDivElement | null>(null);
+  const controlButtonBoundsRef = useRef<Array<{ left: number; right: number; top: number; bottom: number }>>([]);
   const gateLabelRefs = useRef<Array<HTMLDivElement | null>>([]);
   const sceneRef = useRef<MCQ3DScene | null>(null);
   const racingAudioRef = useRef<RacingAudioController | null>(null);
@@ -120,9 +123,9 @@ const MCQWithGame = ({
   const activeSessionKeyRef = useRef(String(sessionKey ?? "default"));
   const boostingRef = useRef(false);
   const speedMultiplierRef = useRef(MCQ_GAME_BASE_SPEED_MULTIPLIER);
-  // Pointer IDs and hold timers are independent: lifting one finger cannot release another.
+  // Each real touchscreen pointer belongs to one explicit control. Releasing one ID
+  // never alters another active speed or steering button.
   const activePointersRef = useRef<Map<number, MCQSteeringPointer>>(new Map());
-  const holdTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const pointerActivationOrderRef = useRef(0);
   const speedDisplayRef = useRef<HTMLSpanElement | null>(null);
   const speedLinesRef = useRef<HTMLDivElement | null>(null);
@@ -205,17 +208,6 @@ const MCQWithGame = ({
   onSelectOptionRef.current = onSelectOption;
   onFinalSubmitRef.current = onFinalSubmit;
 
-  const clearHoldTimer = useCallback((pointerId?: number) => {
-    if (pointerId !== undefined) {
-      const timer = holdTimersRef.current.get(pointerId);
-      if (timer !== undefined) clearTimeout(timer);
-      holdTimersRef.current.delete(pointerId);
-      return;
-    }
-    for (const timer of holdTimersRef.current.values()) clearTimeout(timer);
-    holdTimersRef.current.clear();
-  }, []);
-
   const syncBoostState = useCallback(() => {
     const nextBoosting = hasActiveMCQSpeedBoost(activePointersRef.current);
     if (boostingRef.current !== nextBoosting) {
@@ -223,6 +215,74 @@ const MCQWithGame = ({
       setBoosting(nextBoosting);
     }
   }, []);
+
+  const syncSteeringState = useCallback(() => {
+    const nextDirection = resolveMCQSteeringDirection(activePointersRef.current);
+    setSteeringDirection((previous) => previous === nextDirection ? previous : nextDirection);
+  }, []);
+
+  const releaseControlPointer = useCallback((pointerId: number) => {
+    if (!activePointersRef.current.delete(pointerId)) return;
+    syncBoostState();
+    syncSteeringState();
+  }, [syncBoostState, syncSteeringState]);
+
+  const clearActiveControls = useCallback(() => {
+    activePointersRef.current.clear();
+    syncBoostState();
+    syncSteeringState();
+  }, [syncBoostState, syncSteeringState]);
+
+  const startControlPointer = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    control: "speed" | "steering",
+    direction: -1 | 1,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (
+      (typeof event.button === "number" && event.button !== 0) ||
+      !Number.isFinite(event.pointerId) ||
+      disabledRef.current ||
+      phaseRef.current !== "RUNNING" ||
+      submittedRef.current ||
+      feedbackRef.current ||
+      activePointersRef.current.has(event.pointerId)
+    ) return;
+
+    const pointerId = event.pointerId;
+    const press: MCQSteeringPointer = {
+      pointerId,
+      control,
+      direction,
+      startedAt: performance.now(),
+      activationOrder: ++pointerActivationOrderRef.current,
+      startX: Number.isFinite(event.clientX) ? event.clientX : 0,
+      startY: Number.isFinite(event.clientY) ? event.clientY : 0,
+      movementExceeded: false,
+      boostTriggered: control === "speed",
+      laneMoveApplied: true,
+    };
+    activePointersRef.current.set(pointerId, press);
+    racingAudioRef.current?.unlock();
+    try {
+      event.currentTarget.setPointerCapture(pointerId);
+    } catch {
+      // Embedded WebViews may not implement pointer capture; pointer IDs remain isolated.
+    }
+    syncBoostState();
+    syncSteeringState();
+  };
+
+  const endControlPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const pointerId = event.pointerId;
+    // Pointer Events always carry a pointer ID. An inactive/stale ID is ignored;
+    // never infer a missing mouse ID from a different finger still holding a control.
+    if (!Number.isFinite(pointerId) || !activePointersRef.current.has(pointerId)) return;
+    releaseControlPointer(pointerId);
+  };
 
   const setPausedState = useCallback((nextPaused: boolean, force = false) => {
     const current = latestPropsRef.current;
@@ -240,9 +300,7 @@ const MCQWithGame = ({
     if (nextPaused) {
       phaseRef.current = "PAUSED";
       setPhase("PAUSED");
-      clearHoldTimer();
-      activePointersRef.current.clear();
-      syncBoostState();
+      clearActiveControls();
       lastTimestampRef.current = null;
       racingAudioRef.current?.pause();
       if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
@@ -266,7 +324,7 @@ const MCQWithGame = ({
     void setGameImmersiveMode(true);
     current.onPauseChange?.(false);
     scheduleFrameRef.current?.();
-  }, [clearHoldTimer, syncBoostState]);
+  }, [clearActiveControls]);
 
   const changeLane = useCallback((direction: -1 | 1) => {
     if (disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
@@ -293,9 +351,7 @@ const MCQWithGame = ({
 
     // Stop every gameplay pointer on answer commit so a held finger cannot
     // keep accelerating while the Quiz Engine transitions to feedback.
-    clearHoldTimer();
-    activePointersRef.current.clear();
-    syncBoostState();
+    clearActiveControls();
 
     // A gate selection is the per-question commit event. Lock synchronously
     // before the existing Quiz Engine callback runs so touch/collision races
@@ -328,7 +384,7 @@ const MCQWithGame = ({
       releaseRejectedSelection();
       throw error;
     }
-  }, [clearHoldTimer, syncBoostState]);
+  }, [clearActiveControls]);
 
   const submitWholeTest = useCallback(() => {
     const current = latestPropsRef.current;
@@ -340,157 +396,6 @@ const MCQWithGame = ({
     playClick();
     onFinalSubmitRef.current();
   }, []);
-
-  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((typeof event.button === "number" && event.button !== 0) ||
-        disabledRef.current || phaseRef.current !== "RUNNING" || submittedRef.current) return;
-    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : 1;
-    if (activePointersRef.current.has(pointerId)) return;
-    const startX = Number.isFinite(event.clientX) ? event.clientX : 0;
-    if ((event.target as HTMLElement | null)?.closest?.(".mcq-game-topbar, .mcq-game-question-panel, .mcq-game-gate-label, .mcq-game-fallback-option, .mcq-game-paused-overlay")) return;
-
-    // Resume Web Audio directly in the trusted gesture on mobile.
-    racingAudioRef.current?.unlock();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const direction: -1 | 1 = startX < rect.left + rect.width / 2 ? -1 : 1;
-    const previousDirection = resolveMCQSteeringDirection(activePointersRef.current);
-    const press: MCQSteeringPointer = {
-      pointerId,
-      direction,
-      startedAt: performance.now(),
-      activationOrder: ++pointerActivationOrderRef.current,
-      startX,
-      startY: Number.isFinite(event.clientY) ? event.clientY : 0,
-      movementExceeded: false,
-      boostTriggered: false,
-      laneMoveApplied: false,
-    };
-    activePointersRef.current.set(pointerId, press);
-
-    // When a second finger changes direction, the newest direction takes
-    // control immediately. Same-direction extra fingers do not cause a double lane jump.
-    if (previousDirection !== null) {
-      if (previousDirection !== direction) changeLane(direction);
-      press.laneMoveApplied = true;
-    }
-
-    try {
-      event.currentTarget.setPointerCapture(pointerId);
-    } catch {
-      // Pointer capture is unavailable in some test browsers; IDs remain isolated in our active-pointer map.
-    }
-
-    clearHoldTimer(pointerId);
-    const timer = setTimeout(() => {
-      if (holdTimersRef.current.get(pointerId) === timer) holdTimersRef.current.delete(pointerId);
-      const activePress = activePointersRef.current.get(pointerId);
-      if (!activePress || activePress !== press ||
-          phaseRef.current !== "RUNNING" || disabledRef.current || submittedRef.current ||
-          document.hidden || activePress.movementExceeded) return;
-      activePress.boostTriggered = true;
-      if (!activePress.laneMoveApplied) {
-        changeLane(activePress.direction);
-        activePress.laneMoveApplied = true;
-      }
-      syncBoostState();
-    }, MCQ_GAME_HOLD_THRESHOLD_MS);
-    holdTimersRef.current.set(pointerId, timer);
-  };
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId)
-      ? event.pointerId
-      : null;
-    let press = eventPointerId === null ? undefined : activePointersRef.current.get(eventPointerId);
-    const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
-    if (!press && !identityIsReliable && activePointersRef.current.size === 1) {
-      press = activePointersRef.current.values().next().value as MCQSteeringPointer | undefined;
-    }
-    if (!press || press.movementExceeded) return;
-
-    const x = Number.isFinite(event.clientX) ? event.clientX : press.startX;
-    const y = Number.isFinite(event.clientY) ? event.clientY : press.startY;
-    const dx = x - press.startX;
-    const dy = y - press.startY;
-    if (dx * dx + dy * dy <= MCQ_GAME_GESTURE_MOVE_TOLERANCE_PX ** 2) return;
-
-    press.movementExceeded = true;
-    clearHoldTimer(press.pointerId);
-    syncBoostState();
-  };
-
-  const releasePointer = (pointerId: number, allowTap: boolean) => {
-    const press = activePointersRef.current.get(pointerId);
-    if (!press) return;
-    const directionBeforeRelease = resolveMCQSteeringDirection(activePointersRef.current);
-    clearHoldTimer(pointerId);
-    activePointersRef.current.delete(pointerId);
-
-    const duration = Math.max(0, performance.now() - press.startedAt);
-    if (allowTap && !press.movementExceeded && !press.boostTriggered &&
-        duration < MCQ_GAME_HOLD_THRESHOLD_MS && !press.laneMoveApplied) {
-      changeLane(press.direction);
-      press.laneMoveApplied = true;
-    }
-
-    // If the newest direction was lifted, hand control back to the most recently
-    // activated remaining pointer. Its prior hold/speed state is not reset.
-    const resumedDirection = resolveMCQSteeringDirection(activePointersRef.current);
-    if (directionBeforeRelease === press.direction && resumedDirection !== null &&
-        resumedDirection !== directionBeforeRelease) {
-      const resumedPress = [...activePointersRef.current.values()]
-        .filter((candidate) => !candidate.movementExceeded)
-        .reduce<MCQSteeringPointer | null>(
-          (latest, candidate) => !latest || candidate.activationOrder > latest.activationOrder ? candidate : latest,
-          null,
-        );
-      changeLane(resumedDirection);
-      if (resumedPress) resumedPress.laneMoveApplied = true;
-    }
-    syncBoostState();
-  };
-
-  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId)
-      ? event.pointerId
-      : null;
-    const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
-    let pointerId = eventPointerId;
-    if (pointerId === null || !activePointersRef.current.has(pointerId)) {
-      // Synthetic test events may omit pointer identity; only a single active
-      // pointer can be safely resolved without it.
-      if (!identityIsReliable && activePointersRef.current.size === 1) {
-        pointerId = activePointersRef.current.keys().next().value as number;
-      } else {
-        return;
-      }
-    }
-    releasePointer(pointerId, true);
-  };
-
-  const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventPointerId = Number.isFinite(event.pointerId)
-      ? event.pointerId
-      : null;
-    const identityIsReliable = event.pointerType === "touch" || event.pointerType === "pen";
-    let pointerId = eventPointerId;
-    if (pointerId === null || !activePointersRef.current.has(pointerId)) {
-      if (!identityIsReliable && activePointersRef.current.size === 1) {
-        pointerId = activePointersRef.current.keys().next().value as number;
-      } else {
-        return;
-      }
-    }
-    releasePointer(pointerId, false);
-  };
-
-  const handleLostPointerCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
-    if (pointerId === null || !activePointersRef.current.has(pointerId)) return;
-    // Pointer capture can be lost before pointerup during WebView/app transitions.
-    // Cancel only the affected contact; other held fingers remain valid.
-    releasePointer(pointerId, false);
-  };
 
   useEffect(() => {
     const controller = createRacingAudioController(MCQ_GAME_BASE_SPEED_MULTIPLIER, MCQ_GAME_MAX_SPEED_MULTIPLIER);
@@ -534,21 +439,21 @@ const MCQWithGame = ({
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      clearHoldTimer();
-      activePointersRef.current.clear();
+      clearActiveControls();
       boostingRef.current = false;
       void setGameImmersiveMode(false);
       document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousBodyOverflow;
       document.body.style.overscrollBehavior = previousOverscroll;
     };
-  }, [clearHoldTimer, setPausedState]);
+  }, [clearActiveControls, setPausedState]);
 
   useEffect(() => {
     const panel = questionPanelRef.current;
     const topbar = topbarRef.current;
+    const controls = controlsRef.current;
     const stage = stageRef.current;
-    if (!panel || !topbar || !stage) return;
+    if (!panel || !topbar || !controls || !stage) return;
 
     // Keep the question anchored to the *actual* HUD height. The HUD wraps on
     // small phones, so a fixed top offset can put the question underneath it.
@@ -560,6 +465,11 @@ const MCQWithGame = ({
         `${Math.ceil(topbarBottom + questionGap)}px`,
       );
       questionPanelBottomRef.current = panel.getBoundingClientRect().bottom + 8;
+      // Cache only three screen-space button bounds on resize/remeasure, not per frame.
+      controlButtonBoundsRef.current = Array.from(controls.querySelectorAll("button"), (button) => {
+        const rect = button.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+      });
     };
     measureLayout();
 
@@ -568,6 +478,7 @@ const MCQWithGame = ({
       observer = new ResizeObserver(measureLayout);
       observer.observe(topbar);
       observer.observe(panel);
+      observer.observe(controls);
     }
     window.addEventListener("resize", measureLayout);
     window.addEventListener("orientationchange", measureLayout);
@@ -635,8 +546,18 @@ const MCQWithGame = ({
       projections.forEach((projection, index) => {
         const element = gateLabelRefs.current[index];
         if (!element) return;
-        const belowHud = projection.y - projection.height / 2 > panelBottom;
-        const display = projection.visible && belowHud ? "flex" : "none";
+        const gateLeft = projection.x - projection.width / 2;
+        const gateRight = projection.x + projection.width / 2;
+        const gateTop = projection.y - projection.height / 2;
+        const gateBottom = projection.y + projection.height / 2;
+        const overlapsDrivingControl = controlButtonBoundsRef.current.some((bounds) =>
+          gateRight > bounds.left &&
+          gateLeft < bounds.right &&
+          gateBottom > bounds.top &&
+          gateTop < bounds.bottom,
+        );
+        const belowHud = gateTop > panelBottom;
+        const display = projection.visible && belowHud && !overlapsDrivingControl ? "flex" : "none";
         if (element.style.display !== display) element.style.display = display;
 
         const updatePx = (
@@ -689,7 +610,17 @@ const MCQWithGame = ({
       const advancedMs = deltaMs * speedMultiplier;
 
       const previousCarX = carXRef.current;
+      targetCarXRef.current = advanceMCQGameSteering(
+        targetCarXRef.current,
+        resolveMCQSteeringDirection(activePointersRef.current),
+        deltaMs,
+      );
       const targetX = targetCarXRef.current;
+      const nextLane = resolveMCQGameLaneIndex(targetX);
+      if (nextLane !== laneRef.current) {
+        laneRef.current = nextLane;
+        setLane(nextLane);
+      }
       const carAlpha = prefersReducedMotion ? 1 : 1 - Math.exp(-deltaMs / 62);
       const nextCarX = previousCarX + (targetX - previousCarX) * carAlpha;
       carXRef.current = nextCarX;
@@ -831,7 +762,7 @@ const MCQWithGame = ({
     scheduleFrame();
 
     return () => {
-      clearHoldTimer();
+      clearActiveControls();
       if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
         window.cancelAnimationFrame(frameRef.current);
       }
@@ -842,7 +773,7 @@ const MCQWithGame = ({
       scheduleFrameRef.current = null;
       gateLabelRefs.current = [];
     };
-  }, [clearHoldTimer, selectLaneAnswer, setPausedState]);
+  }, [clearActiveControls, selectLaneAnswer, setPausedState]);
 
   useLayoutEffect(() => {
     const nextKey = String(questionKey);
@@ -862,9 +793,7 @@ const MCQWithGame = ({
     if (sessionChanged) {
       activeSessionKeyRef.current = nextSessionKey;
       setShowRestartConfirmation(false);
-      clearHoldTimer();
-      activePointersRef.current.clear();
-      syncBoostState();
+      clearActiveControls();
       laneRef.current = 1;
       targetCarXRef.current = MCQ_GAME_LANE_X[1];
       carXRef.current = MCQ_GAME_LANE_X[1];
@@ -873,6 +802,7 @@ const MCQWithGame = ({
       steerAngleRef.current = 0;
       boostingRef.current = false;
       setBoosting(false);
+      setSteeringDirection(null);
       scrollOffsetRef.current = 0;
       activeRaceElapsedMsRef.current = 0;
       lastTimestampRef.current = null;
@@ -894,13 +824,11 @@ const MCQWithGame = ({
     setPhase(nextPhase);
     drawCurrentFrameRef.current?.();
     scheduleFrameRef.current?.();
-  }, [questionKey, sessionKey, clearHoldTimer, syncBoostState]);
+  }, [questionKey, sessionKey, clearActiveControls]);
 
   useEffect(() => {
     if (feedback || disabled || finalSubmitReady) {
-      clearHoldTimer();
-      activePointersRef.current.clear();
-      syncBoostState();
+      clearActiveControls();
     }
     if (!feedback) return;
     submittedRef.current = true;
@@ -909,7 +837,7 @@ const MCQWithGame = ({
       setPhase("FEEDBACK");
     }
     drawCurrentFrameRef.current?.();
-  }, [feedback, disabled, finalSubmitReady, clearHoldTimer, syncBoostState]);
+  }, [feedback, disabled, finalSubmitReady, clearActiveControls]);
 
   const correctLane = options.findIndex((option) => String(option.value) === String(correctAnswer));
   const laneAnnouncement = "Lane " + String(lane + 1);
@@ -933,15 +861,10 @@ const MCQWithGame = ({
         ref={stageRef}
         className="mcq-game-stage"
         role="group"
-        aria-label="Four answer lanes; tap the left or right side to steer and hold either side to accelerate"
+        aria-label="Four answer lanes; use Speed on the left and Left or Right steering controls on the right"
         tabIndex={0}
         data-swipe-ignore-app-section="true"
         data-swipe-ignore-back="true"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerCancel}
-        onLostPointerCapture={handleLostPointerCapture}
         onContextMenu={(event) => event.preventDefault()}
         onKeyDown={(event) => {
           if (event.key === "ArrowLeft") {
@@ -1137,6 +1060,59 @@ const MCQWithGame = ({
               <span>{feedback === "correct" ? "CORRECT ANSWER" : selectedOption === null ? "TIME'S UP" : "INCORRECT ANSWER"}</span>
             </div>
           )}
+        </div>
+        <div ref={controlsRef} className="mcq-game-controls" role="group" aria-label="Driving controls" data-testid="mcq-game-controls">
+          <button
+            type="button"
+            className={["mcq-game-control", "mcq-game-control--speed", boosting ? "is-active" : ""].filter(Boolean).join(" ")}
+            aria-label="Accelerate (hold)"
+            aria-pressed={boosting}
+            data-testid="mcq-game-accelerate"
+            disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
+            onPointerDown={(event) => startControlPointer(event, "speed", 1)}
+            onPointerUp={endControlPointer}
+            onPointerCancel={endControlPointer}
+            onLostPointerCapture={endControlPointer}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            <Gauge size={24} strokeWidth={2.4} aria-hidden="true" />
+            <span>SPEED</span>
+            <small>HOLD</small>
+          </button>
+          <div className="mcq-game-steering-controls" role="group" aria-label="Steering direction">
+            <button
+              type="button"
+              className={["mcq-game-control", "mcq-game-control--steer", "mcq-game-control--left", steeringDirection === -1 ? "is-active" : ""].filter(Boolean).join(" ")}
+              aria-label="Steer left"
+              aria-pressed={steeringDirection === -1}
+              data-testid="mcq-game-steer-left"
+              disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
+              onPointerDown={(event) => startControlPointer(event, "steering", -1)}
+              onPointerUp={endControlPointer}
+              onPointerCancel={endControlPointer}
+              onLostPointerCapture={endControlPointer}
+              onContextMenu={(event) => event.preventDefault()}
+            >
+              <ArrowLeft size={25} strokeWidth={2.8} aria-hidden="true" />
+              <span>LEFT</span>
+            </button>
+            <button
+              type="button"
+              className={["mcq-game-control", "mcq-game-control--steer", "mcq-game-control--right", steeringDirection === 1 ? "is-active" : ""].filter(Boolean).join(" ")}
+              aria-label="Steer right"
+              aria-pressed={steeringDirection === 1}
+              data-testid="mcq-game-steer-right"
+              disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
+              onPointerDown={(event) => startControlPointer(event, "steering", 1)}
+              onPointerUp={endControlPointer}
+              onPointerCancel={endControlPointer}
+              onLostPointerCapture={endControlPointer}
+              onContextMenu={(event) => event.preventDefault()}
+            >
+              <ArrowRight size={25} strokeWidth={2.8} aria-hidden="true" />
+              <span>RIGHT</span>
+            </button>
+          </div>
         </div>
         {phase === "PAUSED" && (
           <div

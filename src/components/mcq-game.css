@@ -99,6 +99,172 @@
   to { background-position: 0 180px; }
 }
 
+/* Independent screen-space controls stay fixed while the 3D world/camera moves. */
+.mcq-game-controls {
+  position: absolute;
+  z-index: 14;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding:
+    0
+    max(env(safe-area-inset-right), clamp(0.55rem, 2vw, 1.6rem))
+    max(env(safe-area-inset-bottom), clamp(0.75rem, 2.2vh, 1.35rem))
+    max(env(safe-area-inset-left), clamp(0.55rem, 2vw, 1.6rem));
+  pointer-events: none;
+}
+
+.mcq-game-steering-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(0.35rem, 1.1vw, 0.65rem);
+  pointer-events: none;
+}
+
+.mcq-game-control {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  min-width: 3.4rem;
+  min-height: 3.85rem;
+  border: 1px solid rgb(129 221 255 / 0.74);
+  border-radius: 0.92rem;
+  padding: 0.42rem 0.48rem;
+  color: #f4fbff;
+  background: linear-gradient(155deg, rgb(9 35 61 / 0.96), rgb(5 17 34 / 0.95));
+  box-shadow: 0 5px 18px rgb(0 0 0 / 0.32), inset 0 1px 0 rgb(255 255 255 / 0.14);
+  font-size: clamp(0.66rem, 2vw, 0.82rem);
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0.055em;
+  text-align: center;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+  transition: border-color 100ms ease, background 100ms ease, box-shadow 100ms ease, filter 100ms ease, transform 100ms ease;
+}
+
+.mcq-game-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  filter: saturate(0.58);
+}
+
+.mcq-game-control:not(:disabled):active,
+.mcq-game-control.is-active {
+  transform: translateY(1px);
+  filter: brightness(1.16);
+  border-color: #f2fcff;
+  box-shadow: 0 0 16px rgb(56 189 248 / 0.32), inset 0 1px 0 rgb(255 255 255 / 0.2);
+}
+
+.mcq-game-control:focus-visible {
+  outline: 2px solid #e0f4ff;
+  outline-offset: 3px;
+}
+
+.mcq-game-control--speed {
+  width: clamp(4.5rem, 20vw, 6rem);
+  min-height: clamp(4.05rem, 8vh, 5.25rem);
+  border-color: rgb(45 212 191 / 0.85);
+  color: #e6fff9;
+  background: linear-gradient(155deg, rgb(7 94 89 / 0.97), rgb(4 35 48 / 0.97));
+}
+
+.mcq-game-control--speed.is-active,
+.mcq-game-control--speed:not(:disabled):active {
+  border-color: #a7fff0;
+  background: linear-gradient(155deg, rgb(13 148 136 / 0.98), rgb(3 68 81 / 0.98));
+  box-shadow: 0 0 20px rgb(45 212 191 / 0.48), inset 0 1px 0 rgb(255 255 255 / 0.22);
+}
+
+.mcq-game-control--speed svg {
+  width: clamp(1.3rem, 4.6vw, 1.65rem);
+  height: clamp(1.3rem, 4.6vw, 1.65rem);
+}
+
+.mcq-game-control--speed small {
+  color: #8bf5e5;
+  font-size: 0.62em;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+}
+
+.mcq-game-control--steer {
+  width: clamp(3.3rem, 14.5vw, 4.5rem);
+  min-height: clamp(3.85rem, 7.4vh, 4.75rem);
+  border-color: rgb(112 191 255 / 0.82);
+  background: linear-gradient(155deg, rgb(21 70 126 / 0.97), rgb(7 24 55 / 0.97));
+}
+
+.mcq-game-control--steer.is-active {
+  border-color: #f6fcff;
+  background: linear-gradient(155deg, rgb(37 125 227 / 0.99), rgb(14 57 126 / 0.99));
+  box-shadow: 0 0 17px rgb(59 130 246 / 0.52), inset 0 1px 0 rgb(255 255 255 / 0.24);
+}
+
+.mcq-game-control--steer span {
+  font-size: 0.92em;
+}
+
+@media (max-width: 480px) {
+  .mcq-game-controls {
+    gap: 0.35rem;
+    padding-right: max(env(safe-area-inset-right), 0.5rem);
+    padding-left: max(env(safe-area-inset-left), 0.5rem);
+    padding-bottom: max(env(safe-area-inset-bottom), 0.65rem);
+  }
+
+  .mcq-game-steering-controls {
+    gap: 0.32rem;
+  }
+
+  .mcq-game-control {
+    border-radius: 0.78rem;
+    padding: 0.35rem 0.3rem;
+    font-size: clamp(0.62rem, 2.9vw, 0.78rem);
+  }
+
+  .mcq-game-control--speed {
+    width: clamp(4.35rem, 21vw, 5.3rem);
+    min-height: 3.95rem;
+  }
+
+  .mcq-game-control--steer {
+    width: clamp(3.15rem, 15.5vw, 3.9rem);
+    min-height: 3.75rem;
+  }
+}
+
+@media (max-height: 520px) {
+  .mcq-game-controls {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.45rem);
+  }
+
+  .mcq-game-control--speed {
+    min-height: 3.4rem;
+  }
+
+  .mcq-game-control--steer {
+    min-height: 3.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcq-game-control {
+    transition: none;
+  }
+}
+
 .mcq-game-gate-label {
   position: absolute;
   display: flex;
