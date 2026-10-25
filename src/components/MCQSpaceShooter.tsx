@@ -1110,6 +1110,32 @@ const MCQSpaceShooter = ({
           const stageRect = playfield.getBoundingClientRect();
           for (let index = world.projectiles.length - 1; index >= 0; index -= 1) {
             const projectile = world.projectiles[index]!;
+            // Answer targets are intentionally mobile, so keep the laser guided toward
+            // its original target identity. This prevents normal target drift from
+            // making a correctly aimed answer shot miss purely due to animation timing.
+            const guidanceTarget = targetRefs.current[projectile.targetIndex];
+            const guidanceMapping = mappingsRef.current[projectile.targetIndex];
+            if (
+              guidanceTarget &&
+              guidanceMapping &&
+              projectile.questionKey === String(current.questionKey) &&
+              projectile.targetId === guidanceMapping.gateId &&
+              guidanceMapping.questionId === projectile.questionKey
+            ) {
+              const guidanceRect = guidanceTarget.getBoundingClientRect();
+              if (guidanceRect.width > 0 && guidanceRect.height > 0) {
+                const guidedVelocity = getSpaceAimVelocity(
+                  projectile,
+                  {
+                    x: guidanceRect.left + guidanceRect.width / 2 - stageRect.left,
+                    y: guidanceRect.top + guidanceRect.height / 2 - stageRect.top,
+                  },
+                  PROJECTILE_SPEED,
+                );
+                projectile.vx = guidedVelocity.x;
+                projectile.vy = guidedVelocity.y;
+              }
+            }
             const oldPoint = { x: projectile.x, y: projectile.y };
             const next = advanceSpaceProjectile(projectile, elapsedMs);
             projectile.x = next.x;
