@@ -5,6 +5,18 @@ import MCQSpaceShooter from "@/components/MCQSpaceShooter";
 
 const originalRequestAnimationFrame = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
 const originalCancelAnimationFrame = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
+const originalPointerEvent = Object.getOwnPropertyDescriptor(window, "PointerEvent");
+
+if (typeof window.PointerEvent === "undefined") {
+  class TestPointerEvent extends MouseEvent {
+    readonly pointerId: number;
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 0;
+    }
+  }
+  Object.defineProperty(window, "PointerEvent", { configurable: true, writable: true, value: TestPointerEvent });
+}
 
 vi.mock("@/lib/gameImmersiveMode", () => ({
   setGameImmersiveMode: vi.fn(async () => undefined),
@@ -128,6 +140,8 @@ afterEach(() => {
   else Reflect.deleteProperty(window, "requestAnimationFrame");
   if (originalCancelAnimationFrame) Object.defineProperty(window, "cancelAnimationFrame", originalCancelAnimationFrame);
   else Reflect.deleteProperty(window, "cancelAnimationFrame");
+  if (originalPointerEvent) Object.defineProperty(window, "PointerEvent", originalPointerEvent);
+  else Reflect.deleteProperty(window, "PointerEvent");
 });
 
 describe("Math Space Shooter mission", () => {
