@@ -706,43 +706,7 @@ const MCQSpaceShooter = ({
     setStatusMessage("LASER FIRED · TRACK THE SHOT TO ITS TARGET");
   }, [canInteract]);
 
-  const handleDirectionalTap = useCallback((direction: -1 | 1) => {
-    if (!canInteract()) return;
-    const pending = pendingDirectionalTapRef.current;
-    if (pending) {
-      clearTimeout(pending.timer);
-      pendingDirectionalTapRef.current = null;
-      if (pending.direction === direction) {
-        // Cancel the deferred single tap so one double tap fires only once.
-        fireProjectile();
-        return;
-      }
-      moveAim(pending.direction);
-    }
-    const timer = setTimeout(() => {
-      if (pendingDirectionalTapRef.current?.timer !== timer) return;
-      pendingDirectionalTapRef.current = null;
-      moveAim(direction);
-    }, DOUBLE_TAP_WINDOW_MS);
-    pendingDirectionalTapRef.current = { direction, timer };
-  }, [canInteract, fireProjectile, moveAim]);
 
-  const handleAimControlKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    const key = event.key.toLowerCase();
-    if (key === "arrowleft" || key === "a") {
-      event.preventDefault();
-      clearPendingDirectionalTap();
-      moveAim(-1);
-    } else if (key === "arrowright" || key === "d") {
-      event.preventDefault();
-      clearPendingDirectionalTap();
-      moveAim(1);
-    } else if (event.code === "Space" || event.key === "Enter") {
-      event.preventDefault();
-      clearPendingDirectionalTap();
-      fireProjectile();
-    }
-  };
 
   const resolveProjectileHit = useCallback((projectile: SpaceProjectile) => {
     const current = latestPropsRef.current;
@@ -1073,31 +1037,31 @@ const MCQSpaceShooter = ({
   }, [clearPendingDirectionalTap]);
 
   useEffect(() => {
-    const stopMovement = () => {
-      worldRef.current.heldDirection = 0;
-    };
+    const stopMovement = () => clearActiveControls();
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest?.("button, input, textarea, select, [contenteditable='true']")) return;
       if (!canInteract()) return;
-      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+      const key = event.key.toLowerCase();
+      if (key === "arrowleft" || key === "a") {
         event.preventDefault();
-        moveAim(-1);
-      } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+        beginControl("keyboard:left", "left");
+      } else if (key === "arrowright" || key === "d") {
         event.preventDefault();
-        moveAim(1);
+        beginControl("keyboard:right", "right");
+      } else if (key === "shift" || key === "x") {
+        event.preventDefault();
+        beginControl("keyboard:boost", "boost");
       } else if (event.code === "Space") {
         event.preventDefault();
         fireProjectile();
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
-      if (
-        event.key === "ArrowLeft" ||
-        event.key === "ArrowRight" ||
-        event.key.toLowerCase() === "a" ||
-        event.key.toLowerCase() === "d"
-      ) stopMovement();
+      const key = event.key.toLowerCase();
+      if (key === "arrowleft" || key === "a") endControl("keyboard:left");
+      if (key === "arrowright" || key === "d") endControl("keyboard:right");
+      if (key === "shift" || key === "x") endControl("keyboard:boost");
     };
     const onVisibilityChange = () => {
       if (document.visibilityState !== "visible") {
@@ -1163,15 +1127,22 @@ const MCQSpaceShooter = ({
   };
 
   const handleControlClick = (event: ReactMouseEvent<HTMLButtonElement>, action: SpaceControlAction) => {
-    // Keyboard/switch access produces detail=0; pointer activation is managed by Pointer Events.
-    if (event.detail !== 0) return;
-    if (action === "boost") {
-      const id = "keyboard:boost";
-      if (activeControlsRef.current.has(id)) endControl(id);
-      else beginControl(id, action);
-    } else {
-      beginControl(`keyboard:${action}`, action);
+    // Pointer holds are handled by Pointer Events. A synthesized keyboard/switch click
+    // should remain useful without creating an indefinitely-held steering direction.
+    if (event.detail !== 0 || !canInteract()) return;
+    if (action === "left" || action === "right") {
+      const direction = action === "left" ? -1 : 1;
+      worldRef.current.shipX = clampSpaceShipX(
+        worldRef.current.shipX + direction * 52,
+        worldRef.current.width,
+        SHIP_RADIUS,
+      );
+      setStatusMessage(action === "left" ? "SHIP STEERED LEFT" : "SHIP STEERED RIGHT");
+      return;
     }
+    const id = "keyboard:boost";
+    if (activeControlsRef.current.has(id)) endControl(id);
+    else beginControl(id, action);
   };
 
   const toggleSound = () => {
@@ -1186,7 +1157,21 @@ const MCQSpaceShooter = ({
     clearPendingDirectionalTap();
     worldRef.current.projectiles.length = 0;
     worldRef.current.hazards.length = 0;
-    onRestartGame?.();
+    worldRef.current.particles.length = 0;
+    menuOpenRef.current = false;
+    setMenuOpen(false);
+    if (onRestartGame) onRestartGame();
+    else {
+      gameOverRef.current = false;
+      setGameOver(false);
+      setLives(difficultyRef.current ? SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current].lives : 4);
+      livesRef.current = SPACE_SHOOTER_DIFFICULTIES[difficultyRef.current].lives;
+      setCombo(0);
+      comboRef.current = 0;
+      setMissionScore(0);
+      missionScoreRef.current = 0;
+      setPausedState(false, "MISSION RESTARTED");
+    }
   };
 
   const choosePause = () => {
@@ -1349,7 +1334,7 @@ const MCQSpaceShooter = ({
             onPointerCancel={handlePointerControlEnd}
             onLostPointerCapture={(event) => endControl(event.pointerId)}
             onKeyDown={(event) => handleControlKeyDown(event, "left")}
-            onKeyUp={(event) => endControl(`keyboard:left`)}
+            onKeyUp={(event) => { const key = event.key.toLowerCase(); if (key === "arrowleft" || key === "a") endControl("keyboard:left"); }}
             onClick={(event) => handleControlClick(event, "left")}
             onContextMenu={(event) => event.preventDefault()}
             disabled={!canInteract()}
@@ -1359,13 +1344,21 @@ const MCQSpaceShooter = ({
           >◀ LEFT</button>
           <button
             type="button"
-            className={`mcq-space-fire-button${worldRef.current.boostHeld ? " is-active" : ""}`}
+            className={`mcq-space-shoot-button`}
+            onClick={fireProjectile}
+            disabled={!canInteract()}
+            aria-label="Fire laser at selected answer"
+            data-testid="space-control-fire"
+          ><span aria-hidden="true">✦</span> FIRE</button>
+          <button
+            type="button"
+            className={`mcq-space-boost-button${heldControls.boost ? " is-active" : ""}`}
             onPointerDown={(event) => handlePointerControlDown(event, "boost")}
             onPointerUp={handlePointerControlEnd}
             onPointerCancel={handlePointerControlEnd}
             onLostPointerCapture={(event) => endControl(event.pointerId)}
             onKeyDown={(event) => handleControlKeyDown(event, "boost")}
-            onKeyUp={(event) => endControl(`keyboard:boost`)}
+            onKeyUp={(event) => { const key = event.key.toLowerCase(); if (key === "shift" || key === "x") endControl("keyboard:boost"); }}
             onClick={(event) => handleControlClick(event, "boost")}
             onContextMenu={(event) => event.preventDefault()}
             disabled={!canInteract()}
