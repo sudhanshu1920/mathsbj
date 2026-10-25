@@ -99,6 +99,8 @@ const MCQWithGame = ({
   const stageRef = useRef<HTMLDivElement | null>(null);
   const topbarRef = useRef<HTMLDivElement | null>(null);
   const questionPanelRef = useRef<HTMLDivElement | null>(null);
+  const controlsRef = useRef<HTMLDivElement | null>(null);
+  const controlButtonBoundsRef = useRef<Array<{ left: number; right: number; top: number; bottom: number }>>([]);
   const gateLabelRefs = useRef<Array<HTMLDivElement | null>>([]);
   const sceneRef = useRef<MCQ3DScene | null>(null);
   const racingAudioRef = useRef<RacingAudioController | null>(null);
@@ -453,8 +455,9 @@ const MCQWithGame = ({
   useEffect(() => {
     const panel = questionPanelRef.current;
     const topbar = topbarRef.current;
+    const controls = controlsRef.current;
     const stage = stageRef.current;
-    if (!panel || !topbar || !stage) return;
+    if (!panel || !topbar || !controls || !stage) return;
 
     // Keep the question anchored to the *actual* HUD height. The HUD wraps on
     // small phones, so a fixed top offset can put the question underneath it.
@@ -466,6 +469,11 @@ const MCQWithGame = ({
         `${Math.ceil(topbarBottom + questionGap)}px`,
       );
       questionPanelBottomRef.current = panel.getBoundingClientRect().bottom + 8;
+      // Cache only three screen-space button bounds on resize/remeasure, not per frame.
+      controlButtonBoundsRef.current = Array.from(controls.querySelectorAll("button"), (button) => {
+        const rect = button.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+      });
     };
     measureLayout();
 
@@ -474,6 +482,7 @@ const MCQWithGame = ({
       observer = new ResizeObserver(measureLayout);
       observer.observe(topbar);
       observer.observe(panel);
+      observer.observe(controls);
     }
     window.addEventListener("resize", measureLayout);
     window.addEventListener("orientationchange", measureLayout);
@@ -541,8 +550,18 @@ const MCQWithGame = ({
       projections.forEach((projection, index) => {
         const element = gateLabelRefs.current[index];
         if (!element) return;
-        const belowHud = projection.y - projection.height / 2 > panelBottom;
-        const display = projection.visible && belowHud ? "flex" : "none";
+        const gateLeft = projection.x - projection.width / 2;
+        const gateRight = projection.x + projection.width / 2;
+        const gateTop = projection.y - projection.height / 2;
+        const gateBottom = projection.y + projection.height / 2;
+        const overlapsDrivingControl = controlButtonBoundsRef.current.some((bounds) =>
+          gateRight > bounds.left &&
+          gateLeft < bounds.right &&
+          gateBottom > bounds.top &&
+          gateTop < bounds.bottom,
+        );
+        const belowHud = gateTop > panelBottom;
+        const display = projection.visible && belowHud && !overlapsDrivingControl ? "flex" : "none";
         if (element.style.display !== display) element.style.display = display;
 
         const updatePx = (
@@ -1046,7 +1065,7 @@ const MCQWithGame = ({
             </div>
           )}
         </div>
-        <div className="mcq-game-controls" role="group" aria-label="Driving controls" data-testid="mcq-game-controls">
+        <div ref={controlsRef} className="mcq-game-controls" role="group" aria-label="Driving controls" data-testid="mcq-game-controls">
           <button
             type="button"
             className={["mcq-game-control", "mcq-game-control--speed", boosting ? "is-active" : ""].filter(Boolean).join(" ")}
