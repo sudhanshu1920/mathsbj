@@ -630,7 +630,11 @@ describe("Full-screen continuous MCQ racing", () => {
       const right = screen.getByTestId("mcq-game-steer-right");
       fireEvent.pointerDown(right, { pointerId: 5, pointerType: "touch", button: 0 });
       now = 80;
-      for (let timestamp = 1_200; timestamp <= 3_900; timestamp += 50) raf.advance(timestamp);
+      // Starting at the left boundary, use a short held correction into lane 2,
+      // then release so continuous steering does not carry the car past the target.
+      for (let timestamp = 1_200; timestamp <= 1_550; timestamp += 50) raf.advance(timestamp);
+      fireEvent.pointerUp(right, { pointerId: 5, pointerType: "touch" });
+      for (let timestamp = 1_600; timestamp <= 3_900; timestamp += 50) raf.advance(timestamp);
       const nextMapping = createMCQGateMappings("q-2", secondOptions.map((option) => option.value))[1];
       expect(onSelectOption).toHaveBeenCalledTimes(2);
       expect(onSelectOption.mock.calls[1].slice(0, 3)).toEqual([1, "27", nextMapping.gateId]);
