@@ -1313,3 +1313,12 @@
 @media (prefers-reduced-motion: reduce) {
   .mcq-space-target { animation: none !important; transition: none; }
 }
+
+/* Reduced-motion rules must not override the centered coordinates used by the target physics. */
+@media (prefers-reduced-motion: reduce) {
+  .mcq-space-shell .mcq-space-target,
+  .mcq-space-shell .mcq-space-target.is-aimed {
+    transform: translate3d(-50%, -50%, 0) !important;
+  }
+}
+
