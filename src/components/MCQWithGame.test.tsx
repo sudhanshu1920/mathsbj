@@ -381,7 +381,11 @@ describe("Full-screen continuous MCQ racing", () => {
       // and a fresh contact on the next target must be accepted.
       fireEvent.pointerDown(right, { pointerId: 32, pointerType: "touch", button: 0 });
       now = 80;
-      for (let timestamp = 1_150; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
+      // Steer back toward the intended gate, then release so the car does not
+      // continue through adjacent lanes while the next target approaches.
+      for (let timestamp = 1_150; timestamp <= 1_500; timestamp += 50) raf.advance(timestamp);
+      fireEvent.pointerUp(right, { pointerId: 32, pointerType: "touch" });
+      for (let timestamp = 1_550; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(2);
       expect(onSelectOption.mock.calls[1].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
