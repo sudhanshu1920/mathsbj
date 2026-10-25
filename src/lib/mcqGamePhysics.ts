@@ -65,6 +65,43 @@ export const MCQ_GAME_ACCELERATION_RATE_PER_SECOND = 1.1;
 export const MCQ_GAME_DECELERATION_RATE_PER_SECOND = 2.0;
 export const MCQ_GAME_GESTURE_MOVE_TOLERANCE_PX = 18;
 export const MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS = 0.0045;
+// Continuous steering travels roughly one lane-width in 425ms at 60fps,
+// while the car mesh itself follows the target through the existing smoothing curve.
+export const MCQ_GAME_STEERING_RATE_UNITS_PER_SECOND = 5.4;
+export const MCQ_GAME_STEERING_MIN_X = MCQ_GAME_LANE_X[0];
+export const MCQ_GAME_STEERING_MAX_X = MCQ_GAME_LANE_X[MCQ_GAME_LANE_X.length - 1] as number;
+
+/** Advance a held steering command by active elapsed time, bounded to the road. */
+export function advanceMCQGameSteering(
+  currentX: number,
+  direction: -1 | 0 | 1 | null,
+  deltaMs: number,
+): number {
+  const safeX = Number.isFinite(currentX)
+    ? Math.min(MCQ_GAME_STEERING_MAX_X, Math.max(MCQ_GAME_STEERING_MIN_X, currentX))
+    : MCQ_GAME_LANE_X[1];
+  const safeDeltaMs = Number.isFinite(deltaMs) ? Math.min(100, Math.max(0, deltaMs)) : 0;
+  const safeDirection = direction === -1 || direction === 1 ? direction : 0;
+  const nextX = safeX + safeDirection * MCQ_GAME_STEERING_RATE_UNITS_PER_SECOND * safeDeltaMs / 1000;
+  return Math.min(MCQ_GAME_STEERING_MAX_X, Math.max(MCQ_GAME_STEERING_MIN_X, nextX));
+}
+
+/** Map continuous world-space position to its nearest display/accessibility lane. */
+export function resolveMCQGameLaneIndex(carX: number): number {
+  const safeX = Number.isFinite(carX)
+    ? Math.min(MCQ_GAME_STEERING_MAX_X, Math.max(MCQ_GAME_STEERING_MIN_X, carX))
+    : MCQ_GAME_LANE_X[1];
+  let nearestIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < MCQ_GAME_LANE_X.length; index += 1) {
+    const distance = Math.abs(safeX - MCQ_GAME_LANE_X[index]);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = index;
+    }
+  }
+  return nearestIndex;
+}
 
 export interface SteeringGestureResult {
   kind: "tap" | "boost";
