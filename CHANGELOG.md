@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-25 — Math Space Shooter moving answer targets
+
+- Replace the fixed answer row with independently animated answer targets that enter from above, drift and reverse horizontally within their lanes, and respawn before overlapping the player ship.
+- Keep each target bound to its original answer option and active question; guide each fired laser toward that moving target while retaining the shared quiz validator.
+- Improve question and answer readability with high-contrast text and a clearer question panel; preserve correct centering when reduced-motion accessibility is enabled.
+- Add target-motion physics and moving-target answer-identity regression tests.
+- Validate with TypeScript, architecture checks, lint, unit tests, web build, and native Android build checks.
+
+
 ## 2026-10-25 — Math Space Shooter mission gameplay
 
 - Extend the existing canvas shooter with a mission briefing, persisted Easy/Medium/Hard selection, How to Play, sound setting, result screen, retry and game-selector navigation.
