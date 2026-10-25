@@ -503,6 +503,28 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("ignores stale mouse pointer-capture events while a touch control remains held", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+    const right = screen.getByTestId("mcq-game-steer-right");
+    try {
+      fireEvent.pointerDown(speed, { pointerId: 61, pointerType: "touch", button: 0 });
+      fireEvent.pointerDown(right, { pointerId: 72, pointerType: "mouse", button: 0 });
+      fireEvent.pointerUp(right, { pointerId: 72, pointerType: "mouse" });
+      expect(right).toHaveAttribute("aria-pressed", "false");
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+
+      // Browsers may dispatch lostpointercapture after pointerup. That old mouse ID
+      // must not be resolved to the one still-active touch pointer.
+      fireEvent.lostPointerCapture(right, { pointerId: 72, pointerType: "mouse" });
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      expect(right).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      fireEvent.pointerCancel(speed, { pointerId: 61, pointerType: "touch" });
+      view.unmount();
+    }
+  });
+
   it("does not let touches on the question or answer gates activate any driving control", () => {
     const view = render(<MCQWithGame {...gameProps()} />);
     const question = view.container.querySelector(".mcq-game-question-panel") as HTMLElement;
