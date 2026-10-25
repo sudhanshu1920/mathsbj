@@ -6,7 +6,6 @@ import {
   createMCQGateMappings,
   createMCQGateApproachStartZs,
   MCQ_GAME_COLLISION_Z,
-  MCQ_GAME_HOLD_THRESHOLD_MS,
   MCQ_GAME_GATE_START_Z,
   MCQ_GAME_TRAVEL_DISTANCE,
 } from "@/lib/mcqGamePhysics";
@@ -176,12 +175,6 @@ function gameProps(overrides: Partial<ComponentProps<typeof MCQWithGame>> = {}) 
   };
 }
 
-function setStageBounds(stage: HTMLElement) {
-  vi.spyOn(stage, "getBoundingClientRect").mockReturnValue({
-    x: 0, y: 0, left: 0, top: 0, right: 400, bottom: 800,
-    width: 400, height: 800, toJSON: () => ({}),
-  } as DOMRect);
-}
 
 describe("Full-screen continuous MCQ racing", () => {
   it("renders dedicated Speed, Left and Right controls in a fixed screen-space layout", () => {
@@ -371,30 +364,31 @@ describe("Full-screen continuous MCQ racing", () => {
     });
     const mappings = createMCQGateMappings("q-1", options.map((option) => option.value));
     const view = render(<MCQWithGame {...gameProps({ onSelectOption })} />);
-    const stage = screen.getByRole("group", { name: /four answer lanes/i });
-    setStageBounds(stage);
+    const left = screen.getByTestId("mcq-game-steer-left");
+    const right = screen.getByTestId("mcq-game-steer-right");
 
     try {
-      fireEvent.pointerDown(stage, { pointerId: 31, button: 0, clientX: 20, clientY: 650 });
+      // Hold LEFT until the first real gate collision is rejected.
+      fireEvent.pointerDown(left, { pointerId: 31, pointerType: "touch", button: 0 });
       now = 40;
-      fireEvent.pointerUp(stage, { pointerId: 31, button: 0, clientX: 20, clientY: 650 });
-      // Stop before the next wave reaches the car; this first contact is rejected.
       for (let timestamp = 0; timestamp <= 1_100; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([0, "26", mappings[0].gateId]);
       expect(onSelectOption.mock.calls[0][3]).toEqual(expect.any(Number));
 
-      // Re-enter lane 2 of the next wave. A rejected contact must not leave a stale answer lock.
-      fireEvent.pointerDown(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
+      // The rejected commit releases that control. Steering RIGHT must still work
+      // and a fresh contact on the next target must be accepted.
+      fireEvent.pointerDown(right, { pointerId: 32, pointerType: "touch", button: 0 });
       now = 80;
-      fireEvent.pointerUp(stage, { pointerId: 32, button: 0, clientX: 320, clientY: 650 });
       for (let timestamp = 1_150; timestamp <= 4_650; timestamp += 50) raf.advance(timestamp);
 
       expect(onSelectOption).toHaveBeenCalledTimes(2);
       expect(onSelectOption.mock.calls[1].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
       expect(onSelectOption.mock.calls[1][3]).toEqual(expect.any(Number));
     } finally {
+      fireEvent.pointerCancel(left, { pointerId: 31, pointerType: "touch" });
+      fireEvent.pointerCancel(right, { pointerId: 32, pointerType: "touch" });
       view.unmount();
       raf.restore();
     }
@@ -586,18 +580,15 @@ describe("Full-screen continuous MCQ racing", () => {
     const onSelectOption = vi.fn();
     const firstMappings = createMCQGateMappings("q-1", options.map((option) => option.value));
     const view = render(<MCQWithGame {...gameProps({ onSelectOption })} />);
-    const stage = screen.getByRole("group", { name: /four answer lanes/i });
-    setStageBounds(stage);
+    const left = screen.getByTestId("mcq-game-steer-left");
 
     try {
       const labels = Array.from(view.container.querySelectorAll<HTMLElement>(".mcq-game-gate-label"));
       const initialPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
 
-      // Choose the left lane early enough to contact that lane's staggered target,
-      // rather than waiting until the original middle-lane target has passed.
-      fireEvent.pointerDown(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
+      // Hold LEFT through the lane-0 gate's actual contact plane.
+      fireEvent.pointerDown(left, { pointerId: 4, pointerType: "touch", button: 0 });
       now = 40;
-      fireEvent.pointerUp(stage, { pointerId: 4, button: 0, clientX: 20, clientY: 650 });
       for (let timestamp = 0; timestamp <= 1_150; timestamp += 50) raf.advance(timestamp);
 
       const approachingPositions = labels.map((element) => [element.style.left, element.style.top, element.style.width, element.style.height]);
@@ -634,10 +625,11 @@ describe("Full-screen continuous MCQ racing", () => {
         .every((node) => (node.dataset.gateId || "").includes(encodeURIComponent("q-2")))).toBe(true);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
 
-      // The next question can select its own exact lane using the same renderer.
-      fireEvent.pointerDown(stage, { pointerId: 5, button: 0, clientX: 320, clientY: 650 });
+      // Question change invalidates the old pointer/collision identity. A new RIGHT
+      // hold steers to lane 2 for the second question through the same WebGL scene.
+      const right = screen.getByTestId("mcq-game-steer-right");
+      fireEvent.pointerDown(right, { pointerId: 5, pointerType: "touch", button: 0 });
       now = 80;
-      fireEvent.pointerUp(stage, { pointerId: 5, button: 0, clientX: 320, clientY: 650 });
       for (let timestamp = 1_200; timestamp <= 3_900; timestamp += 50) raf.advance(timestamp);
       const nextMapping = createMCQGateMappings("q-2", secondOptions.map((option) => option.value))[1];
       expect(onSelectOption).toHaveBeenCalledTimes(2);
@@ -645,6 +637,8 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(onSelectOption.mock.calls[1][3]).toEqual(expect.any(Number));
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
     } finally {
+      fireEvent.pointerCancel(left, { pointerId: 4, pointerType: "touch" });
+      fireEvent.pointerCancel(screen.getByTestId("mcq-game-steer-right"), { pointerId: 5, pointerType: "touch" });
       view.unmount();
       raf.restore();
     }
@@ -806,15 +800,14 @@ describe("Full-screen continuous MCQ racing", () => {
     let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const view = render(<MCQWithGame {...gameProps({ questionKey: "q-hold-targets", durationMs: 5_000 })} />);
-    const stage = screen.getByRole("group", { name: /four answer lanes/i });
-    setStageBounds(stage);
+    const speed = screen.getByTestId("mcq-game-accelerate");
     const scene = vi.mocked(createMCQ3DScene).mock.results[0]?.value;
     const renderer = scene!.render as unknown as ReturnType<typeof vi.fn>;
 
     try {
       expect(raf.advance(0)).toBe(true);
-      fireEvent.pointerDown(stage, { pointerId: 42, button: 0, clientX: 320, clientY: 650 });
-      act(() => vi.advanceTimersByTime(MCQ_GAME_HOLD_THRESHOLD_MS + 20));
+      fireEvent.pointerDown(speed, { pointerId: 42, pointerType: "touch", button: 0 });
+      expect(speed).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByRole("status")).toHaveTextContent("Speed boost active");
 
       for (let timestamp = 50; timestamp <= 1_000; timestamp += 50) {
@@ -827,9 +820,11 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(acceleratedFrame.gateZ).toBeGreaterThan(normalSpeedExpected + 0.25);
 
       now = 1_050;
-      fireEvent.pointerUp(stage, { pointerId: 42, button: 0, clientX: 320, clientY: 650 });
+      fireEvent.pointerUp(speed, { pointerId: 42, pointerType: "touch" });
+      expect(speed).toHaveAttribute("aria-pressed", "false");
       expect(screen.getByRole("status")).toHaveTextContent("Racing");
     } finally {
+      fireEvent.pointerCancel(speed, { pointerId: 42, pointerType: "touch" });
       view.unmount();
       raf.restore();
     }
@@ -970,14 +965,14 @@ describe("Full-screen continuous MCQ racing", () => {
     let now = 10;
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const view = render(<MCQWithGame {...gameProps({ sessionKey: "session-1" })} />);
-    const stage = screen.getByRole("group", { name: /four answer lanes/i });
-    setStageBounds(stage);
+    const right = screen.getByTestId("mcq-game-steer-right");
 
     try {
-      fireEvent.pointerDown(stage, { pointerId: 1, button: 0, clientX: 320, clientY: 650 });
+      fireEvent.pointerDown(right, { pointerId: 1, pointerType: "touch", button: 0 });
+      for (let timestamp = 0; timestamp <= 300; timestamp += 50) raf.advance(timestamp);
       now = 40;
-      fireEvent.pointerUp(stage, { pointerId: 1, button: 0, clientX: 320, clientY: 650 });
       expect(view.container.querySelector("[data-testid='mcq-game-lane-readout']")).toHaveTextContent("Lane 3");
+      fireEvent.pointerUp(right, { pointerId: 1, pointerType: "touch" });
 
       view.rerender(<MCQWithGame {...gameProps({
         questionKey: "q-2",
