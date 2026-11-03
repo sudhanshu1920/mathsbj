@@ -543,6 +543,54 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("keeps independent Speed and steering pointers through feedback and question changes", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+    const right = screen.getByTestId("mcq-game-steer-right");
+
+    try {
+      fireEvent.pointerDown(speed, { pointerId: 81, pointerType: "touch", button: 0 });
+      fireEvent.pointerDown(right, { pointerId: 82, pointerType: "touch", button: 0 });
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      expect(right).toHaveAttribute("aria-pressed", "true");
+
+      view.rerender(<MCQWithGame {...gameProps({
+        feedback: "wrong",
+        selectedOption: 0,
+      })} />);
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      expect(right).toHaveAttribute("aria-pressed", "true");
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-2",
+        questionLabel: <p>18 + 9 = ?</p>,
+      })} />);
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      expect(right).toHaveAttribute("aria-pressed", "true");
+
+      fireEvent.pointerUp(speed, { pointerId: 81, pointerType: "touch" });
+      expect(speed).toHaveAttribute("aria-pressed", "false");
+      expect(right).toHaveAttribute("aria-pressed", "true");
+
+      fireEvent.pointerUp(right, { pointerId: 82, pointerType: "touch" });
+      expect(right).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      fireEvent.pointerCancel(speed, { pointerId: 81, pointerType: "touch" });
+      fireEvent.pointerCancel(right, { pointerId: 82, pointerType: "touch" });
+      view.unmount();
+    }
+  });
+
+  it("releases an active control when a pointerup arrives outside the captured button", () => {
+    render(<MCQWithGame {...gameProps()} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+
+    fireEvent.pointerDown(speed, { pointerId: 83, pointerType: "touch", button: 0 });
+    expect(speed).toHaveAttribute("aria-pressed", "true");
+    fireEvent.pointerUp(window, { pointerId: 83, pointerType: "touch" });
+    expect(speed).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("does not let touches on the question or answer gates activate any driving control", () => {
     const view = render(<MCQWithGame {...gameProps()} />);
     const question = view.container.querySelector(".mcq-game-question-panel") as HTMLElement;
