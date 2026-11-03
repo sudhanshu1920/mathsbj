@@ -379,14 +379,20 @@ describe("Full-screen continuous MCQ racing", () => {
       // Hold LEFT until the first real gate collision is rejected.
       fireEvent.pointerDown(left, { pointerId: 31, pointerType: "touch", button: 0 });
       now = 40;
-      for (let timestamp = 0; timestamp <= 1_100; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 0; timestamp <= 1_100; timestamp += 50) {
+        if (!raf.advance(timestamp)) break;
+        if (onSelectOption.mock.calls.length > 0) break;
+      }
 
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([0, "26", mappings[0].gateId]);
       expect(onSelectOption.mock.calls[0][3]).toEqual(expect.any(Number));
 
-      // The rejected commit releases that control. Steering RIGHT must still work
-      // and a fresh contact on the next target must be accepted.
+      // Release the real LEFT pointer explicitly. A rejected quiz commit does
+      // not pretend that the user's finger was lifted.
+      fireEvent.pointerUp(left, { pointerId: 31, pointerType: "touch" });
+      expect(left).toHaveAttribute("aria-pressed", "false");
+      // Steering RIGHT must still work and a fresh contact can be accepted.
       fireEvent.pointerDown(right, { pointerId: 32, pointerType: "touch", button: 0 });
       now = 80;
       // Steer back toward the intended gate, then release so the car does not
@@ -537,6 +543,54 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("keeps independent Speed and steering pointers through feedback and question changes", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+    const right = screen.getByTestId("mcq-game-steer-right");
+
+    try {
+      fireEvent.pointerDown(speed, { pointerId: 81, pointerType: "touch", button: 0 });
+      fireEvent.pointerDown(right, { pointerId: 82, pointerType: "touch", button: 0 });
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      expect(right).toHaveAttribute("aria-pressed", "true");
+
+      view.rerender(<MCQWithGame {...gameProps({
+        feedback: "wrong",
+        selectedOption: 0,
+      })} />);
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      expect(right).toHaveAttribute("aria-pressed", "true");
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-2",
+        questionLabel: <p>18 + 9 = ?</p>,
+      })} />);
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      expect(right).toHaveAttribute("aria-pressed", "true");
+
+      fireEvent.pointerUp(speed, { pointerId: 81, pointerType: "touch" });
+      expect(speed).toHaveAttribute("aria-pressed", "false");
+      expect(right).toHaveAttribute("aria-pressed", "true");
+
+      fireEvent.pointerUp(right, { pointerId: 82, pointerType: "touch" });
+      expect(right).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      fireEvent.pointerCancel(speed, { pointerId: 81, pointerType: "touch" });
+      fireEvent.pointerCancel(right, { pointerId: 82, pointerType: "touch" });
+      view.unmount();
+    }
+  });
+
+  it("releases an active control when a pointerup arrives outside the captured button", () => {
+    render(<MCQWithGame {...gameProps()} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+
+    fireEvent.pointerDown(speed, { pointerId: 83, pointerType: "touch", button: 0 });
+    expect(speed).toHaveAttribute("aria-pressed", "true");
+    fireEvent.pointerUp(window, { pointerId: 83, pointerType: "touch" });
+    expect(speed).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("does not let touches on the question or answer gates activate any driving control", () => {
     const view = render(<MCQWithGame {...gameProps()} />);
     const question = view.container.querySelector(".mcq-game-question-panel") as HTMLElement;
@@ -607,6 +661,86 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("keeps a physically held Speed pointer through collision feedback and the next question", () => {
+    const raf = installAnimationFrameQueue();
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const onSelectOption = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({
+      durationMs: 1_200,
+      onSelectOption,
+    })} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+    let lastTimestamp = 0;
+
+    try {
+      fireEvent.pointerDown(speed, { pointerId: 91, pointerType: "touch", button: 0 });
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+
+      // Let the actual 3D simulation commit a swept gate collision.
+      for (let timestamp = 0; timestamp <= 5_000; timestamp += 50) {
+        if (!raf.advance(timestamp)) break;
+        lastTimestamp = timestamp;
+        if (onSelectOption.mock.calls.length > 0) break;
+      }
+      expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      const speedAtContact = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+
+      view.rerender(<MCQWithGame {...gameProps({
+        durationMs: 1_200,
+        feedback: "correct",
+        selectedOption: 1,
+        onSelectOption,
+      })} />);
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+
+      // The answer gates freeze for feedback, but the held throttle keeps
+      // accelerating the same car during the transition.
+      const feedbackTimestamp = lastTimestamp + 50;
+      expect(raf.advance(feedbackTimestamp)).toBe(true);
+      lastTimestamp = feedbackTimestamp;
+      const speedDuringFeedback = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(speedDuringFeedback).toBeGreaterThan(speedAtContact);
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-2",
+        questionLabel: <p>18 + 9 = ?</p>,
+        options: [
+          { value: "29", label: "29" },
+          { value: "27", label: "27" },
+          { value: "31", label: "31" },
+          { value: "25", label: "25" },
+        ],
+        correctAnswer: "27",
+        durationMs: 1_200,
+        onSelectOption,
+      })} />);
+      expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
+      expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "true");
+
+      raf.advance(lastTimestamp + 50);
+      const speedOnNextQuestion = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(speedOnNextQuestion).toBeGreaterThanOrEqual(speedAtContact);
+
+      fireEvent.pointerUp(screen.getByTestId("mcq-game-accelerate"), {
+        pointerId: 91,
+        pointerType: "touch",
+      });
+      expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "false");
+      raf.advance(lastTimestamp + 100);
+      const coastingSpeed = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(coastingSpeed).toBeLessThan(speedOnNextQuestion);
+      expect(coastingSpeed).toBeGreaterThan(1);
+    } finally {
+      fireEvent.pointerCancel(screen.getByTestId("mcq-game-accelerate"), {
+        pointerId: 91,
+        pointerType: "touch",
+      });
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("submits the exact fixed gate entered by the car and reuses the existing 3D scene", () => {
     const raf = installAnimationFrameQueue();
     let now = 0;
@@ -659,8 +793,9 @@ describe("Full-screen continuous MCQ racing", () => {
         .every((node) => (node.dataset.gateId || "").includes(encodeURIComponent("q-2")))).toBe(true);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
 
-      // Question change invalidates the old pointer/collision identity. A new RIGHT
-      // hold steers to lane 2 for the second question through the same WebGL scene.
+      // Question change invalidates old collision identity but does not fake a
+      // physical lift. Release LEFT explicitly before beginning the new RIGHT hold.
+      fireEvent.pointerUp(left, { pointerId: 4, pointerType: "touch" });
       const right = screen.getByTestId("mcq-game-steer-right");
       fireEvent.pointerDown(right, { pointerId: 5, pointerType: "touch", button: 0 });
       now = 80;
@@ -682,7 +817,7 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("stages answer targets at different depths and consumes missed gates without submitting", () => {
+  it("stages answer targets at different depths and independently recycles missed gates", () => {
     const raf = installAnimationFrameQueue();
     const onSelectOption = vi.fn();
     const view = render(<MCQWithGame {...gameProps({
@@ -707,7 +842,8 @@ describe("Full-screen continuous MCQ racing", () => {
         gateActive: boolean[];
       };
       expect(laterFrame.gateZs).not.toEqual(initialFrame.gateZs);
-      expect(laterFrame.gateActive.filter(Boolean)).toHaveLength(3);
+      expect(laterFrame.gateActive).toEqual([true, true, true, true]);
+      expect(laterFrame.gateZs).toContain(MCQ_GAME_GATE_START_Z);
       expect(onSelectOption).not.toHaveBeenCalled();
     } finally {
       view.unmount();
@@ -786,8 +922,10 @@ describe("Full-screen continuous MCQ racing", () => {
         1, "28", createMCQGateMappings(questionKey, options.map((option) => option.value))[1].gateId,
       ]);
       expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(expectedContactMs, 6);
-      expect(raf.advance(contactFrame + 50)).toBe(false);
+      const contactFrameState = (renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs;
+      expect(raf.advance(contactFrame + 50)).toBe(true);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect((renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs).toEqual(contactFrameState);
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
     } finally {
       view.unmount();
@@ -824,8 +962,10 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
       expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(expectedContactMs, 6);
-      expect(raf.advance(expectedContactMs + 60)).toBe(false);
+      const contactFrameState = (renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs;
+      expect(raf.advance(expectedContactMs + 60)).toBe(true);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect((renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs).toEqual(contactFrameState);
     } finally {
       view.unmount();
       raf.restore();
@@ -970,20 +1110,24 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("stops the animation loop during answer feedback and starts it once for the next question", () => {
+  it("keeps car physics running during feedback while freezing answer gates", () => {
     const raf = installAnimationFrameQueue();
     const view = render(<MCQWithGame {...gameProps()} />);
 
     try {
       expect(raf.advance(0)).toBe(true);
       const updatesBeforeFeedback = racingAudioMocks.update.mock.calls.length;
+      const renderer = vi.mocked(createMCQ3DScene).mock.results[0]?.value.render as unknown as ReturnType<typeof vi.fn>;
+      const gatesBeforeFeedback = (renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs;
       view.rerender(<MCQWithGame {...gameProps({
         feedback: "wrong",
         selectedOption: 0,
       })} />);
 
-      expect(raf.advance(16)).toBe(false);
-      expect(racingAudioMocks.update).toHaveBeenCalledTimes(updatesBeforeFeedback);
+      expect(raf.advance(16)).toBe(true);
+      expect(racingAudioMocks.update).toHaveBeenCalledTimes(updatesBeforeFeedback + 1);
+      const feedbackFrame = renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] };
+      expect(feedbackFrame.gateZs).toEqual(gatesBeforeFeedback);
 
       view.rerender(<MCQWithGame {...gameProps({
         questionKey: "q-2",
