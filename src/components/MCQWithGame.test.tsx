@@ -793,8 +793,9 @@ describe("Full-screen continuous MCQ racing", () => {
         .every((node) => (node.dataset.gateId || "").includes(encodeURIComponent("q-2")))).toBe(true);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
 
-      // Question change invalidates the old pointer/collision identity. A new RIGHT
-      // hold steers to lane 2 for the second question through the same WebGL scene.
+      // Question change invalidates old collision identity but does not fake a
+      // physical lift. Release LEFT explicitly before beginning the new RIGHT hold.
+      fireEvent.pointerUp(left, { pointerId: 4, pointerType: "touch" });
       const right = screen.getByTestId("mcq-game-steer-right");
       fireEvent.pointerDown(right, { pointerId: 5, pointerType: "touch", button: 0 });
       now = 80;
@@ -921,8 +922,10 @@ describe("Full-screen continuous MCQ racing", () => {
         1, "28", createMCQGateMappings(questionKey, options.map((option) => option.value))[1].gateId,
       ]);
       expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(expectedContactMs, 6);
-      expect(raf.advance(contactFrame + 50)).toBe(false);
+      const contactFrameState = (renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs;
+      expect(raf.advance(contactFrame + 50)).toBe(true);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect((renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs).toEqual(contactFrameState);
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
     } finally {
       view.unmount();
@@ -959,8 +962,10 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
       expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(expectedContactMs, 6);
-      expect(raf.advance(expectedContactMs + 60)).toBe(false);
+      const contactFrameState = (renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs;
+      expect(raf.advance(expectedContactMs + 60)).toBe(true);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect((renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs).toEqual(contactFrameState);
     } finally {
       view.unmount();
       raf.restore();
