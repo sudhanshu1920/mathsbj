@@ -635,7 +635,12 @@ const MCQWithGame = ({
 
     const animate = (timestamp: number) => {
       frameRef.current = null;
-      if (phaseRef.current !== "RUNNING" || document.hidden) {
+      if (
+        (phaseRef.current !== "RUNNING" &&
+          phaseRef.current !== "ANSWERING" &&
+          phaseRef.current !== "FEEDBACK") ||
+        document.hidden
+      ) {
         lastTimestampRef.current = null;
         return;
       }
@@ -681,6 +686,23 @@ const MCQWithGame = ({
         ? Math.max(-0.22, Math.min(0.22, (nextCarX - previousCarX) * -0.12))
         : 0;
       steerAngleRef.current += (desiredSteerAngle - steerAngleRef.current) * (1 - Math.exp(-deltaMs / 75));
+
+      // During ANSWERING/FEEDBACK keep the physical car, throttle, steering,
+      // speed readout and road motion alive, but freeze question gates and
+      // collision submission until the next question becomes authoritative.
+      if (phaseRef.current !== "RUNNING") {
+        scrollOffsetRef.current =
+          (scrollOffsetRef.current + advancedMs * MCQ_GAME_ROAD_SCROLL_UNITS_PER_MS) % 8;
+        renderFrame();
+        if (
+          (phaseRef.current === "ANSWERING" || phaseRef.current === "FEEDBACK") &&
+          !document.hidden &&
+          typeof window.requestAnimationFrame === "function"
+        ) {
+          frameRef.current = window.requestAnimationFrame(animate);
+        }
+        return;
+      }
 
       const gateTravelDurationMs = resolveMCQGameGateTravelDurationMs(
         latestPropsRef.current.durationMs,
@@ -790,15 +812,22 @@ const MCQWithGame = ({
       }
 
       renderFrame();
-      if (phaseRef.current === "RUNNING" && !document.hidden &&
-          typeof window.requestAnimationFrame === "function") {
+      if (
+        (phaseRef.current === "RUNNING" ||
+          phaseRef.current === "ANSWERING" ||
+          phaseRef.current === "FEEDBACK") &&
+        !document.hidden &&
+        typeof window.requestAnimationFrame === "function"
+      ) {
         frameRef.current = window.requestAnimationFrame(animate);
       }
     };
 
     const scheduleFrame = () => {
       if (frameRef.current === null && !document.hidden &&
-          phaseRef.current === "RUNNING" &&
+          (phaseRef.current === "RUNNING" ||
+            phaseRef.current === "ANSWERING" ||
+            phaseRef.current === "FEEDBACK") &&
           typeof window.requestAnimationFrame === "function") {
         frameRef.current = window.requestAnimationFrame(animate);
       }
@@ -891,7 +920,7 @@ const MCQWithGame = ({
     // "disabled" also represents short engine-controlled input locks. Keep the
     // road/gates animated during those locks; stop the loop only after an answer
     // is committed, on final submission, or while the explicit phase is paused.
-    if (feedback || finalSubmitReady) {
+    if (finalSubmitReady) {
       if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
         window.cancelAnimationFrame(frameRef.current);
       }
@@ -905,6 +934,7 @@ const MCQWithGame = ({
         setPhase("FEEDBACK");
       }
       drawCurrentFrameRef.current?.();
+      scheduleFrameRef.current?.();
       return;
     }
 
