@@ -786,7 +786,7 @@ describe("Full-screen continuous MCQ racing", () => {
         1, "28", createMCQGateMappings(questionKey, options.map((option) => option.value))[1].gateId,
       ]);
       expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(expectedContactMs, 6);
-      expect(raf.advance(contactFrame + 50)).toBe(true);
+      expect(raf.advance(contactFrame + 50)).toBe(false);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(view.container.querySelectorAll(".mcq-game-gate-label")).toHaveLength(4);
     } finally {
@@ -824,7 +824,7 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([1, "28", mappings[1].gateId]);
       expect(onSelectOption.mock.calls[0][3]).toBeCloseTo(expectedContactMs, 6);
-      expect(raf.advance(expectedContactMs + 60)).toBe(true);
+      expect(raf.advance(expectedContactMs + 60)).toBe(false);
       expect(onSelectOption).toHaveBeenCalledTimes(1);
     } finally {
       view.unmount();
