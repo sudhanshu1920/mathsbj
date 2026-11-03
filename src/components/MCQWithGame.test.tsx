@@ -639,6 +639,14 @@ describe("Full-screen continuous MCQ racing", () => {
       })} />);
       expect(speed).toHaveAttribute("aria-pressed", "true");
 
+      // The answer gates freeze for feedback, but the held throttle keeps
+      // accelerating the same car during the transition.
+      const feedbackTimestamp = lastTimestamp + 50;
+      expect(raf.advance(feedbackTimestamp)).toBe(true);
+      lastTimestamp = feedbackTimestamp;
+      const speedDuringFeedback = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(speedDuringFeedback).toBeGreaterThan(speedAtContact);
+
       view.rerender(<MCQWithGame {...gameProps({
         questionKey: "q-2",
         questionLabel: <p>18 + 9 = ?</p>,
