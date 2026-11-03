@@ -379,14 +379,20 @@ describe("Full-screen continuous MCQ racing", () => {
       // Hold LEFT until the first real gate collision is rejected.
       fireEvent.pointerDown(left, { pointerId: 31, pointerType: "touch", button: 0 });
       now = 40;
-      for (let timestamp = 0; timestamp <= 1_100; timestamp += 50) raf.advance(timestamp);
+      for (let timestamp = 0; timestamp <= 1_100; timestamp += 50) {
+        if (!raf.advance(timestamp)) break;
+        if (onSelectOption.mock.calls.length > 0) break;
+      }
 
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(onSelectOption.mock.calls[0].slice(0, 3)).toEqual([0, "26", mappings[0].gateId]);
       expect(onSelectOption.mock.calls[0][3]).toEqual(expect.any(Number));
 
-      // The rejected commit releases that control. Steering RIGHT must still work
-      // and a fresh contact on the next target must be accepted.
+      // Release the real LEFT pointer explicitly. A rejected quiz commit does
+      // not pretend that the user's finger was lifted.
+      fireEvent.pointerUp(left, { pointerId: 31, pointerType: "touch" });
+      expect(left).toHaveAttribute("aria-pressed", "false");
+      // Steering RIGHT must still work and a fresh contact can be accepted.
       fireEvent.pointerDown(right, { pointerId: 32, pointerType: "touch", button: 0 });
       now = 80;
       // Steer back toward the intended gate, then release so the car does not
@@ -1051,20 +1057,24 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("stops the animation loop during answer feedback and starts it once for the next question", () => {
+  it("keeps car physics running during feedback while freezing answer gates", () => {
     const raf = installAnimationFrameQueue();
     const view = render(<MCQWithGame {...gameProps()} />);
 
     try {
       expect(raf.advance(0)).toBe(true);
       const updatesBeforeFeedback = racingAudioMocks.update.mock.calls.length;
+      const renderer = vi.mocked(createMCQ3DScene).mock.results[0]?.value.render as unknown as ReturnType<typeof vi.fn>;
+      const gatesBeforeFeedback = (renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] }).gateZs;
       view.rerender(<MCQWithGame {...gameProps({
         feedback: "wrong",
         selectedOption: 0,
       })} />);
 
-      expect(raf.advance(16)).toBe(false);
-      expect(racingAudioMocks.update).toHaveBeenCalledTimes(updatesBeforeFeedback);
+      expect(raf.advance(16)).toBe(true);
+      expect(racingAudioMocks.update).toHaveBeenCalledTimes(updatesBeforeFeedback + 1);
+      const feedbackFrame = renderer.mock.calls.at(-1)?.[0] as { gateZs: number[] };
+      expect(feedbackFrame.gateZs).toEqual(gatesBeforeFeedback);
 
       view.rerender(<MCQWithGame {...gameProps({
         questionKey: "q-2",
