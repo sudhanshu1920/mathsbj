@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="400" viewBox="0 0 900 400">
+<defs>
+ <linearGradient id="sunset" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#09264D"/><stop offset=".52" stop-color="#3C568A"/><stop offset="1" stop-color="#0A657A"/></linearGradient>
+ <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07382E"/><stop offset="1" stop-color="#1E9663"/></linearGradient>
+ <linearGradient id="robot" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#061D58"/><stop offset="1" stop-color="#1E65AF"/></linearGradient>
+ <linearGradient id="study" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#4A164B"/><stop offset="1" stop-color="#D978A0"/></linearGradient>
+ <linearGradient id="space" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#080D39"/><stop offset="1" stop-color="#29206F"/></linearGradient>
+ <linearGradient id="weekly" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#F4AE6C"/><stop offset=".5" stop-color="#375B80"/><stop offset="1" stop-color="#063744"/></linearGradient>
+</defs>
+<!-- Hero Wide: sunset mountains and a little study companion -->
+<g transform="translate(0 0)">
+ <rect width="300" height="200" fill="url(#sunset)"/>
+ <circle cx="247" cy="37" r="22" fill="#F7AE72"/>
+ <path d="M0 143 40 92 68 116 121 43 165 105 203 70 258 132 290 94 300 126V200H0Z" fill="#385D95"/>
+ <path d="M0 162 45 125 77 151 136 93 178 148 226 105 271 145 300 119V200H0Z" fill="#203F72"/>
+ <path d="M0 174 54 152 99 169 150 146 191 170 244 146 300 166V200H0Z" fill="#11667C"/>
+ <path d="M0 184 80 176 127 182 192 173 254 183 300 178V200H0Z" fill="#58D6E4"/>
+ <g fill="#0A3157"><path d="M20 172 30 143 40 172Z"/><path d="M38 180 51 146 64 180Z"/><path d="M250 171 263 136 276 171Z"/></g>
+ <g fill="#EAFBFF"><path d="M82 40 85 34 88 40 94 43 88 46 85 52 82 46 76 43Z"/><path d="M170 28 173 22 176 28 182 31 176 34 173 40 170 34 164 31Z"/></g>
+ <path d="M210 132 221 117 240 125 259 114 278 139 270 174H207Z" fill="#4B92D2"/>
+ <circle cx="235" cy="100" r="14" fill="#F0A36E"/><path d="M221 99Q218 82 239 84Q251 87 250 101L241 94 231 100Z" fill="#172C4E"/>
+ <path d="M239 140 272 140 285 157 247 157Z" fill="#0A213F"/><path d="M244 143 270 143 278 154 252 154Z" fill="#7DE8F2"/>
+</g>
+<!-- Compact Green: botanical leaves/books -->
+<g transform="translate(300 0)">
+ <rect width="300" height="200" fill="url(#leaf)"/>
+ <path d="M0 0H300V62C252 77 210 48 158 71S47 87 0 67Z" fill="#0D5942"/>
+ <g fill="#1E8055"><path d="M226 0C196 25 204 52 240 58C256 28 248 8 226 0Z"/><path d="M274 15C258 47 275 67 301 57C304 34 293 19 274 15Z"/><path d="M181 21C163 49 178 70 205 65C209 44 199 28 181 21Z"/></g>
+ <g fill="#66C878"><path d="M225 6C211 28 221 42 239 48C245 29 238 14 225 6Z"/><path d="M278 21C266 43 279 54 295 52C296 38 289 27 278 21Z"/><path d="M184 27C174 46 185 59 201 59C204 45 196 32 184 27Z"/></g>
+ <path d="M0 200V127C32 105 68 112 85 139C100 110 122 111 137 143C158 105 178 113 191 140V200Z" fill="#125D43"/>
+ <g fill="#B8E8B8"><path d="M246 120C236 100 247 83 263 80C274 99 265 115 246 120Z"/><path d="M263 117C264 92 281 83 296 93C294 111 281 120 263 117Z"/><path d="M238 113C219 100 223 82 237 74C251 87 249 102 238 113Z"/></g>
+ <g fill="#367C4F"><path d="M251 125 254 150 249 150 246 127Z"/><path d="M263 125 271 148 267 150 259 127Z"/><path d="M237 118 227 146 231 148 242 120Z"/></g>
+ <g><rect x="194" y="143" width="106" height="14" rx="2" fill="#E8B75E"/><rect x="190" y="135" width="114" height="9" rx="2" fill="#F4D38C"/><rect x="194" y="160" width="106" height="8" rx="2" fill="#F4D38C"/><rect x="203" y="169" width="95" height="10" rx="2" fill="#804E39"/><rect x="199" y="181" width="107" height="10" rx="2" fill="#E5A44E"/></g>
+</g>
+<!-- Square Math Bot -->
+<g transform="translate(600 0)">
+ <rect width="300" height="200" fill="url(#robot)"/>
+ <path d="M0 150Q46 112 105 121T203 133T300 135V200H0Z" fill="#0D3482"/>
+ <path d="M30 28 34 18 38 28 48 32 38 36 34 46 30 36 20 32Z M274 40 277 32 280 40 288 43 280 46 277 54 274 46 266 43Z" fill="#57D9F5"/>
+ <path d="M83 77Q83 55 105 55H211Q233 55 233 77V146H83Z" fill="#3D87DC"/>
+ <path d="M94 79Q94 64 109 64H207Q222 64 222 79V135H94Z" fill="#A8F2FF"/>
+ <path d="M102 83Q102 72 113 72H203Q214 72 214 83V125H102Z" fill="#142E75"/>
+ <g fill="#58E8FF"><circle cx="137" cy="96" r="13"/><circle cx="182" cy="96" r="13"/></g><g fill="#071C4A"><circle cx="137" cy="99" r="5"/><circle cx="182" cy="99" r="5"/></g>
+ <path d="M140 114Q160 136 180 114L175 130Q160 140 145 130Z" fill="#9CFCFA"/>
+ <path d="M103 146H213V159H103Z M117 159H199L214 174H101Z" fill="#0A2A67"/>
+ <path d="M48 121 61 96 74 121Z M265 151 278 126 291 151Z" fill="#F2C85E"/>
+ <g fill="#B7D6FF"><path d="M31 83H49V87H31Z M38 76H42V94H38Z"/><path d="M263 68H279V72H263Z M269 62H273V78H269Z"/></g>
+</g>
+<!-- Medium Study: pastel room, cat, books, blossoms -->
+<g transform="translate(0 200)">
+ <rect width="300" height="200" fill="url(#study)"/>
+ <path d="M215 0H300V102H215Z" fill="#FFE6B4"/>
+ <path d="M215 0H300V9H215Z M215 46H300V53H215Z M265 0V102H272V0Z" fill="#B65E91"/>
+ <g fill="#F4B2B7"><path d="M17 20C24 8 35 8 42 20C35 32 24 32 17 20Z"/><path d="M38 43C45 31 56 31 63 43C56 55 45 55 38 43Z"/><path d="M72 17C79 5 90 5 97 17C90 29 79 29 72 17Z"/><path d="M96 52C103 40 114 40 121 52C114 64 103 64 96 52Z"/></g>
+ <g fill="#A45A47"><rect x="15" y="161" width="174" height="12" rx="2"/><rect x="23" y="146" width="157" height="13" rx="2"/><rect x="35" y="132" width="131" height="13" rx="2"/></g>
+ <g fill="#F4CB80"><rect x="15" y="157" width="174" height="7" rx="2"/><rect x="23" y="142" width="157" height="7" rx="2"/><rect x="35" y="128" width="131" height="7" rx="2"/></g>
+ <path d="M90 120Q87 88 120 91Q151 95 135 129L116 146 92 137Z" fill="#E8B6C5"/>
+ <path d="M103 125Q99 101 124 104Q144 110 122 132Z" fill="#FAE3D7"/>
+ <path d="M99 103 91 87 109 96Z M122 96 140 83 137 105Z" fill="#F1A97F"/>
+ <g fill="#8B493F"><ellipse cx="109" cy="120" rx="2.5" ry="3.5"/><ellipse cx="126" cy="120" rx="2.5" ry="3.5"/></g>
+ <path d="M111 128Q119 137 128 127L125 135Q119 139 113 134Z" fill="#CB5F6C"/>
+ <path d="M245 124H279V159H245Z M238 119H285V127H238Z" fill="#F7E0C5"/>
+ <path d="M247 130H277V134H247Z M247 138H273V142H247Z M247 146H275V150H247Z" fill="#CB7B6B"/>
+ <path d="M284 154H305V180H284Z M280 149H309V156H280Z" fill="#E7B1C5"/><ellipse cx="294" cy="149" rx="14" ry="6" fill="#FFF0DB"/>
+</g>
+<!-- Square Cosmic: planets and orbit lines -->
+<g transform="translate(300 200)">
+ <rect width="300" height="200" fill="url(#space)"/>
+ <path d="M0 134Q41 104 104 142T214 126T300 133V200H0Z" fill="#151858"/>
+ <path d="M0 165Q54 137 130 169T252 164T300 158V200H0Z" fill="#29206F"/>
+ <g fill="#EDE9FF"><path d="M35 30 38 22 41 30 49 33 41 36 38 44 35 36 27 33Z"/><path d="M95 45 98 39 101 45 107 48 101 51 98 57 95 51 89 48Z"/><path d="M177 24 180 17 183 24 190 27 183 30 180 37 177 30 170 27Z"/><path d="M283 80 286 73 289 80 296 83 289 86 286 93 283 86 276 83Z"/></g>
+ <path d="M231 34Q255 12 281 25Q310 43 300 67Q284 100 255 92Q227 84 231 34Z" fill="#395FF6"/>
+ <path d="M240 35Q260 19 293 44Q274 39 253 62Q248 73 254 91Q225 78 240 35Z" fill="#57D8FF"/>
+ <path d="M226 57Q262 34 302 63Q279 56 233 74Z" fill="#A49DFF"/>
+ <path d="M77 139Q85 119 109 123Q151 132 140 174Q120 193 84 181Q77 158 77 139Z" fill="#B18BF9"/>
+ <path d="M80 143Q96 122 135 136Q115 138 95 175Q86 168 80 143Z" fill="#5C4ACB"/>
+ <path d="M45 77Q62 64 99 74Q79 73 59 102Q50 96 45 77Z" fill="#54E1FF"/>
+ <path d="M18 137 22 129 26 137 34 140 26 143 22 151 18 143 10 140Z M164 58 168 50 172 58 180 61 172 64 168 72 164 64 156 61Z" fill="#E6F9FF"/>
+</g>
+<!-- Extra Wide Weekly: panoramic sunset -->
+<g transform="translate(600 200)">
+ <rect width="300" height="200" fill="url(#weekly)"/>
+ <circle cx="229" cy="34" r="22" fill="#FDBF83"/>
+ <path d="M0 111 36 70 60 86 106 35 149 91 186 55 232 100 276 60 300 101V200H0Z" fill="#C76F72"/>
+ <path d="M0 133 40 94 72 116 113 68 156 116 205 85 250 124 289 89 300 116V200H0Z" fill="#375B80"/>
+ <path d="M0 156 52 134 95 153 137 128 183 151 228 133 270 156 300 137V200H0Z" fill="#1A6C78"/>
+ <path d="M0 180 45 162 88 176 138 156 180 178 226 158 271 176 300 160V200H0Z" fill="#0B505F"/>
+ <path d="M0 190 55 184 102 190 153 177 204 190 262 181 300 187V200H0Z" fill="#42C5D1"/>
+ <g fill="#FCE3B1"><path d="M102 36 106 30 110 36 116 39 110 42 106 48 102 42 96 39Z"/><path d="M181 55 185 49 189 55 195 58 189 61 185 67 181 61 175 58Z"/></g>
+</g>
+</svg>

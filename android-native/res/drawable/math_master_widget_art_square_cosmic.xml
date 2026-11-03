@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="200dp" android:viewportWidth="320" android:viewportHeight="200">
+    <path android:fillColor="#080D39" android:pathData="M0,0H320V200H0Z"/>
+    <path android:fillColor="#151858" android:pathData="M0,134C41,104 74,123 104,142S173,95 214,126S282,110 320,133V200H0Z"/>
+    <path android:fillColor="#29206F" android:pathData="M0,165C54,137 80,161 130,169S203,139 252,164S292,152 320,158V200H0Z"/>
+    <path android:fillColor="#EDE9FF" android:pathData="M35,30L38,22L41,30L49,33L41,36L38,44L35,36L27,33Z M95,45L98,39L101,45L107,48L101,51L98,57L95,51L89,48Z M177,24L180,17L183,24L190,27L183,30L180,37L177,30L170,27Z M283,80L286,73L289,80L296,83L289,86L286,93L283,86L276,83Z M58,102L60,97L62,102L67,104L62,106L60,111L58,106L53,104Z"/>
+    <path android:fillColor="#395FF6" android:pathData="M231,34C255,12 290,19 300,48C310,76 284,100 255,92C227,84 215,57 231,34Z"/>
+    <path android:fillColor="#57D8FF" android:pathData="M240,35C260,19 285,24 293,44C274,39 260,46 253,62C248,73 248,83 254,91C231,82 225,54 240,35Z"/>
+    <path android:fillColor="#A49DFF" android:pathData="M226,57C249,44 280,45 302,63C279,56 252,59 233,74Z"/>
+    <path android:fillColor="#F4C9FF" android:pathData="M77,139C85,119 111,112 133,125C151,138 155,160 140,174C120,193 84,181 77,158Z"/>
+    <path android:fillColor="#B18BF9" android:pathData="M80,143C96,122 121,124 135,136C115,138 99,154 95,175C86,168 80,157 80,143Z"/>
+    <path android:fillColor="#5C4ACB" android:pathData="M45,77C62,64 83,63 99,74C79,73 64,86 59,102C50,96 45,87 45,77Z"/>
+    <path android:fillColor="#54E1FF" android:pathData="M170,110C196,92 231,91 254,106C230,102 203,118 187,138Z"/>
+    <path android:fillColor="#D3C4FF" android:pathData="M177,103C205,78 244,82 270,102" android:strokeColor="#D3C4FF" android:strokeWidth="2" android:fillType="nonZero"/>
+    <path android:fillColor="#E6F9FF" android:pathData="M18,137L22,129L26,137L34,140L26,143L22,151L18,143L10,140Z M164,58L168,50L172,58L180,61L172,64L168,72L164,64L156,61Z"/>
+</vector>
