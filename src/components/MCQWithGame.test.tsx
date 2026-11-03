@@ -224,6 +224,9 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(screen.getByTestId("mcq-game-lane-readout")).toHaveTextContent("Lane 2");
 
     fireEvent.click(chooseGame);
+    expect(onChangeGame).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Exit race confirmation" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Exit to game selection" }));
     expect(onChangeGame).toHaveBeenCalledTimes(1);
   });
 
