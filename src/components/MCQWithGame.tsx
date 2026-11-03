@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, CarFront, Check, Gauge, Pause, Play, RotateCcw, Send, Timer, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CarFront, Check, Gauge, Pause, Play, RotateCcw, Send, Timer, Volume2, VolumeX, X } from "lucide-react";
 import type { MCQGameValue } from "@/lib/mcqGame";
 import {
   hasActiveMCQDrivingPointer,
@@ -33,6 +33,7 @@ import {
   type MCQ3DScene,
 } from "@/lib/mcq3dRenderer";
 import { setGameImmersiveMode } from "@/lib/gameImmersiveMode";
+import { getSettings, setSound } from "@/lib/settings";
 import { createRacingAudioController, playClick, playSwipe, type RacingAudioController } from "@/lib/sound";
 import "./mcq-game.css";
 
@@ -91,6 +92,8 @@ const MCQWithGame = ({
   const [lane, setLane] = useState(1);
   const [phase, setPhase] = useState<GamePhase>("INITIALIZING");
   const [showRestartConfirmation, setShowRestartConfirmation] = useState(false);
+  const [showExitConfirmation, setShowExitConfirmation] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => getSettings().sound);
   const [boosting, setBoosting] = useState(false);
   const [steeringDirection, setSteeringDirection] = useState<MCQSteeringDirection | null>(null);
   const [rendererError, setRendererError] = useState<string | null>(null);
@@ -119,6 +122,7 @@ const MCQWithGame = ({
   const onSelectOptionRef = useRef(onSelectOption);
   const onFinalSubmitRef = useRef(onFinalSubmit);
   const finalSubmitInvokedRef = useRef(false);
+  const exitRequestedFromPausedRef = useRef(false);
   const activeQuestionKeyRef = useRef(String(questionKey));
   const activeSessionKeyRef = useRef(String(sessionKey ?? "default"));
   const boostingRef = useRef(false);
@@ -397,6 +401,38 @@ const MCQWithGame = ({
     onFinalSubmitRef.current();
   }, []);
 
+  const toggleGameSound = useCallback(() => {
+    const nextEnabled = !getSettings().sound;
+    setSound(nextEnabled);
+    setSoundEnabled(nextEnabled);
+    // The global persisted Sound setting is the single source of truth for
+    // racing audio, Quiz Engine cues and other app sounds.
+    if (nextEnabled) {
+      racingAudioRef.current?.unlock();
+      playClick();
+    }
+  }, []);
+
+  const requestExitConfirmation = useCallback(() => {
+    if (!latestPropsRef.current.onChangeGame) return;
+    exitRequestedFromPausedRef.current = phaseRef.current === "PAUSED";
+    setShowRestartConfirmation(false);
+    if (!exitRequestedFromPausedRef.current) setPausedState(true, true);
+    setShowExitConfirmation(true);
+  }, [setPausedState]);
+
+  const cancelExitConfirmation = useCallback(() => {
+    setShowExitConfirmation(false);
+    if (!exitRequestedFromPausedRef.current) setPausedState(false);
+    exitRequestedFromPausedRef.current = false;
+  }, [setPausedState]);
+
+  const confirmExitGame = useCallback(() => {
+    setShowExitConfirmation(false);
+    exitRequestedFromPausedRef.current = false;
+    latestPropsRef.current.onChangeGame?.();
+  }, []);
+
   useEffect(() => {
     const controller = createRacingAudioController(MCQ_GAME_BASE_SPEED_MULTIPLIER, MCQ_GAME_MAX_SPEED_MULTIPLIER);
     racingAudioRef.current = controller;
@@ -404,6 +440,12 @@ const MCQWithGame = ({
       controller.dispose();
       if (racingAudioRef.current === controller) racingAudioRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    const syncSoundSetting = () => setSoundEnabled(getSettings().sound);
+    window.addEventListener("settings-updated", syncSoundSetting);
+    return () => window.removeEventListener("settings-updated", syncSoundSetting);
   }, []);
 
   useEffect(() => {
@@ -582,7 +624,7 @@ const MCQWithGame = ({
 
     const animate = (timestamp: number) => {
       frameRef.current = null;
-      if (phaseRef.current === "PAUSED" || phaseRef.current === "ERROR" || document.hidden) {
+      if (phaseRef.current !== "RUNNING" || document.hidden) {
         lastTimestampRef.current = null;
         return;
       }
@@ -736,14 +778,15 @@ const MCQWithGame = ({
       }
 
       renderFrame();
-      if (!document.hidden && typeof window.requestAnimationFrame === "function") {
+      if (phaseRef.current === "RUNNING" && !document.hidden &&
+          typeof window.requestAnimationFrame === "function") {
         frameRef.current = window.requestAnimationFrame(animate);
       }
     };
 
     const scheduleFrame = () => {
       if (frameRef.current === null && !document.hidden &&
-          phaseRef.current !== "PAUSED" &&
+          phaseRef.current === "RUNNING" &&
           typeof window.requestAnimationFrame === "function") {
         frameRef.current = window.requestAnimationFrame(animate);
       }
@@ -793,6 +836,8 @@ const MCQWithGame = ({
     if (sessionChanged) {
       activeSessionKeyRef.current = nextSessionKey;
       setShowRestartConfirmation(false);
+      setShowExitConfirmation(false);
+      exitRequestedFromPausedRef.current = false;
       clearActiveControls();
       laneRef.current = 1;
       targetCarXRef.current = MCQ_GAME_LANE_X[1];
@@ -830,13 +875,31 @@ const MCQWithGame = ({
     if (feedback || disabled || finalSubmitReady) {
       clearActiveControls();
     }
-    if (!feedback) return;
-    submittedRef.current = true;
-    if (phaseRef.current !== "PAUSED") {
-      phaseRef.current = "FEEDBACK";
-      setPhase("FEEDBACK");
+
+    // "disabled" also represents short engine-controlled input locks. Keep the
+    // road/gates animated during those locks; stop the loop only after an answer
+    // is committed, on final submission, or while the explicit phase is paused.
+    if (feedback || finalSubmitReady) {
+      if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
+        window.cancelAnimationFrame(frameRef.current);
+      }
+      frameRef.current = null;
     }
-    drawCurrentFrameRef.current?.();
+
+    if (feedback) {
+      submittedRef.current = true;
+      if (phaseRef.current !== "PAUSED") {
+        phaseRef.current = "FEEDBACK";
+        setPhase("FEEDBACK");
+      }
+      drawCurrentFrameRef.current?.();
+      return;
+    }
+
+    // A new question returns the phase to RUNNING and restarts the same loop.
+    if (!finalSubmitReady && phaseRef.current === "RUNNING") {
+      scheduleFrameRef.current?.();
+    }
   }, [feedback, disabled, finalSubmitReady, clearActiveControls]);
 
   const correctLane = options.findIndex((option) => String(option.value) === String(correctAnswer));
@@ -973,7 +1036,7 @@ const MCQWithGame = ({
               onPointerDown={(event) => event.stopPropagation()}
               onPointerUp={(event) => event.stopPropagation()}
               onPointerCancel={(event) => event.stopPropagation()}
-              onClick={onChangeGame}
+              onClick={requestExitConfirmation}
             >
               <ArrowLeft size={16} aria-hidden="true" />
               <span>Choose game</span>
@@ -1008,6 +1071,16 @@ const MCQWithGame = ({
               </div>
             </>
           )}
+          <button
+            type="button"
+            className="mcq-game-pause mcq-game-sound-toggle"
+            aria-label={soundEnabled ? "Mute game sound" : "Unmute game sound"}
+            aria-pressed={soundEnabled}
+            data-testid="mcq-game-sound-toggle"
+            onClick={toggleGameSound}
+          >
+            {soundEnabled ? <Volume2 size={18} aria-hidden="true" /> : <VolumeX size={18} aria-hidden="true" />}
+          </button>
           <button
             type="button"
             className="mcq-game-pause"
@@ -1119,10 +1192,26 @@ const MCQWithGame = ({
             className="mcq-game-paused-overlay"
             role="dialog"
             aria-modal="true"
-            aria-label={showRestartConfirmation ? "Restart race confirmation" : "Race paused"}
+            aria-label={showExitConfirmation ? "Exit race confirmation" : showRestartConfirmation ? "Restart race confirmation" : "Race paused"}
           >
             <div className="mcq-game-paused-card">
-              {showRestartConfirmation ? (
+              {showExitConfirmation ? (
+                <>
+                  <ArrowLeft size={28} aria-hidden="true" />
+                  <strong>Leave this race?</strong>
+                  <span>Your current quiz session will return to game selection. Leaving will not silently submit or reset the test.</span>
+                  <button
+                    type="button"
+                    className="mcq-game-paused-action mcq-game-paused-action--secondary"
+                    onClick={cancelExitConfirmation}
+                  >
+                    Stay in race
+                  </button>
+                  <button type="button" className="mcq-game-paused-action" onClick={confirmExitGame}>
+                    <ArrowLeft size={17} aria-hidden="true" /> Exit to game selection
+                  </button>
+                </>
+              ) : showRestartConfirmation ? (
                 <>
                   <RotateCcw size={28} aria-hidden="true" />
                   <strong>Restart race?</strong>
@@ -1174,11 +1263,7 @@ const MCQWithGame = ({
                     <button
                       type="button"
                       className="mcq-game-paused-action mcq-game-paused-action--secondary"
-                      onClick={() => {
-                        setShowRestartConfirmation(false);
-                        setPausedState(false);
-                        latestPropsRef.current.onChangeGame?.();
-                      }}
+                      onClick={requestExitConfirmation}
                     >
                       <ArrowLeft size={17} aria-hidden="true" /> Return to game selection
                     </button>

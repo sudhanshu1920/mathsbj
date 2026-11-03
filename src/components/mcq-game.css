@@ -1054,3 +1054,8 @@
 .mcq-game-gate-overlay {
   translate: 0 -0.18rem;
 }
+
+
+/* In-game sound setting uses the same thumb-sized, accessible HUD control as Pause. */
+.mcq-game-sound-toggle { color: #c7e8ff; border-color: rgb(112 198 255 / 0.58); }
+.mcq-game-sound-toggle[aria-pressed="false"] { color: #aab7c9; background: linear-gradient(145deg, rgb(26 35 53 / 0.98), rgb(10 19 33 / 0.98)); }
