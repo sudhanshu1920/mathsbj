@@ -607,6 +607,77 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("keeps a physically held Speed pointer through collision feedback and the next question", () => {
+    const raf = installAnimationFrameQueue();
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const onSelectOption = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({
+      durationMs: 4_000,
+      onSelectOption,
+    })} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
+    let lastTimestamp = 0;
+
+    try {
+      fireEvent.pointerDown(speed, { pointerId: 91, pointerType: "touch", button: 0 });
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+
+      // Let the actual 3D simulation commit a swept gate collision.
+      for (let timestamp = 0; timestamp <= 5_000; timestamp += 50) {
+        if (!raf.advance(timestamp)) break;
+        lastTimestamp = timestamp;
+      }
+      expect(onSelectOption).toHaveBeenCalledTimes(1);
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+      const speedAtContact = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+
+      view.rerender(<MCQWithGame {...gameProps({
+        durationMs: 4_000,
+        feedback: "correct",
+        selectedOption: 1,
+        onSelectOption,
+      })} />);
+      expect(speed).toHaveAttribute("aria-pressed", "true");
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-2",
+        questionLabel: <p>18 + 9 = ?</p>,
+        options: [
+          { value: "29", label: "29" },
+          { value: "27", label: "27" },
+          { value: "31", label: "31" },
+          { value: "25", label: "25" },
+        ],
+        correctAnswer: "27",
+        durationMs: 4_000,
+        onSelectOption,
+      })} />);
+      expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
+      expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "true");
+
+      raf.advance(lastTimestamp + 50);
+      const speedOnNextQuestion = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(speedOnNextQuestion).toBeGreaterThanOrEqual(speedAtContact);
+
+      fireEvent.pointerUp(screen.getByTestId("mcq-game-accelerate"), {
+        pointerId: 91,
+        pointerType: "touch",
+      });
+      expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "false");
+      raf.advance(lastTimestamp + 100);
+      const coastingSpeed = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
+      expect(coastingSpeed).toBeLessThan(speedOnNextQuestion);
+      expect(coastingSpeed).toBeGreaterThan(1);
+    } finally {
+      fireEvent.pointerCancel(screen.getByTestId("mcq-game-accelerate"), {
+        pointerId: 91,
+        pointerType: "touch",
+      });
+      view.unmount();
+      raf.restore();
+    }
+  });
+
   it("submits the exact fixed gate entered by the car and reuses the existing 3D scene", () => {
     const raf = installAnimationFrameQueue();
     let now = 0;
@@ -682,7 +753,7 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("stages answer targets at different depths and consumes missed gates without submitting", () => {
+  it("stages answer targets at different depths and independently recycles missed gates", () => {
     const raf = installAnimationFrameQueue();
     const onSelectOption = vi.fn();
     const view = render(<MCQWithGame {...gameProps({
@@ -707,7 +778,8 @@ describe("Full-screen continuous MCQ racing", () => {
         gateActive: boolean[];
       };
       expect(laterFrame.gateZs).not.toEqual(initialFrame.gateZs);
-      expect(laterFrame.gateActive.filter(Boolean)).toHaveLength(3);
+      expect(laterFrame.gateActive).toEqual([true, true, true, true]);
+      expect(laterFrame.gateZs).toContain(MCQ_GAME_GATE_START_Z);
       expect(onSelectOption).not.toHaveBeenCalled();
     } finally {
       view.unmount();
