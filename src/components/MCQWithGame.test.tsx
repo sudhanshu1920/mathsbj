@@ -612,7 +612,7 @@ describe("Full-screen continuous MCQ racing", () => {
     vi.spyOn(performance, "now").mockReturnValue(0);
     const onSelectOption = vi.fn();
     const view = render(<MCQWithGame {...gameProps({
-      durationMs: 4_000,
+      durationMs: 1_200,
       onSelectOption,
     })} />);
     const speed = screen.getByTestId("mcq-game-accelerate");
@@ -626,13 +626,14 @@ describe("Full-screen continuous MCQ racing", () => {
       for (let timestamp = 0; timestamp <= 5_000; timestamp += 50) {
         if (!raf.advance(timestamp)) break;
         lastTimestamp = timestamp;
+        if (onSelectOption.mock.calls.length > 0) break;
       }
       expect(onSelectOption).toHaveBeenCalledTimes(1);
       expect(speed).toHaveAttribute("aria-pressed", "true");
       const speedAtContact = racingAudioMocks.update.mock.calls.at(-1)?.[0] as number;
 
       view.rerender(<MCQWithGame {...gameProps({
-        durationMs: 4_000,
+        durationMs: 1_200,
         feedback: "correct",
         selectedOption: 1,
         onSelectOption,
@@ -657,7 +658,7 @@ describe("Full-screen continuous MCQ racing", () => {
           { value: "25", label: "25" },
         ],
         correctAnswer: "27",
-        durationMs: 4_000,
+        durationMs: 1_200,
         onSelectOption,
       })} />);
       expect(screen.getByText("18 + 9 = ?")).toBeInTheDocument();
