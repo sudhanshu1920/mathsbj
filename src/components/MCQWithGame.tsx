@@ -624,7 +624,7 @@ const MCQWithGame = ({
 
     const animate = (timestamp: number) => {
       frameRef.current = null;
-      if (phaseRef.current !== "RUNNING" || disabledRef.current || document.hidden) {
+      if (phaseRef.current !== "RUNNING" || document.hidden) {
         lastTimestampRef.current = null;
         return;
       }
@@ -778,14 +778,14 @@ const MCQWithGame = ({
       }
 
       renderFrame();
-      if (phaseRef.current === "RUNNING" && !disabledRef.current && !document.hidden &&
+      if (phaseRef.current === "RUNNING" && !document.hidden &&
           typeof window.requestAnimationFrame === "function") {
         frameRef.current = window.requestAnimationFrame(animate);
       }
     };
 
     const scheduleFrame = () => {
-      if (frameRef.current === null && !document.hidden && !disabledRef.current &&
+      if (frameRef.current === null && !document.hidden &&
           phaseRef.current === "RUNNING" &&
           typeof window.requestAnimationFrame === "function") {
         frameRef.current = window.requestAnimationFrame(animate);
@@ -874,6 +874,12 @@ const MCQWithGame = ({
   useEffect(() => {
     if (feedback || disabled || finalSubmitReady) {
       clearActiveControls();
+    }
+
+    // "disabled" also represents short engine-controlled input locks. Keep the
+    // road/gates animated during those locks; stop the loop only after an answer
+    // is committed, on final submission, or while the explicit phase is paused.
+    if (feedback || finalSubmitReady) {
       if (frameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
         window.cancelAnimationFrame(frameRef.current);
       }
@@ -890,8 +896,8 @@ const MCQWithGame = ({
       return;
     }
 
-    // A new question or an explicit re-enable can restart the one existing loop.
-    if (!disabled && !finalSubmitReady && phaseRef.current === "RUNNING") {
+    // A new question returns the phase to RUNNING and restarts the same loop.
+    if (!finalSubmitReady && phaseRef.current === "RUNNING") {
       scheduleFrameRef.current?.();
     }
   }, [feedback, disabled, finalSubmitReady, clearActiveControls]);
