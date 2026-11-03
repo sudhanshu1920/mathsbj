@@ -249,6 +249,7 @@ const MCQWithGame = ({
       !Number.isFinite(event.pointerId) ||
       disabledRef.current ||
       phaseRef.current !== "RUNNING" ||
+      !!rendererError ||
       submittedRef.current ||
       feedbackRef.current ||
       activePointersRef.current.has(event.pointerId)
@@ -353,9 +354,9 @@ const MCQWithGame = ({
 
     if (selectedOptionRef.current === mapping.laneIndex) return;
 
-    // Stop every gameplay pointer on answer commit so a held finger cannot
-    // keep accelerating while the Quiz Engine transitions to feedback.
-    clearActiveControls();
+    // Question commit is separate from physical input ownership. Keep every
+    // pointerId active until its real pointerup/cancel/lost-capture event, even
+    // while feedback and the next question are being rendered.
 
     // A gate selection is the per-question commit event. Lock synchronously
     // before the existing Quiz Engine callback runs so touch/collision races
@@ -388,7 +389,7 @@ const MCQWithGame = ({
       releaseRejectedSelection();
       throw error;
     }
-  }, [clearActiveControls]);
+  }, []);
 
   const submitWholeTest = useCallback(() => {
     const current = latestPropsRef.current;
@@ -396,10 +397,11 @@ const MCQWithGame = ({
 
     // This control finalizes a whole session only; it never submits an answer.
     finalSubmitInvokedRef.current = true;
+    clearActiveControls();
     racingAudioRef.current?.unlock();
     playClick();
     onFinalSubmitRef.current();
-  }, []);
+  }, [clearActiveControls]);
 
   const toggleGameSound = useCallback(() => {
     const nextEnabled = !getSettings().sound;
@@ -456,6 +458,9 @@ const MCQWithGame = ({
     document.body.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
     const handleWindowBlur = () => setPausedState(true, true);
+    const handleGlobalPointerEnd = (event: PointerEvent) => {
+      releaseControlPointer(event.pointerId);
+    };
     const handleWindowFocus = () => {
       if (!document.hidden && phaseRef.current !== "PAUSED") racingAudioRef.current?.resume();
     };
@@ -474,12 +479,18 @@ const MCQWithGame = ({
     };
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("pointerup", handleGlobalPointerEnd, true);
+    window.addEventListener("pointercancel", handleGlobalPointerEnd, true);
+    window.addEventListener("lostpointercapture", handleGlobalPointerEnd, true);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     void setGameImmersiveMode(true);
 
     return () => {
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("pointerup", handleGlobalPointerEnd, true);
+      window.removeEventListener("pointercancel", handleGlobalPointerEnd, true);
+      window.removeEventListener("lostpointercapture", handleGlobalPointerEnd, true);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearActiveControls();
       boostingRef.current = false;
@@ -488,7 +499,7 @@ const MCQWithGame = ({
       document.body.style.overflow = previousBodyOverflow;
       document.body.style.overscrollBehavior = previousOverscroll;
     };
-  }, [clearActiveControls, setPausedState]);
+  }, [clearActiveControls, releaseControlPointer, setPausedState]);
 
   useEffect(() => {
     const panel = questionPanelRef.current;
@@ -745,6 +756,20 @@ const MCQWithGame = ({
       });
 
       gateElapsedMsRef.current = nextGateElapsedMs;
+      // Each passed answer lane respawns independently. The old batch recycle
+      // waited for the last lane to clear, hiding up to three options meanwhile.
+      if (phaseRef.current === "RUNNING" && !submittedRef.current) {
+        nextGateZs.forEach((gateZ, laneIndex) => {
+          if (!gatePassedRef.current[laneIndex] ||
+              gateZ < MCQ_GAME_COLLISION_Z + MCQ_GAME_GATE_CLEARANCE_Z) return;
+          gateStartZsRef.current[laneIndex] =
+            MCQ_GAME_GATE_START_Z -
+            MCQ_GAME_TRAVEL_DISTANCE * (nextGateElapsedMs / gateTravelDurationMs);
+          nextGateZs[laneIndex] = MCQ_GAME_GATE_START_Z;
+          gatePassedRef.current[laneIndex] = false;
+          gateActiveRef.current[laneIndex] = true;
+        });
+      }
       gateZRef.current = MCQ_GAME_GATE_START_Z +
         MCQ_GAME_TRAVEL_DISTANCE * (nextGateElapsedMs / gateTravelDurationMs);
       gateZsRef.current = nextGateZs;
@@ -762,19 +787,6 @@ const MCQWithGame = ({
           // Only the existing Quiz Engine callback commits an answer.
           selectLaneAnswer(mapping.laneIndex, collisionContactTimestampMs);
         }
-      }
-
-      // Recycle only after every answer target has crossed and cleared the car plane.
-      const allTargetsPassed = gateMappingsRef.current.length > 0 && gateMappingsRef.current.every(
-        (mapping) => gatePassedRef.current[mapping.laneIndex] &&
-          nextGateZs[mapping.laneIndex] >= MCQ_GAME_COLLISION_Z + MCQ_GAME_GATE_CLEARANCE_Z,
-      );
-      if (allTargetsPassed && phaseRef.current === "RUNNING" && !submittedRef.current) {
-        gateElapsedMsRef.current = 0;
-        gateZRef.current = MCQ_GAME_GATE_START_Z;
-        gateZsRef.current = [...gateStartZsRef.current];
-        gateActiveRef.current = Array.from({ length: 4 }, (_, index) => index < gateMappingsRef.current.length);
-        gatePassedRef.current = [false, false, false, false];
       }
 
       renderFrame();
@@ -872,9 +884,9 @@ const MCQWithGame = ({
   }, [questionKey, sessionKey, clearActiveControls]);
 
   useEffect(() => {
-    if (feedback || disabled || finalSubmitReady) {
-      clearActiveControls();
-    }
+    // Only whole-test completion is a hard input boundary. Ordinary feedback
+    // and temporary Quiz Engine locks must not cancel a still-held finger.
+    if (finalSubmitReady) clearActiveControls();
 
     // "disabled" also represents short engine-controlled input locks. Keep the
     // road/gates animated during those locks; stop the loop only after an answer
@@ -1109,7 +1121,7 @@ const MCQWithGame = ({
         </div>
 
         <div
-          className={["mcq-game-question-panel", boosting ? "mcq-game-question-panel--boost" : ""].join(" ")}
+          className="mcq-game-question-panel"
           ref={questionPanelRef}
           aria-label="Current quiz question"
           onPointerDown={(event) => event.stopPropagation()}
@@ -1141,7 +1153,7 @@ const MCQWithGame = ({
             aria-label="Accelerate (hold)"
             aria-pressed={boosting}
             data-testid="mcq-game-accelerate"
-            disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
+            aria-disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
             onPointerDown={(event) => startControlPointer(event, "speed", 1)}
             onPointerUp={endControlPointer}
             onPointerCancel={endControlPointer}
@@ -1159,7 +1171,7 @@ const MCQWithGame = ({
               aria-label="Steer left"
               aria-pressed={steeringDirection === -1}
               data-testid="mcq-game-steer-left"
-              disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
+              aria-disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
               onPointerDown={(event) => startControlPointer(event, "steering", -1)}
               onPointerUp={endControlPointer}
               onPointerCancel={endControlPointer}
@@ -1175,7 +1187,7 @@ const MCQWithGame = ({
               aria-label="Steer right"
               aria-pressed={steeringDirection === 1}
               data-testid="mcq-game-steer-right"
-              disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
+              aria-disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
               onPointerDown={(event) => startControlPointer(event, "steering", 1)}
               onPointerUp={endControlPointer}
               onPointerCancel={endControlPointer}
