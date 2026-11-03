@@ -475,6 +475,8 @@ describe("Quiz Arena MCQ with Game mode", () => {
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
+      expect(screen.getByRole("dialog", { name: "Exit race confirmation" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Exit to game selection" }));
       expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
       expect(view.container.querySelectorAll(".mcq-game-fullscreen, .mcq-jump-fullscreen")).toHaveLength(0);
 
