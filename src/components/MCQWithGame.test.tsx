@@ -11,6 +11,7 @@ import {
 } from "@/lib/mcqGamePhysics";
 import { createMCQ3DScene } from "@/lib/mcq3dRenderer";
 import { createRacingAudioController, playClick, playSwipe } from "@/lib/sound";
+import { getSettings, setSound } from "@/lib/settings";
 
 const racingAudioMocks = vi.hoisted(() => ({
   unlock: vi.fn(),
@@ -57,8 +58,11 @@ vi.mock("@/lib/mcq3dRenderer", () => ({
 
 const originalPointerEventDescriptor = Object.getOwnPropertyDescriptor(window, "PointerEvent");
 
+const originalSoundSetting = getSettings().sound;
+
 afterEach(() => {
   cleanup();
+  setSound(originalSoundSetting);
   vi.restoreAllMocks();
   vi.mocked(createMCQ3DScene).mockReset();
   vi.useRealTimers();
@@ -71,6 +75,7 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  setSound(true);
   // jsdom does not implement PointerEvent by default. Its generic Event fallback
   // drops clientX, which makes both screen halves look like the left zone.
   if (!window.PointerEvent) {
@@ -888,6 +893,51 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
+  it("toggles the persisted app sound setting from the racing HUD", () => {
+    const view = render(<MCQWithGame {...gameProps()} />);
+    const toggle = screen.getByTestId("mcq-game-sound-toggle");
+
+    expect(toggle).toHaveAccessibleName("Mute game sound");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(getSettings().sound).toBe(true);
+
+    fireEvent.click(toggle);
+    expect(getSettings().sound).toBe(false);
+    expect(screen.getByTestId("mcq-game-sound-toggle")).toHaveAccessibleName("Unmute game sound");
+    expect(screen.getByTestId("mcq-game-sound-toggle")).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(screen.getByTestId("mcq-game-sound-toggle"));
+    expect(getSettings().sound).toBe(true);
+    expect(screen.getByTestId("mcq-game-sound-toggle")).toHaveAccessibleName("Mute game sound");
+    view.unmount();
+  });
+
+  it("requires confirmation before leaving the active or paused race", () => {
+    const onChangeGame = vi.fn();
+    const view = render(<MCQWithGame {...gameProps({ onChangeGame })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
+    expect(screen.getByRole("dialog", { name: "Exit race confirmation" })).toBeInTheDocument();
+    expect(onChangeGame).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Stay in race" }));
+    expect(screen.queryByRole("dialog", { name: "Exit race confirmation" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Race paused" })).not.toBeInTheDocument();
+    expect(onChangeGame).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause game" }));
+    fireEvent.click(screen.getByRole("button", { name: "Return to game selection" }));
+    expect(screen.getByRole("dialog", { name: "Exit race confirmation" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Stay in race" }));
+    expect(screen.getByRole("dialog", { name: "Race paused" })).toBeInTheDocument();
+    expect(onChangeGame).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Return to game selection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Exit to game selection" }));
+    expect(onChangeGame).toHaveBeenCalledTimes(1);
+    view.unmount();
+  });
+
   it("pauses the race loop and quiz timer, then resumes without recreating the 3D scene", () => {
     const raf = installAnimationFrameQueue();
     const onPauseChange = vi.fn();
@@ -911,6 +961,33 @@ describe("Full-screen continuous MCQ racing", () => {
       expect(raf.advance(1050)).toBe(true);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
       expect(onSelectOption).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      raf.restore();
+    }
+  });
+
+  it("stops the animation loop during answer feedback and starts it once for the next question", () => {
+    const raf = installAnimationFrameQueue();
+    const view = render(<MCQWithGame {...gameProps()} />);
+
+    try {
+      expect(raf.advance(0)).toBe(true);
+      const updatesBeforeFeedback = racingAudioMocks.update.mock.calls.length;
+      view.rerender(<MCQWithGame {...gameProps({
+        feedback: "wrong",
+        selectedOption: 0,
+      })} />);
+
+      expect(raf.advance(16)).toBe(false);
+      expect(racingAudioMocks.update).toHaveBeenCalledTimes(updatesBeforeFeedback);
+
+      view.rerender(<MCQWithGame {...gameProps({
+        questionKey: "q-2",
+        questionLabel: <p>18 + 9 = ?</p>,
+      })} />);
+      expect(raf.advance(32)).toBe(true);
+      expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
     } finally {
       view.unmount();
       raf.restore();
