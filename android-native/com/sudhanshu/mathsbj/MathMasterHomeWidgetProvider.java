@@ -539,6 +539,17 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return value instanceof Number ? ((Number) value).intValue() : fallback;
     }
 
+    private static long getInstanceLong(
+        SharedPreferences preferences, int appWidgetId, String field, long fallback
+    ) {
+        Object value = null;
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            value = preferences.getAll().get("instance_" + appWidgetId + "_" + field);
+        }
+        if (!(value instanceof Number)) value = preferences.getAll().get(field);
+        return value instanceof Number ? ((Number) value).longValue() : fallback;
+    }
+
     private static boolean getInstanceBoolean(
         SharedPreferences preferences, int appWidgetId, String field, boolean fallback
     ) {
@@ -558,14 +569,14 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     }
 
     private static Set<String> getSelectedContent(SharedPreferences preferences, int appWidgetId) {
-        String json = getInstanceString(preferences, appWidgetId, "contentJson", preferences.getString("contentJson", null));
+        String json = getInstanceString(preferences, appWidgetId, "contentJson", null);
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
             String prefix = "instance_" + appWidgetId + "_";
             String contentKey = prefix + "contentJson";
             if (preferences.contains(contentKey) && preferences.getInt(prefix + "contentSchemaVersion", 0) < 2) {
                 JSONArray migratedContent;
                 try {
-                    migratedContent = new JSONArray(preferences.getString(contentKey, "[]"));
+                    migratedContent = new JSONArray(getInstanceString(preferences, appWidgetId, "contentJson", "[]"));
                 } catch (JSONException ignored) {
                     migratedContent = new JSONArray();
                     migratedContent.put("appIdentity");
@@ -651,9 +662,11 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         Context context, int appWidgetId, int layoutId, int widthDp, int heightDp, int sizeClass, String composition
     ) {
         SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
-        int targetMinutes = Math.max(1, Math.min(1440, preferences.getInt("targetMinutes", 5)));
-        String storedDay = preferences.getString("dayKey", "");
-        long elapsedSeconds = Math.max(0L, preferences.getLong("elapsedSeconds", 0L));
+        int targetMinutes = Math.max(1, Math.min(1440,
+            getInstanceInt(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "targetMinutes", 5)));
+        String storedDay = getInstanceString(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "dayKey", "");
+        long elapsedSeconds = Math.max(0L,
+            getInstanceLong(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "elapsedSeconds", 0L));
         if (!todayKey().equals(storedDay)) elapsedSeconds = 0L;
 
         long targetSeconds = targetMinutes * 60L;
@@ -662,12 +675,13 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         // Study time remains the actual accumulated duration, even after today's target is reached.
         int elapsedMinutes = (int) Math.min(Integer.MAX_VALUE, elapsedSeconds / 60L);
         int remainingMinutes = (int) Math.max(0L, (targetSeconds - elapsedSeconds + 59L) / 60L);
-        int streak = Math.max(0, preferences.getInt("currentStreak", 0));
+        int streak = Math.max(0, getInstanceInt(
+            preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "currentStreak", 0));
         Set<String> selected = getSelectedContent(preferences, appWidgetId);
 
         RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
-        boolean widgetsEnabled = preferences.getBoolean("enabled", true);
-        String mode = preferences.getString("mode", "dark");
+        boolean widgetsEnabled = getInstanceBoolean(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "enabled", true);
+        String mode = getInstanceString(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "mode", "dark");
         String style = getInstanceString(preferences, appWidgetId, "style", "glass");
         String widgetTheme = MathMasterWidgetStyle.normalizeTheme(
             getInstanceString(preferences, appWidgetId, "theme", MathMasterWidgetStyle.DEFAULT_THEME));
@@ -809,12 +823,12 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         bindWeekProgress(views, completedWeek, accentColor, secondaryColor);
         applyWeekTypography(views, completedWeek, fontStyle);
 
-        boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
+        boolean hasChecked = getInstanceBoolean(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "hasCheckedUpdates", false);
         boolean showQuizShortcut = widgetsEnabled && selected.contains("quiz");
-        String installedVersion = preferences.getString("installedVersionName", "");
-        String latestVersion = preferences.getString("latestVersionName", "");
-        long installedVersionCode = preferences.getLong("installedVersionCode", 0L);
-        long latestVersionCode = preferences.getLong("latestVersionCode", 0L);
+        String installedVersion = getInstanceString(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "installedVersionName", "");
+        String latestVersion = getInstanceString(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "latestVersionName", "");
+        long installedVersionCode = getInstanceLong(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "installedVersionCode", 0L);
+        long latestVersionCode = getInstanceLong(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "latestVersionCode", 0L);
         boolean releaseSnapshotValid = hasChecked
             && installedVersionCode > 0L && installedVersionCode <= 2100000000L
             && latestVersionCode > 0L && latestVersionCode <= 2100000000L
