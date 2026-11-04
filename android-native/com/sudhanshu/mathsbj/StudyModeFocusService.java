@@ -139,6 +139,7 @@ public final class StudyModeFocusService extends Service {
             PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive() || (keyguard != null && keyguard.isKeyguardLocked())) {
+                lastForegroundPackage = null;
                 removeShield();
                 handler.postDelayed(this, POLL_INTERVAL_MS);
                 return;
