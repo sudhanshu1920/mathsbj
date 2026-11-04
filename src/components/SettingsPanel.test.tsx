@@ -158,6 +158,22 @@ describe("SettingsPanel compact controls", () => {
     expect(mocks.setMode).toHaveBeenCalledWith("light");
   });
   
+  it("opens the nested Study Mode settings page and returns without leaving Settings", () => {
+    const { container } = render(<SettingsPanel />);
+
+    const settingsText = container.textContent ?? "";
+    expect(settingsText.indexOf("Keyboard shortcuts")).toBeLessThan(settingsText.indexOf("Study Mode"));
+    expect(settingsText.indexOf("Study Mode")).toBeLessThan(settingsText.indexOf("Daily Target"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Study Mode" }));
+    expect(screen.getByRole("heading", { name: "Study Mode" })).toBeInTheDocument();
+    expect(screen.getByText("Available in the Android app")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to Settings" }));
+    expect(screen.getByText("Sound")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Study Mode" })).toBeInTheDocument();
+  });
+
   it("opens Backup & Restore and returns to Settings without disturbing existing controls", () => {
     render(<SettingsPanel />);
 
