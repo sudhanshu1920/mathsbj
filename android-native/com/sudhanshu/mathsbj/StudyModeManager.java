@@ -4,7 +4,6 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.admin.DevicePolicyManager;
 import android.telecom.TelecomManager;
-import android.app.role.RoleManager;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.ComponentName;
@@ -150,13 +149,10 @@ public final class StudyModeManager {
             if (inputMethod != null && inputMethod.startsWith(packageName + "/")) return true;
         } catch (Exception ignored) {}
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            try {
-                RoleManager roles = (RoleManager) context.getSystemService(Context.ROLE_SERVICE);
-                if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_SMS)
-                    && roles.getRoleHolders(RoleManager.ROLE_SMS).contains(packageName)) return true;
-            } catch (Exception ignored) {}
-        }
+        try {
+            String defaultSms = android.provider.Telephony.Sms.getDefaultSmsPackage(context);
+            if (defaultSms != null && defaultSms.equals(packageName)) return true;
+        } catch (Exception ignored) {}
         return false;
     }
 
@@ -482,7 +478,7 @@ public final class StudyModeManager {
         }
 
         try {
-            String[] failed = policy.setPackagesSuspended(null, selected.toArray(new String[0]), true);
+            String[] failed = policy.setPackagesSuspended(getAdminComponent(context), selected.toArray(new String[0]), true);
             Set<String> rejected = new HashSet<>();
             if (failed != null) Collections.addAll(rejected, failed);
             for (String name : selected) if (!rejected.contains(name)) stillSuspended.add(name);
