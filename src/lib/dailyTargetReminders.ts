@@ -226,6 +226,8 @@ interface MathMasterNotificationsPlugin {
     enabled: boolean;
     targetMinutes: number;
     elapsedSeconds: number;
+    currentStreak: number;
+    completedDaysJson: string;
     completed: boolean;
     dayKey: string;
     scheduleMinutesJson: string;
@@ -304,6 +306,18 @@ const getNativeState = (enabled = getBackgroundNotificationsEnabled()) => {
   const record = streak.days[date];
   const elapsedSeconds = Math.max(0, Math.floor(record?.seconds ?? 0));
   const completed = isDailyTargetComplete(streak.targetMinutes, elapsedSeconds);
+  const completedDaysJson = JSON.stringify(
+    Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setHours(12, 0, 0, 0);
+      date.setDate(date.getDate() - (6 - index));
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const dayOfMonth = String(date.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${dayOfMonth}`;
+      return streak.days[dateKey]?.completed === true ? dateKey : null;
+    }).filter((date): date is string => date !== null),
+  );
 
   return {
     // Preserve the user's opt-in separately from today's completion state so
@@ -311,6 +325,8 @@ const getNativeState = (enabled = getBackgroundNotificationsEnabled()) => {
     enabled: enabled && streak.enabled,
     targetMinutes: streak.targetMinutes,
     elapsedSeconds,
+    currentStreak: streak.current,
+    completedDaysJson,
     completed,
     dayKey: date,
     scheduleMinutesJson: JSON.stringify(DAILY_REMINDER_MINUTES),

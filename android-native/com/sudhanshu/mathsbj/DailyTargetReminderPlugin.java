@@ -60,6 +60,8 @@ public class DailyTargetReminderPlugin extends Plugin {
             String schedule = call.getString("scheduleMinutesJson");
             String marathi = call.getString("marathiMessagesJson");
             String hindi = call.getString("hindiMessagesJson");
+            Integer currentStreak = call.getInt("currentStreak");
+            String completedDaysJson = call.getString("completedDaysJson");
 
             int targetMinutes = targetValue == null ? 5 : Math.max(1, targetValue);
             long elapsedSeconds = elapsedValue == null ? 0L : Math.max(0L, (long) Math.floor(elapsedValue));
@@ -78,6 +80,12 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putString("marathiMessagesJson", marathi == null ? "[]" : marathi)
                 .putString("hindiMessagesJson", hindi == null ? "[]" : hindi)
                 .apply();
+
+            MathMasterHomeWidgetProvider.syncProgressSnapshot(
+                getContext(), targetMinutes, elapsedSeconds,
+                currentStreak == null ? 0 : currentStreak,
+                dayKey, completedDaysJson
+            );
 
             boolean scheduled = false;
             if (enabled && hasNotificationPermission(getContext())) {

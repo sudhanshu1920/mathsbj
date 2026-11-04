@@ -96,6 +96,26 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         refreshWidgetInstances(context);
     }
 
+    /** Persist the existing app's live streak snapshot and refresh every pinned instance. */
+    public static void syncProgressSnapshot(
+        Context context,
+        int targetMinutes,
+        long elapsedSeconds,
+        int currentStreak,
+        String dayKey,
+        String completedDaysJson
+    ) {
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        preferences.edit()
+            .putInt("targetMinutes", Math.max(1, Math.min(1440, targetMinutes)))
+            .putLong("elapsedSeconds", Math.max(0L, elapsedSeconds))
+            .putInt("currentStreak", Math.max(0, currentStreak))
+            .putString("dayKey", dayKey == null ? "" : dayKey)
+            .putString("completedDaysJson", completedDaysJson == null ? "[]" : completedDaysJson)
+            .apply();
+        updateWidgetPreferences(context);
+    }
+
     private static void refreshWidgetInstances(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         ComponentName provider = new ComponentName(context, MathMasterHomeWidgetProvider.class);
