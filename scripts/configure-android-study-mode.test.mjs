@@ -62,5 +62,5 @@ test('configures launcher-only package visibility, native services and Capacitor
   assert.equal((secondManifest.match(/android:name="\.StudyModeFocusService"/g) || []).length, 1);
   assert.equal((secondManifest.match(/android:name="\.StudyModeNotificationListenerService"/g) || []).length, 1);
   assert.equal((secondManifest.match(/android.intent.category.LAUNCHER/g) || []).length, 1);
-  assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\\)/g) || []).length, 1);
+  assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
 });
