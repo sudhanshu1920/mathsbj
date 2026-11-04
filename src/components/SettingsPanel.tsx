@@ -292,7 +292,7 @@ const SettingsPanel = () => {
         <div
           data-theme-selector-grid
           aria-label="Theme colors"
-          className="grid grid-cols-5 justify-items-center gap-1 min-[360px]:grid-cols-6 min-[520px]:grid-cols-7 min-[720px]:grid-cols-8"
+          className="grid grid-cols-5 gap-1 min-[360px]:grid-cols-6 min-[520px]:grid-cols-7 min-[720px]:grid-cols-8"
         >
           {THEMES.map((t) => {
             const selected = theme === t.id;
@@ -305,15 +305,13 @@ const SettingsPanel = () => {
                 onClick={() => setAppTheme(t.id)}
                 aria-label={`Select ${t.name} theme`}
                 aria-pressed={selected}
-                className={`flex h-11 w-11 items-center justify-center rounded-full border p-1 transition-colors duration-100 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                  selected
-                    ? 'border-primary/90 bg-primary/10 shadow-[0_0_0_2px_hsl(var(--primary)/0.14)]'
-                    : 'border-transparent bg-transparent hover:border-border/70 hover:bg-secondary/40'
-                }`}
+                className="flex h-11 w-full items-center justify-center rounded-full bg-transparent p-0 transition-colors duration-100 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:bg-secondary/20"
               >
                 <span
                   aria-hidden="true"
-                  className="flex h-8 w-8 items-center justify-center gap-0.5 rounded-full border border-border/70 shadow-sm"
+                  className={`flex h-8 w-8 items-center justify-center gap-0.5 rounded-full border border-border/70 shadow-sm transition-shadow ${
+                    selected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
+                  }`}
                   style={{ backgroundColor: t.swatch[0] }}
                 >
                   {t.swatch.map((color, index) => (
