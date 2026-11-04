@@ -945,4 +945,69 @@ if (!backupService.includes('BACKUP_FORMAT_VERSION = 1') ||
     !backupSetup.includes('registerPlugin(BackupRestorePlugin.class);')) {
   fail('Backup & Restore must retain format/checksum validation, read-back verification, confirmation and Android SAF wiring');
 }
+
+const studyModeSchedule = read('src/lib/studyModeSchedule.ts');
+const studyModeScheduleTests = read('src/lib/studyModeSchedule.test.ts');
+const studyModePage = read('src/components/StudyModePage.tsx');
+const studyModeBridge = read('src/lib/studyMode.ts');
+const studyModeManager = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
+const studyModeFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
+const studyModeNotifications = read('android-native/com/sudhanshu/mathsbj/StudyModeNotificationListenerService.java');
+const studyModeSetup = read('scripts/configure-android-study-mode.mjs');
+const widgetSetup = read('scripts/configure-android-widgets.mjs');
+const studyModeSettings = read('src/components/SettingsPanel.tsx');
+const studyModeIndex = read('src/pages/Index.tsx');
+const studyModeBoot = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java');
+if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(false)} />') ||
+    !studyModeSettings.includes('onClick={() => setStudyModeOpen(true)}') ||
+    !studyModePage.includes('aria-label="Study Mode master switch"') ||
+    studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Multiple Apps') ||
+    !studyModePage.includes('showTimePicker') ||
+    !studyModePage.includes('aria-label={day.name}') ||
+    !studyModeIndex.includes('studyModePageOpen.current') ||
+    !studyModeIndex.includes("new CustomEvent('study-mode-back')")) {
+  fail('Study Mode settings entry, middle master control, native time/day controls, or Back navigation are missing');
+}
+if (!studyModeSchedule.includes('isStudyModeScheduledAt') ||
+    !studyModeSchedule.includes('getNextStudyModeTransition') ||
+    !studyModeSchedule.includes('Overnight sessions belong to the day') ||
+    !studyModeScheduleTests.includes('Friday overnight session') ||
+    !studyModeScheduleTests.includes('includes the start boundary and excludes the end boundary') ||
+    !studyModeBridge.includes('registerPlugin<NativeStudyModePlugin>("StudyMode")') ||
+    !studyModeBridge.includes('initializeStudyMode')) {
+  fail('Study Mode schedule engine, overnight boundaries, tests, or native bridge are missing');
+}
+if (!studyModeManager.includes('DevicePolicyManager') ||
+    !studyModeManager.includes('setPackagesSuspended(getAdminComponent(context)') ||
+    !studyModeManager.includes('permission_required') ||
+    !studyModeManager.includes('policy_unavailable') ||
+    !studyModeManager.includes('AlarmManager') ||
+    !studyModeManager.includes('canScheduleExactAlarms') ||
+    !studyModeManager.includes('isDefaultDialerPackage') && !studyModeManager.includes('getDefaultDialerPackage')) {
+  fail('Managed-device suspension, truthful permission state, alarm fallback, or critical app protection is missing');
+}
+if (!studyModeFocus.includes('UsageStatsManager') ||
+    !studyModeFocus.includes('queryEvents') ||
+    !studyModeFocus.includes('TYPE_APPLICATION_OVERLAY') ||
+    !studyModeFocus.includes('FOREGROUND_SERVICE_TYPE_SPECIAL_USE') ||
+    !studyModeFocus.includes('service_start_blocked') ||
+    !studyModeFocus.includes('lastForegroundPackage')) {
+  fail('Personal-phone Focus Shield must use Usage Access, overlay permission, a user-visible foreground service and actual service state');
+}
+if (!studyModeNotifications.includes('NotificationListenerService') ||
+    !studyModeNotifications.includes('notification.isClearable()') ||
+    !studyModeNotifications.includes('StudyModeManager.isPackageSelected') ||
+    !studyModeNotifications.includes('StudyModeManager.isScheduleActive') ||
+    !studyModeNotifications.includes('cancelNotification(notification.getKey())')) {
+  fail('Notification listener must filter only clearable notifications from selected apps during active sessions');
+}
+if (!studyModeSetup.includes('android.intent.category.LAUNCHER') ||
+    studyModeSetup.includes('QUERY_ALL_PACKAGES') ||
+    !studyModeSetup.includes('StudyModeDeviceAdminReceiver') ||
+    !studyModeSetup.includes('BIND_NOTIFICATION_LISTENER_SERVICE') ||
+    !widgetSetup.includes('configureAndroidStudyMode(root)') ||
+    !studyModeBoot.includes('StudyModeManager.reconcile(context)')) {
+  fail('Generated Android project must use launcher-only package visibility, register Study Mode services, and restore schedules');
+}
+
 console.log('Architecture regression checks passed.');
