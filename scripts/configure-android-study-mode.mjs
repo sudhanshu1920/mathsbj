@@ -13,6 +13,7 @@ const NATIVE_FILES = [
   'StudyModePackageChangeReceiver.java',
   'StudyModeNotificationListenerService.java',
   'StudyModeFocusService.java',
+  'StudyModeDeviceAdminReceiver.java',
   'DailyTargetReminderBootReceiver.java',
 ];
 
@@ -70,6 +71,21 @@ function ensureStudyModeComponents(manifest) {
         </receiver>\`,
     },
     {
+      marker: 'android:name=".StudyModeDeviceAdminReceiver"',
+      xml: `        <receiver
+            android:name=".StudyModeDeviceAdminReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/study_mode_device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>`,
+    },
+    {
       marker: 'android:name=".StudyModeNotificationListenerService"',
       xml: \`        <service
             android:name=".StudyModeNotificationListenerService"
@@ -123,6 +139,12 @@ export async function configureAndroidStudyMode(androidRoot) {
   for (const file of NATIVE_FILES) {
     await copyFile(path.join(NATIVE_DIR, file), path.join(packageDir, file));
   }
+  const xmlTarget = path.join(root, 'app/src/main/res/xml');
+  await mkdir(xmlTarget, { recursive: true });
+  await copyFile(
+    path.resolve(SCRIPT_DIR, '../android-native/res/xml/study_mode_device_admin.xml'),
+    path.join(xmlTarget, 'study_mode_device_admin.xml'),
+  );
 
   let mainActivity = await readFile(activityPath, 'utf8');
   mainActivity = registerStudyModePlugin(mainActivity);
