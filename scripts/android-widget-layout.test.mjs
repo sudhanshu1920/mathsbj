@@ -127,7 +127,8 @@ test("widgets expose only full-transparent and translucent-glass background effe
   assert.match(panel, /#00000000/);
   assert.match(badge, /#00000000/);
   assert.match(provider, /normalizeWidgetStyle\(getInstanceString\(preferences, appWidgetId, "style", "blur"\)\)/);
-  assert.match(provider, /android\.R\.color\.transparent/);
+  assert.match(provider, /R\.drawable\.math_master_home_widget_background/);
+  assert.doesNotMatch(provider, /android\.R\.color\.transparent/);
   assert.match(provider, /R\.drawable\.math_master_home_widget_background_blur/);
   assert.match(provider, /views\.setViewVisibility\(R\.id\.widget_artwork, View\.GONE\)/);
   assert.match(provider, /views\.setViewVisibility\(R\.id\.widget_artwork_overlay, View\.GONE\)/);
