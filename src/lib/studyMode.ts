@@ -48,6 +48,15 @@ const NativeStudyMode = registerPlugin<NativeStudyModePlugin>("StudyMode");
 
 export const isStudyModeNative = (): boolean => Capacitor.isNativePlatform();
 
+/** Reconcile a saved schedule on every native app process start. */
+export function initializeStudyMode(): void {
+  if (!isStudyModeNative()) return;
+  void NativeStudyMode.refresh().catch(() => {
+    // The feature remains opt-in; permission or service failures are surfaced
+    // on the Study Mode page from the next native status read.
+  });
+}
+
 export async function getStudyModeStatus(): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) {
     return {
