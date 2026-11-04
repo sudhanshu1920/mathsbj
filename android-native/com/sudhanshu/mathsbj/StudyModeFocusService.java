@@ -39,7 +39,6 @@ public final class StudyModeFocusService extends Service {
     private android.view.View shieldView;
     private String shieldedPackage = "";
     private boolean foregroundStarted = false;
-    private volatile boolean overlayFailed = false;
     private String lastForegroundPackage = null;
     private boolean initialForegroundLookup = true;
 
@@ -215,11 +214,9 @@ public final class StudyModeFocusService extends Service {
             params.gravity = Gravity.CENTER;
             params.setTitle("Math Master Study Mode");
             windowManager.addView(shieldView, params);
-            overlayFailed = false;
             overlayFailureForStatus = false;
             StudyModeManager.setServiceState(this, "focus_shield_running");
         } catch (Exception error) {
-            overlayFailed = true;
             overlayFailureForStatus = true;
             StudyModeManager.setServiceState(this, "overlay_failed");
             removeShield();
