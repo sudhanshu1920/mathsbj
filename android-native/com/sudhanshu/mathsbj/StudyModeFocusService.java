@@ -16,6 +16,7 @@ import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.text.format.DateFormat;
@@ -34,9 +35,12 @@ public final class StudyModeFocusService extends Service {
     private static final long POLL_INTERVAL_MS = 1600L;
     private static volatile boolean running = false;
 
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private HandlerThread monitorThread;
+    private Handler monitorHandler;
     private WindowManager windowManager;
     private android.view.View shieldView;
+    private TextView remainingTimeView;
     private String shieldedPackage = "";
     private boolean foregroundStarted = false;
     private String lastForegroundPackage = null;
@@ -63,7 +67,13 @@ public final class StudyModeFocusService extends Service {
         }
         running = true;
         StudyModeManager.setServiceState(this, "focus_shield_running");
-        handler.post(monitorRunnable);
+        monitorThread = new HandlerThread(
+            "StudyModeMonitor",
+            android.os.Process.THREAD_PRIORITY_BACKGROUND
+        );
+        monitorThread.start();
+        monitorHandler = new Handler(monitorThread.getLooper());
+        monitorHandler.post(monitorRunnable);
     }
 
     @Override
@@ -76,8 +86,12 @@ public final class StudyModeFocusService extends Service {
             stopSelf(startId);
             return START_NOT_STICKY;
         }
-        handler.removeCallbacks(monitorRunnable);
-        handler.post(monitorRunnable);
+        if (monitorHandler == null) {
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
+        monitorHandler.removeCallbacks(monitorRunnable);
+        monitorHandler.post(monitorRunnable);
         return START_STICKY;
     }
 
@@ -132,35 +146,47 @@ public final class StudyModeFocusService extends Service {
             if (!StudyModeManager.isEnabled(StudyModeFocusService.this)
                 || !StudyModeManager.isScheduleActive(StudyModeFocusService.this)) {
                 StudyModeManager.setServiceState(StudyModeFocusService.this, "waiting_for_schedule");
-                removeShield();
-                stopSelf();
+                mainHandler.post(() -> {
+                    if (!running) return;
+                    removeShield();
+                    stopSelf();
+                });
                 return;
             }
             if (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
                 StudyModeManager.setServiceState(StudyModeFocusService.this, "permission_required");
-                removeShield();
-                stopSelf();
+                mainHandler.post(() -> {
+                    if (!running) return;
+                    removeShield();
+                    stopSelf();
+                });
                 return;
             }
+
             PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive() || (keyguard != null && keyguard.isKeyguardLocked())) {
                 lastForegroundPackage = null;
-                removeShield();
-                handler.postDelayed(this, POLL_INTERVAL_MS);
+                mainHandler.post(() -> {
+                    if (running) removeShield();
+                });
+                if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
                 return;
             }
 
+            // UsageStatsManager and package checks run off the UI thread. Only
+            // WindowManager/View changes are posted back to the main looper.
             String foreground = getMostRecentlyResumedPackage();
-            if (foreground != null
+            boolean shouldShield = foreground != null
                 && !foreground.equals(getPackageName())
-                && StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground)) {
-                showShield(foreground);
-            } else {
-                removeShield();
-            }
-            handler.postDelayed(this, POLL_INTERVAL_MS);
+                && StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground);
+            mainHandler.post(() -> {
+                if (!running) return;
+                if (shouldShield) showShield(foreground);
+                else removeShield();
+            });
+            if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
         }
     };
 
@@ -214,6 +240,9 @@ public final class StudyModeFocusService extends Service {
             params.gravity = Gravity.CENTER;
             params.setTitle("Math Master Study Mode");
             windowManager.addView(shieldView, params);
+            updateRemainingTime();
+            mainHandler.removeCallbacks(countdownRunnable);
+            mainHandler.postDelayed(countdownRunnable, 60_000L);
             overlayFailureForStatus = false;
             StudyModeManager.setServiceState(this, "focus_shield_running");
         } catch (Exception error) {
@@ -256,6 +285,14 @@ public final class StudyModeFocusService extends Service {
         description.setGravity(Gravity.CENTER);
         root.addView(description, new LinearLayout.LayoutParams(-1, -2));
 
+        remainingTimeView = new TextView(this);
+        remainingTimeView.setTextSize(13);
+        remainingTimeView.setTextColor(Color.rgb(190, 210, 245));
+        remainingTimeView.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams remainingParams = new LinearLayout.LayoutParams(-1, -2);
+        remainingParams.topMargin = dp(14);
+        root.addView(remainingTimeView, remainingParams);
+
         TextView until = new TextView(this);
         until.setText("Available after " + DateFormat.getTimeFormat(this).format(
             new Date(StudyModeManager.getCurrentSessionEndMillis(this))
@@ -287,14 +324,38 @@ public final class StudyModeFocusService extends Service {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
+    private void updateRemainingTime() {
+        if (remainingTimeView == null) return;
+        long remainingMillis = Math.max(
+            0L, StudyModeManager.getCurrentSessionEndMillis(this) - System.currentTimeMillis()
+        );
+        long totalMinutes = (remainingMillis + 59_999L) / 60_000L;
+        long hours = totalMinutes / 60L;
+        long minutes = totalMinutes % 60L;
+        String time = hours > 0 ? hours + "h " + minutes + "m" : minutes + "m";
+        remainingTimeView.setText("Time remaining · " + time);
+    }
+
+    private final Runnable countdownRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (remainingTimeView == null || !running) return;
+            updateRemainingTime();
+            mainHandler.postDelayed(this, 60_000L);
+        }
+    };
+
     private void removeShield() {
-        if (shieldView == null) return;
-        try {
-            if (windowManager != null) windowManager.removeView(shieldView);
-        } catch (Exception ignored) {
-            // The system may already have detached the overlay.
+        mainHandler.removeCallbacks(countdownRunnable);
+        if (shieldView != null) {
+            try {
+                if (windowManager != null) windowManager.removeView(shieldView);
+            } catch (Exception ignored) {
+                // The system may already have detached the overlay.
+            }
         }
         shieldView = null;
+        remainingTimeView = null;
         shieldedPackage = "";
     }
 
@@ -302,18 +363,21 @@ public final class StudyModeFocusService extends Service {
     public void onTaskRemoved(Intent rootIntent) {
         // The user explicitly opted into this scheduled foreground service.
         // Android may still stop it under device policy or battery restrictions.
-        if (StudyModeManager.isEnabled(this) && StudyModeManager.isScheduleActive(this)) {
-            handler.removeCallbacks(monitorRunnable);
-            handler.post(monitorRunnable);
+        if (StudyModeManager.isEnabled(this) && StudyModeManager.isScheduleActive(this)
+            && monitorHandler != null) {
+            monitorHandler.removeCallbacks(monitorRunnable);
+            monitorHandler.post(monitorRunnable);
         }
         super.onTaskRemoved(rootIntent);
     }
 
     @Override
     public void onDestroy() {
-        handler.removeCallbacksAndMessages(null);
-        removeShield();
         running = false;
+        if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
+        if (monitorThread != null) monitorThread.quitSafely();
+        mainHandler.removeCallbacksAndMessages(null);
+        removeShield();
         overlayFailureForStatus = false;
         if (StudyModeManager.isEnabled(this) && StudyModeManager.isScheduleActive(this)
             && StudyModeManager.hasUsageAccess(this) && StudyModeManager.hasOverlayPermission(this)) {
