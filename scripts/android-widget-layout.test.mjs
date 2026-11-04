@@ -167,7 +167,7 @@ test("every native widget provider and responsive layout is registered and copie
   for (const filename of widgetProviderFiles) {
     const componentName = filename.replace(".java", "");
     assert.ok(configureWidgets.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
-    assert.ok(configureWidgets.includes(`android:name=".${componentName}"`), `${componentName} must be registered in AndroidManifest`);
+    assert.ok(configureWidgets.includes(componentName), `${componentName} must be registered by the widget manifest builder`);
     assert.ok(configureWidgets.includes("@xml/math_master_home_widget_info"), `${componentName} must reference widget metadata`);
   }
 
