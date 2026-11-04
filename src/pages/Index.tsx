@@ -187,6 +187,30 @@ const Index = () => {
     return () => window.removeEventListener('study-reminder-tapped', handleStudyReminderTap);
   }, [practicePhase]);
 
+  useEffect(() => {
+    const handleHomeWidgetNavigation = (event: Event) => {
+      const action = (event as CustomEvent<{ action?: string }>).detail?.action;
+      // A widget tap must not discard an in-flight timed quiz or practice round.
+      if (isPracticeSessionInProgress(practicePhase)) return;
+      setSettingsOpen(false);
+      setSectionTransitionDirection(null);
+      if (action === 'quiz') {
+        setPracticeTopic(undefined);
+        setPracticeContext(undefined);
+        setPracticeMode(undefined);
+        setPracticeExtras(undefined);
+        setPracticePhase('setup');
+        setLearningPracticeSelectorOpen(false);
+        setLearningPracticeReturn(null);
+        setTab('practice');
+      } else if (action === 'progress' || action === 'target' || action === 'streak' || action === 'weekly') {
+        setTab('progress');
+      }
+    };
+    window.addEventListener('home-widget-navigation-requested', handleHomeWidgetNavigation);
+    return () => window.removeEventListener('home-widget-navigation-requested', handleHomeWidgetNavigation);
+  }, [practicePhase]);
+
   const sectionTransition: SectionTransition = {
     direction: sectionTransitionDirection,
     duration: sectionTransitionDirection
