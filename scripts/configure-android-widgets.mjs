@@ -10,6 +10,7 @@ const PACKAGE_PATH = 'com.sudhanshu.mathsbj';
 const NATIVE_JAVA_FILES = [
   'MathMasterHomeWidgetProvider.java',
   'MathMasterWidgetConfigActivity.java',
+  'MathMasterWidgetStyle.java',
   'DailyTargetReminderPlugin.java',
   'DailyTargetReminderReceiver.java',
   'DailyTargetReminderBootReceiver.java',
