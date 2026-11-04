@@ -66,7 +66,9 @@ This is native translucent rendering only. Android RemoteViews does not provide 
 
 ### Typography and responsive tuning
 
-The font selector supports Default/Sans Serif, Serif, Monospace, Cursive, Condensed, Condensed Light, Light, Medium, Black, Thin, and Small Caps. Text is passed to RemoteViews using Parcelable TypefaceSpan/StyleSpan instances, not by invoking a non-remotable TextView method. A 75–125% text scale and 0–24dp inner padding setting are stored per widget. Existing layout-based sp values and size classes remain in effect, so the chosen family/scale augments rather than replaces the existing responsive hierarchy.
+The per-widget appearance selector supports System, Light, and Dark. System follows the device's current night-mode configuration; when the System Dynamic palette is selected, Android 12+ dynamic neutral/accent colors are used and older devices receive a deterministic fallback. The appearance choice is stored under that AppWidget ID and does not change other pinned widgets.
+
+The font selector supports Default/Sans Serif, Serif, Monospace, Cursive, Condensed, Condensed Light, Light, Medium, Black, Thin, and Small Caps. Text is passed to RemoteViews using Parcelable TypefaceSpan/StyleSpan instances, not by invoking a non-remotable TextView method. Weekly day labels and values use the selected family too. A 75–125% text scale and 0–24dp inner padding setting are stored per widget. Existing layout-based sp values and size classes remain in effect, so the chosen family/scale augments rather than replaces the existing responsive hierarchy.
 
 ### Customization and preview
 
