@@ -350,6 +350,11 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return "auto";
     }
 
+    /** Only the two wallpaper-first surfaces are supported; legacy styles migrate to blur. */
+    private static String normalizeWidgetStyle(String value) {
+        return "transparent".equals(value) ? "transparent" : "blur";
+    }
+
     private static String resolveComposition(SharedPreferences preferences, int appWidgetId, int widthDp, int heightDp) {
         String requested = normalizeComposition(getInstanceString(
             preferences, appWidgetId, "composition", preferences.getString("composition", "auto")
@@ -414,52 +419,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static float responsiveTextSize(float base, float scale, float minimum, float maximum) {
         return Math.max(minimum, Math.min(maximum, base * scale));
-    }
-
-    private static final int[] COMPLETION_ACCENTS = {
-        Color.parseColor("#50D9A0"), Color.parseColor("#58D6F2"),
-        Color.parseColor("#FFCA68"), Color.parseColor("#FF83B5"),
-        Color.parseColor("#B8A0FF"), Color.parseColor("#FF9A72"),
-        Color.parseColor("#A8E063")
-    };
-    private static final int[] COMPLETION_BACKGROUND_DARK = {
-        R.drawable.math_master_home_widget_background_complete_0,
-        R.drawable.math_master_home_widget_background_complete_1,
-        R.drawable.math_master_home_widget_background_complete_2,
-        R.drawable.math_master_home_widget_background_complete_3,
-        R.drawable.math_master_home_widget_background_complete_4,
-        R.drawable.math_master_home_widget_background_complete_5,
-        R.drawable.math_master_home_widget_background_complete_6
-    };
-    private static final int[] COMPLETION_BACKGROUND_LIGHT = {
-        R.drawable.math_master_home_widget_background_complete_light_0,
-        R.drawable.math_master_home_widget_background_complete_light_1,
-        R.drawable.math_master_home_widget_background_complete_light_2,
-        R.drawable.math_master_home_widget_background_complete_light_3,
-        R.drawable.math_master_home_widget_background_complete_light_4,
-        R.drawable.math_master_home_widget_background_complete_light_5,
-        R.drawable.math_master_home_widget_background_complete_light_6
-    };
-
-    private static int getPaletteThemeIndex(String theme) {
-        if ("emerald".equals(theme)) return 0;
-        if ("ocean".equals(theme)) return 1;
-        if ("graphite".equals(theme)) return 2;
-        if ("rose".equals(theme)) return 3;
-        if ("violet".equals(theme)) return 4;
-        if ("sapphire".equals(theme)) return 5;
-        if ("aurora".equals(theme)) return 6;
-        return -1;
-    }
-
-    private static String normalizeWidgetTheme(String theme) {
-        return "app".equals(theme) || getPaletteThemeIndex(theme) >= 0 ? theme : "app";
-    }
-
-    private static int appAccentColor(SharedPreferences preferences) {
-        String value = preferences.getString("appAccentColor", preferences.getString("accentColor", "#B8A0FF"));
-        return value != null && value.matches("#[0-9A-Fa-f]{6}")
-            ? Color.parseColor(value) : Color.parseColor("#B8A0FF");
     }
 
     private static Set<String> getCompletedDays(SharedPreferences preferences) {
@@ -632,41 +591,28 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
         boolean widgetsEnabled = preferences.getBoolean("enabled", true);
         String mode = preferences.getString("mode", "dark");
-        String style = getInstanceString(preferences, appWidgetId, "style", "glass");
-        String widgetTheme = normalizeWidgetTheme(getInstanceString(preferences, appWidgetId, "theme", "app"));
-        int themeIndex = getPaletteThemeIndex(widgetTheme);
-        int accentColor = themeIndex >= 0 ? COMPLETION_ACCENTS[themeIndex] : appAccentColor(preferences);
+        String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "blur"));
+        int accentColor = Color.parseColor("#35CDE2");
         boolean targetComplete = progress >= 100;
         boolean lightMode = "light".equals(mode);
-        int backgroundResource = themeIndex >= 0
-            ? (lightMode ? COMPLETION_BACKGROUND_LIGHT[themeIndex] : COMPLETION_BACKGROUND_DARK[themeIndex])
-            : (lightMode ? R.drawable.math_master_home_widget_background_light
-                : R.drawable.math_master_home_widget_background);
+        int backgroundResource = "transparent".equals(style)
+            ? android.R.color.transparent
+            : R.drawable.math_master_home_widget_background_blur;
         views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);
-        Bitmap artwork = getWidgetArtwork(context, composition, widthDp, heightDp);
-        boolean showArtwork = widgetsEnabled && artwork != null && !"minimal_progress".equals(composition);
-        if (showArtwork) {
-            views.setImageViewBitmap(R.id.widget_artwork, artwork);
-            views.setFloat(R.id.widget_artwork, "setAlpha", 1.0f);
-            views.setViewVisibility(R.id.widget_artwork, View.VISIBLE);
-            views.setViewVisibility(R.id.widget_artwork_overlay, View.VISIBLE);
-        } else {
-            views.setViewVisibility(R.id.widget_artwork, View.GONE);
-            views.setViewVisibility(R.id.widget_artwork_overlay, View.GONE);
-        }
+        // All internal card surfaces stay clear: the selected effect is applied once to the widget root.
+        views.setInt(R.id.widget_streak_container, "setBackgroundResource", android.R.color.transparent);
+        views.setInt(R.id.widget_update_badge, "setBackgroundResource", android.R.color.transparent);
+        // Reference design uses the wallpaper as the visual background; decorative artwork is disabled.
+        views.setViewVisibility(R.id.widget_artwork, View.GONE);
+        views.setViewVisibility(R.id.widget_artwork_overlay, View.GONE);
         boolean compactLayout = sizeClass == 0;
         boolean wideLayout = sizeClass == 2;
         float measuredWidthDp = widthDp > 0 ? widthDp : 220f;
         float measuredHeightDp = heightDp > 0 ? heightDp : 150f;
         float fontScale = Math.max(0.92f, Math.min(1.30f,
             Math.min(measuredWidthDp / 220f, measuredHeightDp / 155f)));
-        if ("compact".equals(style)) fontScale = Math.max(0.84f, fontScale * 0.96f);
-        else if ("minimal".equals(style)) fontScale = Math.max(0.86f, fontScale * 0.98f);
-
         int paddingDp = "minimal_progress".equals(composition) ? 3
             : ("extra_wide_weekly".equals(composition) ? 4 : (widthDp > 0 && widthDp < 200 ? 5 : (widthDp >= 320 ? 8 : 7)));
-        if ("compact".equals(style)) paddingDp = Math.max(3, paddingDp - 1);
-        else if ("minimal".equals(style)) paddingDp = Math.max(3, paddingDp - 1);
         int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
         views.setViewPadding(R.id.widget_content, paddingPx, paddingPx, paddingPx, paddingPx);
 
