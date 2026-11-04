@@ -27,13 +27,13 @@ const REQUIRED_PERMISSIONS = [
 
 function ensureManifestQueries(manifest) {
   if (manifest.includes('android.intent.category.LAUNCHER')) return manifest;
-  const block = \`
+  const block = `
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
-    </queries>\`;
+    </queries>`;
   const rootEnd = manifest.indexOf('>', manifest.indexOf('<manifest'));
   if (rootEnd < 0) throw new Error('AndroidManifest.xml has no valid manifest root.');
   return manifest.slice(0, rootEnd + 1) + block + manifest.slice(rootEnd + 1);
@@ -41,26 +41,26 @@ function ensureManifestQueries(manifest) {
 
 function ensurePermissions(manifest) {
   const missing = REQUIRED_PERMISSIONS
-    .filter((permission) => !manifest.includes(\`android:name="\${permission}"\`))
-    .map((permission) => \`    <uses-permission android:name="\${permission}" />\`);
+    .filter((permission) => !manifest.includes(`android:name="${permission}"`))
+    .map((permission) => `    <uses-permission android:name="${permission}" />`);
   if (missing.length === 0) return manifest;
   const applicationStart = manifest.indexOf('<application');
   if (applicationStart < 0) throw new Error('AndroidManifest.xml has no <application> element.');
-  return manifest.slice(0, applicationStart) + missing.join('\\n') + '\\n\\n' + manifest.slice(applicationStart);
+  return manifest.slice(0, applicationStart) + missing.join('\n') + '\n\n' + manifest.slice(applicationStart);
 }
 
 function ensureStudyModeComponents(manifest) {
   const components = [
     {
       marker: 'android:name=".StudyModeAlarmReceiver"',
-      xml: \`        <receiver
+      xml: `        <receiver
             android:name=".StudyModeAlarmReceiver"
             android:enabled="true"
-            android:exported="false" />\`,
+            android:exported="false" />`,
     },
     {
       marker: 'android:name=".StudyModePackageChangeReceiver"',
-      xml: \`        <receiver
+      xml: `        <receiver
             android:name=".StudyModePackageChangeReceiver"
             android:enabled="true"
             android:exported="true">
@@ -68,7 +68,7 @@ function ensureStudyModeComponents(manifest) {
                 <action android:name="android.intent.action.PACKAGE_REMOVED" />
                 <data android:scheme="package" />
             </intent-filter>
-        </receiver>\`,
+        </receiver>`,
     },
     {
       marker: 'android:name=".StudyModeDeviceAdminReceiver"',
@@ -87,7 +87,7 @@ function ensureStudyModeComponents(manifest) {
     },
     {
       marker: 'android:name=".StudyModeNotificationListenerService"',
-      xml: \`        <service
+      xml: `        <service
             android:name=".StudyModeNotificationListenerService"
             android:label="Math Master Study Mode"
             android:enabled="true"
@@ -96,11 +96,11 @@ function ensureStudyModeComponents(manifest) {
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
-        </service>\`,
+        </service>`,
     },
     {
       marker: 'android:name=".StudyModeFocusService"',
-      xml: \`        <service
+      xml: `        <service
             android:name=".StudyModeFocusService"
             android:enabled="true"
             android:exported="false"
@@ -109,7 +109,7 @@ function ensureStudyModeComponents(manifest) {
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled scheduled focus monitoring and a user-approved app blocking overlay" />
-        </service>\`,
+        </service>`,
     },
   ];
   const missing = components.filter((component) => !manifest.includes(component.marker));
@@ -117,7 +117,7 @@ function ensureStudyModeComponents(manifest) {
   const applicationClose = manifest.lastIndexOf('</application>');
   if (applicationClose < 0) throw new Error('AndroidManifest.xml has no closing </application> tag.');
   return manifest.slice(0, applicationClose)
-    + '\\n' + missing.map((component) => component.xml).join('\\n') + '\\n'
+    + '\n' + missing.map((component) => component.xml).join('\n') + '\n'
     + manifest.slice(applicationClose);
 }
 
@@ -126,7 +126,7 @@ function registerStudyModePlugin(mainActivity) {
   if (mainActivity.includes(registration)) return mainActivity;
   const anchor = 'super.onCreate(savedInstanceState);';
   if (!mainActivity.includes(anchor)) throw new Error('MainActivity.java is missing the super.onCreate setup point.');
-  return mainActivity.replace(anchor, \`registerPlugin(StudyModePlugin.class);\\n        \${anchor}\`);
+  return mainActivity.replace(anchor, `registerPlugin(StudyModePlugin.class);\n        ${anchor}`);
 }
 
 export async function configureAndroidStudyMode(androidRoot) {
@@ -162,9 +162,9 @@ export async function configureAndroidStudyMode(androidRoot) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const androidRoot = process.env.ANDROID_ROOT || path.resolve('android');
   configureAndroidStudyMode(androidRoot)
-    .then((result) => console.log(\`Configured Study Mode (\${result.javaFiles} native Java files; \${result.packageVisibility}).\`))
+    .then((result) => console.log(`Configured Study Mode (${result.javaFiles} native Java files; ${result.packageVisibility}).`))
     .catch((error) => {
-      console.error(\`Study Mode Android setup failed: \${error.message}\`);
+      console.error(`Study Mode Android setup failed: ${error.message}`);
       process.exitCode = 1;
     });
 }
