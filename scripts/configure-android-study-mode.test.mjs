@@ -47,6 +47,7 @@ test('configures launcher-only package visibility, native services and Capacitor
   ]) assert.match(manifest, new RegExp(`android.permission.${permission}`));
 
   assert.match(manifest, /<queries>[\s\S]*android.intent.action.MAIN[\s\S]*android.intent.category.LAUNCHER[\s\S]*<\/queries>/);
+  assert.match(manifest, /android.intent.action.DIAL[\\s\\S]*android.intent.category.HOME[\\s\\S]*android.provider.Telephony.SMS_DELIVER/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
   assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\S]*BIND_DEVICE_ADMIN[\s\S]*device_admin/);
   assert.match(manifest, /StudyModeNotificationListenerService[\s\S]*BIND_NOTIFICATION_LISTENER_SERVICE/);
