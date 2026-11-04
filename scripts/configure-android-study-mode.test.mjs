@@ -9,11 +9,11 @@ async function createAndroidFixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mathmaster-study-mode-'));
   const packageDir = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj');
   await mkdir(packageDir, { recursive: true });
-  await writeFile(path.join(root, 'app/src/main/AndroidManifest.xml'), \`<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.sudhanshu.mathsbj">
+  await writeFile(path.join(root, 'app/src/main/AndroidManifest.xml'), `<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.sudhanshu.mathsbj">
     <uses-permission android:name="android.permission.INTERNET" />
     <application android:label="Math Master"></application>
-  </manifest>\`);
-  await writeFile(path.join(packageDir, 'MainActivity.java'), \`package com.sudhanshu.mathsbj;
+  </manifest>`);
+  await writeFile(path.join(packageDir, 'MainActivity.java'), `package com.sudhanshu.mathsbj;
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
@@ -24,7 +24,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
     }
 }
-\`);
+`);
   return root;
 }
 
@@ -44,14 +44,14 @@ test('configures launcher-only package visibility, native services and Capacitor
   for (const permission of [
     'PACKAGE_USAGE_STATS', 'SYSTEM_ALERT_WINDOW', 'SCHEDULE_EXACT_ALARM',
     'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE',
-  ]) assert.match(manifest, new RegExp(\`android.permission.\${permission}\`));
+  ]) assert.match(manifest, new RegExp(`android.permission.${permission}`));
 
-  assert.match(manifest, /<queries>[\\s\\S]*android.intent.action.MAIN[\\s\\S]*android.intent.category.LAUNCHER[\\s\\S]*<\\/queries>/);
-  assert.match(manifest, /StudyModeFocusService[\\s\\S]*foregroundServiceType="specialUse"/);
-  assert.match(manifest, /StudyModeDeviceAdminReceiver[\\s\\S]*BIND_DEVICE_ADMIN[\\s\\S]*device_admin/);
-  assert.match(manifest, /StudyModeNotificationListenerService[\\s\\S]*BIND_NOTIFICATION_LISTENER_SERVICE/);
+  assert.match(manifest, /<queries>[\s\\S]*android.intent.action.MAIN[\s\\S]*android.intent.category.LAUNCHER[\s\\S]*<\/queries>/);
+  assert.match(manifest, /StudyModeFocusService[\s\\S]*foregroundServiceType="specialUse"/);
+  assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\\S]*BIND_DEVICE_ADMIN[\s\\S]*device_admin/);
+  assert.match(manifest, /StudyModeNotificationListenerService[\s\\S]*BIND_NOTIFICATION_LISTENER_SERVICE/);
   assert.match(manifest, /StudyModeAlarmReceiver/);
-  assert.match(manifest, /StudyModePackageChangeReceiver[\\s\\S]*PACKAGE_REMOVED/);
+  assert.match(manifest, /StudyModePackageChangeReceiver[\s\\S]*PACKAGE_REMOVED/);
   assert.doesNotMatch(manifest, /QUERY_ALL_PACKAGES/);
   assert.equal((activity.match(/registerPlugin\\(StudyModePlugin\\.class\\)/g) || []).length, 1);
 
