@@ -705,17 +705,22 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         int highlightColor = palette.highlight;
         int accentColor = palette.accent;
         boolean targetComplete = progress >= 100;
-        views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.math_master_widget_surface);
+        views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.math_master_widget_clip);
         int resolvedSurface = MathMasterWidgetStyle.surfaceColor(
             palette, surfaceStyle, backgroundOpacity, widgetTheme);
-        views.setColorStateList(R.id.widget_root, "setBackgroundTintList",
-            ColorStateList.valueOf(resolvedSurface));
+        views.setImageViewResource(R.id.widget_surface, R.drawable.math_master_widget_surface);
+        views.setInt(R.id.widget_surface, "setColorFilter",
+            Color.rgb(Color.red(resolvedSurface), Color.green(resolvedSurface), Color.blue(resolvedSurface)));
+        views.setInt(R.id.widget_surface, "setImageAlpha", Color.alpha(resolvedSurface));
         views.setImageViewResource(R.id.widget_outline, R.drawable.math_master_widget_outline);
-        views.setColorStateList(R.id.widget_outline, "setImageTintList", ColorStateList.valueOf(palette.outline));
+        views.setInt(R.id.widget_outline, "setColorFilter", palette.outline);
+        views.setInt(R.id.widget_outline, "setImageAlpha", 255);
         views.setViewVisibility(R.id.widget_outline, showOutline ? View.VISIBLE : View.GONE);
         applyWidgetTypography(views, fontStyle);
         Bitmap artwork = getWidgetArtwork(context, composition, widthDp, heightDp);
-        boolean showArtwork = widgetsEnabled && artwork != null && !"minimal_progress".equals(composition);
+        boolean showArtwork = widgetsEnabled && artwork != null
+            && Color.alpha(resolvedSurface) > 0
+            && !"minimal_progress".equals(composition);
         if (showArtwork) {
             views.setImageViewBitmap(R.id.widget_artwork, artwork);
             views.setFloat(R.id.widget_artwork, "setAlpha", 1.0f);
