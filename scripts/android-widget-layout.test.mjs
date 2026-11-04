@@ -314,10 +314,10 @@ test("actual RemoteViews renderer applies wallpaper alpha, outline tint and remo
   assert.doesNotMatch(provider, /setTextViewTextAppearance/);
 });
 
-test("native widget source generation copies the centralized style engine and text appearance resources", () => {
+test("native widget source generation copies the centralized style engine and shared visual resources", () => {
   assert.match(configureWidgets, /'MathMasterWidgetStyle\.java'/);
   assert.match(configureWidgets, /'values'/);
-  assert.ok(existsSync(new URL("../android-native/res/values/widget_text_appearances.xml", import.meta.url)));
+  assert.match(provider, /new TypefaceSpan\(fontFamily\(font\)\)/);
   assert.ok(existsSync(new URL("../android-native/res/drawable/math_master_widget_surface.xml", import.meta.url)));
   assert.ok(existsSync(new URL("../android-native/res/drawable/math_master_widget_outline.xml", import.meta.url)));
   assert.ok(existsSync(new URL("../android-native/res/drawable/math_master_widget_clip.xml", import.meta.url)));
