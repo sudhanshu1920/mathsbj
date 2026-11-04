@@ -376,6 +376,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
         String style = normalizeWidgetStyle(selectedRadioValue(styleGroup, "blur"));
         String composition = selectedRadioValue(compositionGroup, "auto");
+        String theme = selectedRadioValue(themeGroup, "deep_navy");
+        String font = selectedRadioValue(fontGroup, "sans");
         if (!isValidComposition(composition)) composition = "auto";
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         preferences.edit()
@@ -385,8 +387,6 @@ public class MathMasterWidgetConfigActivity extends Activity {
             .putString("instance_" + widgetId + "_composition", composition)
             .putString("instance_" + widgetId + "_theme", theme)
             .putString("instance_" + widgetId + "_font", font)
-            .remove("instance_" + widgetId + "_themeMode")
-            .remove("instance_" + widgetId + "_theme")
             .apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
