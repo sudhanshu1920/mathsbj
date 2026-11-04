@@ -392,6 +392,10 @@ public final class StudyModeManager {
         prefs(context).edit().putString(KEY_LAST_STATE, state).apply();
     }
 
+    public static void setServiceState(Context context, String state) {
+        setLastState(context, state);
+    }
+
     private static boolean applyPackageSuspension(Context context, List<String> selected, boolean active) {
         DevicePolicyManager policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         if (policy == null || !isPolicyOwner(context)) {
