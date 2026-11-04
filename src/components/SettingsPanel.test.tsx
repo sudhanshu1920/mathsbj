@@ -129,7 +129,7 @@ describe("SettingsPanel compact controls", () => {
     await waitFor(() => expect(mocks.setBackgroundNotificationsEnabled).toHaveBeenCalledWith(false));
   });
 
-  it("renders every theme in a compact responsive selector and preserves theme/mode actions", () => {
+  it("renders all themes as compact accessible swatches and preserves theme/mode actions", () => {
     const { container, rerender } = render(<SettingsPanel />);
 
     const themeButtons = screen.getAllByRole("button", { name: /^Select .* theme$/ });
@@ -137,12 +137,20 @@ describe("SettingsPanel compact controls", () => {
     expect(screen.getByRole("button", { name: "Select Arctic Blue theme" })).toHaveAttribute("aria-pressed", "true");
 
     for (const theme of THEMES) {
-      expect(screen.getByText(theme.name)).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: `Select ${theme.name} theme` })).toHaveAttribute("aria-pressed");
+      const option = screen.getByRole("button", { name: `Select ${theme.name} theme` });
+      expect(option).toHaveAttribute("aria-pressed");
+      expect(option).toHaveClass("h-11", "w-11");
+      expect(screen.queryByText(theme.name)).not.toBeInTheDocument();
     }
 
     const grid = container.querySelector("[data-theme-selector-grid]");
-    expect(grid).toHaveClass("grid", "grid-cols-2", "min-[420px]:grid-cols-3", "md:grid-cols-4");
+    expect(grid).toHaveClass(
+      "grid",
+      "grid-cols-5",
+      "min-[360px]:grid-cols-6",
+      "min-[520px]:grid-cols-7",
+      "min-[720px]:grid-cols-8",
+    );
     expect(grid?.querySelectorAll("[data-theme-option]")).toHaveLength(THEMES.length);
     expect(grid?.querySelectorAll("[data-theme-swatch]")).toHaveLength(THEMES.length * 3);
 
@@ -157,7 +165,7 @@ describe("SettingsPanel compact controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Light" }));
     expect(mocks.setMode).toHaveBeenCalledWith("light");
   });
-  
+
   it("opens Backup & Restore and returns to Settings without disturbing existing controls", () => {
     render(<SettingsPanel />);
 
