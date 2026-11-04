@@ -46,20 +46,20 @@ test('configures launcher-only package visibility, native services and Capacitor
     'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE',
   ]) assert.match(manifest, new RegExp(`android.permission.${permission}`));
 
-  assert.match(manifest, /<queries>[\s\\S]*android.intent.action.MAIN[\s\\S]*android.intent.category.LAUNCHER[\s\\S]*<\/queries>/);
-  assert.match(manifest, /StudyModeFocusService[\s\\S]*foregroundServiceType="specialUse"/);
-  assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\\S]*BIND_DEVICE_ADMIN[\s\\S]*device_admin/);
-  assert.match(manifest, /StudyModeNotificationListenerService[\s\\S]*BIND_NOTIFICATION_LISTENER_SERVICE/);
+  assert.match(manifest, /<queries>[\s\S]*android.intent.action.MAIN[\s\S]*android.intent.category.LAUNCHER[\s\S]*<\/queries>/);
+  assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
+  assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\S]*BIND_DEVICE_ADMIN[\s\S]*device_admin/);
+  assert.match(manifest, /StudyModeNotificationListenerService[\s\S]*BIND_NOTIFICATION_LISTENER_SERVICE/);
   assert.match(manifest, /StudyModeAlarmReceiver/);
-  assert.match(manifest, /StudyModePackageChangeReceiver[\s\\S]*PACKAGE_REMOVED/);
+  assert.match(manifest, /StudyModePackageChangeReceiver[\s\S]*PACKAGE_REMOVED/);
   assert.doesNotMatch(manifest, /QUERY_ALL_PACKAGES/);
-  assert.equal((activity.match(/registerPlugin\\(StudyModePlugin\\.class\\)/g) || []).length, 1);
+  assert.equal((activity.match(/registerPlugin\(StudyModePlugin\.class\\)/g) || []).length, 1);
 
   await configureAndroidStudyMode(root);
   const secondManifest = await readFile(manifestPath, 'utf8');
   const secondActivity = await readFile(activityPath, 'utf8');
-  assert.equal((secondManifest.match(/android:name="\\.StudyModeFocusService"/g) || []).length, 1);
-  assert.equal((secondManifest.match(/android:name="\\.StudyModeNotificationListenerService"/g) || []).length, 1);
+  assert.equal((secondManifest.match(/android:name="\.StudyModeFocusService"/g) || []).length, 1);
+  assert.equal((secondManifest.match(/android:name="\.StudyModeNotificationListenerService"/g) || []).length, 1);
   assert.equal((secondManifest.match(/android.intent.category.LAUNCHER/g) || []).length, 1);
-  assert.equal((secondActivity.match(/registerPlugin\\(StudyModePlugin\\.class\\)/g) || []).length, 1);
+  assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\\)/g) || []).length, 1);
 });
