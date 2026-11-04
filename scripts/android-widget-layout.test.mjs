@@ -74,6 +74,7 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(provider, /boolean showStreak = widgetsEnabled && selected\.contains\("streak"\);/);
   assert.match(provider, /boolean showWeekly = widgetsEnabled && selected\.contains\("weekly"\);/);
   assert.match(provider, /boolean showUpdateStatus = widgetsEnabled && selected\.contains\("updateStatus"\);/);
+  assert.match(provider, /if \(!showUpdateStatus && !showQuizShortcut\)/);
   assert.match(provider, /setViewVisibility\(R\.id\.widget_week_section, showWeekly \? View\.VISIBLE : View\.GONE\)/);
   assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_bar, showProgress && !useProgressRing \? View\.VISIBLE : View\.GONE\)/);
   assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_ring, useProgressRing \? View\.VISIBLE : View\.GONE\)/);
@@ -104,6 +105,9 @@ test("weekly tracker and the truthful Practice shortcut are configurable per wid
 test("weekly checkmarks use saved streak records and strictly validate native input", () => {
   assert.match(bridge, /streak\.days\[dateKey\]\?\.completed === true/);
   assert.match(bridge, /completedDaysJson: JSON\.stringify\(completedDays\)/);
+  const progressStart = bridge.indexOf("const onProgressPersisted");
+  const streakStart = bridge.indexOf("const onStreakUpdated", progressStart);
+  assert.doesNotMatch(bridge.slice(progressStart, streakStart), /if \(!getBackgroundNotificationsEnabled\(\)\) return;/);
   assert.match(nativePlugin, /completedDaysRaw\.length\(\) > 512/);
   assert.match(nativePlugin, /incomingDays\.length\(\) > 7/);
   assert.match(nativePlugin, /parseLocalDate\(date\)/);
@@ -138,6 +142,13 @@ test("native widget actions return through Capacitor to existing app destination
   assert.match(appIndex, /setTab\('progress'\)/);
   assert.match(appIndex, /setTab\('practice'\)/);
   assert.match(appIndex, /isPracticeSessionInProgress\(practicePhase\)/);
+});
+
+test("package replacement and local date changes refresh pinned widget instances", () => {
+  assert.match(bootReceiver, /Intent\.ACTION_MY_PACKAGE_REPLACED\.equals\(action\)/);
+  assert.match(bootReceiver, /Intent\.ACTION_DATE_CHANGED\.equals\(action\)/);
+  assert.match(bootReceiver, /MathMasterHomeWidgetProvider\.updateWidgetPreferences\(context\)/);
+  assert.match(configureAndroid, /android\.intent\.action\.DATE_CHANGED/);
 });
 
 test("verified release checks, not unchecked push metadata, refresh widget update status", () => {
