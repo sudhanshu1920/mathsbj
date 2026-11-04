@@ -809,7 +809,9 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
                 (showStreak || showWeekly) ? View.VISIBLE : View.GONE);
         }
         views.setViewVisibility(R.id.widget_update_text, showUpdateStatus ? View.VISIBLE : View.GONE);
-        if (!showUpdateStatus) views.setViewVisibility(R.id.widget_update_badge, View.GONE);
+        if (!showUpdateStatus && !showQuizShortcut) {
+            views.setViewVisibility(R.id.widget_update_badge, View.GONE);
+        }
         views.setContentDescription(R.id.widget_target_value, "Today's study target: "
             + Math.min(elapsedMinutes, targetMinutes) + " of " + targetMinutes + " minutes");
         views.setContentDescription(R.id.widget_streak_text, "Current streak: " + streak + " days");
