@@ -5,6 +5,8 @@ import { normalizeRemoteViewsLayout } from "./configure-android-notifications.mj
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java");
+const widgetStyle = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetStyle.java");
+const widgetConfigActivity = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java");
 const bootReceiver = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java");
 const configureAndroid = read("scripts/configure-android-notifications.mjs");
 const configureWidgets = read("scripts/configure-android-widgets.mjs");
@@ -241,7 +243,7 @@ test("all seven design compositions have three responsive XML variants and packa
       const path = `android-native/res/layout/math_master_widget_${composition}_${size}.xml`;
       assert.ok(existsSync(new URL(`../${path}`, import.meta.url)), `${path} must exist in native source`);
       const layout = read(path);
-      for (const id of ["widget_root", "widget_content", "widget_artwork", "widget_artwork_overlay", "widget_progress_ring", "widget_progress_percent", "widget_target_value", "widget_progress_bar", "widget_week_strip"]) {
+      for (const id of ["widget_root", "widget_content", "widget_artwork", "widget_artwork_overlay", "widget_surface", "widget_outline", "widget_progress_ring", "widget_progress_percent", "widget_target_value", "widget_progress_bar", "widget_week_strip"]) {
         assert.ok(layout.includes(`@+id/${id}`), `${path} must contain ${id}`);
       }
       assert.ok(layout.includes(`math_master_widget_art_overlay_${composition}`));
@@ -257,6 +259,55 @@ test("all seven design compositions have three responsive XML variants and packa
   assert.ok(configActivity.includes('"instance_" + widgetId + "_composition"'));
   assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
   assert.ok(provider.includes("getWidgetArtwork(context, composition, widthDp, heightDp)"));
+});
+
+
+test("central widget style engine contains seven original presets, contrast validation, and safe opacity rules", () => {
+  for (const theme of ["minimal", "neon", "cockpit", "sunset", "monochrome", "snowfall", "deep_navy", "system", "custom"]) {
+    assert.ok(widgetStyle.includes(`case "${theme}":`) || widgetStyle.includes(`case "${theme}"`), `missing palette ${theme}`);
+  }
+  assert.match(widgetStyle, /DEFAULT_THEME = "deep_navy"/);
+  assert.match(widgetStyle, /DEFAULT_OPACITY = 84/);
+  assert.match(widgetStyle, /resolveOpacity\(String surfaceStyle, int opacity, String theme\)/);
+  assert.match(widgetStyle, /if \("transparent"\.equals\(surfaceStyle\)\) return 0/);
+  assert.match(widgetStyle, /if \("solid"\.equals\(surfaceStyle\)\) return 100/);
+  assert.match(widgetStyle, /ensureContrast\(primary, background, 4\.5\)/);
+  assert.match(widgetStyle, /ensureContrast\(secondary, background, 3\.0\)/);
+  assert.match(widgetStyle, /parseHex\(String value, int fallback\)/);
+});
+
+test("widget customization exposes all supported typography, opacity, outline, padding and custom hex controls per ID", () => {
+  for (const font of ["default", "serif", "monospace", "cursive", "condensed", "condensed_light", "light", "medium", "black", "thin", "small_caps"]) {
+    assert.ok(widgetConfigActivity.includes(`"${font}"`), `missing font selector ${font}`);
+  }
+  for (const key of ["backgroundStyle", "backgroundOpacity", "showOutline", "fontStyle", "fontScalePercent", "widgetPadding", "customPrimary", "customSecondary", "customAccent", "customBackground", "customOutline"]) {
+    assert.ok(widgetConfigActivity.includes(`"instance_" + widgetId + "_${key}"`) || widgetConfigActivity.includes(`"_${key}"`), `missing saved setting ${key}`);
+    assert.ok(provider.includes(`"${key}"`), `provider does not consume ${key}`);
+  }
+  assert.match(widgetConfigActivity, /isValidHex\(primaryHex\)/);
+  assert.match(widgetConfigActivity, /seekBarListener\(\)/);
+  assert.match(widgetConfigActivity, /MathMasterWidgetStyle\.resolvePalette/);
+  assert.match(widgetConfigActivity, /MathMasterWidgetStyle\.surfaceColor/);
+  assert.match(widgetConfigActivity, /previewFrame\.setBackground\(previewSurface\)/);
+  assert.match(widgetConfigActivity, /manager\.updateAppWidget\(widgetId, MathMasterHomeWidgetProvider\.createViews/);
+});
+
+test("actual RemoteViews renderer applies wallpaper alpha, outline tint and remote-safe font spans", () => {
+  assert.match(provider, /setImageAlpha", Color\.alpha\(resolvedSurface\)/);
+  assert.match(provider, /setViewVisibility\(R\.id\.widget_outline, showOutline \? View\.VISIBLE : View\.GONE\)/);
+  assert.match(provider, /setColorFilter", palette\.outline/);
+  assert.match(provider, /new TypefaceSpan\(fontFamily\(font\)\)/);
+  assert.match(provider, /views\.setTextViewText\(viewId, styled\)/);
+  assert.doesNotMatch(provider, /setTextViewTextAppearance/);
+});
+
+test("native widget source generation copies the centralized style engine and text appearance resources", () => {
+  assert.match(configureWidgets, /'MathMasterWidgetStyle\.java'/);
+  assert.match(configureWidgets, /'values'/);
+  assert.ok(existsSync(new URL("../android-native/res/values/widget_text_appearances.xml", import.meta.url)));
+  assert.ok(existsSync(new URL("../android-native/res/drawable/math_master_widget_surface.xml", import.meta.url)));
+  assert.ok(existsSync(new URL("../android-native/res/drawable/math_master_widget_outline.xml", import.meta.url)));
+  assert.ok(existsSync(new URL("../android-native/res/drawable/math_master_widget_clip.xml", import.meta.url)));
 });
 
 test("widget artwork uses sampled region decoding and bounded output renditions", () => {
