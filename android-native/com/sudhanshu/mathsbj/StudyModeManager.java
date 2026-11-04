@@ -359,8 +359,8 @@ public final class StudyModeManager {
         if (isPolicyOwner(app)) {
             stopFocusShield(app);
             boolean success = applyPackageSuspension(app, packages, active);
-            if (!active) setLastState(app, "waiting_for_schedule");
-            else if (success) setLastState(app, "system_suspension");
+            if (!active && success) setLastState(app, "waiting_for_schedule");
+            else if (active && success) setLastState(app, "system_suspension");
             // applyPackageSuspension stores policy_failed or partial_suspension
             return;
         }
@@ -444,7 +444,8 @@ public final class StudyModeManager {
                 setLastState(context, "partial_suspension");
                 return false;
             }
-            if (!stillSuspended.containsAll(selected) || !rejected.isEmpty()) {
+            if (stillSuspended.size() != selected.size()
+                || !stillSuspended.containsAll(selected) || !rejected.isEmpty()) {
                 setLastState(context, "partial_suspension");
                 return false;
             }
