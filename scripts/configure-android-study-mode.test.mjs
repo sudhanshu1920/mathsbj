@@ -50,11 +50,11 @@ test('configures launcher-only package visibility, native services and Capacitor
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
   assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\S]*BIND_DEVICE_ADMIN[\s\S]*device_admin/);
   assert.match(manifest, /StudyModeNotificationListenerService[\s\S]*BIND_NOTIFICATION_LISTENER_SERVICE/);
-  assert.match(manifest, /DailyTargetReminderBootReceiver[\\s\\S]*BOOT_COMPLETED[\\s\\S]*TIMEZONE_CHANGED/);
+  assert.match(manifest, /DailyTargetReminderBootReceiver[\s\S]*BOOT_COMPLETED[\s\S]*TIMEZONE_CHANGED/);
   assert.match(manifest, /StudyModeAlarmReceiver/);
   assert.match(manifest, /StudyModePackageChangeReceiver[\s\S]*PACKAGE_REMOVED/);
   assert.doesNotMatch(manifest, /QUERY_ALL_PACKAGES/);
-  assert.equal((activity.match(/registerPlugin\(StudyModePlugin\.class\\)/g) || []).length, 1);
+  assert.equal((activity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
 
   await configureAndroidStudyMode(root);
   const secondManifest = await readFile(manifestPath, 'utf8');
