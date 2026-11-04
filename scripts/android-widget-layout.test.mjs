@@ -322,6 +322,7 @@ test("actual RemoteViews renderer applies wallpaper alpha, outline tint and remo
   assert.match(provider, /views\.setTextViewText\(viewId, styled\)/);
   assert.match(provider, /setWidgetStyledText\(views, dayIds\[i\], label, font, true\)/);
   assert.match(provider, /setWidgetStyledText\(views, dateIds\[i\], String\.valueOf\(day\.get\(Calendar\.DAY_OF_MONTH\)\), font, false\)/);
+  assert.doesNotMatch(provider, /applyWeekTypography/);
   assert.doesNotMatch(provider, /setTextViewTextAppearance/);
   assert.match(widgetStyle, /small_caps.*sans-serif-smallcaps/s);
 });
