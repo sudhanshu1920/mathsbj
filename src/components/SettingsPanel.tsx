@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, ArchiveRestore, ChevronRight } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Keyboard, ArchiveRestore, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, setKeyboardShortcuts, type AppSettings } from '@/lib/settings';
@@ -266,7 +266,7 @@ const SettingsPanel = () => {
         <p className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
           <Palette size={16} className="text-muted-foreground" /> Theme
         </p>
-        <div className="mb-2 flex gap-2">
+        <div className="mb-1.5 flex gap-1.5">
           {(['dark', 'light'] as const).map((m) => {
             const active = mode === m;
             const Icon = m === 'dark' ? Moon : Sun;
@@ -277,13 +277,13 @@ const SettingsPanel = () => {
                 whileTap={{ scale: MOTION.scale.press }}
                 onClick={() => setMode(m)}
                 aria-pressed={active}
-                className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors duration-100 ${
+                className={`flex h-8 flex-1 items-center justify-center gap-1 rounded-lg border px-2 text-xs font-semibold transition-colors duration-100 motion-reduce:transition-none ${
                   active
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border/70 bg-transparent text-muted-foreground hover:border-primary/40'
                 }`}
               >
-                <Icon size={14} />
+                <Icon size={13} />
                 {m === 'dark' ? 'Dark' : 'Light'}
               </motion.button>
             );
@@ -291,7 +291,8 @@ const SettingsPanel = () => {
         </div>
         <div
           data-theme-selector-grid
-          className="grid grid-cols-2 gap-1.5 min-[420px]:grid-cols-3 md:grid-cols-4"
+          aria-label="Theme colors"
+          className="grid grid-cols-5 justify-items-center gap-1 min-[360px]:grid-cols-6 min-[520px]:grid-cols-7 min-[720px]:grid-cols-8"
         >
           {THEMES.map((t) => {
             const selected = theme === t.id;
@@ -304,40 +305,25 @@ const SettingsPanel = () => {
                 onClick={() => setAppTheme(t.id)}
                 aria-label={`Select ${t.name} theme`}
                 aria-pressed={selected}
-                className={`flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left transition-colors duration-100 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`flex h-11 w-11 items-center justify-center rounded-full border p-1 transition-colors duration-100 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                   selected
-                    ? 'border-primary/70 bg-primary/10'
-                    : 'border-border/70 bg-card/30 hover:border-primary/40'
+                    ? 'border-primary/90 bg-primary/10 shadow-[0_0_0_2px_hsl(var(--primary)/0.14)]'
+                    : 'border-transparent bg-transparent hover:border-border/70 hover:bg-secondary/40'
                 }`}
               >
-                <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                  <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
-                    {t.swatch.map((color, index) => (
-                      <span
-                        key={index}
-                        data-theme-swatch
-                        className="h-2 w-2 rounded-full ring-1 ring-border/60"
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </span>
-                  <span className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-tight text-foreground">
-                    {t.name}
-                  </span>
-                </span>
-                {t.premium && (
-                  <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold leading-none text-muted-foreground">
-                    <Crown size={9} />
-                    PRO
-                  </span>
-                )}
                 <span
                   aria-hidden="true"
-                  className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ${
-                    selected ? 'bg-primary text-primary-foreground' : 'text-transparent'
-                  }`}
+                  className="flex h-8 w-8 items-center justify-center gap-0.5 rounded-full border border-border/70 shadow-sm"
+                  style={{ backgroundColor: t.swatch[0] }}
                 >
-                  <Check size={9} />
+                  {t.swatch.map((color, index) => (
+                    <span
+                      key={index}
+                      data-theme-swatch
+                      className="h-2 w-2 shrink-0 rounded-full ring-1 ring-border/60"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
                 </span>
               </motion.button>
             );
