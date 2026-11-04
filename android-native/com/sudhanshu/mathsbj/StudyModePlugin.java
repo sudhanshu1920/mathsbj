@@ -30,6 +30,7 @@ import java.util.Set;
 public final class StudyModePlugin extends Plugin {
     @PluginMethod
     public void getStatus(PluginCall call) {
+        StudyModeManager.reconcile(getContext());
         call.resolve(StudyModeManager.getStatus(getContext()));
     }
 
