@@ -12,6 +12,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -61,6 +62,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private TextView previewSummary;
     private FrameLayout previewFrame;
     private ImageView previewArtwork;
+    private View previewShade;
     private TextView previewDesignTitle;
     private TextView previewMetric;
     private TextView previewSubtitle;
@@ -273,7 +275,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         previewFrame.addView(previewArtwork, new FrameLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
 
-        View previewShade = new View(this);
+        previewShade = new View(this);
         GradientDrawable shade = new GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
             new int[] { Color.argb(20, 0, 0, 0), Color.argb(210, 5, 10, 24) });
@@ -343,6 +345,47 @@ public class MathMasterWidgetConfigActivity extends Activity {
         scroll.setFillViewport(true);
         scroll.addView(content);
         setContentView(scroll);
+    }
+
+    private SeekBar.OnSeekBarChangeListener seekBarListener() {
+        return new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) updatePreview();
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        };
+    }
+
+    private EditText addHexField(LinearLayout parent, String hint, String value) {
+        EditText field = new EditText(this);
+        field.setSingleLine(true);
+        field.setTextSize(14);
+        field.setInputType(InputType.TYPE_CLASS_TEXT);
+        field.setHint(hint);
+        field.setText(value);
+        field.setSelectAllOnFocus(true);
+        field.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence text, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence text, int start, int before, int count) { updatePreview(); }
+            @Override public void afterTextChanged(Editable editable) {}
+        });
+        parent.addView(field, matchWrap());
+        return field;
+    }
+
+    private static String hexValue(EditText field, String fallback) {
+        if (field == null || field.getText() == null) return fallback;
+        return field.getText().toString().trim().toUpperCase(java.util.Locale.US);
+    }
+
+    private static boolean isValidHex(String value) {
+        return value != null && value.matches("#[0-9A-F]{6}");
+    }
+
+    private static int indexOf(String[] values, String value) {
+        for (int i = 0; i < values.length; i++) if (values[i].equals(value)) return i;
+        return 0;
     }
 
     private void addRadio(RadioGroup group, String value, String label, String selectedValue) {
@@ -438,28 +481,50 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
         String appMode = preferences.getString("mode", "dark");
         boolean light = "light".equals(appMode);
-        String resolvedTheme = "random".equals(theme)
-            ? preferences.getString("instance_" + widgetId + "_theme", "violet") : theme;
-        boolean appTheme = "app".equals(resolvedTheme);
-        int previewBackground = appTheme
-            ? (light ? Color.parseColor("#F4F7FC") : Color.parseColor("#211F35"))
-            : Color.parseColor(themeBackgroundColor(resolvedTheme, light));
-        previewSummary.setTextColor(light ? Color.parseColor("#263247") : Color.parseColor("#F5F3FF"));
+        String themeMode = selectedRadioValue(themeGroup, MathMasterWidgetStyle.DEFAULT_THEME);
+        String resolvedTheme = "random".equals(themeMode)
+            ? preferences.getString("instance_" + widgetId + "_theme", MathMasterWidgetStyle.DEFAULT_THEME)
+            : themeMode;
+        resolvedTheme = MathMasterWidgetStyle.normalizeTheme(resolvedTheme);
+        String surfaceStyle = selectedRadioValue(surfaceGroup, "translucent");
+        int opacity = opacitySeekBar == null ? MathMasterWidgetStyle.defaultOpacity(resolvedTheme) : opacitySeekBar.getProgress();
+        boolean outlined = outlineCheck != null && outlineCheck.isChecked();
+        String font = fontSpinner == null ? MathMasterWidgetStyle.DEFAULT_FONT
+            : FONT_IDS[Math.max(0, Math.min(FONT_IDS.length - 1, fontSpinner.getSelectedItemPosition()))];
+        int textScale = fontScaleSeekBar == null ? 100 : 75 + fontScaleSeekBar.getProgress();
+        MathMasterWidgetStyle.Palette palette = MathMasterWidgetStyle.resolvePalette(
+            this, resolvedTheme, light, hexValue(customPrimaryHex, "#F5F7FF"),
+            hexValue(customSecondaryHex, "#AEBBD2"), hexValue(customAccentHex, "#8FAEFF"),
+            hexValue(customBackgroundHex, "#111B30"), hexValue(customOutlineHex, "#60749D"));
+        int previewBackground = MathMasterWidgetStyle.surfaceColor(
+            palette, surfaceStyle, opacity, resolvedTheme);
+        previewSummary.setTextColor(palette.primary);
         previewSummary.setBackgroundColor(previewBackground);
 
         GradientDrawable previewSurface = new GradientDrawable(
-            GradientDrawable.Orientation.TL_BR, new int[] { previewBackground, previewBackground });
-        previewSurface.setCornerRadius(dp(16));
-        previewSurface.setStroke(dp(1), Color.argb(75, 255, 255, 255));
+            GradientDrawable.Orientation.TL_BR,
+            new int[] { previewBackground, previewBackground });
+        previewSurface.setCornerRadius(dp(20));
+        previewSurface.setStroke(outlined ? dp(1) : 0, palette.outline);
         previewFrame.setBackground(previewSurface);
+        previewShade.setVisibility(Color.alpha(previewBackground) == 0 ? View.GONE : View.VISIBLE);
 
         android.graphics.Bitmap artwork = MathMasterHomeWidgetProvider.getConfigurationPreviewArtwork(
             this, composition, 320, 150);
+        boolean showPreviewArtwork = Color.alpha(previewBackground) > 0 && artwork != null
+            && !"minimal_progress".equals(composition);
         previewArtwork.setImageBitmap(artwork);
-        previewArtwork.setVisibility(artwork == null ? View.GONE : View.VISIBLE);
+        previewArtwork.setVisibility(showPreviewArtwork ? View.VISIBLE : View.GONE);
 
-        previewDesignTitle.setText(selected.contains("appIdentity")
-            ? "MATH MASTER" : compositionLabel(composition).toUpperCase(java.util.Locale.getDefault()));
+        previewDesignTitle.setTextColor(palette.primary);
+        previewMetric.setTextColor(palette.accent);
+        previewSubtitle.setTextColor(palette.secondary);
+        android.graphics.Typeface previewTypeface = MathMasterWidgetStyle.typeface(font);
+        previewDesignTitle.setTypeface(previewTypeface);
+        previewMetric.setTypeface(previewTypeface);
+        previewSubtitle.setTypeface(previewTypeface);
+        previewMetric.setTextSize(26f * textScale / 100f);
+
         String primaryMetric = selected.contains("progress") ? percent + "%"
             : (selected.contains("target") ? targetMinutes + " MIN"
             : (selected.contains("remaining") ? remainingMinutes + " MIN LEFT"
@@ -480,9 +545,11 @@ public class MathMasterWidgetConfigActivity extends Activity {
         if (previewDetails.isEmpty()) previewDetails.add(capitalize(style) + " glass design");
         previewSubtitle.setText(android.text.TextUtils.join("  ·  ", previewDetails));
 
-        String themeLabel = "random".equals(theme)
-            ? "Random Premium Theme" + (isPaletteTheme(resolvedTheme) ? " · " + themeLabel(resolvedTheme) : "")
-            : themeLabel(resolvedTheme);
+        String selectedThemeLabel = themeLabel(resolvedTheme);
+        String themeLabel = "random".equals(themeMode)
+            ? "Random Premium Theme · " + selectedThemeLabel
+            : selectedThemeLabel;
+        previewSummary.setTextColor(palette.primary);
         previewSummary.setText(noFieldsSelected
             ? "Select at least one field\n" + capitalize(style) + "  ·  " + themeLabel
             : "Design: " + compositionLabel(composition) + "\n"
@@ -504,16 +571,29 @@ public class MathMasterWidgetConfigActivity extends Activity {
         String style = selectedRadioValue(styleGroup, "glass");
         String composition = selectedRadioValue(compositionGroup, "auto");
         if (!isValidComposition(composition)) composition = "auto";
-        String themeMode = selectedRadioValue(themeGroup, "app");
+        String themeMode = selectedRadioValue(themeGroup, MathMasterWidgetStyle.DEFAULT_THEME);
+        String surfaceStyle = selectedRadioValue(surfaceGroup, "translucent");
+        String fontStyle = fontSpinner == null ? MathMasterWidgetStyle.DEFAULT_FONT
+            : FONT_IDS[Math.max(0, Math.min(FONT_IDS.length - 1, fontSpinner.getSelectedItemPosition()))];
+        String primaryHex = hexValue(customPrimaryHex, "#F5F7FF");
+        String secondaryHex = hexValue(customSecondaryHex, "#AEBBD2");
+        String accentHex = hexValue(customAccentHex, "#8FAEFF");
+        String backgroundHex = hexValue(customBackgroundHex, "#111B30");
+        String outlineHex = hexValue(customOutlineHex, "#60749D");
+        if (!isValidHex(primaryHex) || !isValidHex(secondaryHex) || !isValidHex(accentHex)
+            || !isValidHex(backgroundHex) || !isValidHex(outlineHex)) {
+            Toast.makeText(this, "Enter valid 6-digit hex colors, for example #8FAEFF.", Toast.LENGTH_LONG).show();
+            return;
+        }
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String previousThemeMode = preferences.getString("instance_" + widgetId + "_themeMode", "");
         String previousTheme = preferences.getString("instance_" + widgetId + "_theme", "");
         String theme;
         if ("random".equals(themeMode)) {
             theme = "random".equals(previousThemeMode) && isPaletteTheme(previousTheme)
-                ? previousTheme : chooseRandomTheme(preferences, widgetId);
+                ? MathMasterWidgetStyle.normalizeTheme(previousTheme) : chooseRandomTheme(preferences, widgetId);
         } else {
-            theme = isValidTheme(themeMode) ? themeMode : "app";
+            theme = isValidTheme(themeMode) ? MathMasterWidgetStyle.normalizeTheme(themeMode) : MathMasterWidgetStyle.DEFAULT_THEME;
         }
         preferences.edit()
             .putString("instance_" + widgetId + "_contentJson", selected.toString())
@@ -522,6 +602,17 @@ public class MathMasterWidgetConfigActivity extends Activity {
             .putString("instance_" + widgetId + "_composition", composition)
             .putString("instance_" + widgetId + "_themeMode", themeMode)
             .putString("instance_" + widgetId + "_theme", theme)
+            .putString("instance_" + widgetId + "_backgroundStyle", surfaceStyle)
+            .putInt("instance_" + widgetId + "_backgroundOpacity", Math.max(0, Math.min(100, opacitySeekBar.getProgress())))
+            .putBoolean("instance_" + widgetId + "_showOutline", outlineCheck.isChecked())
+            .putString("instance_" + widgetId + "_fontStyle", MathMasterWidgetStyle.normalizeFont(fontStyle))
+            .putInt("instance_" + widgetId + "_fontScalePercent", 75 + fontScaleSeekBar.getProgress())
+            .putInt("instance_" + widgetId + "_widgetPadding", Math.max(0, Math.min(24, paddingSeekBar.getProgress())))
+            .putString("instance_" + widgetId + "_customPrimary", primaryHex)
+            .putString("instance_" + widgetId + "_customSecondary", secondaryHex)
+            .putString("instance_" + widgetId + "_customAccent", accentHex)
+            .putString("instance_" + widgetId + "_customBackground", backgroundHex)
+            .putString("instance_" + widgetId + "_customOutline", outlineHex)
             .apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
