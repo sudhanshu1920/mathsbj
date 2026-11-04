@@ -236,22 +236,6 @@ public final class MathMasterWidgetStyle {
         }
     }
 
-    public static int textAppearance(String font) {
-        switch (normalizeFont(font)) {
-            case "serif": return R.style.WidgetFontSerif;
-            case "monospace": return R.style.WidgetFontMonospace;
-            case "cursive": return R.style.WidgetFontCursive;
-            case "condensed": return R.style.WidgetFontCondensed;
-            case "condensed_light": return R.style.WidgetFontCondensedLight;
-            case "light": return R.style.WidgetFontLight;
-            case "medium": return R.style.WidgetFontMedium;
-            case "black": return R.style.WidgetFontBlack;
-            case "thin": return R.style.WidgetFontThin;
-            case "small_caps": return R.style.WidgetFontSmallCaps;
-            default: return R.style.WidgetFontDefault;
-        }
-    }
-
     public static Typeface typeface(String font) {
         switch (normalizeFont(font)) {
             case "serif": return Typeface.create("serif", Typeface.NORMAL);
