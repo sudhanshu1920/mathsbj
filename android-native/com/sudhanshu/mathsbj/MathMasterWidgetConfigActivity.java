@@ -127,13 +127,16 @@ public class MathMasterWidgetConfigActivity extends Activity {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(20), dp(18), dp(20), dp(16));
-        content.setBackgroundColor(Color.parseColor("#F4F6FB"));
+        GradientDrawable settingsSurface = new GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            new int[] { Color.parseColor("#0B1528"), Color.parseColor("#17253D") });
+        content.setBackground(settingsSurface);
 
         TextView title = new TextView(this);
         title.setText("Customize Your Widget");
-        title.setTextColor(Color.parseColor("#192235"));
+        title.setTextColor(Color.parseColor("#F5F7FF"));
         title.setTextSize(21);
-        title.setTypeface(null, 1);
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         content.addView(title, matchWrap());
 
         addSectionLabel(content, "Widget Content");
@@ -145,9 +148,9 @@ public class MathMasterWidgetConfigActivity extends Activity {
         for (String[] option : CONTENT_OPTIONS) {
             CheckBox checkBox = new CheckBox(this);
             checkBox.setText(option[1]);
-            checkBox.setTextColor(Color.parseColor("#243149"));
+            checkBox.setTextColor(Color.parseColor("#E6ECF8"));
             checkBox.setTextSize(14);
-            checkBox.setButtonTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#6558D9")));
+            checkBox.setButtonTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#8FAEFF")));
             checkBox.setChecked(selected.contains(option[0]));
             contentChecks.put(option[0], checkBox);
             checkBox.setOnCheckedChangeListener((button, checked) -> updatePreview());
@@ -361,7 +364,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
         EditText field = new EditText(this);
         field.setSingleLine(true);
         field.setTextSize(14);
+        field.setTextColor(Color.parseColor("#F5F7FF"));
+        field.setHintTextColor(Color.parseColor("#7F91AE"));
         field.setInputType(InputType.TYPE_CLASS_TEXT);
+        field.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#60749D")));
         field.setHint(hint);
         field.setText(value);
         field.setSelectAllOnFocus(true);
@@ -394,8 +400,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
         radio.setTag(value);
         radio.setText(label);
         radio.setTextSize(12);
-        radio.setTextColor(Color.parseColor("#243149"));
-        radio.setButtonTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#6558D9")));
+        radio.setTextColor(Color.parseColor("#E6ECF8"));
+        radio.setButtonTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#8FAEFF")));
         RadioGroup.LayoutParams params = group.getOrientation() == RadioGroup.HORIZONTAL
             ? new RadioGroup.LayoutParams(0, dp(48), 1f)
             : new RadioGroup.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42));
@@ -406,9 +412,9 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private void addSectionLabel(LinearLayout parent, String label) {
         TextView view = new TextView(this);
         view.setText(label);
-        view.setTextColor(Color.parseColor("#526078"));
+        view.setTextColor(Color.parseColor("#AEBBD2"));
         view.setTextSize(12);
-        view.setTypeface(null, 1);
+        view.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         view.setPadding(0, dp(14), 0, dp(4));
         parent.addView(view, matchWrap());
     }
