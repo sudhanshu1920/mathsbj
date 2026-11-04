@@ -213,7 +213,7 @@ test("all seven design compositions have three responsive XML variants and packa
   assert.ok(read("src/lib/settings.ts").includes("HOME_WIDGET_COMPOSITIONS"));
   assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
   assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
-  assert.ok(provider.includes("getWidgetArtwork(context, composition, widthDp, heightDp)"));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_artwork, View.GONE);"));
 });
 
 test("widget artwork uses sampled region decoding and bounded output renditions", () => {
