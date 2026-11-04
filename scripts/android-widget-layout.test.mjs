@@ -14,8 +14,9 @@ const widgetProviderFiles = readdirSync(new URL("../android-native/com/sudhanshu
 const nativePlugin = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java");
 const bridge = read("src/lib/dailyTargetReminders.ts");
 const config = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java");
-const settings = read("src/lib/settings.ts");
 const settingsPanel = read("src/components/SettingsPanel.tsx");
+const appIndex = read("src/pages/Index.tsx");
+const updateManager = read("src/components/AppUpdateManager.tsx");
 const compositionIds = [
   "hero_wide", "compact_green", "square_math_bot", "medium_study",
   "square_cosmic", "extra_wide_weekly", "minimal_progress",
@@ -90,30 +91,62 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(config, /chooseRandomTheme\(preferences, widgetId\)/);
 });
 
-test("weekly tracker is selectable and legacy selections migrate only once", () => {
-  assert.match(settings, /HomeWidgetContent = .*'weekly'/);
-  assert.match(settings, /HOME_WIDGET_CONTENT_SCHEMA_KEY = 'math-app-home-widget-content-schema-v2'/);
-  assert.match(settings, /contentSchemaNeedsMigration && Array\.isArray\(value\.homeWidgetContent\)/);
-  assert.match(settings, /widgetContent = \[\.\.\.widgetContent, 'weekly'\]/);
-  assert.match(settingsPanel, /id: 'weekly', label: 'Weekly Target Tracker'/);
-  assert.match(settingsPanel, /streak\.days\[dateKey\]\?\.completed === true/);
-  assert.match(settingsPanel, /dateLabel: String\(day\.getDate\(\)\)/);
+test("weekly tracker and the truthful Practice shortcut are configurable per widget ID", () => {
+  assert.match(config, /\{\"weekly\", \"Weekly Target Tracker\"\}/);
+  assert.match(config, /\{\"quiz\", \"Open Quiz \(Practice\)\"\}/);
+  assert.match(config, /instance_\" \+ widgetId \+ \"_contentJson/);
+  assert.match(provider, /selected\.contains\(\"quiz\"\)/);
+  assert.match(provider, /showQuizShortcut \? \"quiz\" : \"app-update\"/);
+  // Widget customization intentionally remains launcher-owned; avoid a second global settings model.
+  assert.doesNotMatch(settingsPanel, /Home Screen Widgets/);
 });
 
-test("weekly checkmarks use the existing daily streak data and validate native input", () => {
+test("weekly checkmarks use saved streak records and strictly validate native input", () => {
   assert.match(bridge, /streak\.days\[dateKey\]\?\.completed === true/);
   assert.match(bridge, /completedDaysJson: JSON\.stringify\(completedDays\)/);
   assert.match(nativePlugin, /completedDaysRaw\.length\(\) > 512/);
   assert.match(nativePlugin, /incomingDays\.length\(\) > 7/);
-  assert.match(nativePlugin, /isDateInTrailingSevenDays\(date\)/);
+  assert.match(nativePlugin, /parseLocalDate\(date\)/);
   assert.match(nativePlugin, /formatter\.setLenient\(false\)/);
   assert.match(nativePlugin, /candidate\.after\(today\)/);
-  assert.match(nativePlugin, /firstAllowed\.add\(java\.util\.Calendar\.DAY_OF_MONTH, -6\)/);
-  assert.match(nativePlugin, /putString\("completedDaysJson", completedDays\.toString\(\)\)/);
+  assert.match(nativePlugin, /firstAllowed\.add\(Calendar\.DAY_OF_MONTH, -6\)/);
+  assert.match(nativePlugin, /safeDayKey, completedDays\.toString\(\)/);
+  assert.match(nativePlugin, /Double\.isNaN\(elapsedValue\) \|\| Double\.isInfinite\(elapsedValue\)/);
+  assert.match(nativePlugin, /Math\.min\(1440, targetValue\)/);
   assert.match(provider, /getCompletedDays\(SharedPreferences preferences\)/);
-  assert.match(provider, /views\.setTextViewText\(statusIds\[i\], done \? "✓" : "·"\)/);
-  assert.match(provider, /views\.setTextViewText\(dateIds\[i\], String\.valueOf\(day\.get\(Calendar\.DAY_OF_MONTH\)\)\)/);
-  assert.match(provider, /date \+ ", " \+ label/);
+  assert.match(provider, /views\.setTextViewText\(statusIds\[i\], done \? \"✓\" : \"·\"\)/);
+  assert.match(provider, /date \+ \", \" \+ label/);
+});
+
+
+
+test("widget tap intents are unique per widget and destination and immutable", () => {
+  assert.match(provider, /createWidgetPendingIntent\(Context context, int appWidgetId, String action\)/);
+  assert.match(provider, /mathmaster-widget:\/\//);
+  assert.match(provider, /PendingIntent\.FLAG_UPDATE_CURRENT \| PendingIntent\.FLAG_IMMUTABLE/);
+  assert.match(provider, /setWidgetAction\(views, context, appWidgetId, R\.id\.widget_progress_percent, \"progress\"\)/);
+  assert.match(provider, /setWidgetAction\(views, context, appWidgetId, R\.id\.widget_week_strip, \"weekly\"\)/);
+  assert.match(provider, /setWidgetAction\(views, context, appWidgetId, R\.id\.widget_target_value, \"target\"\)/);
+});
+
+test("native widget actions return through Capacitor to existing app destinations", () => {
+  assert.match(nativePlugin, /public void consumeNotificationAction\(PluginCall call\)/);
+  assert.match(nativePlugin, /mathmaster_widget_action/);
+  assert.match(nativePlugin, /isAllowedWidgetAction\(widgetAction\)/);
+  assert.match(bridge, /home-widget-navigation-requested/);
+  assert.match(appIndex, /home-widget-navigation-requested/);
+  assert.match(appIndex, /setTab\('progress'\)/);
+  assert.match(appIndex, /setTab\('practice'\)/);
+  assert.match(appIndex, /isPracticeSessionInProgress\(practicePhase\)/);
+});
+
+test("verified release checks, not unchecked push metadata, refresh widget update status", () => {
+  assert.match(updateManager, /syncHomeWidgetUpdateStatus/);
+  assert.match(updateManager, /result\.status === \"available\" \|\| result\.status === \"current\"/);
+  assert.match(nativePlugin, /syncWidgetUpdateStatus\(PluginCall call\)/);
+  assert.match(nativePlugin, /MathMasterHomeWidgetProvider\.updateReleaseStatus/);
+  assert.match(provider, /public static boolean updateReleaseStatus/);
+  assert.match(provider, /hasCheckedUpdates/);
 });
 
 test("glass colors are translucent and target completion uses a stable celebratory accent", () => {
