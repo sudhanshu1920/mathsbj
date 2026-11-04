@@ -19,6 +19,12 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.SeekBar;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
+import android.text.TextWatcher;
+import android.text.Editable;
+import android.text.InputType;
 import android.widget.Toast;
 
 import org.json.JSONArray;
@@ -41,6 +47,17 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private RadioGroup styleGroup;
     private RadioGroup compositionGroup;
     private RadioGroup themeGroup;
+    private RadioGroup surfaceGroup;
+    private Spinner fontSpinner;
+    private SeekBar opacitySeekBar;
+    private SeekBar fontScaleSeekBar;
+    private SeekBar paddingSeekBar;
+    private CheckBox outlineCheck;
+    private EditText customPrimaryHex;
+    private EditText customSecondaryHex;
+    private EditText customAccentHex;
+    private EditText customBackgroundHex;
+    private EditText customOutlineHex;
     private TextView previewSummary;
     private FrameLayout previewFrame;
     private ImageView previewArtwork;
@@ -73,13 +90,25 @@ public class MathMasterWidgetConfigActivity extends Activity {
     };
 
     private static final String[][] PREMIUM_THEMES = {
-        {"emerald", "Emerald Glass", "#50D9A0"},
-        {"ocean", "Ocean Blue Glass", "#58D6F2"},
-        {"graphite", "Graphite Glass", "#A9B7C9"},
-        {"rose", "Rose Quartz", "#FF83B5"},
-        {"violet", "Midnight Violet", "#B8A0FF"},
-        {"sapphire", "Sapphire Glass", "#698CFF"},
-        {"aurora", "Aurora Glass", "#A8E063"}
+        {"system", "System Dynamic", "#8FAEFF"},
+        {"minimal", "Minimal · Transparent", "#FFFFFF"},
+        {"neon", "Neon · Cyan / Magenta", "#00FFFF"},
+        {"cockpit", "Cockpit · Digital Green", "#00FF41"},
+        {"sunset", "Sunset · Warm Gold", "#FFB432"},
+        {"monochrome", "Monochrome · Graphite", "#F0F0F0"},
+        {"snowfall", "Snowfall · Icy Blue", "#64AAFF"},
+        {"deep_navy", "Premium Deep Navy · Default", "#8FAEFF"},
+        {"custom", "Custom RGB Colors", "#AEBBD2"}
+    };
+
+    private static final String[] FONT_IDS = {
+        "default", "serif", "monospace", "cursive", "condensed", "condensed_light",
+        "light", "medium", "black", "thin", "small_caps"
+    };
+
+    private static final String[] FONT_LABELS = {
+        "Default / Sans Serif", "Serif", "Monospace", "Cursive", "Condensed",
+        "Condensed Light", "Light", "Medium", "Black", "Thin", "Small Caps"
     };
 
     @Override
@@ -147,15 +176,85 @@ public class MathMasterWidgetConfigActivity extends Activity {
         addSectionLabel(content, "Widget Theme");
         themeGroup = new RadioGroup(this);
         themeGroup.setOrientation(RadioGroup.VERTICAL);
-        String currentTheme = preferences.getString("instance_" + widgetId + "_theme", preferences.getString("theme", "app"));
+        String currentTheme = preferences.getString("instance_" + widgetId + "_theme",
+            preferences.getString("theme", MathMasterWidgetStyle.DEFAULT_THEME));
         String currentThemeMode = preferences.getString("instance_" + widgetId + "_themeMode", currentTheme);
-        addRadio(themeGroup, "app", "Match App Theme", currentThemeMode);
+        if (!"random".equals(currentThemeMode)) currentThemeMode = MathMasterWidgetStyle.normalizeTheme(currentThemeMode);
         addRadio(themeGroup, "random", "Random Premium Theme", currentThemeMode);
         for (String[] themeOption : PREMIUM_THEMES) {
             addRadio(themeGroup, themeOption[0], themeOption[1], currentThemeMode);
         }
         themeGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
         content.addView(themeGroup, matchWrap());
+
+        addSectionLabel(content, "Background Surface");
+        surfaceGroup = new RadioGroup(this);
+        surfaceGroup.setOrientation(RadioGroup.HORIZONTAL);
+        String savedSurface = preferences.getString("instance_" + widgetId + "_backgroundStyle",
+            "minimal".equals(currentTheme) ? "transparent" : "translucent");
+        addRadio(surfaceGroup, "transparent", "Transparent", savedSurface);
+        addRadio(surfaceGroup, "translucent", "Translucent", savedSurface);
+        addRadio(surfaceGroup, "solid", "Solid", savedSurface);
+        surfaceGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
+        content.addView(surfaceGroup, matchWrap());
+
+        addSectionLabel(content, "Background Opacity");
+        opacitySeekBar = new SeekBar(this);
+        opacitySeekBar.setMax(100);
+        opacitySeekBar.setProgress(preferences.getInt("instance_" + widgetId + "_backgroundOpacity",
+            MathMasterWidgetStyle.defaultOpacity(currentTheme)));
+        opacitySeekBar.setOnSeekBarChangeListener(seekBarListener());
+        content.addView(opacitySeekBar, matchWrap());
+
+        outlineCheck = new CheckBox(this);
+        outlineCheck.setText("Show subtle widget outline");
+        outlineCheck.setTextColor(Color.parseColor("#243149"));
+        outlineCheck.setChecked(preferences.getBoolean("instance_" + widgetId + "_showOutline", false));
+        outlineCheck.setOnCheckedChangeListener((button, checked) -> updatePreview());
+        content.addView(outlineCheck, matchWrap());
+
+        addSectionLabel(content, "Typography");
+        fontSpinner = new Spinner(this);
+        ArrayAdapter<String> fontAdapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item, FONT_LABELS);
+        fontAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        fontSpinner.setAdapter(fontAdapter);
+        String savedFont = MathMasterWidgetStyle.normalizeFont(
+            preferences.getString("instance_" + widgetId + "_fontStyle", MathMasterWidgetStyle.DEFAULT_FONT));
+        fontSpinner.setSelection(indexOf(FONT_IDS, savedFont));
+        fontSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { updatePreview(); }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+        content.addView(fontSpinner, matchWrap());
+
+        addSectionLabel(content, "Font Size (75% – 125%)");
+        fontScaleSeekBar = new SeekBar(this);
+        fontScaleSeekBar.setMax(50);
+        fontScaleSeekBar.setProgress(Math.max(0, Math.min(50,
+            preferences.getInt("instance_" + widgetId + "_fontScalePercent", 100) - 75)));
+        fontScaleSeekBar.setOnSeekBarChangeListener(seekBarListener());
+        content.addView(fontScaleSeekBar, matchWrap());
+
+        addSectionLabel(content, "Inner Padding (0 – 24 dp)");
+        paddingSeekBar = new SeekBar(this);
+        paddingSeekBar.setMax(24);
+        paddingSeekBar.setProgress(Math.max(0, Math.min(24,
+            preferences.getInt("instance_" + widgetId + "_widgetPadding", 7))));
+        paddingSeekBar.setOnSeekBarChangeListener(seekBarListener());
+        content.addView(paddingSeekBar, matchWrap());
+
+        addSectionLabel(content, "Custom RGB / Hex Colors");
+        customPrimaryHex = addHexField(content, "Primary text · #F5F7FF",
+            preferences.getString("instance_" + widgetId + "_customPrimary", "#F5F7FF"));
+        customSecondaryHex = addHexField(content, "Secondary text · #AEBBD2",
+            preferences.getString("instance_" + widgetId + "_customSecondary", "#AEBBD2"));
+        customAccentHex = addHexField(content, "Accent · #8FAEFF",
+            preferences.getString("instance_" + widgetId + "_customAccent", "#8FAEFF"));
+        customBackgroundHex = addHexField(content, "Background · #111B30",
+            preferences.getString("instance_" + widgetId + "_customBackground", "#111B30"));
+        customOutlineHex = addHexField(content, "Outline · #60749D",
+            preferences.getString("instance_" + widgetId + "_customOutline", "#60749D"));
 
         addSectionLabel(content, "Preview");
         previewFrame = new FrameLayout(this);
