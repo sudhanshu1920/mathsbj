@@ -618,19 +618,26 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         setTypefaceText(views, R.id.widget_disabled_text, widgetsEnabled ? "" : "Widgets are off", font);
     }
 
-    private static void applyWeekTypography(RemoteViews views, String font) {
+    private static void applyWeekTypography(
+        RemoteViews views, SharedPreferences preferences, String font
+    ) {
         int[] days = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
             R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
         int[] dates = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
             R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
         int[] statuses = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
             R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
+        Set<String> completed = getCompletedDays(preferences);
+        Calendar date = getDateForOffset(-6);
+        SimpleDateFormat dayFormat = new SimpleDateFormat("EEEEE", Locale.getDefault());
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         for (int i = 0; i < 7; i++) {
-            String day = new SimpleDateFormat("EEEEE", Locale.getDefault()).format(
-                getDateForOffset(i - 6));
+            String dateKey = dateFormat.format(date.getTime());
+            String day = dayFormat.format(date.getTime());
             setTypefaceText(views, days[i], day, font);
-            setTypefaceText(views, dates[i], String.valueOf(getDateForOffset(i - 6).get(Calendar.DAY_OF_MONTH)), font);
-            setTypefaceText(views, statuses[i], "·", font);
+            setTypefaceText(views, dates[i], String.valueOf(date.get(Calendar.DAY_OF_MONTH)), font);
+            setTypefaceText(views, statuses[i], completed.contains(dateKey) ? "✓" : "·", font);
+            date.add(Calendar.DAY_OF_MONTH, 1);
         }
     }
 
@@ -893,26 +900,28 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         if (targetComplete) views.setTextColor(R.id.widget_remaining_text, accentColor);
         views.setTextViewText(R.id.widget_streak_text, "🔥 " + streak + "-day streak");
         bindWeekProgress(views, preferences, accentColor, secondaryColor);
-        applyWeekTypography(views, fontStyle);
+        applyWeekTypography(views, preferences, fontStyle);
 
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
         boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
         boolean showQuizShortcut = widgetsEnabled && selected.contains("quiz");
         String installedVersion = preferences.getString("installedVersionName", "");
         String latestVersion = preferences.getString("latestVersionName", "");
+        String updateStatusText;
+        String updateBadgeText = "";
         if (updateAvailable && isSafeVersion(installedVersion) && isSafeVersion(latestVersion)) {
-            views.setViewVisibility(R.id.widget_update_badge, View.VISIBLE);
-            views.setTextViewText(R.id.widget_update_badge, showQuizShortcut ? "QUIZ" : "UPDATE");
-            views.setTextViewText(R.id.widget_update_text, "New version available · v" + latestVersion);
+            updateBadgeText = showQuizShortcut ? "QUIZ" : "UPDATE";
+            updateStatusText = "New version available · v" + latestVersion;
         } else {
-            views.setViewVisibility(R.id.widget_update_badge, showQuizShortcut ? View.VISIBLE : View.GONE);
-            if (showQuizShortcut) views.setTextViewText(R.id.widget_update_badge, "QUIZ");
-            if (hasChecked && isSafeVersion(installedVersion)) {
-                views.setTextViewText(R.id.widget_update_text, "v" + installedVersion + " · You're up to date");
-            } else {
-                views.setTextViewText(R.id.widget_update_text, "Updates refresh when the app opens");
-            }
+            updateBadgeText = showQuizShortcut ? "QUIZ" : "";
+            updateStatusText = hasChecked && isSafeVersion(installedVersion)
+                ? "v" + installedVersion + " · You're up to date"
+                : "Updates refresh when the app opens";
         }
+        views.setViewVisibility(R.id.widget_update_badge,
+            updateBadgeText.isEmpty() ? View.GONE : View.VISIBLE);
+        views.setTextViewText(R.id.widget_update_badge, updateBadgeText);
+        views.setTextViewText(R.id.widget_update_text, updateStatusText);
 
         boolean showIdentity = widgetsEnabled && selected.contains("appIdentity");
         boolean showProgress = widgetsEnabled && selected.contains("progress");
@@ -970,10 +979,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             elapsedMinutes + " min studied",
             targetComplete ? "✓ Daily target complete!" : remainingMinutes + " min left today",
             "🔥 " + streak + "-day streak",
-            "THIS WEEK · LAST 7 DAYS",
-            views.getClass().getName().isEmpty() ? "" : "",
-            showQuizShortcut ? "QUIZ" : (updateAvailable ? "UPDATE" : ""),
-            widgetsEnabled
+            "THIS WEEK · LAST 7 DAYS", updateStatusText, updateBadgeText, widgetsEnabled
         );
         if (!widgetsEnabled) {
             views.setViewVisibility(R.id.widget_target_label, View.GONE);
