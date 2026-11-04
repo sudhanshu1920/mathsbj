@@ -33,7 +33,7 @@ test('configures launcher-only package visibility, native services and Capacitor
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 7);
+  assert.equal(result.javaFiles, 8);
   assert.equal(result.packageVisibility, 'launcher-intents-only');
 
   const manifestPath = path.join(root, 'app/src/main/AndroidManifest.xml');
@@ -48,6 +48,7 @@ test('configures launcher-only package visibility, native services and Capacitor
 
   assert.match(manifest, /<queries>[\\s\\S]*android.intent.action.MAIN[\\s\\S]*android.intent.category.LAUNCHER[\\s\\S]*<\\/queries>/);
   assert.match(manifest, /StudyModeFocusService[\\s\\S]*foregroundServiceType="specialUse"/);
+  assert.match(manifest, /StudyModeDeviceAdminReceiver[\\s\\S]*BIND_DEVICE_ADMIN[\\s\\S]*device_admin/);
   assert.match(manifest, /StudyModeNotificationListenerService[\\s\\S]*BIND_NOTIFICATION_LISTENER_SERVICE/);
   assert.match(manifest, /StudyModeAlarmReceiver/);
   assert.match(manifest, /StudyModePackageChangeReceiver[\\s\\S]*PACKAGE_REMOVED/);
