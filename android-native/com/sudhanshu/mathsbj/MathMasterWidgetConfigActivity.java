@@ -325,7 +325,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         previewShade = new View(this);
         GradientDrawable shade = new GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
-            new int[] { Color.argb(20, 0, 0, 0), Color.argb(210, 5, 10, 24) });
+            new int[] { Color.argb(3, 0, 0, 0), Color.argb(18, 0, 0, 0) });
         shade.setCornerRadius(dp(16));
         previewShade.setBackground(shade);
         previewShade.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -582,7 +582,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         int previewSize = previewSizeSpinner == null ? 1 : previewSizeSpinner.getSelectedItemPosition();
         int previewWidth = previewSize == 0 ? 180 : (previewSize == 2 ? 420 : 320);
         int previewHeight = previewSize == 0 ? 100 : (previewSize == 2 ? 132 : 150);
-        FrameLayout.LayoutParams previewParams = (FrameLayout.LayoutParams) previewFrame.getLayoutParams();
+        LinearLayout.LayoutParams previewParams = (LinearLayout.LayoutParams) previewFrame.getLayoutParams();
         if (previewParams != null && previewParams.height != dp(previewHeight)) {
             previewParams.height = dp(previewHeight);
             previewFrame.setLayoutParams(previewParams);
