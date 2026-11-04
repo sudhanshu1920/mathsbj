@@ -810,20 +810,26 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         applyWeekTypography(views, preferences, fontStyle);
 
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
-        boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
         boolean showQuizShortcut = widgetsEnabled && selected.contains("quiz");
         String installedVersion = preferences.getString("installedVersionName", "");
         String latestVersion = preferences.getString("latestVersionName", "");
+        long installedVersionCode = preferences.getLong("installedVersionCode", 0L);
+        long latestVersionCode = preferences.getLong("latestVersionCode", 0L);
+        boolean releaseSnapshotValid = hasChecked
+            && installedVersionCode > 0L && installedVersionCode <= 2100000000L
+            && latestVersionCode > 0L && latestVersionCode <= 2100000000L
+            && isSafeVersion(installedVersion) && isSafeVersion(latestVersion);
+        boolean updateAvailable = releaseSnapshotValid && latestVersionCode > installedVersionCode;
         String updateStatusText;
         String updateBadgeText = "";
-        if (updateAvailable && isSafeVersion(installedVersion) && isSafeVersion(latestVersion)) {
+        if (updateAvailable) {
             updateBadgeText = showQuizShortcut ? "QUIZ" : "UPDATE";
             updateStatusText = "New version available · v" + latestVersion;
         } else {
             updateBadgeText = showQuizShortcut ? "QUIZ" : "";
-            updateStatusText = hasChecked && isSafeVersion(installedVersion)
+            updateStatusText = releaseSnapshotValid
                 ? "v" + installedVersion + " · You're up to date"
-                : "Updates refresh when the app opens";
+                : "Update status is not yet verified";
         }
         views.setViewVisibility(R.id.widget_update_badge,
             updateBadgeText.isEmpty() ? View.GONE : View.VISIBLE);
