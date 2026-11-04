@@ -962,7 +962,7 @@ if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(f
     !studyModeSettings.includes('onClick={() => setStudyModeOpen(true)}') ||
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
     studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Multiple Apps') ||
-    !studyModePage.includes('showTimePicker') ||
+    !studyModePage.includes('chooseStudyModeTime') ||
     !studyModePage.includes('aria-label={day.name}') ||
     !studyModeIndex.includes('studyModePageOpen.current') ||
     !studyModeIndex.includes("new CustomEvent('study-mode-back')")) {
