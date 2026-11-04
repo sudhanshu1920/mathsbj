@@ -592,13 +592,51 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean widgetsEnabled = preferences.getBoolean("enabled", true);
         String mode = preferences.getString("mode", "dark");
         String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "blur"));
-        int accentColor = Color.parseColor("#35CDE2");
+        String theme = getInstanceString(preferences, appWidgetId, "theme", preferences.getString("theme", "deep_navy"));
+        int accentColor = Color.parseColor("#8FAEFF");
+        int primaryColor = Color.parseColor("#F5F7FF");
+        int secondaryColor = Color.parseColor("#AEBBD2");
+        int surfaceColor = Color.parseColor("#111B30");
+        int outlineColor = Color.parseColor("#526481");
+        if ("neon".equals(theme)) {
+            accentColor = Color.parseColor("#00FFFF"); primaryColor = Color.WHITE;
+            secondaryColor = Color.parseColor("#00C8C8"); surfaceColor = Color.parseColor("#0A0A14");
+            outlineColor = Color.parseColor("#00C8FF");
+        } else if ("cockpit".equals(theme)) {
+            accentColor = Color.parseColor("#00FF41"); primaryColor = Color.WHITE;
+            secondaryColor = Color.parseColor("#00B432"); surfaceColor = Color.parseColor("#050F05");
+            outlineColor = Color.parseColor("#007828");
+        } else if ("sunset".equals(theme)) {
+            accentColor = Color.parseColor("#FF7832"); primaryColor = Color.parseColor("#FFB432");
+            secondaryColor = Color.parseColor("#E68C3C"); surfaceColor = Color.parseColor("#1E0F08");
+            outlineColor = Color.parseColor("#A65B32");
+        } else if ("monochrome".equals(theme)) {
+            accentColor = Color.parseColor("#F0F0F0"); primaryColor = Color.parseColor("#F0F0F0");
+            secondaryColor = Color.parseColor("#C8C8C8"); surfaceColor = Color.parseColor("#191919");
+            outlineColor = Color.parseColor("#646464");
+        } else if ("snowfall".equals(theme)) {
+            accentColor = Color.parseColor("#64AAFF"); primaryColor = Color.parseColor("#B4DCFF");
+            secondaryColor = Color.parseColor("#82B4E6"); surfaceColor = Color.parseColor("#0A1428");
+            outlineColor = Color.parseColor("#426A9A");
+        } else if ("minimal".equals(theme)) {
+            accentColor = Color.parseColor("#FFFFFF"); primaryColor = Color.WHITE;
+            secondaryColor = Color.parseColor("#C8C8C8"); surfaceColor = Color.TRANSPARENT;
+            outlineColor = Color.TRANSPARENT;
+        }
         boolean targetComplete = progress >= 100;
         boolean lightMode = "light".equals(mode);
         int backgroundResource = "transparent".equals(style)
             ? R.drawable.math_master_home_widget_background
             : R.drawable.math_master_home_widget_background_blur;
         views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);
+        if ("minimal".equals(theme)) {
+            views.setInt(R.id.widget_root, "setBackgroundColor", Color.TRANSPARENT);
+        } else if ("blur".equals(style)) {
+            int alpha = "neon".equals(theme) ? 242 : ("cockpit".equals(theme) ? 230 : ("sunset".equals(theme) ? 179 : ("monochrome".equals(theme) ? 128 : ("snowfall".equals(theme) ? 153 : 224))));
+            views.setInt(R.id.widget_root, "setBackgroundColor", Color.argb(alpha, Color.red(surfaceColor), Color.green(surfaceColor), Color.blue(surfaceColor)));
+        } else {
+            views.setInt(R.id.widget_root, "setBackgroundColor", Color.TRANSPARENT);
+        }
         // Keep transparent drawable outlines so launchers retain safe rounded clipping without visible card fills.
         views.setInt(R.id.widget_streak_container, "setBackgroundResource", R.drawable.math_master_widget_panel);
         views.setInt(R.id.widget_update_badge, "setBackgroundResource", R.drawable.math_master_home_widget_badge);
@@ -662,6 +700,11 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
                 responsiveTextSize(compactLayout ? 12f : (wideLayout ? 12.5f : 13.5f), fontScale,
                     compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 14.5f : 15.5f)));
         }
+        int[] primaryIds = {R.id.widget_title_text, R.id.widget_target_value};
+        int[] secondaryIds = {R.id.widget_target_label, R.id.widget_study_time_text, R.id.widget_remaining_text, R.id.widget_week_title, R.id.widget_update_text};
+        for (int id : primaryIds) views.setTextColor(id, primaryColor);
+        for (int id : secondaryIds) views.setTextColor(id, secondaryColor);
+        views.setTextColor(R.id.widget_streak_text, accentColor);
         views.setTextColor(R.id.widget_progress_percent, accentColor);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             views.setColorStateList(R.id.widget_progress_bar, "setProgressTintList", ColorStateList.valueOf(accentColor));
