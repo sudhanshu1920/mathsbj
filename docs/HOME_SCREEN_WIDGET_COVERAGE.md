@@ -1,52 +1,66 @@
 # Math Master Widget Coverage Audit
 
-## Confirmed inventory
+## Native implementation inventory
 
-The current repository contains **one native launcher widget provider**: `MathMasterHomeWidgetProvider`. It is an adaptive dashboard whose selected fields are configured independently for each Android AppWidget ID. No separate Quick Timer, Stopwatch, standalone Weekly Tracker, or second native progress-widget provider was found in the current native source tree; do not treat Settings preview cards or layout variants as extra providers.
+The repository contains one native Android launcher provider: `MathMasterHomeWidgetProvider`. Seven layout compositions are routed through that provider, with compact, regular and wide variants. Each pinned Android AppWidget ID retains its own selected content, composition and background effect.
 
-| Actual component / rendering path | Resource / implementation | Source audit | Changed in this audit | Build/automated coverage | Real launcher visual status |
-|---|---|---|---|---|---|
-| Math Master home-screen dashboard | `MathMasterHomeWidgetProvider.java` | Audited | Refresh all pinned instances on package replacement; keep per-ID configuration lookup | Covered by widget regression test and Android build workflow | **Unverified** |
-| Compact / narrow / short dashboard variant | `math_master_home_widget_compact.xml` | Audited | Existing responsive layout retained; added release-copy/registration assertions | Covered by widget layout/resource-copy tests and Android build workflow | **Unverified** |
-| Regular / tall dashboard variant | `math_master_home_widget.xml` | Audited | Existing responsive layout retained; used as safe regular/tall fallback | Covered by widget layout/resource-copy tests and Android build workflow | **Unverified** |
-| Wide / short dashboard variant | `math_master_home_widget_wide.xml` | Audited | Existing horizontal lower-row layout retained; resource-copy assertions added | Covered by widget layout/resource-copy tests and Android build workflow | **Unverified** |
-| Android 12+ launcher picker preview | `res/xml-v31/math_master_home_widget_info.xml` references `math_master_home_widget.xml` | Audited | Preview-resource wiring now has regression coverage | Metadata inspected by automated tests; Android build validates resource compilation | **Unverified on a launcher** |
-| Legacy Android widget metadata / size fallback | `res/xml/math_master_home_widget_info.xml` | Audited | Resize metadata and fallback layout wiring have regression coverage | Automated metadata/layout-selection checks and Android build | **Unverified on a launcher** |
-| In-app Settings widget preview (not a separate Android AppWidget) | `src/components/SettingsPanel.tsx` | Audited | Translucent gradient/glass styling; style/theme-aware surface and metric size; target value shown independently of study time; empty primary/supporting rows no longer reserve space | React regression tests added | **In-app preview test only; not proof of launcher rendering** |
+## Visual redesign
 
-## Confirmed root causes / gaps
+All seven compositions now use the same two wallpaper-first background effects:
 
-1. The native boot/package-update receiver already received `MY_PACKAGE_REPLACED` but only rescheduled daily reminders. It did not explicitly re-render active launcher widget instances. After an APK update, a pinned widget could therefore continue showing its prior `RemoteViews` until another widget update path ran.
-2. The Android dashboard already had three separate XML runtime layouts. A fix to one XML file alone cannot prove all three resources are packaged and used. The build configuration copies these resources from `android-native/res`; regression tests now check the provider registration, all three copied variants, both widget metadata resources, and the size-aware renderer.
-3. The Settings preview is a separate web UI rather than an Android `RemoteViews` renderer. Before this audit it used an almost opaque surface, tiny fixed labels, did not honor the selected preview style/theme consistently, tied the target value to the study-time field, and rendered an empty primary row when only supporting fields were selected. It now better reflects the global content/style/theme settings, while remaining a visual preview rather than an exact device-size simulation.
+| Effect | Implementation | Expected appearance |
+|---|---|---|
+| Full Transparent | Root uses Android transparent color; inner panel and badge resources are also transparent | No widget card fill or border; wallpaper remains visible |
+| Transparent Blur | Rounded `math_master_home_widget_background_blur.xml` with alpha charcoal fill and subtle white edge | Translucent frosted-glass approximation over wallpaper |
 
-## Data and configuration preservation
+Android RemoteViews cannot sample and dynamically blur the launcher wallpaper behind a widget. Transparent Blur is therefore an alpha-translucent glass surface rather than a real live backdrop blur. Launcher-specific wallpaper treatment may vary.
 
-- Package replacement refreshes existing widget IDs through `MathMasterHomeWidgetProvider.updateWidgetPreferences(context)`; that path renders each ID separately and reads its own `instance_<id>_...` settings.
-- No new provider, progress tracker, timer engine, or data store was introduced.
-- Weekly completion remains backed by saved daily completion history; the redesign does not create synthetic completion ticks.
-- Removing a widget continues to clean only that widget ID's preferences through the existing `onDeleted` implementation.
-- Actual wallpaper transparency, launcher-specific aspect-ratio selection, old pinned-instance rebinding, and touch behavior still require device/emulator screenshots to verify.
+Previous artwork is not rendered by the provider. Artwork overlays are hidden, inner panel and update badge resources no longer add opaque cards, and progress uses a restrained cyan accent. The old theme palette is no longer exposed in the native configuration UI. Legacy `glass`, `compact` and `minimal` style values resolve to Transparent Blur to preserve legibility for existing pinned widgets.
 
-## Verification policy
+## Composition coverage
 
-A passing source test or APK build means the implementation compiles and the tested source/resource paths are present. It does **not** prove that every launcher size renders without clipping. The table intentionally leaves real-launcher verification unverified until screenshots from supported Android launchers/devices are captured and reviewed.
+| Composition | Compact | Regular | Wide | Runtime artwork |
+|---|---:|---:|---:|---|
+| Auto Responsive | Routed by size | Routed by size | Routed by size | Hidden |
+| Wide Dashboard | Present | Present | Present | Hidden |
+| Compact Dashboard | Present | Present | Present | Hidden |
+| Square Dashboard | Present | Present | Present | Hidden |
+| Medium Dashboard | Present | Present | Present | Hidden |
+| Square Tracker | Present | Present | Present | Hidden |
+| Extra-Wide Weekly | Present | Present | Present | Hidden |
+| Minimal Progress | Present | Present | Present | Hidden |
 
-## Premium design and layout coverage
+The native widget continues to expose the existing content fields: App Identity, Today's Target, Progress, Remaining Target, Study Time, Streak, Weekly Target Tracker and Update Status.
 
-| Composition | Intended appearance | Native layout variants | Artwork | Automated source/resource coverage | Physical launcher status |
-|---|---|---|---|---|---|
-| `hero_wide` | Blue/cyan scenic hero dashboard | compact, regular, wide | Atlas panel 1 | Provider routing, resource-copy and layout checks | **Unverified** |
-| `compact_green` | Emerald botanical glass with progress ring | compact, regular, wide | Atlas panel 2 | Provider routing, ring visibility and layout checks | **Unverified** |
-| `square_math_bot` | Navy educational/technical dashboard | compact, regular, wide | Atlas panel 3 | Provider routing, ring visibility and layout checks | **Unverified** |
-| `medium_study` | Rose/violet scenic study composition | compact, regular, wide | Atlas panel 4 | Provider routing and layout checks | **Unverified** |
-| `square_cosmic` | Midnight/cyan cosmic glass with ring | compact, regular, wide | Atlas panel 5 | Provider routing, ring visibility and layout checks | **Unverified** |
-| `extra_wide_weekly` | Panoramic seven-day tracker | compact, regular, wide | Atlas panel 6 | Provider routing, weekly-data and layout checks | **Unverified** |
-| `minimal_progress` | Graphite/emerald minimal metric surface | compact, regular, wide | No decorative bitmap by design | Provider routing and layout checks | **Unverified** |
-| `auto` | Select composition from actual reported dimensions | Maps to compact/regular/wide composition layouts | Composition-dependent | Responsive resolver and resource routing checks | **Unverified** |
+## Functional invariants
 
-### Loading-error investigation and safe fallback
+- Study progress continues to come from the existing daily streak record; no duplicate timer or progress store is added.
+- Daily progress is clamped to the configured target for percentage calculation while actual elapsed study minutes remain visible.
+- Weekly checkmarks come only from saved daily records marked completed.
+- Per-widget settings remain independent across multiple widget IDs.
+- Removing one widget deletes only that instance's preferences.
+- Resizing selects the matching RemoteViews layout using launcher-provided dimensions.
+- Package replacement refreshes existing pinned instances without discarding saved configuration.
+- Main widget tap continues to open Math Master; the redesign does not introduce fake shortcuts.
 
-The source resources contain a self-closing plain `View` used only as the artwork tint overlay. Plain generic `View` is not a safe choice in a launcher `RemoteViews` hierarchy. The Android resource-generation step normalizes that overlay to `FrameLayout` before packaging, and regression tests assert that normalized layouts have no remaining plain `View` tags. This is a source-level compatibility fix and is covered by CI resource compilation; actual device Logcat evidence for the user's original launcher failure is not available, so the specific runtime crash is **not yet device-confirmed**. Missing/corrupt optional art safely falls back to the native glass background and live metrics. Artwork now uses sampled region decoding with bounded output sizes to reduce full-atlas memory pressure.
+## Automated verification coverage
 
-The automated matrix confirms source routing and build/resource coverage only. It does not prove that all composition/size combinations are free of clipping, launcher-specific inflation errors, or stale pinned-widget rendering. Those remain device/emulator verification items.
+`scripts/android-widget-layout.test.mjs` covers:
+- Existence of all responsive layout resources.
+- Widget provider registration and Android resource-copy wiring.
+- Existing content field selection and migration.
+- Real weekly-completion data validation.
+- Transparent root/panel/badge assets.
+- The two supported background effects.
+- Artwork disabled in the widget renderer.
+- Responsive typography and layout selection.
+- Bounded artwork decoding code retained but not invoked in the redesigned widget surface.
+- Independent per-instance configuration and package-replacement refresh.
+
+The Android validation workflow compiles the generated native Android project after running the widget configuration script.
+
+## Physical-device verification status
+
+<mark>Not yet verified on a physical launcher.</mark>
+
+CI/source checks do not establish that wallpaper visibility, opacity, rounded clipping, text contrast, or all 21 composition/size combinations render correctly on the user's launcher. Install the APK built from this revision and capture compact, regular, wide and tall screenshots for final visual review. Exact backdrop blur also depends on launcher behavior and is not guaranteed by Android RemoteViews.
