@@ -434,7 +434,8 @@ public final class StudyModeManager {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) app.startForegroundService(service);
                 else app.startService(service);
             }
-            setLastState(app, StudyModeFocusService.isRunning() ? "focus_shield_running" : "focus_shield_starting");
+            setLastState(app, StudyModeFocusService.hasOverlayFailure() ? "overlay_failed"
+                : (StudyModeFocusService.isRunning() ? "focus_shield_running" : "focus_shield_starting"));
         } catch (Exception error) {
             stopFocusShield(app);
             setLastState(app, "service_start_blocked");
