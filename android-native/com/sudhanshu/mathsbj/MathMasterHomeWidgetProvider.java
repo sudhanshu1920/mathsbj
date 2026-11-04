@@ -753,11 +753,12 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         String installedVersion = preferences.getString("installedVersionName", "");
         String latestVersion = preferences.getString("latestVersionName", "");
         if (updateAvailable && isSafeVersion(installedVersion) && isSafeVersion(latestVersion)) {
-            views.setViewVisibility(R.id.widget_update_badge, android.view.View.VISIBLE);
-            views.setTextViewText(R.id.widget_update_badge, "UPDATE");
+            views.setViewVisibility(R.id.widget_update_badge, View.VISIBLE);
+            views.setTextViewText(R.id.widget_update_badge, showQuizShortcut ? "QUIZ" : "UPDATE");
             views.setTextViewText(R.id.widget_update_text, "New version available · v" + latestVersion);
         } else {
-            views.setViewVisibility(R.id.widget_update_badge, android.view.View.GONE);
+            views.setViewVisibility(R.id.widget_update_badge, showQuizShortcut ? View.VISIBLE : View.GONE);
+            if (showQuizShortcut) views.setTextViewText(R.id.widget_update_badge, "QUIZ");
             if (hasChecked && isSafeVersion(installedVersion)) {
                 views.setTextViewText(R.id.widget_update_text, "v" + installedVersion + " · You're up to date");
             } else {
@@ -809,10 +810,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         }
         views.setViewVisibility(R.id.widget_update_text, showUpdateStatus ? View.VISIBLE : View.GONE);
         if (!showUpdateStatus) views.setViewVisibility(R.id.widget_update_badge, View.GONE);
-        views.setViewVisibility(R.id.widget_quiz_shortcut, showQuizShortcut ? View.VISIBLE : View.GONE);
-        if (showQuizShortcut) {
-            views.setContentDescription(R.id.widget_quiz_shortcut, "Open the Math Master practice and quiz section");
-        }
         views.setContentDescription(R.id.widget_target_value, "Today's study target: "
             + Math.min(elapsedMinutes, targetMinutes) + " of " + targetMinutes + " minutes");
         views.setContentDescription(R.id.widget_streak_text, "Current streak: " + streak + " days");
@@ -832,7 +829,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             views.setViewVisibility(R.id.widget_week_strip, View.GONE);
             views.setViewVisibility(R.id.widget_update_text, View.GONE);
             views.setViewVisibility(R.id.widget_update_badge, View.GONE);
-            views.setViewVisibility(R.id.widget_quiz_shortcut, View.GONE);
         }
 
         setWidgetAction(views, context, appWidgetId, R.id.widget_root, "home");
@@ -847,7 +843,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         setWidgetAction(views, context, appWidgetId, R.id.widget_week_strip, "weekly");
         setWidgetAction(views, context, appWidgetId, R.id.widget_update_text, "app-update");
         setWidgetAction(views, context, appWidgetId, R.id.widget_update_badge, "app-update");
-        setWidgetAction(views, context, appWidgetId, R.id.widget_quiz_shortcut, "quiz");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_update_badge, showQuizShortcut ? "quiz" : "app-update");
         return views;
     }
     private static void setWidgetAction(
