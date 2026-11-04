@@ -58,7 +58,8 @@ const statusText = (status: StudyModeStatus | null) => {
   }
   if (!status?.config.enabled) return "Study Mode is off";
   if (status.enforcementState === "permission_required") return "Permission required — blocking is not active";
-  if (status.enforcementState === "service_start_blocked") return "Android stopped Focus Shield from starting";
+  if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
+  if (status.enforcementState === "service_stopped") return "Android stopped Focus Shield — reopen Study Mode to retry";
   if (status.enforcementState === "policy_failed") return "System suspension could not be applied";
   if (status.enforcementState === "partial_suspension") return "Some selected apps could not be suspended";
   if (status.enforcementState === "focus_shield_running") return "Focus Shield monitoring is active";
@@ -502,14 +503,20 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <Bell size={14} className="text-muted-foreground" /> Notification control
           </p>
-          <Switch
-            checked={draft.notificationBlockingEnabled}
-            onCheckedChange={(enabled) => updateDraft({ notificationBlockingEnabled: enabled })}
-            aria-label="Block notifications from selected apps"
-          />
+          {status?.enforcementMode === "device_owner" ? (
+            <span className="text-[10px] font-semibold text-success">System-managed</span>
+          ) : (
+            <Switch
+              checked={draft.notificationBlockingEnabled}
+              onCheckedChange={(enabled) => updateDraft({ notificationBlockingEnabled: enabled })}
+              aria-label="Block notifications from selected apps"
+            />
+          )}
         </div>
         <div className="rounded-xl border border-border/70 bg-card/25 px-3 py-2 text-[10px] text-muted-foreground">
-          Only clearable notifications from selected apps are dismissed. Dismissed notifications are not restored.
+          {status?.enforcementMode === "device_owner"
+            ? "Android hides notifications automatically while a selected app is system-suspended."
+            : "Only clearable notifications from selected apps are dismissed. Dismissed notifications are not restored."}
         </div>
       </section>
 
