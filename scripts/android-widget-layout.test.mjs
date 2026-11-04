@@ -108,8 +108,9 @@ test("weekly checkmarks use the existing daily streak data and validate native i
   assert.match(nativePlugin, /isDateInTrailingSevenDays\(date\)/);
   assert.match(nativePlugin, /formatter\.setLenient\(false\)/);
   assert.match(nativePlugin, /candidate\.after\(today\)/);
-  assert.match(nativePlugin, /firstAllowed\.add\(java\.util\.Calendar\.DAY_OF_MONTH, -6\)/);
-  assert.match(nativePlugin, /putString\("completedDaysJson", completedDays\.toString\(\)\)/);
+  assert.match(nativePlugin, /firstAllowed\.add\(Calendar\.DAY_OF_MONTH, -6\)/);
+  assert.match(nativePlugin, /completedDays\.toString\(\)/);
+  assert.match(nativePlugin, /normalizeDayKey\(dayKey\)/);
   assert.match(provider, /getCompletedDays\(SharedPreferences preferences\)/);
   assert.match(provider, /views\.setTextViewText\(statusIds\[i\], done \? "✓" : "·"\)/);
   assert.match(provider, /views\.setTextViewText\(dateIds\[i\], String\.valueOf\(day\.get\(Calendar\.DAY_OF_MONTH\)\)\)/);
@@ -241,10 +242,23 @@ test("native widget configuration preview uses the selected composition artwork 
 
 test("package updates refresh all existing pinned widget instances without replacing their saved configuration", () => {
   assert.ok(bootReceiver.includes("Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)"));
-  assert.ok(bootReceiver.includes("MathMasterHomeWidgetProvider.updateWidgetPreferences(context)"));
+  assert.ok(bootReceiver.includes("MathMasterHomeWidgetProvider.updateWidgetPreferences(applicationContext)"));
+  assert.ok(bootReceiver.includes("goAsync()"));
   assert.ok(provider.includes("AppWidgetManager.getInstance(context)"));
   assert.ok(provider.includes("getAppWidgetIds(provider)"));
   assert.ok(provider.includes("for (int widgetId : widgetIds)"));
   assert.ok(provider.includes("getSelectedContent(preferences, appWidgetId)"));
   assert.ok(provider.includes('getInstanceString(preferences, appWidgetId, "theme"'));
+  assert.ok(provider.includes("REQUEST_CODE ^ appWidgetId"));
+});
+
+
+test("widget study progress synchronization is independent of daily reminder opt-in", () => {
+  const start = bridge.indexOf("const onProgressPersisted = () => {");
+  const end = bridge.indexOf("const onStreakUpdated =", start);
+  assert.ok(start >= 0 && end > start, "progress persistence handler must exist");
+  const handler = bridge.slice(start, end);
+  assert.doesNotMatch(handler, /if \(!getBackgroundNotificationsEnabled\(\)\) return/);
+  assert.doesNotMatch(handler, /&& getBackgroundNotificationsEnabled\(\)/);
+  assert.match(handler, /void queueNativeSync\(\)/);
 });
