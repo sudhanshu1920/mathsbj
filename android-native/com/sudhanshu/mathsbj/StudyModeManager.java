@@ -652,6 +652,7 @@ public final class StudyModeManager {
         permissions.put("usageAccess", hasUsageAccess(context));
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("notificationAccess", hasNotificationAccess(context));
+        permissions.put("notificationListenerConnected", StudyModeNotificationListenerService.isConnected());
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
         permissions.put("deviceOwner", isDeviceOwner(context));
         permissions.put("profileOwner", isProfileOwner(context));
