@@ -15,5 +15,13 @@ public class DailyTargetReminderBootReceiver extends BroadcastReceiver {
             || Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
             DailyTargetReminderReceiver.scheduleNext(context);
         }
+        if (Intent.ACTION_BOOT_COMPLETED.equals(action)
+            || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)
+            || Intent.ACTION_TIME_CHANGED.equals(action)
+            || Intent.ACTION_TIMEZONE_CHANGED.equals(action)
+            || Intent.ACTION_DATE_CHANGED.equals(action)) {
+            // Keep launcher RemoteViews in sync with the current local date and persisted per-ID settings.
+            MathMasterHomeWidgetProvider.updateWidgetPreferences(context);
+        }
     }
 }
