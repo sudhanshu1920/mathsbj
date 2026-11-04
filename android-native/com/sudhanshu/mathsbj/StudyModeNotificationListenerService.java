@@ -19,9 +19,13 @@ public final class StudyModeNotificationListenerService extends NotificationList
         if (!StudyModeManager.isEnabled(this)
             || !StudyModeManager.isScheduleActive(this)
             || !StudyModeManager.isNotificationBlockingEnabled(this)) return;
-        StatusBarNotification[] active = getActiveNotifications();
-        if (active == null) return;
-        for (StatusBarNotification notification : active) filter(notification);
+        try {
+            StatusBarNotification[] active = getActiveNotifications();
+            if (active == null) return;
+            for (StatusBarNotification notification : active) filter(notification);
+        } catch (SecurityException ignored) {
+            // The operating system may disconnect the listener while access is revoked.
+        }
     }
 
     private void filter(StatusBarNotification notification) {
