@@ -208,6 +208,7 @@ public final class StudyModeManager {
     }
 
     public static boolean isPolicyOwner(Context context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
         DevicePolicyManager policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         if (policy == null) return false;
         try {
@@ -398,6 +399,11 @@ public final class StudyModeManager {
         boolean active = isScheduleActive(app);
         if (isPolicyOwner(app)) {
             stopFocusShield(app);
+            if (!hasExactAlarmPermission(app)) {
+                boolean released = releaseSuspendedPackages(app);
+                setLastState(app, released ? "exact_alarm_required" : "policy_failed");
+                return;
+            }
             boolean success = applyPackageSuspension(app, packages, active);
             if (!active && success) setLastState(app, "waiting_for_schedule");
             else if (active && success) setLastState(app, "system_suspension");
