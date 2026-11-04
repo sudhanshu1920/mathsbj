@@ -61,6 +61,7 @@ const statusText = (status: StudyModeStatus | null) => {
   if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
   if (status.enforcementState === "service_stopped") return "Android stopped Focus Shield — reopen Study Mode to retry";
+  if (status.enforcementState === "overlay_failed") return "Android could not display the blocking overlay";
   if (status.enforcementState === "policy_failed") return "System suspension could not be applied";
   if (status.enforcementState === "partial_suspension") return "Some selected apps could not be suspended";
   if (status.enforcementState === "focus_shield_running") return "Focus Shield monitoring is active";
