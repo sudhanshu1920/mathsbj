@@ -251,8 +251,10 @@ test("all seven design compositions have three responsive XML variants and packa
   assert.match(configureWidgets, /copyDirectory\(/);
   assert.ok(existsSync(new URL("../android-native/res/drawable-nodpi/math_master_widget_atlas.webp", import.meta.url)));
   assert.ok(existsSync(new URL("../public/math_master_widget_atlas.webp", import.meta.url)));
-  assert.ok(read("src/lib/settings.ts").includes("HOME_WIDGET_COMPOSITIONS"));
-  assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
+  const configActivity = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java");
+  assert.match(configActivity, /private static final String\[\]\[\] WIDGET_COMPOSITIONS/);
+  for (const composition of compositionIds) assert.ok(configActivity.includes(`"${composition}"`));
+  assert.ok(configActivity.includes('"instance_" + widgetId + "_composition"'));
   assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
   assert.ok(provider.includes("getWidgetArtwork(context, composition, widthDp, heightDp)"));
 });
