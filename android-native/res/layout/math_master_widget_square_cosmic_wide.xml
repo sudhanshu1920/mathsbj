@@ -533,4 +533,15 @@
         android:textStyle="bold"
         android:visibility="gone" />
 </LinearLayout>
+
+    <ImageView
+        android:id="@+id/widget_outline"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/math_master_widget_outline"
+        android:scaleType="fitXY"
+        android:visibility="gone"
+        android:importantForAccessibility="no"
+        android:clickable="false"
+        android:focusable="false" />
 </FrameLayout>
