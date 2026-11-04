@@ -50,6 +50,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private RadioGroup themeGroup;
     private RadioGroup surfaceGroup;
     private Spinner fontSpinner;
+    private Spinner previewSizeSpinner;
     private SeekBar opacitySeekBar;
     private SeekBar fontScaleSeekBar;
     private SeekBar paddingSeekBar;
@@ -261,6 +262,21 @@ public class MathMasterWidgetConfigActivity extends Activity {
         customOutlineHex = addHexField(content, "Outline · #60749D",
             preferences.getString("instance_" + widgetId + "_customOutline", "#60749D"));
 
+        addSectionLabel(content, "Preview Size");
+        previewSizeSpinner = new Spinner(this);
+        String[] previewSizeLabels = { "Compact", "Medium", "Wide" };
+        ArrayAdapter<String> sizeAdapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item, previewSizeLabels);
+        sizeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        previewSizeSpinner.setAdapter(sizeAdapter);
+        previewSizeSpinner.setSelection(Math.max(0, Math.min(2,
+            preferences.getInt("instance_" + widgetId + "_previewSize", 1))));
+        previewSizeSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { updatePreview(); }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+        content.addView(previewSizeSpinner, matchWrap());
+
         addSectionLabel(content, "Preview");
         previewFrame = new FrameLayout(this);
         GradientDrawable previewSurface = new GradientDrawable();
@@ -428,7 +444,6 @@ public class MathMasterWidgetConfigActivity extends Activity {
         }
         String style = selectedRadioValue(styleGroup, "glass");
         String composition = selectedRadioValue(compositionGroup, "auto");
-        String theme = selectedRadioValue(themeGroup, "app");
         boolean noFieldsSelected = selected.isEmpty();
         if (noFieldsSelected) previewSummary.setText("Select at least one field");
 
@@ -515,8 +530,16 @@ public class MathMasterWidgetConfigActivity extends Activity {
         previewFrame.setBackground(previewSurface);
         previewShade.setVisibility(Color.alpha(previewBackground) == 0 ? View.GONE : View.VISIBLE);
 
+        int previewSize = previewSizeSpinner == null ? 1 : previewSizeSpinner.getSelectedItemPosition();
+        int previewWidth = previewSize == 0 ? 180 : (previewSize == 2 ? 420 : 320);
+        int previewHeight = previewSize == 0 ? 100 : (previewSize == 2 ? 132 : 150);
+        FrameLayout.LayoutParams previewParams = (FrameLayout.LayoutParams) previewFrame.getLayoutParams();
+        if (previewParams != null && previewParams.height != dp(previewHeight)) {
+            previewParams.height = dp(previewHeight);
+            previewFrame.setLayoutParams(previewParams);
+        }
         android.graphics.Bitmap artwork = MathMasterHomeWidgetProvider.getConfigurationPreviewArtwork(
-            this, composition, 320, 150);
+            this, composition, previewWidth, previewHeight);
         boolean showPreviewArtwork = Color.alpha(previewBackground) > 0 && artwork != null
             && !"minimal_progress".equals(composition);
         previewArtwork.setImageBitmap(artwork);
@@ -619,6 +642,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
             .putString("instance_" + widgetId + "_customAccent", accentHex)
             .putString("instance_" + widgetId + "_customBackground", backgroundHex)
             .putString("instance_" + widgetId + "_customOutline", outlineHex)
+            .putInt("instance_" + widgetId + "_previewSize",
+                previewSizeSpinner == null ? 1 : Math.max(0, Math.min(2, previewSizeSpinner.getSelectedItemPosition())))
             .apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
@@ -673,8 +698,12 @@ public class MathMasterWidgetConfigActivity extends Activity {
             if (value instanceof String && isPaletteTheme((String) value)) used.add((String) value);
         }
         List<String> available = new ArrayList<>();
-        for (String[] option : PREMIUM_THEMES) if (!used.contains(option[0])) available.add(option[0]);
-        if (available.isEmpty()) for (String[] option : PREMIUM_THEMES) available.add(option[0]);
+        for (String[] option : PREMIUM_THEMES) {
+            if (isPaletteTheme(option[0]) && !used.contains(option[0])) available.add(option[0]);
+        }
+        if (available.isEmpty()) {
+            for (String[] option : PREMIUM_THEMES) if (isPaletteTheme(option[0])) available.add(option[0]);
+        }
         return available.get(new SecureRandom().nextInt(available.size()));
     }
 
