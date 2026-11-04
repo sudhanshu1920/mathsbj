@@ -244,13 +244,13 @@
   }
 
   .mcq-game-control--speed {
-    width: clamp(4.35rem, 21vw, 5.3rem);
-    min-height: 3.95rem;
+    width: clamp(5.4rem, 25vw, 6.5rem);
+    min-height: clamp(4.95rem, 10vh, 5.8rem);
   }
 
   .mcq-game-control--steer {
-    width: clamp(3.15rem, 15.5vw, 3.9rem);
-    min-height: 3.75rem;
+    width: clamp(3.9rem, 18vw, 4.9rem);
+    min-height: clamp(4.6rem, 9.2vh, 5.3rem);
   }
 }
 
