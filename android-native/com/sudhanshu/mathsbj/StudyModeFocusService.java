@@ -5,6 +5,8 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.app.KeyguardManager;
+import android.os.PowerManager;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
@@ -37,6 +39,7 @@ public final class StudyModeFocusService extends Service {
     private android.view.View shieldView;
     private String shieldedPackage = "";
     private boolean foregroundStarted = false;
+    private String lastForegroundPackage = null;
 
     public static boolean isRunning() {
         return running;
@@ -81,7 +84,7 @@ public final class StudyModeFocusService extends Service {
             Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 ? new Notification.Builder(this, CHANNEL_ID)
                 : new Notification.Builder(this);
-            builder.setSmallIcon(getApplicationInfo().icon)
+            builder.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setContentTitle("Study Mode is active")
                 .setContentText("Focus Shield is monitoring selected apps")
                 .setOngoing(true)
@@ -120,11 +123,24 @@ public final class StudyModeFocusService extends Service {
         @Override
         public void run() {
             if (!StudyModeManager.isEnabled(StudyModeFocusService.this)
-                || !StudyModeManager.isScheduleActive(StudyModeFocusService.this)
-                || !StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
-                || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
+                || !StudyModeManager.isScheduleActive(StudyModeFocusService.this)) {
+                StudyModeManager.setServiceState(StudyModeFocusService.this, "waiting_for_schedule");
                 removeShield();
                 stopSelf();
+                return;
+            }
+            if (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
+                || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
+                StudyModeManager.setServiceState(StudyModeFocusService.this, "permission_required");
+                removeShield();
+                stopSelf();
+                return;
+            }
+            PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
+            KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+            if (power == null || !power.isInteractive() || (keyguard != null && keyguard.isKeyguardLocked())) {
+                removeShield();
+                handler.postDelayed(this, POLL_INTERVAL_MS);
                 return;
             }
 
@@ -153,7 +169,7 @@ public final class StudyModeFocusService extends Service {
             StudyModeManager.setServiceState(this, "permission_required");
             return null;
         }
-        if (events == null) return null;
+        if (events == null) return lastForegroundPackage;
 
         String latest = null;
         UsageEvents.Event event = new UsageEvents.Event();
@@ -281,7 +297,8 @@ public final class StudyModeFocusService extends Service {
         handler.removeCallbacksAndMessages(null);
         removeShield();
         running = false;
-        if (StudyModeManager.isEnabled(this) && StudyModeManager.isScheduleActive(this)) {
+        if (StudyModeManager.isEnabled(this) && StudyModeManager.isScheduleActive(this)
+            && StudyModeManager.hasUsageAccess(this) && StudyModeManager.hasOverlayPermission(this)) {
             StudyModeManager.setServiceState(this, "service_stopped");
         }
         try {
