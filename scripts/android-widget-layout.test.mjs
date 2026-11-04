@@ -247,6 +247,13 @@ test("all seven design compositions have three responsive XML variants and packa
         assert.ok(layout.includes(`@+id/${id}`), `${path} must contain ${id}`);
       }
       assert.ok(layout.includes(`math_master_widget_art_overlay_${composition}`));
+      const artworkIndex = layout.indexOf('android:id="@+id/widget_artwork_overlay"');
+      const surfaceIndex = layout.indexOf('android:id="@+id/widget_surface"');
+      const contentIndex = layout.indexOf('android:id="@+id/widget_content"');
+      const outlineIndex = layout.indexOf('android:id="@+id/widget_outline"');
+      assert.ok(artworkIndex >= 0 && surfaceIndex > artworkIndex && surfaceIndex < contentIndex,
+        `${path} must place translucent surface above artwork and beneath live content`);
+      assert.ok(outlineIndex > contentIndex, `${path} must place outline above all content`);
     }
   }
   assert.match(configureWidgets, /const RESOURCE_DIRS = \[[\s\S]*?'drawable-nodpi'[\s\S]*?'layout'/);
@@ -287,8 +294,14 @@ test("widget customization exposes all supported typography, opacity, outline, p
   assert.match(widgetConfigActivity, /isValidHex\(primaryHex\)/);
   assert.match(widgetConfigActivity, /seekBarListener\(\)/);
   assert.match(widgetConfigActivity, /MathMasterWidgetStyle\.resolvePalette/);
+  assert.match(widgetConfigActivity, /surfaceSettingsExplicitlySaved/);
+  assert.match(widgetConfigActivity, /"minimal"\.equals\(selectedTheme\)/);
+  assert.match(widgetConfigActivity, /selectRadioValue\(surfaceGroup, "transparent"\)/);
+
   assert.match(widgetConfigActivity, /MathMasterWidgetStyle\.surfaceColor/);
-  assert.match(widgetConfigActivity, /previewFrame\.setBackground\(previewSurface\)/);
+  assert.match(widgetConfigActivity, /previewSurfaceView\.setBackground\(previewSurface\)/);
+  assert.match(widgetConfigActivity, /previewSizeSpinner/);
+  assert.match(widgetConfigActivity, /instance_" \+ widgetId \+ "_previewSize/);
   assert.match(widgetConfigActivity, /manager\.updateAppWidget\(widgetId, MathMasterHomeWidgetProvider\.createViews/);
 });
 
