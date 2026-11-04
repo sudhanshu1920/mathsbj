@@ -289,7 +289,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       key: "usage" as const,
       title: "Usage Access",
       granted: status?.permissions.usageAccess === true,
-      required: !status?.permissions.deviceOwner && !status?.permissions.profileOwner,
+      required: status?.enforcementMode !== "device_owner",
       helper: "Detects which app is currently in the foreground.",
     },
     {
