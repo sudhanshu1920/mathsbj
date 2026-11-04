@@ -21,7 +21,9 @@ The widget chooses compact, regular, or wide layouts from the launcher's reporte
 ## Refresh and data behavior
 
 - Progress is copied from the existing `math-app-streak-v1` daily record. It is not stored in a second target-tracking system.
-- While the app is actively tracking study time, the widget refreshes at minute boundaries and when target/streak settings change. Android also refreshes the local presentation periodically and resets the displayed progress when the local date changes.
+- While the app is actively tracking study time, the widget refreshes at minute boundaries and when target/streak settings change. This progress sync is independent of the optional daily-reminder notification preference; disabling reminders does not disable widget progress.
+- Boot, package replacement, local clock changes, and timezone changes re-render all pinned widget instances while preserving each instance's saved configuration. The lifecycle receiver performs widget rendering work off its broadcast thread.
+- Android also refreshes the local presentation periodically and resets the displayed progress when the local date changes.
 - A successful in-app update check refreshes the update line. A validated Firebase release push can also set the update badge while the app is closed, provided Firebase is configured in the installed APK and update notifications are enabled.
 - Android launchers control widget sizing, exact refresh timing, and whether the widget is available on the lock screen. The widget does not install updates automatically.
 
