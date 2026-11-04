@@ -681,11 +681,23 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
         RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
         boolean widgetsEnabled = getInstanceBoolean(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "enabled", true);
-        String mode = getInstanceString(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "mode", "dark");
+        String legacyMode = getInstanceString(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "mode", "dark");
+        String appearanceMode = getInstanceString(preferences, appWidgetId, "appearanceMode", legacyMode);
+        if (!"light".equals(appearanceMode) && !"dark".equals(appearanceMode)
+            && !"system".equals(appearanceMode)) appearanceMode = "system";
+        boolean lightMode;
+        if ("light".equals(appearanceMode)) {
+            lightMode = true;
+        } else if ("dark".equals(appearanceMode)) {
+            lightMode = false;
+        } else {
+            int nightMode = context.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+            lightMode = nightMode != android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        }
         String style = getInstanceString(preferences, appWidgetId, "style", "glass");
         String widgetTheme = MathMasterWidgetStyle.normalizeTheme(
             getInstanceString(preferences, appWidgetId, "theme", MathMasterWidgetStyle.DEFAULT_THEME));
-        boolean lightMode = "light".equals(mode);
         String surfaceStyle = getInstanceString(preferences, appWidgetId, "backgroundStyle",
             "minimal".equals(widgetTheme) ? "transparent" : MathMasterWidgetStyle.DEFAULT_SURFACE);
         int backgroundOpacity = getInstanceInt(preferences, appWidgetId, "backgroundOpacity",
@@ -943,6 +955,81 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         views.setContentDescription(R.id.widget_progress_bar, progress + "% daily progress");
         return views;
     }
+    /**
+     * Applies supported font families and emphasis through parcelable spans.
+     * This is safe for RemoteViews; no direct TextView method calls are sent to the launcher.
+     */
+    private static void applyWidgetTypography(
+        RemoteViews views,
+        String font,
+        String title,
+        String progressPercent,
+        String targetLabel,
+        String targetValue,
+        String studyTime,
+        String remaining,
+        String streak,
+        String weekTitle,
+        String updateText,
+        String updateBadge,
+        boolean widgetsEnabled
+    ) {
+        setWidgetStyledText(views, R.id.widget_title_text, title, font, true);
+        setWidgetStyledText(views, R.id.widget_progress_percent, progressPercent, font, true);
+        setWidgetStyledText(views, R.id.widget_target_label, targetLabel, font, true);
+        setWidgetStyledText(views, R.id.widget_target_value, targetValue, font, true);
+        setWidgetStyledText(views, R.id.widget_study_time_text, studyTime, font, false);
+        setWidgetStyledText(views, R.id.widget_remaining_text, remaining, font, false);
+        setWidgetStyledText(views, R.id.widget_streak_text, streak, font, true);
+        setWidgetStyledText(views, R.id.widget_week_title, weekTitle, font, true);
+        setWidgetStyledText(views, R.id.widget_update_text, updateText, font, false);
+        setWidgetStyledText(views, R.id.widget_update_badge, updateBadge, font, true);
+        setWidgetStyledText(views, R.id.widget_disabled_text,
+            widgetsEnabled ? "" : "Widgets are disabled in Math Master settings", font, false);
+
+        int[] dayLabelIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
+            R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
+        int[] dayDateIds = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
+            R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
+        int[] dayStatusIds = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
+            R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
+        for (int i = 0; i < 7; i++) {
+            setWidgetStyledText(views, dayLabelIds[i], "", font, true);
+            setWidgetStyledText(views, dayDateIds[i], "", font, false);
+            setWidgetStyledText(views, dayStatusIds[i], "", font, true);
+        }
+    }
+
+    private static void setWidgetStyledText(
+        RemoteViews views, int viewId, String value, String font, boolean bold
+    ) {
+        String safeValue = value == null ? "" : value;
+        SpannableString styled = new SpannableString(safeValue);
+        if (styled.length() > 0) {
+            styled.setSpan(new TypefaceSpan(fontFamily(font)), 0, styled.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            if (bold) styled.setSpan(new StyleSpan(Typeface.BOLD), 0, styled.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        views.setTextViewText(viewId, styled);
+    }
+
+    private static String fontFamily(String font) {
+        switch (MathMasterWidgetStyle.normalizeFont(font)) {
+            case "serif": return "serif";
+            case "monospace": return "monospace";
+            case "cursive": return "cursive";
+            case "condensed": return "sans-serif-condensed";
+            case "condensed_light": return "sans-serif-condensed-light";
+            case "light": return "sans-serif-light";
+            case "medium": return "sans-serif-medium";
+            case "black": return "sans-serif-black";
+            case "thin": return "sans-serif-thin";
+            case "small_caps": return "sans-serif-smallcaps";
+            default: return "sans-serif";
+        }
+    }
+
     private static void setWidgetAction(
         RemoteViews views, Context context, int appWidgetId, int viewId, String action
     ) {
