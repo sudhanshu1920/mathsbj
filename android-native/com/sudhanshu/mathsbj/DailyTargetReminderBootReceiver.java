@@ -9,6 +9,10 @@ public class DailyTargetReminderBootReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
         String action = intent.getAction();
+        if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
+            // Refresh every already-pinned widget after APK replacement while keeping per-ID preferences.
+            MathMasterHomeWidgetProvider.updateWidgetPreferences(context);
+        }
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)
             || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)
             || Intent.ACTION_TIME_CHANGED.equals(action)
