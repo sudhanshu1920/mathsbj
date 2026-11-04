@@ -53,6 +53,9 @@ const configSnapshot = (config: StudyModeConfig) => JSON.stringify({
 
 const statusText = (status: StudyModeStatus | null) => {
   if (!isStudyModeNative()) return "Available in the Android app";
+  if (status?.enforcementState === "policy_unavailable" || status?.enforcementState === "policy_failed") {
+    return "Android could not confirm that every suspended app is available";
+  }
   if (!status?.config.enabled) return "Study Mode is off";
   if (status.enforcementState === "permission_required") return "Permission required — blocking is not active";
   if (status.enforcementState === "service_start_blocked") return "Android stopped Focus Shield from starting";
@@ -107,8 +110,12 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       };
       setApps(installedApps);
       setStatus(nextStatus);
-      setDraft(normalized);
-      savedSnapshot.current = configSnapshot(normalized);
+      // Returning from Android permission settings must refresh actual system
+      // grants without silently discarding edits still in this page.
+      if (!dirtyRef.current) {
+        setDraft(normalized);
+        savedSnapshot.current = configSnapshot(normalized);
+      }
       setRefreshError("");
     } catch {
       setRefreshError("Could not read Android Study Mode status. Reopen this page to retry.");
@@ -233,8 +240,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         const nextStatus = await setStudyModeEnabled(false);
         setStatus(nextStatus);
         setDraft((previous) => ({ ...previous, enabled: false }));
-        savedSnapshot.current = configSnapshot({ ...draft, enabled: false });
-        setMessage("Study Mode is off. Saved schedule and app selection were kept.");
+        savedSnapshot.current = configSnapshot({ ...nextStatus.config, enabled: false });
+        setMessage(nextStatus.enforcementState === "policy_failed" || nextStatus.enforcementState === "policy_unavailable"
+          ? "Study Mode is off, but Android could not confirm release of every system-suspended app. Keep this device managed and retry."
+          : "Study Mode is off. Saved schedule and app selection were kept.");
       } catch {
         setMessage("Android could not confirm that all restrictions were released. Check Study Mode status.");
       } finally {
