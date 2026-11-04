@@ -64,6 +64,21 @@
             android:textStyle="bold"
             android:visibility="gone" />
     </LinearLayout>
+    <TextView
+        android:id="@+id/widget_quiz_shortcut"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:background="@drawable/math_master_home_widget_badge"
+        android:paddingStart="7dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="7dp"
+        android:paddingBottom="3dp"
+        android:text="OPEN QUIZ"
+        android:textColor="#DCCFFF"
+        android:textSize="9sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/widget_primary_row"
