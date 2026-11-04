@@ -833,7 +833,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         views.setTextViewText(R.id.widget_streak_text, "🔥 " + streak + "-day streak");
         Set<String> completedWeek = getCompletedDays(preferences);
         bindWeekProgress(views, completedWeek, accentColor, secondaryColor, fontStyle);
-        applyWeekTypography(views, completedWeek, fontStyle);
 
         boolean hasChecked = getInstanceBoolean(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "hasCheckedUpdates", false);
         boolean showQuizShortcut = widgetsEnabled && selected.contains("quiz");
