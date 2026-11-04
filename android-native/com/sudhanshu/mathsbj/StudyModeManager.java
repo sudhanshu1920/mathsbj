@@ -338,19 +338,19 @@ public final class StudyModeManager {
     public static void reconcile(Context context) {
         Context app = context.getApplicationContext();
         if (!isEnabled(app)) {
-            releaseSuspendedPackages(app);
+            boolean released = releaseSuspendedPackages(app);
             stopFocusShield(app);
             cancelBoundaryAlarm(app);
-            setLastState(app, "disabled");
+            setLastState(app, released ? "disabled" : "policy_failed");
             return;
         }
 
         List<String> packages = getSelectedPackages(app);
         if (!isScheduleValid(app) || packages.isEmpty()) {
-            releaseSuspendedPackages(app);
+            boolean released = releaseSuspendedPackages(app);
             stopFocusShield(app);
             cancelBoundaryAlarm(app);
-            setLastState(app, "invalid_config");
+            setLastState(app, released ? "invalid_config" : "policy_failed");
             return;
         }
 
@@ -365,7 +365,11 @@ public final class StudyModeManager {
             return;
         }
 
-        releaseSuspendedPackages(app);
+        if (!releaseSuspendedPackages(app)) {
+            stopFocusShield(app);
+            setLastState(app, "policy_failed");
+            return;
+        }
         if (!hasUsageAccess(app) || !hasOverlayPermission(app)) {
             stopFocusShield(app);
             setLastState(app, active ? "permission_required" : "waiting_for_schedule");
@@ -405,45 +409,53 @@ public final class StudyModeManager {
         }
 
         List<String> previous = readAppliedPackages(context);
-        if (!active) {
-            if (!previous.isEmpty()) {
-                try { policy.setPackagesSuspended(null, previous.toArray(new String[0]), false); }
-                catch (Exception ignored) { /* Keep recovery state cleared even if an app was removed. */ }
-            }
-            saveStringArray(prefs(context), KEY_APPLIED, new ArrayList<>());
-            setLastState(context, "waiting_for_schedule");
-            return true;
-        }
+        if (!active) return releaseSuspendedPackages(context);
 
         Set<String> wanted = new HashSet<>(selected);
+        List<String> stillSuspended = new ArrayList<>();
         List<String> obsolete = new ArrayList<>();
         for (String old : previous) if (!wanted.contains(old)) obsolete.add(old);
+
         if (!obsolete.isEmpty()) {
-            try { policy.setPackagesSuspended(null, obsolete.toArray(new String[0]), false); }
-            catch (Exception ignored) { /* Reconcile the remaining selected packages below. */ }
+            try {
+                String[] failedToRelease = policy.setPackagesSuspended(null, obsolete.toArray(new String[0]), false);
+                if (failedToRelease != null) {
+                    for (String name : failedToRelease) {
+                        if (isInstalledSelectablePackage(context, name)) stillSuspended.add(name);
+                    }
+                }
+            } catch (Exception error) {
+                for (String name : obsolete) {
+                    if (isInstalledSelectablePackage(context, name)) stillSuspended.add(name);
+                }
+            }
         }
 
         try {
             String[] failed = policy.setPackagesSuspended(null, selected.toArray(new String[0]), true);
             Set<String> rejected = new HashSet<>();
             if (failed != null) Collections.addAll(rejected, failed);
-            List<String> applied = new ArrayList<>();
-            for (String name : selected) if (!rejected.contains(name)) applied.add(name);
+            for (String name : selected) if (!rejected.contains(name)) stillSuspended.add(name);
+            List<String> applied = new ArrayList<>(new HashSet<>(stillSuspended));
+            Collections.sort(applied);
             saveStringArray(prefs(context), KEY_APPLIED, applied);
-            if (applied.isEmpty()) {
-                setLastState(context, "policy_failed");
+
+            if (!stillSuspended.isEmpty() && !rejected.isEmpty()) {
+                setLastState(context, "partial_suspension");
                 return false;
             }
-            if (!rejected.isEmpty()) {
+            if (!stillSuspended.containsAll(selected) || !rejected.isEmpty()) {
                 setLastState(context, "partial_suspension");
                 return false;
             }
             setLastState(context, "system_suspension");
             return true;
         } catch (SecurityException error) {
+            saveStringArray(prefs(context), KEY_APPLIED, new ArrayList<>(new HashSet<>(previous)));
             setLastState(context, "policy_failed");
             return false;
         } catch (Exception error) {
+            saveStringArray(prefs(context), KEY_APPLIED, new ArrayList<>(new HashSet<>(previous)));
             setLastState(context, "policy_failed");
             return false;
         }
@@ -461,15 +473,47 @@ public final class StudyModeManager {
         return result;
     }
 
-    private static void releaseSuspendedPackages(Context context) {
+    private static boolean releaseSuspendedPackages(Context context) {
         List<String> previous = readAppliedPackages(context);
-        if (previous.isEmpty()) return;
-        DevicePolicyManager policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
-        if (policy != null && isPolicyOwner(context)) {
-            try { policy.setPackagesSuspended(null, previous.toArray(new String[0]), false); }
-            catch (Exception ignored) { /* Package removal or policy transition; don't block Study Mode OFF. */ }
+        if (previous.isEmpty()) return true;
+
+        List<String> installed = new ArrayList<>();
+        for (String name : previous) {
+            if (isInstalledSelectablePackage(context, name)) installed.add(name);
         }
-        saveStringArray(prefs(context), KEY_APPLIED, new ArrayList<>());
+        if (installed.isEmpty()) {
+            saveStringArray(prefs(context), KEY_APPLIED, new ArrayList<>());
+            return true;
+        }
+
+        DevicePolicyManager policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
+        if (policy == null || !isPolicyOwner(context)) {
+            // Preserve the recovery list if Device Owner access disappeared; never
+            // pretend that Android restrictions were released when no authority remains.
+            saveStringArray(prefs(context), KEY_APPLIED, installed);
+            setLastState(context, "policy_unavailable");
+            return false;
+        }
+
+        try {
+            String[] failed = policy.setPackagesSuspended(null, installed.toArray(new String[0]), false);
+            List<String> stillSuspended = new ArrayList<>();
+            if (failed != null) {
+                for (String name : failed) {
+                    if (isInstalledSelectablePackage(context, name)) stillSuspended.add(name);
+                }
+            }
+            saveStringArray(prefs(context), KEY_APPLIED, stillSuspended);
+            if (!stillSuspended.isEmpty()) {
+                setLastState(context, "policy_failed");
+                return false;
+            }
+            return true;
+        } catch (Exception error) {
+            saveStringArray(prefs(context), KEY_APPLIED, installed);
+            setLastState(context, "policy_failed");
+            return false;
+        }
     }
 
     private static void startFocusShield(Context context) {
