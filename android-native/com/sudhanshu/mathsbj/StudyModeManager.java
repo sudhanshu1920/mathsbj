@@ -7,6 +7,7 @@ import android.telecom.TelecomManager;
 import android.app.role.RoleManager;
 import android.app.AppOpsManager;
 import android.content.Context;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
@@ -457,7 +458,7 @@ public final class StudyModeManager {
 
         if (!obsolete.isEmpty()) {
             try {
-                String[] failedToRelease = policy.setPackagesSuspended(null, obsolete.toArray(new String[0]), false);
+                String[] failedToRelease = policy.setPackagesSuspended(getAdminComponent(context), obsolete.toArray(new String[0]), false);
                 if (failedToRelease != null) {
                     for (String name : failedToRelease) {
                         if (isInstalledPackage(context, name)) stillSuspended.add(name);
@@ -540,7 +541,7 @@ public final class StudyModeManager {
             List<String> stillSuspended = new ArrayList<>();
             if (failed != null) {
                 for (String name : failed) {
-                    if (isInstalledSelectablePackage(context, name)) stillSuspended.add(name);
+                    if (isInstalledPackage(context, name)) stillSuspended.add(name);
                 }
             }
             saveStringArray(prefs(context), KEY_APPLIED, stillSuspended);
@@ -660,6 +661,10 @@ public final class StudyModeManager {
         result.put("appliedPackages", appliedArray);
         result.put("exactAlarmFallback", exactFallback);
         return result;
+    }
+
+    private static ComponentName getAdminComponent(Context context) {
+        return new ComponentName(context, StudyModeDeviceAdminReceiver.class);
     }
 
     public static boolean isDeviceOwner(Context context) {
