@@ -78,7 +78,7 @@ function ensureStudyModeComponents(manifest) {
       xml: `        <receiver
             android:name=".StudyModePackageChangeReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.PACKAGE_REMOVED" />
                 <data android:scheme="package" />
