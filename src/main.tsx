@@ -8,6 +8,7 @@ import { initTheme } from "./lib/theme";
 import { initFont } from "./lib/settings";
 import { initDeviceProfile } from "./lib/device";
 import { initializeBackgroundNotifications } from "./lib/dailyTargetReminders";
+import { initializeStudyMode } from "./lib/studyMode";
 
 initDesktopMode();
 initTheme();
@@ -30,6 +31,7 @@ idle(() => {
   // Native reminders are scheduled once after first paint; the Android alarm
   // survives the WebView/process closing and is reconciled on progress changes.
   initializeBackgroundNotifications();
+  initializeStudyMode();
   // Chunk warming happens once via the offline preparation pass (OfflinePrep).
   void setupPWA();
 });
