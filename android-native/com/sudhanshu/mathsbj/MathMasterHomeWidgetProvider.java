@@ -273,7 +273,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return getWidgetArtwork(context, safeComposition, Math.max(1, widthDp), Math.max(1, heightDp));
     }
 
-    private static Bitmap createProgressRing(Context context, int progress, int accentColor) {
+    private static Bitmap createProgressRing(Context context, int progress, int accentColor, int primaryColor, String font) {
         float density = context.getResources().getDisplayMetrics().density;
         int size = Math.max(96, Math.round(82f * density));
         Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
@@ -303,8 +303,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         canvas.drawArc(bounds, -90f, Math.max(0f, Math.min(100f, progress)) * 3.6f, false, arc);
 
         Paint label = new Paint(Paint.ANTI_ALIAS_FLAG);
-        label.setColor(Color.WHITE);
-        label.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        label.setColor(primaryColor);
+        label.setTypeface(MathMasterWidgetStyle.typeface(font));
         label.setTextAlign(Paint.Align.CENTER);
         label.setTextSize(size * (progress >= 100 ? 0.205f : 0.225f));
         label.setShadowLayer(size * 0.012f, 0f, size * 0.006f, Color.argb(150, 0, 0, 0));
@@ -481,7 +481,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     }
 
     private static void bindWeekProgress(
-        RemoteViews views, SharedPreferences preferences, int accentColor, boolean lightMode
+        RemoteViews views, SharedPreferences preferences, int accentColor, int secondaryColor
     ) {
         int[] dayIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
             R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
@@ -498,7 +498,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         day.add(Calendar.DAY_OF_MONTH, -6);
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         SimpleDateFormat labelFormat = new SimpleDateFormat("EEEEE", Locale.getDefault());
-        int idleColor = lightMode ? Color.parseColor("#7C8498") : Color.parseColor("#9F9AB8");
+        int idleColor = secondaryColor;
         for (int i = 0; i < 7; i++) {
             String date = dateFormat.format(day.getTime());
             boolean done = completed.contains(date);
@@ -521,6 +521,51 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             if (preferences.contains(key)) return preferences.getString(key, fallback);
         }
         return preferences.getString(field, fallback);
+    }
+
+    private static int getInstanceInt(
+        SharedPreferences preferences, int appWidgetId, String field, int fallback
+    ) {
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            String key = "instance_" + appWidgetId + "_" + field;
+            if (preferences.contains(key)) return preferences.getInt(key, fallback);
+        }
+        return preferences.getInt(field, fallback);
+    }
+
+    private static boolean getInstanceBoolean(
+        SharedPreferences preferences, int appWidgetId, String field, boolean fallback
+    ) {
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            String key = "instance_" + appWidgetId + "_" + field;
+            if (preferences.contains(key)) return preferences.getBoolean(key, fallback);
+        }
+        return preferences.getBoolean(field, fallback);
+    }
+
+    private static String getInstanceColor(
+        SharedPreferences preferences, int appWidgetId, String field, String fallback
+    ) {
+        return getInstanceString(preferences, appWidgetId, field, fallback);
+    }
+
+    private static void applyWidgetTypography(RemoteViews views, String font) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
+        int appearance = MathMasterWidgetStyle.textAppearance(font);
+        int[] ids = {
+            R.id.widget_title_text, R.id.widget_progress_percent, R.id.widget_target_label,
+            R.id.widget_target_value, R.id.widget_study_time_text, R.id.widget_remaining_text,
+            R.id.widget_streak_text, R.id.widget_week_title, R.id.widget_update_text,
+            R.id.widget_update_badge, R.id.widget_disabled_text,
+            R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
+            R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5,
+            R.id.widget_week_day_6, R.id.widget_week_date_0, R.id.widget_week_date_1,
+            R.id.widget_week_date_2, R.id.widget_week_date_3, R.id.widget_week_date_4,
+            R.id.widget_week_date_5, R.id.widget_week_date_6, R.id.widget_week_status_0,
+            R.id.widget_week_status_1, R.id.widget_week_status_2, R.id.widget_week_status_3,
+            R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6
+        };
+        for (int id : ids) views.setTextViewTextAppearance(id, appearance);
     }
 
     private static Set<String> getSelectedContent(SharedPreferences preferences, int appWidgetId) {
@@ -635,16 +680,40 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean widgetsEnabled = preferences.getBoolean("enabled", true);
         String mode = preferences.getString("mode", "dark");
         String style = getInstanceString(preferences, appWidgetId, "style", "glass");
-        String widgetTheme = normalizeWidgetTheme(getInstanceString(preferences, appWidgetId, "theme", "app"));
-        int themeIndex = getPaletteThemeIndex(widgetTheme);
-        int accentColor = themeIndex >= 0 ? COMPLETION_ACCENTS[themeIndex] : appAccentColor(preferences);
-        boolean targetComplete = progress >= 100;
+        String widgetTheme = MathMasterWidgetStyle.normalizeTheme(
+            getInstanceString(preferences, appWidgetId, "theme", MathMasterWidgetStyle.DEFAULT_THEME));
         boolean lightMode = "light".equals(mode);
-        int backgroundResource = themeIndex >= 0
-            ? (lightMode ? COMPLETION_BACKGROUND_LIGHT[themeIndex] : COMPLETION_BACKGROUND_DARK[themeIndex])
-            : (lightMode ? R.drawable.math_master_home_widget_background_light
-                : R.drawable.math_master_home_widget_background);
-        views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);
+        String surfaceStyle = getInstanceString(preferences, appWidgetId, "backgroundStyle",
+            "minimal".equals(widgetTheme) ? "transparent" : MathMasterWidgetStyle.DEFAULT_SURFACE);
+        int backgroundOpacity = getInstanceInt(preferences, appWidgetId, "backgroundOpacity",
+            MathMasterWidgetStyle.defaultOpacity(widgetTheme));
+        boolean showOutline = getInstanceBoolean(preferences, appWidgetId, "showOutline", false);
+        String fontStyle = MathMasterWidgetStyle.normalizeFont(
+            getInstanceString(preferences, appWidgetId, "fontStyle", MathMasterWidgetStyle.DEFAULT_FONT));
+        int fontScalePercent = Math.max(75, Math.min(125,
+            getInstanceInt(preferences, appWidgetId, "fontScalePercent", 100)));
+        int configuredPadding = getInstanceInt(preferences, appWidgetId, "widgetPadding", -1);
+        MathMasterWidgetStyle.Palette palette = MathMasterWidgetStyle.resolvePalette(
+            context, widgetTheme, lightMode,
+            getInstanceColor(preferences, appWidgetId, "customPrimary", "#F5F7FF"),
+            getInstanceColor(preferences, appWidgetId, "customSecondary", "#AEBBD2"),
+            getInstanceColor(preferences, appWidgetId, "customAccent", "#8FAEFF"),
+            getInstanceColor(preferences, appWidgetId, "customBackground", "#111B30"),
+            getInstanceColor(preferences, appWidgetId, "customOutline", "#60749D"));
+        int primaryColor = palette.primary;
+        int secondaryColor = palette.secondary;
+        int highlightColor = palette.highlight;
+        int accentColor = palette.accent;
+        boolean targetComplete = progress >= 100;
+        views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.math_master_widget_surface);
+        int resolvedSurface = MathMasterWidgetStyle.surfaceColor(
+            palette, surfaceStyle, backgroundOpacity, widgetTheme);
+        views.setColorStateList(R.id.widget_root, "setBackgroundTintList",
+            ColorStateList.valueOf(resolvedSurface));
+        views.setImageViewResource(R.id.widget_outline, R.drawable.math_master_widget_outline);
+        views.setColorStateList(R.id.widget_outline, "setImageTintList", ColorStateList.valueOf(palette.outline));
+        views.setViewVisibility(R.id.widget_outline, showOutline ? View.VISIBLE : View.GONE);
+        applyWidgetTypography(views, fontStyle);
         Bitmap artwork = getWidgetArtwork(context, composition, widthDp, heightDp);
         boolean showArtwork = widgetsEnabled && artwork != null && !"minimal_progress".equals(composition);
         if (showArtwork) {
@@ -662,13 +731,16 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         float measuredHeightDp = heightDp > 0 ? heightDp : 150f;
         float fontScale = Math.max(0.92f, Math.min(1.30f,
             Math.min(measuredWidthDp / 220f, measuredHeightDp / 155f)));
-        if ("compact".equals(style)) fontScale = Math.max(0.84f, fontScale * 0.96f);
-        else if ("minimal".equals(style)) fontScale = Math.max(0.86f, fontScale * 0.98f);
+        fontScale *= fontScalePercent / 100f;
+        fontScale = Math.max(0.72f, Math.min(1.48f, fontScale));
+        if ("compact".equals(style)) fontScale = Math.max(0.72f, fontScale * 0.96f);
+        else if ("minimal".equals(style)) fontScale = Math.max(0.72f, fontScale * 0.98f);
 
         int paddingDp = "minimal_progress".equals(composition) ? 3
             : ("extra_wide_weekly".equals(composition) ? 4 : (widthDp > 0 && widthDp < 200 ? 5 : (widthDp >= 320 ? 8 : 7)));
         if ("compact".equals(style)) paddingDp = Math.max(3, paddingDp - 1);
         else if ("minimal".equals(style)) paddingDp = Math.max(3, paddingDp - 1);
+        if (configuredPadding >= 0) paddingDp = Math.max(0, Math.min(24, configuredPadding));
         int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
         views.setViewPadding(R.id.widget_content, paddingPx, paddingPx, paddingPx, paddingPx);
 
@@ -718,25 +790,19 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
                 responsiveTextSize(compactLayout ? 12f : (wideLayout ? 12.5f : 13.5f), fontScale,
                     compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 14.5f : 15.5f)));
         }
+        views.setTextColor(R.id.widget_title_text, primaryColor);
         views.setTextColor(R.id.widget_progress_percent, accentColor);
+        views.setTextColor(R.id.widget_target_label, secondaryColor);
+        views.setTextColor(R.id.widget_target_value, primaryColor);
+        views.setTextColor(R.id.widget_study_time_text, secondaryColor);
+        views.setTextColor(R.id.widget_remaining_text, secondaryColor);
+        views.setTextColor(R.id.widget_streak_text, highlightColor);
+        views.setTextColor(R.id.widget_week_title, secondaryColor);
+        views.setTextColor(R.id.widget_update_text, secondaryColor);
+        views.setTextColor(R.id.widget_update_badge, accentColor);
+        views.setTextColor(R.id.widget_disabled_text, accentColor);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             views.setColorStateList(R.id.widget_progress_bar, "setProgressTintList", ColorStateList.valueOf(accentColor));
-        }
-        if (lightMode) {
-            views.setTextColor(R.id.widget_title_text, Color.parseColor("#253047"));
-            views.setTextColor(R.id.widget_target_label, Color.parseColor("#536078"));
-            views.setTextColor(R.id.widget_target_value, Color.parseColor("#202A3D"));
-            views.setTextColor(R.id.widget_study_time_text, Color.parseColor("#475569"));
-            views.setTextColor(R.id.widget_remaining_text, Color.parseColor("#475569"));
-            views.setTextColor(R.id.widget_streak_text, Color.parseColor("#805A11"));
-            views.setTextColor(R.id.widget_week_title, Color.parseColor("#526078"));
-            views.setTextColor(R.id.widget_update_text, Color.parseColor("#526078"));
-            views.setTextColor(R.id.widget_update_badge, accentColor);
-            views.setTextColor(R.id.widget_disabled_text, accentColor);
-        } else {
-            views.setTextColor(R.id.widget_progress_percent, accentColor);
-            views.setTextColor(R.id.widget_target_label, Color.parseColor("#AFAAC7"));
-            views.setTextColor(R.id.widget_week_title, Color.parseColor("#9F9AB8"));
         }
         views.setTextViewText(R.id.widget_progress_percent, progress + "%");
         views.setTextViewText(R.id.widget_target_value, Math.min(elapsedMinutes, targetMinutes) + " / " + targetMinutes + " min");
@@ -746,7 +812,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             targetComplete ? "✓ Daily target complete!" : remainingMinutes + " min left today");
         if (targetComplete) views.setTextColor(R.id.widget_remaining_text, accentColor);
         views.setTextViewText(R.id.widget_streak_text, "🔥 " + streak + "-day streak");
-        bindWeekProgress(views, preferences, accentColor, lightMode);
+        bindWeekProgress(views, preferences, accentColor, secondaryColor);
 
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
         boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
@@ -777,7 +843,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus");
         boolean useProgressRing = showProgress && compositionUsesProgressRing(composition);
         if (useProgressRing) {
-            views.setImageViewBitmap(R.id.widget_progress_ring, createProgressRing(context, progress, accentColor));
+            views.setImageViewBitmap(R.id.widget_progress_ring,
+                createProgressRing(context, progress, accentColor, primaryColor, fontStyle));
             views.setContentDescription(R.id.widget_progress_ring, progress + "% completion progress");
         }
         // A weighted spacer pushed metrics to opposite ends of the card on some launchers,
