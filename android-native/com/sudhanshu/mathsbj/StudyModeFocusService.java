@@ -39,12 +39,19 @@ public final class StudyModeFocusService extends Service {
     private android.view.View shieldView;
     private String shieldedPackage = "";
     private boolean foregroundStarted = false;
+    private volatile boolean overlayFailed = false;
     private String lastForegroundPackage = null;
     private boolean initialForegroundLookup = true;
 
     public static boolean isRunning() {
         return running;
     }
+
+    public static boolean hasOverlayFailure() {
+        return running && overlayFailureForStatus;
+    }
+
+    private static volatile boolean overlayFailureForStatus = false;
 
     @Override
     public void onCreate() {
@@ -208,7 +215,13 @@ public final class StudyModeFocusService extends Service {
             params.gravity = Gravity.CENTER;
             params.setTitle("Math Master Study Mode");
             windowManager.addView(shieldView, params);
+            overlayFailed = false;
+            overlayFailureForStatus = false;
+            StudyModeManager.setServiceState(this, "focus_shield_running");
         } catch (Exception error) {
+            overlayFailed = true;
+            overlayFailureForStatus = true;
+            StudyModeManager.setServiceState(this, "overlay_failed");
             removeShield();
         }
     }
@@ -217,6 +230,8 @@ public final class StudyModeFocusService extends Service {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER);
+        root.setClickable(true);
+        root.setFocusableInTouchMode(true);
         root.setPadding(dp(28), dp(28), dp(28), dp(28));
         root.setBackgroundColor(Color.rgb(14, 20, 32));
 
@@ -302,6 +317,7 @@ public final class StudyModeFocusService extends Service {
         handler.removeCallbacksAndMessages(null);
         removeShield();
         running = false;
+        overlayFailureForStatus = false;
         if (StudyModeManager.isEnabled(this) && StudyModeManager.isScheduleActive(this)
             && StudyModeManager.hasUsageAccess(this) && StudyModeManager.hasOverlayPermission(this)) {
             StudyModeManager.setServiceState(this, "service_stopped");
