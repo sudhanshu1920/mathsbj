@@ -25,6 +25,7 @@ import android.util.SizeF;
 import android.view.View;
 import android.view.Gravity;
 import android.os.Bundle;
+import android.net.Uri;
 import android.widget.RemoteViews;
 
 import org.json.JSONArray;
@@ -46,7 +47,6 @@ import java.util.Locale;
 
 public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     private static final String WIDGET_PREFS = "math_master_home_widget";
-    private static final int REQUEST_CODE = 8907;
     private static BitmapRegionDecoder widgetArtworkDecoder;
     private static final Map<String, Bitmap> WIDGET_ARTWORK_CACHE = new LinkedHashMap<String, Bitmap>(16, 0.75f, true) {
         @Override
@@ -126,15 +126,16 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         }
     }
 
-    public static void updateReleaseStatus(
+    public static boolean updateReleaseStatus(
         Context context,
         long installedVersionCode,
         String installedVersionName,
         long latestVersionCode,
         String latestVersionName
     ) {
-        if (installedVersionCode < 1L || latestVersionCode < 1L
-            || !isSafeVersion(installedVersionName) || !isSafeVersion(latestVersionName)) return;
+        if (installedVersionCode < 1L || installedVersionCode > 2100000000L
+            || latestVersionCode < 1L || latestVersionCode > 2100000000L
+            || !isSafeVersion(installedVersionName) || !isSafeVersion(latestVersionName)) return false;
         SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
         preferences.edit()
             .putBoolean("hasCheckedUpdates", true)
@@ -145,6 +146,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             .putString("latestVersionName", latestVersionName)
             .apply();
         updateWidgets(context);
+        return true;
     }
 
     private static BitmapRegionDecoder getWidgetArtworkDecoder(Context context) {
@@ -561,7 +563,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             JSONArray array = new JSONArray(json);
             for (int i = 0; i < array.length(); i++) {
                 String item = array.optString(i, "");
-                if (Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus").contains(item)) {
+                if (Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus", "quiz").contains(item)) {
                     selected.add(item);
                 }
             }
@@ -771,6 +773,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showStreak = widgetsEnabled && selected.contains("streak");
         boolean showWeekly = widgetsEnabled && selected.contains("weekly");
         boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus");
+        boolean showQuizShortcut = widgetsEnabled && selected.contains("quiz");
         boolean useProgressRing = showProgress && compositionUsesProgressRing(composition);
         if (useProgressRing) {
             views.setImageViewBitmap(R.id.widget_progress_ring, createProgressRing(context, progress, accentColor));
@@ -806,6 +809,13 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         }
         views.setViewVisibility(R.id.widget_update_text, showUpdateStatus ? View.VISIBLE : View.GONE);
         if (!showUpdateStatus) views.setViewVisibility(R.id.widget_update_badge, View.GONE);
+        views.setViewVisibility(R.id.widget_quiz_shortcut, showQuizShortcut ? View.VISIBLE : View.GONE);
+        if (showQuizShortcut) {
+            views.setContentDescription(R.id.widget_quiz_shortcut, "Open the Math Master practice and quiz section");
+        }
+        views.setContentDescription(R.id.widget_target_value, "Today's study target: "
+            + Math.min(elapsedMinutes, targetMinutes) + " of " + targetMinutes + " minutes");
+        views.setContentDescription(R.id.widget_streak_text, "Current streak: " + streak + " days");
         views.setViewVisibility(R.id.widget_disabled_text, widgetsEnabled ? View.GONE : View.VISIBLE);
         if (!widgetsEnabled) {
             views.setViewVisibility(R.id.widget_target_label, View.GONE);
@@ -822,26 +832,46 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             views.setViewVisibility(R.id.widget_week_strip, View.GONE);
             views.setViewVisibility(R.id.widget_update_text, View.GONE);
             views.setViewVisibility(R.id.widget_update_badge, View.GONE);
+            views.setViewVisibility(R.id.widget_quiz_shortcut, View.GONE);
         }
 
-        Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
-        if (launchIntent != null) {
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            if (updateAvailable && hasChecked) {
-                launchIntent.setAction("com.sudhanshu.mathsbj.OPEN_HOME_WIDGET_UPDATE");
-                launchIntent.putExtra("mathmaster_notification_action", "app-update");
-                launchIntent.putExtra("mathmaster_update_version_name", latestVersion);
-                launchIntent.putExtra("mathmaster_update_version_code",
-                    String.valueOf(preferences.getLong("latestVersionCode", 0L)));
-            }
-            PendingIntent pendingIntent = PendingIntent.getActivity(
-                context,
-                REQUEST_CODE,
-                launchIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
-            views.setOnClickPendingIntent(R.id.widget_root, pendingIntent);
-        }
+        setWidgetAction(views, context, appWidgetId, R.id.widget_root, "home");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_progress_percent, "progress");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_progress_bar, "progress");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_progress_ring, "progress");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_target_label, "target");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_target_value, "target");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_streak_container, "streak");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_streak_text, "streak");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_week_section, "weekly");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_week_strip, "weekly");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_update_text, "app-update");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_update_badge, "app-update");
+        setWidgetAction(views, context, appWidgetId, R.id.widget_quiz_shortcut, "quiz");
         return views;
     }
+    private static void setWidgetAction(
+        RemoteViews views, Context context, int appWidgetId, int viewId, String action
+    ) {
+        PendingIntent pendingIntent = createWidgetPendingIntent(context, appWidgetId, action);
+        if (pendingIntent != null) views.setOnClickPendingIntent(viewId, pendingIntent);
+    }
+
+    private static PendingIntent createWidgetPendingIntent(Context context, int appWidgetId, String action) {
+        Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        if (launchIntent == null) return null;
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        launchIntent.setAction("com.sudhanshu.mathsbj.OPEN_HOME_WIDGET");
+        launchIntent.setData(Uri.parse("mathmaster-widget://" + Math.max(0, appWidgetId) + "/" + action));
+        launchIntent.putExtra("mathmaster_widget_action", action);
+        launchIntent.putExtra("mathmaster_widget_id", appWidgetId);
+        int requestCode = appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID ? 8907 : appWidgetId;
+        return PendingIntent.getActivity(
+            context,
+            requestCode,
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+    }
+
 }
