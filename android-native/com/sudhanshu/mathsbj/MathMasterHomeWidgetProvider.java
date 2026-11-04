@@ -596,12 +596,12 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean targetComplete = progress >= 100;
         boolean lightMode = "light".equals(mode);
         int backgroundResource = "transparent".equals(style)
-            ? android.R.color.transparent
+            ? R.drawable.math_master_home_widget_background
             : R.drawable.math_master_home_widget_background_blur;
         views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);
-        // All internal card surfaces stay clear: the selected effect is applied once to the widget root.
-        views.setInt(R.id.widget_streak_container, "setBackgroundResource", android.R.color.transparent);
-        views.setInt(R.id.widget_update_badge, "setBackgroundResource", android.R.color.transparent);
+        // Keep transparent drawable outlines so launchers retain safe rounded clipping without visible card fills.
+        views.setInt(R.id.widget_streak_container, "setBackgroundResource", R.drawable.math_master_widget_panel);
+        views.setInt(R.id.widget_update_badge, "setBackgroundResource", R.drawable.math_master_home_widget_badge);
         // Reference design uses the wallpaper as the visual background; decorative artwork is disabled.
         views.setViewVisibility(R.id.widget_artwork, View.GONE);
         views.setViewVisibility(R.id.widget_artwork_overlay, View.GONE);
