@@ -135,6 +135,8 @@ test("widgets expose only full-transparent and translucent-glass background effe
   assert.match(config, /"transparent", "Full Transparent"/);
   assert.match(config, /"blur", "Transparent Blur"/);
   assert.doesNotMatch(config, /PREMIUM_THEMES|Random Premium Theme|themeGroup/);
+  assert.match(provider, /return "transparent".equals\(value\) \? "transparent" : "blur";/);
+  assert.match(config, /return "transparent".equals\(style\) \? "transparent" : "blur";/);
   assert.match(provider, /targetComplete \? "✓ Daily target complete!"/);
 });
 
