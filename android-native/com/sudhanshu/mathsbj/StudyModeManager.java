@@ -547,7 +547,7 @@ public final class StudyModeManager {
         }
 
         try {
-            String[] failed = policy.setPackagesSuspended(null, installed.toArray(new String[0]), false);
+            String[] failed = policy.setPackagesSuspended(getAdminComponent(context), installed.toArray(new String[0]), false);
             List<String> stillSuspended = new ArrayList<>();
             if (failed != null) {
                 for (String name : failed) {
