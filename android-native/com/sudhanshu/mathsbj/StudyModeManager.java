@@ -3,6 +3,8 @@ package com.sudhanshu.mathsbj;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.admin.DevicePolicyManager;
+import android.telecom.TelecomManager;
+import android.app.role.RoleManager;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
@@ -106,7 +108,7 @@ public final class StudyModeManager {
 
     public static boolean isInstalledSelectablePackage(Context context, String packageName) {
         if (packageName == null || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) return false;
-        if (packageName.equals(context.getPackageName()) || isProtectedPackage(packageName)) return false;
+        if (packageName.equals(context.getPackageName()) || isProtectedPackage(context, packageName)) return false;
         try {
             ApplicationInfo info = context.getPackageManager().getApplicationInfo(packageName, 0);
             // Only user-installed applications are selectable. Core/updated system
@@ -117,15 +119,52 @@ public final class StudyModeManager {
         }
     }
 
-    private static boolean isProtectedPackage(String packageName) {
-        return packageName.equals("com.android.phone")
+    private static boolean isProtectedPackage(Context context, String packageName) {
+        if (packageName.equals("com.android.phone")
             || packageName.equals("com.android.server.telecom")
             || packageName.equals("com.android.emergency")
             || packageName.equals("com.android.settings")
             || packageName.equals("com.android.systemui")
             || packageName.equals("com.google.android.dialer")
             || packageName.equals("com.android.dialer")
-            || packageName.equals("com.google.android.gms");
+            || packageName.equals("com.google.android.gms")) return true;
+
+        try {
+            TelecomManager telecom = (TelecomManager) context.getSystemService(Context.TELECOM_SERVICE);
+            if (telecom != null && packageName.equals(telecom.getDefaultDialerPackage())) return true;
+        } catch (Exception ignored) {}
+
+        try {
+            Intent homeIntent = new Intent(Intent.ACTION_MAIN);
+            homeIntent.addCategory(Intent.CATEGORY_HOME);
+            android.content.pm.ResolveInfo home = context.getPackageManager().resolveActivity(homeIntent, 0);
+            if (home != null && home.activityInfo != null
+                && packageName.equals(home.activityInfo.packageName)) return true;
+        } catch (Exception ignored) {}
+
+        try {
+            String inputMethod = android.provider.Settings.Secure.getString(
+                context.getContentResolver(), android.provider.Settings.Secure.DEFAULT_INPUT_METHOD);
+            if (inputMethod != null && inputMethod.startsWith(packageName + "/")) return true;
+        } catch (Exception ignored) {}
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                RoleManager roles = (RoleManager) context.getSystemService(Context.ROLE_SERVICE);
+                if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_SMS)
+                    && roles.getRoleHolders(RoleManager.ROLE_SMS).contains(packageName)) return true;
+            } catch (Exception ignored) {}
+        }
+        return false;
+    }
+
+    private static boolean isInstalledPackage(Context context, String packageName) {
+        try {
+            context.getPackageManager().getApplicationInfo(packageName, 0);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     public static boolean hasUsageAccess(Context context) {
@@ -421,12 +460,12 @@ public final class StudyModeManager {
                 String[] failedToRelease = policy.setPackagesSuspended(null, obsolete.toArray(new String[0]), false);
                 if (failedToRelease != null) {
                     for (String name : failedToRelease) {
-                        if (isInstalledSelectablePackage(context, name)) stillSuspended.add(name);
+                        if (isInstalledPackage(context, name)) stillSuspended.add(name);
                     }
                 }
             } catch (Exception error) {
                 for (String name : obsolete) {
-                    if (isInstalledSelectablePackage(context, name)) stillSuspended.add(name);
+                    if (isInstalledPackage(context, name)) stillSuspended.add(name);
                 }
             }
         }
@@ -480,7 +519,7 @@ public final class StudyModeManager {
 
         List<String> installed = new ArrayList<>();
         for (String name : previous) {
-            if (isInstalledSelectablePackage(context, name)) installed.add(name);
+            if (isInstalledPackage(context, name)) installed.add(name);
         }
         if (installed.isEmpty()) {
             saveStringArray(prefs(context), KEY_APPLIED, new ArrayList<>());
