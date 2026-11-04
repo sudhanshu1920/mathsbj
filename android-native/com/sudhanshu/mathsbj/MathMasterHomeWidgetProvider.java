@@ -485,7 +485,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     }
 
     private static void bindWeekProgress(
-        RemoteViews views, Set<String> completed, int accentColor, int secondaryColor
+        RemoteViews views, Set<String> completed, int accentColor, int secondaryColor, String font
     ) {
         int[] dayIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
             R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
@@ -506,9 +506,9 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             String date = dateFormat.format(day.getTime());
             boolean done = completed.contains(date);
             String label = labelFormat.format(day.getTime());
-            views.setTextViewText(dayIds[i], label);
-            views.setTextViewText(dateIds[i], String.valueOf(day.get(Calendar.DAY_OF_MONTH)));
-            views.setTextViewText(statusIds[i], done ? "✓" : "·");
+            setWidgetStyledText(views, dayIds[i], label, font, true);
+            setWidgetStyledText(views, dateIds[i], String.valueOf(day.get(Calendar.DAY_OF_MONTH)), font, false);
+            setWidgetStyledText(views, statusIds[i], done ? "✓" : "·", font, true);
             views.setTextColor(dayIds[i], idleColor);
             views.setTextColor(dateIds[i], idleColor);
             views.setTextColor(statusIds[i], done ? accentColor : idleColor);
@@ -832,7 +832,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         if (targetComplete) views.setTextColor(R.id.widget_remaining_text, accentColor);
         views.setTextViewText(R.id.widget_streak_text, "🔥 " + streak + "-day streak");
         Set<String> completedWeek = getCompletedDays(preferences);
-        bindWeekProgress(views, completedWeek, accentColor, secondaryColor);
+        bindWeekProgress(views, completedWeek, accentColor, secondaryColor, fontStyle);
         applyWeekTypography(views, completedWeek, fontStyle);
 
         boolean hasChecked = getInstanceBoolean(preferences, AppWidgetManager.INVALID_APPWIDGET_ID, "hasCheckedUpdates", false);
@@ -987,17 +987,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         setWidgetStyledText(views, R.id.widget_disabled_text,
             widgetsEnabled ? "" : "Widgets are disabled in Math Master settings", font, false);
 
-        int[] dayLabelIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
-            R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
-        int[] dayDateIds = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
-            R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
-        int[] dayStatusIds = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
-            R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
-        for (int i = 0; i < 7; i++) {
-            setWidgetStyledText(views, dayLabelIds[i], "", font, true);
-            setWidgetStyledText(views, dayDateIds[i], "", font, false);
-            setWidgetStyledText(views, dayStatusIds[i], "", font, true);
-        }
     }
 
     private static void setWidgetStyledText(
