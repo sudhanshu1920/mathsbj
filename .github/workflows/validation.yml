@@ -203,6 +203,9 @@ jobs:
       - name: Sync web assets into Android project
         run: npx cap sync android
 
+      - name: Configure Android home-screen widgets
+        run: node scripts/configure-android-widgets.mjs
+
       - name: Compile native Android debug APK
         working-directory: android
         run: ./gradlew --no-daemon --stacktrace :app:assembleDebug

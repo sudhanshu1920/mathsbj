@@ -237,6 +237,15 @@ const MCQWithGame = ({
     syncSteeringState();
   }, [syncBoostState, syncSteeringState]);
 
+  // Answer transitions clear question-local steering but preserve a physically held throttle.
+  const clearSteeringControls = useCallback(() => {
+    for (const [pointerId, pointer] of activePointersRef.current) {
+      if (pointer.control === "steering") activePointersRef.current.delete(pointerId);
+    }
+    syncBoostState();
+    syncSteeringState();
+  }, [syncBoostState, syncSteeringState]);
+
   const startControlPointer = (
     event: ReactPointerEvent<HTMLButtonElement>,
     control: "speed" | "steering",
@@ -355,7 +364,7 @@ const MCQWithGame = ({
 
     // Stop every gameplay pointer on answer commit so a held finger cannot
     // keep accelerating while the Quiz Engine transitions to feedback.
-    clearActiveControls();
+    clearSteeringControls();
 
     // A gate selection is the per-question commit event. Lock synchronously
     // before the existing Quiz Engine callback runs so touch/collision races
@@ -388,7 +397,7 @@ const MCQWithGame = ({
       releaseRejectedSelection();
       throw error;
     }
-  }, [clearActiveControls]);
+  }, [clearSteeringControls]);
 
   const submitWholeTest = useCallback(() => {
     const current = latestPropsRef.current;
@@ -872,8 +881,10 @@ const MCQWithGame = ({
   }, [questionKey, sessionKey, clearActiveControls]);
 
   useEffect(() => {
-    if (feedback || disabled || finalSubmitReady) {
+    if (finalSubmitReady) {
       clearActiveControls();
+    } else if (feedback || disabled) {
+      clearSteeringControls();
     }
 
     // "disabled" also represents short engine-controlled input locks. Keep the
@@ -900,7 +911,7 @@ const MCQWithGame = ({
     if (!finalSubmitReady && phaseRef.current === "RUNNING") {
       scheduleFrameRef.current?.();
     }
-  }, [feedback, disabled, finalSubmitReady, clearActiveControls]);
+  }, [feedback, disabled, finalSubmitReady, clearActiveControls, clearSteeringControls]);
 
   const correctLane = options.findIndex((option) => String(option.value) === String(correctAnswer));
   const laneAnnouncement = "Lane " + String(lane + 1);
@@ -1141,7 +1152,7 @@ const MCQWithGame = ({
             aria-label="Accelerate (hold)"
             aria-pressed={boosting}
             data-testid="mcq-game-accelerate"
-            disabled={disabled || finalSubmitReady || !!feedback || phase !== "RUNNING" || submittedRef.current || !!rendererError}
+            disabled={finalSubmitReady || !!rendererError || (disabled && !hasActiveMCQSpeedBoost(activePointersRef.current)) || (phase !== "RUNNING" && !(phase === "FEEDBACK" && hasActiveMCQSpeedBoost(activePointersRef.current))) || (submittedRef.current && !hasActiveMCQSpeedBoost(activePointersRef.current))}
             onPointerDown={(event) => startControlPointer(event, "speed", 1)}
             onPointerUp={endControlPointer}
             onPointerCancel={endControlPointer}
