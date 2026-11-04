@@ -485,7 +485,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     }
 
     private static void bindWeekProgress(
-        RemoteViews views, SharedPreferences preferences, int accentColor, int secondaryColor
+        RemoteViews views, Set<String> completed, int accentColor, int secondaryColor
     ) {
         int[] dayIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
             R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
@@ -493,7 +493,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
         int[] statusIds = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
             R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
-        Set<String> completed = getCompletedDays(preferences);
         Calendar day = Calendar.getInstance();
         day.set(Calendar.HOUR_OF_DAY, 12);
         day.set(Calendar.MINUTE, 0);
@@ -806,8 +805,9 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             targetComplete ? "✓ Daily target complete!" : remainingMinutes + " min left today");
         if (targetComplete) views.setTextColor(R.id.widget_remaining_text, accentColor);
         views.setTextViewText(R.id.widget_streak_text, "🔥 " + streak + "-day streak");
-        bindWeekProgress(views, preferences, accentColor, secondaryColor);
-        applyWeekTypography(views, preferences, fontStyle);
+        Set<String> completedWeek = getCompletedDays(preferences);
+        bindWeekProgress(views, completedWeek, accentColor, secondaryColor);
+        applyWeekTypography(views, completedWeek, fontStyle);
 
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
         boolean showQuizShortcut = widgetsEnabled && selected.contains("quiz");
