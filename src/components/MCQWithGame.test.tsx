@@ -190,6 +190,9 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("mcq-game-steer-left")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("mcq-game-steer-right")).toHaveAttribute("aria-pressed", "false");
+    expect(getComputedStyle(screen.getByTestId("mcq-game-accelerate")).opacity).toBe("0");
+    expect(getComputedStyle(screen.getByTestId("mcq-game-steer-left")).opacity).toBe("0");
+    expect(getComputedStyle(screen.getByTestId("mcq-game-steer-right")).opacity).toBe("0");
     expect(screen.getByRole("button", { name: /Accelerate \(hold\)/i })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Steer left" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Steer right" })).toBeEnabled();
@@ -970,11 +973,14 @@ describe("Full-screen continuous MCQ racing", () => {
     }
   });
 
-  it("stops the animation loop during answer feedback and starts it once for the next question", () => {
+  it("preserves a physically-held throttle through answer feedback and the next question", () => {
     const raf = installAnimationFrameQueue();
     const view = render(<MCQWithGame {...gameProps()} />);
+    const speed = screen.getByTestId("mcq-game-accelerate");
 
     try {
+      fireEvent.pointerDown(speed, { pointerId: 77, pointerType: "touch", button: 0 });
+      expect(speed).toHaveAttribute("aria-pressed", "true");
       expect(raf.advance(0)).toBe(true);
       const updatesBeforeFeedback = racingAudioMocks.update.mock.calls.length;
       view.rerender(<MCQWithGame {...gameProps({
@@ -982,6 +988,8 @@ describe("Full-screen continuous MCQ racing", () => {
         selectedOption: 0,
       })} />);
 
+      expect(speed).toBeEnabled();
+      expect(speed).toHaveAttribute("aria-pressed", "true");
       expect(raf.advance(16)).toBe(false);
       expect(racingAudioMocks.update).toHaveBeenCalledTimes(updatesBeforeFeedback);
 
@@ -989,9 +997,16 @@ describe("Full-screen continuous MCQ racing", () => {
         questionKey: "q-2",
         questionLabel: <p>18 + 9 = ?</p>,
       })} />);
+      expect(speed).toHaveAttribute("aria-pressed", "true");
       expect(raf.advance(32)).toBe(true);
+      expect(racingAudioMocks.update.mock.calls.at(-1)?.[1]).toBe(true);
+      fireEvent.pointerUp(speed, { pointerId: 77, pointerType: "touch" });
+      expect(speed).toHaveAttribute("aria-pressed", "false");
+      raf.advance(48);
+      expect(racingAudioMocks.update.mock.calls.at(-1)?.[1]).toBe(false);
       expect(createMCQ3DScene).toHaveBeenCalledTimes(1);
     } finally {
+      fireEvent.pointerCancel(speed, { pointerId: 77, pointerType: "touch" });
       view.unmount();
       raf.restore();
     }
