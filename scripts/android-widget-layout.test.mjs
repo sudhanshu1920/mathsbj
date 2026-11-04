@@ -116,25 +116,24 @@ test("weekly checkmarks use the existing daily streak data and validate native i
   assert.match(provider, /date \+ ", " \+ label/);
 });
 
-test("glass colors are translucent and target completion uses a stable celebratory accent", () => {
-  const dark = read("android-native/res/drawable/math_master_home_widget_background.xml");
-  const light = read("android-native/res/drawable/math_master_home_widget_background_light.xml");
-  const completionBackgrounds = Array.from({ length: 7 }, (_, index) => ({
-    dark: read(`android-native/res/drawable/math_master_home_widget_background_complete_${index}.xml`),
-    light: read(`android-native/res/drawable/math_master_home_widget_background_complete_light_${index}.xml`),
-  }));
-  assert.match(dark, /#B5211F35/);
-  assert.match(light, /#C9F4F7FC/);
-  assert.match(provider, /getPaletteThemeIndex\(widgetTheme\)/);
-  assert.match(provider, /COMPLETION_BACKGROUND_DARK\[themeIndex\]/);
-  assert.match(provider, /COMPLETION_BACKGROUND_LIGHT\[themeIndex\]/);
-  assert.match(config, /instance_" \+ widgetId \+ "_themeMode/);
-  assert.match(config, /"random".equals\(previousThemeMode\) && isPaletteTheme\(previousTheme\)/);
-  assert.equal(completionBackgrounds.length, 7);
-  for (const background of completionBackgrounds) {
-    assert.match(background.dark, /#B5[0-9A-Fa-f]{6}/);
-    assert.match(background.light, /#D9[0-9A-Fa-f]{6}/);
-  }
+test("widgets expose only full-transparent and translucent-glass background effects", () => {
+  const transparent = read("android-native/res/drawable/math_master_home_widget_background.xml");
+  const blur = read("android-native/res/drawable/math_master_home_widget_background_blur.xml");
+  const panel = read("android-native/res/drawable/math_master_widget_panel.xml");
+  const badge = read("android-native/res/drawable/math_master_home_widget_badge.xml");
+  assert.match(transparent, /#00000000/);
+  assert.match(blur, /#6639434D/);
+  assert.match(blur, /#28FFFFFF/);
+  assert.match(panel, /#00000000/);
+  assert.match(badge, /#00000000/);
+  assert.match(provider, /normalizeWidgetStyle\(getInstanceString\(preferences, appWidgetId, "style", "blur"\)\)/);
+  assert.match(provider, /android\.R\.color\.transparent/);
+  assert.match(provider, /R\.drawable\.math_master_home_widget_background_blur/);
+  assert.match(provider, /views\.setViewVisibility\(R\.id\.widget_artwork, View\.GONE\)/);
+  assert.match(provider, /views\.setViewVisibility\(R\.id\.widget_artwork_overlay, View\.GONE\)/);
+  assert.match(config, /"transparent", "Full Transparent"/);
+  assert.match(config, /"blur", "Transparent Blur"/);
+  assert.doesNotMatch(config, /PREMIUM_THEMES|Random Premium Theme|themeGroup/);
   assert.match(provider, /targetComplete \? "✓ Daily target complete!"/);
 });
 
@@ -154,7 +153,9 @@ test("responsive typography is more prominent and weighted spacers cannot split 
   assert.ok(provider.includes("boolean showWideLowerRow = showStudyTime || showRemaining || showStreak || showWeekly;"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_lower_row,"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_side_column,"));
-  assert.ok(provider.includes('views.setFloat(R.id.widget_artwork, "setAlpha", 1.0f);'));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_artwork, View.GONE);"));
+  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_artwork_overlay, View.GONE);"));
+  assert.ok(provider.includes('views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);'));
   for (const layout of layouts) {
     assert.ok(layout.includes('android:id="@+id/widget_flex_spacer"'));
     assert.ok(layout.includes('android:layout_height="0dp"'));
@@ -230,13 +231,15 @@ test("widget artwork uses sampled region decoding and bounded output renditions"
   );
 });
 
-test("native widget configuration preview uses the selected composition artwork and live metrics", () => {
-  assert.match(provider, /public static Bitmap getConfigurationPreviewArtwork/);
-  assert.ok(config.includes("MathMasterHomeWidgetProvider.getConfigurationPreviewArtwork("));
-  assert.ok(config.includes("previewArtwork.setImageBitmap(artwork)"));
+test("native widget configuration preview uses the selected background effect and live metrics", () => {
+  assert.ok(config.includes('String style = normalizeWidgetStyle(selectedRadioValue(styleGroup, "blur"));'));
+  assert.ok(config.includes('int previewBackground = "transparent".equals(style)'));
+  assert.ok(config.includes('Color.argb(102, 57, 67, 77)'));
+  assert.ok(config.includes('previewSummary.setBackgroundColor(Color.TRANSPARENT)'));
   assert.ok(config.includes("previewMetric.setText(primaryMetric)"));
   assert.ok(config.includes("previewDesignTitle.setText("));
   assert.ok(config.includes("previewSubtitle.setText(android.text.TextUtils.join"));
+  assert.ok(config.includes('Background: " + effectLabel'));
 });
 
 test("package updates refresh all existing pinned widget instances without replacing their saved configuration", () => {
@@ -246,5 +249,5 @@ test("package updates refresh all existing pinned widget instances without repla
   assert.ok(provider.includes("getAppWidgetIds(provider)"));
   assert.ok(provider.includes("for (int widgetId : widgetIds)"));
   assert.ok(provider.includes("getSelectedContent(preferences, appWidgetId)"));
-  assert.ok(provider.includes('getInstanceString(preferences, appWidgetId, "theme"'));
+  assert.ok(provider.includes('getInstanceString(preferences, appWidgetId, "style"'));
 });
