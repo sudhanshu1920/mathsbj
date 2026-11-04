@@ -6,7 +6,7 @@ import { normalizeRemoteViewsLayout } from "./configure-android-notifications.mj
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java");
 const bootReceiver = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java");
-const configureAndroid = read("scripts/configure-android-notifications.mjs");
+const configureAndroid = read("scripts/configure-android-widgets.mjs");
 const legacyWidgetInfo = read("android-native/res/xml/math_master_home_widget_info.xml");
 const android31WidgetInfo = read("android-native/res/xml-v31/math_master_home_widget_info.xml");
 const widgetProviderFiles = readdirSync(new URL("../android-native/com/sudhanshu/mathsbj/", import.meta.url))
@@ -85,24 +85,25 @@ test("selected content is not silently suppressed at compact sizes", () => {
   assert.match(provider, /getWidgetLayoutForDimensions\(widthDp, heightDp, composition\)/);
   assert.match(provider, /heightDp > 0 && heightDp < 135/);
   assert.match(provider, /isTallWidget\(widthDp, heightDp\) \|\| isWideWidget\(widthDp, heightDp\)/);
-  assert.match(config, /"random", "Random Premium Theme"/);
-  assert.match(config, /putString\("instance_" \+ widgetId \+ "_themeMode", themeMode\)/);
-  assert.match(config, /chooseRandomTheme\(preferences, widgetId\)/);
+  assert.match(config, /"transparent", "Full Transparent"/);
+  assert.match(config, /"blur", "Transparent Blur"/);
+  assert.match(provider, /normalizeWidgetStyle\(getInstanceString\(preferences, appWidgetId, "style", "blur"\)\)/);
+  assert.doesNotMatch(config, /PREMIUM_THEMES|Random Premium Theme|themeGroup/);
 });
 
-test("weekly tracker is selectable and legacy selections migrate only once", () => {
-  assert.match(settings, /HomeWidgetContent = .*'weekly'/);
-  assert.match(settings, /HOME_WIDGET_CONTENT_SCHEMA_KEY = 'math-app-home-widget-content-schema-v2'/);
-  assert.match(settings, /contentSchemaNeedsMigration && Array\.isArray\(value\.homeWidgetContent\)/);
-  assert.match(settings, /widgetContent = \[\.\.\.widgetContent, 'weekly'\]/);
-  assert.match(settingsPanel, /id: 'weekly', label: 'Weekly Target Tracker'/);
-  assert.match(settingsPanel, /streak\.days\[dateKey\]\?\.completed === true/);
-  assert.match(settingsPanel, /dateLabel: String\(day\.getDate\(\)\)/);
+test("weekly tracker is selectable through the native widget configuration", () => {
+  assert.match(config, /\{\"weekly\", \"Weekly Target Tracker\"\}/);
+  assert.match(config, /selected\.contains\("weekly"\)/);
+  assert.match(provider, /selected\.contains\("weekly"\)/);
+  assert.match(provider, /setViewVisibility\(R\.id\.widget_week_section, showWeekly \? View\.VISIBLE : View\.GONE\)/);
+  assert.match(provider, /contentSchemaVersion/);
+  assert.match(provider, /migratedContent\.put\("weekly"\)/);
 });
 
 test("weekly checkmarks use the existing daily streak data and validate native input", () => {
   assert.match(bridge, /streak\.days\[dateKey\]\?\.completed === true/);
-  assert.match(bridge, /completedDaysJson: JSON\.stringify\(completedDays\)/);
+  assert.match(bridge, /const completedDaysJson = JSON\.stringify\(/);
+  assert.match(bridge, /return streak\.days\[dateKey\]\?\.completed === true \? dateKey : null/);
   assert.match(nativePlugin, /completedDaysRaw\.length\(\) > 512/);
   assert.match(nativePlugin, /incomingDays\.length\(\) > 7/);
   assert.match(nativePlugin, /isDateInTrailingSevenDays\(date\)/);
@@ -177,14 +178,9 @@ test("every native widget provider and responsive layout is registered and copie
     assert.ok(configureAndroid.includes("@xml/math_master_home_widget_info"), `${componentName} must reference widget metadata`);
   }
 
-  const variantFiles = [
-    "math_master_home_widget.xml",
-    "math_master_home_widget_compact.xml",
-    "math_master_home_widget_wide.xml",
-  ];
-  for (const filename of variantFiles) {
-    assert.ok(configureAndroid.includes(`'layout/${filename}'`), `${filename} must be copied for every release/debug build`);
-  }
+  assert.match(configureAndroid, /const RESOURCE_DIRS = \['drawable', 'drawable-nodpi', 'layout', 'values', 'xml', 'xml-v31'\]/);
+  assert.match(configureAndroid, /await copyDirectory\(/);
+  assert.match(configureAndroid, /normalizeRemoteViewsLayout\(xml\)/);
   assert.ok(legacyWidgetInfo.includes('android:initialLayout="@layout/math_master_home_widget"'));
   assert.ok(legacyWidgetInfo.includes('android:resizeMode="horizontal|vertical"'));
   assert.ok(android31WidgetInfo.includes('android:initialLayout="@layout/math_master_home_widget"'));
@@ -199,10 +195,8 @@ test("all seven design compositions have three responsive XML variants and packa
   assert.equal(compositionLayoutPaths.length, 21);
   for (const composition of compositionIds) {
     assert.ok(provider.includes(`case "${composition}":`), `provider must route ${composition}`);
-    assert.ok(configureAndroid.includes(`drawable/math_master_widget_art_overlay_${composition}.xml`));
     for (const size of sizeVariants) {
       const path = `android-native/res/layout/math_master_widget_${composition}_${size}.xml`;
-      assert.ok(configureAndroid.includes(`'layout/math_master_widget_${composition}_${size}.xml'`), `${path} must be copied`);
       const layout = read(path);
       for (const id of ["widget_root", "widget_content", "widget_artwork", "widget_artwork_overlay", "widget_progress_ring", "widget_progress_percent", "widget_target_value", "widget_progress_bar", "widget_week_strip"]) {
         assert.ok(layout.includes(`@+id/${id}`), `${path} must contain ${id}`);
@@ -210,10 +204,9 @@ test("all seven design compositions have three responsive XML variants and packa
       assert.ok(layout.includes(`math_master_widget_art_overlay_${composition}`));
     }
   }
-  assert.ok(configureAndroid.includes("'drawable-nodpi/math_master_widget_atlas.webp'"));
+  assert.ok(configureAndroid.includes("'drawable-nodpi'"));
   assert.ok(existsSync(new URL("../android-native/res/drawable-nodpi/math_master_widget_atlas.webp", import.meta.url)));
   assert.ok(existsSync(new URL("../public/math_master_widget_atlas.webp", import.meta.url)));
-  assert.ok(read("src/lib/settings.ts").includes("HOME_WIDGET_COMPOSITIONS"));
   assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
   assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
   assert.ok(provider.includes("views.setViewVisibility(R.id.widget_artwork, View.GONE);"));
@@ -247,7 +240,7 @@ test("native widget configuration preview uses the selected background effect an
 
 test("package updates refresh all existing pinned widget instances without replacing their saved configuration", () => {
   assert.ok(bootReceiver.includes("Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)"));
-  assert.ok(bootReceiver.includes("MathMasterHomeWidgetProvider.updateWidgetPreferences(context)"));
+  assert.match(bootReceiver, /Intent\.ACTION_MY_PACKAGE_REPLACED\.equals\(action\)[\s\S]*?MathMasterHomeWidgetProvider\.updateWidgetPreferences\(context\)/);
   assert.ok(provider.includes("AppWidgetManager.getInstance(context)"));
   assert.ok(provider.includes("getAppWidgetIds(provider)"));
   assert.ok(provider.includes("for (int widgetId : widgetIds)"));
