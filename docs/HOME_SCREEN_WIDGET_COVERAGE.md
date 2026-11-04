@@ -6,7 +6,7 @@ The current repository contains **one native launcher widget provider**: `MathMa
 
 | Actual component / rendering path | Resource / implementation | Source audit | Changed in this audit | Build/automated coverage | Real launcher visual status |
 |---|---|---|---|---|---|
-| Math Master home-screen dashboard | `MathMasterHomeWidgetProvider.java` | Audited | Refresh all pinned instances on package replacement; keep per-ID configuration lookup | Covered by widget regression test and Android build workflow | **Unverified** |
+| Math Master home-screen dashboard | `MathMasterHomeWidgetProvider.java` | Audited | Refresh all pinned instances after boot, package replacement, local clock/timezone changes; per-widget PendingIntent identity; keep per-ID configuration lookup | Widget regression suite is part of `npm test`; Android build workflow validates resources | **Unverified** |
 | Compact / narrow / short dashboard variant | `math_master_home_widget_compact.xml` | Audited | Existing responsive layout retained; added release-copy/registration assertions | Covered by widget layout/resource-copy tests and Android build workflow | **Unverified** |
 | Regular / tall dashboard variant | `math_master_home_widget.xml` | Audited | Existing responsive layout retained; used as safe regular/tall fallback | Covered by widget layout/resource-copy tests and Android build workflow | **Unverified** |
 | Wide / short dashboard variant | `math_master_home_widget_wide.xml` | Audited | Existing horizontal lower-row layout retained; resource-copy assertions added | Covered by widget layout/resource-copy tests and Android build workflow | **Unverified** |
@@ -16,15 +16,18 @@ The current repository contains **one native launcher widget provider**: `MathMa
 
 ## Confirmed root causes / gaps
 
-1. The native boot/package-update receiver already received `MY_PACKAGE_REPLACED` but only rescheduled daily reminders. It did not explicitly re-render active launcher widget instances. After an APK update, a pinned widget could therefore continue showing its prior `RemoteViews` until another widget update path ran.
+1. **Resolved:** the boot/package-update receiver previously only rescheduled daily reminders. It now also re-renders all pinned widget IDs after boot, package replacement, and local clock/timezone changes, using each ID's saved configuration. The rendering task runs off the broadcast receiver thread.
 2. The Android dashboard already had three separate XML runtime layouts. A fix to one XML file alone cannot prove all three resources are packaged and used. The build configuration copies these resources from `android-native/res`; regression tests now check the provider registration, all three copied variants, both widget metadata resources, and the size-aware renderer.
 3. The Settings preview is a separate web UI rather than an Android `RemoteViews` renderer. Before this audit it used an almost opaque surface, tiny fixed labels, did not honor the selected preview style/theme consistently, tied the target value to the study-time field, and rendered an empty primary row when only supporting fields were selected. It now better reflects the global content/style/theme settings, while remaining a visual preview rather than an exact device-size simulation.
+4. **Resolved:** native progress synchronization was coupled to the optional reminder opt-in. The app now syncs the authoritative streak snapshot on completed-minute boundaries regardless of reminder preference; the preference still controls only reminder scheduling and notification behavior.
+5. **Resolved:** the native bridge now clamps numeric input and strictly validates day keys and trailing-seven-day completion JSON before persisting the widget snapshot.
 
 ## Data and configuration preservation
 
 - Package replacement refreshes existing widget IDs through `MathMasterHomeWidgetProvider.updateWidgetPreferences(context)`; that path renders each ID separately and reads its own `instance_<id>_...` settings.
 - No new provider, progress tracker, timer engine, or data store was introduced.
-- Weekly completion remains backed by saved daily completion history; the redesign does not create synthetic completion ticks.
+- Weekly completion remains backed by saved daily completion history; native input is bounded to seven valid, non-future local dates and malformed history safely becomes an empty week.
+- Each widget instance has a distinct immutable PendingIntent request identity, while all instances continue to share the authoritative study snapshot.
 - Removing a widget continues to clean only that widget ID's preferences through the existing `onDeleted` implementation.
 - Actual wallpaper transparency, launcher-specific aspect-ratio selection, old pinned-instance rebinding, and touch behavior still require device/emulator screenshots to verify.
 
