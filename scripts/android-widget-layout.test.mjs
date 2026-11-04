@@ -99,8 +99,7 @@ test("weekly tracker is selectable and legacy widget selections migrate only onc
 
 test("weekly checkmarks use the existing daily streak data and validate native input", () => {
   assert.match(bridge, /streak\.days\[dateKey\]\?\.completed === true/);
-  assert.match(bridge, /const completedDaysJson = JSON\\.stringify\\(/);
-  assert.match(bridge, /streak\\.days\\[dateKey\\]\\?\\.completed === true/);
+  assert.match(bridge, /const completedDaysJson = JSON\.stringify\(/);
   assert.match(nativePlugin, /completedDaysRaw\.length\(\) > 512/);
   assert.match(nativePlugin, /incomingDays\.length\(\) > 7/);
   assert.match(nativePlugin, /isDateInTrailingSevenDays\(date\)/);
@@ -167,7 +166,7 @@ test("every native widget provider and responsive layout is registered and copie
   assert.ok(widgetProviderFiles.length > 0, "native AppWidgetProvider inventory must not be empty");
   for (const filename of widgetProviderFiles) {
     const componentName = filename.replace(".java", "");
-    assert.ok(configureAndroid.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
+    assert.ok(configureWidgets.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
     assert.ok(configureWidgets.includes(`android:name=".${componentName}"`), `${componentName} must be registered in AndroidManifest`);
     assert.ok(configureWidgets.includes("@xml/math_master_home_widget_info"), `${componentName} must reference widget metadata`);
   }
