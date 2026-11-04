@@ -634,41 +634,22 @@ public class MathMasterWidgetConfigActivity extends Activity {
         return "Auto (adapts to size)";
     }
 
+    /** Themes eligible for the per-instance random preset selector (never System or Custom). */
     private static boolean isPaletteTheme(String theme) {
-        if (theme == null) return false;
+        if (theme == null || "system".equals(theme) || "custom".equals(theme)) return false;
         for (String[] option : PREMIUM_THEMES) if (option[0].equals(theme)) return true;
         return false;
     }
 
     private static boolean isValidTheme(String theme) {
-        return "app".equals(theme) || isPaletteTheme(theme);
+        return "system".equals(theme) || "custom".equals(theme) || isPaletteTheme(theme)
+            || "app".equals(theme);
     }
 
     private static String themeLabel(String theme) {
         if ("app".equals(theme)) return "Match App Theme";
         for (String[] option : PREMIUM_THEMES) if (option[0].equals(theme)) return option[1];
         return "Match App Theme";
-    }
-
-    private static String themeBackgroundColor(String theme, boolean light) {
-        if (light) {
-            if ("emerald".equals(theme)) return "#E3FFF1";
-            if ("ocean".equals(theme)) return "#DDF9FF";
-            if ("graphite".equals(theme)) return "#E6EBF4";
-            if ("rose".equals(theme)) return "#FFE5F0";
-            if ("violet".equals(theme)) return "#EEE7FF";
-            if ("sapphire".equals(theme)) return "#DEE8FF";
-            if ("aurora".equals(theme)) return "#EFFFD9";
-            return "#F4F7FC";
-        }
-        if ("emerald".equals(theme)) return "#1C5A42";
-        if ("ocean".equals(theme)) return "#15596B";
-        if ("graphite".equals(theme)) return "#323D4B";
-        if ("rose".equals(theme)) return "#6E294E";
-        if ("violet".equals(theme)) return "#41326D";
-        if ("sapphire".equals(theme)) return "#1D3978";
-        if ("aurora".equals(theme)) return "#355A23";
-        return "#211F35";
     }
 
     private static String chooseRandomTheme(SharedPreferences preferences, int widgetId) {
