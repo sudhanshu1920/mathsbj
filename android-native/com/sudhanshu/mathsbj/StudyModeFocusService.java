@@ -181,7 +181,8 @@ public final class StudyModeFocusService extends Service {
                 : type == UsageEvents.Event.MOVE_TO_FOREGROUND;
             if (resumed) latest = event.getPackageName();
         }
-        return latest;
+        if (latest != null && !latest.isEmpty()) lastForegroundPackage = latest;
+        return lastForegroundPackage;
     }
 
     private void showShield(String packageName) {
