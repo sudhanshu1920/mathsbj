@@ -55,6 +55,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private SeekBar fontScaleSeekBar;
     private SeekBar paddingSeekBar;
     private CheckBox outlineCheck;
+    private boolean surfaceSettingsExplicitlySaved;
     private EditText customPrimaryHex;
     private EditText customSecondaryHex;
     private EditText customAccentHex;
@@ -190,18 +191,39 @@ public class MathMasterWidgetConfigActivity extends Activity {
         for (String[] themeOption : PREMIUM_THEMES) {
             addRadio(themeGroup, themeOption[0], themeOption[1], currentThemeMode);
         }
-        themeGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
+        themeGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            String selectedTheme = selectedRadioValue(themeGroup, MathMasterWidgetStyle.DEFAULT_THEME);
+            if (!surfaceSettingsExplicitlySaved) {
+                if ("minimal".equals(selectedTheme)) {
+                    selectRadioValue(surfaceGroup, "transparent");
+                    if (opacitySeekBar != null) opacitySeekBar.setProgress(0);
+                } else {
+                    String selectedSurface = selectedRadioValue(surfaceGroup, "translucent");
+                    if ("transparent".equals(selectedSurface)) {
+                        selectRadioValue(surfaceGroup, "translucent");
+                        if (opacitySeekBar != null) opacitySeekBar.setProgress(
+                            MathMasterWidgetStyle.defaultOpacity(selectedTheme));
+                    }
+                }
+            }
+            updatePreview();
+        });
         content.addView(themeGroup, matchWrap());
 
         addSectionLabel(content, "Background Surface");
         surfaceGroup = new RadioGroup(this);
         surfaceGroup.setOrientation(RadioGroup.HORIZONTAL);
-        String savedSurface = preferences.getString("instance_" + widgetId + "_backgroundStyle",
+        String surfaceSettingsKey = "instance_" + widgetId + "_backgroundStyle";
+        surfaceSettingsExplicitlySaved = preferences.contains(surfaceSettingsKey);
+        String savedSurface = preferences.getString(surfaceSettingsKey,
             "minimal".equals(currentTheme) ? "transparent" : "translucent");
         addRadio(surfaceGroup, "transparent", "Transparent", savedSurface);
         addRadio(surfaceGroup, "translucent", "Translucent", savedSurface);
         addRadio(surfaceGroup, "solid", "Solid", savedSurface);
-        surfaceGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
+        surfaceGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            surfaceSettingsExplicitlySaved = true;
+            updatePreview();
+        });
         content.addView(surfaceGroup, matchWrap());
 
         addSectionLabel(content, "Background Opacity");
@@ -408,6 +430,17 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private static int indexOf(String[] values, String value) {
         for (int i = 0; i < values.length; i++) if (values[i].equals(value)) return i;
         return 0;
+    }
+
+    private static void selectRadioValue(RadioGroup group, String value) {
+        if (group == null || value == null) return;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof RadioButton && value.equals(child.getTag())) {
+                group.check(child.getId());
+                return;
+            }
+        }
     }
 
     private void addRadio(RadioGroup group, String value, String label, String selectedValue) {
