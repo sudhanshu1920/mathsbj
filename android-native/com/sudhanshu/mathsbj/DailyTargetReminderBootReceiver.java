@@ -14,6 +14,20 @@ public class DailyTargetReminderBootReceiver extends BroadcastReceiver {
             || Intent.ACTION_TIME_CHANGED.equals(action)
             || Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
             DailyTargetReminderReceiver.scheduleNext(context);
+
+            final Context applicationContext = context.getApplicationContext();
+            final BroadcastReceiver.PendingResult pendingResult = goAsync();
+            Thread refreshThread = new Thread(() -> {
+                try {
+                    MathMasterHomeWidgetProvider.updateWidgetPreferences(applicationContext);
+                } catch (RuntimeException error) {
+                    android.util.Log.w("MathMasterWidget", "Unable to refresh pinned widgets after a lifecycle change.", error);
+                } finally {
+                    pendingResult.finish();
+                }
+            }, "MathMasterWidgetRefresh");
+            refreshThread.setDaemon(true);
+            refreshThread.start();
         }
     }
 }

@@ -836,7 +836,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             }
             PendingIntent pendingIntent = PendingIntent.getActivity(
                 context,
-                REQUEST_CODE,
+                REQUEST_CODE ^ appWidgetId,
                 launchIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );
