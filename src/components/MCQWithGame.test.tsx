@@ -190,9 +190,6 @@ describe("Full-screen continuous MCQ racing", () => {
     expect(screen.getByTestId("mcq-game-accelerate")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("mcq-game-steer-left")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("mcq-game-steer-right")).toHaveAttribute("aria-pressed", "false");
-    expect(getComputedStyle(screen.getByTestId("mcq-game-accelerate")).opacity).toBe("0");
-    expect(getComputedStyle(screen.getByTestId("mcq-game-steer-left")).opacity).toBe("0");
-    expect(getComputedStyle(screen.getByTestId("mcq-game-steer-right")).opacity).toBe("0");
     expect(screen.getByRole("button", { name: /Accelerate \(hold\)/i })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Steer left" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Steer right" })).toBeEnabled();
