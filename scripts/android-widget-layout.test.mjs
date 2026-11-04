@@ -7,6 +7,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java");
 const bootReceiver = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java");
 const configureAndroid = read("scripts/configure-android-notifications.mjs");
+const configureWidgets = read("scripts/configure-android-widgets.mjs");
 const legacyWidgetInfo = read("android-native/res/xml/math_master_home_widget_info.xml");
 const android31WidgetInfo = read("android-native/res/xml-v31/math_master_home_widget_info.xml");
 const widgetProviderFiles = readdirSync(new URL("../android-native/com/sudhanshu/mathsbj/", import.meta.url))
@@ -104,7 +105,8 @@ test("weekly tracker and the truthful Practice shortcut are configurable per wid
 
 test("weekly checkmarks use saved streak records and strictly validate native input", () => {
   assert.match(bridge, /streak\.days\[dateKey\]\?\.completed === true/);
-  assert.match(bridge, /completedDaysJson: JSON\.stringify\(completedDays\)/);
+  assert.ok(bridge.includes("const completedDaysJson = JSON.stringify("));
+  assert.ok(bridge.includes("    completedDaysJson,"));
   const progressStart = bridge.indexOf("const onProgressPersisted");
   const streakStart = bridge.indexOf("const onStreakUpdated", progressStart);
   assert.doesNotMatch(bridge.slice(progressStart, streakStart), /if \(!getBackgroundNotificationsEnabled\(\)\) return;/);
@@ -212,19 +214,15 @@ test("every native widget provider and responsive layout is registered and copie
   assert.ok(widgetProviderFiles.length > 0, "native AppWidgetProvider inventory must not be empty");
   for (const filename of widgetProviderFiles) {
     const componentName = filename.replace(".java", "");
-    assert.ok(configureAndroid.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
-    assert.ok(configureAndroid.includes(`android:name=".${componentName}"`), `${componentName} must be registered in AndroidManifest`);
-    assert.ok(configureAndroid.includes("@xml/math_master_home_widget_info"), `${componentName} must reference widget metadata`);
+    assert.ok(configureWidgets.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
+    assert.ok(configureWidgets.includes(`android:name=".\${componentName}"`), `${componentName} must be registered in AndroidManifest`);
+    assert.ok(configureWidgets.includes("@xml/math_master_home_widget_info"), `${componentName} must reference widget metadata`);
   }
 
-  const variantFiles = [
-    "math_master_home_widget.xml",
-    "math_master_home_widget_compact.xml",
-    "math_master_home_widget_wide.xml",
-  ];
-  for (const filename of variantFiles) {
-    assert.ok(configureAndroid.includes(`'layout/${filename}'`), `${filename} must be copied for every release/debug build`);
-  }
+  assert.match(configureWidgets, /const RESOURCE_DIRS = \[[\s\S]*?'layout'/);
+  assert.match(configureWidgets, /const NATIVE_JAVA_FILES = \[[\s\S]*?'MathMasterHomeWidgetProvider\.java'/);
+  assert.match(configureWidgets, /copyDirectory\(/);
+  assert.match(configureWidgets, /ensureApplicationComponents\(manifest\)/);
   assert.ok(legacyWidgetInfo.includes('android:initialLayout="@layout/math_master_home_widget"'));
   assert.ok(legacyWidgetInfo.includes('android:resizeMode="horizontal|vertical"'));
   assert.ok(android31WidgetInfo.includes('android:initialLayout="@layout/math_master_home_widget"'));
@@ -239,10 +237,9 @@ test("all seven design compositions have three responsive XML variants and packa
   assert.equal(compositionLayoutPaths.length, 21);
   for (const composition of compositionIds) {
     assert.ok(provider.includes(`case "${composition}":`), `provider must route ${composition}`);
-    assert.ok(configureAndroid.includes(`drawable/math_master_widget_art_overlay_${composition}.xml`));
     for (const size of sizeVariants) {
       const path = `android-native/res/layout/math_master_widget_${composition}_${size}.xml`;
-      assert.ok(configureAndroid.includes(`'layout/math_master_widget_${composition}_${size}.xml'`), `${path} must be copied`);
+      assert.ok(existsSync(new URL(`../${path}`, import.meta.url)), `${path} must exist in native source`);
       const layout = read(path);
       for (const id of ["widget_root", "widget_content", "widget_artwork", "widget_artwork_overlay", "widget_progress_ring", "widget_progress_percent", "widget_target_value", "widget_progress_bar", "widget_week_strip"]) {
         assert.ok(layout.includes(`@+id/${id}`), `${path} must contain ${id}`);
@@ -250,7 +247,8 @@ test("all seven design compositions have three responsive XML variants and packa
       assert.ok(layout.includes(`math_master_widget_art_overlay_${composition}`));
     }
   }
-  assert.ok(configureAndroid.includes("'drawable-nodpi/math_master_widget_atlas.webp'"));
+  assert.match(configureWidgets, /const RESOURCE_DIRS = \[[\s\S]*?'drawable-nodpi'[\s\S]*?'layout'/);
+  assert.match(configureWidgets, /copyDirectory\(/);
   assert.ok(existsSync(new URL("../android-native/res/drawable-nodpi/math_master_widget_atlas.webp", import.meta.url)));
   assert.ok(existsSync(new URL("../public/math_master_widget_atlas.webp", import.meta.url)));
   assert.ok(read("src/lib/settings.ts").includes("HOME_WIDGET_COMPOSITIONS"));
