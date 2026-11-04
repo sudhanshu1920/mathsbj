@@ -386,7 +386,7 @@ export const syncHomeWidgetUpdateStatus = async (snapshot: {
 }): Promise<void> => {
   if (!Capacitor.isNativePlatform()) return;
   const validCode = (value: number) => Number.isSafeInteger(value) && value > 0 && value <= 2_100_000_000;
-  const validName = (value: string) => /^[0-9]+(?:\\.[0-9]+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/.test(value);
+  const validName = (value: string) => /^[0-9]+(?:\.[0-9]+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/.test(value);
   if (!validCode(snapshot.installedVersionCode) || !validCode(snapshot.latestVersionCode)
     || !validName(snapshot.installedVersionName) || !validName(snapshot.latestVersionName)) return;
   try {
