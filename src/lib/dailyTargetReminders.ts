@@ -413,7 +413,7 @@ export const initializeBackgroundNotifications = (): (() => void) => {
   let lastMinuteBucket = -1;
 
   const onProgressPersisted = () => {
-    if (!getBackgroundNotificationsEnabled()) return;
+    // Home-screen progress is independent of the optional reminder/notification preference.
     const now = Date.now();
     const currentDayKey = todayStr();
     if (currentDayKey !== lastPersistedDayKey) {
@@ -422,7 +422,7 @@ export const initializeBackgroundNotifications = (): (() => void) => {
     }
     // streak.ts persists every second. Sync the native preference only when the
     // completed-minute value changes; target completion also dispatches streak-updated.
-    if (now - lastPersistedSyncAt < 900 && getBackgroundNotificationsEnabled()) return;
+    if (now - lastPersistedSyncAt < 900) return;
     const streak = getStreak();
     const date = todayStr();
     const seconds = Math.max(0, Math.floor(streak.days[date]?.seconds ?? 0));
