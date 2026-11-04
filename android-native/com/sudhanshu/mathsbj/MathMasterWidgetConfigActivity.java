@@ -37,6 +37,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
     private final Map<String, CheckBox> contentChecks = new LinkedHashMap<>();
     private RadioGroup styleGroup;
+    private RadioGroup themeGroup;
+    private RadioGroup fontGroup;
     private RadioGroup compositionGroup;
     private TextView previewSummary;
     private FrameLayout previewFrame;
@@ -123,6 +125,22 @@ public class MathMasterWidgetConfigActivity extends Activity {
         addRadio(styleGroup, "blur", "Transparent Blur", currentStyle);
         styleGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
         content.addView(styleGroup, matchWrap());
+
+        addSectionLabel(content, "Premium Color Theme");
+        themeGroup = new RadioGroup(this);
+        themeGroup.setOrientation(RadioGroup.VERTICAL);
+        String savedTheme = preferences.getString("instance_" + widgetId + "_theme", preferences.getString("theme", "deep_navy"));
+        String[][] themes = {{"minimal","Minimal"},{"neon","Neon"},{"cockpit","Cockpit"},{"sunset","Sunset"},{"monochrome","Monochrome"},{"snowfall","Snowfall"},{"deep_navy","Premium Deep Navy"}};
+        for (String[] theme : themes) addRadio(themeGroup, theme[0], theme[1], savedTheme);
+        content.addView(themeGroup, matchWrap());
+
+        addSectionLabel(content, "Typography");
+        fontGroup = new RadioGroup(this);
+        fontGroup.setOrientation(RadioGroup.VERTICAL);
+        String savedFont = preferences.getString("instance_" + widgetId + "_font", preferences.getString("font", "sans"));
+        String[][] fonts = {{"sans","Sans Serif"},{"serif","Serif"},{"mono","Monospace"},{"condensed","Condensed"},{"light","Light"},{"medium","Medium"},{"black","Black"},{"thin","Thin"}};
+        for (String[] font : fonts) addRadio(fontGroup, font[0], font[1], savedFont);
+        content.addView(fontGroup, matchWrap());
 
         addSectionLabel(content, "Design Composition");
         compositionGroup = new RadioGroup(this);
@@ -242,6 +260,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
         }
         String style = normalizeWidgetStyle(selectedRadioValue(styleGroup, "blur"));
         String composition = selectedRadioValue(compositionGroup, "auto");
+        String theme = selectedRadioValue(themeGroup, "deep_navy");
+        String font = selectedRadioValue(fontGroup, "sans");
         boolean noFieldsSelected = selected.isEmpty();
         if (noFieldsSelected) previewSummary.setText("Select at least one field");
 
@@ -356,6 +376,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
         String style = normalizeWidgetStyle(selectedRadioValue(styleGroup, "blur"));
         String composition = selectedRadioValue(compositionGroup, "auto");
+        String theme = selectedRadioValue(themeGroup, "deep_navy");
+        String font = selectedRadioValue(fontGroup, "sans");
         if (!isValidComposition(composition)) composition = "auto";
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         preferences.edit()
@@ -363,8 +385,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
             .putInt("instance_" + widgetId + "_contentSchemaVersion", 2)
             .putString("instance_" + widgetId + "_style", style)
             .putString("instance_" + widgetId + "_composition", composition)
-            .remove("instance_" + widgetId + "_themeMode")
-            .remove("instance_" + widgetId + "_theme")
+            .putString("instance_" + widgetId + "_theme", theme)
+            .putString("instance_" + widgetId + "_font", font)
             .apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
