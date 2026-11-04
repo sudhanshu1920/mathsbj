@@ -4,10 +4,28 @@ import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
 public final class StudyModeNotificationListenerService extends NotificationListenerService {
+    private static volatile boolean connected = false;
+
+    public static boolean isConnected() {
+        return connected;
+    }
     @Override
     public void onListenerConnected() {
         super.onListenerConnected();
+        connected = true;
         filterCurrentNotifications();
+    }
+
+    @Override
+    public void onListenerDisconnected() {
+        connected = false;
+        super.onListenerDisconnected();
+    }
+
+    @Override
+    public void onDestroy() {
+        connected = false;
+        super.onDestroy();
     }
 
     @Override
