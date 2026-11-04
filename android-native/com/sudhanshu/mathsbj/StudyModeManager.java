@@ -38,6 +38,7 @@ public final class StudyModeManager {
     private static final String KEY_LAST_STATE = "lastAppliedState";
     private static final String ACTION_BOUNDARY = "com.sudhanshu.mathsbj.STUDY_MODE_BOUNDARY";
     private static final int ALARM_REQUEST_CODE = 9527;
+    private static final int ALARM_BACKUP_REQUEST_CODE = 9528;
     private static final int FOCUS_NOTIFICATION_ID = 9528;
 
     private StudyModeManager() {}
@@ -584,18 +585,25 @@ public final class StudyModeManager {
             cancelBoundaryAlarm(context);
             return;
         }
-        PendingIntent pending = boundaryPendingIntent(context);
+        PendingIntent pending = boundaryPendingIntent(context, ALARM_REQUEST_CODE);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !manager.canScheduleExactAlarms()) {
                 manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.getTimeInMillis(), pending);
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.getTimeInMillis(), pending);
+                // Keep one inexact safety alarm for this same boundary. If exact-alarm
+                // access is revoked, Android cancels exact alarms; this backup can still
+                // wake the manager later and release any managed-device suspension.
+                PendingIntent backup = boundaryPendingIntent(context, ALARM_BACKUP_REQUEST_CODE);
+                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.getTimeInMillis(), backup);
             } else {
                 manager.setExact(AlarmManager.RTC_WAKEUP, next.getTimeInMillis(), pending);
             }
         } catch (SecurityException denied) {
             try {
                 manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.getTimeInMillis(), pending);
+                PendingIntent backup = boundaryPendingIntent(context, ALARM_BACKUP_REQUEST_CODE);
+                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.getTimeInMillis(), backup);
             } catch (Exception ignored) {
                 setLastState(context, "schedule_error");
             }
@@ -604,20 +612,23 @@ public final class StudyModeManager {
         }
     }
 
-    private static PendingIntent boundaryPendingIntent(Context context) {
+    private static PendingIntent boundaryPendingIntent(Context context, int requestCode) {
         Intent intent = new Intent(context, StudyModeAlarmReceiver.class);
         intent.setAction(ACTION_BOUNDARY);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
-        return PendingIntent.getBroadcast(context, ALARM_REQUEST_CODE, intent, flags);
+        return PendingIntent.getBroadcast(context, requestCode, intent, flags);
     }
 
     private static void cancelBoundaryAlarm(Context context) {
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (manager != null) {
-            PendingIntent pending = boundaryPendingIntent(context);
+            PendingIntent pending = boundaryPendingIntent(context, ALARM_REQUEST_CODE);
+            PendingIntent backup = boundaryPendingIntent(context, ALARM_BACKUP_REQUEST_CODE);
             manager.cancel(pending);
+            manager.cancel(backup);
             pending.cancel();
+            backup.cancel();
         }
     }
 
