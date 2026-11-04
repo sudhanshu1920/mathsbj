@@ -64,6 +64,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private TextView previewSummary;
     private FrameLayout previewFrame;
     private ImageView previewArtwork;
+    private View previewSurfaceView;
     private View previewShade;
     private TextView previewDesignTitle;
     private TextView previewMetric;
@@ -316,6 +317,11 @@ public class MathMasterWidgetConfigActivity extends Activity {
         previewFrame.addView(previewArtwork, new FrameLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
 
+        previewSurfaceView = new View(this);
+        previewSurfaceView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        previewFrame.addView(previewSurfaceView, new FrameLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+
         previewShade = new View(this);
         GradientDrawable shade = new GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
@@ -555,12 +561,22 @@ public class MathMasterWidgetConfigActivity extends Activity {
         previewSummary.setTextColor(palette.primary);
         previewSummary.setBackgroundColor(previewBackground);
 
+        GradientDrawable previewClip = new GradientDrawable();
+        previewClip.setColor(Color.TRANSPARENT);
+        previewClip.setCornerRadius(dp(20));
+        previewFrame.setBackground(previewClip);
         GradientDrawable previewSurface = new GradientDrawable(
             GradientDrawable.Orientation.TL_BR,
             new int[] { previewBackground, previewBackground });
         previewSurface.setCornerRadius(dp(20));
-        previewSurface.setStroke(outlined ? dp(1) : 0, palette.outline);
-        previewFrame.setBackground(previewSurface);
+        previewSurfaceView.setBackground(previewSurface);
+        previewSurfaceView.setVisibility(Color.alpha(previewBackground) == 0 ? View.GONE : View.VISIBLE);
+        GradientDrawable previewOutline = new GradientDrawable();
+        previewOutline.setColor(Color.TRANSPARENT);
+        previewOutline.setCornerRadius(dp(20));
+        previewOutline.setStroke(outlined ? dp(1) : 0, palette.outline);
+        // Keep the preview outline visually consistent with the actual post-content outline layer.
+        previewFrame.setForeground(previewOutline);
         previewShade.setVisibility(Color.alpha(previewBackground) == 0 ? View.GONE : View.VISIBLE);
 
         int previewSize = previewSizeSpinner == null ? 1 : previewSizeSpinner.getSelectedItemPosition();
