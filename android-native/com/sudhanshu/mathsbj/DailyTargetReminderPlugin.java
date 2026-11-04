@@ -252,6 +252,49 @@ public class DailyTargetReminderPlugin extends Plugin {
         }
     }
 
+    @PluginMethod
+    public void consumeNotificationAction(PluginCall call) {
+        JSObject result = new JSObject();
+        try {
+            Intent launchIntent = getActivity() == null ? null : getActivity().getIntent();
+            String action = launchIntent == null ? null : launchIntent.getStringExtra("mathmaster_notification_action");
+            if (!isSupportedAction(action)) action = "";
+
+            result.put("action", action);
+            if (launchIntent != null && !action.isEmpty()) {
+                putIfPresent(result, "versionName", launchIntent.getStringExtra("mathmaster_update_version_name"));
+                putIfPresent(result, "versionCode", launchIntent.getStringExtra("mathmaster_update_version_code"));
+                putIfPresent(result, "updateManifestUrl", launchIntent.getStringExtra("mathmaster_update_manifest_url"));
+                putIfPresent(result, "dayKey", launchIntent.getStringExtra("mathmaster_notification_day"));
+
+                // Consume the one-shot action so later resume events cannot replay it.
+                launchIntent.removeExtra("mathmaster_notification_action");
+                launchIntent.removeExtra("mathmaster_update_version_name");
+                launchIntent.removeExtra("mathmaster_update_version_code");
+                launchIntent.removeExtra("mathmaster_update_manifest_url");
+                launchIntent.removeExtra("mathmaster_notification_day");
+            }
+            call.resolve(result);
+        } catch (RuntimeException error) {
+            call.reject("Unable to read the pending Math Master notification action.", error);
+        }
+    }
+
+    private static boolean isSupportedAction(String action) {
+        if (action == null) return false;
+        switch (action) {
+            case "study-reminder":
+            case "app-update":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static void putIfPresent(JSObject result, String key, String value) {
+        if (value != null && !value.isEmpty()) result.put(key, value);
+    }
+
     public static boolean hasNotificationPermission(Context context) {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
             || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
