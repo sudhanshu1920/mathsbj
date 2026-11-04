@@ -750,6 +750,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
         boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
+        boolean showQuizShortcut = widgetsEnabled && selected.contains("quiz");
         String installedVersion = preferences.getString("installedVersionName", "");
         String latestVersion = preferences.getString("latestVersionName", "");
         if (updateAvailable && isSafeVersion(installedVersion) && isSafeVersion(latestVersion)) {
@@ -774,7 +775,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showStreak = widgetsEnabled && selected.contains("streak");
         boolean showWeekly = widgetsEnabled && selected.contains("weekly");
         boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus");
-        boolean showQuizShortcut = widgetsEnabled && selected.contains("quiz");
         boolean useProgressRing = showProgress && compositionUsesProgressRing(composition);
         if (useProgressRing) {
             views.setImageViewBitmap(R.id.widget_progress_ring, createProgressRing(context, progress, accentColor));
