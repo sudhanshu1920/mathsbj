@@ -27,16 +27,50 @@ const REQUIRED_PERMISSIONS = [
 ];
 
 function ensureManifestQueries(manifest) {
-  if (manifest.includes('android.intent.category.LAUNCHER')) return manifest;
-  const block = `
-    <queries>
-        <intent>
+  const queryIntents = [
+    {
+      marker: 'android.intent.category.LAUNCHER',
+      xml: `        <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
-        </intent>
-    </queries>`;
+        </intent>`,
+    },
+    {
+      marker: 'android.intent.action.DIAL',
+      xml: `        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>`,
+    },
+    {
+      marker: 'android.intent.category.HOME',
+      xml: `        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>`,
+    },
+    {
+      marker: 'android.provider.Telephony.SMS_DELIVER',
+      xml: `        <intent>
+            <action android:name="android.provider.Telephony.SMS_DELIVER" />
+        </intent>`,
+    },
+  ];
+  const missing = queryIntents.filter((query) => !manifest.includes(query.marker));
+  if (missing.length === 0) return manifest;
+
+  const openQueries = manifest.indexOf('<queries');
+  if (openQueries >= 0) {
+    const closeQueries = manifest.indexOf('</queries>', openQueries);
+    if (closeQueries < 0) throw new Error('AndroidManifest.xml has an unclosed <queries> element.');
+    return manifest.slice(0, closeQueries)
+      + '\n' + missing.map((query) => query.xml).join('\n') + '\n'
+      + manifest.slice(closeQueries);
+  }
+
   const rootEnd = manifest.indexOf('>', manifest.indexOf('<manifest'));
   if (rootEnd < 0) throw new Error('AndroidManifest.xml has no valid manifest root.');
+  const block = `\n    <queries>\n${missing.map((query) => query.xml).join('\n')}\n    </queries>`;
   return manifest.slice(0, rootEnd + 1) + block + manifest.slice(rootEnd + 1);
 }
 
