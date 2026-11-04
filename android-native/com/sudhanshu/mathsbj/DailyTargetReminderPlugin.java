@@ -17,6 +17,17 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+
 import java.lang.reflect.Method;
 
 @CapacitorPlugin(
@@ -81,10 +92,11 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putString("hindiMessagesJson", hindi == null ? "[]" : hindi)
                 .apply();
 
+            String safeCompletedDaysJson = sanitizeCompletedDaysJson(completedDaysJson);
             MathMasterHomeWidgetProvider.syncProgressSnapshot(
                 getContext(), targetMinutes, elapsedSeconds,
                 currentStreak == null ? 0 : currentStreak,
-                dayKey, completedDaysJson
+                dayKey, safeCompletedDaysJson
             );
 
             boolean scheduled = false;
@@ -165,6 +177,59 @@ public class DailyTargetReminderPlugin extends Plugin {
             result.put("message", "Firebase topic subscription could not be confirmed.");
             call.resolve(result);
         }
+    }
+
+    /** Validate untrusted WebView/backup input before exposing weekly records to launcher widgets. */
+    private static String sanitizeCompletedDaysJson(String raw) {
+        if (raw == null || raw.length() > 512) return "[]";
+
+        final JSONArray incoming;
+        try {
+            incoming = new JSONArray(raw);
+        } catch (JSONException ignored) {
+            return "[]";
+        }
+
+        JSONArray accepted = new JSONArray();
+        Set<String> seen = new HashSet<>();
+        Calendar today = Calendar.getInstance();
+        normalizeLocalDate(today);
+        Calendar firstAllowed = (Calendar) today.clone();
+        firstAllowed.add(Calendar.DAY_OF_MONTH, -6);
+
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        formatter.setLenient(false);
+        int count = Math.min(incoming.length(), 7);
+        for (int index = 0; index < count; index++) {
+            Object item = incoming.opt(index);
+            if (!(item instanceof String)) continue;
+            String date = (String) item;
+            if (!date.matches("\\d{4}-\\d{2}-\\d{2}") || seen.contains(date)) continue;
+
+            final Date parsed;
+            try {
+                parsed = formatter.parse(date);
+            } catch (ParseException ignored) {
+                continue;
+            }
+            if (parsed == null) continue;
+
+            Calendar candidate = Calendar.getInstance();
+            candidate.setTime(parsed);
+            normalizeLocalDate(candidate);
+            if (candidate.before(firstAllowed) || candidate.after(today)) continue;
+
+            seen.add(date);
+            accepted.put(date);
+        }
+        return accepted.toString();
+    }
+
+    private static void normalizeLocalDate(Calendar value) {
+        value.set(Calendar.HOUR_OF_DAY, 12);
+        value.set(Calendar.MINUTE, 0);
+        value.set(Calendar.SECOND, 0);
+        value.set(Calendar.MILLISECOND, 0);
     }
 
     public static boolean hasNotificationPermission(Context context) {
