@@ -58,6 +58,7 @@ const statusText = (status: StudyModeStatus | null) => {
   }
   if (!status?.config.enabled) return "Study Mode is off";
   if (status.enforcementState === "permission_required") return "Permission required — blocking is not active";
+  if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
   if (status.enforcementState === "service_stopped") return "Android stopped Focus Shield — reopen Study Mode to retry";
   if (status.enforcementState === "policy_failed") return "System suspension could not be applied";
