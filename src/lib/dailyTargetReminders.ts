@@ -235,11 +235,18 @@ interface MathMasterNotificationsPlugin {
     hindiMessagesJson: string;
   }): Promise<{ synced: boolean; scheduled: boolean }>;
   setUpdateAlerts(options: { enabled: boolean }): Promise<{ configured: boolean; success?: boolean; subscribed?: boolean }>;
+  syncWidgetUpdateStatus(options: {
+    installedVersionCode: number;
+    installedVersionName: string;
+    latestVersionCode: number;
+    latestVersionName: string;
+  }): Promise<{ synced: boolean }>;
   consumeNotificationAction(): Promise<{
     action?: string;
     versionName?: string | null;
     versionCode?: string | null;
     updateManifestUrl?: string | null;
+    widgetAction?: string | null;
   }>;
 }
 
@@ -306,14 +313,18 @@ const getNativeState = (enabled = getBackgroundNotificationsEnabled()) => {
   const record = streak.days[date];
   const elapsedSeconds = Math.max(0, Math.floor(record?.seconds ?? 0));
   const completed = isDailyTargetComplete(streak.targetMinutes, elapsedSeconds);
+  // Anchor the trailing-week snapshot to one local noon so a midnight rollover
+  // during serialization cannot produce a mixed seven-day window.
+  const weekStart = new Date();
+  weekStart.setHours(12, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - 6);
   const completedDaysJson = JSON.stringify(
     Array.from({ length: 7 }, (_, index) => {
-      const date = new Date();
-      date.setHours(12, 0, 0, 0);
-      date.setDate(date.getDate() - (6 - index));
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const dayOfMonth = String(date.getDate()).padStart(2, '0');
+      const day = new Date(weekStart);
+      day.setDate(weekStart.getDate() + index);
+      const year = day.getFullYear();
+      const month = String(day.getMonth() + 1).padStart(2, '0');
+      const dayOfMonth = String(day.getDate()).padStart(2, '0');
       const dateKey = `${year}-${month}-${dayOfMonth}`;
       return streak.days[dateKey]?.completed === true ? dateKey : null;
     }).filter((date): date is string => date !== null),
@@ -364,6 +375,25 @@ const queueNativeSync = (force = false): Promise<boolean> => {
       lastPayloadSignature = '';
     });
   return syncQueue.then(() => succeeded);
+};
+
+/** Persist only a successful, already-verified release check into native widget state. */
+export const syncHomeWidgetUpdateStatus = async (snapshot: {
+  installedVersionCode: number;
+  installedVersionName: string;
+  latestVersionCode: number;
+  latestVersionName: string;
+}): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) return;
+  const validCode = (value: number) => Number.isSafeInteger(value) && value > 0 && value <= 2_100_000_000;
+  const validName = (value: string) => /^[0-9]+(?:\\.[0-9]+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/.test(value);
+  if (!validCode(snapshot.installedVersionCode) || !validCode(snapshot.latestVersionCode)
+    || !validName(snapshot.installedVersionName) || !validName(snapshot.latestVersionName)) return;
+  try {
+    await NativeNotifications.syncWidgetUpdateStatus(snapshot);
+  } catch {
+    // Widget update status is supplemental; a bridge failure must not block the verified app updater.
+  }
 };
 
 export const setBackgroundNotificationsEnabled = async (enabled: boolean): Promise<boolean> => {
@@ -441,8 +471,15 @@ export const initializeBackgroundNotifications = (): (() => void) => {
       const notification = await NativeNotifications.consumeNotificationAction();
       if (notification.action === 'study-reminder') {
         window.dispatchEvent(new CustomEvent('study-reminder-tapped', { detail: notification }));
-      } else if (notification.action === 'app-update') {
+      } else if (notification.action === 'app-update' || notification.widgetAction === 'app-update') {
         window.dispatchEvent(new CustomEvent('app-update-notification-tapped', { detail: notification }));
+      }
+
+      const widgetAction = notification.widgetAction;
+      if (widgetAction && ['progress', 'target', 'streak', 'weekly', 'quiz'].includes(widgetAction)) {
+        window.dispatchEvent(new CustomEvent('home-widget-navigation-requested', {
+          detail: { action: widgetAction },
+        }));
       }
     } catch {
       // Older installed APKs may not yet include the native notification bridge.
