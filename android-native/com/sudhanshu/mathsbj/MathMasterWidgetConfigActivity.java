@@ -57,7 +57,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
         {"studyTime", "Study Time"},
         {"streak", "Streak"},
         {"weekly", "Weekly Target Tracker"},
-        {"updateStatus", "Update Status"}
+        {"updateStatus", "Update Status"},
+        {"quiz", "Open Quiz (Practice)"}
     };
 
     private static final String[][] WIDGET_COMPOSITIONS = {
@@ -334,6 +335,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
             rows.add(updateAvailable ? "Update available" : "Update status");
         }
+        if (selected.contains("quiz")) rows.add("Quiz shortcut: opens Practice");
 
         String appMode = preferences.getString("mode", "dark");
         boolean light = "light".equals(appMode);
@@ -375,6 +377,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         if (selected.contains("updateStatus")) {
             previewDetails.add(preferences.getBoolean("updateAvailable", false) ? "Update available" : "Update status");
         }
+        if (selected.contains("quiz")) previewDetails.add("Practice shortcut");
         if (previewDetails.isEmpty()) previewDetails.add(capitalize(style) + " glass design");
         previewSubtitle.setText(android.text.TextUtils.join("  ·  ", previewDetails));
 
