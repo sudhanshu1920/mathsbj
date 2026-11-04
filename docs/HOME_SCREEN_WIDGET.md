@@ -42,3 +42,34 @@ The native **Customize Your Widget** screen now shows an artwork-backed preview 
 ## Follow-up visual correction (v1.0.23 source)
 
 The first device screenshots from v1.0.22 showed that the weighted vertical spacer could separate the primary progress row from study-time, streak, and weekly content. The provider now keeps that spacer hidden and centers the compact content group to prevent a large empty band through the card. Primary percentage/target typography has a stronger minimum hierarchy, artwork is no longer faded by a separate image alpha, and per-design tint overlays use lower opacity so the illustrations retain their color. Automated layout tests cover these rules. Physical-launcher rendering remains unverified until this build is installed and compared on-device.
+
+
+## Premium visual system (Lwidget design-principle adaptation)
+
+The native widget implementation uses an original Math Master visual system informed by high-level design principles from the separately licensed Lwidget reference (renderer/provider separation, per-instance preferences with global fallback, color resolution, opacity/outline controls, and font variants). No Lwidget source code, artwork, logos, or XML layouts are copied.
+
+### Central theme and color engine
+
+`android-native/com/sudhanshu/mathsbj/MathMasterWidgetStyle.java` resolves one palette for every RemoteViews composition. Available themes are:
+
+- Minimal (transparent by default), Neon, Cockpit, Sunset, Monochrome, Snowfall, and Premium Deep Navy (new recommended default).
+- System Dynamic uses Android's dynamic neutral/accent colors on Android 12+ and a deterministic fallback on older releases.
+- Custom uses five validated six-digit hex colors: primary, secondary, accent, background, and outline.
+
+Legacy per-widget theme identifiers (`emerald`, `ocean`, `graphite`, `rose`, `violet`, `sapphire`, `aurora`, and `app`) are normalized to equivalent new palettes rather than discarded. Each widget's theme and other appearance preferences are stored under its own AppWidget ID.
+
+### Surface and outline
+
+Each of the 21 compact/regular/wide layout resources now has independent `widget_surface` and `widget_outline` layers. The root uses a transparent rounded clipping shape; the tinted surface image receives alpha independently of text and controls. Surface selection supports Transparent (0%), Translucent (0–100% slider), and Solid (100%). Outline can be disabled or tinted with the custom outline color. The surface is placed above optional artwork and below live content; zero-opacity rendering hides the decorative artwork as well.
+
+This is native translucent rendering only. Android RemoteViews does not provide a general launcher-wallpaper backdrop-blur API, so the widget does not claim to blur the wallpaper.
+
+### Typography and responsive tuning
+
+The font selector supports Default/Sans Serif, Serif, Monospace, Cursive, Condensed, Condensed Light, Light, Medium, Black, Thin, and Small Caps. Text is passed to RemoteViews using Parcelable TypefaceSpan/StyleSpan instances, not by invoking a non-remotable TextView method. A 75–125% text scale and 0–24dp inner padding setting are stored per widget. Existing layout-based sp values and size classes remain in effect, so the chosen family/scale augments rather than replaces the existing responsive hierarchy.
+
+### Customization and preview
+
+The native launcher configuration now exposes theme, background surface/opacity, outline, font family, text scale, padding, and manual hex color fields alongside the existing content/style/composition settings. The preview uses the same palette resolver, actual persisted study snapshot, selected composition artwork, and the selected compact/medium/wide preview dimensions. Save writes only the current AppWidget ID; Cancel discards unsaved view state. The placed widget is refreshed after Save.
+
+The preview is a focused native configuration preview rather than a byte-for-byte RemoteViews rendering engine. Device/launcher screenshots remain required to confirm actual font fallback, clipping, and contrast over user wallpapers.
