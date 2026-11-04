@@ -247,7 +247,7 @@ public final class MathMasterWidgetStyle {
             case "medium": return Typeface.create("sans-serif-medium", Typeface.NORMAL);
             case "black": return Typeface.create("sans-serif-black", Typeface.NORMAL);
             case "thin": return Typeface.create("sans-serif-thin", Typeface.NORMAL);
-            case "small_caps": return Typeface.create("sans-serif-medium", Typeface.NORMAL);
+            case "small_caps": return Typeface.create("sans-serif-smallcaps", Typeface.NORMAL);
             default: return Typeface.create("sans-serif", Typeface.NORMAL);
         }
     }
