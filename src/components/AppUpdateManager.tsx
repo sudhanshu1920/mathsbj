@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { checkForAppUpdate, downloadAppUpdate, installAppUpdate } from "@/lib/appUpdateService";
+import { syncHomeWidgetUpdateStatus } from "@/lib/dailyTargetReminders";
 import { PWA_UPDATE_DISCOVERED_EVENT, UPDATE_AVAILABLE_EVENT } from "@/lib/appUpdateEvents";
 import {
   addAndroidUpdateDownloadListener,
@@ -215,6 +216,14 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
 
     try {
       const result = await checkForAppUpdate();
+      if (result.status === "available" || result.status === "current") {
+        void syncHomeWidgetUpdateStatus({
+          installedVersionCode: result.currentVersionCode,
+          installedVersionName: result.currentVersionName,
+          latestVersionCode: result.latest.versionCode,
+          latestVersionName: result.latest.versionName,
+        });
+      }
       if (!mounted.current) return;
       if (result.status === "available" || result.status === "current") {
         const current = { versionCode: result.currentVersionCode, versionName: result.currentVersionName };
