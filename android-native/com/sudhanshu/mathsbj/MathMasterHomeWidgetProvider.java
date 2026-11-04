@@ -25,6 +25,10 @@ import android.util.SizeF;
 import android.view.View;
 import android.view.Gravity;
 import android.os.Bundle;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.StyleSpan;
+import android.text.style.TypefaceSpan;
 import android.net.Uri;
 import android.widget.RemoteViews;
 
@@ -549,23 +553,95 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return getInstanceString(preferences, appWidgetId, field, fallback);
     }
 
-    private static void applyWidgetTypography(RemoteViews views, String font) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
-        int appearance = MathMasterWidgetStyle.textAppearance(font);
-        int[] ids = {
-            R.id.widget_title_text, R.id.widget_progress_percent, R.id.widget_target_label,
-            R.id.widget_target_value, R.id.widget_study_time_text, R.id.widget_remaining_text,
-            R.id.widget_streak_text, R.id.widget_week_title, R.id.widget_update_text,
-            R.id.widget_update_badge, R.id.widget_disabled_text,
-            R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
-            R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5,
-            R.id.widget_week_day_6, R.id.widget_week_date_0, R.id.widget_week_date_1,
-            R.id.widget_week_date_2, R.id.widget_week_date_3, R.id.widget_week_date_4,
-            R.id.widget_week_date_5, R.id.widget_week_date_6, R.id.widget_week_status_0,
-            R.id.widget_week_status_1, R.id.widget_week_status_2, R.id.widget_week_status_3,
-            R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6
-        };
-        for (int id : ids) views.setTextViewTextAppearance(id, appearance);
+    private static String fontFamily(String font) {
+        switch (MathMasterWidgetStyle.normalizeFont(font)) {
+            case "serif": return "serif";
+            case "monospace": return "monospace";
+            case "cursive": return "cursive";
+            case "condensed": return "sans-serif-condensed";
+            case "condensed_light": return "sans-serif-condensed-light";
+            case "light": return "sans-serif-light";
+            case "medium": return "sans-serif-medium";
+            case "black": return "sans-serif-black";
+            case "thin": return "sans-serif-thin";
+            case "small_caps": return "sans-serif-medium";
+            default: return "sans-serif";
+        }
+    }
+
+    /** TextView TypefaceSpan is Parcelable and survives the RemoteViews binder boundary. */
+    private static void setTypefaceText(RemoteViews views, int viewId, String text, String font) {
+        if (text == null) text = "";
+        if (text.isEmpty()) {
+            views.setTextViewText(viewId, text);
+            return;
+        }
+        SpannableString styled = new SpannableString(text);
+        styled.setSpan(new TypefaceSpan(fontFamily(font)), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        String normalizedFont = MathMasterWidgetStyle.normalizeFont(font);
+        if ("black".equals(normalizedFont) || "condensed".equals(normalizedFont)) {
+            styled.setSpan(new StyleSpan(Typeface.BOLD), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        if ("small_caps".equals(normalizedFont)) {
+            styled = new SpannableString(text.toUpperCase(Locale.getDefault()));
+            styled.setSpan(new TypefaceSpan(fontFamily(font)), 0, styled.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            styled.setSpan(new android.text.style.RelativeSizeSpan(0.94f), 0, styled.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        views.setTextViewText(viewId, styled);
+    }
+
+    private static void applyWidgetTypography(
+        RemoteViews views,
+        String font,
+        String title,
+        String percent,
+        String targetLabel,
+        String targetValue,
+        String studyTime,
+        String remaining,
+        String streak,
+        String weekTitle,
+        String update,
+        String badge,
+        boolean widgetsEnabled
+    ) {
+        setTypefaceText(views, R.id.widget_title_text, title, font);
+        setTypefaceText(views, R.id.widget_progress_percent, percent, font);
+        setTypefaceText(views, R.id.widget_target_label, targetLabel, font);
+        setTypefaceText(views, R.id.widget_target_value, targetValue, font);
+        setTypefaceText(views, R.id.widget_study_time_text, studyTime, font);
+        setTypefaceText(views, R.id.widget_remaining_text, remaining, font);
+        setTypefaceText(views, R.id.widget_streak_text, streak, font);
+        setTypefaceText(views, R.id.widget_week_title, weekTitle, font);
+        setTypefaceText(views, R.id.widget_update_text, update, font);
+        setTypefaceText(views, R.id.widget_update_badge, badge, font);
+        setTypefaceText(views, R.id.widget_disabled_text, widgetsEnabled ? "" : "Widgets are off", font);
+    }
+
+    private static void applyWeekTypography(RemoteViews views, String font) {
+        int[] days = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
+            R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
+        int[] dates = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
+            R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
+        int[] statuses = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
+            R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
+        for (int i = 0; i < 7; i++) {
+            String day = new SimpleDateFormat("EEEEE", Locale.getDefault()).format(
+                getDateForOffset(i - 6));
+            setTypefaceText(views, days[i], day, font);
+            setTypefaceText(views, dates[i], String.valueOf(getDateForOffset(i - 6).get(Calendar.DAY_OF_MONTH)), font);
+            setTypefaceText(views, statuses[i], "·", font);
+        }
+    }
+
+    private static Calendar getDateForOffset(int offset) {
+        Calendar date = Calendar.getInstance();
+        date.set(Calendar.HOUR_OF_DAY, 12);
+        date.set(Calendar.MINUTE, 0);
+        date.set(Calendar.SECOND, 0);
+        date.set(Calendar.MILLISECOND, 0);
+        date.add(Calendar.DAY_OF_MONTH, offset);
+        return date;
     }
 
     private static Set<String> getSelectedContent(SharedPreferences preferences, int appWidgetId) {
@@ -716,7 +792,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         views.setInt(R.id.widget_outline, "setColorFilter", palette.outline);
         views.setInt(R.id.widget_outline, "setImageAlpha", 255);
         views.setViewVisibility(R.id.widget_outline, showOutline ? View.VISIBLE : View.GONE);
-        applyWidgetTypography(views, fontStyle);
         Bitmap artwork = getWidgetArtwork(context, composition, widthDp, heightDp);
         boolean showArtwork = widgetsEnabled && artwork != null
             && Color.alpha(resolvedSurface) > 0
@@ -818,6 +893,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         if (targetComplete) views.setTextColor(R.id.widget_remaining_text, accentColor);
         views.setTextViewText(R.id.widget_streak_text, "🔥 " + streak + "-day streak");
         bindWeekProgress(views, preferences, accentColor, secondaryColor);
+        applyWeekTypography(views, fontStyle);
 
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
         boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
@@ -888,6 +964,17 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             + Math.min(elapsedMinutes, targetMinutes) + " of " + targetMinutes + " minutes");
         views.setContentDescription(R.id.widget_streak_text, "Current streak: " + streak + " days");
         views.setViewVisibility(R.id.widget_disabled_text, widgetsEnabled ? View.GONE : View.VISIBLE);
+        applyWidgetTypography(
+            views, fontStyle, "MATH MASTER", progress + "%", "TODAY'S TARGET",
+            Math.min(elapsedMinutes, targetMinutes) + " / " + targetMinutes + " min",
+            elapsedMinutes + " min studied",
+            targetComplete ? "✓ Daily target complete!" : remainingMinutes + " min left today",
+            "🔥 " + streak + "-day streak",
+            "THIS WEEK · LAST 7 DAYS",
+            views.getClass().getName().isEmpty() ? "" : "",
+            showQuizShortcut ? "QUIZ" : (updateAvailable ? "UPDATE" : ""),
+            widgetsEnabled
+        );
         if (!widgetsEnabled) {
             views.setViewVisibility(R.id.widget_target_label, View.GONE);
             views.setViewVisibility(R.id.widget_progress_percent, View.GONE);
