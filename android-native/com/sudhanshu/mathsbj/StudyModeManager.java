@@ -422,10 +422,12 @@ public final class StudyModeManager {
         }
 
         try {
-            Intent service = new Intent(app, StudyModeFocusService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) app.startForegroundService(service);
-            else app.startService(service);
-            setLastState(app, "focus_shield_starting");
+            if (!StudyModeFocusService.isRunning()) {
+                Intent service = new Intent(app, StudyModeFocusService.class);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) app.startForegroundService(service);
+                else app.startService(service);
+            }
+            setLastState(app, StudyModeFocusService.isRunning() ? "focus_shield_running" : "focus_shield_starting");
         } catch (Exception error) {
             stopFocusShield(app);
             setLastState(app, "service_start_blocked");
@@ -649,6 +651,13 @@ public final class StudyModeManager {
             && !isPolicyOwner(context) && !hasUsageAccess(context)) state = "permission_required";
         if (isEnabled(context) && isScheduleActive(context)
             && !isPolicyOwner(context) && !hasOverlayPermission(context)) state = "permission_required";
+        if (isEnabled(context) && isScheduleActive(context)
+            && !isPolicyOwner(context) && hasUsageAccess(context) && hasOverlayPermission(context)
+            && !StudyModeFocusService.isRunning()
+            && ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state))) {
+            state = "service_stopped";
+            setLastState(context, state);
+        }
 
         boolean exactFallback = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission(context);
         result.put("config", config);
