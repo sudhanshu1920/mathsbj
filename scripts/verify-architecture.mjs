@@ -988,6 +988,8 @@ if (!studyModeManager.includes('DevicePolicyManager') ||
 }
 if (!studyModeFocus.includes('UsageStatsManager') ||
     !studyModeFocus.includes('queryEvents') ||
+    !studyModeFocus.includes('HandlerThread') ||
+    !studyModeFocus.includes('THREAD_PRIORITY_BACKGROUND') ||
     !studyModeFocus.includes('TYPE_APPLICATION_OVERLAY') ||
     !studyModeFocus.includes('FOREGROUND_SERVICE_TYPE_SPECIAL_USE') ||
     !studyModeFocus.includes('service_start_blocked') ||
@@ -995,6 +997,9 @@ if (!studyModeFocus.includes('UsageStatsManager') ||
   fail('Personal-phone Focus Shield must use Usage Access, overlay permission, a user-visible foreground service and actual service state');
 }
 if (!studyModeNotifications.includes('NotificationListenerService') ||
+    !studyModeNotifications.includes('onListenerDisconnected') ||
+    !studyModeManager.includes('notificationListenerConnected') ||
+    !studyModePage.includes('Disconnected') ||
     !studyModeNotifications.includes('notification.isClearable()') ||
     !studyModeNotifications.includes('StudyModeManager.isPackageSelected') ||
     !studyModeNotifications.includes('StudyModeManager.isScheduleActive') ||
