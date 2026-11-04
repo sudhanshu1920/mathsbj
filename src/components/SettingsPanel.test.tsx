@@ -135,12 +135,14 @@ describe("SettingsPanel compact controls", () => {
     const themeButtons = screen.getAllByRole("button", { name: /^Select .* theme$/ });
     expect(themeButtons).toHaveLength(THEMES.length);
     expect(screen.getByRole("button", { name: "Select Arctic Blue theme" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Select Arctic Blue theme" }).querySelector("[data-theme-swatch-group]")).toHaveClass("ring-2", "ring-primary", "ring-offset-2");
 
     for (const theme of THEMES) {
       const option = screen.getByRole("button", { name: `Select ${theme.name} theme` });
       expect(option).toHaveAttribute("aria-pressed");
-      expect(option).toHaveClass("h-11", "w-11");
+      expect(option).toHaveClass("h-11", "w-full");
       expect(screen.queryByText(theme.name)).not.toBeInTheDocument();
+      expect(option.querySelector("[data-theme-swatch-group]")).toBeInTheDocument();
     }
 
     const grid = container.querySelector("[data-theme-selector-grid]");
