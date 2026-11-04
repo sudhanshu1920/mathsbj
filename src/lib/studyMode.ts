@@ -16,6 +16,7 @@ export interface StudyModeStatus {
     usageAccess: boolean;
     overlay: boolean;
     notificationAccess: boolean;
+    notificationListenerConnected: boolean;
     exactAlarm: boolean;
     deviceOwner: boolean;
     profileOwner: boolean;
@@ -63,7 +64,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       config: DEFAULT_STUDY_MODE_CONFIG,
       permissions: {
         usageAccess: false, overlay: false, notificationAccess: false,
-        exactAlarm: false, deviceOwner: false, profileOwner: false,
+        notificationListenerConnected: false, exactAlarm: false, deviceOwner: false, profileOwner: false,
       },
       scheduleActive: false,
       monitoringServiceRunning: false,
