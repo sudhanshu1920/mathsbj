@@ -447,6 +447,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
         return value != null && value.matches("#[0-9A-F]{6}");
     }
 
+    private static String safeHex(String value, String fallback) {
+        return isValidHex(value) ? value : fallback;
+    }
+
     private static int indexOf(String[] values, String value) {
         for (int i = 0; i < values.length; i++) if (values[i].equals(value)) return i;
         return 0;
@@ -685,11 +689,18 @@ public class MathMasterWidgetConfigActivity extends Activity {
         String accentHex = hexValue(customAccentHex, "#8FAEFF");
         String backgroundHex = hexValue(customBackgroundHex, "#111B30");
         String outlineHex = hexValue(customOutlineHex, "#60749D");
-        if (!isValidHex(primaryHex) || !isValidHex(secondaryHex) || !isValidHex(accentHex)
-            || !isValidHex(backgroundHex) || !isValidHex(outlineHex)) {
+        boolean customPaletteSelected = "custom".equals(themeMode);
+        if (customPaletteSelected && (!isValidHex(primaryHex) || !isValidHex(secondaryHex)
+            || !isValidHex(accentHex) || !isValidHex(backgroundHex) || !isValidHex(outlineHex))) {
             Toast.makeText(this, "Enter valid 6-digit hex colors, for example #8FAEFF.", Toast.LENGTH_LONG).show();
             return;
         }
+        // Invalid values in inactive custom fields must not block saving a preset theme.
+        primaryHex = safeHex(primaryHex, "#F5F7FF");
+        secondaryHex = safeHex(secondaryHex, "#AEBBD2");
+        accentHex = safeHex(accentHex, "#8FAEFF");
+        backgroundHex = safeHex(backgroundHex, "#111B30");
+        outlineHex = safeHex(outlineHex, "#60749D");
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String previousThemeMode = preferences.getString("instance_" + widgetId + "_themeMode", "");
         String previousTheme = preferences.getString("instance_" + widgetId + "_theme", "");
