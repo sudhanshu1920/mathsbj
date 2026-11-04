@@ -443,7 +443,8 @@ export const initializeBackgroundNotifications = (): (() => void) => {
   let lastMinuteBucket = -1;
 
   const onProgressPersisted = () => {
-    if (!getBackgroundNotificationsEnabled()) return;
+    // Live widget data is independent of the user's optional reminder opt-in.
+    // Native sync still cancels alarms when enabled=false, but persists progress.
     const now = Date.now();
     const currentDayKey = todayStr();
     if (currentDayKey !== lastPersistedDayKey) {
