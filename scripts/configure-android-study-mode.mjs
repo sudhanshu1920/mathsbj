@@ -23,6 +23,7 @@ const REQUIRED_PERMISSIONS = [
   'android.permission.SCHEDULE_EXACT_ALARM',
   'android.permission.FOREGROUND_SERVICE',
   'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
+  'android.permission.RECEIVE_BOOT_COMPLETED',
 ];
 
 function ensureManifestQueries(manifest) {
@@ -51,6 +52,20 @@ function ensurePermissions(manifest) {
 
 function ensureStudyModeComponents(manifest) {
   const components = [
+    {
+      marker: 'android:name=".DailyTargetReminderBootReceiver"',
+      xml: `        <receiver
+            android:name=".DailyTargetReminderBootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>`,
+    },
     {
       marker: 'android:name=".StudyModeAlarmReceiver"',
       xml: `        <receiver
