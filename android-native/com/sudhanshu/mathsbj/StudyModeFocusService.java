@@ -40,6 +40,7 @@ public final class StudyModeFocusService extends Service {
     private String shieldedPackage = "";
     private boolean foregroundStarted = false;
     private String lastForegroundPackage = null;
+    private boolean initialForegroundLookup = true;
 
     public static boolean isRunning() {
         return running;
@@ -165,7 +166,9 @@ public final class StudyModeFocusService extends Service {
         long now = System.currentTimeMillis();
         UsageEvents events;
         try {
-            events = usage.queryEvents(Math.max(0L, now - 12000L), now);
+            long lookback = initialForegroundLookup ? 24L * 60L * 60L * 1000L : 12000L;
+            events = usage.queryEvents(Math.max(0L, now - lookback), now);
+            initialForegroundLookup = false;
         } catch (SecurityException denied) {
             StudyModeManager.setServiceState(this, "permission_required");
             return null;
