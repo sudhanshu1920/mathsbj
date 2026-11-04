@@ -124,6 +124,15 @@
 }
 
 .mcq-game-control {
+  /* Large hit area; keep the control fully invisible in every interaction state. */
+  opacity: 0;
+  color: transparent;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  outline: none;
+  transition: none;
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
@@ -173,8 +182,8 @@
 }
 
 .mcq-game-control--speed {
-  width: clamp(4.5rem, 20vw, 6rem);
-  min-height: clamp(4.05rem, 8vh, 5.25rem);
+  width: clamp(5.6rem, 25vw, 7.5rem);
+  min-height: clamp(5.05rem, 10vh, 6.55rem);
   border-color: rgb(45 212 191 / 0.85);
   color: #e6fff9;
   background: linear-gradient(155deg, rgb(7 94 89 / 0.97), rgb(4 35 48 / 0.97));
@@ -200,8 +209,8 @@
 }
 
 .mcq-game-control--steer {
-  width: clamp(3.3rem, 14.5vw, 4.5rem);
-  min-height: clamp(3.85rem, 7.4vh, 4.75rem);
+  width: clamp(4.1rem, 18vw, 5.6rem);
+  min-height: clamp(4.8rem, 9.2vh, 5.95rem);
   border-color: rgb(112 191 255 / 0.82);
   background: linear-gradient(155deg, rgb(21 70 126 / 0.97), rgb(7 24 55 / 0.97));
 }
