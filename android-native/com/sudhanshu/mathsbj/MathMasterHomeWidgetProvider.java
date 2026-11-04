@@ -842,8 +842,11 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         setWidgetAction(views, context, appWidgetId, R.id.widget_week_section, "weekly");
         setWidgetAction(views, context, appWidgetId, R.id.widget_week_strip, "weekly");
         setWidgetAction(views, context, appWidgetId, R.id.widget_update_text, "app-update");
-        setWidgetAction(views, context, appWidgetId, R.id.widget_update_badge, "app-update");
         setWidgetAction(views, context, appWidgetId, R.id.widget_update_badge, showQuizShortcut ? "quiz" : "app-update");
+        views.setContentDescription(R.id.widget_update_badge,
+            showQuizShortcut ? "Open Math Master practice and quiz section" : "Check for app updates");
+        views.setContentDescription(R.id.widget_progress_percent, progress + "% daily progress");
+        views.setContentDescription(R.id.widget_progress_bar, progress + "% daily progress");
         return views;
     }
     private static void setWidgetAction(
