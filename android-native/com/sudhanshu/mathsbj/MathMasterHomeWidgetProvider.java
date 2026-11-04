@@ -522,133 +522,40 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     private static String getInstanceString(SharedPreferences preferences, int appWidgetId, String field, String fallback) {
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
             String key = "instance_" + appWidgetId + "_" + field;
-            if (preferences.contains(key)) return preferences.getString(key, fallback);
+            Object value = preferences.getAll().get(key);
+            if (value instanceof String) return (String) value;
         }
-        return preferences.getString(field, fallback);
+        Object globalValue = preferences.getAll().get(field);
+        return globalValue instanceof String ? (String) globalValue : fallback;
     }
 
     private static int getInstanceInt(
         SharedPreferences preferences, int appWidgetId, String field, int fallback
     ) {
+        Object value = null;
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-            String key = "instance_" + appWidgetId + "_" + field;
-            if (preferences.contains(key)) return preferences.getInt(key, fallback);
+            value = preferences.getAll().get("instance_" + appWidgetId + "_" + field);
         }
-        return preferences.getInt(field, fallback);
+        if (!(value instanceof Number)) value = preferences.getAll().get(field);
+        return value instanceof Number ? ((Number) value).intValue() : fallback;
     }
 
     private static boolean getInstanceBoolean(
         SharedPreferences preferences, int appWidgetId, String field, boolean fallback
     ) {
+        Object value = null;
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-            String key = "instance_" + appWidgetId + "_" + field;
-            if (preferences.contains(key)) return preferences.getBoolean(key, fallback);
+            value = preferences.getAll().get("instance_" + appWidgetId + "_" + field);
         }
-        return preferences.getBoolean(field, fallback);
+        if (!(value instanceof Boolean)) value = preferences.getAll().get(field);
+        return value instanceof Boolean ? (Boolean) value : fallback;
     }
 
     private static String getInstanceColor(
         SharedPreferences preferences, int appWidgetId, String field, String fallback
     ) {
-        return getInstanceString(preferences, appWidgetId, field, fallback);
-    }
-
-    private static String fontFamily(String font) {
-        switch (MathMasterWidgetStyle.normalizeFont(font)) {
-            case "serif": return "serif";
-            case "monospace": return "monospace";
-            case "cursive": return "cursive";
-            case "condensed": return "sans-serif-condensed";
-            case "condensed_light": return "sans-serif-condensed-light";
-            case "light": return "sans-serif-light";
-            case "medium": return "sans-serif-medium";
-            case "black": return "sans-serif-black";
-            case "thin": return "sans-serif-thin";
-            case "small_caps": return "sans-serif-medium";
-            default: return "sans-serif";
-        }
-    }
-
-    /** TextView TypefaceSpan is Parcelable and survives the RemoteViews binder boundary. */
-    private static void setTypefaceText(RemoteViews views, int viewId, String text, String font) {
-        if (text == null) text = "";
-        if (text.isEmpty()) {
-            views.setTextViewText(viewId, text);
-            return;
-        }
-        SpannableString styled = new SpannableString(text);
-        styled.setSpan(new TypefaceSpan(fontFamily(font)), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        String normalizedFont = MathMasterWidgetStyle.normalizeFont(font);
-        if ("black".equals(normalizedFont) || "condensed".equals(normalizedFont)) {
-            styled.setSpan(new StyleSpan(Typeface.BOLD), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
-        if ("small_caps".equals(normalizedFont)) {
-            styled = new SpannableString(text.toUpperCase(Locale.getDefault()));
-            styled.setSpan(new TypefaceSpan(fontFamily(font)), 0, styled.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            styled.setSpan(new android.text.style.RelativeSizeSpan(0.94f), 0, styled.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
-        views.setTextViewText(viewId, styled);
-    }
-
-    private static void applyWidgetTypography(
-        RemoteViews views,
-        String font,
-        String title,
-        String percent,
-        String targetLabel,
-        String targetValue,
-        String studyTime,
-        String remaining,
-        String streak,
-        String weekTitle,
-        String update,
-        String badge,
-        boolean widgetsEnabled
-    ) {
-        setTypefaceText(views, R.id.widget_title_text, title, font);
-        setTypefaceText(views, R.id.widget_progress_percent, percent, font);
-        setTypefaceText(views, R.id.widget_target_label, targetLabel, font);
-        setTypefaceText(views, R.id.widget_target_value, targetValue, font);
-        setTypefaceText(views, R.id.widget_study_time_text, studyTime, font);
-        setTypefaceText(views, R.id.widget_remaining_text, remaining, font);
-        setTypefaceText(views, R.id.widget_streak_text, streak, font);
-        setTypefaceText(views, R.id.widget_week_title, weekTitle, font);
-        setTypefaceText(views, R.id.widget_update_text, update, font);
-        setTypefaceText(views, R.id.widget_update_badge, badge, font);
-        setTypefaceText(views, R.id.widget_disabled_text, widgetsEnabled ? "" : "Widgets are off", font);
-    }
-
-    private static void applyWeekTypography(
-        RemoteViews views, SharedPreferences preferences, String font
-    ) {
-        int[] days = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
-            R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
-        int[] dates = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
-            R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
-        int[] statuses = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
-            R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
-        Set<String> completed = getCompletedDays(preferences);
-        Calendar date = getDateForOffset(-6);
-        SimpleDateFormat dayFormat = new SimpleDateFormat("EEEEE", Locale.getDefault());
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        for (int i = 0; i < 7; i++) {
-            String dateKey = dateFormat.format(date.getTime());
-            String day = dayFormat.format(date.getTime());
-            setTypefaceText(views, days[i], day, font);
-            setTypefaceText(views, dates[i], String.valueOf(date.get(Calendar.DAY_OF_MONTH)), font);
-            setTypefaceText(views, statuses[i], completed.contains(dateKey) ? "✓" : "·", font);
-            date.add(Calendar.DAY_OF_MONTH, 1);
-        }
-    }
-
-    private static Calendar getDateForOffset(int offset) {
-        Calendar date = Calendar.getInstance();
-        date.set(Calendar.HOUR_OF_DAY, 12);
-        date.set(Calendar.MINUTE, 0);
-        date.set(Calendar.SECOND, 0);
-        date.set(Calendar.MILLISECOND, 0);
-        date.add(Calendar.DAY_OF_MONTH, offset);
-        return date;
+        String candidate = getInstanceString(preferences, appWidgetId, field, fallback);
+        return candidate != null && candidate.matches("#[0-9A-Fa-f]{6}") ? candidate : fallback;
     }
 
     private static Set<String> getSelectedContent(SharedPreferences preferences, int appWidgetId) {
