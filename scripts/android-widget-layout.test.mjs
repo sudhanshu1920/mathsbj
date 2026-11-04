@@ -294,6 +294,13 @@ test("widget customization exposes all supported typography, opacity, outline, p
   assert.match(widgetConfigActivity, /isValidHex\(primaryHex\)/);
   assert.match(widgetConfigActivity, /seekBarListener\(\)/);
   assert.match(widgetConfigActivity, /MathMasterWidgetStyle\.resolvePalette/);
+  assert.match(widgetConfigActivity, /appearanceGroup = new RadioGroup\(this\)/);
+  assert.match(widgetConfigActivity, /addRadio\(appearanceGroup, "system", "System"/);
+  assert.match(widgetConfigActivity, /addRadio\(appearanceGroup, "light", "Light"/);
+  assert.match(widgetConfigActivity, /addRadio\(appearanceGroup, "dark", "Dark"/);
+  assert.match(widgetConfigActivity, /"instance_" \+ widgetId \+ "_appearanceMode"/);
+  assert.match(provider, /"instance_" \+ appWidgetId \+ "_appearanceMode"/);
+  assert.match(provider, /UI_MODE_NIGHT_MASK/);
   assert.match(widgetConfigActivity, /surfaceSettingsExplicitlySaved/);
   assert.match(widgetConfigActivity, /"minimal"\.equals\(selectedTheme\)/);
   assert.match(widgetConfigActivity, /selectRadioValue\(surfaceGroup, "transparent"\)/);
@@ -309,9 +316,14 @@ test("actual RemoteViews renderer applies wallpaper alpha, outline tint and remo
   assert.match(provider, /setImageAlpha", Color\.alpha\(resolvedSurface\)/);
   assert.match(provider, /setViewVisibility\(R\.id\.widget_outline, showOutline \? View\.VISIBLE : View\.GONE\)/);
   assert.match(provider, /setColorFilter", palette\.outline/);
+  assert.match(provider, /private static void applyWidgetTypography\(/);
+  assert.match(provider, /private static String fontFamily\(String font\)/);
   assert.match(provider, /new TypefaceSpan\(fontFamily\(font\)\)/);
   assert.match(provider, /views\.setTextViewText\(viewId, styled\)/);
+  assert.match(provider, /setWidgetStyledText\(views, dayIds\[i\], label, font, true\)/);
+  assert.match(provider, /setWidgetStyledText\(views, dateIds\[i\], String\.valueOf\(day\.get\(Calendar\.DAY_OF_MONTH\)\), font, false\)/);
   assert.doesNotMatch(provider, /setTextViewTextAppearance/);
+  assert.match(widgetStyle, /small_caps.*sans-serif-smallcaps/s);
 });
 
 test("native widget source generation copies the centralized style engine and shared visual resources", () => {
