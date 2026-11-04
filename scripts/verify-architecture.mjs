@@ -1002,6 +1002,7 @@ if (!studyModeNotifications.includes('NotificationListenerService') ||
   fail('Notification listener must filter only clearable notifications from selected apps during active sessions');
 }
 if (!studyModeSetup.includes('android.intent.category.LAUNCHER') ||
+    !studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
     studyModeSetup.includes('QUERY_ALL_PACKAGES') ||
     !studyModeSetup.includes('StudyModeDeviceAdminReceiver') ||
     !studyModeSetup.includes('BIND_NOTIFICATION_LISTENER_SERVICE') ||
