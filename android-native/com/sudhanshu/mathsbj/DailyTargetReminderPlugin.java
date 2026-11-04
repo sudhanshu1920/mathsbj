@@ -17,7 +17,17 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
 import java.lang.reflect.Method;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 
 @CapacitorPlugin(
     name = "MathMasterNotifications",
@@ -63,8 +73,11 @@ public class DailyTargetReminderPlugin extends Plugin {
             Integer currentStreak = call.getInt("currentStreak");
             String completedDaysJson = call.getString("completedDaysJson");
 
-            int targetMinutes = targetValue == null ? 5 : Math.max(1, targetValue);
-            long elapsedSeconds = elapsedValue == null ? 0L : Math.max(0L, (long) Math.floor(elapsedValue));
+            int targetMinutes = targetValue == null ? 5 : Math.max(1, Math.min(1440, targetValue));
+            long elapsedSeconds = normalizeElapsedSeconds(elapsedValue);
+            int streakDays = currentStreak == null ? 0 : Math.max(0, Math.min(1_000_000, currentStreak));
+            String normalizedDayKey = normalizeDayKey(dayKey);
+            JSONArray completedDays = sanitizeCompletedDays(completedDaysJson);
             boolean completed = elapsedSeconds >= targetMinutes * 60L;
             boolean enabled = Boolean.TRUE.equals(enabledValue);
 
@@ -74,7 +87,7 @@ public class DailyTargetReminderPlugin extends Plugin {
                 .putInt("targetMinutes", targetMinutes)
                 .putLong("elapsedSeconds", elapsedSeconds)
                 .putBoolean("completed", completed)
-                .putString("dayKey", dayKey == null ? "" : dayKey)
+                .putString("dayKey", normalizedDayKey)
                 .putString("scheduleMinutesJson", schedule == null ? "[]" : schedule)
                 .putInt("schedulePolicyVersion", DailyTargetReminderReceiver.REMINDER_POLICY_VERSION)
                 .putString("marathiMessagesJson", marathi == null ? "[]" : marathi)
@@ -83,8 +96,8 @@ public class DailyTargetReminderPlugin extends Plugin {
 
             MathMasterHomeWidgetProvider.syncProgressSnapshot(
                 getContext(), targetMinutes, elapsedSeconds,
-                currentStreak == null ? 0 : currentStreak,
-                dayKey, completedDaysJson
+                streakDays,
+                normalizedDayKey, completedDays.toString()
             );
 
             boolean scheduled = false;
@@ -106,6 +119,78 @@ public class DailyTargetReminderPlugin extends Plugin {
         } catch (Exception error) {
             call.reject("Unable to sync daily target reminders.", error);
         }
+    }
+
+    private static long normalizeElapsedSeconds(Double value) {
+        if (value == null || Double.isNaN(value) || value <= 0d) return 0L;
+        if (Double.isInfinite(value) || value >= (double) Long.MAX_VALUE) return Long.MAX_VALUE;
+        return (long) Math.floor(value);
+    }
+
+    private static String normalizeDayKey(String dayKey) {
+        if (dayKey == null || !dayKey.matches("\\d{4}-\\d{2}-\\d{2}")) return "";
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        formatter.setLenient(false);
+        try {
+            Date parsed = formatter.parse(dayKey);
+            if (parsed == null) return "";
+            Calendar candidate = Calendar.getInstance();
+            candidate.setTime(parsed);
+            setCalendarToNoon(candidate);
+            Calendar today = Calendar.getInstance();
+            setCalendarToNoon(today);
+            return candidate.after(today) ? "" : dayKey;
+        } catch (ParseException invalidDate) {
+            return "";
+        }
+    }
+
+    private static JSONArray sanitizeCompletedDays(String completedDaysRaw) {
+        JSONArray completedDays = new JSONArray();
+        if (completedDaysRaw == null || completedDaysRaw.length() > 512) return completedDays;
+        try {
+            JSONArray incomingDays = new JSONArray(completedDaysRaw);
+            if (incomingDays.length() > 7) return completedDays;
+            Set<String> seen = new HashSet<>();
+            for (int i = 0; i < incomingDays.length(); i++) {
+                String date = incomingDays.optString(i, "");
+                if (isDateInTrailingSevenDays(date) && seen.add(date)) completedDays.put(date);
+            }
+        } catch (JSONException invalidJson) {
+            // Malformed optional history is treated as an empty week.
+        }
+        return completedDays;
+    }
+
+    private static boolean isDateInTrailingSevenDays(String date) {
+        if (date == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) return false;
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        formatter.setLenient(false);
+        final Date parsed;
+        try {
+            parsed = formatter.parse(date);
+        } catch (ParseException invalidDate) {
+            return false;
+        }
+        if (parsed == null) return false;
+
+        Calendar candidate = Calendar.getInstance();
+        candidate.setTime(parsed);
+        setCalendarToNoon(candidate);
+        Calendar today = Calendar.getInstance();
+        setCalendarToNoon(today);
+        if (candidate.after(today)) return false;
+
+        Calendar firstAllowed = (Calendar) today.clone();
+        firstAllowed.add(Calendar.DAY_OF_MONTH, -6);
+        return !candidate.before(firstAllowed);
+    }
+
+    private static void setCalendarToNoon(Calendar calendar) {
+        calendar.set(Calendar.HOUR_OF_DAY, 12);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
     }
 
     @PluginMethod
