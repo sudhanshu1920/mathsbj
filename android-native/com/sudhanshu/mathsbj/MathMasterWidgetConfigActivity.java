@@ -48,6 +48,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private RadioGroup styleGroup;
     private RadioGroup compositionGroup;
     private RadioGroup themeGroup;
+    private RadioGroup appearanceGroup;
     private RadioGroup surfaceGroup;
     private Spinner fontSpinner;
     private Spinner previewSizeSpinner;
@@ -210,6 +211,19 @@ public class MathMasterWidgetConfigActivity extends Activity {
             updatePreview();
         });
         content.addView(themeGroup, matchWrap());
+
+        addSectionLabel(content, "Color Appearance");
+        appearanceGroup = new RadioGroup(this);
+        appearanceGroup.setOrientation(RadioGroup.HORIZONTAL);
+        String currentAppearance = preferences.getString(
+            "instance_" + widgetId + "_appearanceMode", preferences.getString("mode", "dark"));
+        if (!"system".equals(currentAppearance) && !"light".equals(currentAppearance)
+            && !"dark".equals(currentAppearance)) currentAppearance = "system";
+        addRadio(appearanceGroup, "system", "System", currentAppearance);
+        addRadio(appearanceGroup, "light", "Light", currentAppearance);
+        addRadio(appearanceGroup, "dark", "Dark", currentAppearance);
+        appearanceGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
+        content.addView(appearanceGroup, matchWrap());
 
         addSectionLabel(content, "Background Surface");
         surfaceGroup = new RadioGroup(this);
@@ -539,8 +553,18 @@ public class MathMasterWidgetConfigActivity extends Activity {
         }
         if (selected.contains("quiz")) rows.add("Quiz shortcut: opens Practice");
 
-        String appMode = preferences.getString("mode", "dark");
-        boolean light = "light".equals(appMode);
+        String appearanceMode = selectedRadioValue(
+            appearanceGroup, preferences.getString("mode", "dark"));
+        boolean light;
+        if ("light".equals(appearanceMode)) {
+            light = true;
+        } else if ("dark".equals(appearanceMode)) {
+            light = false;
+        } else {
+            int nightMode = getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+            light = nightMode != android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        }
         String themeMode = selectedRadioValue(themeGroup, MathMasterWidgetStyle.DEFAULT_THEME);
         String resolvedTheme = "random".equals(themeMode)
             ? preferences.getString("instance_" + widgetId + "_theme", MathMasterWidgetStyle.DEFAULT_THEME)
@@ -650,6 +674,9 @@ public class MathMasterWidgetConfigActivity extends Activity {
         String composition = selectedRadioValue(compositionGroup, "auto");
         if (!isValidComposition(composition)) composition = "auto";
         String themeMode = selectedRadioValue(themeGroup, MathMasterWidgetStyle.DEFAULT_THEME);
+        String appearanceMode = selectedRadioValue(appearanceGroup, "system");
+        if (!"system".equals(appearanceMode) && !"light".equals(appearanceMode)
+            && !"dark".equals(appearanceMode)) appearanceMode = "system";
         String surfaceStyle = selectedRadioValue(surfaceGroup, "translucent");
         String fontStyle = fontSpinner == null ? MathMasterWidgetStyle.DEFAULT_FONT
             : FONT_IDS[Math.max(0, Math.min(FONT_IDS.length - 1, fontSpinner.getSelectedItemPosition()))];
@@ -680,6 +707,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             .putString("instance_" + widgetId + "_composition", composition)
             .putString("instance_" + widgetId + "_themeMode", themeMode)
             .putString("instance_" + widgetId + "_theme", theme)
+            .putString("instance_" + widgetId + "_appearanceMode", appearanceMode)
             .putString("instance_" + widgetId + "_backgroundStyle", surfaceStyle)
             .putInt("instance_" + widgetId + "_backgroundOpacity", Math.max(0, Math.min(100, opacitySeekBar.getProgress())))
             .putBoolean("instance_" + widgetId + "_showOutline", outlineCheck.isChecked())
