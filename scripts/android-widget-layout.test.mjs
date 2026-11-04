@@ -252,6 +252,14 @@ test("package updates refresh all existing pinned widget instances without repla
 });
 
 
+test("notification and widget update actions are consumed once by the native bridge", () => {
+  assert.match(nativePlugin, /void consumeNotificationAction\(PluginCall call\)/);
+  assert.match(nativePlugin, /isSupportedAction\(action\)/);
+  assert.match(nativePlugin, /removeExtra\("mathmaster_notification_action"\)/);
+  assert.match(bridge, /notification\.action === 'app-update'/);
+  assert.match(bridge, /notification\.action === 'study-reminder'/);
+});
+
 test("widget study progress synchronization is independent of daily reminder opt-in", () => {
   const start = bridge.indexOf("const onProgressPersisted = () => {");
   const end = bridge.indexOf("const onStreakUpdated =", start);
