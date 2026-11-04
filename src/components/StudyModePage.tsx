@@ -64,6 +64,13 @@ const statusText = (status: StudyModeStatus | null) => {
   if (status.enforcementState === "overlay_failed") return "Android could not display the blocking overlay";
   if (status.enforcementState === "policy_failed") return "System suspension could not be applied";
   if (status.enforcementState === "partial_suspension") return "Some selected apps could not be suspended";
+  if (status.enforcementState === "focus_shield_running"
+      && status.config.notificationBlockingEnabled
+      && (!status.permissions.notificationAccess || !status.permissions.notificationListenerConnected)) {
+    return status.permissions.notificationAccess
+      ? "Focus Shield active · notification listener disconnected"
+      : "Focus Shield active · notification access required";
+  }
   if (status.enforcementState === "focus_shield_running") return "Focus Shield monitoring is active";
   if (status.enforcementState === "system_suspension") return "Android system-level suspension is active";
   if (status.enforcementState === "waiting_for_schedule") return "Enabled — waiting for the next study session";
@@ -303,9 +310,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     {
       key: "notifications" as const,
       title: "Notification access",
-      granted: status?.permissions.notificationAccess === true,
-      required: draft.notificationBlockingEnabled,
-      helper: "Dismisses clearable notifications from selected apps only.",
+      granted: status?.permissions.notificationAccess === true
+        && status?.permissions.notificationListenerConnected === true,
+      required: draft.notificationBlockingEnabled && status?.enforcementMode !== "device_owner",
+      helper: "Only clearable notifications from selected apps are dismissed when the listener is connected.",
     },
     {
       key: "exactAlarm" as const,
@@ -524,22 +532,38 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
       <section className="space-y-1.5">
         <p className="text-xs font-semibold text-foreground">Android permissions</p>
-        {permissionItems.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => { void openPermission(item.key); }}
-            className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-2.5 py-2 text-left transition-colors hover:border-primary/35"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block text-[11px] font-medium text-foreground">{item.title}{item.required ? " · required" : ""}</span>
-              <span className="block truncate text-[10px] text-muted-foreground">{item.helper}</span>
-            </span>
-            <span className={item.granted ? "shrink-0 text-[10px] font-semibold text-success" : item.required ? "shrink-0 text-[10px] font-semibold text-warning" : "shrink-0 text-[10px] font-semibold text-muted-foreground"}>
-              {item.granted ? "Granted" : item.required ? "Required" : "Optional"}
-            </span>
-          </button>
-        ))}
+        {permissionItems.map((item) => {
+          const systemManagedNotification = item.key === "notifications"
+            && status?.enforcementMode === "device_owner";
+          const listenerDisconnected = item.key === "notifications"
+            && status?.permissions.notificationAccess === true
+            && status?.permissions.notificationListenerConnected !== true
+            && !systemManagedNotification;
+          const stateLabel = systemManagedNotification
+            ? "System-managed"
+            : listenerDisconnected
+              ? "Disconnected"
+              : item.granted ? "Granted" : item.required ? "Required" : "Optional";
+          const stateClass = item.granted || systemManagedNotification
+            ? "shrink-0 text-[10px] font-semibold text-success"
+            : listenerDisconnected || item.required
+              ? "shrink-0 text-[10px] font-semibold text-warning"
+              : "shrink-0 text-[10px] font-semibold text-muted-foreground";
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => { void openPermission(item.key); }}
+              className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-2.5 py-2 text-left transition-colors hover:border-primary/35"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-[11px] font-medium text-foreground">{item.title}{item.required ? " · required" : ""}</span>
+                <span className="block truncate text-[10px] text-muted-foreground">{item.helper}</span>
+              </span>
+              <span className={stateClass}>{stateLabel}</span>
+            </button>
+          );
+        })}
         {status?.enforcementMode === "device_owner" && (
           <p className="pt-1 text-[10px] text-success">This device is managed by an eligible Device Owner or Profile Owner.</p>
         )}
