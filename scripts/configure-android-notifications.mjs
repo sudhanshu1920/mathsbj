@@ -8,6 +8,10 @@ const PACKAGE_PATH = 'com.sudhanshu.mathsbj';
 const GOOGLE_SERVICES_PLUGIN_VERSION = '4.4.2';
 const FIREBASE_BOM_VERSION = '33.14.0';
 
+/** Normalize decorative views into classes supported by Android RemoteViews. */
+export const normalizeRemoteViewsLayout = (layout) =>
+  layout.replace(/<View(?=[\s>])/g, '<FrameLayout').replace(/<\/View>/g, '</FrameLayout>');
+
 async function readRequired(filePath, label) {
   try {
     return await readFile(filePath, 'utf8');

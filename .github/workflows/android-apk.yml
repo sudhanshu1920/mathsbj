@@ -276,6 +276,9 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Configure Android home-screen widgets
+        run: node scripts/configure-android-widgets.mjs
+
       - name: Configure production release signing
         shell: bash
         env:

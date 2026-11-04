@@ -1026,6 +1026,9 @@ jobs:
       - name: Sync web build into Android project
         run: npx cap sync android
 
+      - name: Configure Android home-screen widgets
+        run: node scripts/configure-android-widgets.mjs
+
       - name: Generate Android launcher icon from supplied SBJ logo
         shell: bash
         run: |
