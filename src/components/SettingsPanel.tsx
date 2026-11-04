@@ -309,6 +309,7 @@ const SettingsPanel = () => {
               >
                 <span
                   aria-hidden="true"
+                  data-theme-swatch-group
                   className={`flex h-8 w-8 items-center justify-center gap-0.5 rounded-full border border-border/70 shadow-sm transition-shadow ${
                     selected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
                   }`}
