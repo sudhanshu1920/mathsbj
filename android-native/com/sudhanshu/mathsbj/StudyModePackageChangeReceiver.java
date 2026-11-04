@@ -9,6 +9,6 @@ public final class StudyModePackageChangeReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null || !Intent.ACTION_PACKAGE_REMOVED.equals(intent.getAction())) return;
         if (intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return;
-        StudyModeManager.reconcile(context);
+        StudyModeManager.getSelectedPackages(context); // Purge the removed package from saved selection.\n        StudyModeManager.reconcile(context);
     }
 }
