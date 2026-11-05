@@ -394,6 +394,12 @@ public final class StudyModeManager {
 
         scheduleNextBoundary(app);
         boolean active = isScheduleActive(app);
+        // A listener that was already connected before the schedule boundary will
+        // not receive onListenerConnected again. Sweep current notifications when
+        // the session becomes active, independently of Focus Shield permissions.
+        if (active && !isPolicyOwner(app) && isNotificationBlockingEnabled(app)) {
+            StudyModeNotificationListenerService.filterCurrentNotificationsIfConnected();
+        }
         if (isPolicyOwner(app)) {
             stopFocusShield(app);
             if (!hasExactAlarmPermission(app)) {
