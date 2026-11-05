@@ -23,9 +23,10 @@ export interface StudyModeStatus {
   };
   scheduleActive: boolean;
   monitoringServiceRunning: boolean;
-  enforcementMode: "device_owner" | "focus_shield" | "unavailable";
+  enforcementMode: "device_owner" | "profile_owner" | "focus_shield" | "unavailable";
   enforcementState: string;
   appliedPackages: string[];
+  suspendedPackages: string[];
   exactAlarmFallback: boolean;
 }
 
@@ -71,6 +72,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       enforcementMode: "unavailable",
       enforcementState: "native_only",
       appliedPackages: [],
+      suspendedPackages: [],
       exactAlarmFallback: false,
     };
   }

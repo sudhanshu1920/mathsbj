@@ -506,6 +506,26 @@ public final class StudyModeManager {
         setLastState(context, state);
     }
 
+    private static boolean isActuallySuspended(DevicePolicyManager policy, Context context, String packageName) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || policy == null || packageName == null) return false;
+        try {
+            return policy.isPackageSuspended(getAdminComponent(context), packageName);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static List<String> getActuallySuspendedPackages(
+        DevicePolicyManager policy, Context context, List<String> packages
+    ) {
+        List<String> suspended = new ArrayList<>();
+        for (String packageName : packages) {
+            if (isActuallySuspended(policy, context, packageName)) suspended.add(packageName);
+        }
+        Collections.sort(suspended);
+        return suspended;
+    }
+
     private static boolean applyPackageSuspension(Context context, List<String> selected, boolean active) {
         DevicePolicyManager policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         if (policy == null || !isPolicyOwner(context)) {
@@ -513,59 +533,67 @@ public final class StudyModeManager {
             setLastState(context, "policy_failed");
             return false;
         }
-
-        List<String> previous = readAppliedPackages(context);
         if (!active) return releaseSuspendedPackages(context);
 
+        List<String> previouslyManaged = readAppliedPackages(context);
+        Set<String> previouslyManagedSet = new HashSet<>(previouslyManaged);
         Set<String> wanted = new HashSet<>(selected);
-        List<String> stillSuspended = new ArrayList<>();
+        List<String> stillManaged = new ArrayList<>();
         List<String> obsolete = new ArrayList<>();
-        for (String old : previous) if (!wanted.contains(old)) obsolete.add(old);
+        for (String old : previouslyManaged) if (!wanted.contains(old)) obsolete.add(old);
 
         if (!obsolete.isEmpty()) {
             try {
-                String[] failedToRelease = policy.setPackagesSuspended(getAdminComponent(context), obsolete.toArray(new String[0]), false);
-                if (failedToRelease != null) {
-                    for (String name : failedToRelease) {
-                        if (isInstalledPackage(context, name)) stillSuspended.add(name);
-                    }
-                }
-            } catch (Exception error) {
-                for (String name : obsolete) {
-                    if (isInstalledPackage(context, name)) stillSuspended.add(name);
-                }
+                policy.setPackagesSuspended(getAdminComponent(context), obsolete.toArray(new String[0]), false);
+            } catch (Exception ignored) {
+                // Verify below and retain any package that still needs recovery.
+            }
+            for (String old : obsolete) {
+                if (isActuallySuspended(policy, context, old)) stillManaged.add(old);
             }
         }
 
-        try {
-            String[] failed = policy.setPackagesSuspended(getAdminComponent(context), selected.toArray(new String[0]), true);
-            Set<String> rejected = new HashSet<>();
-            if (failed != null) Collections.addAll(rejected, failed);
-            for (String name : selected) if (!rejected.contains(name)) stillSuspended.add(name);
-            List<String> applied = new ArrayList<>(new HashSet<>(stillSuspended));
-            Collections.sort(applied);
-            saveStringArray(prefs(context), KEY_APPLIED, applied);
+        List<String> toSuspend = new ArrayList<>();
+        Set<String> suspendedOutsideThisFeature = new HashSet<>();
+        for (String packageName : selected) {
+            boolean suspended = isActuallySuspended(policy, context, packageName);
+            if (previouslyManagedSet.contains(packageName)) {
+                if (suspended) stillManaged.add(packageName);
+                else toSuspend.add(packageName);
+            } else if (suspended) {
+                // Do not claim or later release a restriction applied by another administrator.
+                suspendedOutsideThisFeature.add(packageName);
+            } else {
+                toSuspend.add(packageName);
+            }
+        }
 
-            if (!stillSuspended.isEmpty() && !rejected.isEmpty()) {
-                setLastState(context, "partial_suspension");
-                return false;
+        if (!toSuspend.isEmpty()) {
+            try {
+                policy.setPackagesSuspended(getAdminComponent(context), toSuspend.toArray(new String[0]), true);
+            } catch (Exception ignored) {
+                // Individual package state is verified below.
             }
-            if (stillSuspended.size() != selected.size()
-                || !stillSuspended.containsAll(selected) || !rejected.isEmpty()) {
-                setLastState(context, "partial_suspension");
-                return false;
-            }
+        }
+
+        List<String> verifiedSelected = getActuallySuspendedPackages(policy, context, selected);
+        for (String packageName : toSuspend) {
+            if (isActuallySuspended(policy, context, packageName)) stillManaged.add(packageName);
+        }
+        List<String> applied = new ArrayList<>(new HashSet<>(stillManaged));
+        Collections.sort(applied);
+        saveStringArray(prefs(context), KEY_APPLIED, applied);
+
+        if (!selected.isEmpty() && verifiedSelected.containsAll(selected)) {
             setLastState(context, "system_suspension");
             return true;
-        } catch (SecurityException error) {
-            saveStringArray(prefs(context), KEY_APPLIED, new ArrayList<>(new HashSet<>(previous)));
-            setLastState(context, "policy_failed");
-            return false;
-        } catch (Exception error) {
-            saveStringArray(prefs(context), KEY_APPLIED, new ArrayList<>(new HashSet<>(previous)));
-            setLastState(context, "policy_failed");
-            return false;
         }
+        if (!verifiedSelected.isEmpty() || !suspendedOutsideThisFeature.isEmpty()) {
+            setLastState(context, "partial_suspension");
+        } else {
+            setLastState(context, "policy_failed");
+        }
+        return false;
     }
 
     private static List<String> readAppliedPackages(Context context) {
@@ -595,32 +623,24 @@ public final class StudyModeManager {
 
         DevicePolicyManager policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         if (policy == null || !isPolicyOwner(context)) {
-            // Preserve the recovery list if Device Owner access disappeared; never
-            // pretend that Android restrictions were released when no authority remains.
             saveStringArray(prefs(context), KEY_APPLIED, installed);
             setLastState(context, "policy_unavailable");
             return false;
         }
 
         try {
-            String[] failed = policy.setPackagesSuspended(getAdminComponent(context), installed.toArray(new String[0]), false);
-            List<String> stillSuspended = new ArrayList<>();
-            if (failed != null) {
-                for (String name : failed) {
-                    if (isInstalledPackage(context, name)) stillSuspended.add(name);
-                }
-            }
-            saveStringArray(prefs(context), KEY_APPLIED, stillSuspended);
-            if (!stillSuspended.isEmpty()) {
-                setLastState(context, "policy_failed");
-                return false;
-            }
-            return true;
-        } catch (Exception error) {
-            saveStringArray(prefs(context), KEY_APPLIED, installed);
+            policy.setPackagesSuspended(getAdminComponent(context), installed.toArray(new String[0]), false);
+        } catch (Exception ignored) {
+            // Preserve any remaining suspension records so OFF can retry.
+        }
+
+        List<String> stillSuspended = getActuallySuspendedPackages(policy, context, installed);
+        saveStringArray(prefs(context), KEY_APPLIED, stillSuspended);
+        if (!stillSuspended.isEmpty()) {
             setLastState(context, "policy_failed");
             return false;
         }
+        return true;
     }
 
     private static void startFocusShield(Context context) {
@@ -719,6 +739,12 @@ public final class StudyModeManager {
         List<String> applied = readAppliedPackages(context);
         JSArray appliedArray = new JSArray();
         for (String name : applied) appliedArray.put(name);
+        DevicePolicyManager policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
+        List<String> suspended = isPolicyOwner(context)
+            ? getActuallySuspendedPackages(policy, context, getSelectedPackages(context))
+            : new ArrayList<>();
+        JSArray suspendedArray = new JSArray();
+        for (String name : suspended) suspendedArray.put(name);
 
         String state = prefs(context).getString(KEY_LAST_STATE, isEnabled(context) ? "waiting_for_schedule" : "disabled");
         boolean enabled = isEnabled(context);
@@ -732,13 +758,18 @@ public final class StudyModeManager {
             state = "waiting_for_schedule";
         } else if (policyOwner && !hasExactAlarmPermission(context)) {
             state = "exact_alarm_required";
-        } else if (!policyOwner && (!usageGranted || !overlayGranted)) {
+        } else if (policyOwner) {
+            List<String> selected = getSelectedPackages(context);
+            if (!selected.isEmpty() && suspended.containsAll(selected)) state = "system_suspension";
+            else if (!suspended.isEmpty()) state = "partial_suspension";
+            else if (!"policy_unavailable".equals(state)) state = "policy_failed";
+        } else if (!usageGranted || !overlayGranted) {
             state = "permission_required";
-        } else if (!policyOwner && StudyModeFocusService.isRunning()) {
+        } else if (StudyModeFocusService.isRunning()) {
             state = "focus_shield_running";
-        } else if (!policyOwner && StudyModeFocusService.isStarting()) {
+        } else if (StudyModeFocusService.isStarting()) {
             state = "focus_shield_starting";
-        } else if (!policyOwner && ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state))) {
+        } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)) {
             state = "service_stopped";
         }
 
@@ -747,10 +778,12 @@ public final class StudyModeManager {
         result.put("permissions", permissions);
         result.put("scheduleActive", isScheduleActive(context));
         result.put("monitoringServiceRunning", StudyModeFocusService.isRunning());
-        result.put("enforcementMode", isPolicyOwner(context) ? "device_owner"
-            : (hasUsageAccess(context) && hasOverlayPermission(context) ? "focus_shield" : "unavailable"));
+        result.put("enforcementMode", isDeviceOwner(context) ? "device_owner"
+            : (isProfileOwner(context) ? "profile_owner"
+                : (hasUsageAccess(context) && hasOverlayPermission(context) ? "focus_shield" : "unavailable")));
         result.put("enforcementState", state);
         result.put("appliedPackages", appliedArray);
+        result.put("suspendedPackages", suspendedArray);
         result.put("exactAlarmFallback", exactFallback);
         return result;
     }

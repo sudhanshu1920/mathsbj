@@ -70,7 +70,8 @@ const statusText = (status: StudyModeStatus | null) => {
   if (status.enforcementState === "overlay_failed") return "Android could not display the blocking overlay";
   if (status.enforcementState === "policy_failed") return "System suspension could not be applied";
   if (status.enforcementState === "partial_suspension") return "Some selected apps could not be suspended";
-  if (status.enforcementState === "focus_shield_running") return "Focus Shield monitoring is active";
+  if (status.enforcementMode === "profile_owner" && status.enforcementState === "system_suspension") return "System suspension is active in the managed profile";
+  if (status.enforcementState === "focus_shield_running") return "Focus Shield only — actual suspension requires Device Owner";
   if (status.enforcementState === "system_suspension") return "Android system-level suspension is active";
   if (status.enforcementState === "waiting_for_schedule") return "Enabled — waiting for the next study session";
   if (!status.scheduleActive) return "Enabled — outside scheduled hours";
@@ -178,6 +179,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     };
   }, [handleBack]);
 
+  const suspendedPackages = useMemo(() => new Set(status?.suspendedPackages ?? []), [status?.suspendedPackages]);
   const selectedCount = draft.selectedPackageNames.length;
   const selectedNames = useMemo(() => {
     const names = new Map(apps.map((app) => [app.packageName, app.label]));
@@ -342,7 +344,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       key: "usage" as const,
       title: "Usage Access",
       granted: status?.permissions.usageAccess === true,
-      required: status?.enforcementMode !== "device_owner",
+      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
       helper: "Detects which app is currently in the foreground.",
     },
     {
@@ -356,7 +358,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       key: "exactAlarm" as const,
       title: "Exact alarms",
       granted: status?.permissions.exactAlarm === true,
-      required: status?.enforcementMode === "device_owner" && draft.enabled,
+      required: (status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner") && draft.enabled,
       helper: status?.enforcementMode === "device_owner"
         ? "Required for safely timed system-level app suspension and release."
         : "Without this, Android may deliver schedule changes late.",
@@ -510,6 +512,16 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     <span className="shrink-0 rounded-md bg-secondary/70 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
                       {app.systemApp ? "System" : "User"}
                     </span>
+                    {selected && status?.enforcementMode !== "focus_shield" && (
+                      <span className={suspendedPackages.has(app.packageName)
+                        ? "shrink-0 rounded-md bg-success/10 px-1.5 py-0.5 text-[9px] font-semibold text-success"
+                        : "shrink-0 rounded-md bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning"}>
+                        {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Not frozen" : "Scheduled"}
+                      </span>
+                    )}
+                    {selected && status?.enforcementMode === "focus_shield" && (
+                      <span className="shrink-0 rounded-md bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning">Shield only</span>
+                    )}
                     {app.selectable ? (
                       <span className={selected ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground" : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
                         <Check size={12} />

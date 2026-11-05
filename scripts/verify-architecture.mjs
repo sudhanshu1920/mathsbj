@@ -982,6 +982,9 @@ if (!studyModeSchedule.includes('isStudyModeScheduledAt') ||
 }
 if (!studyModeManager.includes('DevicePolicyManager') ||
     !studyModeManager.includes('setPackagesSuspended(getAdminComponent(context)') ||
+    !studyModeManager.includes('isPackageSuspended(getAdminComponent(context), packageName)') ||
+    !studyModeManager.includes('getActuallySuspendedPackages') ||
+    !studyModeManager.includes('suspendedArray') ||
     !studyModeManager.includes('permission_required') ||
     !studyModeManager.includes('policy_unavailable') ||
     !studyModeManager.includes('AlarmManager') ||
