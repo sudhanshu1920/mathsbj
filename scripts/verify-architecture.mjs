@@ -968,7 +968,7 @@ if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(f
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
     studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Multiple Apps') ||
     !studyModePage.includes('chooseStudyModeTime') ||
-    !studyModePage.includes('(status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")') ||
+    
     !studyModePage.includes('status?.activeSession?.active') ||
     !studyModePage.includes('aria-label={day.name}') ||
     !studyModeIndex.includes('studyModePageOpen.current') ||
@@ -1031,17 +1031,17 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeAccessibility.includes('AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED') ||
     !studyModeAccessibility.includes('event.getPackageName()') ||
     !studyModeAccessibility.includes('StudyModeFocusService.onForegroundPackageChanged') ||
-    !studyModeAccessibility.includes('StudyModeManager.shouldEnforceNow(this)') ||
+    !studyModeAccessibility.includes('StudyModeManager.isEnforcementActiveCached()') ||
     !studyModeAccessibility.includes('does not retrieve') ||
     !studyModeFocus.includes('StudyModeAccessibilityService.isConnected()') ||
     !studyModeManager.includes('hasAccessibilityServiceEnabled') ||
     !studyModeManager.includes('hasForegroundMonitoringPermission') ||
     !studyModePage.includes('key: "accessibility" as const') ||
     !studyModePage.includes('never screen text or window content') ||
-    !studyModeManager.includes('AlarmManager') ||    !studyModeManager.includes('AlarmManager') ||
+    !studyModeManager.includes('AlarmManager') ||
     !studyModeManager.includes('canScheduleExactAlarms') ||
     !studyModeManager.includes('isDefaultDialerPackage') && !studyModeManager.includes('getDefaultDialerPackage')) {
-  fail('Managed-device suspension, truthful permission state, alarm fallback, or critical app protection is missing');
+  fail('Normal-phone monitoring permissions, timer state, alarm fallback, or critical app protection is missing');
 }
 
 if (studyModeManager.includes('DevicePolicyManager') ||
@@ -1158,7 +1158,9 @@ if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
     !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
     !studyModeSetup.includes('android.permission.QUERY_ALL_PACKAGES') ||
-    !studyModeSetup.includes('StudyModeDeviceAdminReceiver') ||
+    studyModeSetup.includes("marker: 'android:name=\".StudyModeDeviceAdminReceiver\"") ||
+    studyModeNativeFiles.includes("StudyModeDeviceAdminReceiver.java") ||
+    !studyModeSetup.includes('android.permission.POST_NOTIFICATIONS') ||
     !studyModeSetup.includes("packageVisibility: 'all-installed-packages'") ||
     !widgetSetup.includes('configureAndroidStudyMode(root)') ||
     !studyModeBoot.includes('StudyModeManager.reconcile(context)')) {
