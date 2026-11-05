@@ -47,6 +47,7 @@ export interface StudyModeStatus {
     notifications: boolean;
     batteryOptimizationExempt: boolean;
     dndAccess: boolean;
+    dndControlSupported: boolean;
   };
   scheduleActive: boolean;
   sessionActive: boolean;
@@ -97,7 +98,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       config: DEFAULT_STUDY_MODE_CONFIG,
       permissions: {
         accessibility: false, accessibilityConnected: false, accessibilityDisclosureAccepted: false, usageAccess: false, overlay: false,
-        exactAlarm: false, notifications: false, batteryOptimizationExempt: false, dndAccess: false,
+        exactAlarm: false, notifications: false, batteryOptimizationExempt: false, dndAccess: false, dndControlSupported: false,
       },
       scheduleActive: false,
       sessionActive: false,
