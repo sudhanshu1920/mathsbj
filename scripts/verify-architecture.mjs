@@ -965,7 +965,7 @@ if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(f
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
     studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Multiple Apps') ||
     !studyModePage.includes('chooseStudyModeTime') ||
-    !studyModePage.includes('required: status?.enforcementMode === "device_owner" && draft.enabled') ||
+    !studyModePage.includes('required: (status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner") && draft.enabled') ||
     !studyModePage.includes('aria-label={day.name}') ||
     !studyModeIndex.includes('studyModePageOpen.current') ||
     !studyModeIndex.includes("new CustomEvent('study-mode-back')")) {
