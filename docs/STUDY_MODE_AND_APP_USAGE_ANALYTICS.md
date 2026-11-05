@@ -134,7 +134,10 @@ boundaries may be delayed.
 Accessibility, Usage Access, overlay, notification, DND, exact-alarm, and
 battery-optimization states are read from Android at runtime. Permissions are
 never silently enabled. Notification and battery settings actions only open
-the relevant Settings pages; they do not silently request exemptions.
+the relevant Settings pages; they do not silently request exemptions. Apps
+targeting Android 15 (API 35) and higher cannot change the device-wide DND
+filter through the legacy API; Math Master disables its DND session toggle for
+that target/runtime combination and directs users to Android Quick Settings.
 
 Selected apps, schedules, Accessibility disclosure version/acceptance timestamp,
 focus sessions, and session history are stored locally. The private
