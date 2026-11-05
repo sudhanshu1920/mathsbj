@@ -952,6 +952,7 @@ const studyModePage = read('src/components/StudyModePage.tsx');
 const studyModeBridge = read('src/lib/studyMode.ts');
 const studyModeManager = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
 const studyModeFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
+const studyModeSessionStore = read('android-native/com/sudhanshu/mathsbj/StudyModeSessionStore.java');
 const studyModeAppPlugin = read('android-native/com/sudhanshu/mathsbj/StudyModePlugin.java');
 const studyModeAppFilters = read('src/lib/studyModeAppFilters.ts');
 const studyModeAppFilterTests = read('src/lib/studyModeAppFilters.test.ts');
@@ -965,7 +966,8 @@ if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(f
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
     studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Multiple Apps') ||
     !studyModePage.includes('chooseStudyModeTime') ||
-    !studyModePage.includes('required: (status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner") && draft.enabled') ||
+    !studyModePage.includes('(status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")') ||
+    !studyModePage.includes('status?.activeSession?.active') ||
     !studyModePage.includes('aria-label={day.name}') ||
     !studyModeIndex.includes('studyModePageOpen.current') ||
     !studyModeIndex.includes("new CustomEvent('study-mode-back')")) {
@@ -980,7 +982,32 @@ if (!studyModeSchedule.includes('isStudyModeScheduledAt') ||
     !studyModeBridge.includes('initializeStudyMode')) {
   fail('Study Mode schedule engine, overnight boundaries, tests, or native bridge are missing');
 }
-if (!studyModeManager.includes('DevicePolicyManager') ||
+if (!studyModeSessionStore.includes('CREATE TABLE ' + TABLE) ||
+    !studyModeSessionStore.includes('start_elapsed_ms') ||
+    !studyModeSessionStore.includes('boot_count') ||
+    !studyModeSessionStore.includes('selected_apps') ||
+    !studyModeSessionStore.includes('status TEXT NOT NULL') ||
+    !studyModeManager.includes('StudyModeSessionStore') ||
+    !studyModeManager.includes('public static synchronized JSObject startSession') ||
+    !studyModeManager.includes('public static synchronized JSObject endSession') ||
+    !studyModeManager.includes('public static synchronized void reconcile') ||
+    !studyModeManager.includes('getEnforcedPackages') ||
+    !studyModeManager.includes('shouldEnforceNow') ||
+    !studyModeManager.includes('ACTION_SESSION_BOUNDARY') ||
+    !studyModeManager.includes('completeExpiredSession') ||
+    !studyModeManager.includes('ACCESS_NOTIFICATION_POLICY') ||
+    !studyModePage.includes('startStudyModeSession') ||
+    !studyModePage.includes('endStudyModeSession') ||
+    !studyModePage.includes('checked={draft.enabled || Boolean(status?.activeSession?.active)}') ||
+    !studyModePage.includes('void load(true)') ||
+    !studyModeAppPlugin.includes('public void startSession(PluginCall call)') ||
+    !studyModeAppPlugin.includes('public void endSession(PluginCall call)') ||
+    !studyModeAppPlugin.includes('public void getSessionHistory(PluginCall call)') ||
+    !studyModeFocus.includes('START_STICKY') ||
+    !studyModeFocus.includes('StudyModeManager.shouldEnforceNow(this)') ||
+    !studyModeFocus.includes('StudyModeManager.completeExpiredSession') ||
+    !studyModeFocus.includes('updateOngoingNotification') ||
+    !studyModeManager.includes('DevicePolicyManager') ||
     !studyModeManager.includes('setPackagesSuspended(getAdminComponent(context)') ||
     !studyModeManager.includes('isPackageSuspended(getAdminComponent(context), packageName)') ||
     !studyModeManager.includes('getActuallySuspendedPackages') ||
@@ -1055,7 +1082,9 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
     studyModeSchedule.includes('notificationBlockingEnabled')) {
   fail('Sideloadable Android builds must not package Play Protect-sensitive notification-listener access');
 }
-if (!studyModeSetup.includes('android.intent.category.LAUNCHER') ||
+if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
+    !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
+    !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
     !studyModeSetup.includes('android.permission.QUERY_ALL_PACKAGES') ||
     !studyModeSetup.includes('StudyModeDeviceAdminReceiver') ||
