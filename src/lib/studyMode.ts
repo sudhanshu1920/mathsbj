@@ -12,6 +12,29 @@ export interface StudyModeApp {
   selectable: boolean;
 }
 
+export interface StudyModeSession {
+  id: string;
+  sessionType: "study" | "practice" | "work" | "custom";
+  startTimestamp: number;
+  durationSeconds: number;
+  elapsedSeconds: number;
+  remainingSeconds: number;
+  selectedPackageNames: string[];
+  isEnforced: boolean;
+  shouldEnableDnd: boolean;
+  dndApplied: boolean;
+  status: string;
+  active: boolean;
+  endTimestamp: number;
+}
+
+export interface StudyModeSessionOptions {
+  sessionType: StudyModeSession["sessionType"];
+  durationSeconds: number;
+  enforced: boolean;
+  shouldEnableDnd: boolean;
+}
+
 export interface StudyModeStatus {
   config: StudyModeConfig;
   permissions: {
@@ -20,8 +43,12 @@ export interface StudyModeStatus {
     exactAlarm: boolean;
     deviceOwner: boolean;
     profileOwner: boolean;
+    dndAccess: boolean;
   };
   scheduleActive: boolean;
+  sessionActive: boolean;
+  activeSession: StudyModeSession | null;
+  enforcedPackages: string[];
   monitoringServiceRunning: boolean;
   enforcementMode: "device_owner" | "profile_owner" | "focus_shield" | "unavailable";
   enforcementState: string;
@@ -36,8 +63,11 @@ interface NativeStudyModePlugin {
   listApps(): Promise<{ apps: StudyModeApp[] }>;
   saveConfig(options: StudyModeConfig): Promise<StudyModeStatus>;
   setEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
+  startSession(options: StudyModeSessionOptions): Promise<StudyModeStatus>;
+  endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
+  getSessionHistory(): Promise<{ sessions: StudyModeSession[] }>;
   openPermissionSettings(options: {
-    permission: "usage" | "overlay" | "exactAlarm";
+    permission: "usage" | "overlay" | "exactAlarm" | "dnd";
   }): Promise<void>;
   showTimePicker(options: {
     title: string;
@@ -65,9 +95,12 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       config: DEFAULT_STUDY_MODE_CONFIG,
       permissions: {
         usageAccess: false, overlay: false,
-        exactAlarm: false, deviceOwner: false, profileOwner: false,
+        exactAlarm: false, deviceOwner: false, profileOwner: false, dndAccess: false,
       },
       scheduleActive: false,
+      sessionActive: false,
+      activeSession: null,
+      enforcedPackages: [],
       monitoringServiceRunning: false,
       enforcementMode: "unavailable",
       enforcementState: "native_only",
@@ -104,8 +137,24 @@ export async function setStudyModeEnabled(enabled: boolean): Promise<StudyModeSt
   return NativeStudyMode.setEnabled({ enabled });
 }
 
+export async function startStudyModeSession(options: StudyModeSessionOptions): Promise<StudyModeStatus> {
+  if (!isStudyModeNative()) throw new Error("Focus sessions require the Android app.");
+  return NativeStudyMode.startSession(options);
+}
+
+export async function endStudyModeSession(sessionId?: string): Promise<StudyModeStatus> {
+  if (!isStudyModeNative()) throw new Error("Focus sessions require the Android app.");
+  return NativeStudyMode.endSession({ sessionId });
+}
+
+export async function getStudyModeSessionHistory(): Promise<StudyModeSession[]> {
+  if (!isStudyModeNative()) return [];
+  const result = await NativeStudyMode.getSessionHistory();
+  return Array.isArray(result.sessions) ? result.sessions : [];
+}
+
 export async function openStudyModePermission(
-  permission: "usage" | "overlay" | "exactAlarm",
+  permission: "usage" | "overlay" | "exactAlarm" | "dnd",
 ): Promise<void> {
   if (!isStudyModeNative()) return;
   await NativeStudyMode.openPermissionSettings({ permission });
