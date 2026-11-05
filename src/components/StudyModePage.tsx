@@ -319,8 +319,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       key: "exactAlarm" as const,
       title: "Exact alarms",
       granted: status?.permissions.exactAlarm === true,
-      required: false,
-      helper: "Without this, Android may deliver schedule changes late.",
+      required: status?.enforcementMode === "device_owner" && draft.enabled,
+      helper: status?.enforcementMode === "device_owner"
+        ? "Required for safely timed system-level app suspension and release."
+        : "Without this, Android may deliver schedule changes late.",
     },
   ];
 
