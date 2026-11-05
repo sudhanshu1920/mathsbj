@@ -34,6 +34,16 @@ public final class StudyModePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void acceptAccessibilityDisclosure(PluginCall call) {
+        try {
+            StudyModeManager.acceptAccessibilityDisclosure(getContext());
+            call.resolve(StudyModeManager.getStatus(getContext()));
+        } catch (Exception error) {
+            call.reject("Accessibility disclosure consent could not be saved.", error);
+        }
+    }
+
+    @PluginMethod
     public void refresh(PluginCall call) {
         StudyModeManager.reconcile(getContext());
         call.resolve(StudyModeManager.getStatus(getContext()));
