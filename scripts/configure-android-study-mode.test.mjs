@@ -40,7 +40,7 @@ test('configures complete installed-app visibility, native services and Capacito
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 10);
+  assert.equal(result.javaFiles, 11);
   assert.equal(result.packageVisibility, 'all-installed-packages');
   assert.equal(result.localUsageAnalytics, true);
 
@@ -60,8 +60,15 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.ok(manifest.includes('android.intent.category.HOME'));
   assert.doesNotMatch(manifest, /android.provider.Telephony.SMS_DELIVER/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
+  assert.match(manifest, /StudyModeAccessibilityService[\s\S]*BIND_ACCESSIBILITY_SERVICE[\s\S]*android.accessibilityservice/);
+  const accessibilityXml = await readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8');
+  const accessibilityStrings = await readFile(path.join(root, 'app/src/main/res/values/study_mode_accessibility.xml'), 'utf8');
+  assert.match(accessibilityXml, /typeWindowStateChanged/);
+  assert.match(accessibilityXml, /canRetrieveWindowContent="false"/);
+  assert.match(accessibilityXml, /canPerformGestures="false"/);
+  assert.match(accessibilityStrings, /does not read screen text or inspect window content/);
   assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\S]*BIND_DEVICE_ADMIN[\s\S]*device_admin/);
-  assert.doesNotMatch(manifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE|READ_SMS|RECEIVE_SMS|AccessibilityService/);
+  assert.doesNotMatch(manifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE|READ_SMS|RECEIVE_SMS/);
   await assert.rejects(
     readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeNotificationListenerService.java'), 'utf8'),
     { code: 'ENOENT' },

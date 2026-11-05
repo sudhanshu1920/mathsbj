@@ -17,6 +17,7 @@ const NATIVE_FILES = [
   'AppUsageAnalyticsStore.java',
   'AppUsageAnalyticsPlugin.java',
   'StudyModeSessionStore.java',
+  'StudyModeAccessibilityService.java',
 ];
 
 const REQUIRED_PERMISSIONS = [
@@ -141,6 +142,21 @@ function ensureStudyModeComponents(manifest) {
         </receiver>`,
     },
     {
+      marker: 'android:name=".StudyModeAccessibilityService"',
+      xml: `        <service
+            android:name=".StudyModeAccessibilityService"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/study_mode_accessibility" />
+        </service>`,
+    },
+    {
       marker: 'android:name=".StudyModeFocusService"',
       xml: `        <service
             android:name=".StudyModeFocusService"
@@ -214,8 +230,15 @@ export async function configureAndroidStudyMode(androidRoot) {
   }
   const xmlTarget = path.join(root, 'app/src/main/res/xml');
   await mkdir(xmlTarget, { recursive: true });
+  const valuesTarget = path.join(root, 'app/src/main/res/values');
+  await mkdir(valuesTarget, { recursive: true });
+  await copyFile(
+    path.resolve(SCRIPT_DIR, '../android-native/res/values/study_mode_accessibility.xml'),
+    path.join(valuesTarget, 'study_mode_accessibility.xml'),
+  );
   for (const resource of [
     'study_mode_device_admin.xml',
+    'study_mode_accessibility.xml',
     'app_usage_backup_rules.xml',
     'app_usage_data_extraction_rules.xml',
   ]) {
