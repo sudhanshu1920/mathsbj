@@ -251,7 +251,9 @@ public final class StudyModeSessionStore extends SQLiteOpenHelper {
         result.put("durationSeconds", session.durationSeconds);
         result.put("elapsedSeconds", elapsedSeconds);
         result.put("remainingSeconds", remainingSeconds);
-        result.put("selectedPackageNames", new JSArray(session.selectedPackages));
+        JSArray selectedPackages = new JSArray();
+        for (String packageName : session.selectedPackages) selectedPackages.put(packageName);
+        result.put("selectedPackageNames", selectedPackages);
         result.put("isEnforced", session.enforced);
         result.put("shouldEnableDnd", session.shouldEnableDnd);
         result.put("dndApplied", session.dndApplied);

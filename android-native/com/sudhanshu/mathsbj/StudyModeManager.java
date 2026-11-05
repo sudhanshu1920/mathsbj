@@ -46,8 +46,18 @@ public final class StudyModeManager {
 
     private StudyModeManager() {}
 
+    private static volatile StudyModeSessionStore sessionStoreInstance;
+    private static final Object SESSION_STORE_LOCK = new Object();
+
     private static StudyModeSessionStore sessionStore(Context context) {
-        return new StudyModeSessionStore(context.getApplicationContext());
+        StudyModeSessionStore current = sessionStoreInstance;
+        if (current != null) return current;
+        synchronized (SESSION_STORE_LOCK) {
+            if (sessionStoreInstance == null) {
+                sessionStoreInstance = new StudyModeSessionStore(context.getApplicationContext());
+            }
+            return sessionStoreInstance;
+        }
     }
 
     private static SharedPreferences prefs(Context context) {
