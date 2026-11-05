@@ -265,6 +265,7 @@ public final class StudyModeManager {
             .putLong("accessibilityDisclosureAcceptedAt", System.currentTimeMillis())
             .commit();
         if (!saved) throw new IllegalStateException("Accessibility disclosure consent could not be saved locally.");
+        StudyModeAccessibilityService.refreshDisclosureState(context);
         return getStatus(context);
     }
 
