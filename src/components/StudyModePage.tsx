@@ -62,6 +62,7 @@ const configSnapshot = (config: StudyModeConfig) => JSON.stringify({
 
 const statusText = (status: StudyModeStatus | null) => {
   if (!isStudyModeNative()) return "Available in the Android app";
+  if (!status) return "Reading saved Study Mode state…";
   if (status?.enforcementState === "policy_unavailable" || status?.enforcementState === "policy_failed") {
     return "Android could not confirm that every suspended app is available";
   }
@@ -558,12 +559,18 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             <p className="text-sm font-bold text-foreground">Study Mode</p>
             <p className="text-[11px] text-muted-foreground">{statusText(status)}</p>
           </div>
-          <Switch
-            checked={draft.enabled || Boolean(status?.activeSession?.active)}
-            disabled={loading || saving || !isStudyModeNative()}
-            onCheckedChange={(enabled) => { void handleMasterToggle(enabled); }}
-            aria-label="Study Mode master switch"
-          />
+          {status ? (
+            <Switch
+              checked={draft.enabled || Boolean(status.activeSession?.active)}
+              disabled={loading || saving || !isStudyModeNative()}
+              onCheckedChange={(enabled) => { void handleMasterToggle(enabled); }}
+              aria-label="Study Mode master switch"
+            />
+          ) : (
+            <span role="status" className="shrink-0 text-[10px] text-muted-foreground">
+              {loading ? "Loading…" : "State unavailable"}
+            </span>
+          )}
         </div>
         {status?.enforcementMode === "device_owner" && (
           <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-success">
