@@ -86,9 +86,12 @@ test('configures complete installed-app visibility, native services and Capacito
   const legacyBackup = await readFile(path.join(root, 'app/src/main/res/xml/app_usage_backup_rules.xml'), 'utf8');
   const modernBackup = await readFile(path.join(root, 'app/src/main/res/xml/app_usage_data_extraction_rules.xml'), 'utf8');
   assert.match(legacyBackup, /exclude domain="sharedpref" path="app_usage_analytics_local.xml"/);
+  assert.match(legacyBackup, /exclude domain="sharedpref" path="math_master_study_mode.xml"/);
   assert.match(legacyBackup, /exclude domain="database" path="math_master_study_sessions.db"/);
   assert.match(modernBackup, /cloud-backup[\s\S]*exclude domain="sharedpref" path="app_usage_analytics_local.xml"/);
   assert.match(modernBackup, /device-transfer[\s\S]*exclude domain="sharedpref" path="app_usage_analytics_local.xml"/);
+  assert.match(modernBackup, /cloud-backup[\s\S]*exclude domain="sharedpref" path="math_master_study_mode.xml"/);
+  assert.match(modernBackup, /device-transfer[\s\S]*exclude domain="sharedpref" path="math_master_study_mode.xml"/);
   assert.match(modernBackup, /cloud-backup[\s\S]*exclude domain="database" path="math_master_study_sessions.db"/);
   assert.match(modernBackup, /device-transfer[\s\S]*exclude domain="database" path="math_master_study_sessions.db"/);
 
