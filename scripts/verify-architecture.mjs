@@ -1106,12 +1106,20 @@ if (!shieldBuilder || shieldBuilder.includes('TextView until') ||
     !backAction.includes('mathmaster://learn')) {
   fail('The shield must show the session timer once and Back to Math Master must keep the session active');
 }
-if (!studyModeManager.includes('permissions.put("notifications", hasNotificationPermission(context))') ||
+if (!studyModeManager.includes('hasAccessibilityDisclosureAccepted') ||
+    !studyModeManager.includes('acceptAccessibilityDisclosure') ||
+    !studyModeAppPlugin.includes('acceptAccessibilityDisclosure(PluginCall call)') ||
+    !studyModeBridge.includes('acceptStudyModeAccessibilityDisclosure') ||
+    !studyModePage.includes('accessibilityDisclosureOpen') ||
+    !studyModePage.includes('Agree & Open Settings') ||
+    !studyModePage.includes('never reads screen text or window content') ||
+    !studyModeManager.includes('permissions.put("notifications", hasNotificationPermission(context))') ||
     !studyModeManager.includes('permissions.put("batteryOptimizationExempt", isBatteryOptimizationExempt(context))') ||
     !studyModeAppPlugin.includes('ACTION_ACCESSIBILITY_SETTINGS') ||
     !studyModeAppPlugin.includes('ACTION_APP_NOTIFICATION_SETTINGS') ||
     !studyModeAppPlugin.includes('ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS') ||
     !studyModeSetup.includes('android.permission.POST_NOTIFICATIONS') ||
+    !studyModeSetup.includes('math_master_study_mode.xml') ||
     !studyModePage.includes('key: "notifications" as const') ||
     !studyModePage.includes('key: "battery" as const')) {
   fail('Android notification, Accessibility and battery settings state/actions must be truthful and explicit');
