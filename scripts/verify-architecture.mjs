@@ -1054,7 +1054,7 @@ if (!studyModeManager.includes('public static synchronized void setEnabled') ||
     !studyModeFocus.includes('public static boolean isStopping()') ||
     !studyModeFocus.includes('stopping = false;') ||
     !studyModeManager.includes('StudyModeFocusService.isStopping()') ||
-    !studyModeFocus.includes('StudyModeManager.isScheduleActive(this)') ||
+    !studyModeFocus.includes('StudyModeManager.shouldEnforceNow(this)') ||
     !studyModePage.includes('recoveryAttemptRef.current = true') ||
     !studyModePage.includes('status.enforcementState !== "service_stopped"')) {
   fail('Study Mode master toggle must serialize native mutations, expose side-effect-free status reads, and report foreground-service startup truthfully');
