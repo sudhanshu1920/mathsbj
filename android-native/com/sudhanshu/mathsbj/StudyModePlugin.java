@@ -255,6 +255,26 @@ public final class StudyModePlugin extends Plugin {
             case "usage":
                 intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
                 break;
+            case "accessibility":
+                intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                break;
+            case "notifications":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                    intent.putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+                } else {
+                    intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getContext().getPackageName()));
+                }
+                break;
+            case "battery":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                } else {
+                    intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getContext().getPackageName()));
+                }
+                break;
             case "overlay":
                 intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     android.net.Uri.parse("package:" + getContext().getPackageName()));
