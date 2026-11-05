@@ -93,7 +93,7 @@ function removeNotificationListenerService(manifest) {
 function removeAccessibilityService(manifest) {
   // Internet-sideloaded apps that declare Accessibility services can be
   // blocked by Play Protect. Normal-phone Focus Shield uses Usage Access.
-  const service = /\\s*<service\\b(?=[^>]*\\bandroid:name=["']\\.StudyModeAccessibilityService["'])[^>]*(?:\\/>|>[\\s\\S]*?<\\/service>)/g;
+  const service = /\s*<service\b(?=[^>]*\bandroid:name=["']\.StudyModeAccessibilityService["'])[^>]*(?:\/>|>[\s\S]*?<\/service>)/g;
   return manifest.replace(service, '');
 }
 
