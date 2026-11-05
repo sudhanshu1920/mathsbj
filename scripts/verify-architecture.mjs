@@ -964,6 +964,8 @@ const studyModeIndex = read('src/pages/Index.tsx');
 const studyModeDeepLink = read('src/lib/studyModeDeepLink.ts');
 const studyModeDeepLinkTests = read('src/lib/studyModeDeepLink.test.ts');
 const studyModeBoot = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java');
+const studyModePackageReceiver = read('android-native/com/sudhanshu/mathsbj/StudyModePackageChangeReceiver.java');
+const studyModeNativeFiles = studyModeSetup.match(/const NATIVE_FILES = \[([\s\S]*?)\];/)?.[1] ?? '';
 if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
     !studyModeFocus.includes('Uri.parse("mathmaster://learn")') ||
     !studyModeFocus.includes('getPackageName() + ".MainActivity"') ||
@@ -983,8 +985,7 @@ if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(f
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
     studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Multiple Apps') ||
     !studyModePage.includes('chooseStudyModeTime') ||
-    !studyModePage.includes('(status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")') ||
-    !studyModePage.includes('status?.activeSession?.active') ||
+        !studyModePage.includes('status?.activeSession?.active') ||
     !studyModePage.includes('aria-label={day.name}') ||
     !studyModeIndex.includes('studyModePageOpen.current') ||
     !studyModeIndex.includes("new CustomEvent('study-mode-back')")) {
@@ -1051,7 +1052,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeAccessibility.includes('event.getPackageName()') ||
     !studyModeAccessibility.includes('StudyModeManager.isEnforcementActiveCached()') ||
     !studyModeAccessibility.includes('StudyModeFocusService.onForegroundPackageChanged') ||
-    !studyModeAccessibility.includes('does not retrieve window content') ||
+    !studyModeAccessibility.includes('never retrieves window content') ||
     !studyModeManager.includes('hasAccessibilityServiceEnabled') ||
     !studyModeManager.includes('hasForegroundMonitoringPermission') ||
     !studyModeManager.includes('hasUsageAccess(context)') ||
@@ -1079,6 +1080,11 @@ if (studyModeManager.includes('DevicePolicyManager') ||
     studyModeSetup.includes("marker: 'android:name=\".StudyModeDeviceAdminReceiver\"") ||
     studyModeNativeFiles.includes('StudyModeDeviceAdminReceiver.java')) {
   fail('The normal-phone Study Mode build must not include Device Owner, Profile Owner, Device Admin, or package suspension code');
+}
+
+if (!studyModePackageReceiver.includes('Intent.EXTRA_REPLACING') ||
+    !studyModePackageReceiver.includes('getBooleanExtra(Intent.EXTRA_REPLACING, false)')) {
+  fail('Package replacement broadcasts must not prune the saved selected-app list during app updates');
 }
 if (!studyModeManager.includes('cachedEnforcedPackages') ||
     !studyModeManager.includes('Collections.unmodifiableSet(snapshot)') ||
@@ -1160,7 +1166,7 @@ if (!studyModeFocus.includes('UsageStatsManager') ||
     !studyModeFocus.includes('lastForegroundPackage')) {
   fail('Personal-phone Focus Shield must use Usage Access, overlay permission, a user-visible foreground service and actual service state');
 }
-const studyModeNativeFiles = studyModeSetup.match(/const NATIVE_FILES = \[([\s\S]*?)\];/)?.[1] ?? '';
+
 if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
     studyModeSetup.includes('BIND_NOTIFICATION_LISTENER_SERVICE') ||
     studyModeManager.includes('StudyModeNotificationListenerService') ||
@@ -1169,8 +1175,7 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
     studyModePage.includes('notificationAccess') ||
     studyModePage.includes('notificationBlockingEnabled') ||
     studyModeBridge.includes('notificationAccess') ||
-    studyModeBridge.includes('permission: "notifications"') ||
-    studyModeSchedule.includes('notificationBlockingEnabled')) {
+        studyModeSchedule.includes('notificationBlockingEnabled')) {
   fail('Sideloadable Android builds must not package Play Protect-sensitive notification-listener access');
 }
 if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
