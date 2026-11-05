@@ -496,7 +496,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       required: false,
       helper: status?.permissions.accessibilityConnected
         ? "Connected · detects foreground package transitions only; never reads screen text or window content."
-        : "Optional primary detector. Enable manually in Android Accessibility settings; detects only package names.",
+        : status?.permissions.accessibility
+          ? "Enabled in Android Settings but not connected yet. Usage Access is used as fallback when granted."
+          : "Optional primary detector. Enable manually in Android Accessibility settings; detects only package names.",
     },
     {
       key: "usage" as const,
@@ -561,17 +563,26 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const acceptAccessibilityDisclosure = async () => {
     setSaving(true);
     setMessage("");
+    let consentSaved = false;
     try {
       const nextStatus = await acceptStudyModeAccessibilityDisclosure();
       setStatus(nextStatus);
       setAccessibilityDisclosureOpen(false);
       setAccessibilityDisclosureDismissed(false);
-      await openStudyModePermission("accessibility");
+      consentSaved = true;
     } catch (error) {
       setMessage(error instanceof Error && error.message
         ? error.message : "Accessibility consent could not be saved.");
     } finally {
       setSaving(false);
+    }
+
+    if (consentSaved) {
+      try {
+        await openStudyModePermission("accessibility");
+      } catch {
+        setMessage("Consent saved on this device. Android Accessibility Settings could not be opened; open it from the permission row.");
+      }
     }
   };
 
