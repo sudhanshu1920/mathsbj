@@ -26,6 +26,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.lang.ref.WeakReference;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -36,6 +37,7 @@ public final class StudyModeFocusService extends Service {
     private static volatile boolean running = false;
     private static volatile boolean starting = false;
     private static volatile boolean stopping = false;
+    private static volatile WeakReference<StudyModeFocusService> activeInstance = new WeakReference<>(null);
 
     public static boolean isStopping() {
         return stopping;
@@ -72,6 +74,21 @@ public final class StudyModeFocusService extends Service {
         return running;
     }
 
+    public static void onForegroundPackageChanged(Context context, String packageName) {
+        StudyModeFocusService service = activeInstance.get();
+        if (service == null || !running) return;
+        service.mainHandler.post(() -> {
+            if (!running) return;
+            if (packageName == null || packageName.isEmpty()
+                || packageName.equals(service.getPackageName())
+                || !StudyModeManager.isPackageSelected(service, packageName)) {
+                service.removeShield();
+            } else {
+                service.showShield(packageName);
+            }
+        });
+    }
+
     public static boolean hasOverlayFailure() {
         return running && overlayFailureForStatus;
     }
@@ -94,7 +111,7 @@ public final class StudyModeFocusService extends Service {
         stopping = false;
         boolean devicePolicyMode = StudyModeManager.isPolicyOwner(this);
         if (!StudyModeManager.shouldEnforceNow(this)
-            || (!devicePolicyMode && (!StudyModeManager.hasUsageAccess(this)
+            || (!devicePolicyMode && (!StudyModeManager.hasForegroundMonitoringPermission(this)
                 || !StudyModeManager.hasOverlayPermission(this)))) {
             stopSelf();
             return;
@@ -107,7 +124,10 @@ public final class StudyModeFocusService extends Service {
             return;
         }
         running = true;
-        if (!devicePolicyMode) StudyModeManager.setServiceState(this, "focus_shield_running");
+        activeInstance = new WeakReference<>(this);
+        if (!devicePolicyMode) StudyModeManager.setServiceState(this,
+            StudyModeAccessibilityService.isConnected() || StudyModeManager.hasUsageAccess(this)
+                ? "focus_shield_running" : "accessibility_disconnected");
         mainHandler.postDelayed(notificationUpdateRunnable, 60_000L);
 
         // Device Owner suspension already blocks packages at the OS level. In that
@@ -235,14 +255,29 @@ public final class StudyModeFocusService extends Service {
                 if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
-            if (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
+            if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
                 StudyModeManager.setServiceState(StudyModeFocusService.this, "permission_required");
-                mainHandler.post(() -> {
-                    if (!running) return;
-                    removeShield();
-                    stopSelf();
-                });
+                mainHandler.post(() -> { if (running) removeShield(); });
+                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
+                return;
+            }
+
+            // Accessibility events are the primary, event-driven source when the
+            // user has explicitly enabled the service. This 60-second check only
+            // verifies connection/expiry; it is not an app-foreground polling loop.
+            if (StudyModeAccessibilityService.isConnected()) {
+                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
+                return;
+            }
+
+            // If Accessibility is configured but not currently bound, use the
+            // UsageStats fallback when granted. Never claim enforcement without
+            // either a connected event source or Usage Access.
+            if (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)) {
+                StudyModeManager.setServiceState(StudyModeFocusService.this, "accessibility_disconnected");
+                mainHandler.post(() -> { if (running) removeShield(); });
+                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
 
@@ -462,13 +497,14 @@ public final class StudyModeFocusService extends Service {
         running = false;
         starting = false;
         stopping = false;
+        if (activeInstance.get() == this) activeInstance = new WeakReference<>(null);
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
         mainHandler.removeCallbacksAndMessages(null);
         removeShield();
         overlayFailureForStatus = false;
         if (!StudyModeManager.isPolicyOwner(this) && StudyModeManager.shouldEnforceNow(this)
-            && StudyModeManager.hasUsageAccess(this) && StudyModeManager.hasOverlayPermission(this)) {
+            && StudyModeManager.hasForegroundMonitoringPermission(this) && StudyModeManager.hasOverlayPermission(this)) {
             StudyModeManager.setServiceState(this, "service_stopped");
         }
         try {
