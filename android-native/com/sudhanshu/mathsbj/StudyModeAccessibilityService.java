@@ -47,7 +47,7 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         // Ignore those to prevent the blocking window from dismissing itself.
         if (current.equals(getPackageName())) return;
 
-        if (!StudyModeManager.shouldEnforceNow(this)) return;
+        if (!StudyModeManager.isEnforcementActiveCached()) return;
         StudyModeFocusService.onForegroundPackageChanged(this, current);
     }
 
