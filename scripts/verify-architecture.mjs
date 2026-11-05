@@ -1005,7 +1005,7 @@ if (!studyModeAppPlugin.includes('Intent.CATEGORY_LAUNCHER') ||
     !studyModeAppFilters.includes('filter === "system" ? app.systemApp : !app.systemApp') ||
     !studyModePage.includes('disabled={!app.selectable || saving}') ||
     !studyModePage.includes('app.selectable ? (') ||
-    !studyModeAppFilterTests.includes('selectable: false'),
+    !studyModeAppFilterTests.includes('selectable: false') ||
     !studyModeAppFilterTests.includes('shows user and pre-installed system apps together in All') ||
     !studyModeAppFilterTests.includes('searches app names and package names inside each category')) {
   fail('Study Mode app discovery must include launchable user and system apps, report category metadata, and preserve fast All/User/System filtering');
