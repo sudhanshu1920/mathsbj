@@ -549,7 +549,9 @@ public final class StudyModeManager {
     }
 
     public static boolean hasNotificationPolicyAccess(Context context) {
-        if (!isDndControlSupported(context) || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
+        // Keep the raw grant visible for cleanup of DND state from an older app
+        // version. New starts are gated by isDndControlSupported().
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         return manager != null && manager.isNotificationPolicyAccessGranted();
     }
