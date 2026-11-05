@@ -40,6 +40,7 @@ export interface StudyModeStatus {
   permissions: {
     accessibility: boolean;
     accessibilityConnected: boolean;
+    accessibilityDisclosureAccepted: boolean;
     usageAccess: boolean;
     overlay: boolean;
     exactAlarm: boolean;
@@ -60,6 +61,7 @@ export interface StudyModeStatus {
 interface NativeStudyModePlugin {
   getStatus(): Promise<StudyModeStatus>;
   refresh(): Promise<StudyModeStatus>;
+  acceptAccessibilityDisclosure(): Promise<StudyModeStatus>;
   listApps(): Promise<{ apps: StudyModeApp[] }>;
   saveConfig(options: StudyModeConfig): Promise<StudyModeStatus>;
   setEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
@@ -94,7 +96,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
     return {
       config: DEFAULT_STUDY_MODE_CONFIG,
       permissions: {
-        accessibility: false, accessibilityConnected: false, usageAccess: false, overlay: false,
+        accessibility: false, accessibilityConnected: false, accessibilityDisclosureAccepted: false, usageAccess: false, overlay: false,
         exactAlarm: false, notifications: false, batteryOptimizationExempt: false, dndAccess: false,
       },
       scheduleActive: false,
@@ -108,6 +110,11 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
     };
   }
   return NativeStudyMode.getStatus();
+}
+
+export async function acceptStudyModeAccessibilityDisclosure(): Promise<StudyModeStatus> {
+  if (!isStudyModeNative()) throw new Error("Accessibility monitoring requires the installed Android app.");
+  return NativeStudyMode.acceptAccessibilityDisclosure();
 }
 
 export async function refreshStudyMode(): Promise<StudyModeStatus> {
