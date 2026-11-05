@@ -540,7 +540,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     {
       key: "dnd" as const,
       title: "Do Not Disturb",
-      granted: status?.permissions.dndAccess === true,
+      granted: status?.permissions.dndControlSupported !== false && status?.permissions.dndAccess === true,
+      unsupported: status?.permissions.dndControlSupported === false,
       required: sessionDnd && !status?.permissions.dndAccess,
       helper: status?.permissions.dndControlSupported === false
         ? "Android 15+ restricts changing global DND for this app. Use Android Quick Settings."
@@ -549,6 +550,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   ];
 
   const openPermission = async (permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "notifications" | "battery" | "dnd") => {
+    if (permission === "dnd" && status?.permissions.dndControlSupported === false) {
+      setMessage("Android 15+ restricts global Do Not Disturb changes for this app. Use Android Quick Settings.");
+      return;
+    }
     if (permission === "accessibility" && !status?.permissions.accessibilityDisclosureAccepted) {
       setAccessibilityDisclosureOpen(true);
       return;
@@ -906,7 +911,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       <section className="space-y-1.5">
         <p className="text-xs font-semibold text-foreground">Android permissions</p>
         {permissionItems.map((item) => {
-          const stateLabel = item.granted ? "Granted" : item.required ? "Required" : "Optional";
+          const stateLabel = item.unsupported ? "Not supported" : item.granted ? "Granted" : item.required ? "Required" : "Optional";
           const stateClass = item.granted
             ? "shrink-0 text-[10px] font-semibold text-success"
             : item.required
