@@ -35,13 +35,13 @@ public class MainActivity extends BridgeActivity {
   return root;
 }
 
-test('configures launcher-only package visibility, native services and Capacitor bridge idempotently', async (t) => {
+test('configures complete installed-app visibility, native services and Capacitor bridge idempotently', async (t) => {
   const root = await createAndroidFixture();
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
   assert.equal(result.javaFiles, 7);
-  assert.equal(result.packageVisibility, 'launcher-intents-only');
+  assert.equal(result.packageVisibility, 'all-installed-packages');
 
   const manifestPath = path.join(root, 'app/src/main/AndroidManifest.xml');
   const activityPath = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java');

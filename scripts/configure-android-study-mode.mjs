@@ -196,7 +196,7 @@ export async function configureAndroidStudyMode(androidRoot) {
   manifest = ensureStudyModeComponents(manifest);
   await writeFile(manifestPath, manifest);
 
-  return { javaFiles: NATIVE_FILES.length, packageVisibility: 'launcher-intents-only' };
+  return { javaFiles: NATIVE_FILES.length, packageVisibility: 'all-installed-packages' };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
