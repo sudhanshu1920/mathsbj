@@ -216,6 +216,22 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     return () => window.clearInterval(timer);
   }, [status?.activeSession?.id, status?.activeSession?.active, status?.activeSession?.elapsedSeconds]);
 
+
+
+  const formatSessionTime = (value: number) => {
+    const total = Math.max(0, Math.floor(value));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+  };
+
+  const activeSession = status?.activeSession?.active ? status.activeSession : null;
+  const sessionElapsedSeconds = (activeSession?.elapsedSeconds ?? 0) + sessionTick;
+  const sessionRemainingSeconds = activeSession && activeSession.durationSeconds > 0
+    ? Math.max(0, activeSession.durationSeconds - sessionElapsedSeconds)
+    : 0;
+
   useEffect(() => {
     if (!activeSession || activeSession.durationSeconds <= 0 || sessionRemainingSeconds > 0) return;
     let active = true;
@@ -234,20 +250,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       window.clearTimeout(timer);
     };
   }, [activeSession?.id, activeSession?.durationSeconds, sessionRemainingSeconds]);
-
-  const formatSessionTime = (value: number) => {
-    const total = Math.max(0, Math.floor(value));
-    const hours = Math.floor(total / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const seconds = total % 60;
-    return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
-  };
-
-  const activeSession = status?.activeSession?.active ? status.activeSession : null;
-  const sessionElapsedSeconds = (activeSession?.elapsedSeconds ?? 0) + sessionTick;
-  const sessionRemainingSeconds = activeSession && activeSession.durationSeconds > 0
-    ? Math.max(0, activeSession.durationSeconds - sessionElapsedSeconds)
-    : 0;
 
   const suspendedPackages = useMemo(() => new Set(status?.suspendedPackages ?? []), [status?.suspendedPackages]);
   const selectedCount = draft.selectedPackageNames.length;
