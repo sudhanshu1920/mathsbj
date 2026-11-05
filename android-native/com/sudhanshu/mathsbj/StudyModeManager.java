@@ -281,6 +281,7 @@ public final class StudyModeManager {
     public static boolean hasNotificationPermission(Context context) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return false;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return context.checkSelfPermission("android.permission.POST_NOTIFICATIONS")
                 == android.content.pm.PackageManager.PERMISSION_GRANTED && manager.areNotificationsEnabled();
