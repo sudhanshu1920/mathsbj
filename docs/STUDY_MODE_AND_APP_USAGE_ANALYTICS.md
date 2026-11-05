@@ -69,13 +69,17 @@ affect this fallback calculation.
 
 The foreground service uses Android's `specialUse` foreground-service type,
 an ongoing notification, and `START_STICKY` restoration from the saved session.
-On a normal personal phone, it uses UsageStatsManager foreground-app polling
-(1.6-second active-screen interval) and the existing user-approved overlay.
-This is best-effort Focus Shield, not guaranteed package suspension; the
-selected app can appear briefly before the overlay is shown. No Accessibility
-Service is enabled or installed by this implementation. The managed-device
-Device Owner/Profile Owner path remains separate and uses verified
-`DevicePolicyManager` suspension.
+On a normal personal phone, Focus Shield requires foreground-app monitoring
+permission and the existing user-approved overlay. When the user explicitly
+enables Math Master's optional Accessibility tracking in Android Settings, the
+service uses event-driven foreground package names as its primary source; it
+does not read window content, screen text, view hierarchies, gestures, or
+passwords. If Accessibility is not enabled or is disconnected, UsageStatsManager
+is used as the fallback when Usage Access is granted (with a 1.6-second
+active-screen polling interval). This remains best-effort Focus Shield, not
+guaranteed package suspension; the selected app can appear briefly before the
+overlay is shown. The managed-device Device Owner/Profile Owner path remains
+separate and uses verified `DevicePolicyManager` suspension.
 
 Completed sessions are retained in the local SQLite history. The database is
 excluded from cloud backup and device-to-device transfer. Optional DND requires
