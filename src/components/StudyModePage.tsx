@@ -89,6 +89,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [message, setMessage] = useState("");
   const [refreshError, setRefreshError] = useState("");
   const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
+  const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
   const dirtyRef = useRef(isDirty);
   dirtyRef.current = isDirty;
@@ -240,6 +241,24 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!status?.config.enabled) {
+      recoveryAttemptRef.current = false;
+      return;
+    }
+    if (status.enforcementState !== "service_stopped" || !status.scheduleActive || recoveryAttemptRef.current) return;
+    recoveryAttemptRef.current = true;
+    let active = true;
+    void refreshStudyMode().then((nextStatus) => {
+      if (active) setStatus(nextStatus);
+    }).catch(() => {
+      if (active) setMessage("Focus Shield stopped. Reopen Study Mode to retry enforcement.");
+    });
+    return () => {
+      active = false;
+    };
+  }, [status?.config.enabled, status?.enforcementState, status?.scheduleActive]);
 
   useEffect(() => {
     if (status?.enforcementState !== "focus_shield_starting") return;
