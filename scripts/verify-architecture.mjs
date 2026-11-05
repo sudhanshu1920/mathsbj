@@ -982,7 +982,7 @@ if (!studyModeSchedule.includes('isStudyModeScheduledAt') ||
     !studyModeBridge.includes('initializeStudyMode')) {
   fail('Study Mode schedule engine, overnight boundaries, tests, or native bridge are missing');
 }
-if (!studyModeSessionStore.includes('db.execSQL("CREATE TABLE " + TABLE') ||
+if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeSessionStore.includes('start_elapsed_ms') ||
     !studyModeSessionStore.includes('boot_count') ||
     !studyModeSessionStore.includes('selected_apps') ||
