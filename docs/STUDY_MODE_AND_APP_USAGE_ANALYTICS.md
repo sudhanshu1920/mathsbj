@@ -10,6 +10,12 @@ Display over other apps (for the restriction overlay).
 
 ### What app restriction actually does
 
+Before opening Android Accessibility Settings, Math Master displays a prominent
+in-app disclosure and requires the user to tap **Agree & Open Settings**.
+Acceptance is recorded locally on the device; Accessibility itself is still
+enabled only by the user in Android Settings. Math Master does not mark the
+permission granted based on disclosure acceptance.
+
 When the user manually enables Math Master's optional Accessibility service,
 it listens only for `TYPE_WINDOW_STATE_CHANGED` and
 `TYPE_WINDOWS_CHANGED` events and reads the event's foreground package name.
@@ -130,9 +136,10 @@ battery-optimization states are read from Android at runtime. Permissions are
 never silently enabled. Notification and battery settings actions only open
 the relevant Settings pages; they do not silently request exemptions.
 
-Selected apps, schedules, focus sessions, and session history are stored
-locally. The session database and encrypted usage aggregates are excluded from
-cloud backup and device-to-device transfer. Usage Analytics encrypts its local
+Selected apps, schedules, Accessibility disclosure version/acceptance timestamp,
+focus sessions, and session history are stored locally. The private
+`math_master_study_mode.xml` preferences, session database, and encrypted
+usage aggregates are excluded from cloud backup and device-to-device transfer. Usage Analytics encrypts its local
 daily aggregates with AES-GCM using a key held by Android Keystore. Its native
 reader has no network client and does not send package usage records to the
 existing account/cloud features.
