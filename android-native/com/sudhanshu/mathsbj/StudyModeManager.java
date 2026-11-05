@@ -481,7 +481,8 @@ public final class StudyModeManager {
         }
 
         try {
-            if (!StudyModeFocusService.isRunning() && !StudyModeFocusService.isStarting()) {
+            if ((!StudyModeFocusService.isRunning() || StudyModeFocusService.isStopping())
+                && !StudyModeFocusService.isStarting()) {
                 StudyModeFocusService.markStarting();
                 Intent service = new Intent(app, StudyModeFocusService.class);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) app.startForegroundService(service);
@@ -629,7 +630,8 @@ public final class StudyModeManager {
     }
 
     private static void stopFocusShield(Context context) {
-        StudyModeFocusService.clearStarting();
+        if (StudyModeFocusService.isRunning()) StudyModeFocusService.markStopping();
+        else StudyModeFocusService.clearStarting();
         try { context.stopService(new Intent(context, StudyModeFocusService.class)); }
         catch (Exception ignored) {}
     }

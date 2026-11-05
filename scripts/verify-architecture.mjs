@@ -1021,6 +1021,9 @@ if (!studyModeManager.includes('public static synchronized void setEnabled') ||
     !studyModeManager.includes('public static synchronized void reconcile') ||
     !studyModeAppPlugin.includes('public void getStatus(PluginCall call) {\n        call.resolve(StudyModeManager.getStatus(getContext()));') ||
     !studyModeFocus.includes('public static boolean isStarting()') ||
+    !studyModeFocus.includes('public static boolean isStopping()') ||
+    !studyModeFocus.includes('stopping = false;') ||
+    !studyModeManager.includes('StudyModeFocusService.isStopping()') ||
     !studyModeFocus.includes('StudyModeManager.isScheduleActive(this)') ||
     !studyModePage.includes('recoveryAttemptRef.current = true') ||
     !studyModePage.includes('status.enforcementState !== "service_stopped"')) {

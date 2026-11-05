@@ -35,6 +35,15 @@ public final class StudyModeFocusService extends Service {
     private static final long POLL_INTERVAL_MS = 1600L;
     private static volatile boolean running = false;
     private static volatile boolean starting = false;
+    private static volatile boolean stopping = false;
+
+    public static boolean isStopping() {
+        return stopping;
+    }
+
+    public static void markStopping() {
+        if (running) stopping = true;
+    }
 
     public static boolean isStarting() {
         return starting;
@@ -73,6 +82,7 @@ public final class StudyModeFocusService extends Service {
     public void onCreate() {
         super.onCreate();
         starting = false;
+        stopping = false;
         if (!StudyModeManager.isEnabled(this) || !StudyModeManager.isScheduleActive(this)
             || !StudyModeManager.hasUsageAccess(this) || !StudyModeManager.hasOverlayPermission(this)) {
             stopSelf();
@@ -109,6 +119,8 @@ public final class StudyModeFocusService extends Service {
             stopSelf(startId);
             return START_NOT_STICKY;
         }
+        starting = false;
+        stopping = false;
         monitorHandler.removeCallbacks(monitorRunnable);
         monitorHandler.post(monitorRunnable);
         return START_STICKY;
@@ -394,6 +406,7 @@ public final class StudyModeFocusService extends Service {
     public void onDestroy() {
         running = false;
         starting = false;
+        stopping = false;
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
         mainHandler.removeCallbacksAndMessages(null);
