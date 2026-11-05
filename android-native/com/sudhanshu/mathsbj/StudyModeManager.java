@@ -35,6 +35,8 @@ public final class StudyModeManager {
     private static final String KEY_PACKAGES = "selectedPackages";
     private static final String KEY_DAYS = "selectedDays";
     private static final String KEY_LAST_STATE = "lastAppliedState";
+    private static final String KEY_ACCESSIBILITY_DISCLOSURE_VERSION = "accessibilityDisclosureVersion";
+    private static final String ACCESSIBILITY_DISCLOSURE_VERSION = "2026-11-05-v1";
     private static final String ACTION_BOUNDARY = "com.sudhanshu.mathsbj.STUDY_MODE_BOUNDARY";
     private static final String ACTION_SESSION_BOUNDARY = "com.sudhanshu.mathsbj.STUDY_MODE_SESSION_BOUNDARY";
     private static final int ALARM_REQUEST_CODE = 9527;
@@ -249,6 +251,21 @@ public final class StudyModeManager {
         } catch (Exception ignored) {
             return false;
         }
+    }
+
+    public static boolean hasAccessibilityDisclosureAccepted(Context context) {
+        return ACCESSIBILITY_DISCLOSURE_VERSION.equals(
+            prefs(context).getString(KEY_ACCESSIBILITY_DISCLOSURE_VERSION, "")
+        );
+    }
+
+    public static synchronized JSObject acceptAccessibilityDisclosure(Context context) {
+        boolean saved = prefs(context).edit()
+            .putString(KEY_ACCESSIBILITY_DISCLOSURE_VERSION, ACCESSIBILITY_DISCLOSURE_VERSION)
+            .putLong("accessibilityDisclosureAcceptedAt", System.currentTimeMillis())
+            .commit();
+        if (!saved) throw new IllegalStateException("Accessibility disclosure consent could not be saved locally.");
+        return getStatus(context);
     }
 
     public static boolean hasAccessibilityServiceEnabled(Context context) {
@@ -844,6 +861,7 @@ public final class StudyModeManager {
         permissions.put("usageAccess", hasUsageAccess(context));
         permissions.put("accessibility", hasAccessibilityServiceEnabled(context));
         permissions.put("accessibilityConnected", StudyModeAccessibilityService.isConnected());
+        permissions.put("accessibilityDisclosureAccepted", hasAccessibilityDisclosureAccepted(context));
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
         permissions.put("notifications", hasNotificationPermission(context));
