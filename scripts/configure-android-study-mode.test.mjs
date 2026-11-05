@@ -40,8 +40,9 @@ test('configures complete installed-app visibility, native services and Capacito
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 7);
+  assert.equal(result.javaFiles, 9);
   assert.equal(result.packageVisibility, 'all-installed-packages');
+  assert.equal(result.localUsageAnalytics, true);
 
   const manifestPath = path.join(root, 'app/src/main/AndroidManifest.xml');
   const activityPath = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java');
@@ -69,6 +70,14 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.match(manifest, /StudyModePackageChangeReceiver[\s\S]*PACKAGE_REMOVED/);
   assert.match(manifest, /android.permission.QUERY_ALL_PACKAGES/);
   assert.equal((activity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
+  assert.equal((activity.match(/registerPlugin\(AppUsageAnalyticsPlugin\.class\)/g) || []).length, 1);
+  assert.match(manifest, /android:fullBackupContent="@xml\/app_usage_backup_rules"/);
+  assert.match(manifest, /android:dataExtractionRules="@xml\/app_usage_data_extraction_rules"/);
+  const legacyBackup = await readFile(path.join(root, 'app/src/main/res/xml/app_usage_backup_rules.xml'), 'utf8');
+  const modernBackup = await readFile(path.join(root, 'app/src/main/res/xml/app_usage_data_extraction_rules.xml'), 'utf8');
+  assert.match(legacyBackup, /exclude domain="sharedpref" path="app_usage_analytics_local.xml"/);
+  assert.match(modernBackup, /cloud-backup[\s\S]*exclude domain="sharedpref" path="app_usage_analytics_local.xml"/);
+  assert.match(modernBackup, /device-transfer[\s\S]*exclude domain="sharedpref" path="app_usage_analytics_local.xml"/);
 
   await configureAndroidStudyMode(root);
   const secondManifest = await readFile(manifestPath, 'utf8');
@@ -77,4 +86,5 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.doesNotMatch(secondManifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE/);
   assert.equal((secondManifest.match(/android.intent.category.LAUNCHER/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
+  assert.equal((secondActivity.match(/registerPlugin\(AppUsageAnalyticsPlugin\.class\)/g) || []).length, 1);
 });

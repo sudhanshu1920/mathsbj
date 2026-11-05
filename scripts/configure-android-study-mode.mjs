@@ -14,6 +14,8 @@ const NATIVE_FILES = [
   'StudyModeFocusService.java',
   'StudyModeDeviceAdminReceiver.java',
   'DailyTargetReminderBootReceiver.java',
+  'AppUsageAnalyticsStore.java',
+  'AppUsageAnalyticsPlugin.java',
 ];
 
 const REQUIRED_PERMISSIONS = [
@@ -167,6 +169,36 @@ function registerStudyModePlugin(mainActivity) {
   return mainActivity.replace(anchor, `registerPlugin(StudyModePlugin.class);\n        ${anchor}`);
 }
 
+function registerAppUsageAnalyticsPlugin(mainActivity) {
+  const registration = 'registerPlugin(AppUsageAnalyticsPlugin.class);';
+  if (mainActivity.includes(registration)) return mainActivity;
+  const anchor = 'registerPlugin(StudyModePlugin.class);';
+  if (!mainActivity.includes(anchor)) throw new Error('MainActivity.java must register StudyModePlugin before analytics.');
+  return mainActivity.replace(anchor, `${anchor}\n        ${registration}`);
+}
+
+function ensureBackupExclusions(manifest) {
+  const match = manifest.match(/<application\\b[^>]*>/s);
+  if (!match) throw new Error('AndroidManifest.xml has no <application> opening tag.');
+  let tag = match[0];
+  for (const [name, value] of [
+    ['android:fullBackupContent', '@xml/app_usage_backup_rules'],
+    ['android:dataExtractionRules', '@xml/app_usage_data_extraction_rules'],
+  ]) {
+    const marker = name + '=\\\"';
+    const start = tag.indexOf(marker);
+    if (start >= 0) {
+      const valueStart = start + marker.length;
+      const valueEnd = tag.indexOf('\\\"', valueStart);
+      if (valueEnd < 0) throw new Error('Invalid application backup attribute: ' + name);
+      tag = tag.slice(0, valueStart) + value + tag.slice(valueEnd);
+    } else {
+      tag = tag.replace(/>$/, ' ' + name + '=\\\"' + value + '\\">');
+    }
+  }
+  return manifest.replace(match[0], tag);
+}
+
 export async function configureAndroidStudyMode(androidRoot) {
   const root = path.resolve(androidRoot);
   const packageDir = path.join(root, 'app/src/main/java', PACKAGE_PATH);
@@ -180,13 +212,20 @@ export async function configureAndroidStudyMode(androidRoot) {
   }
   const xmlTarget = path.join(root, 'app/src/main/res/xml');
   await mkdir(xmlTarget, { recursive: true });
-  await copyFile(
-    path.resolve(SCRIPT_DIR, '../android-native/res/xml/study_mode_device_admin.xml'),
-    path.join(xmlTarget, 'study_mode_device_admin.xml'),
-  );
+  for (const resource of [
+    'study_mode_device_admin.xml',
+    'app_usage_backup_rules.xml',
+    'app_usage_data_extraction_rules.xml',
+  ]) {
+    await copyFile(
+      path.resolve(SCRIPT_DIR, `../android-native/res/xml/${resource}`),
+      path.join(xmlTarget, resource),
+    );
+  }
 
   let mainActivity = await readFile(activityPath, 'utf8');
   mainActivity = registerStudyModePlugin(mainActivity);
+  mainActivity = registerAppUsageAnalyticsPlugin(mainActivity);
   await writeFile(activityPath, mainActivity);
 
   let manifest = await readFile(manifestPath, 'utf8');
@@ -194,9 +233,10 @@ export async function configureAndroidStudyMode(androidRoot) {
   manifest = ensureManifestQueries(manifest);
   manifest = ensurePermissions(manifest);
   manifest = ensureStudyModeComponents(manifest);
+  manifest = ensureBackupExclusions(manifest);
   await writeFile(manifestPath, manifest);
 
-  return { javaFiles: NATIVE_FILES.length, packageVisibility: 'all-installed-packages' };
+  return { javaFiles: NATIVE_FILES.length, packageVisibility: 'all-installed-packages', localUsageAnalytics: true };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
