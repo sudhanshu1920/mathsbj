@@ -133,7 +133,7 @@ function ensureStudyModeComponents(manifest) {
     },
     {
       marker: 'android:name=".StudyModeAccessibilityService"',
-      xml: \`        <service
+      xml: `        <service
             android:name=".StudyModeAccessibilityService"
             android:enabled="true"
             android:exported="true"
@@ -144,7 +144,7 @@ function ensureStudyModeComponents(manifest) {
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/study_mode_accessibility" />
-        </service>\`,
+        </service>`,
     },
     {
       marker: 'android:name=".StudyModeFocusService"',
@@ -219,15 +219,16 @@ export async function configureAndroidStudyMode(androidRoot) {
   for (const file of NATIVE_FILES) {
     await copyFile(path.join(NATIVE_DIR, file), path.join(packageDir, file));
   }
-  await copyFile(
-    path.resolve(SCRIPT_DIR, '../android-native/res/values/study_mode_accessibility.xml'),
-    path.join(valuesTarget, 'study_mode_accessibility.xml'),
-  );
   const xmlTarget = path.join(root, 'app/src/main/res/xml');
   await mkdir(xmlTarget, { recursive: true });
   await rm(path.join(xmlTarget, 'study_mode_device_admin.xml'), { force: true });
   const valuesTarget = path.join(root, 'app/src/main/res/values');
   await mkdir(valuesTarget, { recursive: true });
+  await copyFile(
+    path.resolve(SCRIPT_DIR, '../android-native/res/values/study_mode_accessibility.xml'),
+    path.join(valuesTarget, 'study_mode_accessibility.xml'),
+  );
+
   for (const resource of [
     'study_mode_accessibility.xml',
     'app_usage_backup_rules.xml',
