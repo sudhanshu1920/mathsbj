@@ -276,6 +276,9 @@ public final class StudyModePlugin extends Plugin {
                     return;
                 }
                 break;
+            case "accessibility":
+                intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                break;
             default:
                 call.reject("Unknown Study Mode permission.");
                 return;
