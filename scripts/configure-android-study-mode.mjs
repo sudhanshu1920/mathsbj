@@ -12,17 +12,18 @@ const NATIVE_FILES = [
   'StudyModeAlarmReceiver.java',
   'StudyModePackageChangeReceiver.java',
   'StudyModeFocusService.java',
-  'StudyModeDeviceAdminReceiver.java',
   'DailyTargetReminderBootReceiver.java',
   'AppUsageAnalyticsStore.java',
   'AppUsageAnalyticsPlugin.java',
   'StudyModeSessionStore.java',
+  'StudyModeAccessibilityService.java',
 ];
 
 const REQUIRED_PERMISSIONS = [
   // Personal sideload Study Mode requires full installed-app discovery for its app picker.
   // Google Play distribution needs a separate QUERY_ALL_PACKAGES policy eligibility review.
   'android.permission.QUERY_ALL_PACKAGES',
+  'android.permission.POST_NOTIFICATIONS',
   'android.permission.PACKAGE_USAGE_STATS',
   'android.permission.SYSTEM_ALERT_WINDOW',
   'android.permission.SCHEDULE_EXACT_ALARM',
@@ -90,11 +91,9 @@ function removeNotificationListenerService(manifest) {
   return manifest.replace(listenerService, '');
 }
 
-function removeAccessibilityService(manifest) {
-  // Internet-sideloaded apps that declare Accessibility services can be
-  // blocked by Play Protect. Normal-phone Focus Shield uses Usage Access.
-  const service = /\s*<service\b(?=[^>]*\bandroid:name=["']\.StudyModeAccessibilityService["'])[^>]*(?:\/>|>[\s\S]*?<\/service>)/g;
-  return manifest.replace(service, '');
+function removeDeviceAdminReceiver(manifest) {
+  const receiver = /\s*<receiver\b(?=[^>]*\bandroid:name=["']\.StudyModeDeviceAdminReceiver["'])[^>]*(?:\/>|>[\s\S]*?<\/receiver>)/g;
+  return manifest.replace(receiver, '');
 }
 
 function ensureStudyModeComponents(manifest) {
@@ -133,19 +132,19 @@ function ensureStudyModeComponents(manifest) {
         </receiver>`,
     },
     {
-      marker: 'android:name=".StudyModeDeviceAdminReceiver"',
-      xml: `        <receiver
-            android:name=".StudyModeDeviceAdminReceiver"
+      marker: 'android:name=".StudyModeAccessibilityService"',
+      xml: \`        <service
+            android:name=".StudyModeAccessibilityService"
             android:enabled="true"
             android:exported="true"
-            android:permission="android.permission.BIND_DEVICE_ADMIN">
-            <meta-data
-                android:name="android.app.device_admin"
-                android:resource="@xml/study_mode_device_admin" />
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
-                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
-        </receiver>`,
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/study_mode_accessibility" />
+        </service>\`,
     },
     {
       marker: 'android:name=".StudyModeFocusService"',
@@ -216,18 +215,21 @@ export async function configureAndroidStudyMode(androidRoot) {
 
   await mkdir(packageDir, { recursive: true });
   await rm(path.join(packageDir, 'StudyModeNotificationListenerService.java'), { force: true });
-  await rm(path.join(packageDir, 'StudyModeAccessibilityService.java'), { force: true });
+  await rm(path.join(packageDir, 'StudyModeDeviceAdminReceiver.java'), { force: true });
   for (const file of NATIVE_FILES) {
     await copyFile(path.join(NATIVE_DIR, file), path.join(packageDir, file));
   }
+  await copyFile(
+    path.resolve(SCRIPT_DIR, '../android-native/res/values/study_mode_accessibility.xml'),
+    path.join(valuesTarget, 'study_mode_accessibility.xml'),
+  );
   const xmlTarget = path.join(root, 'app/src/main/res/xml');
   await mkdir(xmlTarget, { recursive: true });
+  await rm(path.join(xmlTarget, 'study_mode_device_admin.xml'), { force: true });
   const valuesTarget = path.join(root, 'app/src/main/res/values');
   await mkdir(valuesTarget, { recursive: true });
-  await rm(path.join(xmlTarget, 'study_mode_accessibility.xml'), { force: true });
-  await rm(path.join(valuesTarget, 'study_mode_accessibility.xml'), { force: true });
   for (const resource of [
-    'study_mode_device_admin.xml',
+    'study_mode_accessibility.xml',
     'app_usage_backup_rules.xml',
     'app_usage_data_extraction_rules.xml',
   ]) {
@@ -244,14 +246,14 @@ export async function configureAndroidStudyMode(androidRoot) {
 
   let manifest = await readFile(manifestPath, 'utf8');
   manifest = removeNotificationListenerService(manifest);
-  manifest = removeAccessibilityService(manifest);
+  manifest = removeDeviceAdminReceiver(manifest);
   manifest = ensureManifestQueries(manifest);
   manifest = ensurePermissions(manifest);
   manifest = ensureStudyModeComponents(manifest);
   manifest = ensureBackupExclusions(manifest);
   await writeFile(manifestPath, manifest);
 
-  return { javaFiles: NATIVE_FILES.length, packageVisibility: 'all-installed-packages', localUsageAnalytics: true, foregroundMonitoring: 'usage-access-only' };
+  return { javaFiles: NATIVE_FILES.length, packageVisibility: 'all-installed-packages', localUsageAnalytics: true, foregroundMonitoring: 'accessibility-primary-usage-fallback' };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
