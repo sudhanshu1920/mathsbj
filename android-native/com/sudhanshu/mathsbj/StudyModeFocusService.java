@@ -19,7 +19,6 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
-import android.text.format.DateFormat;
 import android.view.Gravity;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -27,8 +26,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.lang.ref.WeakReference;
-import java.util.Calendar;
-import java.util.Date;
 
 public final class StudyModeFocusService extends Service {
     private static final String CHANNEL_ID = "study_mode_focus";
