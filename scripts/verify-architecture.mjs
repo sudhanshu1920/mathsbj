@@ -983,6 +983,25 @@ if (!studyModeSchedule.includes('isStudyModeScheduledAt') ||
     !studyModeBridge.includes('initializeStudyMode')) {
   fail('Study Mode schedule engine, overnight boundaries, tests, or native bridge are missing');
 }
+const studyModePageStateEffectStart = studyModePage.indexOf(
+  'window.dispatchEvent(new CustomEvent("study-mode-page-state", { detail: { open: true } }));',
+);
+const studyModePageStateEffectEnd = studyModePage.indexOf('\n  }, [handleBack]);', studyModePageStateEffectStart);
+const studyModePageCleanupStart = studyModePage.indexOf(
+  'return () => {\n      window.dispatchEvent(new CustomEvent("study-mode-page-state", { detail: { open: false } }));',
+  studyModePageStateEffectStart,
+);
+const studyModePageCleanupEnd = studyModePage.indexOf('\n    };', studyModePageCleanupStart);
+const studyModePageCleanup = studyModePageCleanupStart >= 0 && studyModePageCleanupEnd > studyModePageCleanupStart
+  ? studyModePage.slice(studyModePageCleanupStart, studyModePageCleanupEnd)
+  : '';
+if (studyModePageStateEffectStart < 0 ||
+    studyModePageStateEffectEnd < studyModePageStateEffectStart ||
+    studyModePageCleanupStart < 0 ||
+    studyModePageCleanupEnd < studyModePageCleanupStart ||
+    /endStudyModeSession|setStudyModeEnabled|\.endSession\(|\.setEnabled\(/.test(studyModePageCleanup)) {
+  fail('Leaving or unmounting the Study Mode page must remove only page listeners and must never end or disable a persisted focus session');
+}
 if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeSessionStore.includes('start_elapsed_ms') ||
     !studyModeSessionStore.includes('boot_count') ||
