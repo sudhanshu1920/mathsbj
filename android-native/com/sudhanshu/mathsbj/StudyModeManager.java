@@ -261,6 +261,29 @@ public final class StudyModeManager {
         }
     }
 
+    public static boolean hasAccessibilityServiceEnabled(Context context) {
+        try {
+            String enabled = Settings.Secure.getString(
+                context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            );
+            if (enabled == null || enabled.isEmpty()) return false;
+            String target = new ComponentName(context, StudyModeAccessibilityService.class)
+                .flattenToString();
+            for (String component : enabled.split(":")) {
+                if (target.equalsIgnoreCase(component.trim())) return true;
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    public static boolean hasForegroundMonitoringPermission(Context context) {
+        return hasUsageAccess(context) || hasAccessibilityServiceEnabled(context);
+    }
+
+    public static boolean hasForegroundMonitoringSource(Context context) {
+        return StudyModeAccessibilityService.isConnected() || hasUsageAccess(context);
+    }
+
     public static boolean hasOverlayPermission(Context context) {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context);
     }
@@ -708,7 +731,7 @@ public final class StudyModeManager {
             setLastState(app, scheduleEnabled ? "waiting_for_schedule" : "disabled");
             return;
         }
-        if (!hasUsageAccess(app) || !hasOverlayPermission(app)) {
+        if (!hasForegroundMonitoringPermission(app) || !hasOverlayPermission(app)) {
             stopFocusShield(app);
             setLastState(app, "permission_required");
             return;
@@ -974,6 +997,7 @@ public final class StudyModeManager {
 
         JSObject permissions = new JSObject();
         permissions.put("usageAccess", hasUsageAccess(context));
+        permissions.put("accessibility", hasAccessibilityServiceEnabled(context));
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
         permissions.put("deviceOwner", isDeviceOwner(context));
@@ -1012,8 +1036,10 @@ public final class StudyModeManager {
             if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
-        } else if (!usageGranted || !overlayGranted) {
+        } else if ((!usageGranted && !hasAccessibilityServiceEnabled(context)) || !overlayGranted) {
             state = "permission_required";
+        } else if (hasAccessibilityServiceEnabled(context) && !StudyModeAccessibilityService.isConnected() && !usageGranted) {
+            state = "accessibility_disconnected";
         } else if (StudyModeFocusService.isRunning()) {
             state = "focus_shield_running";
         } else if (StudyModeFocusService.isStarting()) {
@@ -1032,7 +1058,7 @@ public final class StudyModeManager {
         result.put("monitoringServiceRunning", StudyModeFocusService.isRunning());
         result.put("enforcementMode", isDeviceOwner(context) ? "device_owner"
             : (isProfileOwner(context) ? "profile_owner"
-                : (hasUsageAccess(context) && hasOverlayPermission(context) ? "focus_shield" : "unavailable")));
+                : (hasForegroundMonitoringPermission(context) && hasOverlayPermission(context) ? "focus_shield" : "unavailable")));
         result.put("enforcementState", state);
         result.put("appliedPackages", appliedArray);
         result.put("suspendedPackages", suspendedArray);
