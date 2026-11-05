@@ -524,12 +524,43 @@ public final class StudyModeManager {
     }
 
     private static void expireSessionIfNeeded(Context context) {
+        completeExpiredSession(context);
+    }
+
+    public static synchronized boolean completeExpiredSession(Context context) {
         StudyModeSessionStore store = sessionStore(context);
         StudyModeSessionStore.Session active = store.getActiveSession(context);
-        if (active == null || active.durationSeconds <= 0 || active.elapsedSeconds < active.durationSeconds) return;
+        if (active == null || active.durationSeconds <= 0 || active.elapsedSeconds < active.durationSeconds) return false;
         restoreSessionDnd(context, active);
-        store.finishSession(context, active.id, "completed");
+        boolean completed = store.finishSession(context, active.id, "completed");
         cancelSessionExpiry(context);
+        return completed;
+    }
+
+    public static String getSessionNotificationText(Context context) {
+        StudyModeSessionStore.Session session = sessionStore(context).getActiveSession(context);
+        if (session == null) return "Scheduled focus is active";
+        long elapsed = Math.max(0L, session.elapsedSeconds);
+        if (session.durationSeconds > 0) {
+            long remaining = Math.max(0L, session.durationSeconds - elapsed);
+            return "Focus session · " + formatDuration(remaining) + " remaining";
+        }
+        return "Focus session · " + formatDuration(elapsed) + " elapsed";
+    }
+
+    public static String getSessionNotificationTitle(Context context) {
+        StudyModeSessionStore.Session session = sessionStore(context).getActiveSession(context);
+        if (session == null) return "Study Mode is active";
+        String label = session.type == null ? "Study" : session.type;
+        return "Study Mode · " + label.substring(0, 1).toUpperCase(java.util.Locale.ROOT)
+            + label.substring(1);
+    }
+
+    private static String formatDuration(long totalSeconds) {
+        long hours = totalSeconds / 3600L;
+        long minutes = (totalSeconds % 3600L) / 60L;
+        if (hours > 0) return hours + "h " + minutes + "m";
+        return minutes + "m";
     }
 
     private static void applySessionDndIfRequested(Context context, StudyModeSessionStore.Session session) {

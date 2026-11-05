@@ -78,16 +78,28 @@ public final class StudyModeFocusService extends Service {
 
     private static volatile boolean overlayFailureForStatus = false;
 
+    private final Runnable notificationUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!running) return;
+            updateOngoingNotification();
+            mainHandler.postDelayed(this, 60_000L);
+        }
+    };
+
     @Override
     public void onCreate() {
         super.onCreate();
         starting = false;
         stopping = false;
-        if (!StudyModeManager.isEnabled(this) || !StudyModeManager.isScheduleActive(this)
-            || !StudyModeManager.hasUsageAccess(this) || !StudyModeManager.hasOverlayPermission(this)) {
+        boolean devicePolicyMode = StudyModeManager.isPolicyOwner(this);
+        if (!StudyModeManager.shouldEnforceNow(this)
+            || (!devicePolicyMode && (!StudyModeManager.hasUsageAccess(this)
+                || !StudyModeManager.hasOverlayPermission(this)))) {
             stopSelf();
             return;
         }
+
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         createNotificationChannel();
         if (!startForegroundSafely()) {
@@ -95,32 +107,38 @@ public final class StudyModeFocusService extends Service {
             return;
         }
         running = true;
-        StudyModeManager.setServiceState(this, "focus_shield_running");
-        monitorThread = new HandlerThread(
-            "StudyModeMonitor",
-            android.os.Process.THREAD_PRIORITY_BACKGROUND
-        );
-        monitorThread.start();
-        monitorHandler = new Handler(monitorThread.getLooper());
-        monitorHandler.post(monitorRunnable);
+        if (!devicePolicyMode) StudyModeManager.setServiceState(this, "focus_shield_running");
+        mainHandler.postDelayed(notificationUpdateRunnable, 60_000L);
+
+        // Device Owner suspension already blocks packages at the OS level. In that
+        // mode this service only maintains the durable session notification/timer.
+        if (!devicePolicyMode) {
+            monitorThread = new HandlerThread(
+                "StudyModeMonitor",
+                android.os.Process.THREAD_PRIORITY_BACKGROUND
+            );
+            monitorThread.start();
+            monitorHandler = new Handler(monitorThread.getLooper());
+            monitorHandler.post(monitorRunnable);
+        }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!foregroundStarted) {
-            stopSelf(startId);
-            return START_NOT_STICKY;
-        }
-        if (!StudyModeManager.isEnabled(this) || !StudyModeManager.isScheduleActive(this)) {
-            stopSelf(startId);
-            return START_NOT_STICKY;
-        }
-        if (monitorHandler == null) {
+        if (!foregroundStarted || !StudyModeManager.shouldEnforceNow(this)) {
             stopSelf(startId);
             return START_NOT_STICKY;
         }
         starting = false;
         stopping = false;
+        if (StudyModeManager.isPolicyOwner(this)) {
+            updateOngoingNotification();
+            return START_STICKY;
+        }
+        if (monitorHandler == null) {
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
         monitorHandler.removeCallbacks(monitorRunnable);
         monitorHandler.post(monitorRunnable);
         return START_STICKY;
@@ -137,8 +155,8 @@ public final class StudyModeFocusService extends Service {
                 ? new Notification.Builder(this, CHANNEL_ID)
                 : new Notification.Builder(this);
             builder.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                .setContentTitle("Study Mode is active")
-                .setContentText("Focus Shield is monitoring selected apps")
+                .setContentTitle(StudyModeManager.getSessionNotificationTitle(this))
+                .setContentText(StudyModeManager.getSessionNotificationText(this))
                 .setOngoing(true)
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setOnlyAlertOnce(true);
@@ -159,6 +177,30 @@ public final class StudyModeFocusService extends Service {
         }
     }
 
+    private void updateOngoingNotification() {
+        try {
+            Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
+            PendingIntent content = launch == null ? null : PendingIntent.getActivity(
+                this, 9529, launch,
+                PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
+            );
+            Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? new Notification.Builder(this, CHANNEL_ID)
+                : new Notification.Builder(this);
+            builder.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle(StudyModeManager.getSessionNotificationTitle(this))
+                .setContentText(StudyModeManager.getSessionNotificationText(this))
+                .setOngoing(true)
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .setOnlyAlertOnce(true);
+            if (content != null) builder.setContentIntent(content);
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) manager.notify(NOTIFICATION_ID, builder.build());
+        } catch (Exception ignored) {
+            // Notification refresh must not interrupt package restrictions/session expiry.
+        }
+    }
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -174,14 +216,23 @@ public final class StudyModeFocusService extends Service {
     private final Runnable monitorRunnable = new Runnable() {
         @Override
         public void run() {
-            if (!StudyModeManager.isEnabled(StudyModeFocusService.this)
-                || !StudyModeManager.isScheduleActive(StudyModeFocusService.this)) {
-                StudyModeManager.setServiceState(StudyModeFocusService.this, "waiting_for_schedule");
+            if (StudyModeManager.completeExpiredSession(StudyModeFocusService.this)) {
+                StudyModeManager.reconcile(StudyModeFocusService.this);
+            }
+            if (!StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)) {
+                StudyModeManager.setServiceState(StudyModeFocusService.this,
+                    StudyModeManager.isEnabled(StudyModeFocusService.this) ? "waiting_for_schedule" : "disabled");
                 mainHandler.post(() -> {
                     if (!running) return;
                     removeShield();
                     stopSelf();
                 });
+                return;
+            }
+            if (StudyModeManager.isPolicyOwner(StudyModeFocusService.this)) {
+                mainHandler.post(() -> { if (running) removeShield(); });
+                updateOngoingNotification();
+                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
             if (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
@@ -392,12 +443,13 @@ public final class StudyModeFocusService extends Service {
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
-        // The user explicitly opted into this scheduled foreground service.
-        // Android may still stop it under device policy or battery restrictions.
-        if (StudyModeManager.isEnabled(this) && StudyModeManager.isScheduleActive(this)
-            && monitorHandler != null) {
+        // Page/Activity task removal is not a session stop. The persisted session
+        // and scheduled boundaries remain authoritative.
+        if (StudyModeManager.shouldEnforceNow(this) && monitorHandler != null) {
             monitorHandler.removeCallbacks(monitorRunnable);
             monitorHandler.post(monitorRunnable);
+        } else if (StudyModeManager.isPolicyOwner(this) && StudyModeManager.isSessionActive(this)) {
+            updateOngoingNotification();
         }
         super.onTaskRemoved(rootIntent);
     }
@@ -412,7 +464,7 @@ public final class StudyModeFocusService extends Service {
         mainHandler.removeCallbacksAndMessages(null);
         removeShield();
         overlayFailureForStatus = false;
-        if (StudyModeManager.isEnabled(this) && StudyModeManager.isScheduleActive(this)
+        if (!StudyModeManager.isPolicyOwner(this) && StudyModeManager.shouldEnforceNow(this)
             && StudyModeManager.hasUsageAccess(this) && StudyModeManager.hasOverlayPermission(this)) {
             StudyModeManager.setServiceState(this, "service_stopped");
         }
