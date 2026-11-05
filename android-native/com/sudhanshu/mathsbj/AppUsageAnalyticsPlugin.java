@@ -68,6 +68,14 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
         WORKER.execute(() -> {
             try {
                 Context context = getContext().getApplicationContext();
+                int retainedDays = store.getRetentionDays(context);
+                long firstDay = localDayStart(requestedStart);
+                long finalDay = localDayStart(requestedEnd - 1L);
+                long requestedDays = Math.max(1L, (finalDay - firstDay) / 86_400_000L + 1L);
+                if (requestedDays > retainedDays) {
+                    call.reject("This date range exceeds the local retention setting. Increase retention or choose a shorter range.");
+                    return;
+                }
                 boolean permissionGranted = hasUsageAccess(context);
                 boolean dataAvailable = false;
                 if (permissionGranted) {
@@ -155,6 +163,16 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
         } catch (Exception ignored) {
             return false;
         }
+    }
+
+    private long localDayStart(long timestamp) {
+        Calendar day = Calendar.getInstance();
+        day.setTimeInMillis(timestamp);
+        day.set(Calendar.HOUR_OF_DAY, 0);
+        day.set(Calendar.MINUTE, 0);
+        day.set(Calendar.SECOND, 0);
+        day.set(Calendar.MILLISECOND, 0);
+        return day.getTimeInMillis();
     }
 
     private JSONObject collectDailyStats(

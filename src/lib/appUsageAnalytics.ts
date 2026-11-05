@@ -85,9 +85,9 @@ export function getUsageRangeWindow(
       || parsedStart > parsedEnd) {
       throw new Error("Choose a valid custom date range.");
     }
-    const numberOfDays = Math.round(
-      (atLocalMidnight(parsedEnd).getTime() - atLocalMidnight(parsedStart).getTime()) / 86_400_000,
-    ) + 1;
+    const startUtc = Date.UTC(parsedStart.getFullYear(), parsedStart.getMonth(), parsedStart.getDate());
+    const endUtc = Date.UTC(parsedEnd.getFullYear(), parsedEnd.getMonth(), parsedEnd.getDate());
+    const numberOfDays = Math.round((endUtc - startUtc) / 86_400_000) + 1;
     if (numberOfDays > 180) throw new Error("Custom ranges can be up to 180 days.");
     start = atLocalMidnight(parsedStart);
     end = atLocalMidnight(parsedEnd);

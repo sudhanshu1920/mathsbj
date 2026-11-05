@@ -62,6 +62,10 @@ public final class AppUsageAnalyticsStore {
         write(context, data);
     }
 
+    public synchronized int getRetentionDays(Context context) throws Exception {
+        return read(context).optInt("retentionDays", DEFAULT_RETENTION_DAYS);
+    }
+
     public synchronized int setRetentionDays(Context context, int retentionDays) throws Exception {
         int safe = retentionDays == 30 || retentionDays == 90 || retentionDays == 180
             ? retentionDays : DEFAULT_RETENTION_DAYS;

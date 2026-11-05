@@ -403,6 +403,8 @@ const AppUsageAnalyticsPage = ({ onBack }: AppUsageAnalyticsPageProps) => {
                     innerRadius="48%"
                     outerRadius="82%"
                     paddingAngle={2}
+                    label={({ percent }) => Math.round(Number(percent ?? 0) * 100) + "%"}
+                    labelLine={false}
                     onClick={(entry) => selectPieApp(entry as { packageName?: string })}
                   >
                     {pieRows.map((entry, index) => <Cell key={entry.packageName} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}

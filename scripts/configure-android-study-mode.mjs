@@ -178,7 +178,7 @@ function registerAppUsageAnalyticsPlugin(mainActivity) {
 }
 
 function ensureBackupExclusions(manifest) {
-  const match = manifest.match(/<application\\b[^>]*>/s);
+  const match = manifest.match(/<application\b[^>]*>/s);
   if (!match) throw new Error('AndroidManifest.xml has no <application> opening tag.');
   let tag = match[0];
   for (const [name, value] of [
