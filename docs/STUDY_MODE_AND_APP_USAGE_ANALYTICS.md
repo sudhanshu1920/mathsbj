@@ -1,107 +1,121 @@
 # Math Master — Study Mode and App Usage Analytics
 
-## Study Mode enforcement levels
+## Study Mode on ordinary Android phones
 
-### Fully managed device (Device Owner)
+Study Mode is designed for a personal Android phone without root, factory reset,
+Device Owner, Profile Owner, or enterprise enrollment. It uses only user-granted
+Accessibility, Usage Access, and display-over-other-apps access.
 
-When Android reports Math Master as the Device Owner, the native controller uses
-`DevicePolicyManager.setPackagesSuspended()` at scheduled start boundaries.
-The returned failure list is not treated as proof of success: every selected
-package is checked again with `isPackageSuspended()`. Only packages recorded as
-suspended by Math Master are released when selections change, the schedule ends,
-or Study Mode is turned off.
+### What the blocking layer actually does
 
-Android package suspension prevents activities from starting and hides the
-suspended package's notifications. Some critical system packages cannot be
-suspended by Android and are reported as failures rather than shown as frozen.
+When the user enables the optional Accessibility service, Math Master listens
+for window transition events and reads only the event's foreground package
+name. It does not retrieve screen text, window contents, view hierarchies,
+passwords, perform gestures, or simulate hidden taps.
 
-### Managed profile (Profile Owner)
+The event is checked against a cached snapshot of the active schedule/session
+and selected package names. A selected app causes the existing Focus Shield
+overlay to cover the screen. The overlay takes focus and blocks ordinary touch
+interaction while it is visible. Its **Back to Math Master** action removes only
+the overlay and opens Math Master; it does not end the session, clear the
+selection, reset the timer, or stop the foreground service.
 
-Profile Owner mode applies only to packages in that managed profile. It does not
-freeze the same application in the personal profile or on the whole device.
-The UI identifies this as managed-profile suspension.
+When Accessibility is unavailable, UsageStatsManager event history is used as
+a fallback after the user grants Usage Access. The fallback checks the active
+screen at a 1.6-second interval while the screen is interactive. It is less
+immediate than Accessibility and may briefly show the selected app before the
+overlay appears.
 
-### Normal personal phone
+This is a best-effort restriction, not Android package suspension. A selected
+app can appear briefly before the shield, can continue background work, and
+may behave differently across Android versions and manufacturers. The overlay
+does not universally disable that app's notifications, background execution,
+picture-in-picture, or external intents. Math Master does not claim that every
+launch is prevented or that Focus Shield is equivalent to system-level
+freezing.
 
-A regular installed app does not automatically have Device Owner authority.
-When Math Master is not Device Owner/Profile Owner, the available compatibility
-mode is Usage Access + an explicitly approved overlay (Focus Shield). That is
-best-effort foreground monitoring and is not system-level package suspension.
-The interface labels it as **Shield only**, never **Frozen**.
+### App discovery and package visibility
 
-The current DPC receiver is the policy component used after an authorized
-Android/enterprise provisioning flow has already made Math Master the owner.
-This app does not silently enroll itself, trigger provisioning, or factory-reset
-the device. A full managed-device enrollment flow is not included in this build;
-an administrator must use Android's supported managed-device provisioning
-process. Enrollment can require a clean device depending on the provisioning
-method and Android version.
+The private sideload build queries the installed-app inventory and filters it
+to enabled applications with launcher, leanback-launcher, or app-info entry
+points. Package names are de-duplicated, Math Master and critical phone/system
+roles are protected, and unavailable or uninstalled selections are removed
+when the saved configuration is reconciled.
 
-### Background and Force Stop
+Full installed-app inventory access on Android 11+ requires the broad
+`QUERY_ALL_PACKAGES` permission. This is included for the app's core
+user-selected app-restriction feature in private sideload builds; a Google Play
+release requires a separate eligibility and policy review before distribution.
+Work-profile package visibility is controlled by Android and is not guaranteed
+from the personal profile. Apps without a discoverable launchable/info activity
+are not selectable in this picker.
 
-Closing the Study Mode screen or removing Math Master from Recents is different
-from Android's explicit **Force stop** action. Scheduled boundary alarms and
-the boot/time/time-zone receiver reconcile the saved schedule while the package
-remains enabled. A successfully suspended target package remains suspended by
-Android independently of the Math Master Activity.
-
-### Persistent focus sessions
+### Persistent state, navigation, and timer
 
 A focus session is independent of the repeating schedule switch. The native
-SQLite database `math_master_study_sessions.db` stores one active session with
-a session ID, type, original start timestamp, same-boot monotonic clock anchor,
-boot count, finite duration (or zero for unlimited), selected package snapshot,
-enforced-session preference, optional DND state and completion status.
+SQLite database `math_master_study_sessions.db` stores one active session
+with a session ID, type, original start timestamp, same-boot monotonic clock
+anchor, boot count, finite duration (or zero for unlimited), selected package
+snapshot, end-confirmation preference, optional DND state, and completion
+status.
 
 The native record is committed **before** the foreground service is started.
-Reopening or disposing the Study Mode page only reloads that record and the
-native enforcement status; it never sends a stop command. The master switch
-shows ON while either the schedule preference is enabled or a focus session is
-active. Only an explicit OFF/End Session action or a finite timer completion
-ends the session. End Session does not erase the saved schedule configuration.
+Reopening or disposing the Study Mode page only reloads the saved record and
+actual native enforcement status; it never sends a stop command. The master
+switch shows ON while either the schedule preference is enabled or a focus
+session is active. Only an explicit user OFF/End Session action or a finite
+timer completion ends the session. End Session does not erase the saved
+schedule configuration.
 
 The timer derives elapsed time from `SystemClock.elapsedRealtime()` while the
 device has not rebooted, so wall-clock changes do not reset an in-progress
 session. The saved boot count detects a reboot; after reboot, elapsed time is
 reconstructed from the persisted wall-clock start timestamp and the session
-expiry alarm is recalculated. A manual clock change across a reboot can still
-affect this fallback calculation.
+expiry alarm is recalculated. A manual clock change across a reboot can affect
+this fallback calculation.
+
+### Background service and recovery
 
 The foreground service uses Android's `specialUse` foreground-service type,
 an ongoing notification, and `START_STICKY` restoration from the saved session.
-On a normal personal phone, Focus Shield requires foreground-app monitoring
-permission and the existing user-approved overlay. When the user explicitly
-enables Math Master's optional Accessibility tracking in Android Settings, the
-service uses event-driven foreground package names as its primary source; it
-does not read window content, screen text, view hierarchies, gestures, or
-passwords. If Accessibility is not enabled or is disconnected, UsageStatsManager
-is used as the fallback when Usage Access is granted (with a 1.6-second
-active-screen polling interval). This remains best-effort Focus Shield, not
-guaranteed package suspension; the selected app can appear briefly before the
-overlay is shown. The managed-device Device Owner/Profile Owner path remains
-separate and uses verified `DevicePolicyManager` suspension.
+It runs independently of the Study Mode screen and is not stopped by page
+navigation, Back, or normal Activity task removal. The boot/time/time-zone
+receiver reconciles saved schedules and sessions, while a session-boundary
+alarm handles finite completion.
 
-Completed sessions are retained in the local SQLite history. The database is
-excluded from cloud backup and device-to-device transfer. Optional DND requires
-the separate Notification Policy Access grant; the session saves the prior
-filter and attempts restoration only if the active filter is still the one the
-session applied. Other DND rules or user overrides are not intentionally
-disabled.
+Android and device manufacturers still impose foreground-service, exact-alarm,
+battery, process-reclamation, and background-start restrictions. A service
+restart or boot recovery is therefore best-effort where the operating system
+does not permit the app to start. Battery optimization guidance is optional and
+is opened only when the user chooses it. Notification permission is checked
+separately; denying it may hide the ongoing notification from the notification
+drawer even though Android still shows foreground-service status elsewhere.
 
-A boot receiver reconciles saved sessions and schedules, and a session-boundary
-alarm handles finite completion. Android and device manufacturers still impose
-foreground-service, exact-alarm, battery and background-start restrictions, so
-recovery is best effort where the OS does not permit a service start. A normal
-app cannot bypass explicit Force Stop.
-
-Android does not permit an ordinary app to bypass Force Stop. After the user
-force-stops Math Master, its receivers/alarms cannot be relied on until the user
-launches it again. Math Master does not use root, hidden APIs, or an
-Accessibility-service workaround to evade that rule.
+Normal app closure, removal from Recents, Android process termination, reboot,
+and explicit **Force stop** are different events. A normal task removal does
+not intentionally stop the service. Android can still reclaim a process and
+OEM battery policies can restrict recovery. After explicit Force stop,
+Android prevents the app's receivers/alarms from being relied on until the user
+launches Math Master again. The app does not bypass Force Stop.
 
 Exact alarms are used when Android grants the capability. When they are not
-available, the app uses an inexact fallback and reports that schedule boundaries
-may be delayed.
+available, an inexact fallback is scheduled and study schedule/session
+boundaries may be delayed.
+
+### Permissions and local privacy
+
+Accessibility, Usage Access, overlay, notification, DND, exact-alarm, and
+battery-optimization states are read from Android at runtime. Permissions are
+never silently enabled. If monitoring or overlay access is revoked, the saved
+session remains active while enforcement status reports the missing capability.
+The user can restore access from the corresponding Android Settings screen.
+
+Selected apps, schedules, focus sessions, and session history are stored
+locally. The session database and encrypted usage aggregates are excluded from
+cloud backup and device-to-device transfer. Usage Analytics encrypts its local
+daily aggregates with AES-GCM using a key held by Android Keystore. Its native
+reader has no network client and does not send package usage records to the
+existing account/cloud features.
 
 ## App Usage Analytics data source
 
