@@ -43,9 +43,12 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         if (value == null || value.length() == 0) return;
 
         String packageName = value.toString();
-        if (packageName.equals(getPackageName()) || packageName.equals(lastPackage)) return;
+        if (packageName.equals(lastPackage)) return;
         lastPackage = packageName;
 
+        // Update lastPackage even for Math Master so reopening the same
+        // restricted app after tapping Back is intercepted again.
+        if (packageName.equals(getPackageName())) return;
         StudyModeFocusService.onForegroundPackageChanged(this, packageName);
     }
 
