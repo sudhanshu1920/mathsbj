@@ -359,7 +359,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       title: "Exact alarms",
       granted: status?.permissions.exactAlarm === true,
       required: (status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner") && draft.enabled,
-      helper: status?.enforcementMode === "device_owner"
+      helper: status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner"
         ? "Required for safely timed system-level app suspension and release."
         : "Without this, Android may deliver schedule changes late.",
     },

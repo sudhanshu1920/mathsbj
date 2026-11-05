@@ -71,7 +71,13 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
                 int retainedDays = store.getRetentionDays(context);
                 long firstDay = localDayStart(requestedStart);
                 long finalDay = localDayStart(requestedEnd - 1L);
-                long requestedDays = Math.max(1L, (finalDay - firstDay) / 86_400_000L + 1L);
+                Calendar requestedDay = Calendar.getInstance();
+                requestedDay.setTimeInMillis(firstDay);
+                long requestedDays = 0L;
+                while (requestedDay.getTimeInMillis() <= finalDay && requestedDays <= 180L) {
+                    requestedDays++;
+                    requestedDay.add(Calendar.DAY_OF_YEAR, 1);
+                }
                 if (requestedDays > retainedDays) {
                     call.reject("This date range exceeds the local retention setting. Increase retention or choose a shorter range.");
                     return;
