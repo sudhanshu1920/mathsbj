@@ -2,6 +2,7 @@ package com.sudhanshu.mathsbj;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.app.NotificationManager;
 import android.app.admin.DevicePolicyManager;
 import android.telecom.TelecomManager;
 import android.app.AppOpsManager;
@@ -13,6 +14,7 @@ import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Process;
+import android.os.SystemClock;
 import android.provider.Settings;
 
 import com.getcapacitor.JSArray;
@@ -36,11 +38,17 @@ public final class StudyModeManager {
     private static final String KEY_APPLIED = "appliedPackages";
     private static final String KEY_LAST_STATE = "lastAppliedState";
     private static final String ACTION_BOUNDARY = "com.sudhanshu.mathsbj.STUDY_MODE_BOUNDARY";
+    private static final String ACTION_SESSION_BOUNDARY = "com.sudhanshu.mathsbj.STUDY_MODE_SESSION_BOUNDARY";
     private static final int ALARM_REQUEST_CODE = 9527;
     private static final int ALARM_BACKUP_REQUEST_CODE = 9528;
+    private static final int SESSION_ALARM_REQUEST_CODE = 9529;
     private static final int FOCUS_NOTIFICATION_ID = 9528;
 
     private StudyModeManager() {}
+
+    private static StudyModeSessionStore sessionStore(Context context) {
+        return new StudyModeSessionStore(context.getApplicationContext());
+    }
 
     private static SharedPreferences prefs(Context context) {
         return context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -397,7 +405,11 @@ public final class StudyModeManager {
             .putInt("startMinute", startMinute)
             .putInt("endHour", endHour)
             .putInt("endMinute", endMinute);
-        editor.apply();
+        editor.commit();
+        StudyModeSessionStore.Session activeSession = sessionStore(context).getActiveSession(context);
+        if (activeSession != null) {
+            sessionStore(context).updateActivePackages(activeSession.id, accepted);
+        }
         reconcile(context);
     }
 
@@ -412,55 +424,212 @@ public final class StudyModeManager {
             if (!isScheduleValid(context)) throw new IllegalArgumentException("Choose a valid schedule and at least one repeat day.");
             if (getSelectedPackages(context).isEmpty()) throw new IllegalArgumentException("Select at least one installed launchable app.");
         }
-        prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply();
+        if (!enabled) {
+            StudyModeSessionStore.Session activeSession = sessionStore(context).getActiveSession(context);
+            if (activeSession != null) {
+                restoreSessionDnd(context, activeSession);
+                sessionStore(context).finishSession(context, activeSession.id, "ended");
+            }
+            cancelSessionExpiry(context);
+        }
+        prefs(context).edit().putBoolean(KEY_ENABLED, enabled).commit();
         reconcile(context);
     }
 
-    public static boolean isPackageSelected(Context context, String packageName) {
-        if (packageName == null) return false;
-        try {
-            JSONArray selected = new JSONArray(prefs(context).getString(KEY_PACKAGES, "[]"));
-            for (int index = 0; index < selected.length(); index++) {
-                if (packageName.equals(selected.optString(index, ""))) return true;
+    public static List<String> getEnforcedPackages(Context context) {
+        Set<String> combined = new HashSet<>();
+        if (isScheduleActive(context)) combined.addAll(getSelectedPackages(context));
+        StudyModeSessionStore.Session session = sessionStore(context).getActiveSession(context);
+        if (session != null && session.selectedPackages != null) {
+            for (String packageName : session.selectedPackages) {
+                if (isInstalledSelectablePackage(context, packageName)) combined.add(packageName);
             }
-        } catch (JSONException ignored) {
-            return false;
         }
-        return false;
+        List<String> result = new ArrayList<>(combined);
+        Collections.sort(result);
+        return result;
+    }
+
+    public static boolean isSessionActive(Context context) {
+        return sessionStore(context).getActiveSession(context) != null;
+    }
+
+    public static boolean shouldEnforceNow(Context context) {
+        return isScheduleActive(context) || isSessionActive(context);
+    }
+
+    public static boolean isPackageSelected(Context context, String packageName) {
+        return packageName != null && getEnforcedPackages(context).contains(packageName);
+    }
+
+    public static boolean hasNotificationPolicyAccess(Context context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        return manager != null && manager.isNotificationPolicyAccessGranted();
+    }
+
+    public static synchronized JSObject startSession(
+        Context context,
+        String sessionType,
+        int durationSeconds,
+        boolean enforced,
+        boolean shouldEnableDnd
+    ) {
+        if (durationSeconds < 0 || durationSeconds > 24 * 60 * 60) {
+            throw new IllegalArgumentException("Focus duration must be between 0 and 24 hours.");
+        }
+        List<String> selected = getSelectedPackages(context);
+        if (selected.isEmpty()) {
+            throw new IllegalArgumentException("Select at least one app before starting a focus session.");
+        }
+
+        StudyModeSessionStore store = sessionStore(context);
+        expireSessionIfNeeded(context);
+        StudyModeSessionStore.Session active = store.getActiveSession(context);
+        if (active == null) {
+            active = store.startSession(context, sessionType, durationSeconds, selected, enforced, shouldEnableDnd);
+            if (active == null) throw new IllegalStateException("The focus session could not be saved locally.");
+            applySessionDndIfRequested(context, active);
+        }
+        scheduleSessionExpiry(context);
+        reconcile(context);
+        return getStatus(context);
+    }
+
+    public static synchronized JSObject endSession(Context context, String sessionId) {
+        StudyModeSessionStore.Session active = sessionStore(context).getActiveSession(context);
+        if (active != null && (sessionId == null || sessionId.isEmpty() || sessionId.equals(active.id))) {
+            restoreSessionDnd(context, active);
+            sessionStore(context).finishSession(context, active.id, "ended");
+        }
+        cancelSessionExpiry(context);
+        reconcile(context);
+        return getStatus(context);
+    }
+
+    public static JSArray getSessionHistory(Context context) {
+        JSArray result = new JSArray();
+        for (JSObject item : sessionStore(context).getHistory(30)) result.put(item);
+        return result;
+    }
+
+    private static void expireSessionIfNeeded(Context context) {
+        StudyModeSessionStore store = sessionStore(context);
+        StudyModeSessionStore.Session active = store.getActiveSession(context);
+        if (active == null || active.durationSeconds <= 0 || active.elapsedSeconds < active.durationSeconds) return;
+        restoreSessionDnd(context, active);
+        store.finishSession(context, active.id, "completed");
+        cancelSessionExpiry(context);
+    }
+
+    private static void applySessionDndIfRequested(Context context, StudyModeSessionStore.Session session) {
+        if (session == null || !session.shouldEnableDnd || Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+            || !hasNotificationPolicyAccess(context)) return;
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        try {
+            int original = manager.getCurrentInterruptionFilter();
+            // Do not override an existing user-selected DND profile.
+            if (original != NotificationManager.INTERRUPTION_FILTER_ALL) return;
+            // Persist the intended restore state before changing the system setting.
+            sessionStore(context).saveDndState(session.id, original, true);
+            manager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE);
+        } catch (Exception error) {
+            sessionStore(context).saveDndState(session.id, -1, false);
+        }
+    }
+
+    private static void restoreSessionDnd(Context context, StudyModeSessionStore.Session session) {
+        if (session == null || !session.dndApplied || session.originalDndFilter < 0
+            || Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !hasNotificationPolicyAccess(context)) return;
+        try {
+            NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null && manager.getCurrentInterruptionFilter() == NotificationManager.INTERRUPTION_FILTER_NONE) {
+                // Restore only if the current filter is still the one set by this session.
+                manager.setInterruptionFilter(session.originalDndFilter);
+            }
+        } catch (Exception ignored) {
+            // A later explicit user action can restore DND; never fail session cleanup.
+        }
+        sessionStore(context).saveDndState(session.id, -1, false);
+    }
+
+    private static void scheduleSessionExpiry(Context context) {
+        StudyModeSessionStore.Session session = sessionStore(context).getActiveSession(context);
+        if (session == null || session.durationSeconds <= 0) {
+            cancelSessionExpiry(context);
+            return;
+        }
+        long remaining = Math.max(1L, session.durationSeconds - session.elapsedSeconds);
+        long trigger = SystemClock.elapsedRealtime() + remaining * 1000L;
+        AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (manager == null) return;
+        PendingIntent pending = sessionBoundaryPendingIntent(context);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !manager.canScheduleExactAlarms()) {
+                manager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pending);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                manager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pending);
+            } else {
+                manager.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pending);
+            }
+        } catch (Exception denied) {
+            try {
+                manager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pending);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private static PendingIntent sessionBoundaryPendingIntent(Context context) {
+        Intent intent = new Intent(context, StudyModeAlarmReceiver.class);
+        intent.setAction(ACTION_SESSION_BOUNDARY);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
+        return PendingIntent.getBroadcast(context, SESSION_ALARM_REQUEST_CODE, intent, flags);
+    }
+
+    private static void cancelSessionExpiry(Context context) {
+        AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (manager == null) return;
+        PendingIntent pending = sessionBoundaryPendingIntent(context);
+        manager.cancel(pending);
+        pending.cancel();
     }
 
     public static synchronized void reconcile(Context context) {
         Context app = context.getApplicationContext();
-        if (!isEnabled(app)) {
-            boolean released = releaseSuspendedPackages(app);
-            stopFocusShield(app);
-            cancelBoundaryAlarm(app);
-            setLastState(app, released ? "disabled" : "policy_failed");
-            return;
-        }
+        expireSessionIfNeeded(app);
 
-        List<String> packages = getSelectedPackages(app);
-        if (!isScheduleValid(app) || packages.isEmpty()) {
-            boolean released = releaseSuspendedPackages(app);
-            stopFocusShield(app);
-            cancelBoundaryAlarm(app);
-            setLastState(app, released ? "invalid_config" : "policy_failed");
-            return;
-        }
+        boolean scheduleEnabled = isEnabled(app);
+        boolean scheduleValid = scheduleEnabled && isScheduleValid(app) && !getSelectedPackages(app).isEmpty();
+        boolean scheduleActive = scheduleValid && isScheduleActive(app);
+        if (scheduleValid) scheduleNextBoundary(app);
+        else cancelBoundaryAlarm(app);
 
-        scheduleNextBoundary(app);
-        boolean active = isScheduleActive(app);
+        StudyModeSessionStore.Session activeSession = sessionStore(app).getActiveSession(app);
+        if (activeSession != null) scheduleSessionExpiry(app);
+        else cancelSessionExpiry(app);
+
+        List<String> packages = getEnforcedPackages(app);
+        boolean active = !packages.isEmpty() && (scheduleActive || activeSession != null);
+
         if (isPolicyOwner(app)) {
-            stopFocusShield(app);
-            if (!hasExactAlarmPermission(app)) {
+            if (!hasExactAlarmPermission(app) && active) {
                 boolean released = releaseSuspendedPackages(app);
+                stopFocusShield(app);
                 setLastState(app, released ? "exact_alarm_required" : "policy_failed");
                 return;
             }
             boolean success = applyPackageSuspension(app, packages, active);
-            if (!active && success) setLastState(app, "waiting_for_schedule");
-            else if (active && success) setLastState(app, "system_suspension");
-            // applyPackageSuspension stores policy_failed or partial_suspension
+            if (!active && success) {
+                stopFocusShield(app);
+                setLastState(app, scheduleEnabled ? "waiting_for_schedule" : "disabled");
+            } else if (active && success) {
+                // DevicePolicyManager keeps the selected packages suspended independently
+                // of the foreground notification/service process.
+                if (activeSession != null) startFocusShield(app); else stopFocusShield(app);
+                setLastState(app, "system_suspension");
+            }
             return;
         }
 
@@ -469,14 +638,14 @@ public final class StudyModeManager {
             setLastState(app, "policy_failed");
             return;
         }
-        if (!hasUsageAccess(app) || !hasOverlayPermission(app)) {
-            stopFocusShield(app);
-            setLastState(app, active ? "permission_required" : "waiting_for_schedule");
-            return;
-        }
         if (!active) {
             stopFocusShield(app);
-            setLastState(app, "waiting_for_schedule");
+            setLastState(app, scheduleEnabled ? "waiting_for_schedule" : "disabled");
+            return;
+        }
+        if (!hasUsageAccess(app) || !hasOverlayPermission(app)) {
+            stopFocusShield(app);
+            setLastState(app, "permission_required");
             return;
         }
 
@@ -657,6 +826,10 @@ public final class StudyModeManager {
     }
 
     private static void scheduleNextBoundary(Context context) {
+        if (!isEnabled(context) || !isScheduleValid(context)) {
+            cancelBoundaryAlarm(context);
+            return;
+        }
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (manager == null) return;
         Calendar next = nextTransition(context, System.currentTimeMillis());
@@ -735,32 +908,38 @@ public final class StudyModeManager {
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
         permissions.put("deviceOwner", isDeviceOwner(context));
         permissions.put("profileOwner", isProfileOwner(context));
+        permissions.put("dndAccess", hasNotificationPolicyAccess(context));
 
         List<String> applied = readAppliedPackages(context);
         JSArray appliedArray = new JSArray();
         for (String name : applied) appliedArray.put(name);
         DevicePolicyManager policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
+        List<String> enforcedPackages = getEnforcedPackages(context);
         List<String> suspended = isPolicyOwner(context)
-            ? getActuallySuspendedPackages(policy, context, getSelectedPackages(context))
+            ? getActuallySuspendedPackages(policy, context, enforcedPackages)
             : new ArrayList<>();
+        JSArray enforcedArray = new JSArray();
+        for (String name : enforcedPackages) enforcedArray.put(name);
+        StudyModeSessionStore.Session activeSession = sessionStore(context).getActiveSession(context);
+        JSObject sessionJson = sessionStore(context).getActiveSessionJson(context);
         JSArray suspendedArray = new JSArray();
         for (String name : suspended) suspendedArray.put(name);
 
         String state = prefs(context).getString(KEY_LAST_STATE, isEnabled(context) ? "waiting_for_schedule" : "disabled");
         boolean enabled = isEnabled(context);
-        boolean active = isScheduleActive(context);
+        boolean sessionActive = activeSession != null;
+        boolean active = !enforcedPackages.isEmpty() && (isScheduleActive(context) || sessionActive);
         boolean policyOwner = isPolicyOwner(context);
         boolean usageGranted = hasUsageAccess(context);
         boolean overlayGranted = hasOverlayPermission(context);
-        if (!enabled) {
+        if (!enabled && !sessionActive) {
             if (!"policy_failed".equals(state) && !"policy_unavailable".equals(state)) state = "disabled";
         } else if (!active) {
-            state = "waiting_for_schedule";
+            state = enabled ? "waiting_for_schedule" : "session_inactive";
         } else if (policyOwner && !hasExactAlarmPermission(context)) {
             state = "exact_alarm_required";
         } else if (policyOwner) {
-            List<String> selected = getSelectedPackages(context);
-            if (!selected.isEmpty() && suspended.containsAll(selected)) state = "system_suspension";
+            if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
         } else if (!usageGranted || !overlayGranted) {
@@ -777,6 +956,9 @@ public final class StudyModeManager {
         result.put("config", config);
         result.put("permissions", permissions);
         result.put("scheduleActive", isScheduleActive(context));
+        result.put("sessionActive", sessionActive);
+        result.put("activeSession", sessionJson);
+        result.put("enforcedPackages", enforcedArray);
         result.put("monitoringServiceRunning", StudyModeFocusService.isRunning());
         result.put("enforcementMode", isDeviceOwner(context) ? "device_owner"
             : (isProfileOwner(context) ? "profile_owner"
