@@ -962,6 +962,7 @@ const widgetSetup = read('scripts/configure-android-widgets.mjs');
 const studyModeSettings = read('src/components/SettingsPanel.tsx');
 const studyModeIndex = read('src/pages/Index.tsx');
 const studyModeBoot = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java');
+const studyModePackageReceiver = read('android-native/com/sudhanshu/mathsbj/StudyModePackageChangeReceiver.java');
 if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(false)} />') ||
     !studyModeSettings.includes('onClick={() => setStudyModeOpen(true)}') ||
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
@@ -1037,17 +1038,55 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeManager.includes('hasForegroundMonitoringPermission') ||
     !studyModePage.includes('key: "accessibility" as const') ||
     !studyModePage.includes('never screen text or window content') ||
-    !studyModeManager.includes('DevicePolicyManager') ||
-    !studyModeManager.includes('setPackagesSuspended(getAdminComponent(context)') ||
-    !studyModeManager.includes('isPackageSuspended(getAdminComponent(context), packageName)') ||
-    !studyModeManager.includes('getActuallySuspendedPackages') ||
-    !studyModeManager.includes('suspendedArray') ||
-    !studyModeManager.includes('permission_required') ||
-    !studyModeManager.includes('policy_unavailable') ||
-    !studyModeManager.includes('AlarmManager') ||
+    !studyModeManager.includes('AlarmManager') ||    !studyModeManager.includes('AlarmManager') ||
     !studyModeManager.includes('canScheduleExactAlarms') ||
     !studyModeManager.includes('isDefaultDialerPackage') && !studyModeManager.includes('getDefaultDialerPackage')) {
   fail('Managed-device suspension, truthful permission state, alarm fallback, or critical app protection is missing');
+}
+
+if (studyModeManager.includes('DevicePolicyManager') ||
+    studyModeManager.includes('setPackagesSuspended') ||
+    studyModeManager.includes('isPackageSuspended') ||
+    studyModeSetup.includes("marker: 'android:name=\".StudyModeDeviceAdminReceiver\"") ||
+    studyModeSetup.includes("StudyModeDeviceAdminReceiver.java',")) {
+  fail('Normal-phone Study Mode must not package Device Owner, Profile Owner, or Device Admin enforcement');
+}
+if (!studyModeManager.includes('cachedEnforcedPackages') ||
+    !studyModeManager.includes('Collections.unmodifiableSet(snapshot)') ||
+    !studyModeManager.includes('isEnforcementActiveCached') ||
+    !studyModeFocus.includes('StudyModeManager.refreshEnforcementCache(this)') ||
+    !studyModeAccessibility.includes('StudyModeManager.isEnforcementActiveCached()') ||
+    !studyModeFocus.includes('StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground)')) {
+  fail('Accessibility event processing must use a cached selected-package snapshot and rebuild it on native service recreation');
+}
+const shieldBuilderStart = studyModeFocus.indexOf('private android.view.View buildShieldView() {');
+const shieldBuilderEnd = studyModeFocus.indexOf('private int dp(', shieldBuilderStart);
+const shieldBuilder = shieldBuilderStart >= 0 && shieldBuilderEnd > shieldBuilderStart
+  ? studyModeFocus.slice(shieldBuilderStart, shieldBuilderEnd)
+  : '';
+const shieldBackStart = shieldBuilder.indexOf('back.setOnClickListener');
+const shieldBackEnd = shieldBuilder.indexOf('});', shieldBackStart);
+const shieldBackAction = shieldBackStart >= 0 && shieldBackEnd > shieldBackStart
+  ? shieldBuilder.slice(shieldBackStart, shieldBackEnd)
+  : '';
+if (!shieldBuilder || shieldBuilder.includes('TextView until') ||
+    shieldBuilder.includes('Unlimited focus session') ||
+    /endStudyModeSession|finishSession|setEnabled\(/.test(shieldBackAction) ||
+    !shieldBackAction.includes('getLaunchIntentForPackage')) {
+  fail('The restriction screen must show timer text once and Back to Math Master must not end the persisted session');
+}
+if (!studyModeManager.includes('permissions.put("notifications", hasNotificationPermission(context))') ||
+    !studyModeManager.includes('permissions.put("batteryOptimizationExempt", isBatteryOptimizationExempt(context))') ||
+    !studyModeAppPlugin.includes('ACTION_APP_NOTIFICATION_SETTINGS') ||
+    !studyModeAppPlugin.includes('ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS') ||
+    !studyModeSetup.includes('android.permission.POST_NOTIFICATIONS') ||
+    !studyModePage.includes('key: "notifications" as const') ||
+    !studyModePage.includes('key: "battery" as const')) {
+  fail('Notification and battery status must come from Android and have explicit user-opened Settings actions');
+}
+if (!studyModePackageReceiver.includes('Intent.EXTRA_REPLACING') ||
+    !studyModePackageReceiver.includes('getBooleanExtra(Intent.EXTRA_REPLACING, false)')) {
+  fail('Package update broadcasts must not prune selected app names during the replacement window');
 }
 if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     !studyModeAppPlugin.includes('checkPermission("android.permission.QUERY_ALL_PACKAGES"') ||
