@@ -952,6 +952,7 @@ const studyModePage = read('src/components/StudyModePage.tsx');
 const studyModeBridge = read('src/lib/studyMode.ts');
 const studyModeManager = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
 const studyModeFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
+const studyModeAccessibility = read('android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java');
 const studyModeSessionStore = read('android-native/com/sudhanshu/mathsbj/StudyModeSessionStore.java');
 const studyModeAppPlugin = read('android-native/com/sudhanshu/mathsbj/StudyModePlugin.java');
 const studyModeAppFilters = read('src/lib/studyModeAppFilters.ts');
@@ -1007,6 +1008,16 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeFocus.includes('StudyModeManager.shouldEnforceNow(this)') ||
     !studyModeFocus.includes('StudyModeManager.completeExpiredSession') ||
     !studyModeFocus.includes('updateOngoingNotification') ||
+    !studyModeAccessibility.includes('AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED') ||
+    !studyModeAccessibility.includes('event.getPackageName()') ||
+    !studyModeAccessibility.includes('StudyModeFocusService.onForegroundPackageChanged') ||
+    !studyModeAccessibility.includes('StudyModeManager.shouldEnforceNow(this)') ||
+    !studyModeAccessibility.includes('does not retrieve') ||
+    !studyModeFocus.includes('StudyModeAccessibilityService.isConnected()') ||
+    !studyModeManager.includes('hasAccessibilityServiceEnabled') ||
+    !studyModeManager.includes('hasForegroundMonitoringPermission') ||
+    !studyModePage.includes('key: "accessibility" as const') ||
+    !studyModePage.includes('never screen text or window content') ||
     !studyModeManager.includes('DevicePolicyManager') ||
     !studyModeManager.includes('setPackagesSuspended(getAdminComponent(context)') ||
     !studyModeManager.includes('isPackageSuspended(getAdminComponent(context), packageName)') ||
@@ -1083,6 +1094,8 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
   fail('Sideloadable Android builds must not package Play Protect-sensitive notification-listener access');
 }
 if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
+    !studyModeSetup.includes('StudyModeAccessibilityService.java') ||
+    !studyModeSetup.includes('study_mode_accessibility.xml') ||
     !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
     !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||

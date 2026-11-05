@@ -43,6 +43,9 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         String current = packageName.toString();
         if (current.equals(lastPackage)) return;
         lastPackage = current;
+        // An app-owned overlay can generate window events for Math Master itself.
+        // Ignore those to prevent the blocking window from dismissing itself.
+        if (current.equals(getPackageName())) return;
 
         if (!StudyModeManager.shouldEnforceNow(this)) return;
         StudyModeFocusService.onForegroundPackageChanged(this, current);

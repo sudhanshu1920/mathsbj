@@ -68,6 +68,7 @@ const statusText = (status: StudyModeStatus | null) => {
   }
   if (status?.activeSession?.active) {
     if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
+    if (status.enforcementState === "accessibility_disconnected") return "Focus session active · enable Usage Access or reconnect Accessibility";
     if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
     if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
     const label = status.activeSession.sessionType.charAt(0).toUpperCase()
