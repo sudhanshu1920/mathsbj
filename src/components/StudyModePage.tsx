@@ -215,6 +215,25 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     return () => window.clearInterval(timer);
   }, [status?.activeSession?.id, status?.activeSession?.active, status?.activeSession?.elapsedSeconds]);
 
+  useEffect(() => {
+    if (!activeSession || activeSession.durationSeconds <= 0 || sessionRemainingSeconds > 0) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void refreshStudyMode().then(async (nextStatus) => {
+        if (!active) return;
+        setStatus(nextStatus);
+        const history = await getStudyModeSessionHistory();
+        if (active) setSessionHistory(history);
+      }).catch(() => {
+        if (active) setMessage("The session reached its timer boundary. Refresh Study Mode to verify completion.");
+      });
+    }, 350);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [activeSession?.id, activeSession?.durationSeconds, sessionRemainingSeconds]);
+
   const formatSessionTime = (value: number) => {
     const total = Math.max(0, Math.floor(value));
     const hours = Math.floor(total / 3600);
