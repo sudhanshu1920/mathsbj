@@ -8,6 +8,7 @@ export interface StudyModeApp {
   packageName: string;
   label: string;
   iconDataUrl: string;
+  systemApp: boolean;
 }
 
 export interface StudyModeStatus {

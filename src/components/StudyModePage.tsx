@@ -23,6 +23,11 @@ import {
   type StudyModeConfig,
 } from "@/lib/studyModeSchedule";
 import { MOTION } from "@/lib/motion";
+import {
+  countStudyModeApps,
+  filterStudyModeApps,
+  type StudyModeAppFilter,
+} from "@/lib/studyModeAppFilters";
 import { m as motion } from "framer-motion";
 
 interface StudyModePageProps {
@@ -78,6 +83,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [appFilter, setAppFilter] = useState<StudyModeAppFilter>("all");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [refreshError, setRefreshError] = useState("");
@@ -172,14 +178,11 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     const names = new Map(apps.map((app) => [app.packageName, app.label]));
     return draft.selectedPackageNames.slice(0, 2).map((pkg) => names.get(pkg) ?? pkg);
   }, [apps, draft.selectedPackageNames]);
-  const visibleApps = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
-    if (!query) return apps;
-    return apps.filter((app) =>
-      app.label.toLocaleLowerCase().includes(query)
-      || app.packageName.toLocaleLowerCase().includes(query),
-    );
-  }, [apps, search]);
+  const appCounts = useMemo(() => countStudyModeApps(apps), [apps]);
+  const visibleApps = useMemo(
+    () => filterStudyModeApps(apps, appFilter, search),
+    [apps, appFilter, search],
+  );
 
   const updateDraft = (patch: Partial<StudyModeConfig>) => {
     setDraft((previous) => ({ ...previous, ...patch }));
@@ -405,11 +408,36 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                 className="h-9 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
               />
             </div>
+            <div className="grid grid-cols-3 gap-1 border-b border-border/60 p-2" role="group" aria-label="Filter installed apps">
+              {([
+                { id: "all", label: "All", count: appCounts.all },
+                { id: "user", label: "User", count: appCounts.user },
+                { id: "system", label: "System", count: appCounts.system },
+              ] as const).map((filter) => {
+                const active = appFilter === filter.id;
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setAppFilter(filter.id)}
+                    aria-pressed={active}
+                    className={active
+                      ? "flex min-w-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-2 py-1.5 text-[11px] font-semibold text-primary-foreground"
+                      : "flex min-w-0 items-center justify-center gap-1.5 rounded-lg bg-secondary/60 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary"}
+                  >
+                    <span>{filter.label}</span>
+                    <span className="tabular-nums opacity-80">{filter.count}</span>
+                  </button>
+                );
+              })}
+            </div>
             <div className="max-h-56 overflow-y-auto p-1.5">
               {loading ? (
                 <p className="p-3 text-center text-xs text-muted-foreground">Loading installed apps…</p>
               ) : visibleApps.length === 0 ? (
-                <p className="p-3 text-center text-xs text-muted-foreground">No matching apps found.</p>
+                <p className="p-3 text-center text-xs text-muted-foreground">
+                  {apps.length === 0 ? "No launcher-visible apps were returned by Android." : "No matching apps found in this category."}
+                </p>
               ) : visibleApps.map((app) => {
                 const selected = draft.selectedPackageNames.includes(app.packageName);
                 return (
@@ -420,8 +448,17 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     aria-pressed={selected}
                     className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-secondary/70"
                   >
-                    <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+                    {app.iconDataUrl ? (
+                      <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+                    ) : (
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
+                        {app.label.slice(0, 1).toLocaleUpperCase()}
+                      </span>
+                    )}
                     <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{app.label}</span>
+                    <span className="shrink-0 rounded-md bg-secondary/70 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                      {app.systemApp ? "System" : "User"}
+                    </span>
                     <span className={selected ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground" : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
                       <Check size={12} />
                     </span>
@@ -430,7 +467,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               })}
             </div>
             <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
-              Only launchable user apps are listed. Math Master and critical system apps are excluded.
+              Showing {apps.length} launchable apps visible to Android. Pre-installed apps are included; critical phone, emergency, Settings, keyboard, and active home apps remain protected.
             </div>
           </div>
         )}

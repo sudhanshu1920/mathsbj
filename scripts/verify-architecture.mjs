@@ -952,6 +952,9 @@ const studyModePage = read('src/components/StudyModePage.tsx');
 const studyModeBridge = read('src/lib/studyMode.ts');
 const studyModeManager = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
 const studyModeFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
+const studyModeAppPlugin = read('android-native/com/sudhanshu/mathsbj/StudyModePlugin.java');
+const studyModeAppFilters = read('src/lib/studyModeAppFilters.ts');
+const studyModeAppFilterTests = read('src/lib/studyModeAppFilters.test.ts');
 const studyModeSetup = read('scripts/configure-android-study-mode.mjs');
 const widgetSetup = read('scripts/configure-android-widgets.mjs');
 const studyModeSettings = read('src/components/SettingsPanel.tsx');
@@ -985,6 +988,23 @@ if (!studyModeManager.includes('DevicePolicyManager') ||
     !studyModeManager.includes('canScheduleExactAlarms') ||
     !studyModeManager.includes('isDefaultDialerPackage') && !studyModeManager.includes('getDefaultDialerPackage')) {
   fail('Managed-device suspension, truthful permission state, alarm fallback, or critical app protection is missing');
+}
+if (!studyModeAppPlugin.includes('Intent.CATEGORY_LAUNCHER') ||
+    !studyModeAppPlugin.includes('PackageManager.ResolveInfoFlags.of(0L)') ||
+    !studyModeAppPlugin.includes('PackageManager.ApplicationInfoFlags.of(0L)') ||
+    !studyModeAppPlugin.includes('StudyModeManager.isSystemApplication(info)') ||
+    !studyModeAppPlugin.includes('item.put("systemApp", entry.systemApp)') ||
+    !studyModeManager.includes('FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP') ||
+    !studyModeManager.includes('public static boolean isSelectableApplication') ||
+    !studyModeManager.includes('getProtectedPackages(context)') ||
+    studyModeManager.includes('return (info.flags & ApplicationInfo.FLAG_SYSTEM) == 0') ||
+    !studyModePage.includes('setAppFilter<') && !studyModePage.includes('setAppFilter(filter.id)') ||
+    !studyModePage.includes('aria-label="Filter installed apps"') ||
+    !studyModePage.includes('filterStudyModeApps(apps, appFilter, search)') ||
+    !studyModeAppFilters.includes('filter === "system" ? app.systemApp : !app.systemApp') ||
+    !studyModeAppFilterTests.includes('shows user and pre-installed system apps together in All') ||
+    !studyModeAppFilterTests.includes('searches app names and package names inside each category')) {
+  fail('Study Mode app discovery must include launchable user and system apps, report category metadata, and preserve fast All/User/System filtering');
 }
 if (!studyModeFocus.includes('UsageStatsManager') ||
     !studyModeFocus.includes('queryEvents') ||

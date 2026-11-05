@@ -103,53 +103,96 @@ public final class StudyModeManager {
         preferences.edit().putString(key, array.toString()).apply();
     }
 
-    public static boolean isInstalledSelectablePackage(Context context, String packageName) {
-        if (packageName == null || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) return false;
-        if (packageName.equals(context.getPackageName()) || isProtectedPackage(context, packageName)) return false;
-        try {
-            ApplicationInfo info = context.getPackageManager().getApplicationInfo(packageName, 0);
-            // Only user-installed applications are selectable. Core/updated system
-            // apps are intentionally excluded to keep emergency and OS controls safe.
-            return (info.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
-        } catch (Exception ignored) {
-            return false;
-        }
-    }
-
-    private static boolean isProtectedPackage(Context context, String packageName) {
-        if (packageName.equals("com.android.phone")
-            || packageName.equals("com.android.server.telecom")
-            || packageName.equals("com.android.emergency")
-            || packageName.equals("com.android.settings")
-            || packageName.equals("com.android.systemui")
-            || packageName.equals("com.google.android.dialer")
-            || packageName.equals("com.android.dialer")
-            || packageName.equals("com.google.android.gms")) return true;
+    public static Set<String> getProtectedPackages(Context context) {
+        Set<String> protectedPackages = new HashSet<>();
+        Collections.addAll(protectedPackages,
+            context.getPackageName(),
+            "com.android.phone",
+            "com.android.server.telecom",
+            "com.android.emergency",
+            "com.android.settings",
+            "com.android.systemui",
+            "com.android.permissioncontroller",
+            "com.google.android.permissioncontroller",
+            "com.android.packageinstaller",
+            "com.google.android.packageinstaller",
+            "com.google.android.dialer",
+            "com.android.dialer",
+            "com.google.android.gms");
 
         try {
             TelecomManager telecom = (TelecomManager) context.getSystemService(Context.TELECOM_SERVICE);
-            if (telecom != null && packageName.equals(telecom.getDefaultDialerPackage())) return true;
+            String defaultDialer = telecom == null ? null : telecom.getDefaultDialerPackage();
+            if (defaultDialer != null) protectedPackages.add(defaultDialer);
         } catch (Exception ignored) {}
 
         try {
             Intent homeIntent = new Intent(Intent.ACTION_MAIN);
             homeIntent.addCategory(Intent.CATEGORY_HOME);
-            android.content.pm.ResolveInfo home = context.getPackageManager().resolveActivity(homeIntent, 0);
-            if (home != null && home.activityInfo != null
-                && packageName.equals(home.activityInfo.packageName)) return true;
+            android.content.pm.PackageManager pm = context.getPackageManager();
+            android.content.pm.ResolveInfo home = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? pm.resolveActivity(homeIntent, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
+                : pm.resolveActivity(homeIntent, 0);
+            if (home != null && home.activityInfo != null) {
+                protectedPackages.add(home.activityInfo.packageName);
+            }
         } catch (Exception ignored) {}
 
         try {
             String inputMethod = android.provider.Settings.Secure.getString(
                 context.getContentResolver(), android.provider.Settings.Secure.DEFAULT_INPUT_METHOD);
-            if (inputMethod != null && inputMethod.startsWith(packageName + "/")) return true;
+            if (inputMethod != null) {
+                int separator = inputMethod.indexOf('/');
+                if (separator > 0) protectedPackages.add(inputMethod.substring(0, separator));
+            }
         } catch (Exception ignored) {}
 
         try {
             String defaultSms = android.provider.Telephony.Sms.getDefaultSmsPackage(context);
-            if (defaultSms != null && defaultSms.equals(packageName)) return true;
+            if (defaultSms != null) protectedPackages.add(defaultSms);
         } catch (Exception ignored) {}
-        return false;
+        return protectedPackages;
+    }
+
+    public static boolean isSelectableApplication(
+        Context context, String packageName, Set<String> protectedPackages
+    ) {
+        return packageName != null
+            && packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")
+            && !packageName.equals(context.getPackageName())
+            && protectedPackages != null
+            && !protectedPackages.contains(packageName);
+    }
+
+    public static boolean isInstalledSelectablePackage(Context context, String packageName) {
+        if (!isSelectableApplication(context, packageName, getProtectedPackages(context))) return false;
+        try {
+            android.content.pm.PackageManager pm = context.getPackageManager();
+            ApplicationInfo info = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? pm.getApplicationInfo(packageName, android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
+                : pm.getApplicationInfo(packageName, 0);
+            if (info == null || !info.enabled) return false;
+
+            Intent launcher = new Intent(Intent.ACTION_MAIN);
+            launcher.addCategory(Intent.CATEGORY_LAUNCHER);
+            launcher.setPackage(packageName);
+            List<android.content.pm.ResolveInfo> activities = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? pm.queryIntentActivities(launcher, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
+                : pm.queryIntentActivities(launcher, 0);
+            for (android.content.pm.ResolveInfo activity : activities) {
+                if (activity.activityInfo != null && activity.activityInfo.enabled
+                    && activity.activityInfo.applicationInfo != null
+                    && activity.activityInfo.applicationInfo.enabled) return true;
+            }
+            return false;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    public static boolean isSystemApplication(ApplicationInfo info) {
+        return info != null && (info.flags
+            & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0;
     }
 
     private static boolean isInstalledPackage(Context context, String packageName) {
@@ -320,7 +363,7 @@ public final class StudyModeManager {
             }
         }
         if (accepted.isEmpty()) {
-            throw new IllegalArgumentException("Select at least one installed user app.");
+            throw new IllegalArgumentException("Select at least one installed launchable app.");
         }
         Collections.sort(accepted);
         JSONArray dayArray = new JSONArray();

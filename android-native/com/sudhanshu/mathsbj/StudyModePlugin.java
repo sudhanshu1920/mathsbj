@@ -99,27 +99,42 @@ public final class StudyModePlugin extends Plugin {
     @PluginMethod
     public void listApps(PluginCall call) {
         try {
+            android.content.pm.PackageManager pm = getContext().getPackageManager();
             Intent launcher = new Intent(Intent.ACTION_MAIN);
             launcher.addCategory(Intent.CATEGORY_LAUNCHER);
-            List<ResolveInfo> activities = getContext().getPackageManager().queryIntentActivities(launcher, 0);
+            List<ResolveInfo> activities = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? pm.queryIntentActivities(launcher, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
+                : pm.queryIntentActivities(launcher, 0);
+            Set<String> protectedPackages = StudyModeManager.getProtectedPackages(getContext());
             JSArray apps = new JSArray();
             Set<String> seen = new HashSet<>();
             List<AppEntry> entries = new ArrayList<>();
             for (ResolveInfo activity : activities) {
                 if (activity.activityInfo == null) continue;
                 String packageName = activity.activityInfo.packageName;
-                if (!seen.add(packageName) || !StudyModeManager.isInstalledSelectablePackage(getContext(), packageName)) continue;
+                if (!seen.add(packageName)
+                    || !StudyModeManager.isSelectableApplication(getContext(), packageName, protectedPackages)) continue;
                 try {
-                    ApplicationInfo info = getContext().getPackageManager().getApplicationInfo(packageName, 0);
-                    CharSequence label = getContext().getPackageManager().getApplicationLabel(info);
-                    Drawable icon = getContext().getPackageManager().getApplicationIcon(info);
+                    ApplicationInfo info = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                        ? pm.getApplicationInfo(packageName, android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
+                        : pm.getApplicationInfo(packageName, 0);
+                    CharSequence appLabel = pm.getApplicationLabel(info);
+                    String label = appLabel == null || appLabel.length() == 0 ? packageName : appLabel.toString();
+                    String iconDataUrl = "";
+                    try {
+                        Drawable icon = pm.getApplicationIcon(info);
+                        if (icon != null) iconDataUrl = drawableToDataUrl(icon);
+                    } catch (Exception ignored) {
+                        // Keep the app selectable even when an OEM icon resource is missing.
+                    }
                     entries.add(new AppEntry(
                         packageName,
-                        label == null ? packageName : label.toString(),
-                        drawableToDataUrl(icon)
+                        label,
+                        iconDataUrl,
+                        StudyModeManager.isSystemApplication(info)
                     ));
                 } catch (Exception ignored) {
-                    // One unavailable icon must not hide other selectable apps.
+                    // A package disappearing during discovery must not hide other apps.
                 }
             }
             entries.sort(Comparator.comparing(entry -> entry.label.toLowerCase(java.util.Locale.ROOT)));
@@ -128,13 +143,16 @@ public final class StudyModePlugin extends Plugin {
                 item.put("packageName", entry.packageName);
                 item.put("label", entry.label);
                 item.put("iconDataUrl", entry.iconDataUrl);
+                item.put("systemApp", entry.systemApp);
                 apps.put(item);
             }
             JSObject result = new JSObject();
             result.put("apps", apps);
+            result.put("discoveryScope", "launcher-visible");
+            result.put("appCount", entries.size());
             call.resolve(result);
         } catch (Exception error) {
-            call.reject("Unable to read installed launcher apps.", error);
+            call.reject("Unable to read installed launcher apps visible to Math Master.", error);
         }
     }
 
@@ -229,10 +247,12 @@ public final class StudyModePlugin extends Plugin {
         final String packageName;
         final String label;
         final String iconDataUrl;
-        AppEntry(String packageName, String label, String iconDataUrl) {
+        final boolean systemApp;
+        AppEntry(String packageName, String label, String iconDataUrl, boolean systemApp) {
             this.packageName = packageName;
             this.label = label;
             this.iconDataUrl = iconDataUrl;
+            this.systemApp = systemApp;
         }
     }
 }
