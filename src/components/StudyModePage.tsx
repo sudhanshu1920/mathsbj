@@ -7,6 +7,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
   chooseStudyModeTime,
+  acceptStudyModeAccessibilityDisclosure,
   getInstalledStudyModeApps,
   getStudyModeStatus,
   isStudyModeNative,
@@ -104,6 +105,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [sessionDnd, setSessionDnd] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
   const [sessionTick, setSessionTick] = useState(0);
+  const [accessibilityDisclosureOpen, setAccessibilityDisclosureOpen] = useState(false);
+  const [accessibilityDisclosureDismissed, setAccessibilityDisclosureDismissed] = useState(false);
   const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
   const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
@@ -184,6 +187,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [load]);
+
+  useEffect(() => {
+    if (!loading && status && !status.permissions.accessibilityDisclosureAccepted
+      && !accessibilityDisclosureDismissed) {
+      setAccessibilityDisclosureOpen(true);
+    }
+  }, [loading, status?.permissions.accessibilityDisclosureAccepted, accessibilityDisclosureDismissed]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("study-mode-page-state", { detail: { open: true } }));
@@ -531,10 +541,31 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   ];
 
   const openPermission = async (permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "notifications" | "battery" | "dnd") => {
+    if (permission === "accessibility" && !status?.permissions.accessibilityDisclosureAccepted) {
+      setAccessibilityDisclosureOpen(true);
+      return;
+    }
     try {
       await openStudyModePermission(permission);
     } catch {
       setMessage("Android settings could not be opened for this permission.");
+    }
+  };
+
+  const acceptAccessibilityDisclosure = async () => {
+    setSaving(true);
+    setMessage("");
+    try {
+      const nextStatus = await acceptStudyModeAccessibilityDisclosure();
+      setStatus(nextStatus);
+      setAccessibilityDisclosureOpen(false);
+      setAccessibilityDisclosureDismissed(false);
+      await openStudyModePermission("accessibility");
+    } catch (error) {
+      setMessage(error instanceof Error && error.message
+        ? error.message : "Accessibility consent could not be saved.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -899,6 +930,50 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       >
         <Check size={15} /> {saving ? "Applying…" : isDirty ? "Save & Apply" : "Saved"}
       </motion.button>
+
+      {accessibilityDisclosureOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" role="presentation">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="study-mode-accessibility-disclosure-title"
+            className="w-full max-w-md rounded-2xl border border-border/80 bg-card p-4 shadow-2xl"
+          >
+            <div className="flex items-center gap-2">
+              <LockKeyhole size={18} className="text-primary" />
+              <h3 id="study-mode-accessibility-disclosure-title" className="text-sm font-bold text-foreground">
+                Accessibility permission disclosure
+              </h3>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-foreground">
+              Math Master can use Android Accessibility events to detect only the package name of the app currently in the foreground, so Study Mode can show its restriction screen for apps you selected.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              It does not read screen text, messages, passwords, window content or view hierarchies, and it does not perform gestures or hidden taps. This package-name signal is processed on this device and is not uploaded.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              This is a best-effort overlay, not a system freeze. A selected app can appear briefly before the shield. You can disable Accessibility tracking at any time in Android Settings.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setAccessibilityDisclosureOpen(false); setAccessibilityDisclosureDismissed(true); }}
+                className="min-h-10 flex-1 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground"
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                onClick={() => { void acceptAccessibilityDisclosure(); }}
+                disabled={saving}
+                className="min-h-10 flex-1 rounded-lg gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Agree & Open Settings"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };
