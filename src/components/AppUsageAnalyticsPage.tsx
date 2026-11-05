@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { App } from "@capacitor/app";
 import {
-  ArrowLeft, BarChart3, CalendarDays, Check, ChevronDown, Clock3, PieChart as PieIcon,
-  RefreshCw, ShieldCheck, Trash2,
+  ArrowLeft, Clock3, RefreshCw, ShieldCheck, Trash2,
 } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart,
@@ -17,10 +16,7 @@ import {
   openAppUsageAccessSettings,
   setAppUsageRetention,
   type UsageAnalyticsSnapshot,
-  type UsageApp,
-  type UsageAppFilter,
   type UsageChartType,
-  type UsageDailyPoint,
   type UsageRange,
 } from "@/lib/appUsageAnalytics";
 
@@ -227,8 +223,6 @@ const AppUsageAnalyticsPage = ({ onBack }: AppUsageAnalyticsPageProps) => {
   const chartHeight = chartType === "bar"
     ? Math.max(240, Math.min(620, chartAppsForBars.length * 34 + 50))
     : 260;
-  const isEmpty = !loading && (!snapshot?.permissionGranted || !snapshot?.apps.length);
-
   return (
     <div className="min-w-0 space-y-3">
       <header className="flex items-center gap-2">
@@ -284,7 +278,20 @@ const AppUsageAnalyticsPage = ({ onBack }: AppUsageAnalyticsPageProps) => {
           <button
             key={id}
             type="button"
-            onClick={() => setRange(id)}
+            onClick={() => {
+              if (id === "custom" && (!customStart || !customEnd)) {
+                const end = new Date();
+                const start = new Date(end);
+                start.setDate(start.getDate() - 6);
+                const toKey = (date: Date) => {
+                  const pad = (value: number) => String(value).padStart(2, "0");
+                  return String(date.getFullYear()) + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
+                };
+                setCustomStart(toKey(start));
+                setCustomEnd(toKey(end));
+              }
+              setRange(id);
+            }}
             aria-pressed={range === id}
             className={range === id
               ? "rounded-full bg-primary px-3 py-1.5 text-[10px] font-semibold text-primary-foreground"

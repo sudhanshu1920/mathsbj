@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, ArchiveRestore, ChevronRight, LockKeyhole } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, ArchiveRestore, ChevronRight, LockKeyhole, BarChart3 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, setKeyboardShortcuts, type AppSettings } from '@/lib/settings';
@@ -17,6 +17,7 @@ import {
 } from '@/lib/dailyTargetReminders';
 import BackupRestorePanel from '@/components/BackupRestorePanel';
 import StudyModePage from '@/components/StudyModePage';
+import AppUsageAnalyticsPage from '@/components/AppUsageAnalyticsPage';
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
 
@@ -29,6 +30,7 @@ const SettingsPanel = () => {
   const [backgroundNotificationsEnabled, setBackgroundNotificationsEnabledState] = useState(() => getBackgroundNotificationsEnabled());
   const [backupRestoreOpen, setBackupRestoreOpen] = useState(false);
   const [studyModeOpen, setStudyModeOpen] = useState(false);
+  const [appUsageOpen, setAppUsageOpen] = useState(false);
   const [notificationToggleBusy, setNotificationToggleBusy] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
@@ -149,6 +151,7 @@ const SettingsPanel = () => {
   const isBusy = updateState === 'checking' || updateState === 'updating';
 
   if (studyModeOpen) return <StudyModePage onBack={() => setStudyModeOpen(false)} />;
+  if (appUsageOpen) return <AppUsageAnalyticsPage onBack={() => setAppUsageOpen(false)} />;
   if (backupRestoreOpen) return <BackupRestorePanel onBack={() => setBackupRestoreOpen(false)} />;
 
   return (
@@ -237,6 +240,20 @@ const SettingsPanel = () => {
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
           <LockKeyhole size={16} className="shrink-0 text-muted-foreground" />
           <span>Study Mode</span>
+        </span>
+        <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+      </motion.button>
+
+      <motion.button
+        type="button"
+        whileTap={{ scale: MOTION.scale.press }}
+        onClick={() => setAppUsageOpen(true)}
+        aria-label="App Usage Analytics"
+        className="w-full flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/25 px-3 py-2.5 text-left transition-colors hover:border-primary/40"
+      >
+        <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+          <BarChart3 size={16} className="shrink-0 text-muted-foreground" />
+          <span>App Usage Analytics</span>
         </span>
         <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
       </motion.button>
