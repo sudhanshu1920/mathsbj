@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="study_mode_accessibility_description">Optional Math Master focus tracking. Detects only the package name of the foreground app; does not read screen text or inspect window content.</string>
+</resources>
