@@ -18,12 +18,6 @@ async function createAndroidFixture() {
           <action android:name="android.service.notification.NotificationListenerService" />
         </intent-filter>
       </service>
-      <service android:name=".StudyModeAccessibilityService"
-          android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-        <intent-filter>
-          <action android:name="android.accessibilityservice.AccessibilityService" />
-        </intent-filter>
-      </service>
     </application>
   </manifest>`);
   await writeFile(path.join(packageDir, 'MainActivity.java'), `package com.sudhanshu.mathsbj;
