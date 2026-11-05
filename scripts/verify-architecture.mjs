@@ -982,7 +982,7 @@ if (!studyModeSchedule.includes('isStudyModeScheduledAt') ||
     !studyModeBridge.includes('initializeStudyMode')) {
   fail('Study Mode schedule engine, overnight boundaries, tests, or native bridge are missing');
 }
-if (!studyModeSessionStore.includes('CREATE TABLE ' + TABLE) ||
+if (!studyModeSessionStore.includes('db.execSQL("CREATE TABLE " + TABLE') ||
     !studyModeSessionStore.includes('start_elapsed_ms') ||
     !studyModeSessionStore.includes('boot_count') ||
     !studyModeSessionStore.includes('selected_apps') ||
@@ -995,7 +995,7 @@ if (!studyModeSessionStore.includes('CREATE TABLE ' + TABLE) ||
     !studyModeManager.includes('shouldEnforceNow') ||
     !studyModeManager.includes('ACTION_SESSION_BOUNDARY') ||
     !studyModeManager.includes('completeExpiredSession') ||
-    !studyModeManager.includes('ACCESS_NOTIFICATION_POLICY') ||
+    !studyModeManager.includes('hasNotificationPolicyAccess(context)') ||
     !studyModePage.includes('startStudyModeSession') ||
     !studyModePage.includes('endStudyModeSession') ||
     !studyModePage.includes('checked={draft.enabled || Boolean(status?.activeSession?.active)}') ||
