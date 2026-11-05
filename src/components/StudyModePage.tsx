@@ -14,7 +14,11 @@ import {
   refreshStudyMode,
   saveStudyModeConfig,
   setStudyModeEnabled,
+  startStudyModeSession,
+  endStudyModeSession,
+  getStudyModeSessionHistory,
   type StudyModeApp,
+  type StudyModeSession,
   type StudyModeStatus,
 } from "@/lib/studyMode";
 import {
@@ -61,6 +65,11 @@ const statusText = (status: StudyModeStatus | null) => {
   if (status?.enforcementState === "policy_unavailable" || status?.enforcementState === "policy_failed") {
     return "Android could not confirm that every suspended app is available";
   }
+  if (status?.activeSession?.active) {
+    const label = status.activeSession.sessionType.charAt(0).toUpperCase()
+      + status.activeSession.sessionType.slice(1);
+    return label + " focus session active · continues in background";
+  }
   if (!status?.config.enabled) return "Study Mode is off";
   if (status.enforcementState === "permission_required") return "Permission required — blocking is not active";
   if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
@@ -89,6 +98,12 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [refreshError, setRefreshError] = useState("");
+  const [sessionType, setSessionType] = useState<"study" | "practice" | "work" | "custom">("study");
+  const [sessionDurationSeconds, setSessionDurationSeconds] = useState(25 * 60);
+  const [sessionEnforced, setSessionEnforced] = useState(false);
+  const [sessionDnd, setSessionDnd] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
+  const [sessionTick, setSessionTick] = useState(0);
   const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
   const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
@@ -102,16 +117,17 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     onBackRef.current();
   }, []);
 
-  const load = useCallback(async (reconcile = false) => {
+  const load = useCallback(async (reconcile = true) => {
     if (!isStudyModeNative()) {
       setLoading(false);
       setRefreshError("Study Mode controls require the installed Android app.");
       return;
     }
     try {
-      const [nextStatus, installedApps] = await Promise.all([
+      const [nextStatus, installedApps, history] = await Promise.all([
         reconcile ? refreshStudyMode() : getStudyModeStatus(),
         getInstalledStudyModeApps(),
+        getStudyModeSessionHistory(),
       ]);
       const available = new Set(installedApps.map((app) => app.packageName));
       const normalized: StudyModeConfig = {
@@ -123,6 +139,14 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       };
       setApps(installedApps);
       setStatus(nextStatus);
+      setSessionHistory(history);
+      setSessionTick(0);
+      if (nextStatus.activeSession?.active) {
+        setSessionType(nextStatus.activeSession.sessionType);
+        setSessionDurationSeconds(nextStatus.activeSession.durationSeconds);
+        setSessionEnforced(nextStatus.activeSession.isEnforced);
+        setSessionDnd(nextStatus.activeSession.shouldEnableDnd);
+      }
       // Returning from Android permission settings must refresh actual system
       // grants without silently discarding edits still in this page.
       if (!dirtyRef.current) {
@@ -140,7 +164,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   }, []);
 
   useEffect(() => {
-    void load(false);
+    void load(true);
     let disposed = false;
     let appResume: { remove: () => Promise<void> } | null = null;
     const refresh = () => { if (!disposed) void load(true); };
@@ -178,6 +202,29 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       window.removeEventListener("keydown", onKeyDown, true);
     };
   }, [handleBack]);
+
+  useEffect(() => {
+    if (!status?.activeSession?.active) {
+      setSessionTick(0);
+      return;
+    }
+    const timer = window.setInterval(() => setSessionTick((value) => value + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [status?.activeSession?.id, status?.activeSession?.active, status?.activeSession?.elapsedSeconds]);
+
+  const formatSessionTime = (value: number) => {
+    const total = Math.max(0, Math.floor(value));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+  };
+
+  const activeSession = status?.activeSession?.active ? status.activeSession : null;
+  const sessionElapsedSeconds = (activeSession?.elapsedSeconds ?? 0) + sessionTick;
+  const sessionRemainingSeconds = activeSession && activeSession.durationSeconds > 0
+    ? Math.max(0, activeSession.durationSeconds - sessionElapsedSeconds)
+    : 0;
 
   const suspendedPackages = useMemo(() => new Set(status?.suspendedPackages ?? []), [status?.suspendedPackages]);
   const selectedCount = draft.selectedPackageNames.length;
@@ -247,11 +294,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   };
 
   useEffect(() => {
-    if (!status?.config.enabled) {
+    if (!status?.config.enabled && !status?.activeSession?.active) {
       recoveryAttemptRef.current = false;
       return;
     }
-    if (status.enforcementState !== "service_stopped" || !status.scheduleActive || recoveryAttemptRef.current) return;
+    if (status.enforcementState !== "service_stopped"
+      || (!status.scheduleActive && !status.activeSession?.active)
+      || recoveryAttemptRef.current) return;
     recoveryAttemptRef.current = true;
     let active = true;
     void refreshStudyMode().then((nextStatus) => {
@@ -262,7 +311,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     return () => {
       active = false;
     };
-  }, [status?.config.enabled, status?.enforcementState, status?.scheduleActive]);
+  }, [status?.config.enabled, status?.activeSession?.active, status?.enforcementState, status?.scheduleActive]);
 
   useEffect(() => {
     if (status?.enforcementState !== "focus_shield_starting") return;
@@ -288,6 +337,71 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       window.clearTimeout(timer);
     };
   }, [status?.enforcementState]);
+
+  const handleStartSession = async () => {
+    if (saving || loading) return;
+    if (draft.selectedPackageNames.length === 0) {
+      setMessage("Select at least one app before starting a focus session.");
+      return;
+    }
+    if (sessionDnd && !status?.permissions.dndAccess) {
+      setMessage("Allow Do Not Disturb access, then start the session again.");
+      void openPermission("dnd");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    try {
+      let configStatus = status;
+      if (isDirty) {
+        configStatus = await saveStudyModeConfig(draft);
+        const savedConfig = { ...configStatus.config, selectedDays: [...configStatus.config.selectedDays] };
+        setDraft(savedConfig);
+        savedSnapshot.current = configSnapshot(savedConfig);
+        setStatus(configStatus);
+      }
+
+      const nextStatus = await startStudyModeSession({
+        sessionType,
+        durationSeconds: sessionDurationSeconds,
+        enforced: sessionEnforced,
+        shouldEnableDnd: sessionDnd,
+      });
+      setStatus(nextStatus);
+      setSessionTick(0);
+      setSessionHistory(await getStudyModeSessionHistory());
+      if (nextStatus.enforcementState === "permission_required") {
+        setMessage("Session is saved and running, but app blocking is unavailable until Usage Access and overlay permissions are granted.");
+      } else if (nextStatus.enforcementState === "service_start_blocked") {
+        setMessage("Session is saved. Android did not allow the monitoring service to start; check battery and service restrictions.");
+      } else {
+        setMessage("Focus session started. Leaving this page will not stop the session.");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error && error.message ? error.message : "The focus session could not be started.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEndSession = async () => {
+    if (!activeSession || saving) return;
+    if (activeSession.isEnforced && !window.confirm("End this enforced focus session?")) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const nextStatus = await endStudyModeSession(activeSession.id);
+      setStatus(nextStatus);
+      setSessionTick(0);
+      setSessionHistory(await getStudyModeSessionHistory());
+      setMessage("Focus session ended. Your saved schedule and app selection remain unchanged.");
+    } catch {
+      setMessage("Android could not confirm that the focus session ended.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleMasterToggle = async (enabled: boolean) => {
     if (saving) return;
@@ -358,14 +472,22 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       key: "exactAlarm" as const,
       title: "Exact alarms",
       granted: status?.permissions.exactAlarm === true,
-      required: (status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner") && draft.enabled,
+      required: (status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")
+        && (draft.enabled || Boolean(status?.activeSession?.active)),
       helper: status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner"
         ? "Required for safely timed system-level app suspension and release."
         : "Without this, Android may deliver schedule changes late.",
     },
+    {
+      key: "dnd" as const,
+      title: "Do Not Disturb",
+      granted: status?.permissions.dndAccess === true,
+      required: sessionDnd && !status?.permissions.dndAccess,
+      helper: "Optional. Saves the original DND filter and restores it only if it is still managed by this session.",
+    },
   ];
 
-  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm") => {
+  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd") => {
     try {
       await openStudyModePermission(permission);
     } catch {
@@ -414,7 +536,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             <p className="text-[11px] text-muted-foreground">{statusText(status)}</p>
           </div>
           <Switch
-            checked={draft.enabled}
+            checked={draft.enabled || Boolean(status?.activeSession?.active)}
             disabled={loading || saving || !isStudyModeNative()}
             onCheckedChange={(enabled) => { void handleMasterToggle(enabled); }}
             aria-label="Study Mode master switch"
@@ -537,6 +659,110 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </div>
             <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
               Showing {apps.length} launchable apps visible to Android. Pre-installed apps are included; protected device apps stay visible but cannot be selected.
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-2 rounded-xl border border-primary/25 bg-primary/[0.035] p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <Clock3 size={14} className="text-muted-foreground" /> Focus session
+          </p>
+          {activeSession && (
+            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-semibold text-success">ACTIVE</span>
+          )}
+        </div>
+
+        {activeSession ? (
+          <>
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="font-display text-2xl font-bold tabular-nums text-foreground">
+                  {formatSessionTime(activeSession.durationSeconds > 0 ? sessionRemainingSeconds : sessionElapsedSeconds)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {activeSession.durationSeconds > 0 ? "Remaining" : "Elapsed"} · started {new Date(activeSession.startTimestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                </p>
+              </div>
+              <span className="rounded-lg bg-secondary px-2 py-1 text-[10px] font-semibold capitalize text-foreground">{activeSession.sessionType}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+              <span>{activeSession.selectedPackageNames.length} apps in this session</span>
+              <span>{activeSession.isEnforced ? "Enforced stop" : "Standard session"}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { void handleEndSession(); }}
+              disabled={saving}
+              className="min-h-10 w-full rounded-lg border border-destructive/30 px-3 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+            >
+              {saving ? "Ending…" : "End Session"}
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-[10px] text-muted-foreground">
+                Session type
+                <select
+                  value={sessionType}
+                  onChange={(event) => setSessionType(event.target.value as typeof sessionType)}
+                  disabled={saving || loading}
+                  className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+                >
+                  <option value="study">Study</option>
+                  <option value="practice">Practice</option>
+                  <option value="work">Work</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+              <label className="text-[10px] text-muted-foreground">
+                Duration
+                <select
+                  value={sessionDurationSeconds}
+                  onChange={(event) => setSessionDurationSeconds(Number(event.target.value))}
+                  disabled={saving || loading}
+                  className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+                >
+                  <option value={15 * 60}>15 minutes</option>
+                  <option value={25 * 60}>25 minutes</option>
+                  <option value={45 * 60}>45 minutes</option>
+                  <option value={60 * 60}>60 minutes</option>
+                  <option value={90 * 60}>90 minutes</option>
+                  <option value={0}>Unlimited</option>
+                </select>
+              </label>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] font-medium text-foreground">Enforced session</span>
+              <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] font-medium text-foreground">Do Not Disturb</span>
+              <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
+            </div>
+            <p className="text-[9px] text-muted-foreground">The timer uses the saved start time and continues when this page or Math Master closes.</p>
+            <button
+              type="button"
+              onClick={() => { void handleStartSession(); }}
+              disabled={saving || loading || !isStudyModeNative()}
+              className="min-h-10 w-full rounded-lg gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
+            >
+              {saving ? "Starting…" : "Start Focus Session"}
+            </button>
+          </>
+        )}
+        {sessionHistory.length > 0 && !activeSession && (
+          <div className="border-t border-border/60 pt-2">
+            <p className="mb-1.5 text-[10px] font-semibold text-muted-foreground">Recent sessions</p>
+            <div className="space-y-1">
+              {sessionHistory.slice(0, 3).map((session) => (
+                <div key={session.id} className="flex items-center justify-between gap-2 text-[10px]">
+                  <span className="min-w-0 truncate capitalize text-foreground">{session.sessionType} · {new Date(session.startTimestamp).toLocaleDateString()}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">{formatSessionTime(session.elapsedSeconds)}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
