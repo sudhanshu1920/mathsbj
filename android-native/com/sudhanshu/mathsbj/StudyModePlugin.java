@@ -276,6 +276,18 @@ public final class StudyModePlugin extends Plugin {
                     return;
                 }
                 break;
+            case "notifications":
+                intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+                break;
+            case "battery":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                } else {
+                    intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getContext().getPackageName()));
+                }
+                break;
             case "accessibility":
                 intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
                 break;
