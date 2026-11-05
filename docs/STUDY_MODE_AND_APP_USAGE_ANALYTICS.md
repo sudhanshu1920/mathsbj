@@ -70,16 +70,14 @@ affect this fallback calculation.
 The foreground service uses Android's `specialUse` foreground-service type,
 an ongoing notification, and `START_STICKY` restoration from the saved session.
 On a normal personal phone, Focus Shield requires foreground-app monitoring
-permission and the existing user-approved overlay. When the user explicitly
-enables Math Master's optional Accessibility tracking in Android Settings, the
-service uses event-driven foreground package names as its primary source; it
-does not read window content, screen text, view hierarchies, gestures, or
-passwords. If Accessibility is not enabled or is disconnected, UsageStatsManager
-is used as the fallback when Usage Access is granted (with a 1.6-second
-active-screen polling interval). This remains best-effort Focus Shield, not
-guaranteed package suspension; the selected app can appear briefly before the
-overlay is shown. The managed-device Device Owner/Profile Owner path remains
-separate and uses verified `DevicePolicyManager` suspension.
+permission and the existing user-approved overlay. This build does not declare
+an Accessibility Service. It uses Android's UsageStatsManager after the user
+grants Usage Access, polling foreground-app events every 1.6 seconds while the
+screen is active. It does not read screen text, window content, view hierarchies,
+gestures, or passwords. This remains best-effort Focus Shield, not guaranteed
+package suspension; the selected app can appear briefly before the overlay is
+shown. The managed-device Device Owner/Profile Owner path remains separate and
+uses verified `DevicePolicyManager` suspension.
 
 Completed sessions are retained in the local SQLite history. The database is
 excluded from cloud backup and device-to-device transfer. Optional DND requires
@@ -96,8 +94,8 @@ app cannot bypass explicit Force Stop.
 
 Android does not permit an ordinary app to bypass Force Stop. After the user
 force-stops Math Master, its receivers/alarms cannot be relied on until the user
-launches it again. Math Master does not use root, hidden APIs, or an
-Accessibility-service workaround to evade that rule.
+launches it again. Math Master does not use root, hidden APIs, or mechanisms
+intended to evade that rule.
 
 Exact alarms are used when Android grants the capability. When they are not
 available, the app uses an inexact fallback and reports that schedule boundaries

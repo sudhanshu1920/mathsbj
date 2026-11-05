@@ -261,27 +261,12 @@ public final class StudyModeManager {
         }
     }
 
-    public static boolean hasAccessibilityServiceEnabled(Context context) {
-        try {
-            String enabled = Settings.Secure.getString(
-                context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-            );
-            if (enabled == null || enabled.isEmpty()) return false;
-            String target = new ComponentName(context, StudyModeAccessibilityService.class)
-                .flattenToString();
-            for (String component : enabled.split(":")) {
-                if (target.equalsIgnoreCase(component.trim())) return true;
-            }
-        } catch (Exception ignored) {}
-        return false;
-    }
-
     public static boolean hasForegroundMonitoringPermission(Context context) {
-        return hasUsageAccess(context) || hasAccessibilityServiceEnabled(context);
+        return hasUsageAccess(context);
     }
 
     public static boolean hasForegroundMonitoringSource(Context context) {
-        return StudyModeAccessibilityService.isConnected() || hasUsageAccess(context);
+        return hasUsageAccess(context);
     }
 
     public static boolean hasOverlayPermission(Context context) {
@@ -997,7 +982,6 @@ public final class StudyModeManager {
 
         JSObject permissions = new JSObject();
         permissions.put("usageAccess", hasUsageAccess(context));
-        permissions.put("accessibility", hasAccessibilityServiceEnabled(context));
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
         permissions.put("deviceOwner", isDeviceOwner(context));
@@ -1036,15 +1020,15 @@ public final class StudyModeManager {
             if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
-        } else if ((!usageGranted && !hasAccessibilityServiceEnabled(context)) || !overlayGranted) {
+        } else if (!usageGranted || !overlayGranted) {
             state = "permission_required";
-        } else if (hasAccessibilityServiceEnabled(context) && !StudyModeAccessibilityService.isConnected() && !usageGranted) {
-            state = "accessibility_disconnected";
         } else if (StudyModeFocusService.isRunning()) {
             state = "focus_shield_running";
         } else if (StudyModeFocusService.isStarting()) {
             state = "focus_shield_starting";
-        } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)) {
+        } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)
+            || "accessibility_disconnected".equals(state)) {
+            // Normalize a state persisted by versions that exposed Accessibility tracking.
             state = "service_stopped";
         }
 

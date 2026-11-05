@@ -26,7 +26,6 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import java.lang.ref.WeakReference;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -37,7 +36,6 @@ public final class StudyModeFocusService extends Service {
     private static volatile boolean running = false;
     private static volatile boolean starting = false;
     private static volatile boolean stopping = false;
-    private static volatile WeakReference<StudyModeFocusService> activeInstance = new WeakReference<>(null);
 
     public static boolean isStopping() {
         return stopping;
@@ -72,21 +70,6 @@ public final class StudyModeFocusService extends Service {
 
     public static boolean isRunning() {
         return running;
-    }
-
-    public static void onForegroundPackageChanged(Context context, String packageName) {
-        StudyModeFocusService service = activeInstance.get();
-        if (service == null || !running) return;
-        service.mainHandler.post(() -> {
-            if (!running) return;
-            if (packageName == null || packageName.isEmpty()
-                || packageName.equals(service.getPackageName())
-                || !StudyModeManager.isPackageSelected(service, packageName)) {
-                service.removeShield();
-            } else {
-                service.showShield(packageName);
-            }
-        });
     }
 
     public static boolean hasOverlayFailure() {
@@ -124,10 +107,7 @@ public final class StudyModeFocusService extends Service {
             return;
         }
         running = true;
-        activeInstance = new WeakReference<>(this);
-        if (!devicePolicyMode) StudyModeManager.setServiceState(this,
-            StudyModeAccessibilityService.isConnected() || StudyModeManager.hasUsageAccess(this)
-                ? "focus_shield_running" : "accessibility_disconnected");
+        if (!devicePolicyMode) StudyModeManager.setServiceState(this, "focus_shield_running");
         mainHandler.postDelayed(notificationUpdateRunnable, 60_000L);
 
         // Device Owner suspension already blocks packages at the OS level. In that
@@ -263,23 +243,8 @@ public final class StudyModeFocusService extends Service {
                 return;
             }
 
-            // Accessibility events are the primary, event-driven source when the
-            // user has explicitly enabled the service. This 60-second check only
-            // verifies connection/expiry; it is not an app-foreground polling loop.
-            if (StudyModeAccessibilityService.isConnected()) {
-                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
-                return;
-            }
-
-            // If Accessibility is configured but not currently bound, use the
-            // UsageStats fallback when granted. Never claim enforcement without
-            // either a connected event source or Usage Access.
-            if (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)) {
-                StudyModeManager.setServiceState(StudyModeFocusService.this, "accessibility_disconnected");
-                mainHandler.post(() -> { if (running) removeShield(); });
-                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
-                return;
-            }
+            // UsageStats is the only foreground source in personal-device mode.
+            // It is polled while the screen is active and never reads screen content.
 
             PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
@@ -497,7 +462,6 @@ public final class StudyModeFocusService extends Service {
         running = false;
         starting = false;
         stopping = false;
-        if (activeInstance.get() == this) activeInstance = new WeakReference<>(null);
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
         mainHandler.removeCallbacksAndMessages(null);

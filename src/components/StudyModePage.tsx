@@ -68,7 +68,6 @@ const statusText = (status: StudyModeStatus | null) => {
   }
   if (status?.activeSession?.active) {
     if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
-    if (status.enforcementState === "accessibility_disconnected") return "Focus session active · enable Usage Access or reconnect Accessibility";
     if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
     if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
     const label = status.activeSession.sessionType.charAt(0).toUpperCase()
@@ -76,8 +75,7 @@ const statusText = (status: StudyModeStatus | null) => {
     return label + " focus session active · continues in background";
   }
   if (!status?.config.enabled) return "Study Mode is off";
-  if (status.enforcementState === "permission_required") return "Enable Accessibility tracking or Usage Access, and allow the blocking overlay";
-  if (status.enforcementState === "accessibility_disconnected") return "Accessibility tracking is not connected — enable Usage Access as a fallback";
+  if (status.enforcementState === "permission_required") return "Enable Usage Access and allow the blocking overlay";
   if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
   if (status.enforcementState === "focus_shield_starting") return "Starting Focus Shield…";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
@@ -483,21 +481,11 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
   const permissionItems = [
     {
-      key: "accessibility" as const,
-      title: "Accessibility tracking",
-      granted: status?.permissions.accessibility === true,
-      required: false,
-      helper: "Optional event-based tracking. Reads only the foreground app package name, never screen text or window content.",
-    },
-    {
       key: "usage" as const,
       title: "Usage Access",
       granted: status?.permissions.usageAccess === true,
-      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner"
-        && !status?.permissions.accessibility,
-      helper: status?.permissions.accessibility
-        ? "Fallback source used if Accessibility tracking is turned off or unavailable."
-        : "Fallback foreground tracking when Accessibility is not enabled.",
+      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
+      helper: "Monitors which app is in the foreground on a personal device. Android does not share screen text or window content.",
     },
     {
       key: "overlay" as const,
@@ -525,7 +513,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     },
   ];
 
-  const openPermission = async (permission: "usage" | "accessibility" | "overlay" | "exactAlarm" | "dnd") => {
+  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd") => {
     try {
       await openStudyModePermission(permission);
     } catch {
