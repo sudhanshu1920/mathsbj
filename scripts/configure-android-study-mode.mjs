@@ -185,15 +185,15 @@ function ensureBackupExclusions(manifest) {
     ['android:fullBackupContent', '@xml/app_usage_backup_rules'],
     ['android:dataExtractionRules', '@xml/app_usage_data_extraction_rules'],
   ]) {
-    const marker = name + '=\\\"';
+    const marker = name + '="';
     const start = tag.indexOf(marker);
     if (start >= 0) {
       const valueStart = start + marker.length;
-      const valueEnd = tag.indexOf('\\\"', valueStart);
+      const valueEnd = tag.indexOf('"', valueStart);
       if (valueEnd < 0) throw new Error('Invalid application backup attribute: ' + name);
       tag = tag.slice(0, valueStart) + value + tag.slice(valueEnd);
     } else {
-      tag = tag.replace(/>$/, ' ' + name + '=\\\"' + value + '\\">');
+      tag = tag.replace(/>$/, ' ' + name + '="' + value + '">');
     }
   }
   return manifest.replace(match[0], tag);
