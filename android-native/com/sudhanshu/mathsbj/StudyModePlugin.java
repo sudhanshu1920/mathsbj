@@ -77,6 +77,10 @@ public final class StudyModePlugin extends Plugin {
                 call.reject("Choose a focus duration between 0 and 24 hours.");
                 return;
             }
+            if (Boolean.TRUE.equals(dnd) && !StudyModeManager.isDndControlSupported(getContext())) {
+                call.reject("Android 15+ restricts this app from changing global Do Not Disturb. Use Android Quick Settings instead.");
+                return;
+            }
             if (Boolean.TRUE.equals(dnd) && !StudyModeManager.hasNotificationPolicyAccess(getContext())) {
                 call.reject("Allow Do Not Disturb access before starting a session with DND enabled.");
                 return;
@@ -299,6 +303,10 @@ public final class StudyModePlugin extends Plugin {
                 }
                 break;
             case "dnd":
+                if (!StudyModeManager.isDndControlSupported(getContext())) {
+                    call.reject("Android 15+ restricts this app from changing global Do Not Disturb. Use Android Quick Settings instead.");
+                    return;
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     intent = new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
                 } else {
