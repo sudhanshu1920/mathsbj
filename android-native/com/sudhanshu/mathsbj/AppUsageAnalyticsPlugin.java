@@ -276,10 +276,10 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
                 }
             }
 
-            JSONObject dayResult = new JSONObject();
+            JSObject dayResult = new JSObject();
             dayResult.put("date", date);
             dayResult.put("usageMillis", dayTotal);
-            daily.put(JSObject.fromJSONObject(dayResult));
+            daily.put(dayResult);
             total += dayTotal;
             cursor.add(Calendar.DAY_OF_YEAR, 1);
         }
