@@ -12,7 +12,6 @@ const NATIVE_FILES = [
   'StudyModeAlarmReceiver.java',
   'StudyModePackageChangeReceiver.java',
   'StudyModeFocusService.java',
-  'StudyModeDeviceAdminReceiver.java',
   'DailyTargetReminderBootReceiver.java',
   'AppUsageAnalyticsStore.java',
   'AppUsageAnalyticsPlugin.java',
@@ -24,6 +23,7 @@ const REQUIRED_PERMISSIONS = [
   // Personal sideload Study Mode requires full installed-app discovery for its app picker.
   // Google Play distribution needs a separate QUERY_ALL_PACKAGES policy eligibility review.
   'android.permission.QUERY_ALL_PACKAGES',
+  'android.permission.POST_NOTIFICATIONS',
   'android.permission.PACKAGE_USAGE_STATS',
   'android.permission.SYSTEM_ALERT_WINDOW',
   'android.permission.SCHEDULE_EXACT_ALARM',
@@ -91,6 +91,11 @@ function removeNotificationListenerService(manifest) {
   return manifest.replace(listenerService, '');
 }
 
+function removeDeviceAdminReceiver(manifest) {
+  const receiver = /\s*<receiver\b(?=[^>]*\bandroid:name=["']\.StudyModeDeviceAdminReceiver["'])[^>]*(?:\/>|>[\s\S]*?<\/receiver>)/g;
+  return manifest.replace(receiver, '');
+}
+
 function ensureStudyModeComponents(manifest) {
   const components = [
     {
@@ -123,21 +128,6 @@ function ensureStudyModeComponents(manifest) {
             <intent-filter>
                 <action android:name="android.intent.action.PACKAGE_REMOVED" />
                 <data android:scheme="package" />
-            </intent-filter>
-        </receiver>`,
-    },
-    {
-      marker: 'android:name=".StudyModeDeviceAdminReceiver"',
-      xml: `        <receiver
-            android:name=".StudyModeDeviceAdminReceiver"
-            android:enabled="true"
-            android:exported="true"
-            android:permission="android.permission.BIND_DEVICE_ADMIN">
-            <meta-data
-                android:name="android.app.device_admin"
-                android:resource="@xml/study_mode_device_admin" />
-            <intent-filter>
-                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>`,
     },
@@ -225,11 +215,13 @@ export async function configureAndroidStudyMode(androidRoot) {
 
   await mkdir(packageDir, { recursive: true });
   await rm(path.join(packageDir, 'StudyModeNotificationListenerService.java'), { force: true });
+  await rm(path.join(packageDir, 'StudyModeDeviceAdminReceiver.java'), { force: true });
   for (const file of NATIVE_FILES) {
     await copyFile(path.join(NATIVE_DIR, file), path.join(packageDir, file));
   }
   const xmlTarget = path.join(root, 'app/src/main/res/xml');
   await mkdir(xmlTarget, { recursive: true });
+  await rm(path.join(xmlTarget, 'study_mode_device_admin.xml'), { force: true });
   const valuesTarget = path.join(root, 'app/src/main/res/values');
   await mkdir(valuesTarget, { recursive: true });
   await copyFile(
@@ -237,7 +229,6 @@ export async function configureAndroidStudyMode(androidRoot) {
     path.join(valuesTarget, 'study_mode_accessibility.xml'),
   );
   for (const resource of [
-    'study_mode_device_admin.xml',
     'study_mode_accessibility.xml',
     'app_usage_backup_rules.xml',
     'app_usage_data_extraction_rules.xml',
@@ -255,6 +246,7 @@ export async function configureAndroidStudyMode(androidRoot) {
 
   let manifest = await readFile(manifestPath, 'utf8');
   manifest = removeNotificationListenerService(manifest);
+  manifest = removeDeviceAdminReceiver(manifest);
   manifest = ensureManifestQueries(manifest);
   manifest = ensurePermissions(manifest);
   manifest = ensureStudyModeComponents(manifest);
