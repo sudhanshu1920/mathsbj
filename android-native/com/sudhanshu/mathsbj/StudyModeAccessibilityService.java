@@ -2,7 +2,10 @@ package com.sudhanshu.mathsbj;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
+import android.content.Context;
 import android.view.accessibility.AccessibilityEvent;
+
+import java.lang.ref.WeakReference;
 
 /**
  * Optional, explicitly user-enabled foreground app detector.
@@ -12,6 +15,7 @@ import android.view.accessibility.AccessibilityEvent;
  */
 public final class StudyModeAccessibilityService extends AccessibilityService {
     private static volatile boolean connected = false;
+    private static volatile WeakReference<StudyModeAccessibilityService> activeInstance = new WeakReference<>(null);
     private String lastPackage = "";
 
     public static boolean isConnected() {
@@ -21,11 +25,24 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        connected = true;
-        lastPackage = "";
+        activeInstance = new WeakReference<>(this);
+        refreshDisclosureState(getApplicationContext());
+    }
+
+    /**
+     * Accessibility events remain inert until the user accepts the in-app
+     * disclosure. This also supports accepting consent while the service is
+     * already enabled in Android Settings.
+     */
+    public static void refreshDisclosureState(Context context) {
+        StudyModeAccessibilityService service = activeInstance.get();
+        if (service == null) return;
+        boolean accepted = StudyModeManager.hasAccessibilityDisclosureAccepted(context);
+        service.lastPackage = "";
+        connected = accepted;
         try {
-            StudyModeManager.refreshEnforcementCache(getApplicationContext());
-            StudyModeManager.reconcile(getApplicationContext());
+            if (accepted) StudyModeManager.refreshEnforcementCache(context);
+            StudyModeManager.reconcile(context);
         } catch (Exception ignored) {
             // The saved session remains intact; UsageStats is the permitted fallback.
         }
@@ -61,6 +78,7 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     public boolean onUnbind(Intent intent) {
         connected = false;
         lastPackage = "";
+        if (activeInstance.get() == this) activeInstance = new WeakReference<>(null);
         try {
             StudyModeManager.reconcile(getApplicationContext());
         } catch (Exception ignored) {
@@ -73,6 +91,7 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     public void onDestroy() {
         connected = false;
         lastPackage = "";
+        if (activeInstance.get() == this) activeInstance = new WeakReference<>(null);
         super.onDestroy();
     }
 }
