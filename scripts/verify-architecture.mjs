@@ -1115,6 +1115,10 @@ if (!studyModeManager.includes('hasAccessibilityDisclosureAccepted') ||
     !studyModePage.includes('never reads screen text or window content') ||
     !studyModeManager.includes('permissions.put("notifications", hasNotificationPermission(context))') ||
     !studyModeManager.includes('permissions.put("batteryOptimizationExempt", isBatteryOptimizationExempt(context))') ||
+    !studyModeManager.includes('permissions.put("dndControlSupported", isDndControlSupported(context))') ||
+    !studyModeManager.includes('Build.VERSION.SDK_INT >= 35') ||
+    !studyModeAppPlugin.includes('Android 15+ restricts this app from changing global Do Not Disturb') ||
+    !studyModePage.includes('dndControlSupported === false') ||
     !studyModeAppPlugin.includes('ACTION_ACCESSIBILITY_SETTINGS') ||
     !studyModeAppPlugin.includes('ACTION_APP_NOTIFICATION_SETTINGS') ||
     !studyModeAppPlugin.includes('ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS') ||
