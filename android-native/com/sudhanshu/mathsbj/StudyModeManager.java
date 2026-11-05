@@ -668,7 +668,15 @@ public final class StudyModeManager {
             } else if (active && success) {
                 // DevicePolicyManager keeps the selected packages suspended independently
                 // of the foreground notification/service process.
-                if (activeSession != null) startFocusShield(app); else stopFocusShield(app);
+                if (activeSession != null) {
+                    if ((!StudyModeFocusService.isRunning() || StudyModeFocusService.isStopping())
+                        && !StudyModeFocusService.isStarting()) {
+                        StudyModeFocusService.markStarting();
+                        startFocusShield(app);
+                    }
+                } else {
+                    stopFocusShield(app);
+                }
                 setLastState(app, "system_suspension");
             }
             return;
@@ -855,8 +863,13 @@ public final class StudyModeManager {
 
     private static void startFocusShield(Context context) {
         Intent service = new Intent(context, StudyModeFocusService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(service);
-        else context.startService(service);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(service);
+            else context.startService(service);
+        } catch (Exception error) {
+            StudyModeFocusService.clearStarting();
+            setLastState(context, "service_start_blocked");
+        }
     }
 
     private static void stopFocusShield(Context context) {

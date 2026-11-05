@@ -66,6 +66,9 @@ const statusText = (status: StudyModeStatus | null) => {
     return "Android could not confirm that every suspended app is available";
   }
   if (status?.activeSession?.active) {
+    if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
+    if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
+    if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
     const label = status.activeSession.sessionType.charAt(0).toUpperCase()
       + status.activeSession.sessionType.slice(1);
     return label + " focus session active · continues in background";
@@ -406,6 +409,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const handleMasterToggle = async (enabled: boolean) => {
     if (saving) return;
     if (!enabled) {
+      if (status?.activeSession?.isEnforced && !window.confirm("End this enforced focus session and turn Study Mode off?")) return;
       setSaving(true);
       try {
         const nextStatus = await setStudyModeEnabled(false);
