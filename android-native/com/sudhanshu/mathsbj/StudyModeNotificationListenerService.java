@@ -3,15 +3,26 @@ package com.sudhanshu.mathsbj;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
+import java.lang.ref.WeakReference;
+
 public final class StudyModeNotificationListenerService extends NotificationListenerService {
     private static volatile boolean connected = false;
+    private static volatile WeakReference<StudyModeNotificationListenerService> listenerRef =
+        new WeakReference<>(null);
 
     public static boolean isConnected() {
         return connected;
     }
+
+    public static void filterCurrentNotificationsIfConnected() {
+        StudyModeNotificationListenerService listener = listenerRef.get();
+        if (connected && listener != null) listener.filterCurrentNotifications();
+    }
+
     @Override
     public void onListenerConnected() {
         super.onListenerConnected();
+        listenerRef = new WeakReference<>(this);
         connected = true;
         filterCurrentNotifications();
     }
@@ -19,13 +30,19 @@ public final class StudyModeNotificationListenerService extends NotificationList
     @Override
     public void onListenerDisconnected() {
         connected = false;
+        clearListenerReference();
         super.onListenerDisconnected();
     }
 
     @Override
     public void onDestroy() {
         connected = false;
+        clearListenerReference();
         super.onDestroy();
+    }
+
+    private void clearListenerReference() {
+        if (listenerRef.get() == this) listenerRef = new WeakReference<>(null);
     }
 
     @Override
