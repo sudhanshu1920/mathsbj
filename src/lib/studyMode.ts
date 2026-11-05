@@ -38,11 +38,13 @@ export interface StudyModeSessionOptions {
 export interface StudyModeStatus {
   config: StudyModeConfig;
   permissions: {
+    accessibility: boolean;
+    accessibilityConnected: boolean;
     usageAccess: boolean;
     overlay: boolean;
     exactAlarm: boolean;
-    deviceOwner: boolean;
-    profileOwner: boolean;
+    notifications: boolean;
+    batteryOptimizationExempt: boolean;
     dndAccess: boolean;
   };
   scheduleActive: boolean;
@@ -50,10 +52,8 @@ export interface StudyModeStatus {
   activeSession: StudyModeSession | null;
   enforcedPackages: string[];
   monitoringServiceRunning: boolean;
-  enforcementMode: "device_owner" | "profile_owner" | "focus_shield" | "unavailable";
+  enforcementMode: "focus_shield" | "unavailable";
   enforcementState: string;
-  appliedPackages: string[];
-  suspendedPackages: string[];
   exactAlarmFallback: boolean;
 }
 
@@ -67,7 +67,7 @@ interface NativeStudyModePlugin {
   endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
   getSessionHistory(): Promise<{ sessions: StudyModeSession[] }>;
   openPermissionSettings(options: {
-    permission: "usage" | "overlay" | "exactAlarm" | "dnd";
+    permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "notifications" | "battery" | "dnd";
   }): Promise<void>;
   showTimePicker(options: {
     title: string;
@@ -94,8 +94,8 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
     return {
       config: DEFAULT_STUDY_MODE_CONFIG,
       permissions: {
-        usageAccess: false, overlay: false,
-        exactAlarm: false, deviceOwner: false, profileOwner: false, dndAccess: false,
+        accessibility: false, accessibilityConnected: false, usageAccess: false, overlay: false,
+        exactAlarm: false, notifications: false, batteryOptimizationExempt: false, dndAccess: false,
       },
       scheduleActive: false,
       sessionActive: false,
@@ -104,8 +104,6 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       monitoringServiceRunning: false,
       enforcementMode: "unavailable",
       enforcementState: "native_only",
-      appliedPackages: [],
-      suspendedPackages: [],
       exactAlarmFallback: false,
     };
   }
@@ -154,7 +152,7 @@ export async function getStudyModeSessionHistory(): Promise<StudyModeSession[]> 
 }
 
 export async function openStudyModePermission(
-  permission: "usage" | "overlay" | "exactAlarm" | "dnd",
+  permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "notifications" | "battery" | "dnd",
 ): Promise<void> {
   if (!isStudyModeNative()) return;
   await NativeStudyMode.openPermissionSettings({ permission });
