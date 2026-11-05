@@ -1051,6 +1051,9 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeAccessibility.includes('AccessibilityEvent.TYPE_WINDOWS_CHANGED') ||
     !studyModeAccessibility.includes('event.getPackageName()') ||
     !studyModeAccessibility.includes('StudyModeManager.isEnforcementActiveCached()') ||
+    !studyModeAccessibility.includes('hasAccessibilityDisclosureAccepted(context)') ||
+    !studyModeAccessibility.includes('connected = accepted') ||
+    !studyModeAccessibility.includes('refreshDisclosureState(getApplicationContext())') ||
     !studyModeAccessibility.includes('StudyModeFocusService.onForegroundPackageChanged') ||
     !studyModeAccessibility.includes('never retrieves window') ||
     !studyModeManager.includes('hasAccessibilityServiceEnabled') ||
