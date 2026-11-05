@@ -542,8 +542,14 @@ public final class StudyModeManager {
         return packageName != null && cachedEnforcementActive && cachedEnforcedPackages.contains(packageName);
     }
 
+    /** Android 15+ apps targeting API 35+ cannot modify global DND policy. */
+    public static boolean isDndControlSupported(Context context) {
+        return !(Build.VERSION.SDK_INT >= 35
+            && context.getApplicationInfo().targetSdkVersion >= 35);
+    }
+
     public static boolean hasNotificationPolicyAccess(Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
+        if (!isDndControlSupported(context) || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         return manager != null && manager.isNotificationPolicyAccessGranted();
     }
@@ -867,6 +873,7 @@ public final class StudyModeManager {
         permissions.put("notifications", hasNotificationPermission(context));
         permissions.put("batteryOptimizationExempt", isBatteryOptimizationExempt(context));
         permissions.put("dndAccess", hasNotificationPolicyAccess(context));
+        permissions.put("dndControlSupported", isDndControlSupported(context));
 
         List<String> enforcedPackages = getEnforcedPackages(context);
         JSArray enforcedArray = new JSArray();
