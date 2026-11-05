@@ -11,6 +11,7 @@ import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
@@ -25,6 +26,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.Calendar;
 import java.util.Date;
@@ -390,11 +392,24 @@ public final class StudyModeFocusService extends Service {
         Button back = new Button(this);
         back.setText("Back to Math Master");
         back.setOnClickListener(view -> {
-            removeShield();
-            Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
-            if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            // Open the existing Capacitor Activity with a private URL that the
+            // app routes to its Learning landing screen. Do not end the focus session.
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("mathmaster://learn"));
+            intent.setClassName(getPackageName(), getPackageName() + ".MainActivity");
+            intent.addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    | Intent.FLAG_ACTIVITY_SINGLE_TOP
+            );
+            try {
                 startActivity(intent);
+                removeShield();
+            } catch (Exception error) {
+                Toast.makeText(
+                    StudyModeFocusService.this,
+                    "Math Master could not be opened. Try launching it from the app icon.",
+                    Toast.LENGTH_LONG
+                ).show();
             }
         });
         LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(-1, -2);

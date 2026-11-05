@@ -960,7 +960,23 @@ const studyModeSetup = read('scripts/configure-android-study-mode.mjs');
 const widgetSetup = read('scripts/configure-android-widgets.mjs');
 const studyModeSettings = read('src/components/SettingsPanel.tsx');
 const studyModeIndex = read('src/pages/Index.tsx');
+const studyModeDeepLink = read('src/lib/studyModeDeepLink.ts');
+const studyModeDeepLinkTests = read('src/lib/studyModeDeepLink.test.ts');
 const studyModeBoot = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java');
+if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
+    !studyModeFocus.includes('Uri.parse("mathmaster://learn")') ||
+    !studyModeFocus.includes('getPackageName() + ".MainActivity"') ||
+    !index.includes("App.addListener('appUrlOpen'") ||
+    !index.includes('App.getLaunchUrl()') ||
+    !index.includes('openLearningFromStudyShield') ||
+    !index.includes('setLearningState(INITIAL_LEARNING_STATE)') ||
+    !studyModeDeepLink.includes('url.protocol === "mathmaster:"') ||
+    !studyModeDeepLink.includes('url.hostname === "learn"') ||
+    !studyModeDeepLinkTests.includes("accepts only the app's exact Learning destination") ||
+    !studyModeDeepLinkTests.includes('rejects unrelated or modified destination')) {
+  fail('Study Shield Back button must route the native Activity to the Learning landing page for warm and cold app launches');
+}
+
 if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(false)} />') ||
     !studyModeSettings.includes('onClick={() => setStudyModeOpen(true)}') ||
     !studyModePage.includes('aria-label="Study Mode master switch"') ||

@@ -24,6 +24,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TrigFunction } from '@/lib/trigData';
 import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
 import { getFloatingBarVisibility } from '@/lib/floatingBarVisibility';
+import { isStudyModeLearningDeepLink } from '@/lib/studyModeDeepLink';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -739,6 +740,58 @@ const Index = () => {
     setPracticePhase('setup');
     setReturnToLearn(false);
   }, []);
+
+  const openLearningFromStudyShield = useCallback((url: string) => {
+    if (!isStudyModeLearningDeepLink(url)) return;
+
+    // Explicit return from the Study Shield resets nested app navigation only.
+    // The persistent native focus session and its schedule remain untouched.
+    setSectionTransitionDirection(null);
+    setSettingsOpen(false);
+    setPeriodicRangeMenuOpen(false);
+    setLearningPracticeSelectorOpen(false);
+    setLearningPracticeReturn(null);
+    setLearningState(INITIAL_LEARNING_STATE);
+    clearPracticeState();
+    replaceNextNavigationEntry.current = false;
+    isHandlingPopstate.current = false;
+    window.history.replaceState(
+      { __mathsbj: true, depth: 'learn-home', root: true },
+      '',
+    );
+    lastDepth.current = 'learn-home';
+    setTab('learn');
+    appFrameScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [clearPracticeState]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let disposed = false;
+    let listenerHandle: { remove: () => Promise<void> } | null = null;
+    const listenerPromise = App.addListener('appUrlOpen', ({ url }) => {
+      if (!disposed) openLearningFromStudyShield(url);
+    });
+
+    void listenerPromise.then((handle) => {
+      if (disposed) {
+        void handle.remove();
+      } else {
+        listenerHandle = handle;
+      }
+    }).catch(() => undefined);
+
+    // A fresh Activity can be created directly from the shield button, so
+    // read the initial URL as well as listening for later onNewIntent events.
+    void App.getLaunchUrl().then((launch) => {
+      if (!disposed && launch?.url) openLearningFromStudyShield(launch.url);
+    }).catch(() => undefined);
+
+    return () => {
+      disposed = true;
+      if (listenerHandle) void listenerHandle.remove();
+    };
+  }, [openLearningFromStudyShield]);
 
   const requestPracticeNavigation = useCallback((
     targetTab: Tab,
