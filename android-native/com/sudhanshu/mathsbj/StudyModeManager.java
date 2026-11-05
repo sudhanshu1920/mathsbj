@@ -354,6 +354,12 @@ public final class StudyModeManager {
     }
 
     public static long getCurrentSessionEndMillis(Context context) {
+        StudyModeSessionStore.Session session = sessionStore(context).getActiveSession(context);
+        if (session != null) {
+            if (session.durationSeconds <= 0) return 0L;
+            long remaining = Math.max(0L, session.durationSeconds - session.elapsedSeconds);
+            return System.currentTimeMillis() + remaining * 1000L;
+        }
         if (!isScheduleActive(context)) return 0L;
         Calendar now = Calendar.getInstance();
         int minuteOfDay = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
@@ -370,6 +376,16 @@ public final class StudyModeManager {
         result.set(Calendar.SECOND, 0);
         result.set(Calendar.MILLISECOND, 0);
         return result.getTimeInMillis();
+    }
+
+    public static long getCurrentSessionRemainingSeconds(Context context) {
+        StudyModeSessionStore.Session session = sessionStore(context).getActiveSession(context);
+        if (session != null) {
+            if (session.durationSeconds <= 0) return -1L;
+            return Math.max(0L, session.durationSeconds - session.elapsedSeconds);
+        }
+        long end = getCurrentSessionEndMillis(context);
+        return end > 0L ? Math.max(0L, (end - System.currentTimeMillis()) / 1000L) : -1L;
     }
 
     public static synchronized void saveConfig(

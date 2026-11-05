@@ -376,9 +376,10 @@ public final class StudyModeFocusService extends Service {
         root.addView(remainingTimeView, remainingParams);
 
         TextView until = new TextView(this);
-        until.setText("Available after " + DateFormat.getTimeFormat(this).format(
-            new Date(StudyModeManager.getCurrentSessionEndMillis(this))
-        ));
+        long sessionEnd = StudyModeManager.getCurrentSessionEndMillis(this);
+        until.setText(sessionEnd > 0L
+            ? "Focus session ends at " + DateFormat.getTimeFormat(this).format(new Date(sessionEnd))
+            : "Unlimited focus session");
         until.setTextSize(13);
         until.setTextColor(Color.rgb(175, 195, 225));
         until.setGravity(Gravity.CENTER);
@@ -408,10 +409,12 @@ public final class StudyModeFocusService extends Service {
 
     private void updateRemainingTime() {
         if (remainingTimeView == null) return;
-        long remainingMillis = Math.max(
-            0L, StudyModeManager.getCurrentSessionEndMillis(this) - System.currentTimeMillis()
-        );
-        long totalMinutes = (remainingMillis + 59_999L) / 60_000L;
+        long remainingSeconds = StudyModeManager.getCurrentSessionRemainingSeconds(this);
+        if (remainingSeconds < 0L) {
+            remainingTimeView.setText("Unlimited focus session");
+            return;
+        }
+        long totalMinutes = (remainingSeconds + 59L) / 60L;
         long hours = totalMinutes / 60L;
         long minutes = totalMinutes % 60L;
         String time = hours > 0 ? hours + "h " + minutes + "m" : minutes + "m";
