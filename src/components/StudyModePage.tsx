@@ -114,7 +114,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       const normalized: StudyModeConfig = {
         ...DEFAULT_STUDY_MODE_CONFIG,
         ...nextStatus.config,
-        selectedPackageNames: nextStatus.config.selectedPackageNames.filter((name) => available.has(name)),
+        selectedPackageNames: nextStatus.config.selectedPackageNames.filter((name) => available.has(name)
+          && installedApps.some((app) => app.packageName === name && app.selectable)),
         selectedDays: [...nextStatus.config.selectedDays],
       };
       setApps(installedApps);
@@ -189,7 +190,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     setMessage("");
   };
 
-  const toggleApp = (packageName: string) => {
+  const toggleApp = (packageName: string, selectable: boolean) => {
+    if (!selectable || saving) return;
     const selected = draft.selectedPackageNames.includes(packageName);
     updateDraft({
       selectedPackageNames: selected
@@ -444,9 +446,11 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                   <button
                     key={app.packageName}
                     type="button"
-                    onClick={() => toggleApp(app.packageName)}
+                    onClick={() => toggleApp(app.packageName, app.selectable)}
+                    disabled={!app.selectable || saving}
                     aria-pressed={selected}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-secondary/70"
+                    aria-disabled={!app.selectable}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-65"
                   >
                     {app.iconDataUrl ? (
                       <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
@@ -459,15 +463,21 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     <span className="shrink-0 rounded-md bg-secondary/70 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
                       {app.systemApp ? "System" : "User"}
                     </span>
-                    <span className={selected ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground" : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
-                      <Check size={12} />
-                    </span>
+                    {app.selectable ? (
+                      <span className={selected ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground" : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
+                        <Check size={12} />
+                      </span>
+                    ) : (
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" aria-label="Protected app">
+                        <LockKeyhole size={13} />
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
             <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
-              Showing {apps.length} launchable apps visible to Android. Pre-installed apps are included; critical phone, emergency, Settings, keyboard, and active home apps remain protected.
+              Showing {apps.length} launchable apps visible to Android. Pre-installed apps are included; protected device apps stay visible but cannot be selected.
             </div>
           </div>
         )}

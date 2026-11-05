@@ -113,25 +113,36 @@ public final class StudyModePlugin extends Plugin {
                 if (activity.activityInfo == null) continue;
                 String packageName = activity.activityInfo.packageName;
                 if (!seen.add(packageName)
-                    || !StudyModeManager.isSelectableApplication(getContext(), packageName, protectedPackages)) continue;
+                    || !StudyModeManager.isVisibleApplication(getContext(), packageName)) continue;
                 try {
-                    ApplicationInfo info = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                        ? pm.getApplicationInfo(packageName, android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
-                        : pm.getApplicationInfo(packageName, 0);
-                    CharSequence appLabel = pm.getApplicationLabel(info);
-                    String label = appLabel == null || appLabel.length() == 0 ? packageName : appLabel.toString();
+                    ApplicationInfo info = activity.activityInfo.applicationInfo;
+                    if (info == null) info = loadApplicationInfo(pm, packageName);
+                    if (info == null) continue;
+
+                    String label = packageName;
+                    try {
+                        CharSequence appLabel = pm.getApplicationLabel(info);
+                        if (appLabel != null && appLabel.length() > 0) label = appLabel.toString();
+                    } catch (Exception ignored) {
+                        // A missing OEM label falls back to the stable package name.
+                    }
+
                     String iconDataUrl = "";
                     try {
                         Drawable icon = pm.getApplicationIcon(info);
                         if (icon != null) iconDataUrl = drawableToDataUrl(icon);
                     } catch (Exception ignored) {
-                        // Keep the app selectable even when an OEM icon resource is missing.
+                        // Missing OEM icon resources do not hide an otherwise launchable app.
                     }
+
+                    boolean selectable = StudyModeManager.isSelectableApplication(
+                        getContext(), packageName, protectedPackages);
                     entries.add(new AppEntry(
                         packageName,
                         label,
                         iconDataUrl,
-                        StudyModeManager.isSystemApplication(info)
+                        StudyModeManager.isSystemApplication(info),
+                        selectable
                     ));
                 } catch (Exception ignored) {
                     // A package disappearing during discovery must not hide other apps.
@@ -144,6 +155,7 @@ public final class StudyModePlugin extends Plugin {
                 item.put("label", entry.label);
                 item.put("iconDataUrl", entry.iconDataUrl);
                 item.put("systemApp", entry.systemApp);
+                item.put("selectable", entry.selectable);
                 apps.put(item);
             }
             JSObject result = new JSObject();
@@ -154,6 +166,14 @@ public final class StudyModePlugin extends Plugin {
         } catch (Exception error) {
             call.reject("Unable to read installed launcher apps visible to Math Master.", error);
         }
+    }
+
+    private ApplicationInfo loadApplicationInfo(
+        android.content.pm.PackageManager pm, String packageName
+    ) throws android.content.pm.PackageManager.NameNotFoundException {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            ? pm.getApplicationInfo(packageName, android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
+            : pm.getApplicationInfo(packageName, 0);
     }
 
     private String drawableToDataUrl(Drawable drawable) {
@@ -248,11 +268,13 @@ public final class StudyModePlugin extends Plugin {
         final String label;
         final String iconDataUrl;
         final boolean systemApp;
-        AppEntry(String packageName, String label, String iconDataUrl, boolean systemApp) {
+        final boolean selectable;
+        AppEntry(String packageName, String label, String iconDataUrl, boolean systemApp, boolean selectable) {
             this.packageName = packageName;
             this.label = label;
             this.iconDataUrl = iconDataUrl;
             this.systemApp = systemApp;
+            this.selectable = selectable;
         }
     }
 }

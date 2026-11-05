@@ -154,12 +154,16 @@ public final class StudyModeManager {
         return protectedPackages;
     }
 
+    public static boolean isVisibleApplication(Context context, String packageName) {
+        return packageName != null
+            && packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")
+            && !packageName.equals(context.getPackageName());
+    }
+
     public static boolean isSelectableApplication(
         Context context, String packageName, Set<String> protectedPackages
     ) {
-        return packageName != null
-            && packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")
-            && !packageName.equals(context.getPackageName())
+        return isVisibleApplication(context, packageName)
             && protectedPackages != null
             && !protectedPackages.contains(packageName);
     }

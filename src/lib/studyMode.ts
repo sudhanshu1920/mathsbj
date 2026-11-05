@@ -9,6 +9,7 @@ export interface StudyModeApp {
   label: string;
   iconDataUrl: string;
   systemApp: boolean;
+  selectable: boolean;
 }
 
 export interface StudyModeStatus {
