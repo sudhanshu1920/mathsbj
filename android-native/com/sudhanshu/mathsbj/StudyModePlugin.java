@@ -30,7 +30,6 @@ import java.util.Set;
 public final class StudyModePlugin extends Plugin {
     @PluginMethod
     public void getStatus(PluginCall call) {
-        StudyModeManager.reconcile(getContext());
         call.resolve(StudyModeManager.getStatus(getContext()));
     }
 
@@ -100,54 +99,49 @@ public final class StudyModePlugin extends Plugin {
     public void listApps(PluginCall call) {
         try {
             android.content.pm.PackageManager pm = getContext().getPackageManager();
-            Intent launcher = new Intent(Intent.ACTION_MAIN);
-            launcher.addCategory(Intent.CATEGORY_LAUNCHER);
-            List<ResolveInfo> activities = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                ? pm.queryIntentActivities(launcher, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
-                : pm.queryIntentActivities(launcher, 0);
+            List<ApplicationInfo> installedApplications = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? pm.getInstalledApplications(android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
+                : pm.getInstalledApplications(0);
+            Set<String> launchablePackages = findLaunchablePackages(pm);
             Set<String> protectedPackages = StudyModeManager.getProtectedPackages(getContext());
             JSArray apps = new JSArray();
             Set<String> seen = new HashSet<>();
             List<AppEntry> entries = new ArrayList<>();
-            for (ResolveInfo activity : activities) {
-                if (activity.activityInfo == null) continue;
-                String packageName = activity.activityInfo.packageName;
-                if (!seen.add(packageName)
-                    || !StudyModeManager.isVisibleApplication(getContext(), packageName)) continue;
+
+            for (ApplicationInfo info : installedApplications) {
+                if (info == null || !info.enabled) continue;
+                String packageName = info.packageName;
+                if (!StudyModeManager.isVisibleApplication(getContext(), packageName)
+                    || !launchablePackages.contains(packageName)
+                    || !seen.add(packageName)) continue;
+
+                String label = packageName;
                 try {
-                    ApplicationInfo info = activity.activityInfo.applicationInfo;
-                    if (info == null) info = loadApplicationInfo(pm, packageName);
-                    if (info == null) continue;
-
-                    String label = packageName;
-                    try {
-                        CharSequence appLabel = pm.getApplicationLabel(info);
-                        if (appLabel != null && appLabel.length() > 0) label = appLabel.toString();
-                    } catch (Exception ignored) {
-                        // A missing OEM label falls back to the stable package name.
-                    }
-
-                    String iconDataUrl = "";
-                    try {
-                        Drawable icon = pm.getApplicationIcon(info);
-                        if (icon != null) iconDataUrl = drawableToDataUrl(icon);
-                    } catch (Exception ignored) {
-                        // Missing OEM icon resources do not hide an otherwise launchable app.
-                    }
-
-                    boolean selectable = StudyModeManager.isSelectableApplication(
-                        getContext(), packageName, protectedPackages);
-                    entries.add(new AppEntry(
-                        packageName,
-                        label,
-                        iconDataUrl,
-                        StudyModeManager.isSystemApplication(info),
-                        selectable
-                    ));
+                    CharSequence appLabel = pm.getApplicationLabel(info);
+                    if (appLabel != null && appLabel.length() > 0) label = appLabel.toString();
                 } catch (Exception ignored) {
-                    // A package disappearing during discovery must not hide other apps.
+                    // A missing OEM label falls back to the stable package name.
                 }
+
+                String iconDataUrl = "";
+                try {
+                    Drawable icon = pm.getApplicationIcon(info);
+                    if (icon != null) iconDataUrl = drawableToDataUrl(icon);
+                } catch (Exception ignored) {
+                    // Keep an otherwise launchable app visible when its OEM icon is unavailable.
+                }
+
+                boolean selectable = StudyModeManager.isSelectableApplication(
+                    getContext(), packageName, protectedPackages);
+                entries.add(new AppEntry(
+                    packageName,
+                    label,
+                    iconDataUrl,
+                    StudyModeManager.isSystemApplication(info),
+                    selectable
+                ));
             }
+
             entries.sort(Comparator.comparing(entry -> entry.label.toLowerCase(java.util.Locale.ROOT)));
             for (AppEntry entry : entries) {
                 JSObject item = new JSObject();
@@ -160,20 +154,37 @@ public final class StudyModePlugin extends Plugin {
             }
             JSObject result = new JSObject();
             result.put("apps", apps);
-            result.put("discoveryScope", "launcher-visible");
+            result.put("discoveryScope", "all-installed-packages-filtered-to-launchable");
+            result.put("installedPackageCount", installedApplications.size());
             result.put("appCount", entries.size());
             call.resolve(result);
         } catch (Exception error) {
-            call.reject("Unable to read installed launcher apps visible to Math Master.", error);
+            call.reject("Unable to read the installed application inventory. Check package visibility access.", error);
         }
     }
 
-    private ApplicationInfo loadApplicationInfo(
-        android.content.pm.PackageManager pm, String packageName
-    ) throws android.content.pm.PackageManager.NameNotFoundException {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-            ? pm.getApplicationInfo(packageName, android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
-            : pm.getApplicationInfo(packageName, 0);
+    private Set<String> findLaunchablePackages(android.content.pm.PackageManager pm) {
+        Set<String> packages = new HashSet<>();
+        String[] categories = {
+            Intent.CATEGORY_LAUNCHER,
+            Intent.CATEGORY_LEANBACK_LAUNCHER,
+            Intent.CATEGORY_INFO
+        };
+        for (String category : categories) {
+            Intent query = new Intent(Intent.ACTION_MAIN);
+            query.addCategory(category);
+            List<ResolveInfo> activities = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? pm.queryIntentActivities(query, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
+                : pm.queryIntentActivities(query, 0);
+            for (ResolveInfo resolveInfo : activities) {
+                if (resolveInfo.activityInfo == null || !resolveInfo.activityInfo.enabled) continue;
+                ApplicationInfo applicationInfo = resolveInfo.activityInfo.applicationInfo;
+                if (applicationInfo != null && applicationInfo.enabled) {
+                    packages.add(resolveInfo.activityInfo.packageName);
+                }
+            }
+        }
+        return packages;
     }
 
     private String drawableToDataUrl(Drawable drawable) {

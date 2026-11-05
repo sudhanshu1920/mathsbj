@@ -34,6 +34,19 @@ public final class StudyModeFocusService extends Service {
     private static final int NOTIFICATION_ID = 9528;
     private static final long POLL_INTERVAL_MS = 1600L;
     private static volatile boolean running = false;
+    private static volatile boolean starting = false;
+
+    public static boolean isStarting() {
+        return starting;
+    }
+
+    public static void markStarting() {
+        starting = true;
+    }
+
+    public static void clearStarting() {
+        starting = false;
+    }
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private HandlerThread monitorThread;
@@ -59,6 +72,12 @@ public final class StudyModeFocusService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        starting = false;
+        if (!StudyModeManager.isEnabled(this) || !StudyModeManager.isScheduleActive(this)
+            || !StudyModeManager.hasUsageAccess(this) || !StudyModeManager.hasOverlayPermission(this)) {
+            stopSelf();
+            return;
+        }
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         createNotificationChannel();
         if (!startForegroundSafely()) {
@@ -374,6 +393,7 @@ public final class StudyModeFocusService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        starting = false;
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
         mainHandler.removeCallbacksAndMessages(null);

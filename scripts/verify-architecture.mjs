@@ -989,11 +989,17 @@ if (!studyModeManager.includes('DevicePolicyManager') ||
     !studyModeManager.includes('isDefaultDialerPackage') && !studyModeManager.includes('getDefaultDialerPackage')) {
   fail('Managed-device suspension, truthful permission state, alarm fallback, or critical app protection is missing');
 }
-if (!studyModeAppPlugin.includes('Intent.CATEGORY_LAUNCHER') ||
+if (!studyModeAppPlugin.includes('getInstalledApplications') ||
+    !studyModeAppPlugin.includes('findLaunchablePackages') ||
+    !studyModeAppPlugin.includes('Intent.CATEGORY_LAUNCHER') ||
+    !studyModeAppPlugin.includes('Intent.CATEGORY_LEANBACK_LAUNCHER') ||
     !studyModeAppPlugin.includes('PackageManager.ResolveInfoFlags.of(0L)') ||
     !studyModeAppPlugin.includes('PackageManager.ApplicationInfoFlags.of(0L)') ||
     !studyModeAppPlugin.includes('StudyModeManager.isSystemApplication(info)') ||
     !studyModeAppPlugin.includes('item.put("systemApp", entry.systemApp)') ||
+    !studyModeSetup.includes('android.permission.QUERY_ALL_PACKAGES') ||
+    studyModeAppPlugin.includes('.take(15)') ||
+    studyModeAppPlugin.includes('.subList(0, 15)') ||
     !studyModeManager.includes('FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP') ||
     !studyModeManager.includes('public static boolean isVisibleApplication') ||
     !studyModeManager.includes('public static boolean isSelectableApplication') ||
@@ -1009,6 +1015,13 @@ if (!studyModeAppPlugin.includes('Intent.CATEGORY_LAUNCHER') ||
     !studyModeAppFilterTests.includes('shows user and pre-installed system apps together in All') ||
     !studyModeAppFilterTests.includes('searches app names and package names inside each category')) {
   fail('Study Mode app discovery must include launchable user and system apps, report category metadata, and preserve fast All/User/System filtering');
+}
+if (!studyModeManager.includes('public static synchronized void setEnabled') ||
+    !studyModeManager.includes('public static synchronized void reconcile') ||
+    !studyModeAppPlugin.includes('public void getStatus(PluginCall call) {\n        call.resolve(StudyModeManager.getStatus(getContext()));') ||
+    !studyModeFocus.includes('public static boolean isStarting()') ||
+    !studyModeFocus.includes('StudyModeManager.isScheduleActive(this)')) {
+  fail('Study Mode master toggle must serialize native mutations, expose side-effect-free status reads, and report foreground-service startup truthfully');
 }
 if (!studyModeFocus.includes('UsageStatsManager') ||
     !studyModeFocus.includes('queryEvents') ||
@@ -1035,7 +1048,7 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
 }
 if (!studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
-    studyModeSetup.includes('QUERY_ALL_PACKAGES') ||
+    !studyModeSetup.includes('android.permission.QUERY_ALL_PACKAGES') ||
     !studyModeSetup.includes('StudyModeDeviceAdminReceiver') ||
     !widgetSetup.includes('configureAndroidStudyMode(root)') ||
     !studyModeBoot.includes('StudyModeManager.reconcile(context)')) {

@@ -64,6 +64,7 @@ const statusText = (status: StudyModeStatus | null) => {
   if (!status?.config.enabled) return "Study Mode is off";
   if (status.enforcementState === "permission_required") return "Permission required — blocking is not active";
   if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
+  if (status.enforcementState === "focus_shield_starting") return "Starting Focus Shield…";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
   if (status.enforcementState === "service_stopped") return "Android stopped Focus Shield — reopen Study Mode to retry";
   if (status.enforcementState === "overlay_failed") return "Android could not display the blocking overlay";
@@ -240,6 +241,31 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     }
   };
 
+  useEffect(() => {
+    if (status?.enforcementState !== "focus_shield_starting") return;
+    let active = true;
+    let attempts = 0;
+    let timer = 0;
+    const poll = async () => {
+      try {
+        const nextStatus = await getStudyModeStatus();
+        if (!active) return;
+        setStatus(nextStatus);
+        if (nextStatus.enforcementState === "focus_shield_starting" && attempts < 8) {
+          attempts += 1;
+          timer = window.setTimeout(poll, 250);
+        }
+      } catch {
+        // Keep the last truthful state visible if the native bridge is temporarily unavailable.
+      }
+    };
+    timer = window.setTimeout(poll, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [status?.enforcementState]);
+
   const handleMasterToggle = async (enabled: boolean) => {
     if (saving) return;
     if (!enabled) {
@@ -325,7 +351,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   };
 
   return (
-    <div className="space-y-4 min-w-0">
+    <div className="space-y-3 min-w-0">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -344,7 +370,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/35 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/35 px-3 py-2">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-foreground">
             {selectedCount} {selectedCount === 1 ? "app selected" : "apps selected"}
@@ -358,7 +384,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         </span>
       </div>
 
-      <div className="rounded-2xl border border-primary/25 bg-primary/[0.055] px-3.5 py-3">
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.055] px-3 py-2.5">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-bold text-foreground">Study Mode</p>
@@ -433,7 +459,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                 );
               })}
             </div>
-            <div className="max-h-56 overflow-y-auto p-1.5">
+            <div className="grid max-h-64 grid-cols-1 gap-x-1 overflow-y-auto p-1.5 sm:grid-cols-2">
               {loading ? (
                 <p className="p-3 text-center text-xs text-muted-foreground">Loading installed apps…</p>
               ) : visibleApps.length === 0 ? (
@@ -450,7 +476,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     disabled={!app.selectable || saving}
                     aria-pressed={selected}
                     aria-disabled={!app.selectable}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-65"
+                    className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-65"
                   >
                     {app.iconDataUrl ? (
                       <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
@@ -483,7 +509,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         )}
       </section>
 
-      <section className="space-y-2">
+      <section className="space-y-1.5">
         <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
           <Clock3 size={14} className="text-muted-foreground" /> Study schedule
         </p>
@@ -556,7 +582,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               key={item.key}
               type="button"
               onClick={() => { void openPermission(item.key); }}
-              className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-2.5 py-2 text-left transition-colors hover:border-primary/35"
+              className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-2.5 py-1.5 text-left transition-colors hover:border-primary/35"
             >
               <span className="min-w-0 flex-1">
                 <span className="block text-[11px] font-medium text-foreground">{item.title}{item.required ? " · required" : ""}</span>

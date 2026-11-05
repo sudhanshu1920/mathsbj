@@ -49,7 +49,7 @@ test('configures launcher-only package visibility, native services and Capacitor
   const activity = await readFile(activityPath, 'utf8');
 
   for (const permission of [
-    'PACKAGE_USAGE_STATS', 'SYSTEM_ALERT_WINDOW', 'SCHEDULE_EXACT_ALARM',
+    'QUERY_ALL_PACKAGES', 'PACKAGE_USAGE_STATS', 'SYSTEM_ALERT_WINDOW', 'SCHEDULE_EXACT_ALARM',
     'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE', 'RECEIVE_BOOT_COMPLETED',
   ]) assert.match(manifest, new RegExp(`android.permission.${permission}`));
 
@@ -67,7 +67,7 @@ test('configures launcher-only package visibility, native services and Capacitor
   assert.match(manifest, /DailyTargetReminderBootReceiver[\s\S]*BOOT_COMPLETED[\s\S]*TIMEZONE_CHANGED/);
   assert.match(manifest, /StudyModeAlarmReceiver/);
   assert.match(manifest, /StudyModePackageChangeReceiver[\s\S]*PACKAGE_REMOVED/);
-  assert.doesNotMatch(manifest, /QUERY_ALL_PACKAGES/);
+  assert.match(manifest, /android.permission.QUERY_ALL_PACKAGES/);
   assert.equal((activity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
 
   await configureAndroidStudyMode(root);

@@ -177,18 +177,7 @@ public final class StudyModeManager {
                 : pm.getApplicationInfo(packageName, 0);
             if (info == null || !info.enabled) return false;
 
-            Intent launcher = new Intent(Intent.ACTION_MAIN);
-            launcher.addCategory(Intent.CATEGORY_LAUNCHER);
-            launcher.setPackage(packageName);
-            List<android.content.pm.ResolveInfo> activities = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                ? pm.queryIntentActivities(launcher, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
-                : pm.queryIntentActivities(launcher, 0);
-            for (android.content.pm.ResolveInfo activity : activities) {
-                if (activity.activityInfo != null && activity.activityInfo.enabled
-                    && activity.activityInfo.applicationInfo != null
-                    && activity.activityInfo.applicationInfo.enabled) return true;
-            }
-            return false;
+            return hasLaunchableActivity(context, packageName);
         } catch (Exception ignored) {
             return false;
         }
@@ -197,6 +186,34 @@ public final class StudyModeManager {
     public static boolean isSystemApplication(ApplicationInfo info) {
         return info != null && (info.flags
             & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0;
+    }
+
+    public static boolean hasLaunchableActivity(Context context, String packageName) {
+        if (!isVisibleApplication(context, packageName)) return false;
+        android.content.pm.PackageManager pm = context.getPackageManager();
+        String[] launcherCategories = {
+            Intent.CATEGORY_LAUNCHER,
+            Intent.CATEGORY_LEANBACK_LAUNCHER,
+            Intent.CATEGORY_INFO
+        };
+        for (String category : launcherCategories) {
+            try {
+                Intent query = new Intent(Intent.ACTION_MAIN);
+                query.addCategory(category);
+                query.setPackage(packageName);
+                List<android.content.pm.ResolveInfo> matches = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    ? pm.queryIntentActivities(query, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
+                    : pm.queryIntentActivities(query, 0);
+                for (android.content.pm.ResolveInfo match : matches) {
+                    if (match.activityInfo != null && match.activityInfo.enabled
+                        && match.activityInfo.applicationInfo != null
+                        && match.activityInfo.applicationInfo.enabled) return true;
+                }
+            } catch (Exception ignored) {
+                // Try the next launcher category supported by OEM and TV-style apps.
+            }
+        }
+        return false;
     }
 
     private static boolean isInstalledPackage(Context context, String packageName) {
@@ -337,7 +354,7 @@ public final class StudyModeManager {
         return result.getTimeInMillis();
     }
 
-    public static void saveConfig(
+    public static synchronized void saveConfig(
         Context context,
         List<String> requestedPackages,
         int startHour,
@@ -390,20 +407,29 @@ public final class StudyModeManager {
         return array.toString();
     }
 
-    public static void setEnabled(Context context, boolean enabled) {
+    public static synchronized void setEnabled(Context context, boolean enabled) {
         if (enabled) {
             if (!isScheduleValid(context)) throw new IllegalArgumentException("Choose a valid schedule and at least one repeat day.");
-            if (getSelectedPackages(context).isEmpty()) throw new IllegalArgumentException("Select at least one installed user app.");
+            if (getSelectedPackages(context).isEmpty()) throw new IllegalArgumentException("Select at least one installed launchable app.");
         }
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply();
         reconcile(context);
     }
 
     public static boolean isPackageSelected(Context context, String packageName) {
-        return packageName != null && getSelectedPackages(context).contains(packageName);
+        if (packageName == null) return false;
+        try {
+            JSONArray selected = new JSONArray(prefs(context).getString(KEY_PACKAGES, "[]"));
+            for (int index = 0; index < selected.length(); index++) {
+                if (packageName.equals(selected.optString(index, ""))) return true;
+            }
+        } catch (JSONException ignored) {
+            return false;
+        }
+        return false;
     }
 
-    public static void reconcile(Context context) {
+    public static synchronized void reconcile(Context context) {
         Context app = context.getApplicationContext();
         if (!isEnabled(app)) {
             boolean released = releaseSuspendedPackages(app);
@@ -455,14 +481,17 @@ public final class StudyModeManager {
         }
 
         try {
-            if (!StudyModeFocusService.isRunning()) {
+            if (!StudyModeFocusService.isRunning() && !StudyModeFocusService.isStarting()) {
+                StudyModeFocusService.markStarting();
                 Intent service = new Intent(app, StudyModeFocusService.class);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) app.startForegroundService(service);
                 else app.startService(service);
             }
             setLastState(app, StudyModeFocusService.hasOverlayFailure() ? "overlay_failed"
-                : (StudyModeFocusService.isRunning() ? "focus_shield_running" : "focus_shield_starting"));
+                : (StudyModeFocusService.isRunning() ? "focus_shield_running"
+                    : (StudyModeFocusService.isStarting() ? "focus_shield_starting" : "service_stopped")));
         } catch (Exception error) {
+            StudyModeFocusService.clearStarting();
             stopFocusShield(app);
             setLastState(app, "service_start_blocked");
         }
@@ -600,6 +629,7 @@ public final class StudyModeManager {
     }
 
     private static void stopFocusShield(Context context) {
+        StudyModeFocusService.clearStarting();
         try { context.stopService(new Intent(context, StudyModeFocusService.class)); }
         catch (Exception ignored) {}
     }
@@ -689,16 +719,25 @@ public final class StudyModeManager {
         for (String name : applied) appliedArray.put(name);
 
         String state = prefs(context).getString(KEY_LAST_STATE, isEnabled(context) ? "waiting_for_schedule" : "disabled");
-        if (isEnabled(context) && isScheduleActive(context)
-            && !isPolicyOwner(context) && !hasUsageAccess(context)) state = "permission_required";
-        if (isEnabled(context) && isScheduleActive(context)
-            && !isPolicyOwner(context) && !hasOverlayPermission(context)) state = "permission_required";
-        if (isEnabled(context) && isScheduleActive(context)
-            && !isPolicyOwner(context) && hasUsageAccess(context) && hasOverlayPermission(context)
-            && !StudyModeFocusService.isRunning()
-            && ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state))) {
+        boolean enabled = isEnabled(context);
+        boolean active = isScheduleActive(context);
+        boolean policyOwner = isPolicyOwner(context);
+        boolean usageGranted = hasUsageAccess(context);
+        boolean overlayGranted = hasOverlayPermission(context);
+        if (!enabled) {
+            if (!"policy_failed".equals(state) && !"policy_unavailable".equals(state)) state = "disabled";
+        } else if (!active) {
+            state = "waiting_for_schedule";
+        } else if (policyOwner && !hasExactAlarmPermission(context)) {
+            state = "exact_alarm_required";
+        } else if (!policyOwner && (!usageGranted || !overlayGranted)) {
+            state = "permission_required";
+        } else if (!policyOwner && StudyModeFocusService.isRunning()) {
+            state = "focus_shield_running";
+        } else if (!policyOwner && StudyModeFocusService.isStarting()) {
+            state = "focus_shield_starting";
+        } else if (!policyOwner && ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state))) {
             state = "service_stopped";
-            setLastState(context, state);
         }
 
         boolean exactFallback = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission(context);

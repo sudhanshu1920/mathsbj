@@ -17,6 +17,9 @@ const NATIVE_FILES = [
 ];
 
 const REQUIRED_PERMISSIONS = [
+  // Personal sideload Study Mode requires full installed-app discovery for its app picker.
+  // Google Play distribution needs a separate QUERY_ALL_PACKAGES policy eligibility review.
+  'android.permission.QUERY_ALL_PACKAGES',
   'android.permission.PACKAGE_USAGE_STATS',
   'android.permission.SYSTEM_ALERT_WINDOW',
   'android.permission.SCHEDULE_EXACT_ALARM',
