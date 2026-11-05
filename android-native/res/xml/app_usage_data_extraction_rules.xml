@@ -2,10 +2,12 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="app_usage_analytics_local.xml" />
+        <exclude domain="sharedpref" path="math_master_study_mode.xml" />
         <exclude domain="database" path="math_master_study_sessions.db" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="app_usage_analytics_local.xml" />
+        <exclude domain="sharedpref" path="math_master_study_mode.xml" />
         <exclude domain="database" path="math_master_study_sessions.db" />
     </device-transfer>
 </data-extraction-rules>
