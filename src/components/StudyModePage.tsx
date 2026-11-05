@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App } from "@capacitor/app";
 import {
   ArrowLeft, CalendarDays, Check, ChevronDown, Clock3, LockKeyhole,
-  Search, ShieldAlert, ShieldCheck, Smartphone,
+  Search, ShieldAlert, Smartphone,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -63,31 +63,27 @@ const configSnapshot = (config: StudyModeConfig) => JSON.stringify({
 const statusText = (status: StudyModeStatus | null) => {
   if (!isStudyModeNative()) return "Available in the Android app";
   if (!status) return "Reading saved Study Mode state…";
-  if (status?.enforcementState === "policy_unavailable" || status?.enforcementState === "policy_failed") {
-    return "Android could not confirm that every suspended app is available";
-  }
-  if (status?.activeSession?.active) {
-    if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
-    if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
-    if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
+  if (status.activeSession?.active) {
+    if (status.enforcementState === "permission_required") return "Session saved · grant Accessibility or Usage Access and overlay access";
+    if (status.enforcementState === "accessibility_disconnected") return "Session active · reconnect Accessibility or grant Usage Access";
+    if (status.enforcementState === "service_start_blocked") return "Session saved · Android blocked Focus Shield startup";
+    if (status.enforcementState === "service_stopped") return "Session active · monitoring service is stopped";
+    if (status.enforcementState === "overlay_failed") return "Session active · Android could not display the restriction screen";
+    if (status.enforcementState === "focus_shield_running") return "Session active · best-effort Focus Shield";
     const label = status.activeSession.sessionType.charAt(0).toUpperCase()
       + status.activeSession.sessionType.slice(1);
     return label + " focus session active · continues in background";
   }
-  if (!status?.config.enabled) return "Study Mode is off";
-  if (status.enforcementState === "permission_required") return "Enable Usage Access and allow the blocking overlay";
-  if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
+  if (!status.config.enabled) return "Study Mode is off";
+  if (status.enforcementState === "permission_required") return "Enable Accessibility or Usage Access and allow the blocking overlay";
+  if (status.enforcementState === "accessibility_disconnected") return "Accessibility is not connected · grant Usage Access as fallback";
   if (status.enforcementState === "focus_shield_starting") return "Starting Focus Shield…";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
-  if (status.enforcementState === "service_stopped") return "Android stopped Focus Shield — reopen Study Mode to retry";
+  if (status.enforcementState === "service_stopped") return "Monitoring service stopped · reopen Study Mode to retry";
   if (status.enforcementState === "overlay_failed") return "Android could not display the blocking overlay";
-  if (status.enforcementState === "policy_failed") return "System suspension could not be applied";
-  if (status.enforcementState === "partial_suspension") return "Some selected apps could not be suspended";
-  if (status.enforcementMode === "profile_owner" && status.enforcementState === "system_suspension") return "System suspension is active in the managed profile";
-  if (status.enforcementState === "focus_shield_running") return "Focus Shield only — actual suspension requires Device Owner";
-  if (status.enforcementState === "system_suspension") return "Android system-level suspension is active";
-  if (status.enforcementState === "waiting_for_schedule") return "Enabled — waiting for the next study session";
-  if (!status.scheduleActive) return "Enabled — outside scheduled hours";
+  if (status.enforcementState === "focus_shield_running") return "Focus Shield active · best-effort app restriction";
+  if (status.enforcementState === "waiting_for_schedule") return "Enabled · waiting for the next study session";
+  if (!status.scheduleActive) return "Enabled · outside scheduled hours";
   return "Study Mode enabled";
 };
 
@@ -251,7 +247,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     };
   }, [activeSession?.id, activeSession?.durationSeconds, sessionRemainingSeconds]);
 
-  const suspendedPackages = useMemo(() => new Set(status?.suspendedPackages ?? []), [status?.suspendedPackages]);
   const selectedCount = draft.selectedPackageNames.length;
   const selectedNames = useMemo(() => {
     const names = new Map(apps.map((app) => [app.packageName, app.label]));
@@ -481,39 +476,61 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
   const permissionItems = [
     {
+      key: "accessibility" as const,
+      title: "Accessibility tracking",
+      granted: status?.permissions.accessibility === true,
+      required: false,
+      helper: status?.permissions.accessibilityConnected
+        ? "Connected · detects foreground package transitions only; never reads screen text or window content."
+        : "Optional primary detector. Enable manually in Android Accessibility settings; detects only package names.",
+    },
+    {
       key: "usage" as const,
       title: "Usage Access",
       granted: status?.permissions.usageAccess === true,
-      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
-      helper: "Monitors which app is in the foreground on a personal device. Android does not share screen text or window content.",
+      required: !status?.permissions.accessibility,
+      helper: status?.permissions.accessibility
+        ? "Fallback if Accessibility disconnects. Detection may be delayed."
+        : "Fallback foreground event history if Accessibility is not enabled.",
     },
     {
       key: "overlay" as const,
       title: "Display over other apps",
       granted: status?.permissions.overlay === true,
-      required: !status?.permissions.deviceOwner && !status?.permissions.profileOwner,
-      helper: "Shows the Study Mode shield over a selected app.",
+      required: true,
+      helper: "Required to show the restriction screen over a selected app.",
     },
     {
       key: "exactAlarm" as const,
       title: "Exact alarms",
       granted: status?.permissions.exactAlarm === true,
-      required: (status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")
-        && (draft.enabled || Boolean(status?.activeSession?.active)),
-      helper: status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner"
-        ? "Required for safely timed system-level app suspension and release."
-        : "Without this, Android may deliver schedule changes late.",
+      required: false,
+      helper: "Optional. Without this, Android may deliver scheduled boundaries late.",
+    },
+    {
+      key: "notifications" as const,
+      title: "Notifications",
+      granted: status?.permissions.notifications === true,
+      required: false,
+      helper: "Optional. The ongoing Focus Shield notification may be hidden when denied.",
+    },
+    {
+      key: "battery" as const,
+      title: "Battery background access",
+      granted: status?.permissions.batteryOptimizationExempt === true,
+      required: false,
+      helper: "Optional manufacturer guidance. Change only if Android or the device repeatedly stops monitoring.",
     },
     {
       key: "dnd" as const,
       title: "Do Not Disturb",
       granted: status?.permissions.dndAccess === true,
       required: sessionDnd && !status?.permissions.dndAccess,
-      helper: "Optional. Saves the original DND filter and restores it only if it is still managed by this session.",
+      helper: "Optional. Saves the previous DND filter and restores it only if this session still owns the change.",
     },
   ];
 
-  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd") => {
+  const openPermission = async (permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "notifications" | "battery" | "dnd") => {
     try {
       await openStudyModePermission(permission);
     } catch {
@@ -574,11 +591,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </span>
           )}
         </div>
-        {status?.enforcementMode === "device_owner" && (
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-success">
-            <ShieldCheck size={13} /> Device Owner system-level enforcement
-          </div>
-        )}
         {status?.enforcementMode === "focus_shield" && (
           <div className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
             <ShieldAlert size={13} className="mt-0.5 shrink-0 text-warning" />
@@ -666,24 +678,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     <span className="shrink-0 rounded-md bg-secondary/70 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
                       {app.systemApp ? "System" : "User"}
                     </span>
-                    {selected && status?.enforcementMode !== "focus_shield" && (
-                      <span className={suspendedPackages.has(app.packageName)
-                        ? "shrink-0 rounded-md bg-success/10 px-1.5 py-0.5 text-[9px] font-semibold text-success"
-                        : "shrink-0 rounded-md bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning"}>
-                        {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Not frozen" : "Scheduled"}
-                      </span>
-                    )}
-                    {selected && status?.enforcementMode === "focus_shield" && (
+                    {selected && (
                       <span className="shrink-0 rounded-md bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning">Shield only</span>
-                    )}
-                    {app.selectable ? (
-                      <span className={selected ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground" : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
-                        <Check size={12} />
-                      </span>
-                    ) : (
-                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" aria-label="Protected app">
-                        <LockKeyhole size={13} />
-                      </span>
                     )}
                   </button>
                 );
@@ -721,7 +717,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </div>
             <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
               <span>{activeSession.selectedPackageNames.length} apps in this session</span>
-              <span>{activeSession.isEnforced ? "Enforced stop" : "Standard session"}</span>
+              <span>{activeSession.isEnforced ? "Confirm before ending" : "Normal session"}</span>
             </div>
             <button
               type="button"
@@ -767,7 +763,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               </label>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-medium text-foreground">Enforced session</span>
+              <span className="text-[11px] font-medium text-foreground">Confirm before ending</span>
               <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
             </div>
             <div className="flex items-center justify-between gap-3">
@@ -883,9 +879,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </button>
           );
         })}
-        {status?.enforcementMode === "device_owner" && (
-          <p className="pt-1 text-[10px] text-success">This device is managed by an eligible Device Owner or Profile Owner.</p>
-        )}
         {status?.exactAlarmFallback && (
           <p className="pt-1 text-[10px] text-warning">Exact alarm access is unavailable. Schedule boundaries may be delayed by Android.</p>
         )}
