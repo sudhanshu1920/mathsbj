@@ -1003,8 +1003,10 @@ if (!studyModeNotifications.includes('NotificationListenerService') ||
     !studyModeNotifications.includes('notification.isClearable()') ||
     !studyModeNotifications.includes('StudyModeManager.isPackageSelected') ||
     !studyModeNotifications.includes('StudyModeManager.isScheduleActive') ||
-    !studyModeNotifications.includes('cancelNotification(notification.getKey())')) {
-  fail('Notification listener must filter only clearable notifications from selected apps during active sessions');
+    !studyModeNotifications.includes('cancelNotification(notification.getKey())') ||
+    !studyModeNotifications.includes('filterCurrentNotificationsIfConnected') ||
+    !studyModeManager.includes('StudyModeNotificationListenerService.filterCurrentNotificationsIfConnected()')) {
+  fail('Notification listener must filter selected-app notifications both on post and at schedule activation');
 }
 if (!studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     !studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
