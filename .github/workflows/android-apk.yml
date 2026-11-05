@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, '[BUILD_ANDROID_APK]'))
+    # Run on every push to main and on manual workflow dispatch.
     runs-on: ubuntu-latest
 
     # APK artifacts use local guest mode and do not require cloud-auth secrets.
