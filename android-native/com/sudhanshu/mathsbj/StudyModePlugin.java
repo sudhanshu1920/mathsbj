@@ -57,6 +57,48 @@ public final class StudyModePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void startSession(PluginCall call) {
+        try {
+            String type = call.getString("sessionType", "study");
+            Integer duration = call.getInt("durationSeconds", 1500);
+            Boolean enforced = call.getBoolean("enforced", false);
+            Boolean dnd = call.getBoolean("shouldEnableDnd", false);
+            if (duration == null || duration < 0 || duration > 24 * 60 * 60) {
+                call.reject("Choose a focus duration between 0 and 24 hours.");
+                return;
+            }
+            if (Boolean.TRUE.equals(dnd) && !StudyModeManager.hasNotificationPolicyAccess(getContext())) {
+                call.reject("Allow Do Not Disturb access before starting a session with DND enabled.");
+                return;
+            }
+            call.resolve(StudyModeManager.startSession(
+                getContext(), type, duration, Boolean.TRUE.equals(enforced), Boolean.TRUE.equals(dnd)
+            ));
+        } catch (IllegalArgumentException error) {
+            call.reject(error.getMessage(), error);
+        } catch (Exception error) {
+            call.reject("Android could not start the saved focus session.", error);
+        }
+    }
+
+    @PluginMethod
+    public void endSession(PluginCall call) {
+        try {
+            String sessionId = call.getString("sessionId", "");
+            call.resolve(StudyModeManager.endSession(getContext(), sessionId));
+        } catch (Exception error) {
+            call.reject("Android could not end the focus session.", error);
+        }
+    }
+
+    @PluginMethod
+    public void getSessionHistory(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("sessions", StudyModeManager.getSessionHistory(getContext()));
+        call.resolve(result);
+    }
+
+    @PluginMethod
     public void saveConfig(PluginCall call) {
         try {
             JSONArray rawPackages = call.getData().optJSONArray("selectedPackageNames");
@@ -221,6 +263,14 @@ public final class StudyModePlugin extends Plugin {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                         android.net.Uri.parse("package:" + getContext().getPackageName()));
+                } else {
+                    call.resolve();
+                    return;
+                }
+                break;
+            case "dnd":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    intent = new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
                 } else {
                     call.resolve();
                     return;
