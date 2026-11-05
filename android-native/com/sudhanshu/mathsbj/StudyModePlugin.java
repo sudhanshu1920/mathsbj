@@ -99,6 +99,12 @@ public final class StudyModePlugin extends Plugin {
     public void listApps(PluginCall call) {
         try {
             android.content.pm.PackageManager pm = getContext().getPackageManager();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && pm.checkPermission("android.permission.QUERY_ALL_PACKAGES", getContext().getPackageName())
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                call.reject("Full installed-app inventory access is unavailable. Reinstall the private Study Mode build with QUERY_ALL_PACKAGES.");
+                return;
+            }
             List<ApplicationInfo> installedApplications = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 ? pm.getInstalledApplications(android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
                 : pm.getInstalledApplications(0);

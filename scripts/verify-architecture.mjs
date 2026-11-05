@@ -990,6 +990,7 @@ if (!studyModeManager.includes('DevicePolicyManager') ||
   fail('Managed-device suspension, truthful permission state, alarm fallback, or critical app protection is missing');
 }
 if (!studyModeAppPlugin.includes('getInstalledApplications') ||
+    !studyModeAppPlugin.includes('checkPermission("android.permission.QUERY_ALL_PACKAGES"') ||
     !studyModeAppPlugin.includes('findLaunchablePackages') ||
     !studyModeAppPlugin.includes('Intent.CATEGORY_LAUNCHER') ||
     !studyModeAppPlugin.includes('Intent.CATEGORY_LEANBACK_LAUNCHER') ||

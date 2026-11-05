@@ -129,8 +129,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         savedSnapshot.current = configSnapshot(normalized);
       }
       setRefreshError("");
-    } catch {
-      setRefreshError("Could not read Android Study Mode status. Reopen this page to retry.");
+    } catch (error) {
+      setRefreshError(error instanceof Error && error.message
+        ? error.message
+        : "Could not read Android Study Mode status. Reopen this page to retry.");
     } finally {
       setLoading(false);
     }
