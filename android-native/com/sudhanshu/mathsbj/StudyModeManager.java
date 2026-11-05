@@ -50,10 +50,6 @@ public final class StudyModeManager {
         return prefs(context).getBoolean(KEY_ENABLED, false);
     }
 
-    public static boolean isNotificationBlockingEnabled(Context context) {
-        return prefs(context).getBoolean("notificationBlockingEnabled", true);
-    }
-
     public static int getStartHour(Context context) { return prefs(context).getInt("startHour", 9); }
     public static int getStartMinute(Context context) { return prefs(context).getInt("startMinute", 0); }
     public static int getEndHour(Context context) { return prefs(context).getInt("endHour", 18); }
@@ -187,17 +183,6 @@ public final class StudyModeManager {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context);
     }
 
-    public static boolean hasNotificationAccess(Context context) {
-        String enabled = Settings.Secure.getString(
-            context.getContentResolver(), "enabled_notification_listeners");
-        if (enabled == null) return false;
-        String own = context.getPackageName() + "/" + StudyModeNotificationListenerService.class.getName();
-        for (String component : enabled.split(":")) {
-            if (own.equalsIgnoreCase(component)) return true;
-        }
-        return false;
-    }
-
     public static boolean hasExactAlarmPermission(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true;
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
@@ -312,8 +297,7 @@ public final class StudyModeManager {
         int startMinute,
         int endHour,
         int endMinute,
-        Set<Integer> days,
-        boolean notificationBlockingEnabled
+        Set<Integer> days
     ) {
         if (startHour < 0 || startHour > 23 || endHour < 0 || endHour > 23
             || startMinute < 0 || startMinute > 59 || endMinute < 0 || endMinute > 59) {
@@ -348,8 +332,7 @@ public final class StudyModeManager {
             .putInt("startHour", startHour)
             .putInt("startMinute", startMinute)
             .putInt("endHour", endHour)
-            .putInt("endMinute", endMinute)
-            .putBoolean("notificationBlockingEnabled", notificationBlockingEnabled);
+            .putInt("endMinute", endMinute);
         editor.apply();
         reconcile(context);
     }
@@ -394,12 +377,6 @@ public final class StudyModeManager {
 
         scheduleNextBoundary(app);
         boolean active = isScheduleActive(app);
-        // A listener that was already connected before the schedule boundary will
-        // not receive onListenerConnected again. Sweep current notifications when
-        // the session becomes active, independently of Focus Shield permissions.
-        if (active && !isPolicyOwner(app) && isNotificationBlockingEnabled(app)) {
-            StudyModeNotificationListenerService.filterCurrentNotificationsIfConnected();
-        }
         if (isPolicyOwner(app)) {
             stopFocusShield(app);
             if (!hasExactAlarmPermission(app)) {
@@ -652,13 +629,10 @@ public final class StudyModeManager {
         config.put("endHour", getEndHour(context));
         config.put("endMinute", getEndMinute(context));
         config.put("selectedDays", days);
-        config.put("notificationBlockingEnabled", isNotificationBlockingEnabled(context));
 
         JSObject permissions = new JSObject();
         permissions.put("usageAccess", hasUsageAccess(context));
         permissions.put("overlay", hasOverlayPermission(context));
-        permissions.put("notificationAccess", hasNotificationAccess(context));
-        permissions.put("notificationListenerConnected", StudyModeNotificationListenerService.isConnected());
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
         permissions.put("deviceOwner", isDeviceOwner(context));
         permissions.put("profileOwner", isProfileOwner(context));

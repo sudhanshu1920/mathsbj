@@ -81,13 +81,12 @@ public final class StudyModePlugin extends Plugin {
             Integer startMinute = call.getInt("startMinute");
             Integer endHour = call.getInt("endHour");
             Integer endMinute = call.getInt("endMinute");
-            boolean notifications = Boolean.TRUE.equals(call.getBoolean("notificationBlockingEnabled"));
             if (startHour == null || startMinute == null || endHour == null || endMinute == null) {
                 call.reject("Choose valid start and end times.");
                 return;
             }
             StudyModeManager.saveConfig(
-                getContext(), packages, startHour, startMinute, endHour, endMinute, days, notifications
+                getContext(), packages, startHour, startMinute, endHour, endMinute, days
             );
             call.resolve(StudyModeManager.getStatus(getContext()));
         } catch (IllegalArgumentException error) {
@@ -162,9 +161,6 @@ public final class StudyModePlugin extends Plugin {
             case "overlay":
                 intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     android.net.Uri.parse("package:" + getContext().getPackageName()));
-                break;
-            case "notifications":
-                intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
                 break;
             case "exactAlarm":
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

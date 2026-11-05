@@ -10,7 +10,6 @@ export interface StudyModeSchedule {
 export interface StudyModeConfig extends StudyModeSchedule {
   enabled: boolean;
   selectedPackageNames: string[];
-  notificationBlockingEnabled: boolean;
 }
 
 export const DEFAULT_STUDY_MODE_CONFIG: StudyModeConfig = {
@@ -21,7 +20,6 @@ export const DEFAULT_STUDY_MODE_CONFIG: StudyModeConfig = {
   endHour: 18,
   endMinute: 0,
   selectedDays: [1, 2, 3, 4, 5, 6],
-  notificationBlockingEnabled: true,
 };
 
 export function normalizeStudyModeDays(value: unknown): number[] {

@@ -952,7 +952,6 @@ const studyModePage = read('src/components/StudyModePage.tsx');
 const studyModeBridge = read('src/lib/studyMode.ts');
 const studyModeManager = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
 const studyModeFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
-const studyModeNotifications = read('android-native/com/sudhanshu/mathsbj/StudyModeNotificationListenerService.java');
 const studyModeSetup = read('scripts/configure-android-study-mode.mjs');
 const widgetSetup = read('scripts/configure-android-widgets.mjs');
 const studyModeSettings = read('src/components/SettingsPanel.tsx');
@@ -997,26 +996,26 @@ if (!studyModeFocus.includes('UsageStatsManager') ||
     !studyModeFocus.includes('lastForegroundPackage')) {
   fail('Personal-phone Focus Shield must use Usage Access, overlay permission, a user-visible foreground service and actual service state');
 }
-if (!studyModeNotifications.includes('NotificationListenerService') ||
-    !studyModeNotifications.includes('onListenerDisconnected') ||
-    !studyModeManager.includes('notificationListenerConnected') ||
-    !studyModePage.includes('Disconnected') ||
-    !studyModeNotifications.includes('notification.isClearable()') ||
-    !studyModeNotifications.includes('StudyModeManager.isPackageSelected') ||
-    !studyModeNotifications.includes('StudyModeManager.isScheduleActive') ||
-    !studyModeNotifications.includes('cancelNotification(notification.getKey())') ||
-    !studyModeNotifications.includes('filterCurrentNotificationsIfConnected') ||
-    !studyModeManager.includes('StudyModeNotificationListenerService.filterCurrentNotificationsIfConnected()')) {
-  fail('Notification listener must filter selected-app notifications both on post and at schedule activation');
+const studyModeNativeFiles = studyModeSetup.match(/const NATIVE_FILES = \[([\s\S]*?)\];/)?.[1] ?? '';
+if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
+    studyModeSetup.includes('BIND_NOTIFICATION_LISTENER_SERVICE') ||
+    studyModeManager.includes('StudyModeNotificationListenerService') ||
+    studyModeManager.includes('notificationListenerConnected') ||
+    studyModeManager.includes('notificationBlockingEnabled') ||
+    studyModePage.includes('notificationAccess') ||
+    studyModePage.includes('notificationBlockingEnabled') ||
+    studyModeBridge.includes('notificationAccess') ||
+    studyModeBridge.includes('permission: "notifications"') ||
+    studyModeSchedule.includes('notificationBlockingEnabled')) {
+  fail('Sideloadable Android builds must not package Play Protect-sensitive notification-listener access');
 }
 if (!studyModeSetup.includes('android.intent.category.LAUNCHER') ||
-    !studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
+    studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
     studyModeSetup.includes('QUERY_ALL_PACKAGES') ||
     !studyModeSetup.includes('StudyModeDeviceAdminReceiver') ||
-    !studyModeSetup.includes('BIND_NOTIFICATION_LISTENER_SERVICE') ||
     !widgetSetup.includes('configureAndroidStudyMode(root)') ||
     !studyModeBoot.includes('StudyModeManager.reconcile(context)')) {
-  fail('Generated Android project must use launcher-only package visibility, register Study Mode services, and restore schedules');
+  fail('Generated Android project must use launcher-only package visibility, omit SMS queries and notification-listener access, and restore Study Mode schedules');
 }
 
 console.log('Architecture regression checks passed.');

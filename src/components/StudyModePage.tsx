@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App } from "@capacitor/app";
 import {
   ArrowLeft, CalendarDays, Check, ChevronDown, Clock3, LockKeyhole,
-  Search, ShieldAlert, ShieldCheck, Smartphone, Bell,
+  Search, ShieldAlert, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -64,13 +64,6 @@ const statusText = (status: StudyModeStatus | null) => {
   if (status.enforcementState === "overlay_failed") return "Android could not display the blocking overlay";
   if (status.enforcementState === "policy_failed") return "System suspension could not be applied";
   if (status.enforcementState === "partial_suspension") return "Some selected apps could not be suspended";
-  if (status.enforcementState === "focus_shield_running"
-      && status.config.notificationBlockingEnabled
-      && (!status.permissions.notificationAccess || !status.permissions.notificationListenerConnected)) {
-    return status.permissions.notificationAccess
-      ? "Focus Shield active · notification listener disconnected"
-      : "Focus Shield active · notification access required";
-  }
   if (status.enforcementState === "focus_shield_running") return "Focus Shield monitoring is active";
   if (status.enforcementState === "system_suspension") return "Android system-level suspension is active";
   if (status.enforcementState === "waiting_for_schedule") return "Enabled — waiting for the next study session";
@@ -308,14 +301,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       helper: "Shows the Study Mode shield over a selected app.",
     },
     {
-      key: "notifications" as const,
-      title: "Notification access",
-      granted: status?.permissions.notificationAccess === true
-        && status?.permissions.notificationListenerConnected === true,
-      required: draft.notificationBlockingEnabled && status?.enforcementMode !== "device_owner",
-      helper: "Only clearable notifications from selected apps are dismissed when the listener is connected.",
-    },
-    {
       key: "exactAlarm" as const,
       title: "Exact alarms",
       granted: status?.permissions.exactAlarm === true,
@@ -326,7 +311,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     },
   ];
 
-  const openPermission = async (permission: "usage" | "overlay" | "notifications" | "exactAlarm") => {
+  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm") => {
     try {
       await openStudyModePermission(permission);
     } catch {
@@ -510,45 +495,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         </div>
       </section>
 
-      <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
-            <Bell size={14} className="text-muted-foreground" /> Notification control
-          </p>
-          {status?.enforcementMode === "device_owner" ? (
-            <span className="text-[10px] font-semibold text-success">System-managed</span>
-          ) : (
-            <Switch
-              checked={draft.notificationBlockingEnabled}
-              onCheckedChange={(enabled) => updateDraft({ notificationBlockingEnabled: enabled })}
-              aria-label="Block notifications from selected apps"
-            />
-          )}
-        </div>
-        <div className="rounded-xl border border-border/70 bg-card/25 px-3 py-2 text-[10px] text-muted-foreground">
-          {status?.enforcementMode === "device_owner"
-            ? "Android hides notifications automatically while a selected app is system-suspended."
-            : "Only clearable notifications from selected apps are dismissed. Dismissed notifications are not restored."}
-        </div>
-      </section>
-
       <section className="space-y-1.5">
         <p className="text-xs font-semibold text-foreground">Android permissions</p>
         {permissionItems.map((item) => {
-          const systemManagedNotification = item.key === "notifications"
-            && status?.enforcementMode === "device_owner";
-          const listenerDisconnected = item.key === "notifications"
-            && status?.permissions.notificationAccess === true
-            && status?.permissions.notificationListenerConnected !== true
-            && !systemManagedNotification;
-          const stateLabel = systemManagedNotification
-            ? "System-managed"
-            : listenerDisconnected
-              ? "Disconnected"
-              : item.granted ? "Granted" : item.required ? "Required" : "Optional";
-          const stateClass = item.granted || systemManagedNotification
+          const stateLabel = item.granted ? "Granted" : item.required ? "Required" : "Optional";
+          const stateClass = item.granted
             ? "shrink-0 text-[10px] font-semibold text-success"
-            : listenerDisconnected || item.required
+            : item.required
               ? "shrink-0 text-[10px] font-semibold text-warning"
               : "shrink-0 text-[10px] font-semibold text-muted-foreground";
           return (

@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,7 +11,6 @@ const NATIVE_FILES = [
   'StudyModePlugin.java',
   'StudyModeAlarmReceiver.java',
   'StudyModePackageChangeReceiver.java',
-  'StudyModeNotificationListenerService.java',
   'StudyModeFocusService.java',
   'StudyModeDeviceAdminReceiver.java',
   'DailyTargetReminderBootReceiver.java',
@@ -49,12 +48,6 @@ function ensureManifestQueries(manifest) {
             <category android:name="android.intent.category.HOME" />
         </intent>`,
     },
-    {
-      marker: 'android.provider.Telephony.SMS_DELIVER',
-      xml: `        <intent>
-            <action android:name="android.provider.Telephony.SMS_DELIVER" />
-        </intent>`,
-    },
   ];
   const missing = queryIntents.filter((query) => !manifest.includes(query.marker));
   if (missing.length === 0) return manifest;
@@ -82,6 +75,12 @@ function ensurePermissions(manifest) {
   const applicationStart = manifest.indexOf('<application');
   if (applicationStart < 0) throw new Error('AndroidManifest.xml has no <application> element.');
   return manifest.slice(0, applicationStart) + missing.join('\n') + '\n\n' + manifest.slice(applicationStart);
+}
+
+function removeNotificationListenerService(manifest) {
+  // Remove stale declarations left by earlier generated Android projects.
+  const listenerService = /\s*<service\b(?=[^>]*\bandroid:name=["']\.StudyModeNotificationListenerService["'])[^>]*(?:\/>|>[\s\S]*?<\/service>)/g;
+  return manifest.replace(listenerService, '');
 }
 
 function ensureStudyModeComponents(manifest) {
@@ -135,19 +134,6 @@ function ensureStudyModeComponents(manifest) {
         </receiver>`,
     },
     {
-      marker: 'android:name=".StudyModeNotificationListenerService"',
-      xml: `        <service
-            android:name=".StudyModeNotificationListenerService"
-            android:label="Math Master Study Mode"
-            android:enabled="true"
-            android:exported="true"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>`,
-    },
-    {
       marker: 'android:name=".StudyModeFocusService"',
       xml: `        <service
             android:name=".StudyModeFocusService"
@@ -185,6 +171,7 @@ export async function configureAndroidStudyMode(androidRoot) {
   const activityPath = path.join(packageDir, 'MainActivity.java');
 
   await mkdir(packageDir, { recursive: true });
+  await rm(path.join(packageDir, 'StudyModeNotificationListenerService.java'), { force: true });
   for (const file of NATIVE_FILES) {
     await copyFile(path.join(NATIVE_DIR, file), path.join(packageDir, file));
   }
@@ -200,6 +187,7 @@ export async function configureAndroidStudyMode(androidRoot) {
   await writeFile(activityPath, mainActivity);
 
   let manifest = await readFile(manifestPath, 'utf8');
+  manifest = removeNotificationListenerService(manifest);
   manifest = ensureManifestQueries(manifest);
   manifest = ensurePermissions(manifest);
   manifest = ensureStudyModeComponents(manifest);
