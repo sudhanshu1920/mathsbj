@@ -17,6 +17,7 @@ import {
   setAppUsageRetention,
   type UsageAnalyticsSnapshot,
   type UsageChartType,
+  type UsageAppFilter,
   type UsageRange,
 } from "@/lib/appUsageAnalytics";
 
