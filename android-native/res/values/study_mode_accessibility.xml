@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="study_mode_accessibility_description">Math Master detects only the package name of the foreground app during a focus session so selected apps can be covered. It does not read screen text or inspect window content. Enable only when you choose to use Focus Mode.</string>
+</resources>

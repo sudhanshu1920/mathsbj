@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeRemoteViewsLayout } from './configure-android-notifications.mjs';
+import { configureAndroidStudyMode } from './configure-android-study-mode.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const NATIVE_ROOT = path.resolve(SCRIPT_DIR, '../android-native');
@@ -131,6 +132,10 @@ export async function configureAndroidWidgets(androidRoot) {
   manifest = ensurePermissions(manifest);
   manifest = ensureApplicationComponents(manifest);
   await writeFile(manifestPath, manifest);
+
+  // Keep Study Mode native registration in the same generated-project setup
+  // used by both release APK and artifact-only APK workflows.
+  await configureAndroidStudyMode(root);
 
   return { javaFiles: NATIVE_JAVA_FILES.length, resourceDirectories: RESOURCE_DIRS.length };
 }

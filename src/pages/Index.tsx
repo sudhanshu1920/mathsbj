@@ -300,6 +300,7 @@ const Index = () => {
   const historyInitialized = useRef(false);
   const lastNavigationBack = useRef(0);
   const studyTrackerOverlayOpen = useRef(false);
+  const studyModePageOpen = useRef(false);
   const replaceNextNavigationEntry = useRef(false);
   const practiceExitHandled = useRef(false);
   const navigationStateRef = useRef({
@@ -328,6 +329,15 @@ const Index = () => {
     };
     window.addEventListener('study-tracker-overlay-state', syncStudyTrackerOverlay);
     return () => window.removeEventListener('study-tracker-overlay-state', syncStudyTrackerOverlay);
+  }, []);
+
+  useEffect(() => {
+    const syncStudyModePage = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: unknown }>).detail;
+      studyModePageOpen.current = detail?.open === true;
+    };
+    window.addEventListener('study-mode-page-state', syncStudyModePage);
+    return () => window.removeEventListener('study-mode-page-state', syncStudyModePage);
   }, []);
 
   // One shared back action for header arrows, in-app edge swipe, and native
@@ -443,6 +453,10 @@ const Index = () => {
     let listenerHandle: { remove: () => Promise<void> } | null = null;
 
     void App.addListener('backButton', () => {
+      if (studyModePageOpen.current) {
+        window.dispatchEvent(new CustomEvent('study-mode-back'));
+        return;
+      }
       const { tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen, periodicRangeMenuOpen } = navigationStateRef.current;
       const depth = getCurrentNavigationDepth(tab, learningState, practiceTopic, practicePhase, learningPracticeSelectorOpen, periodicRangeMenuOpen);
 
@@ -480,6 +494,18 @@ const Index = () => {
   useEffect(() => {
     const handlePopstate = () => {
       isHandlingPopstate.current = true;
+
+      // Study Mode is a nested page inside the Settings overlay. Consume one
+      // browser/system Back here instead of leaving Progress and Settings.
+      if (studyModePageOpen.current) {
+        window.history.pushState(
+          { ...(window.history.state ?? {}), __mathsbj: true },
+          '',
+        );
+        window.dispatchEvent(new CustomEvent('study-mode-back'));
+        isHandlingPopstate.current = false;
+        return;
+      }
 
       // PracticePage owns the confirmation UI, but this router owns history.
       // Re-seed the active depth and signal PracticePage to open its dialog.
