@@ -16,6 +16,7 @@ const NATIVE_FILES = [
   'DailyTargetReminderBootReceiver.java',
   'AppUsageAnalyticsStore.java',
   'AppUsageAnalyticsPlugin.java',
+  'StudyModeSessionStore.java',
 ];
 
 const REQUIRED_PERMISSIONS = [
@@ -28,6 +29,7 @@ const REQUIRED_PERMISSIONS = [
   'android.permission.FOREGROUND_SERVICE',
   'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
   'android.permission.RECEIVE_BOOT_COMPLETED',
+  'android.permission.ACCESS_NOTIFICATION_POLICY',
 ];
 
 function ensureManifestQueries(manifest) {

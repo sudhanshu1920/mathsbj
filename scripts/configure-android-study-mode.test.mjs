@@ -40,7 +40,7 @@ test('configures complete installed-app visibility, native services and Capacito
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 9);
+  assert.equal(result.javaFiles, 10);
   assert.equal(result.packageVisibility, 'all-installed-packages');
   assert.equal(result.localUsageAnalytics, true);
 
@@ -52,6 +52,7 @@ test('configures complete installed-app visibility, native services and Capacito
   for (const permission of [
     'QUERY_ALL_PACKAGES', 'PACKAGE_USAGE_STATS', 'SYSTEM_ALERT_WINDOW', 'SCHEDULE_EXACT_ALARM',
     'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE', 'RECEIVE_BOOT_COMPLETED',
+    'ACCESS_NOTIFICATION_POLICY',
   ]) assert.match(manifest, new RegExp(`android.permission.${permission}`));
 
   assert.match(manifest, /<queries>[\s\S]*android.intent.action.MAIN[\s\S]*android.intent.category.LAUNCHER[\s\S]*<\/queries>/);
@@ -76,8 +77,11 @@ test('configures complete installed-app visibility, native services and Capacito
   const legacyBackup = await readFile(path.join(root, 'app/src/main/res/xml/app_usage_backup_rules.xml'), 'utf8');
   const modernBackup = await readFile(path.join(root, 'app/src/main/res/xml/app_usage_data_extraction_rules.xml'), 'utf8');
   assert.match(legacyBackup, /exclude domain="sharedpref" path="app_usage_analytics_local.xml"/);
+  assert.match(legacyBackup, /exclude domain="database" path="math_master_study_sessions.db"/);
   assert.match(modernBackup, /cloud-backup[\s\S]*exclude domain="sharedpref" path="app_usage_analytics_local.xml"/);
   assert.match(modernBackup, /device-transfer[\s\S]*exclude domain="sharedpref" path="app_usage_analytics_local.xml"/);
+  assert.match(modernBackup, /cloud-backup[\s\S]*exclude domain="database" path="math_master_study_sessions.db"/);
+  assert.match(modernBackup, /device-transfer[\s\S]*exclude domain="database" path="math_master_study_sessions.db"/);
 
   await configureAndroidStudyMode(root);
   const secondManifest = await readFile(manifestPath, 'utf8');
