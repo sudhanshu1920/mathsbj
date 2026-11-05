@@ -374,6 +374,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       setMessage("Select at least one app before starting a focus session.");
       return;
     }
+    if (sessionDnd && status?.permissions.dndControlSupported === false) {
+      setMessage("Android 15+ does not allow this app to change global Do Not Disturb. Use Android Quick Settings.");
+      return;
+    }
     if (sessionDnd && !status?.permissions.dndAccess) {
       setMessage("Allow Do Not Disturb access, then start the session again.");
       void openPermission("dnd");
@@ -536,7 +540,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       title: "Do Not Disturb",
       granted: status?.permissions.dndAccess === true,
       required: sessionDnd && !status?.permissions.dndAccess,
-      helper: "Optional. Saves the previous DND filter and restores it only if this session still owns the change.",
+      helper: status?.permissions.dndControlSupported === false
+        ? "Android 15+ restricts changing global DND for this app. Use Android Quick Settings."
+        : "Optional. Saves the previous DND filter and restores it only if this session still owns the change.",
     },
   ];
 
@@ -799,7 +805,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-medium text-foreground">Do Not Disturb</span>
-              <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
+              <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading || status?.permissions.dndControlSupported === false} aria-label="Enable Do Not Disturb for session" />
             </div>
             <p className="text-[9px] text-muted-foreground">The timer uses the saved start time and continues when this page or Math Master closes.</p>
             <button
