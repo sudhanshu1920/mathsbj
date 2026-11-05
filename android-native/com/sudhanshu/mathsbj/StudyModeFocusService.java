@@ -109,14 +109,14 @@ public final class StudyModeFocusService extends Service {
         super.onCreate();
         starting = false;
         stopping = false;
-        boolean devicePolicyMode = StudyModeManager.isPolicyOwner(this);
         if (!StudyModeManager.shouldEnforceNow(this)
-            || (!devicePolicyMode && (!StudyModeManager.hasForegroundMonitoringPermission(this)
-                || !StudyModeManager.hasOverlayPermission(this)))) {
+            || !StudyModeManager.hasForegroundMonitoringPermission(this)
+            || !StudyModeManager.hasOverlayPermission(this)) {
             stopSelf();
             return;
         }
 
+        StudyModeManager.refreshEnforcementCache(this);
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         createNotificationChannel();
         if (!startForegroundSafely()) {
@@ -125,40 +125,28 @@ public final class StudyModeFocusService extends Service {
         }
         running = true;
         activeInstance = new WeakReference<>(this);
-        if (!devicePolicyMode) StudyModeManager.setServiceState(this,
-            StudyModeAccessibilityService.isConnected() || StudyModeManager.hasUsageAccess(this)
+        StudyModeManager.setServiceState(this,
+            StudyModeManager.hasForegroundMonitoringSource(this)
                 ? "focus_shield_running" : "accessibility_disconnected");
         mainHandler.postDelayed(notificationUpdateRunnable, 60_000L);
 
-        // Device Owner suspension already blocks packages at the OS level. In that
-        // mode this service only maintains the durable session notification/timer.
-        if (!devicePolicyMode) {
-            monitorThread = new HandlerThread(
-                "StudyModeMonitor",
-                android.os.Process.THREAD_PRIORITY_BACKGROUND
-            );
-            monitorThread.start();
-            monitorHandler = new Handler(monitorThread.getLooper());
-            monitorHandler.post(monitorRunnable);
-        }
+        monitorThread = new HandlerThread(
+            "StudyModeMonitor",
+            android.os.Process.THREAD_PRIORITY_BACKGROUND
+        );
+        monitorThread.start();
+        monitorHandler = new Handler(monitorThread.getLooper());
+        monitorHandler.post(monitorRunnable);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!foregroundStarted || !StudyModeManager.shouldEnforceNow(this)) {
+        if (!foregroundStarted || !StudyModeManager.shouldEnforceNow(this) || monitorHandler == null) {
             stopSelf(startId);
             return START_NOT_STICKY;
         }
         starting = false;
         stopping = false;
-        if (StudyModeManager.isPolicyOwner(this)) {
-            updateOngoingNotification();
-            return START_STICKY;
-        }
-        if (monitorHandler == null) {
-            stopSelf(startId);
-            return START_NOT_STICKY;
-        }
         monitorHandler.removeCallbacks(monitorRunnable);
         monitorHandler.post(monitorRunnable);
         return START_STICKY;
@@ -247,12 +235,6 @@ public final class StudyModeFocusService extends Service {
                     removeShield();
                     stopSelf();
                 });
-                return;
-            }
-            if (StudyModeManager.isPolicyOwner(StudyModeFocusService.this)) {
-                mainHandler.post(() -> { if (running) removeShield(); });
-                updateOngoingNotification();
-                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
             if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
@@ -375,7 +357,7 @@ public final class StudyModeFocusService extends Service {
         root.setGravity(Gravity.CENTER);
         root.setClickable(true);
         root.setFocusableInTouchMode(true);
-        root.setPadding(dp(28), dp(28), dp(28), dp(28));
+        root.setPadding(dp(22), dp(22), dp(22), dp(22));
         root.setBackgroundColor(Color.rgb(14, 20, 32));
 
         TextView lock = new TextView(this);
@@ -410,30 +392,21 @@ public final class StudyModeFocusService extends Service {
         remainingParams.topMargin = dp(14);
         root.addView(remainingTimeView, remainingParams);
 
-        TextView until = new TextView(this);
-        long sessionEnd = StudyModeManager.getCurrentSessionEndMillis(this);
-        until.setText(sessionEnd > 0L
-            ? "Focus session ends at " + DateFormat.getTimeFormat(this).format(new Date(sessionEnd))
-            : "Unlimited focus session");
-        until.setTextSize(13);
-        until.setTextColor(Color.rgb(175, 195, 225));
-        until.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams untilParams = new LinearLayout.LayoutParams(-1, -2);
-        untilParams.topMargin = dp(12);
-        root.addView(until, untilParams);
-
         Button back = new Button(this);
         back.setText("Back to Math Master");
+        back.setAllCaps(false);
+        back.setTextColor(Color.WHITE);
+        back.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(47, 105, 198)));
         back.setOnClickListener(view -> {
             removeShield();
             Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
             if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 startActivity(intent);
             }
         });
         LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(-1, -2);
-        buttonParams.topMargin = dp(24);
+        buttonParams.topMargin = dp(18);
         root.addView(back, buttonParams);
         return root;
     }
@@ -481,13 +454,11 @@ public final class StudyModeFocusService extends Service {
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
-        // Page/Activity task removal is not a session stop. The persisted session
-        // and scheduled boundaries remain authoritative.
+        // Removing the Activity task does not stop this foreground service or
+        // end the persisted focus session.
         if (StudyModeManager.shouldEnforceNow(this) && monitorHandler != null) {
             monitorHandler.removeCallbacks(monitorRunnable);
             monitorHandler.post(monitorRunnable);
-        } else if (StudyModeManager.isPolicyOwner(this) && StudyModeManager.isSessionActive(this)) {
-            updateOngoingNotification();
         }
         super.onTaskRemoved(rootIntent);
     }
@@ -503,7 +474,7 @@ public final class StudyModeFocusService extends Service {
         mainHandler.removeCallbacksAndMessages(null);
         removeShield();
         overlayFailureForStatus = false;
-        if (!StudyModeManager.isPolicyOwner(this) && StudyModeManager.shouldEnforceNow(this)
+        if (StudyModeManager.shouldEnforceNow(this)
             && StudyModeManager.hasForegroundMonitoringPermission(this) && StudyModeManager.hasOverlayPermission(this)) {
             StudyModeManager.setServiceState(this, "service_stopped");
         }
