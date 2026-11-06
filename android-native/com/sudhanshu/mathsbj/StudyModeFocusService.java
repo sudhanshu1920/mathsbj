@@ -21,6 +21,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.LruCache;
 import android.text.format.DateFormat;
 import android.view.Gravity;
 import android.view.WindowManager;
@@ -84,6 +85,15 @@ public final class StudyModeFocusService extends Service {
     }
 
     private static volatile boolean overlayFailureForStatus = false;
+    private static final LruCache<String, android.graphics.drawable.Drawable.ConstantState> STUDY_ICON_CACHE =
+        new LruCache<>(32);
+    private static final LruCache<String, String> STUDY_LABEL_CACHE = new LruCache<>(64);
+
+    public static void invalidatePackageCache(String packageName) {
+        if (packageName == null || packageName.isEmpty()) return;
+        STUDY_ICON_CACHE.remove(packageName);
+        STUDY_LABEL_CACHE.remove(packageName);
+    }
 
     private final Runnable notificationUpdateRunnable = new Runnable() {
         @Override
@@ -538,16 +548,14 @@ public final class StudyModeFocusService extends Service {
         card.setBackground(rounded(palette.shortcutSurface, palette.border, dp(14)));
         card.setClickable(true);
         card.setFocusable(true);
-        card.setContentDescription("Open " + getStudyAppLabel(packageName));
+        String appLabel = getStudyAppLabel(packageName);
+        card.setContentDescription("Open " + appLabel);
         ImageView icon = new ImageView(this);
-        try {
-            android.graphics.drawable.Drawable drawable = getPackageManager().getApplicationIcon(packageName);
-            icon.setImageDrawable(drawable);
-        } catch (Exception unavailable) {
-            icon.setImageResource(android.R.drawable.sym_def_app_icon);
-        }
+        android.graphics.drawable.Drawable drawable = getStudyAppIcon(packageName);
+        if (drawable != null) icon.setImageDrawable(drawable);
+        else icon.setImageResource(android.R.drawable.sym_def_app_icon);
         card.addView(icon, new LinearLayout.LayoutParams(dp(38), dp(38)));
-        TextView label = popupText(getStudyAppLabel(packageName), 11, palette.text,
+        TextView label = popupText(appLabel, 11, palette.text,
             Typeface.BOLD, Gravity.CENTER_VERTICAL);
         label.setMaxLines(2);
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -572,14 +580,34 @@ public final class StudyModeFocusService extends Service {
     }
 
     private String getStudyAppLabel(String packageName) {
+        String cached = STUDY_LABEL_CACHE.get(packageName);
+        if (cached != null) return cached;
         try {
             CharSequence label = getPackageManager().getApplicationLabel(
                 getPackageManager().getApplicationInfo(packageName, 0));
-            if (label != null && label.length() > 0) return label.toString();
+            if (label != null && label.length() > 0) {
+                String value = label.toString();
+                STUDY_LABEL_CACHE.put(packageName, value);
+                return value;
+            }
         } catch (Exception ignored) {
             // The package is revalidated again immediately before launch.
         }
         return packageName;
+    }
+
+    private android.graphics.drawable.Drawable getStudyAppIcon(String packageName) {
+        android.graphics.drawable.Drawable.ConstantState cached = STUDY_ICON_CACHE.get(packageName);
+        if (cached != null) return cached.newDrawable(getResources()).mutate();
+        try {
+            android.graphics.drawable.Drawable drawable =
+                getPackageManager().getApplicationIcon(packageName);
+            android.graphics.drawable.Drawable.ConstantState state = drawable.getConstantState();
+            if (state != null) STUDY_ICON_CACHE.put(packageName, state);
+            return drawable;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private PopupPalette getPopupPalette() {
