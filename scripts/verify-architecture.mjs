@@ -1042,6 +1042,20 @@ if (!studyModeFocus.includes('private boolean startupFailed = false;') ||
     /finishSession\s*\(|endSession\s*\(|setEnabled\s*\(/.test(serviceDestroyBody)) {
   fail('Foreground-service startup errors must remain visible and service destruction must never end a persisted session');
 }
+const lockedMonitorStart = studyModeFocus.indexOf('if (power == null || !power.isInteractive()');
+const lockedMonitorEnd = studyModeFocus.indexOf('// UsageStats is a best-effort fallback.', lockedMonitorStart);
+const lockedMonitorBody = lockedMonitorStart >= 0 && lockedMonitorEnd > lockedMonitorStart
+  ? studyModeFocus.slice(lockedMonitorStart, lockedMonitorEnd)
+  : '';
+if (!studyModeFocus.includes('Intent.ACTION_SCREEN_OFF') ||
+    !studyModeFocus.includes('Intent.ACTION_USER_PRESENT') ||
+    !studyModeFocus.includes('registerScreenStateReceiver();') ||
+    !studyModeFocus.includes('unregisterReceiver(screenStateReceiver)') ||
+    !lockedMonitorBody.includes('initialForegroundLookup = true;') ||
+    !lockedMonitorBody.includes('postDelayed(this, 60_000L)') ||
+    lockedMonitorBody.includes('POLL_INTERVAL_MS')) {
+  fail('UsageStats fallback must reduce polling while locked and resume promptly on ACTION_USER_PRESENT');
+}
 if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeSessionStore.includes('start_elapsed_ms') ||
     !studyModeSessionStore.includes('boot_count') ||
