@@ -17,19 +17,38 @@ import android.net.Uri;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.view.View;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.view.Gravity;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.ScrollView;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.Random;
+
+import org.json.JSONArray;
+import org.json.JSONException;
 
 
 public final class StudyModeFocusService extends Service {
@@ -67,6 +86,7 @@ public final class StudyModeFocusService extends Service {
     private WindowManager windowManager;
     private android.view.View shieldView;
     private TextView remainingTimeView;
+    private TextView sessionEndView;
     private String shieldedPackage = "";
     private boolean foregroundStarted = false;
     private boolean startupFailed = false;
