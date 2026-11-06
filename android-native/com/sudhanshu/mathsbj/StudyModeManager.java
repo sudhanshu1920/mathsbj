@@ -531,7 +531,8 @@ public final class StudyModeManager {
         Context app = context.getApplicationContext();
         List<String> packages = getEnforcedPackages(app);
         boolean active = !packages.isEmpty() && (isScheduleActive(app) || isSessionActive(app));
-        updateEnforcementCache(packages, active);
+        boolean monitoringReady = hasForegroundMonitoringSource(app) && hasOverlayPermission(app);
+        updateEnforcementCache(packages, active && monitoringReady);
     }
 
     /** Lock-free check used by Accessibility callbacks; performs no database or PackageManager reads. */
@@ -742,7 +743,8 @@ public final class StudyModeManager {
 
         List<String> packages = getEnforcedPackages(app);
         boolean active = !packages.isEmpty() && (scheduleActive || activeSession != null);
-        updateEnforcementCache(packages, active);
+        boolean monitoringReady = hasForegroundMonitoringSource(app) && hasOverlayPermission(app);
+        updateEnforcementCache(packages, active && monitoringReady);
 
         if (!active) {
             stopFocusShield(app);
