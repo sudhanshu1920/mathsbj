@@ -406,7 +406,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       setSessionTick(0);
       setSessionHistory(await getStudyModeSessionHistory());
       if (nextStatus.enforcementState === "permission_required") {
-        setMessage("Session is saved and running, but app blocking is unavailable until Usage Access and overlay permissions are granted.");
+        setMessage("Session saved; app blocking is unavailable. Enable Accessibility or Usage Access and Display over other apps.");
       } else if (nextStatus.enforcementState === "service_start_blocked") {
         setMessage("Session is saved. Android did not allow the monitoring service to start; check battery and service restrictions.");
       } else {
