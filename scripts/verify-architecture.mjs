@@ -1248,7 +1248,7 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
 if (!studyModeManager.includes('KEY_STUDY_PACKAGES = "studyAppPackages"') ||
     !studyModeManager.includes('public static synchronized List<String> getStudyAppPackages(Context context)') ||
     !studyModeManager.includes('public static synchronized JSObject setStudyAppPackages(Context context, List<String> requestedPackages)') ||
-    !studyModeManager.includes('public static void launchStudyApp(Context context, String packageName)') ||
+    !studyModeManager.includes('public static synchronized void launchStudyApp(Context context, String packageName)') ||
     !studyModeManager.includes('getSelectedPackages(context).contains(packageName)') ||
     !studyModeManager.includes('getStudyAppPackages(context).contains(packageName)') ||
     !studyModeManager.includes('.putString(KEY_STUDY_PACKAGES, toJson(cleanedStudyApps))') ||
@@ -1264,7 +1264,10 @@ if (!studyModeManager.includes('KEY_STUDY_PACKAGES = "studyAppPackages"') ||
     !studyModeFocus.includes('buildStudyAppsSection(palette)') ||
     !studyModeFocus.includes('StudyModeManager.launchStudyApp(this, packageName)') ||
     !studyModeFocus.includes('Session ends at ') ||
-    !studyModeFocus.includes('mainHandler.postDelayed(countdownRunnable, 1_000L)')) {
+    !studyModeFocus.includes('mainHandler.postDelayed(countdownRunnable, 1_000L)') ||
+    !studyModeFocus.includes('SystemClock.elapsedRealtime()') ||
+    !studyModeFocus.includes('Intent.ACTION_TIME_CHANGED') ||
+    !studyModeFocus.includes('Intent.ACTION_TIMEZONE_CHANGED')) {
   fail('Blocked Apps and Study Apps must remain separate, conflict-safe and independently persisted; the native popup must show rotating Hindi quotes, a live session timer and validated Study App shortcuts');
 }
 if (!studyModeManager.includes('public static synchronized void setEnabled') ||
