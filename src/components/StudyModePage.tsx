@@ -153,8 +153,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         !blockedNow.has(name) && installedApps.some((app) =>
           app.packageName === name && app.selectable));
       setApps(installedApps);
-      setStudyAppPackages(normalizedStudyApps);
-      savedStudyAppsSnapshot.current = JSON.stringify([...normalizedStudyApps].sort());
       setStatus(nextStatus);
       setSessionHistory(history);
       setSessionTick(0);
@@ -309,8 +307,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     const selected = studyAppPackages.includes(packageName);
     if (!selected && (draft.selectedPackageNames.includes(packageName)
       || (status?.enforcedPackages ?? []).includes(packageName))) {
-      setMessage("Blocked Apps take priority. Remove this app from Blocked Apps before adding it to Study Apps.");
-      return;
+      const appName = apps.find((app) => app.packageName === packageName)?.label ?? packageName;
+      if (!window.confirm(
+        appName + " is currently blocked. Move it to Study Apps? It will be removed from Blocked Apps and the current session's blocked selection."
+      )) return;
+      updateDraft({
+        selectedPackageNames: draft.selectedPackageNames.filter((name) => name !== packageName),
+      });
     }
     setStudyAppPackages((previous) => selected
       ? previous.filter((name) => name !== packageName)
@@ -355,8 +358,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       savedSnapshot.current = configSnapshot(savedConfig);
       savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
       setMessage("Study Mode settings saved.");
-    } catch {
-      setMessage("Settings could not be saved. Your previous configuration is unchanged.");
+    } catch (error) {
+      setMessage(error instanceof Error && error.message
+        ? error.message
+        : "Settings could not be saved. Your previous configuration is unchanged.");
     } finally {
       setSaving(false);
     }
@@ -792,9 +797,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     key={app.packageName}
                     type="button"
                     onClick={() => toggleStudyApp(app.packageName, app.selectable)}
-                    disabled={!app.selectable || blocked || saving}
+                    disabled={!app.selectable || saving}
                     aria-pressed={selected}
-                    aria-disabled={!app.selectable || blocked}
+                    aria-disabled={!app.selectable}
                     className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-55"
                   >
                     {app.iconDataUrl ? (
@@ -805,8 +810,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                       </span>
                     )}
                     <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{app.label}</span>
-                    {blocked ? (
-                      <span className="shrink-0 text-[9px] font-semibold text-warning">Blocked</span>
+                    {blocked && !selected ? (
+                      <span className="shrink-0 text-[9px] font-semibold text-warning">Move</span>
                     ) : (
                       <span className={selected
                         ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground"
@@ -1029,7 +1034,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       <motion.button
         type="button"
         whileTap={{ scale: MOTION.scale.press }}
-        disabled={saving || loading || !isStudyModeNative() || !isDirty}
+        disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
         onClick={() => { void handleSave(); }}
         className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl gradient-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
       >
