@@ -367,7 +367,10 @@ public final class StudyModeFocusService extends Service {
         panel.setPadding(dp(19), dp(20), dp(19), dp(18));
         panel.setBackground(roundedGradient(palette.panelTop, palette.panelBottom, palette.border, dp(26)));
         panel.setElevation(dp(18));
-        LinearLayout.LayoutParams panelParams = new LinearLayout.LayoutParams(-1, -2);
+        int availableWidth = Math.max(dp(240),
+            getResources().getDisplayMetrics().widthPixels - dp(64));
+        int panelWidth = Math.min(availableWidth, dp(560));
+        LinearLayout.LayoutParams panelParams = new LinearLayout.LayoutParams(panelWidth, -2);
         panelParams.gravity = Gravity.CENTER_HORIZONTAL;
         stage.addView(panel, panelParams);
 
@@ -446,6 +449,7 @@ public final class StudyModeFocusService extends Service {
             Typeface.BOLD, Gravity.CENTER);
         back.setGravity(Gravity.CENTER);
         back.setPadding(dp(12), dp(13), dp(12), dp(13));
+        back.setMinHeight(dp(48));
         back.setBackground(roundedGradient(palette.accent, palette.accentDark, palette.accentBorder, dp(15)));
         back.setElevation(dp(3));
         back.setOnClickListener(view -> {
