@@ -54,3 +54,10 @@ Keep the configured keystore and signing passwords in private GitHub Actions sec
 The separate `.github/workflows/android-release.yml` workflow publishes a public release and update-feed entry. Do not use it when the goal is a personal-use APK artifact only.
 
 Release notifications are sent only after the public update manifest and published APK asset pass checksum verification. See `docs/BACKGROUND_NOTIFICATIONS_SETUP.md` for Firebase setup requirements.
+
+
+## Study Mode release notes
+
+- The native Study Mode shield now uses a scrollable, theme-aware focus popup with a persistent session countdown and Hindi motivational messages.
+- Blocked Apps and Study Apps are managed separately. Selected Study Apps appear as validated Android launcher shortcuts inside the focus popup.
+- Study session state remains managed by the existing native session store. On ordinary personal Android devices, app restriction remains best-effort Usage Access plus overlay; guaranteed package suspension requires Device Owner/Profile Owner provisioning.
