@@ -34,6 +34,11 @@ public final class StudyModeManager {
     private static final String PREFS = "math_master_study_mode";
     private static final String KEY_ENABLED = "enabled";
     private static final String KEY_PACKAGES = "selectedPackages";
+    private static final String KEY_STUDY_PACKAGES = "studyAppPackages";
+    private static final String KEY_QUOTE_DECK = "motivationalQuoteDeck";
+    private static final String KEY_LAST_QUOTE = "lastMotivationalQuote";
+    private static final String KEY_POPUP_THEME = "popupTheme";
+    private static final String KEY_POPUP_MODE = "popupMode";
     private static final String KEY_DAYS = "selectedDays";
     private static final String KEY_APPLIED = "appliedPackages";
     private static final String KEY_LAST_STATE = "lastAppliedState";
@@ -108,6 +113,122 @@ public final class StudyModeManager {
         }
         Collections.sort(result);
         return result;
+    }
+
+
+    /**
+     * Study Apps are a separate quick-launch collection. Blocked packages always
+     * win if older/corrupt preferences contain the same package in both lists.
+     */
+    public static synchronized List<String> getSelectedStudyAppPackages(Context context) {
+        SharedPreferences preferences = prefs(context);
+        String raw = preferences.getString(KEY_STUDY_PACKAGES, "[]");
+        List<String> result = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        Set<String> blocked = new HashSet<>(getSelectedPackages(context));
+        blocked.addAll(getEnforcedPackages(context));
+        try {
+            JSONArray values = new JSONArray(raw);
+            for (int i = 0; i < values.length(); i++) {
+                String packageName = values.optString(i, "");
+                if (!packageName.isEmpty() && seen.add(packageName)
+                    && !blocked.contains(packageName)
+                    && isInstalledSelectablePackage(context, packageName)) {
+                    result.add(packageName);
+                }
+            }
+        } catch (JSONException ignored) {
+            // A corrupt shortcut list must never affect the authoritative block list.
+        }
+        Collections.sort(result);
+        if (!raw.equals(toJson(result))) {
+            preferences.edit().putString(KEY_STUDY_PACKAGES, toJson(result)).commit();
+        }
+        return result;
+    }
+
+    public static synchronized void savePopupAppearance(Context context, String theme, String mode) {
+        String[] allowedThemes = {
+            "arctic-blue", "deep-space", "titanium-silver", "midnight-violet", "sapphire",
+            "ocean-cyan", "emerald-glass", "aurora", "soft-rose", "sunset-gold",
+            "graphite", "pearl-white", "indigo", "forest", "mint"
+        };
+        boolean validTheme = false;
+        if (theme != null) {
+            for (String value : allowedThemes) if (value.equals(theme)) validTheme = true;
+        }
+        if (!validTheme || !("dark".equals(mode) || "light".equals(mode))) return;
+        prefs(context).edit()
+            .putString(KEY_POPUP_THEME, theme)
+            .putString(KEY_POPUP_MODE, mode)
+            .apply();
+    }
+
+    public static synchronized String getNextMotivationalQuote(Context context) {
+        String[] quotes = {
+            "आज की मेहनत, कल की सफलता बनेगी।",
+            "सपने पूरे करने हैं तो पढ़ाई से दोस्ती करो।",
+            "हर मिनट की पढ़ाई तुम्हें मंज़िल के करीब ले जाती है।",
+            "खुद पर विश्वास रखो, तुम कर सकते हो!",
+            "आज थोड़ा और पढ़ लो, कल खुद पर गर्व होगा।",
+            "मोबाइल नहीं, अपने सपनों पर ध्यान दो।",
+            "सफलता का रास्ता अनुशासन से होकर जाता है।",
+            "एकाग्रता ही सफलता की सबसे बड़ी ताकत है।",
+            "हार मत मानो, तुम्हारी मेहनत रंग लाएगी।",
+            "पढ़ाई आज की, सफलता कल की।",
+            "हर छोटा प्रयास बड़े परिणाम की शुरुआत है।",
+            "अपने लक्ष्य को याद करो और आगे बढ़ते रहो।",
+            "समय की कदर करो, यही सफलता की चाबी है।",
+            "आज का फोकस ही कल का भविष्य बनाएगा।",
+            "तुम्हारा मुकाबला किसी और से नहीं, खुद से है।",
+            "हर दिन थोड़ा बेहतर बनो, सफलता जरूर मिलेगी।",
+            "मेहनत कभी बेकार नहीं जाती।",
+            "अपने लक्ष्य पर ध्यान दो, मंज़िल करीब है।",
+            "आज का समय तुम्हारे भविष्य की नींव है।",
+            "रुकना नहीं है, बस लगातार आगे बढ़ते रहना है।"
+        };
+        SharedPreferences preferences = prefs(context);
+        List<Integer> deck = new ArrayList<>();
+        int last = preferences.getInt(KEY_LAST_QUOTE, -1);
+        try {
+            JSONArray saved = new JSONArray(preferences.getString(KEY_QUOTE_DECK, "[]"));
+            Set<Integer> seen = new HashSet<>();
+            for (int i = 0; i < saved.length(); i++) {
+                int value = saved.optInt(i, -1);
+                if (value >= 0 && value < quotes.length && value != last && seen.add(value)) deck.add(value);
+            }
+        } catch (JSONException ignored) {
+            deck.clear();
+        }
+        if (deck.isEmpty()) {
+            for (int i = 0; i < quotes.length; i++) if (i != last) deck.add(i);
+            Collections.shuffle(deck);
+        }
+        int next = deck.remove(deck.size() - 1);
+        JSONArray remaining = new JSONArray();
+        for (Integer value : deck) remaining.put(value);
+        preferences.edit()
+            .putString(KEY_QUOTE_DECK, remaining.toString())
+            .putInt(KEY_LAST_QUOTE, next)
+            .commit();
+        return quotes[next];
+    }
+
+    public static boolean launchStudyApp(Context context, String packageName) {
+        if (packageName == null || !getSelectedStudyAppPackages(context).contains(packageName)) return false;
+        if (getSelectedPackages(context).contains(packageName)
+            || getEnforcedPackages(context).contains(packageName)
+            || !isInstalledSelectablePackage(context, packageName)) return false;
+        try {
+            Intent launch = context.getPackageManager().getLaunchIntentForPackage(packageName);
+            if (launch == null || launch.getComponent() == null
+                || !packageName.equals(launch.getComponent().getPackageName())) return false;
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            context.startActivity(launch);
+            return true;
+        } catch (Exception error) {
+            return false;
+        }
     }
 
     private static int valuesLength(String raw) {
@@ -399,6 +520,8 @@ public final class StudyModeManager {
     public static synchronized void saveConfig(
         Context context,
         List<String> requestedPackages,
+        List<String> requestedStudyApps,
+        boolean resolveStudyAppConflicts,
         int startHour,
         int startMinute,
         int endHour,
@@ -416,33 +539,54 @@ public final class StudyModeManager {
             throw new IllegalArgumentException("Select at least one repeat day.");
         }
 
-        List<String> accepted = new ArrayList<>();
+        List<String> acceptedBlocked = new ArrayList<>();
         if (requestedPackages != null) {
             Set<String> seen = new HashSet<>();
             for (String name : requestedPackages) {
                 if (name != null && seen.add(name) && isInstalledSelectablePackage(context, name)) {
-                    accepted.add(name);
+                    acceptedBlocked.add(name);
                 }
             }
         }
-        if (accepted.isEmpty()) {
+        if (acceptedBlocked.isEmpty()) {
             throw new IllegalArgumentException("Select at least one installed launchable app.");
         }
-        Collections.sort(accepted);
+        Collections.sort(acceptedBlocked);
+
+        List<String> requestedStudy = requestedStudyApps == null
+            ? getSelectedStudyAppPackages(context) : requestedStudyApps;
+        List<String> acceptedStudy = new ArrayList<>();
+        Set<String> seenStudy = new HashSet<>();
+        for (String name : requestedStudy) {
+            if (name == null || name.isEmpty() || !seenStudy.add(name)) continue;
+            if (acceptedBlocked.contains(name)) {
+                if (resolveStudyAppConflicts) continue;
+                throw new IllegalArgumentException(
+                    "Blocked Apps take priority. Remove this app from one list before saving.");
+            }
+            if (isInstalledSelectablePackage(context, name)) acceptedStudy.add(name);
+        }
+        Collections.sort(acceptedStudy);
+
         JSONArray dayArray = new JSONArray();
         for (int day = 1; day <= 7; day++) if (days.contains(day)) dayArray.put(day);
 
-        SharedPreferences.Editor editor = prefs(context).edit()
-            .putString(KEY_PACKAGES, toJson(accepted))
+        // Both package collections and the schedule are committed together so
+        // concurrent UI state cannot leave a package in both active lists.
+        boolean committed = prefs(context).edit()
+            .putString(KEY_PACKAGES, toJson(acceptedBlocked))
+            .putString(KEY_STUDY_PACKAGES, toJson(acceptedStudy))
             .putString(KEY_DAYS, dayArray.toString())
             .putInt("startHour", startHour)
             .putInt("startMinute", startMinute)
             .putInt("endHour", endHour)
-            .putInt("endMinute", endMinute);
-        editor.commit();
+            .putInt("endMinute", endMinute)
+            .commit();
+        if (!committed) throw new IllegalStateException("Study Mode settings could not be saved locally.");
+
         StudyModeSessionStore.Session activeSession = sessionStore(context).getActiveSession(context);
         if (activeSession != null) {
-            sessionStore(context).updateActivePackages(activeSession.id, accepted);
+            sessionStore(context).updateActivePackages(activeSession.id, acceptedBlocked);
         }
         reconcile(context);
     }
@@ -1033,6 +1177,9 @@ public final class StudyModeManager {
         }
 
         boolean exactFallback = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission(context);
+        JSArray studyAppsArray = new JSArray();
+        for (String packageName : getSelectedStudyAppPackages(context)) studyAppsArray.put(packageName);
+        result.put("studyAppPackages", studyAppsArray);
         result.put("config", config);
         result.put("permissions", permissions);
         result.put("scheduleActive", isScheduleActive(context));
