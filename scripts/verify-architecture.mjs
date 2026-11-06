@@ -1147,17 +1147,21 @@ if (!studyModeManager.includes('hasAccessibilityDisclosureAccepted') ||
     !studyModePage.includes('key: "battery" as const')) {
   fail('Android notification, Accessibility and battery settings state/actions must be truthful and explicit');
 }
-const notificationStatusStart = studyModeManager.indexOf('public static String getSessionNotificationText(Context context) {');
-const notificationStatusEnd = studyModeManager.indexOf('public static String getSessionNotificationTitle(Context context)', notificationStatusStart);
-const notificationStatusBody = notificationStatusStart >= 0 && notificationStatusEnd > notificationStatusStart
-  ? studyModeManager.slice(notificationStatusStart, notificationStatusEnd)
+const disconnectedStatusIndex = studyModeFocus.indexOf('? "accessibility_disconnected" : "permission_required"');
+const disconnectedStatusBody = disconnectedStatusIndex >= 0
+  ? studyModeFocus.slice(disconnectedStatusIndex, disconnectedStatusIndex + 220)
+  : '';
+const missingPermissionIndex = studyModeFocus.indexOf('setServiceState(StudyModeFocusService.this, "permission_required");');
+const missingPermissionBody = missingPermissionIndex >= 0
+  ? studyModeFocus.slice(missingPermissionIndex, missingPermissionIndex + 160)
   : '';
 if (!notificationStatusBody.includes('hasForegroundMonitoringSource(context)') ||
     !notificationStatusBody.includes('hasOverlayPermission(context)') ||
     !notificationStatusBody.includes('enable Accessibility or Usage Access') ||
     !studyModeManager.includes('boolean hasMonitoringSource = hasForegroundMonitoringSource(context);') ||
     !studyModeManager.includes('result.put("enforcementMode", hasMonitoringSource && overlayGranted ? "focus_shield" : "unavailable");') ||
-    !studyModeFocus.includes('updateOngoingNotification();\\n                mainHandler.post(() => { if (running) removeShield(); });')) {
+    !disconnectedStatusBody.includes('updateOngoingNotification();') ||
+    !missingPermissionBody.includes('updateOngoingNotification();')) {
   fail('Study Mode status and ongoing notification must distinguish a saved session from a functioning restriction monitor');
 }
 if (!studyModeAppPlugin.includes('getInstalledApplications') ||
