@@ -242,6 +242,7 @@ public final class StudyModeFocusService extends Service {
             if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
                 StudyModeManager.setServiceState(StudyModeFocusService.this, "permission_required");
+                updateOngoingNotification();
                 mainHandler.post(() -> { if (running) removeShield(); });
                 if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
@@ -263,6 +264,7 @@ public final class StudyModeFocusService extends Service {
                 StudyModeManager.setServiceState(StudyModeFocusService.this,
                     StudyModeManager.hasAccessibilityServiceEnabled(StudyModeFocusService.this)
                         ? "accessibility_disconnected" : "permission_required");
+                updateOngoingNotification();
                 mainHandler.post(() -> { if (running) removeShield(); });
                 if (monitorHandler != null) monitorHandler.postDelayed(this, 15_000L);
                 return;
