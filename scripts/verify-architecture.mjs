@@ -1147,6 +1147,11 @@ if (!studyModeManager.includes('hasAccessibilityDisclosureAccepted') ||
     !studyModePage.includes('key: "battery" as const')) {
   fail('Android notification, Accessibility and battery settings state/actions must be truthful and explicit');
 }
+const notificationStatusStart = studyModeManager.indexOf('public static String getSessionNotificationText(Context context) {');
+const notificationStatusEnd = studyModeManager.indexOf('public static String getSessionNotificationTitle(Context context)', notificationStatusStart);
+const notificationStatusBody = notificationStatusStart >= 0 && notificationStatusEnd > notificationStatusStart
+  ? studyModeManager.slice(notificationStatusStart, notificationStatusEnd)
+  : '';
 const disconnectedStatusIndex = studyModeFocus.indexOf('? "accessibility_disconnected" : "permission_required"');
 const disconnectedStatusBody = disconnectedStatusIndex >= 0
   ? studyModeFocus.slice(disconnectedStatusIndex, disconnectedStatusIndex + 220)
