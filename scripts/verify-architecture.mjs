@@ -1144,4 +1144,27 @@ if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
   fail('Generated Android project must use launcher-only package visibility, omit SMS queries and notification-listener access, and restore Study Mode schedules');
 }
 
+
+const studyModeQuoteAndApps = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
+const studyModeShieldUi = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
+const studyModeNativePlugin = read('android-native/com/sudhanshu/mathsbj/StudyModePlugin.java');
+const studyModeBridge = read('src/lib/studyMode.ts');
+if (!studyModeQuoteAndApps.includes('KEY_STUDY_PACKAGES')
+    || !studyModeQuoteAndApps.includes('getSelectedStudyAppPackages')
+    || !studyModeQuoteAndApps.includes('savePopupAppearance')
+    || !studyModeQuoteAndApps.includes('getNextMotivationalQuote')
+    || !studyModeQuoteAndApps.includes('launchStudyApp')
+    || !studyModeQuoteAndApps.includes('Blocked Apps take priority')
+    || !studyModeShieldUi.includes('StudyModeManager.getNextMotivationalQuote(this)')
+    || !studyModeShieldUi.includes('StudyModeManager.getSelectedStudyAppPackages(this)')
+    || !studyModeShieldUi.includes('StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)')
+    || !studyModeShieldUi.includes('Session ends at ')
+    || !studyModeShieldUi.includes('Back to Math Master')
+    || !studyModeNativePlugin.includes('setPopupAppearance')
+    || !studyModeNativePlugin.includes('studyAppPackageNames')
+    || !studyModeBridge.includes('studyAppPackageNames')
+    || !studyModeBridge.includes('theme-updated')) {
+  fail('Study Mode shield must keep separate persisted app lists, conflict-safe real launcher actions, dynamic quotes, countdown, and theme synchronization');
+}
+
 console.log('Architecture regression checks passed.');
