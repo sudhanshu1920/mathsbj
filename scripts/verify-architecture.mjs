@@ -1123,7 +1123,11 @@ if (studyModeManager.includes('DevicePolicyManager') ||
 }
 
 if (!studyModePackageReceiver.includes('Intent.EXTRA_REPLACING') ||
-    !studyModePackageReceiver.includes('getBooleanExtra(Intent.EXTRA_REPLACING, false)')) {
+    !studyModePackageReceiver.includes('getBooleanExtra(Intent.EXTRA_REPLACING, false)') ||
+    !studyModePackageReceiver.includes('StudyModeManager.removeStudyAppPackage(context, packageName)') ||
+    !studyModeManager.includes('public static synchronized void removeStudyAppPackage(Context context, String packageName)') ||
+    !studyModeManager.includes('if (isInstalledSelectablePackage(context, name)) result.add(name);') ||
+    !studyModeManager.includes('persisted.add(name);')) {
   fail('Package replacement broadcasts must not prune the saved selected-app list during app updates');
 }
 if (!studyModeManager.includes('cachedEnforcedPackages') ||
