@@ -1021,6 +1021,16 @@ if (studyModePageStateEffectStart < 0 ||
     /endStudyModeSession|setStudyModeEnabled|\.endSession\(|\.setEnabled\(/.test(studyModePageCleanup)) {
   fail('Leaving or unmounting the Study Mode page must remove only page listeners and must never end or disable a persisted focus session');
 }
+const taskRemovedStart = studyModeFocus.indexOf('public void onTaskRemoved(Intent rootIntent) {');
+const taskRemovedEnd = studyModeFocus.indexOf('public void onDestroy()', taskRemovedStart);
+const taskRemovedBody = taskRemovedStart >= 0 && taskRemovedEnd > taskRemovedStart
+  ? studyModeFocus.slice(taskRemovedStart, taskRemovedEnd)
+  : '';
+if (!taskRemovedBody.includes('super.onTaskRemoved(rootIntent);') ||
+    /stopSelf\\s*\\(|stopService\\s*\\(|finishSession\\s*\\(|endSession\\s*\\(|setEnabled\\s*\\(/.test(taskRemovedBody) ||
+    !studyModeSetup.includes('android:stopWithTask="false"')) {
+  fail('Removing Math Master from Recents must not stop the persisted Study Mode session or its foreground service');
+}
 if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeSessionStore.includes('start_elapsed_ms') ||
     !studyModeSessionStore.includes('boot_count') ||
@@ -1159,7 +1169,7 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     !studyModePage.includes('filterStudyModeApps(apps, appFilter, search)') ||
     !studyModeAppFilters.includes('filter === "system" ? app.systemApp : !app.systemApp') ||
     !studyModePage.includes('disabled={!app.selectable || saving}') ||
-    !studyModePage.includes('app.selectable ? (') ||
+    !studyModePage.includes('aria-disabled={!app.selectable}') ||
     !studyModeAppFilterTests.includes('selectable: false') ||
     !studyModeAppFilterTests.includes('shows user and pre-installed system apps together in All') ||
     !studyModeAppFilterTests.includes('searches app names and package names inside each category')) {
