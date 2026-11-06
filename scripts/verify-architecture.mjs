@@ -980,7 +980,7 @@ if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
 if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(false)} />') ||
     !studyModeSettings.includes('onClick={() => setStudyModeOpen(true)}') ||
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
-    studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Blocked Apps') ||
+    studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Smartphone size={15} className="text-muted-foreground" /> Blocked Apps') ||
     !studyModePage.includes('chooseStudyModeTime') ||
     !studyModePage.includes('(status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")') ||
     !studyModePage.includes('status?.activeSession?.active') ||
