@@ -357,7 +357,16 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       savedSnapshot.current = configSnapshot(savedConfig);
       setStatus(nextStatus);
       if (studyAppsDirty) {
-        finalStatus = await saveStudyModeApps(resolvedStudyApps);
+        try {
+          finalStatus = await saveStudyModeApps(resolvedStudyApps);
+        } catch {
+          // Blocked Apps and schedule are already durable at this point.
+          // Keep the remaining Study Apps edits visible as unsaved so the user
+          // can retry without falsely claiming that nothing was saved.
+          setStudyAppPackages(resolvedStudyApps);
+          setMessage("Blocked Apps and schedule were saved. Study Apps changes remain unsaved; use Save Study Apps to retry.");
+          return;
+        }
       }
       const savedStudyApps = [...(finalStatus.studyAppPackageNames ?? [])];
       setStatus(finalStatus);
