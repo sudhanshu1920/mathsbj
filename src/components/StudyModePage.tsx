@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App } from "@capacitor/app";
 import {
   ArrowLeft, CalendarDays, Check, ChevronDown, Clock3, LockKeyhole,
-  Search, ShieldAlert, ShieldCheck, Smartphone,
+  Search, ShieldAlert, ShieldCheck, Smartphone, BookOpen,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -95,6 +95,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [draft, setDraft] = useState<StudyModeConfig>(DEFAULT_STUDY_MODE_CONFIG);
   const [status, setStatus] = useState<StudyModeStatus | null>(null);
   const [apps, setApps] = useState<StudyModeApp[]>([]);
+  const [studyAppPackages, setStudyAppPackages] = useState<string[]>([]);
+  const [studyPickerOpen, setStudyPickerOpen] = useState(false);
+  const [studySearch, setStudySearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -109,10 +112,14 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
   const [sessionTick, setSessionTick] = useState(0);
   const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
+  const savedStudyAppsSnapshot = useRef("[]");
   const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
-  const dirtyRef = useRef(isDirty);
-  dirtyRef.current = isDirty;
+  const studyAppsSnapshot = JSON.stringify([...studyAppPackages].sort());
+  const isStudyAppsDirty = studyAppsSnapshot !== savedStudyAppsSnapshot.current;
+  const hasUnsavedChanges = isDirty || isStudyAppsDirty;
+  const dirtyRef = useRef(hasUnsavedChanges);
+  dirtyRef.current = hasUnsavedChanges;
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
 
@@ -141,7 +148,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           && installedApps.some((app) => app.packageName === name && app.selectable)),
         selectedDays: [...nextStatus.config.selectedDays],
       };
+      const blockedNow = new Set(normalized.selectedPackageNames);
+      const normalizedStudyApps = (nextStatus.studyAppPackages ?? []).filter((name) =>
+        !blockedNow.has(name) && installedApps.some((app) =>
+          app.packageName === name && app.selectable));
       setApps(installedApps);
+      setStudyAppPackages(normalizedStudyApps);
+      savedStudyAppsSnapshot.current = JSON.stringify([...normalizedStudyApps].sort());
       setStatus(nextStatus);
       setSessionHistory(history);
       setSessionTick(0);
@@ -156,6 +169,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       if (!dirtyRef.current) {
         setDraft(normalized);
         savedSnapshot.current = configSnapshot(normalized);
+        setStudyAppPackages(normalizedStudyApps);
+        savedStudyAppsSnapshot.current = JSON.stringify([...normalizedStudyApps].sort());
       }
       setRefreshError("");
     } catch (error) {
@@ -262,6 +277,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     () => filterStudyModeApps(apps, appFilter, search),
     [apps, appFilter, search],
   );
+  const visibleStudyApps = useMemo(
+    () => filterStudyModeApps(apps, "all", studySearch),
+    [apps, studySearch],
+  );
 
   const updateDraft = (patch: Partial<StudyModeConfig>) => {
     setDraft((previous) => ({ ...previous, ...patch }));
@@ -271,11 +290,32 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const toggleApp = (packageName: string, selectable: boolean) => {
     if (!selectable || saving) return;
     const selected = draft.selectedPackageNames.includes(packageName);
+    if (!selected && studyAppPackages.includes(packageName)) {
+      const appName = apps.find((app) => app.packageName === packageName)?.label ?? packageName;
+      if (!window.confirm(
+        appName + " is currently selected in Study Apps. Move it to Blocked Apps? It will be removed from Study Apps."
+      )) return;
+      setStudyAppPackages((previous) => previous.filter((name) => name !== packageName));
+    }
     updateDraft({
       selectedPackageNames: selected
         ? draft.selectedPackageNames.filter((name) => name !== packageName)
         : [...draft.selectedPackageNames, packageName],
     });
+  };
+
+  const toggleStudyApp = (packageName: string, selectable: boolean) => {
+    if (!selectable || saving) return;
+    const selected = studyAppPackages.includes(packageName);
+    if (!selected && (draft.selectedPackageNames.includes(packageName)
+      || (status?.enforcedPackages ?? []).includes(packageName))) {
+      setMessage("Blocked Apps take priority. Remove this app from Blocked Apps before adding it to Study Apps.");
+      return;
+    }
+    setStudyAppPackages((previous) => selected
+      ? previous.filter((name) => name !== packageName)
+      : [...previous, packageName]);
+    setMessage("");
   };
 
   const chooseTime = async (which: "start" | "end") => {
@@ -305,11 +345,15 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     setSaving(true);
     setMessage("");
     try {
-      const nextStatus = await saveStudyModeConfig(draft);
+      const nextStatus = await saveStudyModeConfig(draft, studyAppPackages);
       const savedConfig = { ...nextStatus.config, selectedDays: [...nextStatus.config.selectedDays] };
+      const savedStudyApps = nextStatus.studyAppPackages ?? studyAppPackages.filter(
+        (name) => !savedConfig.selectedPackageNames.includes(name));
       setStatus(nextStatus);
       setDraft(savedConfig);
+      setStudyAppPackages(savedStudyApps);
       savedSnapshot.current = configSnapshot(savedConfig);
+      savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
       setMessage("Study Mode settings saved.");
     } catch {
       setMessage("Settings could not be saved. Your previous configuration is unchanged.");
@@ -379,11 +423,15 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     setMessage("");
     try {
       let configStatus = status;
-      if (isDirty) {
-        configStatus = await saveStudyModeConfig(draft);
+      if (hasUnsavedChanges) {
+        configStatus = await saveStudyModeConfig(draft, studyAppPackages);
         const savedConfig = { ...configStatus.config, selectedDays: [...configStatus.config.selectedDays] };
+        const savedStudyApps = configStatus.studyAppPackages ?? studyAppPackages.filter(
+          (name) => !savedConfig.selectedPackageNames.includes(name));
         setDraft(savedConfig);
+        setStudyAppPackages(savedStudyApps);
         savedSnapshot.current = configSnapshot(savedConfig);
+        savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
         setStatus(configStatus);
       }
 
@@ -454,8 +502,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       setMessage(validation || "Select at least one app before enabling Study Mode.");
       return;
     }
-    if (isDirty) {
-      setMessage("Save your changed apps and schedule before turning Study Mode on.");
+    if (hasUnsavedChanges) {
+      setMessage("Save your changed app lists and schedule before turning Study Mode on.");
       return;
     }
     setSaving(true);
@@ -534,7 +582,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         </button>
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-base font-bold text-foreground">Study Mode</h2>
-          <p className="text-[11px] text-muted-foreground">Scheduled focus for selected apps</p>
+          <p className="text-[11px] text-muted-foreground">Restrict distracting apps during focus time</p>
         </div>
         <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <LockKeyhole size={17} />
@@ -595,7 +643,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           className="flex w-full items-center justify-between rounded-xl border border-border/70 px-3 py-2.5 text-left transition-colors hover:border-primary/40"
         >
           <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Smartphone size={15} className="text-muted-foreground" /> Multiple Apps
+            <Smartphone size={15} className="text-muted-foreground" /> Blocked Apps
             <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{selectedCount}</span>
           </span>
           <ChevronDown size={16} className={pickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
@@ -691,6 +739,87 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </div>
             <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
               Showing {apps.length} launchable apps visible to Android. Pre-installed apps are included; protected device apps stay visible but cannot be selected.
+            </div>
+          </div>
+        )}
+      </section>
+
+
+      <section className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setStudyPickerOpen((open) => !open)}
+          aria-expanded={studyPickerOpen}
+          className="flex w-full items-center justify-between rounded-xl border border-border/70 px-3 py-2.5 text-left transition-colors hover:border-primary/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <BookOpen size={15} className="text-primary" /> Study Apps
+            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] tabular-nums text-primary">
+              {studyAppPackages.length}
+            </span>
+          </span>
+          <ChevronDown size={16} className={studyPickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
+        </button>
+        <p className="px-1 text-[10px] text-muted-foreground">
+          Select apps you want quick access to during Study Mode.
+        </p>
+        {studyPickerOpen && (
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/30">
+            <div className="relative border-b border-border/60 p-2">
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={studySearch}
+                onChange={(event) => setStudySearch(event.target.value)}
+                placeholder="Search installed apps"
+                aria-label="Search Study Apps"
+                className="h-9 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+              />
+            </div>
+            <div className="grid max-h-60 grid-cols-1 gap-1 overflow-y-auto p-1.5 sm:grid-cols-2">
+              {loading ? (
+                <p className="p-3 text-center text-xs text-muted-foreground">Loading installed apps…</p>
+              ) : visibleStudyApps.length === 0 ? (
+                <p className="p-3 text-center text-xs text-muted-foreground">
+                  {apps.length === 0 ? "No launchable apps found." : "No matching apps found."}
+                </p>
+              ) : visibleStudyApps.map((app) => {
+                const selected = studyAppPackages.includes(app.packageName);
+                const blocked = draft.selectedPackageNames.includes(app.packageName)
+                  || (status?.enforcedPackages ?? []).includes(app.packageName);
+                return (
+                  <button
+                    key={app.packageName}
+                    type="button"
+                    onClick={() => toggleStudyApp(app.packageName, app.selectable)}
+                    disabled={!app.selectable || blocked || saving}
+                    aria-pressed={selected}
+                    aria-disabled={!app.selectable || blocked}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-55"
+                  >
+                    {app.iconDataUrl ? (
+                      <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+                    ) : (
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
+                        {app.label.slice(0, 1).toLocaleUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{app.label}</span>
+                    {blocked ? (
+                      <span className="shrink-0 text-[9px] font-semibold text-warning">Blocked</span>
+                    ) : (
+                      <span className={selected
+                        ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground"
+                        : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
+                        <Check size={12} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
+              {studyAppPackages.length} selected · Only selected, installed and launchable apps appear in the blocking popup.
             </div>
           </div>
         )}
@@ -904,7 +1033,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         onClick={() => { void handleSave(); }}
         className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl gradient-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
       >
-        <Check size={15} /> {saving ? "Applying…" : isDirty ? "Save & Apply" : "Saved"}
+        <Check size={15} /> {saving ? "Applying…" : hasUnsavedChanges ? "Save & Apply" : "Saved"}
       </motion.button>
     </div>
   );
