@@ -512,6 +512,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         shouldEnableDnd: sessionDnd,
       });
       setStatus(nextStatus);
+      const savedStudyApps = [...(nextStatus.studyAppPackageNames ?? [])];
+      setStudyAppPackages(savedStudyApps);
+      savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
       setSessionTick(0);
       setSessionHistory(await getStudyModeSessionHistory());
       if (nextStatus.enforcementState === "permission_required") {
