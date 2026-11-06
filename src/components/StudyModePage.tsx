@@ -13,6 +13,7 @@ import {
   isStudyModeNative,
   openStudyModePermission,
   refreshStudyMode,
+  saveStudyModeApps,
   saveStudyModeConfig,
   setStudyModeEnabled,
   startStudyModeSession,
@@ -96,6 +97,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [appFilter, setAppFilter] = useState<StudyModeAppFilter>("all");
+  const [studyAppPackages, setStudyAppPackages] = useState<string[]>([]);
+  const [studyPickerOpen, setStudyPickerOpen] = useState(false);
+  const [studySearch, setStudySearch] = useState("");
+  const [studySaving, setStudySaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [refreshError, setRefreshError] = useState("");
@@ -108,15 +113,19 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [accessibilityDisclosureOpen, setAccessibilityDisclosureOpen] = useState(false);
   const [accessibilityDisclosureDismissed, setAccessibilityDisclosureDismissed] = useState(false);
   const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
+  const savedStudyAppsSnapshot = useRef("[]");
   const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
-  const dirtyRef = useRef(isDirty);
-  dirtyRef.current = isDirty;
+  const studyAppsDirty = JSON.stringify([...studyAppPackages].sort()) !== savedStudyAppsSnapshot.current;
+  const studyAppsDirtyRef = useRef(studyAppsDirty);
+  studyAppsDirtyRef.current = studyAppsDirty;
+  const dirtyRef = useRef(isDirty || studyAppsDirty);
+  dirtyRef.current = isDirty || studyAppsDirty;
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
 
   const handleBack = useCallback(() => {
-    if (dirtyRef.current && !window.confirm("Discard unsaved Study Mode changes?")) return;
+    if (dirtyRef.current && !window.confirm("Discard unsaved Blocked Apps, Study Apps or schedule changes?")) return;
     onBackRef.current();
   }, []);
 
@@ -142,6 +151,11 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       };
       setApps(installedApps);
       setStatus(nextStatus);
+      if (!studyAppsDirtyRef.current) {
+        const savedStudyApps = [...(nextStatus.studyAppPackageNames ?? [])];
+        setStudyAppPackages(savedStudyApps);
+        savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
+      }
       setSessionHistory(history);
       setSessionTick(0);
       if (nextStatus.activeSession?.active) {
@@ -267,6 +281,21 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     () => filterStudyModeApps(apps, appFilter, search),
     [apps, appFilter, search],
   );
+  const visibleStudyApps = useMemo(() => {
+    const query = studySearch.trim().toLocaleLowerCase();
+    return apps.filter((app) => !query
+      || app.label.toLocaleLowerCase().includes(query)
+      || app.packageName.toLocaleLowerCase().includes(query));
+  }, [apps, studySearch]);
+  const savedBlockedPackages = status?.config.selectedPackageNames ?? [];
+  const blockedForStudyApps = useMemo(
+    () => new Set([...savedBlockedPackages, ...draft.selectedPackageNames]),
+    [savedBlockedPackages, draft.selectedPackageNames],
+  );
+  const selectedStudyAppNames = useMemo(() => {
+    const names = new Map(apps.map((app) => [app.packageName, app.label]));
+    return studyAppPackages.map((pkg) => names.get(pkg) ?? pkg);
+  }, [apps, studyAppPackages]);
 
   const updateDraft = (patch: Partial<StudyModeConfig>) => {
     setDraft((previous) => ({ ...previous, ...patch }));
@@ -276,6 +305,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const toggleApp = (packageName: string, selectable: boolean) => {
     if (!selectable || saving) return;
     const selected = draft.selectedPackageNames.includes(packageName);
+    if (!selected && studyAppPackages.includes(packageName)) {
+      setMessage("This app is currently in Study Apps. Saving it under Blocked Apps will remove it from Study Apps so the restriction cannot be bypassed.");
+    }
     updateDraft({
       selectedPackageNames: selected
         ? draft.selectedPackageNames.filter((name) => name !== packageName)
@@ -312,15 +344,66 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     try {
       const nextStatus = await saveStudyModeConfig(draft);
       const savedConfig = { ...nextStatus.config, selectedDays: [...nextStatus.config.selectedDays] };
+      const resolvedStudyApps = studyAppsDirty
+        ? studyAppPackages.filter((pkg) => !savedConfig.selectedPackageNames.includes(pkg))
+        : [...(nextStatus.studyAppPackageNames ?? [])];
+      const blockedConflictCount = studyAppPackages.length - resolvedStudyApps.length;
       setStatus(nextStatus);
       setDraft(savedConfig);
+      setStudyAppPackages(resolvedStudyApps);
       savedSnapshot.current = configSnapshot(savedConfig);
-      setMessage("Study Mode settings saved.");
+      if (!studyAppsDirty) {
+        savedStudyAppsSnapshot.current = JSON.stringify([...(nextStatus.studyAppPackageNames ?? [])].sort());
+      }
+      setMessage(blockedConflictCount > 0
+        ? "Blocked Apps saved. Conflicting apps were removed from Study Apps automatically."
+        : "Blocked Apps and schedule settings saved.");
     } catch {
       setMessage("Settings could not be saved. Your previous configuration is unchanged.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveStudyApps = async () => {
+    if (studySaving || saving || loading || !studyAppsDirty) return;
+    const conflicts = studyAppPackages.filter((pkg) => blockedForStudyApps.has(pkg));
+    if (conflicts.length > 0) {
+      setMessage("A selected Study App is also blocked. Remove it from Blocked Apps and save that change before adding it to Study Apps.");
+      return;
+    }
+    setStudySaving(true);
+    setMessage("");
+    try {
+      const nextStatus = await saveStudyModeApps(studyAppPackages);
+      const normalized = [...(nextStatus.studyAppPackageNames ?? [])];
+      setStatus(nextStatus);
+      setStudyAppPackages(normalized);
+      savedStudyAppsSnapshot.current = JSON.stringify([...normalized].sort());
+      setMessage("Study Apps saved. These shortcuts remain separate from Blocked Apps.");
+    } catch (error) {
+      setMessage(error instanceof Error && error.message
+        ? error.message
+        : "Study Apps could not be saved. Your previous selection is unchanged.");
+    } finally {
+      setStudySaving(false);
+    }
+  };
+
+  const toggleStudyApp = (app: StudyModeApp) => {
+    if (studySaving || saving) return;
+    if (blockedForStudyApps.has(app.packageName)) {
+      setMessage("This app is in Blocked Apps. Remove it there and save the Blocked Apps list before adding it to Study Apps.");
+      return;
+    }
+    if (!app.selectable) {
+      setMessage("This protected Android app cannot be selected as a Study App.");
+      return;
+    }
+    setStudyAppPackages((previous) => previous.includes(app.packageName)
+      ? previous.filter((pkg) => pkg !== app.packageName)
+      : [...previous, app.packageName]);
+    setMessage("");
   };
 
   useEffect(() => {
@@ -394,6 +477,15 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         setDraft(savedConfig);
         savedSnapshot.current = configSnapshot(savedConfig);
         setStatus(configStatus);
+      }
+
+      if (studyAppsDirty) {
+        const blocked = new Set(configStatus?.config.selectedPackageNames ?? draft.selectedPackageNames);
+        const safeStudyApps = studyAppPackages.filter((pkg) => !blocked.has(pkg));
+        const studyStatus = await saveStudyModeApps(safeStudyApps);
+        setStatus(studyStatus);
+        setStudyAppPackages([...(studyStatus.studyAppPackageNames ?? [])]);
+        savedStudyAppsSnapshot.current = JSON.stringify([...(studyStatus.studyAppPackageNames ?? [])].sort());
       }
 
       const nextStatus = await startStudyModeSession({
@@ -660,7 +752,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           className="flex w-full items-center justify-between rounded-xl border border-border/70 px-3 py-2.5 text-left transition-colors hover:border-primary/40"
         >
           <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Smartphone size={15} className="text-muted-foreground" /> Multiple Apps
+            <ShieldAlert size={15} className="text-muted-foreground" /> Blocked Apps
             <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{selectedCount}</span>
           </span>
           <ChevronDown size={16} className={pickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
@@ -745,6 +837,113 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         )}
       </section>
 
+
+      <section className="space-y-2 rounded-xl border border-primary/20 bg-primary/[0.025] p-3">
+        <button
+          type="button"
+          onClick={() => setStudyPickerOpen((open) => !open)}
+          aria-expanded={studyPickerOpen}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <span className="min-w-0">
+            <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Smartphone size={15} className="text-primary" /> Study Apps
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] tabular-nums text-primary">{studyAppPackages.length}</span>
+            </span>
+            <span className="mt-0.5 block text-[10px] text-muted-foreground">
+              Choose apps you want quick access to during Study Mode.
+            </span>
+          </span>
+          <ChevronDown size={16} className={studyPickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
+        </button>
+        {selectedStudyAppNames.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {selectedStudyAppNames.map((name, index) => (
+              <span key={studyAppPackages[index]} className="rounded-full border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] font-medium text-foreground">
+                {name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground">No Study Apps selected yet.</p>
+        )}
+        {studyPickerOpen && (
+          <div className="overflow-hidden rounded-lg border border-border/70 bg-card/40">
+            <div className="relative border-b border-border/60 p-2">
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={studySearch}
+                onChange={(event) => setStudySearch(event.target.value)}
+                placeholder="Search apps for studying"
+                aria-label="Search Study Apps"
+                className="h-9 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+              />
+            </div>
+            <div className="grid max-h-64 grid-cols-1 gap-x-1 overflow-y-auto p-1.5 sm:grid-cols-2">
+              {loading ? (
+                <p className="p-3 text-center text-xs text-muted-foreground">Loading installed apps…</p>
+              ) : visibleStudyApps.length === 0 ? (
+                <p className="p-3 text-center text-xs text-muted-foreground">No matching installed apps found.</p>
+              ) : visibleStudyApps.map((app) => {
+                const selected = studyAppPackages.includes(app.packageName);
+                const blocked = blockedForStudyApps.has(app.packageName);
+                return (
+                  <button
+                    key={app.packageName}
+                    type="button"
+                    onClick={() => toggleStudyApp(app)}
+                    disabled={!app.selectable || saving || studySaving}
+                    aria-pressed={selected}
+                    aria-disabled={!app.selectable || blocked}
+                    title={blocked ? "Remove this app from Blocked Apps before adding it to Study Apps." : undefined}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {app.iconDataUrl ? (
+                      <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+                    ) : (
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
+                        {app.label.slice(0, 1).toLocaleUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{app.label}</span>
+                    <span className={blocked
+                      ? "shrink-0 rounded-md bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive"
+                      : selected
+                        ? "shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary"
+                        : "shrink-0 rounded-md bg-secondary px-1.5 py-0.5 text-[9px] text-muted-foreground"}>
+                      {blocked ? "Blocked" : selected ? "Selected" : app.systemApp ? "System" : "User"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+              <p className="min-w-0 text-[10px] text-muted-foreground">
+                Study Apps open directly. Blocked Apps always take priority.
+              </p>
+              <button
+                type="button"
+                onClick={() => { void handleSaveStudyApps(); }}
+                disabled={!studyAppsDirty || studySaving || saving || loading || !isStudyModeNative()}
+                className="min-h-9 shrink-0 rounded-lg gradient-primary px-3 py-1.5 text-[10px] font-bold text-primary-foreground disabled:opacity-45"
+              >
+                {studySaving ? "Saving…" : studyAppsDirty ? "Save Study Apps" : "Saved"}
+              </button>
+            </div>
+          </div>
+        )}
+        {!studyPickerOpen && studyAppsDirty && (
+          <button
+            type="button"
+            onClick={() => { void handleSaveStudyApps(); }}
+            disabled={studySaving || saving || loading || !isStudyModeNative()}
+            className="min-h-9 rounded-lg gradient-primary px-3 py-1.5 text-[10px] font-bold text-primary-foreground disabled:opacity-45"
+          >
+            {studySaving ? "Saving…" : "Save Study Apps"}
+          </button>
+        )}
+      </section>
       <section className="space-y-2 rounded-xl border border-primary/25 bg-primary/[0.035] p-3">
         <div className="flex items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
