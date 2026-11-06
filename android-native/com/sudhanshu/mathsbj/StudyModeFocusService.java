@@ -9,7 +9,9 @@ import android.app.KeyguardManager;
 import android.os.PowerManager;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.IntentFilter;
 import android.content.Intent;
 import android.net.Uri;
 import android.graphics.Color;
@@ -68,8 +70,32 @@ public final class StudyModeFocusService extends Service {
     private String shieldedPackage = "";
     private boolean foregroundStarted = false;
     private boolean startupFailed = false;
+    private boolean screenReceiverRegistered = false;
     private String lastForegroundPackage = null;
     private boolean initialForegroundLookup = true;
+
+    private final BroadcastReceiver screenStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null) return;
+            String action = intent.getAction();
+            if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                lastForegroundPackage = null;
+                initialForegroundLookup = true;
+                mainHandler.post(() -> { if (running) removeShield(); });
+                if (monitorHandler != null) {
+                    monitorHandler.removeCallbacks(monitorRunnable);
+                    monitorHandler.postDelayed(monitorRunnable, 60_000L);
+                }
+            } else if (Intent.ACTION_USER_PRESENT.equals(action)) {
+                // Resume fallback detection immediately after the keyguard is gone.
+                if (monitorHandler != null) {
+                    monitorHandler.removeCallbacks(monitorRunnable);
+                    monitorHandler.post(monitorRunnable);
+                }
+            }
+        }
+    };
 
     public static boolean isRunning() {
         return running;
@@ -127,6 +153,7 @@ public final class StudyModeFocusService extends Service {
         }
         running = true;
         activeInstance = new WeakReference<>(this);
+        registerScreenStateReceiver();
         StudyModeManager.setServiceState(this,
             StudyModeManager.hasForegroundMonitoringSource(this)
                 ? "focus_shield_running" : "accessibility_disconnected");
@@ -139,6 +166,22 @@ public final class StudyModeFocusService extends Service {
         monitorThread.start();
         monitorHandler = new Handler(monitorThread.getLooper());
         monitorHandler.post(monitorRunnable);
+    }
+
+    private void registerScreenStateReceiver() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_USER_PRESENT);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(screenStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(screenStateReceiver, filter);
+            }
+            screenReceiverRegistered = true;
+        } catch (Exception ignored) {
+            // The 60-second locked-state watchdog remains as a fallback.
+        }
     }
 
     @Override
@@ -276,8 +319,11 @@ public final class StudyModeFocusService extends Service {
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive() || (keyguard != null && keyguard.isKeyguardLocked())) {
                 lastForegroundPackage = null;
+                initialForegroundLookup = true;
                 mainHandler.post(() -> { if (running) removeShield(); });
-                if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
+                // Do not poll every 1.6 seconds while the display is locked.
+                // ACTION_USER_PRESENT wakes this check immediately on unlock.
+                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
 
@@ -498,6 +544,11 @@ public final class StudyModeFocusService extends Service {
         stopping = false;
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
+        if (screenReceiverRegistered) {
+            try { unregisterReceiver(screenStateReceiver); }
+            catch (Exception ignored) {}
+            screenReceiverRegistered = false;
+        }
         mainHandler.removeCallbacksAndMessages(null);
         removeShield();
         overlayFailureForStatus = false;
