@@ -958,6 +958,8 @@ const studyModeAppPlugin = read('android-native/com/sudhanshu/mathsbj/StudyModeP
 const studyModeAppFilters = read('src/lib/studyModeAppFilters.ts');
 const studyModeAppFilterTests = read('src/lib/studyModeAppFilters.test.ts');
 const studyModeSetup = read('scripts/configure-android-study-mode.mjs');
+const studyModeLegacyBackupRules = read('android-native/res/xml/app_usage_backup_rules.xml');
+const studyModeModernBackupRules = read('android-native/res/xml/app_usage_data_extraction_rules.xml');
 const widgetSetup = read('scripts/configure-android-widgets.mjs');
 const studyModeSettings = read('src/components/SettingsPanel.tsx');
 const studyModeIndex = read('src/pages/Index.tsx');
@@ -1126,7 +1128,11 @@ if (!studyModeManager.includes('hasAccessibilityDisclosureAccepted') ||
     !studyModeAppPlugin.includes('ACTION_APP_NOTIFICATION_SETTINGS') ||
     !studyModeAppPlugin.includes('ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS') ||
     !studyModeSetup.includes('android.permission.POST_NOTIFICATIONS') ||
-    !studyModeSetup.includes('math_master_study_mode.xml') ||
+    !studyModeSetup.includes("'app_usage_backup_rules.xml'") ||
+     !studyModeSetup.includes("'app_usage_data_extraction_rules.xml'") ||
+     !studyModeLegacyBackupRules.includes('exclude domain="sharedpref" path="math_master_study_mode.xml"') ||
+     !/<cloud-backup>[\s\S]*exclude domain="sharedpref" path="math_master_study_mode.xml"[\s\S]*<\/cloud-backup>/.test(studyModeModernBackupRules) ||
+     !/<device-transfer>[\s\S]*exclude domain="sharedpref" path="math_master_study_mode.xml"[\s\S]*<\/device-transfer>/.test(studyModeModernBackupRules) ||
     !studyModePage.includes('key: "notifications" as const') ||
     !studyModePage.includes('key: "battery" as const')) {
   fail('Android notification, Accessibility and battery settings state/actions must be truthful and explicit');
