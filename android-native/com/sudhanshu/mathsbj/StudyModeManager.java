@@ -122,7 +122,7 @@ public final class StudyModeManager {
             Set<String> seen = new HashSet<>();
             for (int i = 0; i < values.length(); i++) {
                 String name = values.optString(i, "");
-                if (!name.isEmpty() && !blocked.contains(name) && seen.add(name)
+                if (isValidPackageName(name) && !blocked.contains(name) && seen.add(name)
                     && isInstalledSelectablePackage(context, name)) {
                     result.add(name);
                 }
@@ -143,7 +143,7 @@ public final class StudyModeManager {
         if (requestedPackages != null) {
             for (String name : requestedPackages) {
                 if (name == null || name.isEmpty()) continue;
-                if (!name.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) {
+                if (!isValidPackageName(name)) {
                     throw new IllegalArgumentException("A selected Study App has an invalid package name.");
                 }
                 if (blocked.contains(name)) {
@@ -165,7 +165,7 @@ public final class StudyModeManager {
 
     /** Launch only a currently saved Study App. Blocked Apps always win conflicts. */
     public static void launchStudyApp(Context context, String packageName) {
-        if (packageName == null || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) {
+        if (!isValidPackageName(packageName)) {
             throw new IllegalArgumentException("Invalid Study App package.");
         }
         if (getSelectedPackages(context).contains(packageName)) {
@@ -288,8 +288,14 @@ public final class StudyModeManager {
             && !protectedPackages.contains(packageName);
     }
 
+    private static boolean isValidPackageName(String packageName) {
+        return packageName != null && packageName.length() <= 255
+            && packageName.matches("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+");
+    }
+
     public static boolean isInstalledSelectablePackage(Context context, String packageName) {
-        if (!isSelectableApplication(context, packageName, getProtectedPackages(context))) return false;
+        if (!isValidPackageName(packageName)
+            || !isSelectableApplication(context, packageName, getProtectedPackages(context))) return false;
         try {
             android.content.pm.PackageManager pm = context.getPackageManager();
             ApplicationInfo info = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
