@@ -187,6 +187,116 @@ public final class StudyModePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void listApps(PluginCall call) {
+        try {
+            android.content.pm.PackageManager pm = getContext().getPackageManager();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && pm.checkPermission("android.permission.QUERY_ALL_PACKAGES", getContext().getPackageName())
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                call.reject("Full installed-app inventory access is unavailable. Reinstall the private Study Mode build with QUERY_ALL_PACKAGES.");
+                return;
+            }
+            List<ApplicationInfo> installedApplications = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? pm.getInstalledApplications(android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
+                : pm.getInstalledApplications(0);
+            Set<String> launchablePackages = findLaunchablePackages(pm);
+            Set<String> protectedPackages = StudyModeManager.getProtectedPackages(getContext());
+            JSArray apps = new JSArray();
+            Set<String> seen = new HashSet<>();
+            List<AppEntry> entries = new ArrayList<>();
+
+            for (ApplicationInfo info : installedApplications) {
+                if (info == null || !info.enabled) continue;
+                String packageName = info.packageName;
+                if (!StudyModeManager.isVisibleApplication(getContext(), packageName)
+                    || !launchablePackages.contains(packageName)
+                    || !seen.add(packageName)) continue;
+
+                String label = packageName;
+                try {
+                    CharSequence appLabel = pm.getApplicationLabel(info);
+                    if (appLabel != null && appLabel.length() > 0) label = appLabel.toString();
+                } catch (Exception ignored) {
+                    // A missing OEM label falls back to the stable package name.
+                }
+
+                String iconDataUrl = "";
+                try {
+                    Drawable icon = pm.getApplicationIcon(info);
+                    if (icon != null) iconDataUrl = drawableToDataUrl(icon);
+                } catch (Exception ignored) {
+                    // Keep an otherwise launchable app visible when its OEM icon is unavailable.
+                }
+
+                boolean selectable = StudyModeManager.isSelectableApplication(
+                    getContext(), packageName, protectedPackages);
+                entries.add(new AppEntry(
+                    packageName,
+                    label,
+                    iconDataUrl,
+                    StudyModeManager.isSystemApplication(info),
+                    selectable
+                ));
+            }
+
+            entries.sort(Comparator.comparing(entry -> entry.label.toLowerCase(java.util.Locale.ROOT)));
+            for (AppEntry entry : entries) {
+                JSObject item = new JSObject();
+                item.put("packageName", entry.packageName);
+                item.put("label", entry.label);
+                item.put("iconDataUrl", entry.iconDataUrl);
+                item.put("systemApp", entry.systemApp);
+                item.put("selectable", entry.selectable);
+                apps.put(item);
+            }
+            JSObject result = new JSObject();
+            result.put("apps", apps);
+            result.put("discoveryScope", "all-installed-packages-filtered-to-launchable");
+            result.put("installedPackageCount", installedApplications.size());
+            result.put("appCount", entries.size());
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("Unable to read the installed application inventory. Check package visibility access.", error);
+        }
+    }
+
+    private Set<String> findLaunchablePackages(android.content.pm.PackageManager pm) {
+        Set<String> packages = new HashSet<>();
+        String[] categories = {
+            Intent.CATEGORY_LAUNCHER,
+            Intent.CATEGORY_LEANBACK_LAUNCHER,
+            Intent.CATEGORY_INFO
+        };
+        for (String category : categories) {
+            Intent query = new Intent(Intent.ACTION_MAIN);
+            query.addCategory(category);
+            List<ResolveInfo> activities = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? pm.queryIntentActivities(query, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
+                : pm.queryIntentActivities(query, 0);
+            for (ResolveInfo resolveInfo : activities) {
+                if (resolveInfo.activityInfo == null || !resolveInfo.activityInfo.enabled) continue;
+                ApplicationInfo applicationInfo = resolveInfo.activityInfo.applicationInfo;
+                if (applicationInfo != null && applicationInfo.enabled) {
+                    packages.add(resolveInfo.activityInfo.packageName);
+                }
+            }
+        }
+        return packages;
+    }
+
+    private String drawableToDataUrl(Drawable drawable) {
+        int size = Math.max(48, Math.min(96, Math.round(64 * getContext().getResources().getDisplayMetrics().density)));
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, size, size);
+        drawable.draw(canvas);
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream);
+        bitmap.recycle();
+        return "data:image/png;base64," + android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP);
+    }
+
+    @PluginMethod
     public void openPermissionSettings(PluginCall call) {
         String permission = call.getString("permission", "");
         Intent intent;
