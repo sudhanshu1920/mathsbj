@@ -114,7 +114,7 @@ public final class StudyModePlugin extends Plugin {
             JSONArray rawDays = call.getData().optJSONArray("selectedDays");
             JSONArray rawStudyApps = call.getData().optJSONArray("studyAppPackageNames");
             List<String> packages = new ArrayList<>();
-            List<String> studyApps = new ArrayList<>();
+            List<String> studyApps = rawStudyApps == null ? null : new ArrayList<>();
             Set<Integer> days = new HashSet<>();
             if (rawPackages != null) {
                 for (int i = 0; i < rawPackages.length(); i++) {
@@ -122,7 +122,7 @@ public final class StudyModePlugin extends Plugin {
                     if (!name.isEmpty()) packages.add(name);
                 }
             }
-            if (rawStudyApps != null) {
+            if (rawStudyApps != null && studyApps != null) {
                 for (int i = 0; i < rawStudyApps.length(); i++) {
                     String name = rawStudyApps.optString(i, "");
                     if (!name.isEmpty()) studyApps.add(name);
