@@ -67,6 +67,7 @@ public final class StudyModeFocusService extends Service {
     private TextView remainingTimeView;
     private String shieldedPackage = "";
     private boolean foregroundStarted = false;
+    private boolean startupFailed = false;
     private String lastForegroundPackage = null;
     private boolean initialForegroundLookup = true;
 
@@ -182,6 +183,7 @@ public final class StudyModeFocusService extends Service {
             foregroundStarted = true;
             return true;
         } catch (Exception error) {
+            startupFailed = true;
             StudyModeManager.setServiceState(this, "service_start_blocked");
             return false;
         }
@@ -492,7 +494,7 @@ public final class StudyModeFocusService extends Service {
         removeShield();
         overlayFailureForStatus = false;
         if (activeInstance.get() == this) activeInstance = new WeakReference<>(null);
-        if (StudyModeManager.shouldEnforceNow(this)
+        if (!startupFailed && StudyModeManager.shouldEnforceNow(this)
             && StudyModeManager.hasForegroundMonitoringPermission(this) && StudyModeManager.hasOverlayPermission(this)) {
             StudyModeManager.setServiceState(this, "service_stopped");
         }
