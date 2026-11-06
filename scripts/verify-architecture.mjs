@@ -980,7 +980,7 @@ if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
 if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(false)} />') ||
     !studyModeSettings.includes('onClick={() => setStudyModeOpen(true)}') ||
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
-    studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Multiple Apps') ||
+    studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Blocked Apps') ||
     !studyModePage.includes('chooseStudyModeTime') ||
     !studyModePage.includes('(status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")') ||
     !studyModePage.includes('status?.activeSession?.active') ||
@@ -1148,7 +1148,6 @@ if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
 const studyModeQuoteAndApps = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
 const studyModeShieldUi = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
 const studyModeNativePlugin = read('android-native/com/sudhanshu/mathsbj/StudyModePlugin.java');
-const studyModeBridge = read('src/lib/studyMode.ts');
 if (!studyModeQuoteAndApps.includes('KEY_STUDY_PACKAGES')
     || !studyModeQuoteAndApps.includes('getSelectedStudyAppPackages')
     || !studyModeQuoteAndApps.includes('savePopupAppearance')
