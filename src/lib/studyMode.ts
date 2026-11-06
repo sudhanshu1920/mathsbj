@@ -37,6 +37,8 @@ export interface StudyModeSessionOptions {
 
 export interface StudyModeStatus {
   config: StudyModeConfig;
+  /** Independent quick-access list; never participates in blocked-package enforcement. */
+  studyAppPackageNames: string[];
   permissions: {
     accessibility: boolean;
     accessibilityConnected: boolean;
@@ -65,6 +67,8 @@ interface NativeStudyModePlugin {
   acceptAccessibilityDisclosure(): Promise<StudyModeStatus>;
   listApps(): Promise<{ apps: StudyModeApp[] }>;
   saveConfig(options: StudyModeConfig): Promise<StudyModeStatus>;
+  saveStudyApps(options: { packageNames: string[] }): Promise<StudyModeStatus>;
+  setOverlayAppearance(options: { mode: "dark" | "light"; theme: string }): Promise<void>;
   setEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
   startSession(options: StudyModeSessionOptions): Promise<StudyModeStatus>;
   endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
@@ -96,6 +100,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) {
     return {
       config: DEFAULT_STUDY_MODE_CONFIG,
+      studyAppPackageNames: [],
       permissions: {
         accessibility: false, accessibilityConnected: false, accessibilityDisclosureAccepted: false, usageAccess: false, overlay: false,
         exactAlarm: false, notifications: false, batteryOptimizationExempt: false, dndAccess: false, dndControlSupported: false,
@@ -135,6 +140,21 @@ export async function saveStudyModeConfig(config: StudyModeConfig): Promise<Stud
     ...config,
     selectedPackageNames: [...new Set(config.selectedPackageNames)],
     selectedDays: [...new Set(config.selectedDays)],
+  });
+}
+
+export async function saveStudyModeApps(packageNames: string[]): Promise<StudyModeStatus> {
+  if (!isStudyModeNative()) throw new Error("Study Apps require the installed Android app.");
+  return NativeStudyMode.saveStudyApps({
+    packageNames: [...new Set(packageNames)],
+  });
+}
+
+/** Sync the user's web theme to the native blocking overlay without delaying UI interactions. */
+export function syncStudyModeOverlayAppearance(mode: "dark" | "light", theme: string): void {
+  if (!isStudyModeNative()) return;
+  void NativeStudyMode.setOverlayAppearance({ mode, theme }).catch(() => {
+    // The blocking overlay keeps its last valid appearance if the bridge is unavailable.
   });
 }
 
