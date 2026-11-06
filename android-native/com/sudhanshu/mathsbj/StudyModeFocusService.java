@@ -529,6 +529,7 @@ public final class StudyModeFocusService extends Service {
 
         TextView status = makeText("●  STUDY MODE ACTIVE", 11, accent, true);
         status.setGravity(Gravity.CENTER);
+        status.setContentDescription("Study Mode active");
         status.setPadding(dp(15), dp(8), dp(15), dp(8));
         status.setBackground(roundedBackground(withAlpha(accent, 30), withAlpha(accent, 105), 999));
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-2, -2);
@@ -686,10 +687,13 @@ public final class StudyModeFocusService extends Service {
                 appLabel == null ? packageName : appLabel.toString(), 11, text, true);
             label.setMaxLines(2);
             label.setGravity(Gravity.CENTER_VERTICAL);
+            item.setContentDescription("Open " + (appLabel == null ? packageName : appLabel.toString()));
+            label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, -2, 1f);
             labelParams.leftMargin = dp(8);
             item.addView(label, labelParams);
-            LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(0, dp(66), 1f);
+            item.setMinimumHeight(dp(66));
+            LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(0, -2, 1f);
             itemParams.rightMargin = dp(6);
             row.addView(item, itemParams);
             item.setOnClickListener(view -> launchStudyShortcut(packageName));
