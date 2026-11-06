@@ -476,7 +476,7 @@ public final class StudyModeFocusService extends Service {
 
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setGravity(Gravity.CENTER_HORIZONTAL);
+        page.setGravity(Gravity.CENTER);
         page.setMinimumHeight(Math.max(dp(440), getResources().getDisplayMetrics().heightPixels - dp(48)));
         scroll.addView(page, new ScrollView.LayoutParams(-1, -2));
 
@@ -726,14 +726,14 @@ public final class StudyModeFocusService extends Service {
             preferences.edit()
                 .putString("motivationalQuoteOrder", order.toString())
                 .putInt("motivationalQuoteCursor", 0)
-                .commit();
+                .apply();
         }
 
         int selected = cycle.get(cursor);
         preferences.edit()
             .putInt("motivationalQuoteCursor", cursor + 1)
             .putInt("motivationalQuoteLast", selected)
-            .commit();
+            .apply();
         return MOTIVATIONAL_QUOTES[selected];
     }
 
