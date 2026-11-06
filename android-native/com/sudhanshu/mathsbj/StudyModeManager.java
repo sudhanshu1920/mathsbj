@@ -116,24 +116,49 @@ public final class StudyModeManager {
     public static synchronized List<String> getStudyAppPackages(Context context) {
         List<String> result = new ArrayList<>();
         String raw = prefs(context).getString(KEY_STUDY_PACKAGES, "[]");
+        List<String> persisted = new ArrayList<>();
         try {
             JSONArray values = new JSONArray(raw);
             Set<String> blocked = new HashSet<>(getSelectedPackages(context));
             Set<String> seen = new HashSet<>();
             for (int i = 0; i < values.length(); i++) {
                 String name = values.optString(i, "");
-                if (isValidPackageName(name) && !blocked.contains(name) && seen.add(name)
-                    && isInstalledSelectablePackage(context, name)) {
-                    result.add(name);
-                }
+                // Keep a valid package reference while Android is replacing its
+                // APK; the PACKAGE_REMOVED (not EXTRA_REPLACING) broadcast is
+                // responsible for permanently pruning a genuine uninstall.
+                if (!isValidPackageName(name) || blocked.contains(name) || !seen.add(name)) continue;
+                persisted.add(name);
+                if (isInstalledSelectablePackage(context, name)) result.add(name);
             }
         } catch (JSONException ignored) {
             // A malformed optional Study Apps list is safely treated as empty;
             // the existing Blocked Apps preference is never touched.
         }
-        if (result.size() != valuesLength(raw)) saveStringArray(prefs(context), KEY_STUDY_PACKAGES, result);
+        if (persisted.size() != valuesLength(raw)) {
+            saveStringArray(prefs(context), KEY_STUDY_PACKAGES, persisted);
+        }
         Collections.sort(result);
         return result;
+    }
+
+    /** Remove an uninstalled Study App only after Android reports a final package removal. */
+    public static synchronized void removeStudyAppPackage(Context context, String packageName) {
+        if (!isValidPackageName(packageName)) return;
+        String raw = prefs(context).getString(KEY_STUDY_PACKAGES, "[]");
+        List<String> retained = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        try {
+            JSONArray values = new JSONArray(raw);
+            for (int i = 0; i < values.length(); i++) {
+                String name = values.optString(i, "");
+                if (isValidPackageName(name) && !packageName.equals(name) && seen.add(name)) {
+                    retained.add(name);
+                }
+            }
+        } catch (JSONException ignored) {
+            // A malformed optional list is repaired to an empty list.
+        }
+        saveStringArray(prefs(context), KEY_STUDY_PACKAGES, retained);
     }
 
     public static synchronized JSObject setStudyAppPackages(Context context, List<String> requestedPackages) {
