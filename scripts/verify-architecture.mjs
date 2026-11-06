@@ -985,7 +985,7 @@ if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
 if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(false)} />') ||
     !studyModeSettings.includes('onClick={() => setStudyModeOpen(true)}') ||
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
-    studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Multiple Apps') ||
+    studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('Blocked Apps') ||
     !studyModePage.includes('chooseStudyModeTime') ||
         !studyModePage.includes('status?.activeSession?.active') ||
     !studyModePage.includes('aria-label={day.name}') ||
@@ -1244,6 +1244,28 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     !studyModeAppFilterTests.includes('shows user and pre-installed system apps together in All') ||
     !studyModeAppFilterTests.includes('searches app names and package names inside each category')) {
   fail('Study Mode app discovery must include launchable user and system apps, report category metadata, and preserve fast All/User/System filtering');
+}
+if (!studyModeManager.includes('KEY_STUDY_PACKAGES = "studyAppPackages"') ||
+    !studyModeManager.includes('public static synchronized List<String> getStudyAppPackages(Context context)') ||
+    !studyModeManager.includes('public static synchronized JSObject setStudyAppPackages(Context context, List<String> requestedPackages)') ||
+    !studyModeManager.includes('public static void launchStudyApp(Context context, String packageName)') ||
+    !studyModeManager.includes('getSelectedPackages(context).contains(packageName)') ||
+    !studyModeManager.includes('getStudyAppPackages(context).contains(packageName)') ||
+    !studyModeManager.includes('.putString(KEY_STUDY_PACKAGES, toJson(cleanedStudyApps))') ||
+    !studyModeManager.includes('result.put("studyAppPackageNames", studyApps)') ||
+    !studyModeAppPlugin.includes('public void saveStudyApps(PluginCall call)') ||
+    !studyModeAppPlugin.includes('public void setOverlayAppearance(PluginCall call)') ||
+    !studyModeBridge.includes('saveStudyModeApps') ||
+    !studyModePage.includes('Study Apps') ||
+    !studyModePage.includes('Blocked Apps') ||
+    !studyModePage.includes('Save Study Apps') ||
+    !studyModeFocus.includes('nextMotivationalQuote()') ||
+    !studyModeFocus.includes('MOTIVATIONAL_QUOTES') ||
+    !studyModeFocus.includes('buildStudyAppsSection(palette)') ||
+    !studyModeFocus.includes('StudyModeManager.launchStudyApp(this, packageName)') ||
+    !studyModeFocus.includes('Session ends at ') ||
+    !studyModeFocus.includes('mainHandler.postDelayed(countdownRunnable, 1_000L)')) {
+  fail('Blocked Apps and Study Apps must remain separate, conflict-safe and independently persisted; the native popup must show rotating Hindi quotes, a live session timer and validated Study App shortcuts');
 }
 if (!studyModeManager.includes('public static synchronized void setEnabled') ||
     !studyModeManager.includes('public static synchronized void reconcile') ||
