@@ -328,6 +328,14 @@ public final class StudyModeFocusService extends Service {
     }
 
     private void showShield(String packageName) {
+        // A package-change callback can already be queued when OFF, expiry or
+        // a permission change updates the authoritative enforcement snapshot.
+        // Revalidate here on the UI thread so a stale event cannot resurrect
+        // the blocking overlay after the session has ended.
+        if (!running || !StudyModeManager.isPackageSelected(this, packageName)) {
+            removeShield();
+            return;
+        }
         if (shieldView != null && packageName.equals(shieldedPackage)) return;
         removeShield();
         try {
