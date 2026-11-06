@@ -1120,6 +1120,15 @@ if (!studyModeManager.includes('cachedEnforcedPackages') ||
     !studyModeAccessibility.includes('StudyModeManager.isEnforcementActiveCached()')) {
   fail('Foreground package detection must use a cached selected-app snapshot and rebuild it on service recreation');
 }
+const showShieldStart = studyModeFocus.indexOf('private void showShield(String packageName) {');
+const showShieldEnd = studyModeFocus.indexOf('private android.view.View buildShieldView()', showShieldStart);
+const showShieldBody = showShieldStart >= 0 && showShieldEnd > showShieldStart
+  ? studyModeFocus.slice(showShieldStart, showShieldEnd)
+  : '';
+if (!showShieldBody.includes('!running || !StudyModeManager.isPackageSelected(this, packageName)') ||
+    !showShieldBody.includes('removeShield();')) {
+  fail('Queued foreground events must be revalidated before displaying a shield after OFF, expiry or permission loss');
+}
 const shieldStart = studyModeFocus.indexOf('private android.view.View buildShieldView() {');
 const shieldEnd = studyModeFocus.indexOf('private int dp(', shieldStart);
 const shieldBuilder = shieldStart >= 0 && shieldEnd > shieldStart ? studyModeFocus.slice(shieldStart, shieldEnd) : '';
