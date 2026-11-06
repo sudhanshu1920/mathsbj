@@ -24,6 +24,9 @@ import android.os.Looper;
 import android.text.format.DateFormat;
 import android.view.Gravity;
 import android.view.WindowManager;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.AnimationSet;
+import android.view.animation.TranslateAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ScrollView;
@@ -328,9 +331,16 @@ public final class StudyModeFocusService extends Service {
             params.gravity = Gravity.CENTER;
             params.setTitle("Math Master Study Mode");
             windowManager.addView(shieldView, params);
+            AnimationSet entrance = new AnimationSet(true);
+            AlphaAnimation fade = new AlphaAnimation(0.0f, 1.0f);
+            TranslateAnimation rise = new TranslateAnimation(0f, 0f, dp(9), 0f);
+            entrance.addAnimation(fade);
+            entrance.addAnimation(rise);
+            entrance.setDuration(220L);
+            shieldView.startAnimation(entrance);
             updateRemainingTime();
             mainHandler.removeCallbacks(countdownRunnable);
-            mainHandler.postDelayed(countdownRunnable, 60_000L);
+            mainHandler.postDelayed(countdownRunnable, 1000L);
             overlayFailureForStatus = false;
             StudyModeManager.setServiceState(this, "focus_shield_running");
         } catch (Exception error) {
@@ -351,7 +361,7 @@ public final class StudyModeFocusService extends Service {
         stage.setOrientation(LinearLayout.VERTICAL);
         stage.setGravity(Gravity.CENTER);
         stage.setPadding(dp(16), dp(22), dp(16), dp(22));
-        scroll.addView(stage, new ScrollView.LayoutParams(-1, -1));
+        scroll.addView(stage, new ScrollView.LayoutParams(-1, -2));
 
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
