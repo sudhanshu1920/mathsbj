@@ -27,6 +27,7 @@ import android.view.View;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.SystemClock;
 import android.os.IBinder;
 import android.os.Looper;
 import android.view.Gravity;
@@ -87,6 +88,9 @@ public final class StudyModeFocusService extends Service {
     private android.view.View shieldView;
     private TextView remainingTimeView;
     private TextView sessionEndView;
+    private long countdownDeadlineElapsedRealtime = -1L;
+    private boolean countdownInitialized = false;
+    private boolean countdownUnlimited = false;
     private String shieldedPackage = "";
     private boolean foregroundStarted = false;
     private boolean startupFailed = false;
@@ -113,6 +117,13 @@ public final class StudyModeFocusService extends Service {
                     monitorHandler.removeCallbacks(monitorRunnable);
                     monitorHandler.post(monitorRunnable);
                 }
+            } else if (Intent.ACTION_TIME_CHANGED.equals(action)
+                || Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
+                // Keep elapsed duration monotonic; reformat the wall-clock end label
+                // and re-anchor scheduled-session boundaries after clock/time-zone changes.
+                mainHandler.post(() -> {
+                    if (shieldView != null && running) refreshCountdownFromSession();
+                });
             }
         }
     };
@@ -192,6 +203,8 @@ public final class StudyModeFocusService extends Service {
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_OFF);
         filter.addAction(Intent.ACTION_USER_PRESENT);
+        filter.addAction(Intent.ACTION_TIME_CHANGED);
+        filter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(screenStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -809,34 +822,58 @@ public final class StudyModeFocusService extends Service {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
-    private void updateRemainingTime() {
+    private void refreshCountdownFromSession() {
         if (remainingTimeView == null) return;
-        long remainingSeconds = StudyModeManager.getCurrentSessionRemainingSeconds(this);
-        if (remainingSeconds < 0L) {
+        long nowMillis = System.currentTimeMillis();
+        long endMillis = StudyModeManager.getCurrentSessionEndMillis(this);
+        countdownInitialized = true;
+        countdownUnlimited = endMillis <= 0L;
+        if (countdownUnlimited) {
+            countdownDeadlineElapsedRealtime = -1L;
             remainingTimeView.setText("Unlimited");
             if (sessionEndView != null) sessionEndView.setText("This focus session has no fixed end time");
             return;
         }
 
+        long remainingSeconds = Math.max(0L, (endMillis - nowMillis + 999L) / 1000L);
+        countdownDeadlineElapsedRealtime = SystemClock.elapsedRealtime() + remainingSeconds * 1000L;
+        updateSessionEndLabel(endMillis);
+        renderRemainingTime();
+    }
+
+    private void updateSessionEndLabel(long endMillis) {
+        if (sessionEndView == null || endMillis <= 0L) return;
+        SimpleDateFormat dateKey = new SimpleDateFormat("yyyyMMdd", Locale.getDefault());
+        String pattern = dateKey.format(new Date(endMillis)).equals(dateKey.format(new Date()))
+            ? "hh:mm a" : "EEE, dd MMM · hh:mm a";
+        sessionEndView.setText("Session ends at " +
+            new SimpleDateFormat(pattern, Locale.getDefault()).format(new Date(endMillis)));
+    }
+
+    private void updateRemainingTime() {
+        if (remainingTimeView == null) return;
+        if (!countdownInitialized) {
+            refreshCountdownFromSession();
+            return;
+        }
+        if (countdownUnlimited) {
+            remainingTimeView.setText("Unlimited");
+            return;
+        }
+        renderRemainingTime();
+    }
+
+    private void renderRemainingTime() {
+        if (remainingTimeView == null || countdownDeadlineElapsedRealtime < 0L) return;
+        long remainingMillis = Math.max(0L,
+            countdownDeadlineElapsedRealtime - SystemClock.elapsedRealtime());
+        long remainingSeconds = (remainingMillis + 999L) / 1000L;
         long hours = remainingSeconds / 3600L;
         long minutes = (remainingSeconds % 3600L) / 60L;
         long seconds = remainingSeconds % 60L;
         remainingTimeView.setText(String.format(
             Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds
         ));
-
-        if (sessionEndView != null) {
-            long endMillis = StudyModeManager.getCurrentSessionEndMillis(this);
-            if (endMillis > 0L) {
-                SimpleDateFormat dateKey = new SimpleDateFormat("yyyyMMdd", Locale.getDefault());
-                String pattern = dateKey.format(new Date(endMillis)).equals(dateKey.format(new Date()))
-                    ? "hh:mm a" : "EEE, dd MMM · hh:mm a";
-                sessionEndView.setText("Session ends at " +
-                    new SimpleDateFormat(pattern, Locale.getDefault()).format(new Date(endMillis)));
-            } else {
-                sessionEndView.setText("Session ends when your schedule finishes");
-            }
-        }
     }
 
     private final Runnable countdownRunnable = new Runnable() {
@@ -860,6 +897,9 @@ public final class StudyModeFocusService extends Service {
         shieldView = null;
         remainingTimeView = null;
         sessionEndView = null;
+        countdownDeadlineElapsedRealtime = -1L;
+        countdownInitialized = false;
+        countdownUnlimited = false;
         shieldedPackage = "";
     }
 
