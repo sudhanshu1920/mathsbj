@@ -1027,7 +1027,7 @@ const taskRemovedBody = taskRemovedStart >= 0 && taskRemovedEnd > taskRemovedSta
   ? studyModeFocus.slice(taskRemovedStart, taskRemovedEnd)
   : '';
 if (!taskRemovedBody.includes('super.onTaskRemoved(rootIntent);') ||
-    /stopSelf\\s*\\(|stopService\\s*\\(|finishSession\\s*\\(|endSession\\s*\\(|setEnabled\\s*\\(/.test(taskRemovedBody) ||
+    /stopSelf\s*\(|stopService\s*\(|finishSession\s*\(|endSession\s*\(|setEnabled\s*\(/.test(taskRemovedBody) ||
     !studyModeSetup.includes('android:stopWithTask="false"')) {
   fail('Removing Math Master from Recents must not stop the persisted Study Mode session or its foreground service');
 }
