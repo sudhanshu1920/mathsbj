@@ -1031,6 +1031,17 @@ if (!taskRemovedBody.includes('super.onTaskRemoved(rootIntent);') ||
     !studyModeSetup.includes('android:stopWithTask="false"')) {
   fail('Removing Math Master from Recents must not stop the persisted Study Mode session or its foreground service');
 }
+const serviceDestroyStart = studyModeFocus.indexOf('public void onDestroy() {');
+const serviceDestroyEnd = studyModeFocus.indexOf('public IBinder onBind(Intent intent)', serviceDestroyStart);
+const serviceDestroyBody = serviceDestroyStart >= 0 && serviceDestroyEnd > serviceDestroyStart
+  ? studyModeFocus.slice(serviceDestroyStart, serviceDestroyEnd)
+  : '';
+if (!studyModeFocus.includes('private boolean startupFailed = false;') ||
+    !studyModeFocus.includes('startupFailed = true;') ||
+    !serviceDestroyBody.includes('if (!startupFailed && StudyModeManager.shouldEnforceNow(this)') ||
+    /finishSession\s*\(|endSession\s*\(|setEnabled\s*\(/.test(serviceDestroyBody)) {
+  fail('Foreground-service startup errors must remain visible and service destruction must never end a persisted session');
+}
 if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeSessionStore.includes('start_elapsed_ms') ||
     !studyModeSessionStore.includes('boot_count') ||
