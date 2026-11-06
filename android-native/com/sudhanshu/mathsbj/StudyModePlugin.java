@@ -34,6 +34,16 @@ public final class StudyModePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void acceptAccessibilityDisclosure(PluginCall call) {
+        try {
+            StudyModeManager.acceptAccessibilityDisclosure(getContext());
+            call.resolve(StudyModeManager.getStatus(getContext()));
+        } catch (Exception error) {
+            call.reject("Accessibility disclosure consent could not be saved.", error);
+        }
+    }
+
+    @PluginMethod
     public void refresh(PluginCall call) {
         StudyModeManager.reconcile(getContext());
         call.resolve(StudyModeManager.getStatus(getContext()));
@@ -67,6 +77,10 @@ public final class StudyModePlugin extends Plugin {
                 call.reject("Choose a focus duration between 0 and 24 hours.");
                 return;
             }
+            if (Boolean.TRUE.equals(dnd) && !StudyModeManager.isDndControlSupported(getContext())) {
+                call.reject("Android 15+ restricts this app from changing global Do Not Disturb. Use Android Quick Settings instead.");
+                return;
+            }
             if (Boolean.TRUE.equals(dnd) && !StudyModeManager.hasNotificationPolicyAccess(getContext())) {
                 call.reject("Allow Do Not Disturb access before starting a session with DND enabled.");
                 return;
@@ -96,6 +110,41 @@ public final class StudyModePlugin extends Plugin {
         JSObject result = new JSObject();
         result.put("sessions", StudyModeManager.getSessionHistory(getContext()));
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void saveStudyApps(PluginCall call) {
+        try {
+            JSONArray rawPackages = call.getData().optJSONArray("packageNames");
+            if (rawPackages == null) {
+                call.reject("Study Apps selection is required.");
+                return;
+            }
+            List<String> packages = new ArrayList<>();
+            for (int i = 0; i < rawPackages.length(); i++) {
+                String name = rawPackages.optString(i, "");
+                if (!name.isEmpty()) packages.add(name);
+            }
+            call.resolve(StudyModeManager.setStudyAppPackages(getContext(), packages));
+        } catch (IllegalArgumentException error) {
+            call.reject(error.getMessage(), error);
+        } catch (Exception error) {
+            call.reject("Android could not save Study Apps.", error);
+        }
+    }
+
+    @PluginMethod
+    public void setOverlayAppearance(PluginCall call) {
+        try {
+            String mode = call.getString("mode", "dark");
+            String theme = call.getString("theme", "arctic-blue");
+            StudyModeManager.saveOverlayAppearance(getContext(), mode, theme);
+            call.resolve();
+        } catch (IllegalArgumentException error) {
+            call.reject(error.getMessage(), error);
+        } catch (Exception error) {
+            call.reject("Android could not update the Study Mode popup appearance.", error);
+        }
     }
 
     @PluginMethod
@@ -255,6 +304,26 @@ public final class StudyModePlugin extends Plugin {
             case "usage":
                 intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
                 break;
+            case "accessibility":
+                intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                break;
+            case "notifications":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                    intent.putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+                } else {
+                    intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getContext().getPackageName()));
+                }
+                break;
+            case "battery":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                } else {
+                    intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getContext().getPackageName()));
+                }
+                break;
             case "overlay":
                 intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     android.net.Uri.parse("package:" + getContext().getPackageName()));
@@ -269,6 +338,10 @@ public final class StudyModePlugin extends Plugin {
                 }
                 break;
             case "dnd":
+                if (!StudyModeManager.isDndControlSupported(getContext())) {
+                    call.reject("Android 15+ restricts this app from changing global Do Not Disturb. Use Android Quick Settings instead.");
+                    return;
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     intent = new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
                 } else {

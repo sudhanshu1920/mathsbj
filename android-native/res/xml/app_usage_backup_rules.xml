@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <exclude domain="sharedpref" path="app_usage_analytics_local.xml" />
+    <exclude domain="sharedpref" path="math_master_study_mode.xml" />
     <exclude domain="database" path="math_master_study_sessions.db" />
 </full-backup-content>

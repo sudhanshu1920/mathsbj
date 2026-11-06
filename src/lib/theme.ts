@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { syncStudyModeOverlayAppearance } from '@/lib/studyMode';
 
 const KEY = 'math-app-theme-v5';
 const MODE_KEY = 'math-app-mode-v1';
@@ -208,6 +209,7 @@ export const setTheme = (id: ThemeId) => {
 
   currentTheme = nextTheme;
   applyAppearanceSnapshot(currentTheme, currentMode, true);
+  syncStudyModeOverlayAppearance(currentMode, currentTheme);
   notify(themeListeners);
   publishThemeUpdate();
   persistThemeSoon();
@@ -219,6 +221,7 @@ export const setMode = (mode: ModeId) => {
 
   currentMode = nextMode;
   applyAppearanceSnapshot(currentTheme, currentMode, true);
+  syncStudyModeOverlayAppearance(currentMode, currentTheme);
   notify(modeListeners);
   publishThemeUpdate();
   persistModeSoon();
@@ -230,6 +233,7 @@ export const initTheme = () => {
   // The head bootstrap applies this same saved state before CSS can paint.
   // Keep the in-app initialization idempotent and free of startup storage writes.
   applyAppearanceSnapshot(currentTheme, currentMode);
+  syncStudyModeOverlayAppearance(currentMode, currentTheme);
 };
 
 export const subscribeTheme = (listener: () => void) => {
@@ -255,6 +259,7 @@ const onStorage = (event: StorageEvent) => {
   if (!themeChanged && !modeChanged) return;
 
   applyAppearanceSnapshot(currentTheme, currentMode, true);
+  syncStudyModeOverlayAppearance(currentMode, currentTheme);
   if (themeChanged) notify(themeListeners);
   if (modeChanged) notify(modeListeners);
   publishThemeUpdate();

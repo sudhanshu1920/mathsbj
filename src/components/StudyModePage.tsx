@@ -2,16 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App } from "@capacitor/app";
 import {
   ArrowLeft, CalendarDays, Check, ChevronDown, Clock3, LockKeyhole,
-  Search, ShieldAlert, ShieldCheck, Smartphone,
+  Search, ShieldAlert, Smartphone,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   chooseStudyModeTime,
+  acceptStudyModeAccessibilityDisclosure,
   getInstalledStudyModeApps,
   getStudyModeStatus,
   isStudyModeNative,
   openStudyModePermission,
   refreshStudyMode,
+  saveStudyModeApps,
   saveStudyModeConfig,
   setStudyModeEnabled,
   startStudyModeSession,
@@ -63,31 +65,27 @@ const configSnapshot = (config: StudyModeConfig) => JSON.stringify({
 const statusText = (status: StudyModeStatus | null) => {
   if (!isStudyModeNative()) return "Available in the Android app";
   if (!status) return "Reading saved Study Mode state…";
-  if (status?.enforcementState === "policy_unavailable" || status?.enforcementState === "policy_failed") {
-    return "Android could not confirm that every suspended app is available";
-  }
-  if (status?.activeSession?.active) {
-    if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
-    if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
-    if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
+  if (status.activeSession?.active) {
+    if (status.enforcementState === "permission_required") return "Session saved · grant Accessibility or Usage Access and overlay access";
+    if (status.enforcementState === "accessibility_disconnected") return "Session active · reconnect Accessibility or grant Usage Access";
+    if (status.enforcementState === "service_start_blocked") return "Session saved · Android blocked Focus Shield startup";
+    if (status.enforcementState === "service_stopped") return "Session active · monitoring service is stopped";
+    if (status.enforcementState === "overlay_failed") return "Session active · Android could not display the restriction screen";
+    if (status.enforcementState === "focus_shield_running") return "Session active · best-effort Focus Shield";
     const label = status.activeSession.sessionType.charAt(0).toUpperCase()
       + status.activeSession.sessionType.slice(1);
     return label + " focus session active · continues in background";
   }
-  if (!status?.config.enabled) return "Study Mode is off";
-  if (status.enforcementState === "permission_required") return "Enable Usage Access and allow the blocking overlay";
-  if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
+  if (!status.config.enabled) return "Study Mode is off";
+  if (status.enforcementState === "permission_required") return "Enable Accessibility or Usage Access and allow the blocking overlay";
+  if (status.enforcementState === "accessibility_disconnected") return "Accessibility is not connected · grant Usage Access as fallback";
   if (status.enforcementState === "focus_shield_starting") return "Starting Focus Shield…";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
-  if (status.enforcementState === "service_stopped") return "Android stopped Focus Shield — reopen Study Mode to retry";
+  if (status.enforcementState === "service_stopped") return "Monitoring service stopped · reopen Study Mode to retry";
   if (status.enforcementState === "overlay_failed") return "Android could not display the blocking overlay";
-  if (status.enforcementState === "policy_failed") return "System suspension could not be applied";
-  if (status.enforcementState === "partial_suspension") return "Some selected apps could not be suspended";
-  if (status.enforcementMode === "profile_owner" && status.enforcementState === "system_suspension") return "System suspension is active in the managed profile";
-  if (status.enforcementState === "focus_shield_running") return "Focus Shield only — actual suspension requires Device Owner";
-  if (status.enforcementState === "system_suspension") return "Android system-level suspension is active";
-  if (status.enforcementState === "waiting_for_schedule") return "Enabled — waiting for the next study session";
-  if (!status.scheduleActive) return "Enabled — outside scheduled hours";
+  if (status.enforcementState === "focus_shield_running") return "Focus Shield active · best-effort app restriction";
+  if (status.enforcementState === "waiting_for_schedule") return "Enabled · waiting for the next study session";
+  if (!status.scheduleActive) return "Enabled · outside scheduled hours";
   return "Study Mode enabled";
 };
 
@@ -99,6 +97,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [appFilter, setAppFilter] = useState<StudyModeAppFilter>("all");
+  const [studyAppPackages, setStudyAppPackages] = useState<string[]>([]);
+  const [studyPickerOpen, setStudyPickerOpen] = useState(false);
+  const [studySearch, setStudySearch] = useState("");
+  const [studySaving, setStudySaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [refreshError, setRefreshError] = useState("");
@@ -108,16 +110,22 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [sessionDnd, setSessionDnd] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
   const [sessionTick, setSessionTick] = useState(0);
+  const [accessibilityDisclosureOpen, setAccessibilityDisclosureOpen] = useState(false);
+  const [accessibilityDisclosureDismissed, setAccessibilityDisclosureDismissed] = useState(false);
   const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
+  const savedStudyAppsSnapshot = useRef("[]");
   const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
-  const dirtyRef = useRef(isDirty);
-  dirtyRef.current = isDirty;
+  const studyAppsDirty = JSON.stringify([...studyAppPackages].sort()) !== savedStudyAppsSnapshot.current;
+  const studyAppsDirtyRef = useRef(studyAppsDirty);
+  studyAppsDirtyRef.current = studyAppsDirty;
+  const dirtyRef = useRef(isDirty || studyAppsDirty);
+  dirtyRef.current = isDirty || studyAppsDirty;
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
 
   const handleBack = useCallback(() => {
-    if (dirtyRef.current && !window.confirm("Discard unsaved Study Mode changes?")) return;
+    if (dirtyRef.current && !window.confirm("Discard unsaved Blocked Apps, Study Apps or schedule changes?")) return;
     onBackRef.current();
   }, []);
 
@@ -143,6 +151,11 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       };
       setApps(installedApps);
       setStatus(nextStatus);
+      if (!studyAppsDirtyRef.current) {
+        const savedStudyApps = [...(nextStatus.studyAppPackageNames ?? [])];
+        setStudyAppPackages(savedStudyApps);
+        savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
+      }
       setSessionHistory(history);
       setSessionTick(0);
       if (nextStatus.activeSession?.active) {
@@ -188,6 +201,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [load]);
+
+  useEffect(() => {
+    if (!loading && status && !status.permissions.accessibilityDisclosureAccepted
+      && !accessibilityDisclosureDismissed) {
+      setAccessibilityDisclosureOpen(true);
+    }
+  }, [loading, status?.permissions.accessibilityDisclosureAccepted, accessibilityDisclosureDismissed]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("study-mode-page-state", { detail: { open: true } }));
@@ -251,7 +271,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     };
   }, [activeSession?.id, activeSession?.durationSeconds, sessionRemainingSeconds]);
 
-  const suspendedPackages = useMemo(() => new Set(status?.suspendedPackages ?? []), [status?.suspendedPackages]);
   const selectedCount = draft.selectedPackageNames.length;
   const selectedNames = useMemo(() => {
     const names = new Map(apps.map((app) => [app.packageName, app.label]));
@@ -262,6 +281,21 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     () => filterStudyModeApps(apps, appFilter, search),
     [apps, appFilter, search],
   );
+  const visibleStudyApps = useMemo(() => {
+    const query = studySearch.trim().toLocaleLowerCase();
+    return apps.filter((app) => !query
+      || app.label.toLocaleLowerCase().includes(query)
+      || app.packageName.toLocaleLowerCase().includes(query));
+  }, [apps, studySearch]);
+  const savedBlockedPackages = status?.config.selectedPackageNames ?? [];
+  const blockedForStudyApps = useMemo(
+    () => new Set([...savedBlockedPackages, ...draft.selectedPackageNames]),
+    [savedBlockedPackages, draft.selectedPackageNames],
+  );
+  const selectedStudyAppNames = useMemo(() => {
+    const names = new Map(apps.map((app) => [app.packageName, app.label]));
+    return studyAppPackages.map((pkg) => names.get(pkg) ?? pkg);
+  }, [apps, studyAppPackages]);
 
   const updateDraft = (patch: Partial<StudyModeConfig>) => {
     setDraft((previous) => ({ ...previous, ...patch }));
@@ -276,6 +310,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         ? draft.selectedPackageNames.filter((name) => name !== packageName)
         : [...draft.selectedPackageNames, packageName],
     });
+    if (!selected && studyAppPackages.includes(packageName)) {
+      setMessage("This app is currently in Study Apps. Saving it under Blocked Apps will remove it from Study Apps so the restriction cannot be bypassed.");
+    }
   };
 
   const chooseTime = async (which: "start" | "end") => {
@@ -307,15 +344,83 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     try {
       const nextStatus = await saveStudyModeConfig(draft);
       const savedConfig = { ...nextStatus.config, selectedDays: [...nextStatus.config.selectedDays] };
-      setStatus(nextStatus);
+      const resolvedStudyApps = studyAppsDirty
+        ? studyAppPackages.filter((pkg) => !savedConfig.selectedPackageNames.includes(pkg))
+        : [...(nextStatus.studyAppPackageNames ?? [])];
+      const blockedConflictCount = studyAppPackages.length - resolvedStudyApps.length;
+
+      // saveConfig removes blocked-package conflicts atomically with the
+      // Blocked Apps list. Also commit any independent, non-conflicting
+      // Study Apps edits so saving one section cannot leave them half-applied.
+      let finalStatus = nextStatus;
       setDraft(savedConfig);
       savedSnapshot.current = configSnapshot(savedConfig);
-      setMessage("Study Mode settings saved.");
+      setStatus(nextStatus);
+      if (studyAppsDirty) {
+        try {
+          finalStatus = await saveStudyModeApps(resolvedStudyApps);
+        } catch {
+          // Blocked Apps and schedule are already durable at this point.
+          // Keep the remaining Study Apps edits visible as unsaved so the user
+          // can retry without falsely claiming that nothing was saved.
+          setStudyAppPackages(resolvedStudyApps);
+          setMessage("Blocked Apps and schedule were saved. Study Apps changes remain unsaved; use Save Study Apps to retry.");
+          return;
+        }
+      }
+      const savedStudyApps = [...(finalStatus.studyAppPackageNames ?? [])];
+      setStatus(finalStatus);
+      setStudyAppPackages(savedStudyApps);
+      savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
+      setMessage(blockedConflictCount > 0
+        ? "Blocked Apps saved. Conflicting apps were removed from Study Apps automatically."
+        : "Blocked Apps, Study Apps and schedule settings saved.");
     } catch {
       setMessage("Settings could not be saved. Your previous configuration is unchanged.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveStudyApps = async () => {
+    if (studySaving || saving || loading || !studyAppsDirty) return;
+    const conflicts = studyAppPackages.filter((pkg) => blockedForStudyApps.has(pkg));
+    if (conflicts.length > 0) {
+      setMessage("A selected Study App is also blocked. Remove it from Blocked Apps and save that change before adding it to Study Apps.");
+      return;
+    }
+    setStudySaving(true);
+    setMessage("");
+    try {
+      const nextStatus = await saveStudyModeApps(studyAppPackages);
+      const normalized = [...(nextStatus.studyAppPackageNames ?? [])];
+      setStatus(nextStatus);
+      setStudyAppPackages(normalized);
+      savedStudyAppsSnapshot.current = JSON.stringify([...normalized].sort());
+      setMessage("Study Apps saved. These shortcuts remain separate from Blocked Apps.");
+    } catch (error) {
+      setMessage(error instanceof Error && error.message
+        ? error.message
+        : "Study Apps could not be saved. Your previous selection is unchanged.");
+    } finally {
+      setStudySaving(false);
+    }
+  };
+
+  const toggleStudyApp = (app: StudyModeApp) => {
+    if (studySaving || saving) return;
+    if (blockedForStudyApps.has(app.packageName)) {
+      setMessage("This app is in Blocked Apps. Remove it there and save the Blocked Apps list before adding it to Study Apps.");
+      return;
+    }
+    if (!app.selectable) {
+      setMessage("This protected Android app cannot be selected as a Study App.");
+      return;
+    }
+    setStudyAppPackages((previous) => previous.includes(app.packageName)
+      ? previous.filter((pkg) => pkg !== app.packageName)
+      : [...previous, app.packageName]);
+    setMessage("");
   };
 
   useEffect(() => {
@@ -369,6 +474,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       setMessage("Select at least one app before starting a focus session.");
       return;
     }
+    if (sessionDnd && status?.permissions.dndControlSupported === false) {
+      setMessage("Android 15+ does not allow this app to change global Do Not Disturb. Use Android Quick Settings.");
+      return;
+    }
     if (sessionDnd && !status?.permissions.dndAccess) {
       setMessage("Allow Do Not Disturb access, then start the session again.");
       void openPermission("dnd");
@@ -387,6 +496,15 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         setStatus(configStatus);
       }
 
+      if (studyAppsDirty) {
+        const blocked = new Set(configStatus?.config.selectedPackageNames ?? draft.selectedPackageNames);
+        const safeStudyApps = studyAppPackages.filter((pkg) => !blocked.has(pkg));
+        const studyStatus = await saveStudyModeApps(safeStudyApps);
+        setStatus(studyStatus);
+        setStudyAppPackages([...(studyStatus.studyAppPackageNames ?? [])]);
+        savedStudyAppsSnapshot.current = JSON.stringify([...(studyStatus.studyAppPackageNames ?? [])].sort());
+      }
+
       const nextStatus = await startStudyModeSession({
         sessionType,
         durationSeconds: sessionDurationSeconds,
@@ -394,10 +512,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         shouldEnableDnd: sessionDnd,
       });
       setStatus(nextStatus);
+      const savedStudyApps = [...(nextStatus.studyAppPackageNames ?? [])];
+      setStudyAppPackages(savedStudyApps);
+      savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
       setSessionTick(0);
       setSessionHistory(await getStudyModeSessionHistory());
       if (nextStatus.enforcementState === "permission_required") {
-        setMessage("Session is saved and running, but app blocking is unavailable until Usage Access and overlay permissions are granted.");
+        setMessage("Session saved; app blocking is unavailable. Enable Accessibility or Usage Access and Display over other apps.");
       } else if (nextStatus.enforcementState === "service_start_blocked") {
         setMessage("Session is saved. Android did not allow the monitoring service to start; check battery and service restrictions.");
       } else {
@@ -481,43 +602,104 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
   const permissionItems = [
     {
+      key: "accessibility" as const,
+      title: "Accessibility tracking",
+      granted: status?.permissions.accessibility === true,
+      required: false,
+      helper: status?.permissions.accessibilityConnected
+        ? "Connected · detects foreground package transitions only; never reads screen text or window content."
+        : status?.permissions.accessibility
+          ? "Enabled in Android Settings but not connected yet. Usage Access is used as fallback when granted."
+          : "Optional primary detector. Enable manually in Android Accessibility settings; detects only package names.",
+    },
+    {
       key: "usage" as const,
       title: "Usage Access",
       granted: status?.permissions.usageAccess === true,
-      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
-      helper: "Monitors which app is in the foreground on a personal device. Android does not share screen text or window content.",
+      required: !status?.permissions.accessibility,
+      helper: status?.permissions.accessibility
+        ? "Fallback if Accessibility disconnects. Detection may be delayed."
+        : "Fallback foreground event history if Accessibility is not enabled.",
     },
     {
       key: "overlay" as const,
       title: "Display over other apps",
       granted: status?.permissions.overlay === true,
-      required: !status?.permissions.deviceOwner && !status?.permissions.profileOwner,
-      helper: "Shows the Study Mode shield over a selected app.",
+      required: true,
+      helper: "Required to show the restriction screen over a selected app.",
     },
     {
       key: "exactAlarm" as const,
       title: "Exact alarms",
       granted: status?.permissions.exactAlarm === true,
-      required: (status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")
-        && (draft.enabled || Boolean(status?.activeSession?.active)),
-      helper: status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner"
-        ? "Required for safely timed system-level app suspension and release."
-        : "Without this, Android may deliver schedule changes late.",
+      required: false,
+      helper: "Optional. Without this, Android may deliver scheduled boundaries late.",
+    },
+    {
+      key: "notifications" as const,
+      title: "Notifications",
+      granted: status?.permissions.notifications === true,
+      required: false,
+      helper: "Optional. The ongoing Focus Shield notification may be hidden when denied.",
+    },
+    {
+      key: "battery" as const,
+      title: "Battery background access",
+      granted: status?.permissions.batteryOptimizationExempt === true,
+      required: false,
+      helper: "Optional manufacturer guidance. Change only if Android or the device repeatedly stops monitoring.",
     },
     {
       key: "dnd" as const,
       title: "Do Not Disturb",
-      granted: status?.permissions.dndAccess === true,
+      granted: status?.permissions.dndControlSupported !== false && status?.permissions.dndAccess === true,
+      unsupported: status?.permissions.dndControlSupported === false,
       required: sessionDnd && !status?.permissions.dndAccess,
-      helper: "Optional. Saves the original DND filter and restores it only if it is still managed by this session.",
+      helper: status?.permissions.dndControlSupported === false
+        ? "Android 15+ restricts changing global DND for this app. Use Android Quick Settings."
+        : "Optional. Saves the previous DND filter and restores it only if this session still owns the change.",
     },
   ];
 
-  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd") => {
+  const openPermission = async (permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "notifications" | "battery" | "dnd") => {
+    if (permission === "dnd" && status?.permissions.dndControlSupported === false) {
+      setMessage("Android 15+ restricts global Do Not Disturb changes for this app. Use Android Quick Settings.");
+      return;
+    }
+    if (permission === "accessibility" && !status?.permissions.accessibilityDisclosureAccepted) {
+      setAccessibilityDisclosureOpen(true);
+      return;
+    }
     try {
       await openStudyModePermission(permission);
     } catch {
       setMessage("Android settings could not be opened for this permission.");
+    }
+  };
+
+  const acceptAccessibilityDisclosure = async () => {
+    setSaving(true);
+    setMessage("");
+    let consentSaved = false;
+    try {
+      const nextStatus = await acceptStudyModeAccessibilityDisclosure();
+      setStatus(nextStatus);
+      setAccessibilityDisclosureOpen(false);
+      setAccessibilityDisclosureDismissed(false);
+      consentSaved = true;
+    } catch (error) {
+      setMessage(error instanceof Error && error.message
+        ? error.message : "Accessibility consent could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+
+    if (consentSaved) {
+      try {
+        await openStudyModePermission("accessibility");
+      } catch {
+        setMessage("Consent saved on this device. Android Accessibility Settings could not be opened; open it from the permission row.");
+      }
     }
   };
 
@@ -574,11 +756,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </span>
           )}
         </div>
-        {status?.enforcementMode === "device_owner" && (
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-success">
-            <ShieldCheck size={13} /> Device Owner system-level enforcement
-          </div>
-        )}
         {status?.enforcementMode === "focus_shield" && (
           <div className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
             <ShieldAlert size={13} className="mt-0.5 shrink-0 text-warning" />
@@ -595,7 +772,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           className="flex w-full items-center justify-between rounded-xl border border-border/70 px-3 py-2.5 text-left transition-colors hover:border-primary/40"
         >
           <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Smartphone size={15} className="text-muted-foreground" /> Multiple Apps
+            <ShieldAlert size={15} className="text-muted-foreground" /> Blocked Apps
             <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{selectedCount}</span>
           </span>
           <ChevronDown size={16} className={pickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
@@ -666,24 +843,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     <span className="shrink-0 rounded-md bg-secondary/70 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
                       {app.systemApp ? "System" : "User"}
                     </span>
-                    {selected && status?.enforcementMode !== "focus_shield" && (
-                      <span className={suspendedPackages.has(app.packageName)
-                        ? "shrink-0 rounded-md bg-success/10 px-1.5 py-0.5 text-[9px] font-semibold text-success"
-                        : "shrink-0 rounded-md bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning"}>
-                        {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Not frozen" : "Scheduled"}
-                      </span>
-                    )}
-                    {selected && status?.enforcementMode === "focus_shield" && (
+                    {selected && (
                       <span className="shrink-0 rounded-md bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning">Shield only</span>
-                    )}
-                    {app.selectable ? (
-                      <span className={selected ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground" : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
-                        <Check size={12} />
-                      </span>
-                    ) : (
-                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" aria-label="Protected app">
-                        <LockKeyhole size={13} />
-                      </span>
                     )}
                   </button>
                 );
@@ -696,6 +857,113 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         )}
       </section>
 
+
+      <section className="space-y-2 rounded-xl border border-primary/20 bg-primary/[0.025] p-3">
+        <button
+          type="button"
+          onClick={() => setStudyPickerOpen((open) => !open)}
+          aria-expanded={studyPickerOpen}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <span className="min-w-0">
+            <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Smartphone size={15} className="text-primary" /> Study Apps
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] tabular-nums text-primary">{studyAppPackages.length}</span>
+            </span>
+            <span className="mt-0.5 block text-[10px] text-muted-foreground">
+              Choose apps you want quick access to during Study Mode.
+            </span>
+          </span>
+          <ChevronDown size={16} className={studyPickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
+        </button>
+        {selectedStudyAppNames.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {selectedStudyAppNames.map((name, index) => (
+              <span key={studyAppPackages[index]} className="rounded-full border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] font-medium text-foreground">
+                {name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground">No Study Apps selected yet.</p>
+        )}
+        {studyPickerOpen && (
+          <div className="overflow-hidden rounded-lg border border-border/70 bg-card/40">
+            <div className="relative border-b border-border/60 p-2">
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={studySearch}
+                onChange={(event) => setStudySearch(event.target.value)}
+                placeholder="Search apps for studying"
+                aria-label="Search Study Apps"
+                className="h-9 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+              />
+            </div>
+            <div className="grid max-h-64 grid-cols-1 gap-x-1 overflow-y-auto p-1.5 sm:grid-cols-2">
+              {loading ? (
+                <p className="p-3 text-center text-xs text-muted-foreground">Loading installed apps…</p>
+              ) : visibleStudyApps.length === 0 ? (
+                <p className="p-3 text-center text-xs text-muted-foreground">No matching installed apps found.</p>
+              ) : visibleStudyApps.map((app) => {
+                const selected = studyAppPackages.includes(app.packageName);
+                const blocked = blockedForStudyApps.has(app.packageName);
+                return (
+                  <button
+                    key={app.packageName}
+                    type="button"
+                    onClick={() => toggleStudyApp(app)}
+                    disabled={!app.selectable || saving || studySaving}
+                    aria-pressed={selected}
+                    aria-disabled={!app.selectable || blocked}
+                    title={blocked ? "Remove this app from Blocked Apps before adding it to Study Apps." : undefined}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {app.iconDataUrl ? (
+                      <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+                    ) : (
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
+                        {app.label.slice(0, 1).toLocaleUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{app.label}</span>
+                    <span className={blocked
+                      ? "shrink-0 rounded-md bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive"
+                      : selected
+                        ? "shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary"
+                        : "shrink-0 rounded-md bg-secondary px-1.5 py-0.5 text-[9px] text-muted-foreground"}>
+                      {blocked ? "Blocked" : selected ? "Selected" : app.systemApp ? "System" : "User"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+              <p className="min-w-0 text-[10px] text-muted-foreground">
+                Study Apps open directly. Blocked Apps always take priority.
+              </p>
+              <button
+                type="button"
+                onClick={() => { void handleSaveStudyApps(); }}
+                disabled={!studyAppsDirty || studySaving || saving || loading || !isStudyModeNative()}
+                className="min-h-9 shrink-0 rounded-lg gradient-primary px-3 py-1.5 text-[10px] font-bold text-primary-foreground disabled:opacity-45"
+              >
+                {studySaving ? "Saving…" : studyAppsDirty ? "Save Study Apps" : "Saved"}
+              </button>
+            </div>
+          </div>
+        )}
+        {!studyPickerOpen && studyAppsDirty && (
+          <button
+            type="button"
+            onClick={() => { void handleSaveStudyApps(); }}
+            disabled={studySaving || saving || loading || !isStudyModeNative()}
+            className="min-h-9 rounded-lg gradient-primary px-3 py-1.5 text-[10px] font-bold text-primary-foreground disabled:opacity-45"
+          >
+            {studySaving ? "Saving…" : "Save Study Apps"}
+          </button>
+        )}
+      </section>
       <section className="space-y-2 rounded-xl border border-primary/25 bg-primary/[0.035] p-3">
         <div className="flex items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
@@ -721,7 +989,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </div>
             <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
               <span>{activeSession.selectedPackageNames.length} apps in this session</span>
-              <span>{activeSession.isEnforced ? "Enforced stop" : "Standard session"}</span>
+              <span>{activeSession.isEnforced ? "Confirm before ending" : "Normal session"}</span>
             </div>
             <button
               type="button"
@@ -767,12 +1035,12 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               </label>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-medium text-foreground">Enforced session</span>
+              <span className="text-[11px] font-medium text-foreground">Confirm before ending</span>
               <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-medium text-foreground">Do Not Disturb</span>
-              <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
+              <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading || status?.permissions.dndControlSupported === false} aria-label="Enable Do Not Disturb for session" />
             </div>
             <p className="text-[9px] text-muted-foreground">The timer uses the saved start time and continues when this page or Math Master closes.</p>
             <button
@@ -862,7 +1130,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       <section className="space-y-1.5">
         <p className="text-xs font-semibold text-foreground">Android permissions</p>
         {permissionItems.map((item) => {
-          const stateLabel = item.granted ? "Granted" : item.required ? "Required" : "Optional";
+          const stateLabel = item.unsupported ? "Not supported" : item.granted ? "Granted" : item.required ? "Required" : "Optional";
           const stateClass = item.granted
             ? "shrink-0 text-[10px] font-semibold text-success"
             : item.required
@@ -883,9 +1151,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </button>
           );
         })}
-        {status?.enforcementMode === "device_owner" && (
-          <p className="pt-1 text-[10px] text-success">This device is managed by an eligible Device Owner or Profile Owner.</p>
-        )}
         {status?.exactAlarmFallback && (
           <p className="pt-1 text-[10px] text-warning">Exact alarm access is unavailable. Schedule boundaries may be delayed by Android.</p>
         )}
@@ -906,6 +1171,50 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       >
         <Check size={15} /> {saving ? "Applying…" : isDirty ? "Save & Apply" : "Saved"}
       </motion.button>
+
+      {accessibilityDisclosureOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" role="presentation">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="study-mode-accessibility-disclosure-title"
+            className="w-full max-w-md rounded-2xl border border-border/80 bg-card p-4 shadow-2xl"
+          >
+            <div className="flex items-center gap-2">
+              <LockKeyhole size={18} className="text-primary" />
+              <h3 id="study-mode-accessibility-disclosure-title" className="text-sm font-bold text-foreground">
+                Accessibility permission disclosure
+              </h3>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-foreground">
+              Math Master can use Android Accessibility events to detect only the package name of the app currently in the foreground, so Study Mode can show its restriction screen for apps you selected.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              It does not read screen text, messages, passwords, window content or view hierarchies, and it does not perform gestures or hidden taps. This package-name signal is processed on this device and is not uploaded.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              This is a best-effort overlay, not a system freeze. A selected app can appear briefly before the shield. You can disable Accessibility tracking at any time in Android Settings.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setAccessibilityDisclosureOpen(false); setAccessibilityDisclosureDismissed(true); }}
+                className="min-h-10 flex-1 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground"
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                onClick={() => { void acceptAccessibilityDisclosure(); }}
+                disabled={saving}
+                className="min-h-10 flex-1 rounded-lg gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Agree & Open Settings"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

@@ -37,37 +37,44 @@ export interface StudyModeSessionOptions {
 
 export interface StudyModeStatus {
   config: StudyModeConfig;
+  /** Independent quick-access list; never participates in blocked-package enforcement. */
+  studyAppPackageNames: string[];
   permissions: {
+    accessibility: boolean;
+    accessibilityConnected: boolean;
+    accessibilityDisclosureAccepted: boolean;
     usageAccess: boolean;
     overlay: boolean;
     exactAlarm: boolean;
-    deviceOwner: boolean;
-    profileOwner: boolean;
+    notifications: boolean;
+    batteryOptimizationExempt: boolean;
     dndAccess: boolean;
+    dndControlSupported: boolean;
   };
   scheduleActive: boolean;
   sessionActive: boolean;
   activeSession: StudyModeSession | null;
   enforcedPackages: string[];
   monitoringServiceRunning: boolean;
-  enforcementMode: "device_owner" | "profile_owner" | "focus_shield" | "unavailable";
+  enforcementMode: "focus_shield" | "unavailable";
   enforcementState: string;
-  appliedPackages: string[];
-  suspendedPackages: string[];
   exactAlarmFallback: boolean;
 }
 
 interface NativeStudyModePlugin {
   getStatus(): Promise<StudyModeStatus>;
   refresh(): Promise<StudyModeStatus>;
+  acceptAccessibilityDisclosure(): Promise<StudyModeStatus>;
   listApps(): Promise<{ apps: StudyModeApp[] }>;
   saveConfig(options: StudyModeConfig): Promise<StudyModeStatus>;
+  saveStudyApps(options: { packageNames: string[] }): Promise<StudyModeStatus>;
+  setOverlayAppearance(options: { mode: "dark" | "light"; theme: string }): Promise<void>;
   setEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
   startSession(options: StudyModeSessionOptions): Promise<StudyModeStatus>;
   endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
   getSessionHistory(): Promise<{ sessions: StudyModeSession[] }>;
   openPermissionSettings(options: {
-    permission: "usage" | "overlay" | "exactAlarm" | "dnd";
+    permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "notifications" | "battery" | "dnd";
   }): Promise<void>;
   showTimePicker(options: {
     title: string;
@@ -93,9 +100,10 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) {
     return {
       config: DEFAULT_STUDY_MODE_CONFIG,
+      studyAppPackageNames: [],
       permissions: {
-        usageAccess: false, overlay: false,
-        exactAlarm: false, deviceOwner: false, profileOwner: false, dndAccess: false,
+        accessibility: false, accessibilityConnected: false, accessibilityDisclosureAccepted: false, usageAccess: false, overlay: false,
+        exactAlarm: false, notifications: false, batteryOptimizationExempt: false, dndAccess: false, dndControlSupported: false,
       },
       scheduleActive: false,
       sessionActive: false,
@@ -104,12 +112,15 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       monitoringServiceRunning: false,
       enforcementMode: "unavailable",
       enforcementState: "native_only",
-      appliedPackages: [],
-      suspendedPackages: [],
       exactAlarmFallback: false,
     };
   }
   return NativeStudyMode.getStatus();
+}
+
+export async function acceptStudyModeAccessibilityDisclosure(): Promise<StudyModeStatus> {
+  if (!isStudyModeNative()) throw new Error("Accessibility monitoring requires the installed Android app.");
+  return NativeStudyMode.acceptAccessibilityDisclosure();
 }
 
 export async function refreshStudyMode(): Promise<StudyModeStatus> {
@@ -129,6 +140,21 @@ export async function saveStudyModeConfig(config: StudyModeConfig): Promise<Stud
     ...config,
     selectedPackageNames: [...new Set(config.selectedPackageNames)],
     selectedDays: [...new Set(config.selectedDays)],
+  });
+}
+
+export async function saveStudyModeApps(packageNames: string[]): Promise<StudyModeStatus> {
+  if (!isStudyModeNative()) throw new Error("Study Apps require the installed Android app.");
+  return NativeStudyMode.saveStudyApps({
+    packageNames: [...new Set(packageNames)],
+  });
+}
+
+/** Sync the user's web theme to the native blocking overlay without delaying UI interactions. */
+export function syncStudyModeOverlayAppearance(mode: "dark" | "light", theme: string): void {
+  if (!isStudyModeNative()) return;
+  void NativeStudyMode.setOverlayAppearance({ mode, theme }).catch(() => {
+    // The blocking overlay keeps its last valid appearance if the bridge is unavailable.
   });
 }
 
@@ -154,7 +180,7 @@ export async function getStudyModeSessionHistory(): Promise<StudyModeSession[]> 
 }
 
 export async function openStudyModePermission(
-  permission: "usage" | "overlay" | "exactAlarm" | "dnd",
+  permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "notifications" | "battery" | "dnd",
 ): Promise<void> {
   if (!isStudyModeNative()) return;
   await NativeStudyMode.openPermissionSettings({ permission });
