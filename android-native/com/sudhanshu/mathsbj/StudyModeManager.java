@@ -618,6 +618,16 @@ public final class StudyModeManager {
 
     public static String getSessionNotificationText(Context context) {
         StudyModeSessionStore.Session session = sessionStore(context).getActiveSession(context);
+        String prefix = session == null ? "Scheduled focus" : "Focus session";
+        if (!hasOverlayPermission(context)) {
+            return prefix + " · allow Display over other apps";
+        }
+        if (!hasForegroundMonitoringSource(context)) {
+            if (hasAccessibilityServiceEnabled(context)) {
+                return prefix + " · Accessibility not connected; grant Usage Access";
+            }
+            return prefix + " · enable Accessibility or Usage Access";
+        }
         if (session == null) return "Scheduled focus is active";
         long elapsed = Math.max(0L, session.elapsedSeconds);
         if (session.durationSeconds > 0) {
@@ -888,6 +898,7 @@ public final class StudyModeManager {
         boolean scheduleActive = isScheduleActive(context);
         boolean active = !enforcedPackages.isEmpty() && (scheduleActive || sessionActive);
         boolean hasMonitoringAccess = hasForegroundMonitoringPermission(context);
+        boolean hasMonitoringSource = hasForegroundMonitoringSource(context);
         boolean overlayGranted = hasOverlayPermission(context);
 
         String state;
@@ -918,7 +929,7 @@ public final class StudyModeManager {
         result.put("activeSession", sessionJson);
         result.put("enforcedPackages", enforcedArray);
         result.put("monitoringServiceRunning", StudyModeFocusService.isRunning());
-        result.put("enforcementMode", hasMonitoringAccess && overlayGranted ? "focus_shield" : "unavailable");
+        result.put("enforcementMode", hasMonitoringSource && overlayGranted ? "focus_shield" : "unavailable");
         result.put("enforcementState", state);
         result.put("exactAlarmFallback", exactFallback);
         return result;
