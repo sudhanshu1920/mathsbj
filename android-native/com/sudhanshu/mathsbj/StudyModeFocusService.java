@@ -27,14 +27,12 @@ import android.view.WindowManager;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.AnimationSet;
 import android.view.animation.TranslateAnimation;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.Calendar;
 import java.util.Date;
 
 public final class StudyModeFocusService extends Service {
@@ -461,6 +459,9 @@ public final class StudyModeFocusService extends Service {
             );
             try {
                 startActivity(intent);
+                // Avoid replaying the previous blocked foreground package while
+                // Android is bringing Math Master back to the foreground.
+                lastForegroundPackage = getPackageName();
                 removeShield();
             } catch (Exception error) {
                 Toast.makeText(
@@ -551,6 +552,9 @@ public final class StudyModeFocusService extends Service {
         card.addView(label, labelParams);
         card.setOnClickListener(view -> {
             if (StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)) {
+                // Remember the selected destination while its first resumed event
+                // is still pending, preventing a stale blocked-package overlay loop.
+                lastForegroundPackage = packageName;
                 removeShield();
             } else {
                 Toast.makeText(StudyModeFocusService.this,
