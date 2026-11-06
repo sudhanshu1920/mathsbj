@@ -266,10 +266,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
   const suspendedPackages = useMemo(() => new Set(status?.suspendedPackages ?? []), [status?.suspendedPackages]);
   const selectedCount = draft.selectedPackageNames.length;
-  const selectedNames = useMemo(() => {
-    const names = new Map(apps.map((app) => [app.packageName, app.label]));
-    return draft.selectedPackageNames.slice(0, 2).map((pkg) => names.get(pkg) ?? pkg);
-  }, [apps, draft.selectedPackageNames]);
   const appCounts = useMemo(() => countStudyModeApps(apps), [apps]);
   const visibleApps = useMemo(
     () => filterStudyModeApps(apps, appFilter, search),
@@ -575,44 +571,27 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   };
 
   return (
-    <div className="space-y-3 min-w-0">
-      <div className="flex items-center gap-3">
+    <div className="study-mode-page min-w-0 space-y-2.5 pb-2">
+      <header className="flex min-w-0 items-center gap-2">
         <button
           type="button"
           onClick={handleBack}
           aria-label="Back to Settings"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card/45 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <ArrowLeft size={17} />
         </button>
-        <div className="min-w-0 flex-1">
-          <h2 className="font-display text-base font-bold text-foreground">Study Mode</h2>
-          <p className="text-[11px] text-muted-foreground">Restrict distracting apps during focus time</p>
-        </div>
-        <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <LockKeyhole size={17} />
-        </div>
-      </div>
+        <h2 className="min-w-0 flex-1 font-display text-base font-bold text-foreground">Study Mode</h2>
+        <LockKeyhole size={16} className="shrink-0 text-primary" />
+      </header>
 
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/35 px-3 py-2">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold text-foreground">
-            {selectedCount} {selectedCount === 1 ? "app selected" : "apps selected"}
-          </p>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {selectedNames.length ? selectedNames.join(", ") + (selectedCount > 2 ? " +" + (selectedCount - 2) : "") : "No apps selected"}
-          </p>
-        </div>
-        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground">
-          <Smartphone size={15} />
-        </span>
-      </div>
-
-      <div className="rounded-xl border border-primary/25 bg-primary/[0.055] px-3 py-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">Study Mode</p>
-            <p className="text-[11px] text-muted-foreground">{statusText(status)}</p>
+      <section className="rounded-xl border border-primary/25 bg-card/55 p-3 shadow-sm backdrop-blur-sm">
+        <div className="flex min-h-10 items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Study Mode</p>
+            <p className="truncate text-[10px] text-muted-foreground" role="status">
+              {loading ? "Loading…" : statusText(status)}
+            </p>
           </div>
           {status ? (
             <Switch
@@ -622,246 +601,253 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               aria-label="Study Mode master switch"
             />
           ) : (
-            <span role="status" className="shrink-0 text-[10px] text-muted-foreground">
-              {loading ? "Loading…" : "State unavailable"}
+            <span className="shrink-0 text-[10px] text-muted-foreground">
+              {loading ? "Loading…" : "Unavailable"}
             </span>
           )}
         </div>
         {status?.enforcementMode === "device_owner" && (
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-success">
-            <ShieldCheck size={13} /> Device Owner system-level enforcement
+          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-medium text-success">
+            <ShieldCheck size={12} /> System-level enforcement
           </div>
         )}
         {status?.enforcementMode === "focus_shield" && (
-          <div className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
-            <ShieldAlert size={13} className="mt-0.5 shrink-0 text-warning" />
-            Focus Shield is best-effort. The selected app may appear briefly before the shield.
+          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-warning">
+            <ShieldAlert size={12} /> Best-effort app blocking
           </div>
         )}
+      </section>
+
+      <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+        <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/35">
+          <button
+            type="button"
+            onClick={() => setPickerOpen((open) => !open)}
+            aria-expanded={pickerOpen}
+            className="flex min-h-12 w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/45"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Smartphone size={15} className="shrink-0 text-muted-foreground" />
+              <span className="truncate text-xs font-semibold text-foreground">Blocked Apps</span>
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+                {selectedCount}
+              </span>
+            </span>
+            <ChevronDown size={16} className={pickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
+          </button>
+          {pickerOpen && (
+            <div className="border-t border-border/60">
+              <div className="relative p-2">
+                <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search apps"
+                  aria-label="Search blocked apps"
+                  className="h-9 w-full rounded-lg border border-border/70 bg-background/75 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-1 px-2 pb-2" role="group" aria-label="Filter installed apps">
+                {([
+                  { id: "all", label: "All", count: appCounts.all },
+                  { id: "user", label: "User", count: appCounts.user },
+                  { id: "system", label: "System", count: appCounts.system },
+                ] as const).map((filter) => {
+                  const active = appFilter === filter.id;
+                  return (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => setAppFilter(filter.id)}
+                      aria-pressed={active}
+                      className={active
+                        ? "flex min-h-9 min-w-0 items-center justify-center gap-1 rounded-lg bg-primary px-2 text-[10px] font-semibold text-primary-foreground"
+                        : "flex min-h-9 min-w-0 items-center justify-center gap-1 rounded-lg bg-secondary/65 px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-secondary"}
+                    >
+                      <span>{filter.label}</span>
+                      <span className="tabular-nums opacity-80">{filter.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto border-t border-border/50 p-1.5 min-[480px]:grid-cols-2">
+                {loading ? (
+                  <p className="col-span-full p-3 text-center text-xs text-muted-foreground">Loading apps…</p>
+                ) : visibleApps.length === 0 ? (
+                  <p className="col-span-full p-3 text-center text-xs text-muted-foreground">
+                    {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
+                  </p>
+                ) : visibleApps.map((app) => {
+                  const selected = draft.selectedPackageNames.includes(app.packageName);
+                  return (
+                    <button
+                      key={app.packageName}
+                      type="button"
+                      onClick={() => toggleApp(app.packageName, app.selectable)}
+                      disabled={!app.selectable || saving}
+                      aria-pressed={selected}
+                      aria-disabled={!app.selectable}
+                      className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/65 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {app.iconDataUrl ? (
+                        <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+                      ) : (
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
+                          {app.label.slice(0, 1).toLocaleUpperCase()}
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{app.label}</span>
+                      {selected && status?.enforcementMode !== "focus_shield" && (
+                        <span className={suspendedPackages.has(app.packageName)
+                          ? "shrink-0 rounded-md bg-success/10 px-1 py-0.5 text-[8px] font-semibold text-success"
+                          : "shrink-0 rounded-md bg-warning/10 px-1 py-0.5 text-[8px] font-semibold text-warning"}>
+                          {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Not frozen" : "Scheduled"}
+                        </span>
+                      )}
+                      {selected && status?.enforcementMode === "focus_shield" && (
+                        <span className="shrink-0 rounded-md bg-warning/10 px-1 py-0.5 text-[8px] font-semibold text-warning">Shield</span>
+                      )}
+                      {app.selectable ? (
+                        <span className={selected
+                          ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground"
+                          : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
+                          <Check size={11} />
+                        </span>
+                      ) : (
+                        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" aria-label="Protected app">
+                          <LockKeyhole size={12} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="border-t border-border/50 px-3 py-1.5 text-[9px] text-muted-foreground">
+                {apps.length} apps · Locked apps cannot be selected
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/35">
+          <button
+            type="button"
+            onClick={() => setStudyPickerOpen((open) => !open)}
+            aria-expanded={studyPickerOpen}
+            className="flex min-h-12 w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/45"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <BookOpen size={15} className="shrink-0 text-primary" />
+              <span className="truncate text-xs font-semibold text-foreground">Study Apps</span>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-primary">
+                {studyAppPackages.length}
+              </span>
+            </span>
+            <ChevronDown size={16} className={studyPickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
+          </button>
+          {studyPickerOpen && (
+            <div className="border-t border-border/60">
+              <div className="relative p-2">
+                <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={studySearch}
+                  onChange={(event) => setStudySearch(event.target.value)}
+                  placeholder="Search apps"
+                  aria-label="Search Study Apps"
+                  className="h-9 w-full rounded-lg border border-border/70 bg-background/75 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+                />
+              </div>
+              <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto p-1.5 min-[480px]:grid-cols-2">
+                {loading ? (
+                  <p className="col-span-full p-3 text-center text-xs text-muted-foreground">Loading apps…</p>
+                ) : visibleStudyApps.length === 0 ? (
+                  <p className="col-span-full p-3 text-center text-xs text-muted-foreground">
+                    {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
+                  </p>
+                ) : visibleStudyApps.map((app) => {
+                  const selected = studyAppPackages.includes(app.packageName);
+                  const blocked = draft.selectedPackageNames.includes(app.packageName)
+                    || (status?.enforcedPackages ?? []).includes(app.packageName);
+                  return (
+                    <button
+                      key={app.packageName}
+                      type="button"
+                      onClick={() => toggleStudyApp(app.packageName, app.selectable)}
+                      disabled={!app.selectable || saving}
+                      aria-pressed={selected}
+                      aria-disabled={!app.selectable}
+                      className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/65 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {app.iconDataUrl ? (
+                        <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+                      ) : (
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
+                          {app.label.slice(0, 1).toLocaleUpperCase()}
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{app.label}</span>
+                      {blocked && !selected && (
+                        <span className="shrink-0 text-[9px] font-semibold text-warning">Move</span>
+                      )}
+                      {app.selectable ? (
+                        <span className={selected
+                          ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground"
+                          : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
+                          <Check size={11} />
+                        </span>
+                      ) : (
+                        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" aria-label="Protected app">
+                          <LockKeyhole size={12} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="border-t border-border/50 px-3 py-1.5 text-[9px] text-muted-foreground">
+                {studyAppPackages.length} selected
+              </div>
+            </div>
+          )}
+        </section>
       </div>
 
-      <section className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setPickerOpen((open) => !open)}
-          aria-expanded={pickerOpen}
-          className="flex w-full items-center justify-between rounded-xl border border-border/70 px-3 py-2.5 text-left transition-colors hover:border-primary/40"
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Smartphone size={15} className="text-muted-foreground" /> Blocked Apps
-            <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{selectedCount}</span>
-          </span>
-          <ChevronDown size={16} className={pickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
-        </button>
-        {pickerOpen && (
-          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/30">
-            <div className="relative border-b border-border/60 p-2">
-              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search installed apps"
-                aria-label="Search installed apps"
-                className="h-9 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-1 border-b border-border/60 p-2" role="group" aria-label="Filter installed apps">
-              {([
-                { id: "all", label: "All", count: appCounts.all },
-                { id: "user", label: "User", count: appCounts.user },
-                { id: "system", label: "System", count: appCounts.system },
-              ] as const).map((filter) => {
-                const active = appFilter === filter.id;
-                return (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    onClick={() => setAppFilter(filter.id)}
-                    aria-pressed={active}
-                    className={active
-                      ? "flex min-w-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-2 py-1.5 text-[11px] font-semibold text-primary-foreground"
-                      : "flex min-w-0 items-center justify-center gap-1.5 rounded-lg bg-secondary/60 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary"}
-                  >
-                    <span>{filter.label}</span>
-                    <span className="tabular-nums opacity-80">{filter.count}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="grid max-h-64 grid-cols-1 gap-x-1 overflow-y-auto p-1.5 sm:grid-cols-2">
-              {loading ? (
-                <p className="p-3 text-center text-xs text-muted-foreground">Loading installed apps…</p>
-              ) : visibleApps.length === 0 ? (
-                <p className="p-3 text-center text-xs text-muted-foreground">
-                  {apps.length === 0 ? "No launcher-visible apps were returned by Android." : "No matching apps found in this category."}
-                </p>
-              ) : visibleApps.map((app) => {
-                const selected = draft.selectedPackageNames.includes(app.packageName);
-                return (
-                  <button
-                    key={app.packageName}
-                    type="button"
-                    onClick={() => toggleApp(app.packageName, app.selectable)}
-                    disabled={!app.selectable || saving}
-                    aria-pressed={selected}
-                    aria-disabled={!app.selectable}
-                    className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-65"
-                  >
-                    {app.iconDataUrl ? (
-                      <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
-                    ) : (
-                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
-                        {app.label.slice(0, 1).toLocaleUpperCase()}
-                      </span>
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{app.label}</span>
-                    <span className="shrink-0 rounded-md bg-secondary/70 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                      {app.systemApp ? "System" : "User"}
-                    </span>
-                    {selected && status?.enforcementMode !== "focus_shield" && (
-                      <span className={suspendedPackages.has(app.packageName)
-                        ? "shrink-0 rounded-md bg-success/10 px-1.5 py-0.5 text-[9px] font-semibold text-success"
-                        : "shrink-0 rounded-md bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning"}>
-                        {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Not frozen" : "Scheduled"}
-                      </span>
-                    )}
-                    {selected && status?.enforcementMode === "focus_shield" && (
-                      <span className="shrink-0 rounded-md bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning">Shield only</span>
-                    )}
-                    {app.selectable ? (
-                      <span className={selected ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground" : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
-                        <Check size={12} />
-                      </span>
-                    ) : (
-                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" aria-label="Protected app">
-                        <LockKeyhole size={13} />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
-              Showing {apps.length} launchable apps visible to Android. Pre-installed apps are included; protected device apps stay visible but cannot be selected.
-            </div>
-          </div>
-        )}
-      </section>
-
-
-      <section className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setStudyPickerOpen((open) => !open)}
-          aria-expanded={studyPickerOpen}
-          className="flex w-full items-center justify-between rounded-xl border border-border/70 px-3 py-2.5 text-left transition-colors hover:border-primary/40"
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <BookOpen size={15} className="text-primary" /> Study Apps
-            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] tabular-nums text-primary">
-              {studyAppPackages.length}
-            </span>
-          </span>
-          <ChevronDown size={16} className={studyPickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
-        </button>
-        <p className="px-1 text-[10px] text-muted-foreground">
-          Select apps you want quick access to during Study Mode.
-        </p>
-        {studyPickerOpen && (
-          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/30">
-            <div className="relative border-b border-border/60 p-2">
-              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                value={studySearch}
-                onChange={(event) => setStudySearch(event.target.value)}
-                placeholder="Search installed apps"
-                aria-label="Search Study Apps"
-                className="h-9 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-              />
-            </div>
-            <div className="grid max-h-60 grid-cols-1 gap-1 overflow-y-auto p-1.5 sm:grid-cols-2">
-              {loading ? (
-                <p className="p-3 text-center text-xs text-muted-foreground">Loading installed apps…</p>
-              ) : visibleStudyApps.length === 0 ? (
-                <p className="p-3 text-center text-xs text-muted-foreground">
-                  {apps.length === 0 ? "No launchable apps found." : "No matching apps found."}
-                </p>
-              ) : visibleStudyApps.map((app) => {
-                const selected = studyAppPackages.includes(app.packageName);
-                const blocked = draft.selectedPackageNames.includes(app.packageName)
-                  || (status?.enforcedPackages ?? []).includes(app.packageName);
-                return (
-                  <button
-                    key={app.packageName}
-                    type="button"
-                    onClick={() => toggleStudyApp(app.packageName, app.selectable)}
-                    disabled={!app.selectable || saving}
-                    aria-pressed={selected}
-                    aria-disabled={!app.selectable}
-                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-55"
-                  >
-                    {app.iconDataUrl ? (
-                      <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
-                    ) : (
-                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
-                        {app.label.slice(0, 1).toLocaleUpperCase()}
-                      </span>
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{app.label}</span>
-                    {blocked && !selected ? (
-                      <span className="shrink-0 text-[9px] font-semibold text-warning">Move</span>
-                    ) : (
-                      <span className={selected
-                        ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground"
-                        : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
-                        <Check size={12} />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
-              {studyAppPackages.length} selected · Only selected, installed and launchable apps appear in the blocking popup.
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-2 rounded-xl border border-primary/25 bg-primary/[0.035] p-3">
-        <div className="flex items-center justify-between gap-2">
+      <section className="space-y-2 rounded-xl border border-border/70 bg-card/45 p-3 shadow-sm backdrop-blur-sm">
+        <div className="flex min-h-7 items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <Clock3 size={14} className="text-muted-foreground" /> Focus session
           </p>
           {activeSession && (
-            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-semibold text-success">ACTIVE</span>
+            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-bold text-success">ACTIVE</span>
           )}
         </div>
 
         {activeSession ? (
           <>
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="font-display text-2xl font-bold tabular-nums text-foreground">
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-display text-2xl font-bold tabular-nums tracking-tight text-foreground">
                   {formatSessionTime(activeSession.durationSeconds > 0 ? sessionRemainingSeconds : sessionElapsedSeconds)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {activeSession.durationSeconds > 0 ? "Remaining" : "Elapsed"} · started {new Date(activeSession.startTimestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                  {activeSession.durationSeconds > 0 ? "Remaining" : "Elapsed"} · {activeSession.sessionType}
                 </p>
               </div>
-              <span className="rounded-lg bg-secondary px-2 py-1 text-[10px] font-semibold capitalize text-foreground">{activeSession.sessionType}</span>
+              <div className="shrink-0 rounded-lg bg-secondary/75 px-2.5 py-1.5 text-[10px] font-medium text-foreground">
+                {activeSession.selectedPackageNames.length} apps
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-              <span>{activeSession.selectedPackageNames.length} apps in this session</span>
-              <span>{activeSession.isEnforced ? "Enforced stop" : "Standard session"}</span>
-            </div>
+            <p className="text-[9px] text-muted-foreground">
+              Started {new Date(activeSession.startTimestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              {activeSession.isEnforced ? " · Enforced stop" : " · Standard"}
+            </p>
             <button
               type="button"
               onClick={() => { void handleEndSession(); }}
               disabled={saving}
-              className="min-h-10 w-full rounded-lg border border-destructive/30 px-3 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+              className="min-h-10 w-full rounded-lg border border-destructive/35 px-3 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
             >
               {saving ? "Ending…" : "End Session"}
             </button>
@@ -869,13 +855,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <label className="text-[10px] text-muted-foreground">
-                Session type
+              <label className="min-w-0 text-[10px] font-medium text-muted-foreground">
+                Session
                 <select
                   value={sessionType}
                   onChange={(event) => setSessionType(event.target.value as typeof sessionType)}
                   disabled={saving || loading}
-                  className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+                  className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
                 >
                   <option value="study">Study</option>
                   <option value="practice">Practice</option>
@@ -883,13 +869,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                   <option value="custom">Custom</option>
                 </select>
               </label>
-              <label className="text-[10px] text-muted-foreground">
+              <label className="min-w-0 text-[10px] font-medium text-muted-foreground">
                 Duration
                 <select
                   value={sessionDurationSeconds}
                   onChange={(event) => setSessionDurationSeconds(Number(event.target.value))}
                   disabled={saving || loading}
-                  className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+                  className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
                 >
                   <option value={15 * 60}>15 minutes</option>
                   <option value={25 * 60}>25 minutes</option>
@@ -900,20 +886,21 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                 </select>
               </label>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-medium text-foreground">Enforced session</span>
-              <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5">
+                <span className="text-[10px] font-medium text-foreground">Enforced</span>
+                <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
+              </div>
+              <div className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5">
+                <span className="text-[10px] font-medium text-foreground">Do Not Disturb</span>
+                <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-medium text-foreground">Do Not Disturb</span>
-              <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
-            </div>
-            <p className="text-[9px] text-muted-foreground">The timer uses the saved start time and continues when this page or Math Master closes.</p>
             <button
               type="button"
               onClick={() => { void handleStartSession(); }}
               disabled={saving || loading || !isStudyModeNative()}
-              className="min-h-10 w-full rounded-lg gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
+              className="min-h-11 w-full rounded-lg gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
             >
               {saving ? "Starting…" : "Start Focus Session"}
             </button>
@@ -934,16 +921,16 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         )}
       </section>
 
-      <section className="space-y-1.5">
+      <section className="space-y-2 rounded-xl border border-border/70 bg-card/35 p-3">
         <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <Clock3 size={14} className="text-muted-foreground" /> Study schedule
+          <CalendarDays size={14} className="text-muted-foreground" /> Study schedule
         </p>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => { void chooseTime("start"); }}
             disabled={!isStudyModeNative() || loading}
-            className="flex min-w-0 items-center justify-between gap-1 rounded-xl border border-border/70 px-3 py-2.5 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
+            className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-lg border border-border/70 bg-background/35 px-3 py-2 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
           >
             <span className="text-[10px] text-muted-foreground">Start</span>
             <span className="text-sm font-bold tabular-nums text-foreground">{toTimeLabel(draft.startHour, draft.startMinute)}</span>
@@ -952,48 +939,46 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             type="button"
             onClick={() => { void chooseTime("end"); }}
             disabled={!isStudyModeNative() || loading}
-            className="flex min-w-0 items-center justify-between gap-1 rounded-xl border border-border/70 px-3 py-2.5 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
+            className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-lg border border-border/70 bg-background/35 px-3 py-2 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
           >
             <span className="text-[10px] text-muted-foreground">End</span>
             <span className="text-sm font-bold tabular-nums text-foreground">{toTimeLabel(draft.endHour, draft.endMinute)}</span>
           </button>
         </div>
-        <p className="text-[10px] text-muted-foreground">Overnight schedules continue into the following day.</p>
-      </section>
-
-      <section className="space-y-2">
-        <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <CalendarDays size={14} className="text-muted-foreground" /> Repeat days
-        </p>
-        <div className="flex items-center justify-between gap-1">
-          {DAY_LABELS.map((day) => {
-            const selected = draft.selectedDays.includes(day.value);
-            return (
-              <button
-                key={day.value}
-                type="button"
-                onClick={() => updateDraft({
-                  selectedDays: selected
-                    ? draft.selectedDays.filter((value) => value !== day.value)
-                    : [...draft.selectedDays, day.value].sort((a, b) => a - b),
-                })}
-                aria-label={day.name}
-                aria-pressed={selected}
-                className={selected ? "h-9 w-9 shrink-0 rounded-full border border-primary bg-primary text-xs font-bold text-primary-foreground transition-colors" : "h-9 w-9 shrink-0 rounded-full border border-border bg-transparent text-xs font-bold text-muted-foreground transition-colors hover:border-primary/50"}
-              >
-                {day.label}
-              </button>
-            );
-          })}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-medium text-muted-foreground">Repeat</span>
+          <div className="flex flex-wrap items-center justify-end gap-1">
+            {DAY_LABELS.map((day) => {
+              const selected = draft.selectedDays.includes(day.value);
+              return (
+                <button
+                  key={day.value}
+                  type="button"
+                  onClick={() => updateDraft({
+                    selectedDays: selected
+                      ? draft.selectedDays.filter((value) => value !== day.value)
+                      : [...draft.selectedDays, day.value].sort((a, b) => a - b),
+                  })}
+                  aria-label={day.name}
+                  aria-pressed={selected}
+                  className={selected
+                    ? "h-10 w-10 shrink-0 rounded-full border border-primary bg-primary text-[11px] font-bold text-primary-foreground transition-colors"
+                    : "h-10 w-10 shrink-0 rounded-full border border-border bg-transparent text-[11px] font-bold text-muted-foreground transition-colors hover:border-primary/50"}
+                >
+                  {day.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex justify-end gap-3 text-[10px]">
-          <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5] })} className="text-muted-foreground underline-offset-2 hover:text-primary hover:underline">Weekdays</button>
-          <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5, 6, 7] })} className="text-muted-foreground underline-offset-2 hover:text-primary hover:underline">Every day</button>
-          <button type="button" onClick={() => updateDraft({ selectedDays: [] })} className="text-muted-foreground underline-offset-2 hover:text-primary hover:underline">Clear</button>
+        <div className="flex justify-end gap-4 text-[10px]">
+          <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5] })} className="min-h-9 text-muted-foreground underline-offset-2 hover:text-primary hover:underline">Weekdays</button>
+          <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5, 6, 7] })} className="min-h-9 text-muted-foreground underline-offset-2 hover:text-primary hover:underline">Every day</button>
+          <button type="button" onClick={() => updateDraft({ selectedDays: [] })} className="min-h-9 text-muted-foreground underline-offset-2 hover:text-primary hover:underline">Clear</button>
         </div>
       </section>
 
-      <section className="space-y-1.5">
+      <section className="space-y-1.5 rounded-xl border border-border/70 bg-card/35 p-3">
         <p className="text-xs font-semibold text-foreground">Android permissions</p>
         {permissionItems.map((item) => {
           const stateLabel = item.granted ? "Granted" : item.required ? "Required" : "Optional";
@@ -1007,26 +992,27 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               key={item.key}
               type="button"
               onClick={() => { void openPermission(item.key); }}
-              className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-2.5 py-1.5 text-left transition-colors hover:border-primary/35"
+              aria-label={item.title + ": " + stateLabel + ". " + item.helper}
+              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-border/55 px-2.5 py-1.5 text-left transition-colors hover:border-primary/35"
             >
               <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-medium text-foreground">{item.title}{item.required ? " · required" : ""}</span>
-                <span className="block truncate text-[10px] text-muted-foreground">{item.helper}</span>
+                <span className="block truncate text-[11px] font-medium text-foreground">{item.title}</span>
+                <span className="block truncate text-[9px] text-muted-foreground">{item.helper}</span>
               </span>
               <span className={stateClass}>{stateLabel}</span>
             </button>
           );
         })}
         {status?.enforcementMode === "device_owner" && (
-          <p className="pt-1 text-[10px] text-success">This device is managed by an eligible Device Owner or Profile Owner.</p>
+          <p className="pt-1 text-[9px] text-success">Managed device enforcement is available.</p>
         )}
         {status?.exactAlarmFallback && (
-          <p className="pt-1 text-[10px] text-warning">Exact alarm access is unavailable. Schedule boundaries may be delayed by Android.</p>
+          <p className="pt-1 text-[9px] text-warning">Schedule boundaries may be delayed by Android.</p>
         )}
       </section>
 
       {(message || refreshError) && (
-        <p role="status" className="rounded-lg bg-secondary/70 px-3 py-2 text-[11px] text-muted-foreground">
+        <p role="status" className="rounded-lg border border-border/70 bg-secondary/60 px-3 py-2 text-[10px] text-muted-foreground">
           {message || refreshError}
         </p>
       )}
@@ -1036,9 +1022,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         whileTap={{ scale: MOTION.scale.press }}
         disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
         onClick={() => { void handleSave(); }}
-        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl gradient-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl gradient-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
       >
-        <Check size={15} /> {saving ? "Applying…" : hasUnsavedChanges ? "Save & Apply" : "Saved"}
+        <Check size={14} /> {saving ? "Applying…" : hasUnsavedChanges ? "Save & Apply" : "Saved"}
       </motion.button>
     </div>
   );
