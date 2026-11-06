@@ -305,14 +305,14 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const toggleApp = (packageName: string, selectable: boolean) => {
     if (!selectable || saving) return;
     const selected = draft.selectedPackageNames.includes(packageName);
-    if (!selected && studyAppPackages.includes(packageName)) {
-      setMessage("This app is currently in Study Apps. Saving it under Blocked Apps will remove it from Study Apps so the restriction cannot be bypassed.");
-    }
     updateDraft({
       selectedPackageNames: selected
         ? draft.selectedPackageNames.filter((name) => name !== packageName)
         : [...draft.selectedPackageNames, packageName],
     });
+    if (!selected && studyAppPackages.includes(packageName)) {
+      setMessage("This app is currently in Study Apps. Saving it under Blocked Apps will remove it from Study Apps so the restriction cannot be bypassed.");
+    }
   };
 
   const chooseTime = async (which: "start" | "end") => {
@@ -348,16 +348,24 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         ? studyAppPackages.filter((pkg) => !savedConfig.selectedPackageNames.includes(pkg))
         : [...(nextStatus.studyAppPackageNames ?? [])];
       const blockedConflictCount = studyAppPackages.length - resolvedStudyApps.length;
-      setStatus(nextStatus);
+
+      // saveConfig removes blocked-package conflicts atomically with the
+      // Blocked Apps list. Also commit any independent, non-conflicting
+      // Study Apps edits so saving one section cannot leave them half-applied.
+      let finalStatus = nextStatus;
       setDraft(savedConfig);
-      setStudyAppPackages(resolvedStudyApps);
       savedSnapshot.current = configSnapshot(savedConfig);
-      if (!studyAppsDirty) {
-        savedStudyAppsSnapshot.current = JSON.stringify([...(nextStatus.studyAppPackageNames ?? [])].sort());
+      setStatus(nextStatus);
+      if (studyAppsDirty) {
+        finalStatus = await saveStudyModeApps(resolvedStudyApps);
       }
+      const savedStudyApps = [...(finalStatus.studyAppPackageNames ?? [])];
+      setStatus(finalStatus);
+      setStudyAppPackages(savedStudyApps);
+      savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
       setMessage(blockedConflictCount > 0
         ? "Blocked Apps saved. Conflicting apps were removed from Study Apps automatically."
-        : "Blocked Apps and schedule settings saved.");
+        : "Blocked Apps, Study Apps and schedule settings saved.");
     } catch {
       setMessage("Settings could not be saved. Your previous configuration is unchanged.");
     } finally {
