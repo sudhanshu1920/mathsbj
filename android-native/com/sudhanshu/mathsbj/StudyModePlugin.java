@@ -33,6 +33,15 @@ public final class StudyModePlugin extends Plugin {
         call.resolve(StudyModeManager.getStatus(getContext()));
     }
 
+
+    @PluginMethod
+    public void setPopupAppearance(PluginCall call) {
+        String theme = call.getString("theme", "arctic-blue");
+        String mode = call.getString("mode", "dark");
+        StudyModeManager.savePopupAppearance(getContext(), theme, mode);
+        call.resolve();
+    }
+
     @PluginMethod
     public void refresh(PluginCall call) {
         StudyModeManager.reconcile(getContext());
@@ -103,12 +112,20 @@ public final class StudyModePlugin extends Plugin {
         try {
             JSONArray rawPackages = call.getData().optJSONArray("selectedPackageNames");
             JSONArray rawDays = call.getData().optJSONArray("selectedDays");
+            JSONArray rawStudyApps = call.getData().optJSONArray("studyAppPackageNames");
             List<String> packages = new ArrayList<>();
+            List<String> studyApps = rawStudyApps == null ? null : new ArrayList<>();
             Set<Integer> days = new HashSet<>();
             if (rawPackages != null) {
                 for (int i = 0; i < rawPackages.length(); i++) {
                     String name = rawPackages.optString(i, "");
                     if (!name.isEmpty()) packages.add(name);
+                }
+            }
+            if (rawStudyApps != null && studyApps != null) {
+                for (int i = 0; i < rawStudyApps.length(); i++) {
+                    String name = rawStudyApps.optString(i, "");
+                    if (!name.isEmpty()) studyApps.add(name);
                 }
             }
             if (rawDays != null) {
@@ -127,7 +144,7 @@ public final class StudyModePlugin extends Plugin {
                 return;
             }
             StudyModeManager.saveConfig(
-                getContext(), packages, startHour, startMinute, endHour, endMinute, days
+                getContext(), packages, studyApps, false, startHour, startMinute, endHour, endMinute, days
             );
             call.resolve(StudyModeManager.getStatus(getContext()));
         } catch (IllegalArgumentException error) {

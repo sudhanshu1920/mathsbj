@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { getTheme, getMode } from "@/lib/theme";
 import {
   DEFAULT_STUDY_MODE_CONFIG,
   type StudyModeConfig,
@@ -55,13 +56,15 @@ export interface StudyModeStatus {
   appliedPackages: string[];
   suspendedPackages: string[];
   exactAlarmFallback: boolean;
+  studyAppPackages?: string[];
 }
 
 interface NativeStudyModePlugin {
   getStatus(): Promise<StudyModeStatus>;
   refresh(): Promise<StudyModeStatus>;
   listApps(): Promise<{ apps: StudyModeApp[] }>;
-  saveConfig(options: StudyModeConfig): Promise<StudyModeStatus>;
+  saveConfig(options: StudyModeConfig & { studyAppPackageNames: string[] }): Promise<StudyModeStatus>;
+  setPopupAppearance(options: { theme: string; mode: "dark" | "light" }): Promise<void>;
   setEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
   startSession(options: StudyModeSessionOptions): Promise<StudyModeStatus>;
   endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
@@ -80,9 +83,25 @@ const NativeStudyMode = registerPlugin<NativeStudyModePlugin>("StudyMode");
 
 export const isStudyModeNative = (): boolean => Capacitor.isNativePlatform();
 
-/** Reconcile a saved schedule on every native app process start. */
+export async function syncStudyModePopupAppearance(): Promise<void> {
+  if (!isStudyModeNative()) return;
+  try {
+    await NativeStudyMode.setPopupAppearance({ theme: getTheme(), mode: getMode() });
+  } catch {
+    // Keep the native popup's last saved appearance when the bridge is unavailable.
+  }
+}
+
+let popupAppearanceListenerInstalled = false;
+
+/** Reconcile a saved schedule and mirror appearance preferences to the native overlay. */
 export function initializeStudyMode(): void {
   if (!isStudyModeNative()) return;
+  void syncStudyModePopupAppearance();
+  if (typeof window !== "undefined" && !popupAppearanceListenerInstalled) {
+    popupAppearanceListenerInstalled = true;
+    window.addEventListener("theme-updated", () => { void syncStudyModePopupAppearance(); });
+  }
   void NativeStudyMode.refresh().catch(() => {
     // The feature remains opt-in; permission or service failures are surfaced
     // on the Study Mode page from the next native status read.
@@ -107,6 +126,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       appliedPackages: [],
       suspendedPackages: [],
       exactAlarmFallback: false,
+      studyAppPackages: [],
     };
   }
   return NativeStudyMode.getStatus();
@@ -123,10 +143,11 @@ export async function getInstalledStudyModeApps(): Promise<StudyModeApp[]> {
   return Array.isArray(result.apps) ? result.apps : [];
 }
 
-export async function saveStudyModeConfig(config: StudyModeConfig): Promise<StudyModeStatus> {
+export async function saveStudyModeConfig(config: StudyModeConfig, studyAppPackageNames: string[] = []): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) throw new Error("Study Mode requires the Android app.");
   return NativeStudyMode.saveConfig({
     ...config,
+    studyAppPackageNames: [...new Set(studyAppPackageNames)],
     selectedPackageNames: [...new Set(config.selectedPackageNames)],
     selectedDays: [...new Set(config.selectedDays)],
   });
