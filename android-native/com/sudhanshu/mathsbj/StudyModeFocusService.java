@@ -1,6 +1,7 @@
 package com.sudhanshu.mathsbj;
 
 import android.app.Notification;
+import android.animation.ValueAnimator;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -517,9 +518,14 @@ public final class StudyModeFocusService extends Service {
         quoteParams.topMargin = dp(7);
         quoteCard.addView(quote, quoteParams);
         content.addView(quoteCard, fullWidthParams(0, 0));
-        quoteCard.setAlpha(0f);
-        quoteCard.setTranslationY(dp(8));
-        quoteCard.animate().alpha(1f).translationY(0f).setDuration(260L).start();
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || ValueAnimator.areAnimatorsEnabled()) {
+            quoteCard.setAlpha(0f);
+            quoteCard.setTranslationY(dp(8));
+            quoteCard.animate().alpha(1f).translationY(0f).setDuration(260L).start();
+        } else {
+            // Respect Android's system-wide reduced-motion / disabled-animation setting.
+            quoteCard.setAlpha(1f);
+        }
 
         TextView status = makeText("●  STUDY MODE ACTIVE", 11, accent, true);
         status.setGravity(Gravity.CENTER);
@@ -773,7 +779,7 @@ public final class StudyModeFocusService extends Service {
         if ("soft-rose".equals(theme)) return new int[] { Color.rgb(27, 16, 22), Color.rgb(244, 114, 182), Color.rgb(251, 113, 133) };
         if ("sunset-gold".equals(theme)) return new int[] { Color.rgb(27, 18, 8), Color.rgb(245, 158, 11), Color.rgb(251, 113, 133) };
         if ("graphite".equals(theme)) return new int[] { Color.rgb(14, 17, 21), Color.rgb(161, 161, 170), Color.rgb(100, 116, 139) };
-        if ("pearl-white".equals(theme)) return new int[] { Color.rgb(246, 248, 251), Color.rgb(37, 99, 235), Color.rgb(15, 118, 110) };
+        if ("pearl-white".equals(theme)) return new int[] { Color.rgb(15, 23, 42), Color.rgb(37, 99, 235), Color.rgb(15, 118, 110) };
         if ("indigo".equals(theme)) return new int[] { Color.rgb(17, 19, 41), Color.rgb(79, 70, 229), Color.rgb(129, 140, 248) };
         if ("forest".equals(theme)) return new int[] { Color.rgb(11, 21, 16), Color.rgb(21, 128, 61), Color.rgb(132, 204, 22) };
         if ("mint".equals(theme)) return new int[] { Color.rgb(7, 23, 19), Color.rgb(13, 148, 136), Color.rgb(52, 211, 153) };
