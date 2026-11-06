@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { getTheme, getMode } from "@/lib/theme";
 import {
   DEFAULT_STUDY_MODE_CONFIG,
   type StudyModeConfig,
@@ -55,7 +56,7 @@ export interface StudyModeStatus {
   appliedPackages: string[];
   suspendedPackages: string[];
   exactAlarmFallback: boolean;
-  studyAppPackages: string[];
+  studyAppPackages?: string[];
 }
 
 interface NativeStudyModePlugin {
@@ -82,8 +83,6 @@ const NativeStudyMode = registerPlugin<NativeStudyModePlugin>("StudyMode");
 
 export const isStudyModeNative = (): boolean => Capacitor.isNativePlatform();
 
-import { getTheme, getMode } from "@/lib/theme";
-
 export async function syncStudyModePopupAppearance(): Promise<void> {
   if (!isStudyModeNative()) return;
   try {
@@ -93,11 +92,14 @@ export async function syncStudyModePopupAppearance(): Promise<void> {
   }
 }
 
-/** Reconcile a saved schedule on every native app process start. */
+let popupAppearanceListenerInstalled = false;
+
+/** Reconcile a saved schedule and mirror appearance preferences to the native overlay. */
 export function initializeStudyMode(): void {
   if (!isStudyModeNative()) return;
   void syncStudyModePopupAppearance();
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && !popupAppearanceListenerInstalled) {
+    popupAppearanceListenerInstalled = true;
     window.addEventListener("theme-updated", () => { void syncStudyModePopupAppearance(); });
   }
   void NativeStudyMode.refresh().catch(() => {
