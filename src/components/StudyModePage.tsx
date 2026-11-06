@@ -702,7 +702,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                         <span className={suspendedPackages.has(app.packageName)
                           ? "shrink-0 rounded-md bg-success/10 px-1 py-0.5 text-[8px] font-semibold text-success"
                           : "shrink-0 rounded-md bg-warning/10 px-1 py-0.5 text-[8px] font-semibold text-warning"}>
-                          {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Pending" : "Scheduled"}
+                          {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Not frozen" : "Scheduled"}
                         </span>
                       )}
                       {selected && status?.enforcementMode === "focus_shield" && (
@@ -962,8 +962,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                   aria-label={day.name}
                   aria-pressed={selected}
                   className={selected
-                    ? "h-9 w-9 shrink-0 rounded-full border border-primary bg-primary text-[11px] font-bold text-primary-foreground transition-colors"
-                    : "h-9 w-9 shrink-0 rounded-full border border-border bg-transparent text-[11px] font-bold text-muted-foreground transition-colors hover:border-primary/50"}
+                    ? "h-10 w-10 shrink-0 rounded-full border border-primary bg-primary text-[11px] font-bold text-primary-foreground transition-colors"
+                    : "h-10 w-10 shrink-0 rounded-full border border-border bg-transparent text-[11px] font-bold text-muted-foreground transition-colors hover:border-primary/50"}
                 >
                   {day.label}
                 </button>
