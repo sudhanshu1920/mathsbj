@@ -164,7 +164,7 @@ public final class StudyModeManager {
     }
 
     /** Launch only a currently saved Study App. Blocked Apps always win conflicts. */
-    public static void launchStudyApp(Context context, String packageName) {
+    public static synchronized void launchStudyApp(Context context, String packageName) {
         if (!isValidPackageName(packageName)) {
             throw new IllegalArgumentException("Invalid Study App package.");
         }
