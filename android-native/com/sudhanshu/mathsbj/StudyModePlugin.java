@@ -114,6 +114,42 @@ public final class StudyModePlugin extends Plugin {
 
     @PluginMethod
     public void saveConfig(PluginCall call) {
+    @PluginMethod
+    public void saveStudyApps(PluginCall call) {
+        try {
+            JSONArray rawPackages = call.getData().optJSONArray("packageNames");
+            if (rawPackages == null) {
+                call.reject("Study Apps selection is required.");
+                return;
+            }
+            List<String> packages = new ArrayList<>();
+            for (int i = 0; i < rawPackages.length(); i++) {
+                String name = rawPackages.optString(i, "");
+                if (!name.isEmpty()) packages.add(name);
+            }
+            call.resolve(StudyModeManager.setStudyAppPackages(getContext(), packages));
+        } catch (IllegalArgumentException error) {
+            call.reject(error.getMessage(), error);
+        } catch (Exception error) {
+            call.reject("Android could not save Study Apps.", error);
+        }
+    }
+
+    @PluginMethod
+    public void setOverlayAppearance(PluginCall call) {
+        try {
+            String mode = call.getString("mode", "dark");
+            String theme = call.getString("theme", "arctic-blue");
+            StudyModeManager.saveOverlayAppearance(getContext(), mode, theme);
+            call.resolve();
+        } catch (IllegalArgumentException error) {
+            call.reject(error.getMessage(), error);
+        } catch (Exception error) {
+            call.reject("Android could not update the Study Mode popup appearance.", error);
+        }
+    }
+
+
         try {
             JSONArray rawPackages = call.getData().optJSONArray("selectedPackageNames");
             JSONArray rawDays = call.getData().optJSONArray("selectedDays");
