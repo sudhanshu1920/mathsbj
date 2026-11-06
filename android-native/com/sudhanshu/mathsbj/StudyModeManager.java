@@ -33,6 +33,7 @@ public final class StudyModeManager {
     private static final String PREFS = "math_master_study_mode";
     private static final String KEY_ENABLED = "enabled";
     private static final String KEY_PACKAGES = "selectedPackages";
+    private static final String KEY_STUDY_PACKAGES = "studyAppPackages";
     private static final String KEY_DAYS = "selectedDays";
     private static final String KEY_LAST_STATE = "lastAppliedState";
     private static final String KEY_ACCESSIBILITY_DISCLOSURE_VERSION = "accessibilityDisclosureVersion";
@@ -109,6 +110,106 @@ public final class StudyModeManager {
         }
         Collections.sort(result);
         return result;
+    }
+
+    /** Study Apps are an independent, permitted-shortcut list; they never enter the enforcement cache. */
+    public static synchronized List<String> getStudyAppPackages(Context context) {
+        List<String> result = new ArrayList<>();
+        String raw = prefs(context).getString(KEY_STUDY_PACKAGES, "[]");
+        try {
+            JSONArray values = new JSONArray(raw);
+            Set<String> blocked = new HashSet<>(getSelectedPackages(context));
+            Set<String> seen = new HashSet<>();
+            for (int i = 0; i < values.length(); i++) {
+                String name = values.optString(i, "");
+                if (!name.isEmpty() && !blocked.contains(name) && seen.add(name)
+                    && isInstalledSelectablePackage(context, name)) {
+                    result.add(name);
+                }
+            }
+        } catch (JSONException ignored) {
+            // A malformed optional Study Apps list is safely treated as empty;
+            // the existing Blocked Apps preference is never touched.
+        }
+        if (result.size() != valuesLength(raw)) saveStringArray(prefs(context), KEY_STUDY_PACKAGES, result);
+        Collections.sort(result);
+        return result;
+    }
+
+    public static synchronized JSObject setStudyAppPackages(Context context, List<String> requestedPackages) {
+        Set<String> blocked = new HashSet<>(getSelectedPackages(context));
+        Set<String> seen = new HashSet<>();
+        List<String> accepted = new ArrayList<>();
+        if (requestedPackages != null) {
+            for (String name : requestedPackages) {
+                if (name == null || name.isEmpty()) continue;
+                if (!name.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) {
+                    throw new IllegalArgumentException("A selected Study App has an invalid package name.");
+                }
+                if (blocked.contains(name)) {
+                    throw new IllegalArgumentException("This app is in Blocked Apps. Remove it from Blocked Apps before adding it to Study Apps.");
+                }
+                if (!isInstalledSelectablePackage(context, name)) {
+                    throw new IllegalArgumentException("A selected Study App is no longer installed or launchable. Refresh the app list and try again.");
+                }
+                if (seen.add(name)) accepted.add(name);
+            }
+        }
+        Collections.sort(accepted);
+        boolean saved = prefs(context).edit()
+            .putString(KEY_STUDY_PACKAGES, toJson(accepted))
+            .commit();
+        if (!saved) throw new IllegalStateException("Study Apps could not be saved locally.");
+        return getStatus(context);
+    }
+
+    /** Launch only a currently saved Study App. Blocked Apps always win conflicts. */
+    public static void launchStudyApp(Context context, String packageName) {
+        if (packageName == null || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) {
+            throw new IllegalArgumentException("Invalid Study App package.");
+        }
+        if (getSelectedPackages(context).contains(packageName)) {
+            throw new IllegalArgumentException("This app is blocked. Remove it from Blocked Apps before launching it.");
+        }
+        if (!getStudyAppPackages(context).contains(packageName)) {
+            throw new IllegalArgumentException("This app is not in your saved Study Apps list.");
+        }
+        if (!isInstalledSelectablePackage(context, packageName)) {
+            throw new IllegalStateException("This Study App is no longer installed or launchable.");
+        }
+        try {
+            android.content.pm.PackageManager pm = context.getPackageManager();
+            Intent launch = pm.getLaunchIntentForPackage(packageName);
+            if (launch == null) throw new IllegalStateException("Android could not find a launch screen for this Study App.");
+            android.content.pm.ResolveInfo resolved = pm.resolveActivity(
+                launch, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
+            if (resolved == null || resolved.activityInfo == null
+                || !packageName.equals(resolved.activityInfo.packageName)) {
+                throw new IllegalStateException("Android could not verify this Study App launch destination.");
+            }
+            launch.setPackage(packageName);
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            context.startActivity(launch);
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            throw error;
+        } catch (Exception error) {
+            throw new IllegalStateException("Android could not open this Study App.", error);
+        }
+    }
+
+    public static void saveOverlayAppearance(Context context, String mode, String theme) {
+        if (!"dark".equals(mode) && !"light".equals(mode)) {
+            throw new IllegalArgumentException("Invalid popup appearance mode.");
+        }
+        if (theme == null || !theme.matches(
+            "arctic-blue|deep-space|titanium-silver|midnight-violet|sapphire|ocean-cyan|emerald-glass|aurora|soft-rose|sunset-gold|graphite|pearl-white|indigo|forest|mint"
+        )) {
+            throw new IllegalArgumentException("Invalid popup theme.");
+        }
+        prefs(context).edit()
+            .putString("overlayMode", mode)
+            .putString("overlayTheme", theme)
+            .apply();
     }
 
     private static int valuesLength(String raw) {
@@ -456,17 +557,26 @@ public final class StudyModeManager {
             throw new IllegalArgumentException("Select at least one installed launchable app.");
         }
         Collections.sort(accepted);
+        // Blocked Apps take precedence: atomically remove any conflicting
+        // Study App shortcuts whenever a package is newly restricted.
+        Set<String> blockedSet = new HashSet<>(accepted);
+        List<String> cleanedStudyApps = new ArrayList<>();
+        for (String name : getStudyAppPackages(context)) {
+            if (!blockedSet.contains(name)) cleanedStudyApps.add(name);
+        }
+
         JSONArray dayArray = new JSONArray();
         for (int day = 1; day <= 7; day++) if (days.contains(day)) dayArray.put(day);
 
         SharedPreferences.Editor editor = prefs(context).edit()
             .putString(KEY_PACKAGES, toJson(accepted))
+            .putString(KEY_STUDY_PACKAGES, toJson(cleanedStudyApps))
             .putString(KEY_DAYS, dayArray.toString())
             .putInt("startHour", startHour)
             .putInt("startMinute", startMinute)
             .putInt("endHour", endHour)
             .putInt("endMinute", endMinute);
-        editor.commit();
+        if (!editor.commit()) throw new IllegalStateException("Study Mode settings could not be saved locally.");
         StudyModeSessionStore.Session activeSession = sessionStore(context).getActiveSession(context);
         if (activeSession != null) {
             sessionStore(context).updateActivePackages(activeSession.id, accepted);
@@ -865,6 +975,8 @@ public final class StudyModeManager {
         JSObject config = new JSObject();
         JSArray packages = new JSArray();
         for (String name : getSelectedPackages(context)) packages.put(name);
+        JSArray studyApps = new JSArray();
+        for (String name : getStudyAppPackages(context)) studyApps.put(name);
         JSArray days = new JSArray();
         List<Integer> orderedDays = new ArrayList<>(getSelectedDays(context));
         Collections.sort(orderedDays);
@@ -925,6 +1037,7 @@ public final class StudyModeManager {
 
         boolean exactFallback = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission(context);
         result.put("config", config);
+        result.put("studyAppPackageNames", studyApps);
         result.put("permissions", permissions);
         result.put("scheduleActive", scheduleActive);
         result.put("sessionActive", sessionActive);
