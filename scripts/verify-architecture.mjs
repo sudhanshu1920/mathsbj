@@ -1120,6 +1120,20 @@ if (!studyModeManager.includes('cachedEnforcedPackages') ||
     !studyModeAccessibility.includes('StudyModeManager.isEnforcementActiveCached()')) {
   fail('Foreground package detection must use a cached selected-app snapshot and rebuild it on service recreation');
 }
+const refreshCacheStart = studyModeManager.indexOf('public static synchronized void refreshEnforcementCache(Context context) {');
+const refreshCacheEnd = studyModeManager.indexOf('public static boolean isEnforcementActiveCached()', refreshCacheStart);
+const refreshCacheBody = refreshCacheStart >= 0 && refreshCacheEnd > refreshCacheStart
+  ? studyModeManager.slice(refreshCacheStart, refreshCacheEnd)
+  : '';
+const reconcileStart = studyModeManager.indexOf('public static synchronized void reconcile(Context context) {');
+const reconcileEnd = studyModeManager.indexOf('private static void setLastState(Context context, String state)', reconcileStart);
+const reconcileBody = reconcileStart >= 0 && reconcileEnd > reconcileStart
+  ? studyModeManager.slice(reconcileStart, reconcileEnd)
+  : '';
+if (!refreshCacheBody.includes('hasForegroundMonitoringSource(app) && hasOverlayPermission(app)') ||
+    !reconcileBody.includes('hasForegroundMonitoringSource(app) && hasOverlayPermission(app)')) {
+  fail('The cached blocking allow-list must be disabled immediately when Accessibility/Usage Access or overlay capability is lost');
+}
 const showShieldStart = studyModeFocus.indexOf('private void showShield(String packageName) {');
 const showShieldEnd = studyModeFocus.indexOf('private android.view.View buildShieldView()', showShieldStart);
 const showShieldBody = showShieldStart >= 0 && showShieldEnd > showShieldStart
