@@ -89,8 +89,13 @@ test('configures complete installed-app visibility, native services and Capacito
   );
   assert.match(manifest, /DailyTargetReminderBootReceiver[\s\S]*BOOT_COMPLETED[\s\S]*TIMEZONE_CHANGED/);
   assert.match(manifest, /StudyModeAlarmReceiver/);
-  assert.match(manifest, /StudyModePackageChangeReceiver[\\s\\S]*PACKAGE_ADDED/);
-  assert.match(manifest, /StudyModePackageChangeReceiver[\\s\\S]*PACKAGE_CHANGED/);
+  const packageReceiverStart = manifest.indexOf('android:name=".StudyModePackageChangeReceiver"');
+  const packageReceiverEnd = manifest.indexOf('</receiver>', packageReceiverStart);
+  assert.ok(packageReceiverStart >= 0 && packageReceiverEnd > packageReceiverStart);
+  const packageReceiver = manifest.slice(packageReceiverStart, packageReceiverEnd);
+  for (const action of ['PACKAGE_ADDED', 'PACKAGE_CHANGED', 'PACKAGE_REMOVED']) {
+    assert.ok(packageReceiver.includes('android.intent.action.' + action));
+  }
   assert.match(manifest, /StudyModePackageChangeReceiver[\\s\\S]*PACKAGE_REMOVED/);
   assert.match(manifest, /android.permission.QUERY_ALL_PACKAGES/);
   assert.equal((activity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
@@ -116,7 +121,8 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(AppUsageAnalyticsPlugin\.class\)/g) || []).length, 1);
   for (const action of ['PACKAGE_ADDED', 'PACKAGE_CHANGED', 'PACKAGE_REMOVED']) {
-    assert.equal((secondManifest.match(new RegExp('android.intent.action.' + action, 'g')) || []).length, 1);
+    const marker = 'android:name="android.intent.action.' + action + '"';
+    assert.equal(secondManifest.split(marker).length - 1, 1);
   }
   for (const action of ['PACKAGE_ADDED', 'PACKAGE_CHANGED', 'PACKAGE_REMOVED']) {
     assert.equal((secondManifest.match(new RegExp('android.intent.action.' + action, 'g')) || []).length, 1);
