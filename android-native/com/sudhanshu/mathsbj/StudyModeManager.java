@@ -658,7 +658,9 @@ public final class StudyModeManager {
         if (context == null || packageName == null
             || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")
             || packageName.equals(context.getPackageName())
-            || !shouldEnforceNow(context)) return false;
+            || !shouldEnforceNow(context)
+            || !hasForegroundMonitoringSource(context)
+            || !hasOverlayPermission(context)) return false;
 
         if (getProtectedPackages(context).contains(packageName)) return false;
         return getEnforcedPackages(context).contains(packageName);
