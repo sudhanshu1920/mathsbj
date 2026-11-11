@@ -96,3 +96,23 @@ test("status does not report a running service as active blocking after overlay 
   assert.match(manager, /else if \(StudyModeFocusService\.hasOverlayFailure\(\)\)\s*\{[\s\S]*?state = "overlay_failed"/);
   assert.match(source, /overlayFailureForStatus = false;/);
 });
+
+test("an empty initial UsageEvents stream keeps a bounded recent fallback window", () => {
+  const resolver = between(
+    source,
+    "private String getMostRecentlyResumedPackage()",
+    "private void showShield(",
+  );
+  assert.match(resolver, /else if \(!hasResolvedForegroundOnce\)[\\s\\S]*?EMPTY_INITIAL_LOOKUP_FALLBACK_MS/);
+  assert.match(resolver, /EMPTY_INITIAL_LOOKUP_RETRY_MS/);
+  assert.match(resolver, /INITIAL_EVENT_LOOKBACK_MS/);
+});
+
+test("a failed overlay removal cannot be replaced by a second overlapping blocker", () => {
+  const show = between(source, "private void showShield(", "private boolean isShieldViewVisible");
+  const removal = between(source, "private void removeShield(String reason)", "private void logStage(");
+  assert.match(show, /removeShield\("replacing_or_recovering"\);[\\s\\S]*?if \(shieldView != null\)[\\s\\S]*?previous_overlay_removal_failed/);
+  assert.match(removal, /removeViewImmediate/);
+  assert.match(removal, /popupState = PopupState.RECOVERY_REQUIRED/);
+  assert.match(removal, /setServiceState\(this, "overlay_failed"\)/);
+});
