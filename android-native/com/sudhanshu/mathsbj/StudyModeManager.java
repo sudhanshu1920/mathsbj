@@ -1198,6 +1198,8 @@ public final class StudyModeManager {
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
         } else if (!foregroundSourceAvailable || !overlayGranted) {
             state = "permission_required";
+        } else if (StudyModeFocusService.hasOverlayFailure()) {
+            state = "overlay_failed";
         } else if (StudyModeFocusService.isRunning()) {
             state = "focus_shield_running";
         } else if (StudyModeFocusService.isStarting()) {
