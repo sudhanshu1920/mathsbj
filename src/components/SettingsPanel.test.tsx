@@ -129,7 +129,7 @@ describe("SettingsPanel compact controls", () => {
     await waitFor(() => expect(mocks.setBackgroundNotificationsEnabled).toHaveBeenCalledWith(false));
   });
 
-  it("renders every theme in a compact responsive selector and preserves theme/mode actions", () => {
+  it("renders accessible color-only swatches for every theme and preserves theme/mode actions", () => {
     const { container, rerender } = render(<SettingsPanel />);
 
     const themeButtons = screen.getAllByRole("button", { name: /^Select .* theme$/ });
@@ -137,14 +137,20 @@ describe("SettingsPanel compact controls", () => {
     expect(screen.getByRole("button", { name: "Select Arctic Blue theme" })).toHaveAttribute("aria-pressed", "true");
 
     for (const theme of THEMES) {
-      expect(screen.getByText(theme.name)).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: `Select ${theme.name} theme` })).toHaveAttribute("aria-pressed");
+      const button = screen.getByRole("button", { name: `Select ${theme.name} theme` });
+      expect(button).toHaveAttribute("aria-pressed");
+      expect(button.textContent).toBe("");
+      expect(button.querySelector("[data-theme-swatch]")).toHaveStyle({
+        backgroundImage: `linear-gradient(135deg, ${theme.swatch[1]} 0 50%, ${theme.swatch[2]} 50% 100%)`,
+      });
     }
 
     const grid = container.querySelector("[data-theme-selector-grid]");
-    expect(grid).toHaveClass("grid", "grid-cols-2", "min-[420px]:grid-cols-3", "md:grid-cols-4");
+    expect(grid).toHaveClass("grid", "grid-cols-8", "min-[420px]:grid-cols-10");
     expect(grid?.querySelectorAll("[data-theme-option]")).toHaveLength(THEMES.length);
-    expect(grid?.querySelectorAll("[data-theme-swatch]")).toHaveLength(THEMES.length * 3);
+    expect(grid?.querySelectorAll("[data-theme-swatch]")).toHaveLength(THEMES.length);
+    expect(screen.queryByText("Arctic Blue")).not.toBeInTheDocument();
+    expect(screen.queryByText("Soft Rose")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Select Mint theme" }));
     expect(mocks.setTheme).toHaveBeenCalledWith("mint");
@@ -156,8 +162,7 @@ describe("SettingsPanel compact controls", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Light" }));
     expect(mocks.setMode).toHaveBeenCalledWith("light");
-  });
-  
+  });  
   it("opens the nested Study Mode settings page and returns without leaving Settings", () => {
     const { container } = render(<SettingsPanel />);
 

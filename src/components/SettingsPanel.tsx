@@ -326,7 +326,7 @@ const SettingsPanel = () => {
         </div>
         <div
           data-theme-selector-grid
-          className="grid grid-cols-2 gap-1.5 min-[420px]:grid-cols-3 md:grid-cols-4"
+          className="grid grid-cols-8 gap-x-1 gap-y-1.5 min-[420px]:grid-cols-10"
         >
           {THEMES.map((t) => {
             const selected = theme === t.id;
@@ -339,41 +339,29 @@ const SettingsPanel = () => {
                 onClick={() => setAppTheme(t.id)}
                 aria-label={`Select ${t.name} theme`}
                 aria-pressed={selected}
-                className={`flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left transition-colors duration-100 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`relative mx-auto flex aspect-square w-full max-w-9 items-center justify-center rounded-full outline-none transition-transform duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   selected
-                    ? 'border-primary/70 bg-primary/10'
-                    : 'border-border/70 bg-card/30 hover:border-primary/40'
+                    ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+                    : 'hover:scale-110 active:scale-95'
                 }`}
               >
-                <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                  <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
-                    {t.swatch.map((color, index) => (
-                      <span
-                        key={index}
-                        data-theme-swatch
-                        className="h-2 w-2 rounded-full ring-1 ring-border/60"
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </span>
-                  <span className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-tight text-foreground">
-                    {t.name}
-                  </span>
-                </span>
-                {t.premium && (
-                  <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold leading-none text-muted-foreground">
-                    <Crown size={9} />
-                    PRO
+                <span
+                  data-theme-swatch
+                  aria-hidden="true"
+                  className="h-5 w-5 rounded-full ring-1 ring-black/10"
+                  style={{
+                    backgroundImage: `linear-gradient(135deg, ${t.swatch[1]} 0 50%, ${t.swatch[2]} 50% 100%)`,
+                  }}
+                />
+                {selected && (
+                  <span
+                    data-theme-selected-indicator
+                    aria-hidden="true"
+                    className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground"
+                  >
+                    <Check size={8} strokeWidth={3} />
                   </span>
                 )}
-                <span
-                  aria-hidden="true"
-                  className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ${
-                    selected ? 'bg-primary text-primary-foreground' : 'text-transparent'
-                  }`}
-                >
-                  <Check size={9} />
-                </span>
               </motion.button>
             );
           })}
