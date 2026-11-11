@@ -191,6 +191,22 @@ public final class StudyModeFocusService extends Service {
         active.monitorHandler.post(active.monitorRunnable);
     }
 
+    private String getNotificationContentText() {
+        String timerText = StudyModeManager.getSessionNotificationText(this);
+        if (StudyModeManager.isPolicyOwner(this)) return timerText;
+        if (!StudyModeManager.hasOverlayPermission(this)) {
+            return "Blocking unavailable · allow Display over other apps";
+        }
+        if (StudyModeAccessibilityService.isConnected()) return timerText;
+        if (StudyModeManager.hasUsageAccess(this)) {
+            return "Fallback monitoring · " + timerText;
+        }
+        if (StudyModeManager.isAccessibilityMonitoringEnabled(this)) {
+            return "Monitoring disconnected · reconnect Accessibility access";
+        }
+        return "Monitoring unavailable · enable Accessibility or Usage Access";
+    }
+
     private boolean startForegroundSafely() {
         try {
             Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
@@ -203,7 +219,7 @@ public final class StudyModeFocusService extends Service {
                 : new Notification.Builder(this);
             builder.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setContentTitle(StudyModeManager.getSessionNotificationTitle(this))
-                .setContentText(StudyModeManager.getSessionNotificationText(this))
+                .setContentText(getNotificationContentText())
                 .setOngoing(true)
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setOnlyAlertOnce(true);
