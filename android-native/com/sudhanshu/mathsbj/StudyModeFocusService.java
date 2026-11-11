@@ -472,11 +472,14 @@ public final class StudyModeFocusService extends Service {
         if (retryWideLookup) {
             queryFrom = Math.max(0L, now - INITIAL_EVENT_LOOKBACK_MS);
             lastFullLookupElapsedMs = elapsedNow;
+        } else if (!hasResolvedForegroundOnce) {
+            // An empty first stream must not collapse the recovery window to only
+            // the overlap. Keep checking a recent bounded window until a valid
+            // foreground package has actually been resolved.
+            queryFrom = Math.max(0L, now - EMPTY_INITIAL_LOOKUP_FALLBACK_MS);
         } else if (lastUsageEventScanTimeMs > 0L) {
             queryFrom = Math.max(0L, lastUsageEventScanTimeMs - EVENT_QUERY_OVERLAP_MS);
         } else {
-            // If the first wide query is temporarily empty/unavailable, keep a
-            // recent-event window while the rate-limited wide retry remains pending.
             queryFrom = Math.max(0L, now - EMPTY_INITIAL_LOOKUP_FALLBACK_MS);
         }
 
@@ -560,6 +563,13 @@ public final class StudyModeFocusService extends Service {
         }
         if (shieldView != null || popupState != PopupState.IDLE) {
             removeShield("replacing_or_recovering");
+            // Never stack a replacement window on top of a view whose removal
+            // failed. Preserve the old reference/state and wait for recovery.
+            if (shieldView != null) {
+                logStage("POPUP_LAUNCH_FAILED", packageName, activeShieldRequestId,
+                    "deferred", "previous_overlay_removal_failed");
+                return;
+            }
         }
 
         popupState = PopupState.LAUNCH_PENDING;
@@ -1065,13 +1075,18 @@ public final class StudyModeFocusService extends Service {
         String removedRequestId = activeShieldRequestId;
         if (existingView != null) {
             try {
-                if (windowManager != null) windowManager.removeView(existingView);
+                if (windowManager != null) windowManager.removeViewImmediate(existingView);
                 logStage("POPUP_DISMISSED", removedPackage, removedRequestId, "removed", reason);
             } catch (IllegalArgumentException alreadyDetached) {
+                // WindowManager uses this when another lifecycle path already detached it.
                 logStage("POPUP_DISMISSED", removedPackage, removedRequestId, "already_detached", reason);
             } catch (Exception error) {
+                // Keep the reference and RECOVERY_REQUIRED state. A new blocker must
+                // not be stacked over a window that Android may still have attached.
+                popupState = PopupState.RECOVERY_REQUIRED;
                 logStage("POPUP_DISMISSED", removedPackage, removedRequestId,
                     "remove_failed", error.getClass().getSimpleName());
+                return;
             }
         } else if (popupState == PopupState.LAUNCH_PENDING && !removedRequestId.isEmpty()) {
             logStage("POPUP_DISMISSED", removedPackage, removedRequestId, "pending_cancelled", reason);
