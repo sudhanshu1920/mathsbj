@@ -82,6 +82,14 @@ public final class StudyModeFocusService extends Service {
         return running;
     }
 
+    public static boolean isMonitoringActive() {
+        StudyModeFocusService active = instance;
+        if (active == null || !running || !active.foregroundStarted) return false;
+        if (StudyModeManager.isPolicyOwner(active)) return true;
+        HandlerThread thread = active.monitorThread;
+        return active.monitorHandler != null && thread != null && thread.isAlive();
+    }
+
     public static boolean hasOverlayFailure() {
         return running && overlayFailureForStatus;
     }
