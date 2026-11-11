@@ -109,6 +109,7 @@ const statusText = (status: StudyModeStatus | null) => {
     if (status.enforcementState === "permission_required") return "Focus session saved · app blocking permission required";
     if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
     if (status.enforcementState === "service_stopped") return "Focus session saved · monitoring service is stopped";
+    if (status.enforcementState === "waiting_for_foreground_event") return "Accessibility connected · switch apps once to initialize foreground detection";
     if (status.enforcementState === "overlay_failed") return "Focus session saved · blocking overlay is unavailable";
     if (status.enforcementState === "exact_alarm_required") return "Focus session saved · exact alarm access is required";
     if (status.enforcementState === "partial_suspension") return "Focus session saved · some selected apps are not suspended";
@@ -674,7 +675,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         && status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
       helper: status?.permissions.accessibilityEnabled && !status?.permissions.accessibilityConnected
         ? "Enabled in Android settings, but the service is not connected yet."
-        : "Optional event-driven app detection. Reads package/window changes only — never screen text or passwords.",
+        : status?.permissions.accessibilityConnected && status?.permissions.usageAccess !== true
+          ? "Reads package-level window/focus events only. If already inside an app when enabled, switch apps once to initialize detection."
+          : "Optional event-driven app detection. Reads package/window changes only — never screen text or passwords.",
     },
     {
       key: "usage" as const,
