@@ -338,7 +338,6 @@ public final class StudyModeFocusService extends Service {
                 if (!accessibilityConnected) {
                     initialForegroundLookup = true;
                     lastForegroundPackage = null;
-                    lastUsageEventTimestampMs = 0L;
                 }
                 mainHandler.post(() -> {
                     if (running) removeShield();
@@ -376,10 +375,13 @@ public final class StudyModeFocusService extends Service {
         long now = System.currentTimeMillis();
         UsageEvents events;
         try {
-            // UsageEvents history is retained by Android for several days. A broad
-            // one-shot snapshot is needed after long screen locks / service restarts;
-            // the steady-state path below remains incremental (12 seconds).
-            long lookback = initialForegroundLookup ? 24L * 60L * 60L * 1000L : 12000L;
+            // On first startup, scan a broad one-time window because the app being
+            // foregrounded may have happened long before Study Mode was enabled.
+            // After a lock/task transition, resume from the last processed event cursor
+            // instead of rescanning 24 hours; steady state remains a 12-second window.
+            long lookback = lastUsageEventTimestampMs > 0L
+                ? Math.max(12000L, now - lastUsageEventTimestampMs)
+                : (initialForegroundLookup ? 24L * 60L * 60L * 1000L : 12000L);
             events = usage.queryEvents(Math.max(0L, now - lookback), now);
             initialForegroundLookup = false;
         } catch (SecurityException denied) {
@@ -885,7 +887,6 @@ public final class StudyModeFocusService extends Service {
             monitorHandler.post(() -> {
                 if (!StudyModeAccessibilityService.isConnected()) {
                     lastForegroundPackage = null;
-                    lastUsageEventTimestampMs = 0L;
                     initialForegroundLookup = true;
                 }
                 monitorRunnable.run();
