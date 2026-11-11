@@ -82,6 +82,12 @@ test("popup failure retries are bounded, back off, and reset on a fresh conditio
   ]) assert.ok(source.includes(invariant), `Missing retry invariant: ${invariant}`);
 });
 
+test("popup retry state is synchronized across worker and UI threads", () => {
+  assert.ok(source.includes("private synchronized void resetPopupRetryState()"));
+  assert.ok(source.includes("private synchronized void resetPopupRetryStateForDifferentPackage(String packageName)"));
+  assert.ok(source.includes("private synchronized boolean shouldDeferPopupLaunch(String packageName, String requestId)"));
+  assert.ok(source.includes("private synchronized void recordPopupLaunchFailure(String packageName)"));
+});
 test("debug diagnostics include request context without reading screen content", () => {
   for (const invariant of [
     'event=" + stage',
