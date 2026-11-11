@@ -1178,10 +1178,6 @@ public final class StudyModeManager {
         } else if (!usageGranted || !overlayGranted) {
             state = "permission_required";
         } else if (StudyModeFocusService.hasOverlayFailure()) {
-            // The foreground service can remain alive while Android refuses or
-            // detaches the user-approved overlay. Do not report this as active blocking.
-            state = "overlay_failed";
-        } else if (StudyModeFocusService.hasOverlayFailure()) {
             // The monitor can remain alive while Android refuses or detaches the overlay.
             // Do not report this as active blocking until the view is actually visible.
             state = "overlay_failed";
