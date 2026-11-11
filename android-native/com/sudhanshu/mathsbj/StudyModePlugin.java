@@ -312,6 +312,9 @@ public final class StudyModePlugin extends Plugin {
             case "usage":
                 intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
                 break;
+            case "accessibility":
+                intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                break;
             case "overlay":
                 intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     android.net.Uri.parse("package:" + getContext().getPackageName()));
