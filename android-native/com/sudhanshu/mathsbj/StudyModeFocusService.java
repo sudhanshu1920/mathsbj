@@ -76,9 +76,58 @@ public final class StudyModeFocusService extends Service {
     private boolean foregroundStarted = false;
     private String lastForegroundPackage = null;
     private boolean initialForegroundLookup = true;
+    private long lastUsageEventTimestampMs = 0L;
+    private long lastAccessibilityEventUptimeMs = 0L;
+    private long foregroundDecisionGeneration = 0L;
 
     public static boolean isRunning() {
         return running;
+    }
+
+    public static boolean isShieldVisible() {
+        StudyModeFocusService service = instance;
+        return service != null && service.shieldView != null;
+    }
+
+    public static void onAccessibilityAvailabilityChanged(Context context, boolean available) {
+        StudyModeFocusService service = instance;
+        if (service == null || service.monitorHandler == null) {
+            StudyModeManager.reconcile(context);
+            return;
+        }
+        service.monitorHandler.post(() -> {
+            if (!available && !StudyModeAccessibilityService.isConnected()) {
+                service.lastForegroundPackage = null;
+                service.lastAccessibilityEventUptimeMs = 0L;
+                service.initialForegroundLookup = true;
+                service.lastUsageEventTimestampMs = 0L;
+            }
+            service.monitorHandler.removeCallbacks(service.monitorRunnable);
+            service.monitorRunnable.run();
+        });
+    }
+
+    public static void reportAccessibilityForegroundPackage(Context context, String packageName, long eventUptimeMs) {
+        StudyModeFocusService service = instance;
+        if (service == null || service.monitorHandler == null || packageName == null
+            || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) return;
+        service.monitorHandler.post(() -> {
+            if (!running || !StudyModeAccessibilityService.isConnected()) return;
+            if (eventUptimeMs > 0L && eventUptimeMs < service.lastAccessibilityEventUptimeMs) return;
+            service.lastAccessibilityEventUptimeMs = Math.max(service.lastAccessibilityEventUptimeMs, eventUptimeMs);
+            service.lastForegroundPackage = packageName;
+            service.evaluateForegroundPackage(packageName);
+        });
+    }
+
+    private void evaluateForegroundPackage(String foregroundPackage) {
+        final long generation = ++foregroundDecisionGeneration;
+        final boolean shouldShield = StudyModeManager.shouldBlockForegroundPackage(this, foregroundPackage);
+        mainHandler.post(() -> {
+            if (!running || generation != foregroundDecisionGeneration) return;
+            if (shouldShield) showShield(foregroundPackage);
+            else removeShield();
+        });
     }
 
     public static boolean hasOverlayFailure() {
@@ -86,6 +135,7 @@ public final class StudyModeFocusService extends Service {
     }
 
     private static volatile boolean overlayFailureForStatus = false;
+    private static volatile StudyModeFocusService instance;
     private static final LruCache<String, android.graphics.drawable.Drawable.ConstantState> STUDY_ICON_CACHE =
         new LruCache<>(32);
     private static final LruCache<String, String> STUDY_LABEL_CACHE = new LruCache<>(64);
@@ -108,6 +158,7 @@ public final class StudyModeFocusService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        instance = this;
         starting = false;
         stopping = false;
         boolean devicePolicyMode = StudyModeManager.isPolicyOwner(this);
