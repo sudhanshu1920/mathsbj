@@ -189,7 +189,7 @@ export async function getStudyModeSessionHistory(): Promise<StudyModeSession[]> 
 }
 
 export async function openStudyModePermission(
-  permission: "usage" | "overlay" | "exactAlarm" | "dnd",
+  permission: "usage" | "accessibility" | "overlay" | "exactAlarm" | "dnd",
 ): Promise<void> {
   if (!isStudyModeNative()) return;
   await NativeStudyMode.openPermissionSettings({ permission });
