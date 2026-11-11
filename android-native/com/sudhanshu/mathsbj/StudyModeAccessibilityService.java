@@ -58,9 +58,7 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         if (!connected || event == null) return;
 
         final int type = event.getEventType();
-        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-            && (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP
-                || type != AccessibilityEvent.TYPE_WINDOWS_CHANGED)) return;
+        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
 
         CharSequence rawPackage = event.getPackageName();
         if (rawPackage == null) return;
