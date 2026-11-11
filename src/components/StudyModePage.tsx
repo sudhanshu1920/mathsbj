@@ -588,6 +588,14 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         : "Without this, Android may deliver schedule changes late.",
     },
     {
+      key: "notifications" as const,
+      title: "Ongoing notification",
+      granted: status?.permissions.notifications === true,
+      required: (draft.enabled || Boolean(status?.activeSession?.active))
+        && status?.permissions.notifications === false,
+      helper: "Android 13+ requires notification access to show the ongoing Study Mode notice in the notification drawer. The system still lists a running foreground service in Task Manager if denied.",
+    },
+    {
       key: "dnd" as const,
       title: "Do Not Disturb",
       granted: status?.permissions.dndAccess === true,
@@ -596,7 +604,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     },
   ];
 
-  const openPermission = async (permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "dnd") => {
+  const openPermission = async (permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "dnd" | "notifications") => {
     try {
       await openStudyModePermission(permission);
     } catch {
