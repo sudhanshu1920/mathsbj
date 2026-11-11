@@ -1196,6 +1196,15 @@ if (!studyModeFocus.includes('resetForegroundResolution();') ||
     !studyModeFocus.includes('setServiceState(this, "permission_required")')) {
   fail('Screen wake must reset/rebuild the foreground cursor, wide-history recovery must be bounded, and permission loss must remain visible in the persistent notification');
 }
+if (!studyModeManager.includes('StudyModeFocusService.hasOverlayFailure()') ||
+    !studyModeFocus.includes('view.isAttachedToWindow()') ||
+    !studyModeFocus.includes('view.getWindowToken()') ||
+    !studyModeFocus.includes('windowManager.removeViewImmediate(existingView)') ||
+    !studyModeFocus.includes('previous_overlay_removal_failed') ||
+    !studyModeFocus.includes('POPUP_WINDOW_VISIBLE') ||
+    !studyModeFocus.includes('MAX_POPUP_FAILURES_PER_FOREGROUND')) {
+  fail('Focus Shield must verify actual overlay attachment, preserve removal failures without stacking views, bound retries, and report overlay failures truthfully');
+}
 const studyModeNativeFiles = studyModeSetup.match(/const NATIVE_FILES = \[([\s\S]*?)\];/)?.[1] ?? '';
 if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
     studyModeSetup.includes('BIND_NOTIFICATION_LISTENER_SERVICE') ||
