@@ -1197,7 +1197,7 @@ public final class StudyModeManager {
         } else if (!overlayGranted || !monitoringSourceAvailable) {
             state = accessibilityEnabled && !accessibilityConnected && !usageGranted
                 ? "accessibility_disconnected" : "permission_required";
-        } else if (StudyModeFocusService.isRunning()) {
+        } else if (StudyModeFocusService.isMonitoringActive()) {
             state = "focus_shield_running";
         } else if (StudyModeFocusService.isStarting()) {
             state = "focus_shield_starting";
@@ -1216,7 +1216,7 @@ public final class StudyModeManager {
         result.put("sessionActive", sessionActive);
         result.put("activeSession", sessionJson);
         result.put("enforcedPackages", enforcedArray);
-        result.put("monitoringServiceRunning", StudyModeFocusService.isRunning());
+        result.put("monitoringServiceRunning", StudyModeFocusService.isMonitoringActive());
         result.put("enforcementMode", isDeviceOwner(context) ? "device_owner"
             : (isProfileOwner(context) ? "profile_owner"
                 : (hasForegroundMonitoringPermission(context) && hasOverlayPermission(context) ? "focus_shield" : "unavailable")));
