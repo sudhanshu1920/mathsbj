@@ -1239,11 +1239,14 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
   fail('Sideloadable Android builds must not package Play Protect-sensitive notification-listener access');
 }
 if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
-    studyModeNativeFiles.includes('StudyModeAccessibilityService.java') ||
-    !studyModeSetup.includes('removeAccessibilityService') ||
-    studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
-    !studyModeSetup.includes("await rm(path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
-    !studyModeSetup.includes("await rm(path.join(valuesTarget, 'study_mode_accessibility.xml')") ||
+    !studyModeNativeFiles.includes('StudyModeAccessibilityService.java') ||
+    !studyModeSetup.includes('removeAccessibilityServiceDeclaration') ||
+    !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
+    !studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
+    !studyModeSetup.includes('@xml/study_mode_accessibility') ||
+    studyModeSetup.includes("await rm(path.join(packageDir, 'StudyModeAccessibilityService.java')") ||
+    studyModeSetup.includes("await rm(path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
+    studyModeSetup.includes("await rm(path.join(valuesTarget, 'study_mode_accessibility.xml')") ||
     !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
     !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
@@ -1252,7 +1255,7 @@ if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
     !studyModeSetup.includes("packageVisibility: 'all-installed-packages'") ||
     !widgetSetup.includes('configureAndroidStudyMode(root)') ||
     !studyModeBoot.includes('StudyModeManager.reconcile(context)')) {
-  fail('Generated Android project must use launcher-only package visibility, omit SMS queries and notification-listener access, and restore Study Mode schedules');
+  fail('Generated Android project must preserve launcher package queries, omit SMS/notification-listener access, package the opt-in Accessibility service, and restore Study Mode schedules');
 }
 
 
