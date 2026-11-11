@@ -1202,6 +1202,12 @@ if (!studyModeFocus.includes('boolean decisionChanged = !foreground.equals(lastD
     !studyModeFocus.includes('verifiedRequestId, decisionSequence')) {
   fail('Popup request generation must remain stable during unchanged foreground polls and invalidate stale display work on real decision transitions');
 }
+if (!studyModeFocus.includes('public static boolean hasForegroundLookupFailure()') ||
+    !studyModeManager.includes('state = "monitoring_unavailable"') ||
+    !studyModePage.includes('status.enforcementState === "monitoring_unavailable"') ||
+    !studyModePage.includes('foreground app monitoring unavailable')) {
+  fail('Study Mode must not report healthy monitoring when Android foreground UsageStats queries are unavailable');
+}
 if (!studyModeFocus.includes('private synchronized void resetPopupRetryState()') ||
     !studyModeFocus.includes('private synchronized void recordPopupLaunchFailure(String packageName)') ||
     !studyModeFocus.includes('private synchronized boolean shouldDeferPopupLaunch(String packageName, String requestId)') ||
