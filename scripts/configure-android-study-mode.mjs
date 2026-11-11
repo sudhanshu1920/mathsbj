@@ -97,7 +97,7 @@ function normalizeAccessibilityServiceDeclaration(manifest) {
   return manifest.replace(service, '');
 }
 
-function ensureStudyModeComponents(manifest) {function ensureStudyModeComponents(manifest) {
+function ensureStudyModeComponents(manifest) {
   const components = [
     {
       marker: 'android:name=".DailyTargetReminderBootReceiver"',
