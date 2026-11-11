@@ -106,12 +106,21 @@ const statusText = (status: StudyModeStatus | null) => {
     return "Android could not confirm that every suspended app is available";
   }
   if (status?.activeSession?.active) {
-    if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
+    if (status.enforcementState === "permission_required") return "Focus session saved · app blocking permission required";
     if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
-    if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
+    if (status.enforcementState === "service_stopped") return "Focus session saved · monitoring service is stopped";
+    if (status.enforcementState === "overlay_failed") return "Focus session saved · blocking overlay is unavailable";
+    if (status.enforcementState === "exact_alarm_required") return "Focus session saved · exact alarm access is required";
+    if (status.enforcementState === "partial_suspension") return "Focus session saved · some selected apps are not suspended";
+    if (status.enforcementState === "policy_failed" || status.enforcementState === "policy_unavailable") {
+      return "Focus session saved · Android system suspension could not be verified";
+    }
     const label = status.activeSession.sessionType.charAt(0).toUpperCase()
       + status.activeSession.sessionType.slice(1);
-    return label + " focus session active · continues in background";
+    if (status.enforcementState === "system_suspension") return label + " focus session active · apps suspended by Android";
+    if (status.enforcementState === "focus_shield_running") return label + " focus session active · Focus Shield monitoring";
+    if (status.enforcementState === "focus_shield_starting") return "Focus session saved · starting Focus Shield…";
+    return "Focus session saved · app blocking is not confirmed";
   }
   if (!status?.config.enabled) return "Study Mode is off";
   if (status.enforcementState === "permission_required") return "Enable Accessibility Service or Usage Access and allow the blocking overlay";
@@ -1128,7 +1137,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       <section className="space-y-1.5 rounded-xl border border-border/70 bg-card/35 p-3">
         <p className="text-xs font-semibold text-foreground">Android permissions</p>
         <p className="text-[9px] leading-relaxed text-muted-foreground">
-          Accessibility is optional and can improve detection speed. With your permission, Math Master listens only for app/window changes to identify the foreground package. It does not read screen text, passwords, or window contents, and you can turn this service off anytime in Android settings.
+          Choose either Accessibility Service (event-driven) or Usage Access (fallback) for foreground detection; you do not need both. Accessibility listens only for app/window changes to identify the foreground package. It does not read screen text, passwords, or window contents, and you can turn it off anytime in Android settings. Display over other apps is required for Focus Shield.
         </p>
         {permissionItems.map((item) => {
           const stateLabel = item.granted ? "Granted" : item.required ? "Required" : "Optional";
