@@ -382,12 +382,29 @@ public final class StudyModeManager {
         }
     }
 
+    public static boolean isAccessibilityMonitoringEnabled(Context context) {
+        try {
+            if (Settings.Secure.getInt(context.getContentResolver(),
+                Settings.Secure.ACCESSIBILITY_ENABLED, 0) != 1) return false;
+            String enabledServices = Settings.Secure.getString(context.getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            if (enabledServices == null || enabledServices.isEmpty()) return false;
+            String expected = new ComponentName(context, StudyModeAccessibilityService.class).flattenToString();
+            for (String service : enabledServices.split(":")) {
+                if (expected.equalsIgnoreCase(service.trim())) return true;
+            }
+        } catch (Exception ignored) {
+            return false;
+        }
+        return false;
+    }
+
     public static boolean hasForegroundMonitoringPermission(Context context) {
-        return hasUsageAccess(context);
+        return isAccessibilityMonitoringEnabled(context) || hasUsageAccess(context);
     }
 
     public static boolean hasForegroundMonitoringSource(Context context) {
-        return hasUsageAccess(context);
+        return StudyModeAccessibilityService.isConnected() || hasUsageAccess(context);
     }
 
     public static boolean hasOverlayPermission(Context context) {
@@ -1124,8 +1141,14 @@ public final class StudyModeManager {
         config.put("endMinute", getEndMinute(context));
         config.put("selectedDays", days);
 
+        boolean usageGranted = hasUsageAccess(context);
+        boolean accessibilityEnabled = isAccessibilityMonitoringEnabled(context);
+        boolean accessibilityConnected = StudyModeAccessibilityService.isConnected();
+
         JSObject permissions = new JSObject();
-        permissions.put("usageAccess", hasUsageAccess(context));
+        permissions.put("usageAccess", usageGranted);
+        permissions.put("accessibility", accessibilityConnected);
+        permissions.put("accessibilityEnabled", accessibilityEnabled);
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
         permissions.put("deviceOwner", isDeviceOwner(context));
@@ -1152,8 +1175,8 @@ public final class StudyModeManager {
         boolean sessionActive = activeSession != null;
         boolean active = !enforcedPackages.isEmpty() && (isScheduleActive(context) || sessionActive);
         boolean policyOwner = isPolicyOwner(context);
-        boolean usageGranted = hasUsageAccess(context);
         boolean overlayGranted = hasOverlayPermission(context);
+        boolean monitoringSourceAvailable = accessibilityConnected || usageGranted;
         if (!enabled && !sessionActive) {
             if (!"policy_failed".equals(state) && !"policy_unavailable".equals(state)) state = "disabled";
         } else if (!active) {
@@ -1164,14 +1187,14 @@ public final class StudyModeManager {
             if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
-        } else if (!usageGranted || !overlayGranted) {
-            state = "permission_required";
+        } else if (!overlayGranted || !monitoringSourceAvailable) {
+            state = accessibilityEnabled && !accessibilityConnected && !usageGranted
+                ? "accessibility_disconnected" : "permission_required";
         } else if (StudyModeFocusService.isRunning()) {
             state = "focus_shield_running";
         } else if (StudyModeFocusService.isStarting()) {
             state = "focus_shield_starting";
-        } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)
-            || "accessibility_disconnected".equals(state)) {
+        } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)) {
             // Normalize a state persisted by versions that exposed Accessibility tracking.
             state = "service_stopped";
         }
