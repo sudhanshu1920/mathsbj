@@ -46,7 +46,7 @@ test('configures complete installed-app visibility, native services and Capacito
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 10);
+  assert.equal(result.javaFiles, 11);
   assert.equal(result.foregroundMonitoring, 'accessibility-events-with-usage-access-fallback');
   assert.equal(result.packageVisibility, 'all-installed-packages');
   assert.equal(result.localUsageAnalytics, true);
