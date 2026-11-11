@@ -1220,7 +1220,10 @@ const studyModeMonitor = studyModeMonitorStart >= 0 && studyModeMonitorEnd > stu
   : '';
 if (!studyModeMonitor.includes('StudyModeAccessibilityService.isConnected()') ||
     !studyModeMonitor.includes('if (!accessibilityConnected)') ||
-    !studyModeMonitor.includes('lastUsageEventTimestampMs = 0L;') ||
+    !studyModeFocus.includes('lastUsageEventTimestampMs > 0L') ||
+    !studyModeFocus.includes('now - lastUsageEventTimestampMs') ||
+    !studyModeFocus.includes('24L * 60L * 60L * 1000L') ||
+    !studyModeMonitor.includes('if (!accessibilityConnected)') ||
     !studyModeFocus.includes('initialForegroundLookup = true;') ||
     !studyModeFocus.includes('updateOngoingNotification();') ||
     !studyModeManager.includes('App blocking paused · required permission is off') ||
