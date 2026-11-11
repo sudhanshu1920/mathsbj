@@ -120,6 +120,18 @@ public final class StudyModeFocusService extends Service {
         });
     }
 
+    public static void clearAccessibilityForegroundPackage(Context context, long eventUptimeMs) {
+        StudyModeFocusService service = instance;
+        if (service == null || service.monitorHandler == null) return;
+        service.monitorHandler.post(() -> {
+            if (!running || !StudyModeAccessibilityService.isConnected()) return;
+            if (eventUptimeMs > 0L && eventUptimeMs < service.lastAccessibilityEventUptimeMs) return;
+            service.lastAccessibilityEventUptimeMs = Math.max(service.lastAccessibilityEventUptimeMs, eventUptimeMs);
+            service.lastForegroundPackage = null;
+            service.evaluateForegroundPackage(null);
+        });
+    }
+
     private void evaluateForegroundPackage(String foregroundPackage) {
         final long generation = ++foregroundDecisionGeneration;
         final boolean shouldShield = StudyModeManager.shouldBlockForegroundPackage(this, foregroundPackage);
@@ -382,7 +394,10 @@ public final class StudyModeFocusService extends Service {
             StudyModeManager.setServiceState(this, "permission_required");
             return null;
         }
-        if (events == null) return lastForegroundPackage;
+        if (events == null) {
+            lastForegroundPackage = null;
+            return null;
+        }
 
         String latest = lastForegroundPackage;
         long newestEventTime = lastUsageEventTimestampMs;
