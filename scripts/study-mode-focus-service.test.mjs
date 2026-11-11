@@ -118,6 +118,7 @@ test("decision generation changes only when the foreground restriction decision 
   assert.ok(monitor.includes("shouldShield != lastDecisionShouldShield"));
   assert.ok(monitor.includes("decisionChanged ?"));
   assert.ok(monitor.includes("foregroundDecisionSequence.get()"));
+  assert.ok(source.includes("verifiedRequestId, decisionSequence"));
   const verify = between(source, "private void verifyShieldVisibility(", "private android.view.View buildShieldView()");
   assert.ok(verify.includes("decisionSequence != foregroundDecisionSequence.get()"));
   assert.ok(verify.includes("decision_changed_before_visibility_check"));
