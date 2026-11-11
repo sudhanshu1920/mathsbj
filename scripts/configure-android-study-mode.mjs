@@ -97,6 +97,45 @@ function removeAccessibilityService(manifest) {
   return manifest.replace(service, '');
 }
 
+function ensurePackageChangeReceiverActions(manifest) {
+  const marker = 'android:name=".StudyModePackageChangeReceiver"';
+  const markerIndex = manifest.indexOf(marker);
+  if (markerIndex < 0) return manifest;
+  const receiverStart = manifest.lastIndexOf('<receiver', markerIndex);
+  const receiverEnd = manifest.indexOf('</receiver>', markerIndex);
+  if (receiverStart < 0 || receiverEnd < 0) {
+    throw new Error('StudyModePackageChangeReceiver manifest entry is malformed.');
+  }
+
+  let receiver = manifest.slice(receiverStart, receiverEnd + '</receiver>'.length);
+  const actions = [
+    'android.intent.action.PACKAGE_ADDED',
+    'android.intent.action.PACKAGE_CHANGED',
+    'android.intent.action.PACKAGE_REMOVED',
+  ];
+  const filterStart = receiver.indexOf('<intent-filter');
+  const filterEnd = receiver.indexOf('</intent-filter>', filterStart);
+  if (filterStart >= 0 && filterEnd >= 0) {
+    let filter = receiver.slice(filterStart, filterEnd + '</intent-filter>'.length);
+    const missingActions = actions
+      .filter((action) => !filter.includes('android:name="' + action + '"'))
+      .map((action) => '            <action android:name="' + action + '" />');
+    if (missingActions.length > 0) {
+      filter = filter.replace('</intent-filter>', missingActions.join('\n') + '\n        </intent-filter>');
+    }
+    if (!filter.includes('android:scheme="package"')) {
+      filter = filter.replace('</intent-filter>', '            <data android:scheme="package" />\n        </intent-filter>');
+    }
+    receiver = receiver.slice(0, filterStart) + filter + receiver.slice(filterEnd + '</intent-filter>'.length);
+  } else {
+    const filter = '            <intent-filter>\n'
+      + actions.map((action) => '                <action android:name="' + action + '" />').join('\n')
+      + '\n                <data android:scheme="package" />\n            </intent-filter>\n        ';
+    receiver = receiver.replace('</receiver>', filter + '</receiver>');
+  }
+  return manifest.slice(0, receiverStart) + receiver + manifest.slice(receiverEnd + '</receiver>'.length);
+}
+
 function ensureStudyModeComponents(manifest) {
   const components = [
     {
@@ -248,6 +287,7 @@ export async function configureAndroidStudyMode(androidRoot) {
   manifest = ensureManifestQueries(manifest);
   manifest = ensurePermissions(manifest);
   manifest = ensureStudyModeComponents(manifest);
+  manifest = ensurePackageChangeReceiverActions(manifest);
   manifest = ensureBackupExclusions(manifest);
   await writeFile(manifestPath, manifest);
 
