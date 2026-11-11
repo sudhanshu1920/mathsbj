@@ -47,6 +47,7 @@ export interface StudyModeStatus {
     deviceOwner: boolean;
     profileOwner: boolean;
     dndAccess: boolean;
+    notifications: boolean;
   };
   scheduleActive: boolean;
   sessionActive: boolean;
@@ -72,7 +73,7 @@ interface NativeStudyModePlugin {
   endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
   getSessionHistory(): Promise<{ sessions: StudyModeSession[] }>;
   openPermissionSettings(options: {
-    permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "dnd";
+    permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "dnd" | "notifications";
   }): Promise<void>;
   showTimePicker(options: {
     title: string;
@@ -116,7 +117,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       config: DEFAULT_STUDY_MODE_CONFIG,
       permissions: {
         usageAccess: false, accessibility: false, accessibilityEnabled: false, overlay: false,
-        exactAlarm: false, deviceOwner: false, profileOwner: false, dndAccess: false,
+        exactAlarm: false, deviceOwner: false, profileOwner: false, dndAccess: false, notifications: false,
       },
       scheduleActive: false,
       sessionActive: false,
@@ -177,7 +178,7 @@ export async function getStudyModeSessionHistory(): Promise<StudyModeSession[]> 
 }
 
 export async function openStudyModePermission(
-  permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "dnd",
+  permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "dnd" | "notifications",
 ): Promise<void> {
   if (!isStudyModeNative()) return;
   await NativeStudyMode.openPermissionSettings({ permission });
