@@ -75,7 +75,8 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.match(accessibilityService, /TYPE_WINDOW_STATE_CHANGED/);
   assert.doesNotMatch(accessibilityService, /TYPE_WINDOWS_CHANGED/);
   assert.match(accessibilityConfig, /canRetrieveWindowContent="false"/);
-  assert.match(accessibilityConfig, /typeWindowStateChanged\|typeWindowsChanged/);
+  assert.match(accessibilityConfig, /typeWindowStateChanged/);
+  assert.doesNotMatch(accessibilityConfig, /typeWindowsChanged|FLAG_RETRIEVE_INTERACTIVE_WINDOWS/);
   assert.match(accessibilityStrings, /does not read screen text, passwords, or window contents/);
   assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\S]*BIND_DEVICE_ADMIN[\s\S]*device_admin/);
   assert.doesNotMatch(manifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE|READ_SMS|RECEIVE_SMS/);
