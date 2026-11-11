@@ -376,7 +376,10 @@ public final class StudyModeFocusService extends Service {
         long now = System.currentTimeMillis();
         UsageEvents events;
         try {
-            long lookback = initialForegroundLookup ? 5L * 60L * 1000L : 12000L;
+            // UsageEvents history is retained by Android for several days. A broad
+            // one-shot snapshot is needed after long screen locks / service restarts;
+            // the steady-state path below remains incremental (12 seconds).
+            long lookback = initialForegroundLookup ? 24L * 60L * 60L * 1000L : 12000L;
             events = usage.queryEvents(Math.max(0L, now - lookback), now);
             initialForegroundLookup = false;
         } catch (SecurityException denied) {
