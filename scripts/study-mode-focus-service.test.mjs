@@ -75,3 +75,19 @@ test("debug diagnostics include stage, session, package and request without logg
   assert.match(source, /ApplicationInfo\.FLAG_DEBUGGABLE/);
   assert.doesNotMatch(source, /getText\(\)|rootInActiveWindow|AccessibilityNodeInfo/);
 });
+
+test("popup launch recovery is bounded and does not become an infinite overlay retry loop", () => {
+  assert.match(source, /MAX_POPUP_FAILURES_PER_FOREGROUND = 3/);
+  assert.match(source, /POPUP_RETRY_FIRST_BACKOFF_MS/);
+  assert.match(source, /POPUP_RETRY_SECOND_BACKOFF_MS/);
+  assert.match(source, /failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND/);
+  assert.match(source, /awaiting_new_foreground_transition/);
+  assert.match(source, /resetPopupRetryState\\(\\)/);
+});
+
+test("diagnostic session lookup is cached off the main-thread popup path", () => {
+  assert.match(source, /refreshDiagnosticSessionId\\(false\\)/);
+  assert.match(source, /lastDiagnosticSessionRefreshElapsedMs/);
+  const logger = between(source, "private void logStage(", "public void onTaskRemoved(");
+  assert.doesNotMatch(logger, /getActiveSessionId\\(this\\)/);
+});
