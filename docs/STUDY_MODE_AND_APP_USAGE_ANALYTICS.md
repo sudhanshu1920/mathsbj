@@ -32,9 +32,10 @@ gestures or key events. The user must explicitly enable this service in Android
 Accessibility settings, and can disable it there at any time.
 
 Usage Access remains a compatibility fallback when Accessibility is disabled or
-disconnected. It polls Android UsageEvents while the display is interactive; after
-service start or screen unlock it performs a one-time 24-hour event resync, then uses
-an incremental 12-second history window at the 1.6-second poll interval. Android only
+disconnected. It polls Android UsageEvents while the display is interactive. On its
+first startup it reads a one-time 24-hour event history; after screen lock/unlock or
+task removal it resumes from the last processed event timestamp, then uses an
+incremental 12-second history window at the 1.6-second poll interval. Android only
 retains UsageEvents for a few days, so this fallback can still miss or delay foreground
 changes and is not guaranteed instant. When Accessibility is enabled without Usage
 Access, Android may not replay the already-open foreground package on service connect;
