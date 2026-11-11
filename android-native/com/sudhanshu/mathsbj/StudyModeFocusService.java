@@ -341,7 +341,7 @@ public final class StudyModeFocusService extends Service {
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive() || (keyguard != null && keyguard.isKeyguardLocked())) {
                 // Retain the latest Accessibility package across a screen lock.
-                // Usage Access mode performs a fresh snapshot after the display wakes.
+                // Usage Access mode resumes reading from its last event cursor on wake.
                 if (!accessibilityConnected) {
                     initialForegroundLookup = true;
                     lastForegroundPackage = null;
