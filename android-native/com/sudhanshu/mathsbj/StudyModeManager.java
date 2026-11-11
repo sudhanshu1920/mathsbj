@@ -1177,6 +1177,10 @@ public final class StudyModeManager {
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
         } else if (!usageGranted || !overlayGranted) {
             state = "permission_required";
+        } else if (StudyModeFocusService.hasOverlayFailure()) {
+            // The foreground service can remain alive while Android refuses or
+            // detaches the user-approved overlay. Do not report this as active blocking.
+            state = "overlay_failed";
         } else if (StudyModeFocusService.isRunning()) {
             state = "focus_shield_running";
         } else if (StudyModeFocusService.isStarting()) {
