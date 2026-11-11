@@ -26,6 +26,10 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         return connected && !lastDeliveredPackage.isEmpty() ? lastDeliveredPackage : null;
     }
 
+    public static boolean hasForegroundPackageEvent() {
+        return connected && !lastDeliveredPackage.isEmpty();
+    }
+
     public static boolean isEnabled(Context context) {
         try {
             String enabledServices = Settings.Secure.getString(
@@ -58,7 +62,8 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         if (!connected || event == null) return;
 
         final int type = event.getEventType();
-        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
+        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            && type != AccessibilityEvent.TYPE_VIEW_FOCUSED) return;
 
         CharSequence rawPackage = event.getPackageName();
         if (rawPackage == null) return;
