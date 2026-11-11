@@ -67,6 +67,7 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.ok(manifest.includes('android.intent.category.HOME'));
   assert.doesNotMatch(manifest, /android.provider.Telephony.SMS_DELIVER/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
+  assert.match(manifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
   assert.match(manifest, /StudyModeAccessibilityService[\s\S]*BIND_ACCESSIBILITY_SERVICE[\s\S]*android.accessibilityservice.AccessibilityService[\s\S]*@xml\/study_mode_accessibility/);
   const accessibilityService = await readFile(
     path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8',
