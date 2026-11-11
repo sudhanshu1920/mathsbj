@@ -1055,6 +1055,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeFocus.includes('StudyModeManager.shouldBlockForegroundPackage(this, foregroundPackage)') ||
     !studyModeAccessibility.includes('extends AccessibilityService') ||
     !studyModeAccessibility.includes('TYPE_WINDOW_STATE_CHANGED') ||
+    !studyModeAccessibility.includes('TYPE_VIEW_FOCUSED') ||
     !studyModeAccessibility.includes('event.getPackageName()') ||
     !studyModeAccessibility.includes('event.getEventTime()') ||
     !studyModeAccessibility.includes('isEnabled(Context context)') ||
@@ -1064,6 +1065,8 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeFocus.includes('scroll.setOnKeyListener') ||
     !studyModeManager.includes('foregroundSourceAvailable = usageGranted || accessibilityConnected') ||
     !studyModeManager.includes('StudyModeFocusService.hasOverlayFailure()') ||
+    !studyModeManager.includes('waiting_for_foreground_event') ||
+    !studyModeFocus.includes('24L * 60L * 60L * 1000L') ||
     studyModeManager.slice(studyModeManager.indexOf('public static boolean shouldBlockForegroundPackage'), studyModeManager.indexOf('public static boolean hasNotificationPolicyAccess')).includes('getSelectedStudyAppPackages') ||
     !studyModeAccessibility.includes('StudyModeFocusService.reportAccessibilityForegroundPackage') ||
     !studyModeSetup.includes('StudyModeAccessibilityService.java') ||
