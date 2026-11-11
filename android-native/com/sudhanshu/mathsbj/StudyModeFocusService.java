@@ -24,6 +24,7 @@ import android.os.Looper;
 import android.util.LruCache;
 import android.text.format.DateFormat;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.WindowManager;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.AnimationSet;
@@ -446,6 +447,8 @@ public final class StudyModeFocusService extends Service {
             params.gravity = Gravity.CENTER;
             params.setTitle("Math Master Study Mode");
             windowManager.addView(shieldView, params);
+            shieldView.setFocusableInTouchMode(true);
+            shieldView.requestFocus();
             AnimationSet entrance = new AnimationSet(true);
             AlphaAnimation fade = new AlphaAnimation(0.0f, 1.0f);
             TranslateAnimation rise = new TranslateAnimation(0f, 0f, dp(9), 0f);
@@ -471,6 +474,9 @@ public final class StudyModeFocusService extends Service {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
+        scroll.setFocusable(true);
+        scroll.setFocusableInTouchMode(true);
+        scroll.setOnKeyListener((view, keyCode, event) -> keyCode == KeyEvent.KEYCODE_BACK);
         scroll.setBackgroundColor(palette.scrim);
         LinearLayout stage = new LinearLayout(this);
         stage.setOrientation(LinearLayout.VERTICAL);
