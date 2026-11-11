@@ -44,6 +44,7 @@ public final class StudyModeFocusService extends Service {
     private static volatile boolean running = false;
     private static volatile boolean starting = false;
     private static volatile boolean stopping = false;
+    private static volatile StudyModeFocusService instance = null;
 
     public static boolean isStopping() {
         return stopping;
@@ -108,6 +109,7 @@ public final class StudyModeFocusService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        instance = this;
         starting = false;
         stopping = false;
         boolean devicePolicyMode = StudyModeManager.isPolicyOwner(this);
@@ -160,6 +162,33 @@ public final class StudyModeFocusService extends Service {
         monitorHandler.removeCallbacks(monitorRunnable);
         monitorHandler.post(monitorRunnable);
         return START_STICKY;
+    }
+
+    public static void onAccessibilityForegroundChanged(String packageName) {
+        StudyModeFocusService active = instance;
+        if (active == null || !running) return;
+        active.mainHandler.post(() -> {
+            if (!running || !StudyModeManager.shouldEnforceNow(active)) {
+                active.removeShield();
+                return;
+            }
+            String target = packageName == null ? "" : packageName.trim();
+            if (!target.isEmpty() && !target.equals(active.getPackageName())
+                && StudyModeManager.isPackageSelected(active, target)) {
+                active.lastForegroundPackage = target;
+                active.showShield(target);
+            } else {
+                active.lastForegroundPackage = target;
+                active.removeShield();
+            }
+        });
+    }
+
+    public static void onAccessibilitySourceChanged() {
+        StudyModeFocusService active = instance;
+        if (active == null || !running || active.monitorHandler == null) return;
+        active.monitorHandler.removeCallbacks(active.monitorRunnable);
+        active.monitorHandler.post(active.monitorRunnable);
     }
 
     private boolean startForegroundSafely() {
@@ -261,9 +290,24 @@ public final class StudyModeFocusService extends Service {
                 return;
             }
 
-            // UsageStats is the only foreground source in personal-device mode.
-            // It is polled while the screen is active and never reads screen content.
+            // Prefer event-driven foreground package detection. Only use UsageStats
+            // polling when the Accessibility service is not connected.
+            if (StudyModeAccessibilityService.isConnected()) {
+                updateOngoingNotification();
+                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
+                return;
+            }
+            if (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)) {
+                StudyModeManager.setServiceState(StudyModeFocusService.this,
+                    StudyModeManager.isAccessibilityMonitoringEnabled(StudyModeFocusService.this)
+                        ? "accessibility_disconnected" : "permission_required");
+                mainHandler.post(() -> { if (running) removeShield(); });
+                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
+                return;
+            }
 
+            // UsageStats is a permission-dependent fallback and may detect app
+            // switches later than Accessibility window-state events.
             PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive() || (keyguard != null && keyguard.isKeyguardLocked())) {
@@ -789,6 +833,7 @@ public final class StudyModeFocusService extends Service {
 
     @Override
     public void onDestroy() {
+        if (instance == this) instance = null;
         running = false;
         starting = false;
         stopping = false;
