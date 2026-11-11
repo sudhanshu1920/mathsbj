@@ -1108,7 +1108,13 @@ public final class StudyModeFocusService extends Service {
         String removedRequestId = activeShieldRequestId;
         if (existingView != null) {
             try {
-                if (windowManager != null) windowManager.removeViewImmediate(existingView);
+                if (windowManager == null) {
+                    windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+                }
+                if (windowManager == null) {
+                    throw new IllegalStateException("WindowManager unavailable during overlay teardown");
+                }
+                windowManager.removeViewImmediate(existingView);
                 logStage("POPUP_DISMISSED", removedPackage, removedRequestId, "removed", reason);
             } catch (IllegalArgumentException alreadyDetached) {
                 // WindowManager uses this when another lifecycle path already detached it.
