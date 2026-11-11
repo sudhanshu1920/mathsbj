@@ -4,8 +4,10 @@ import test from "node:test";
 
 const focusPath = new URL("../android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java", import.meta.url);
 const managerPath = new URL("../android-native/com/sudhanshu/mathsbj/StudyModeManager.java", import.meta.url);
+const pagePath = new URL("../src/components/StudyModePage.tsx", import.meta.url);
 const source = readFileSync(focusPath, "utf8");
 const manager = readFileSync(managerPath, "utf8");
+const page = readFileSync(pagePath, "utf8");
 
 function between(text, startMarker, endMarker) {
   const start = text.indexOf(startMarker);
@@ -107,6 +109,17 @@ test("diagnostic session lookup is cached off the main-thread popup path", () =>
   assert.ok(source.includes("lastDiagnosticSessionRefreshElapsedMs"));
   const logger = between(source, "private void logStage(", "public void onTaskRemoved(");
   assert.ok(!logger.includes("getActiveSessionId(this)"));
+});
+
+test("foreground lookup failures surface as unavailable while service is alive", () => {
+  assert.ok(source.includes("hasForegroundLookupFailure()"));
+  assert.ok(source.includes("foregroundLookupFailureForStatus = true;"));
+  assert.ok(source.includes("foregroundLookupFailureForStatus = false;"));
+  const status = between(manager, "public static JSObject getStatus(Context context)", "boolean exactFallback");
+  assert.ok(status.indexOf("hasForegroundLookupFailure()") >= 0);
+  assert.ok(status.indexOf("hasForegroundLookupFailure()") < status.indexOf("isRunning()"));
+  assert.ok(page.includes('status.enforcementState === "monitoring_unavailable"'));
+  assert.ok(page.includes("foreground app monitoring unavailable"));
 });
 
 test("overlay launch failure is not reported as active blocking while the service stays alive", () => {
