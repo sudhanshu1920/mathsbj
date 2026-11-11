@@ -73,7 +73,7 @@ test('configures complete installed-app visibility, native services and Capacito
   const accessibilityConfig = await readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8');
   const accessibilityStrings = await readFile(path.join(root, 'app/src/main/res/values/study_mode_accessibility_strings.xml'), 'utf8');
   assert.match(accessibilityService, /TYPE_WINDOW_STATE_CHANGED/);
-  assert.match(accessibilityService, /TYPE_WINDOWS_CHANGED/);
+  assert.doesNotMatch(accessibilityService, /TYPE_WINDOWS_CHANGED/);
   assert.match(accessibilityConfig, /canRetrieveWindowContent="false"/);
   assert.match(accessibilityConfig, /typeWindowStateChanged\|typeWindowsChanged/);
   assert.match(accessibilityStrings, /does not read screen text, passwords, or window contents/);
