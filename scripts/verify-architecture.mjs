@@ -1086,7 +1086,7 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     studyModeManager.includes('return (info.flags & ApplicationInfo.FLAG_SYSTEM) == 0') ||
     !studyModePage.includes('setAppFilter<') && !studyModePage.includes('setAppFilter(filter.id)') ||
     !studyModePage.includes('aria-label="Filter installed apps"') ||
-    !studyModePage.includes('filterStudyModeApps(apps, appFilter, search)') ||
+    !studyModePage.includes('filterStudyModeApps(apps, appFilter, deferredSearch)') ||
     !studyModeAppFilters.includes('filter === "system" ? app.systemApp : !app.systemApp') ||
     !studyModePage.includes('disabled={!app.selectable || saving}') ||
     !studyModePage.includes('app.selectable ? (') ||
