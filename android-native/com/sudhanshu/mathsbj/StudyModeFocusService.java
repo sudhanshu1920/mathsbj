@@ -367,7 +367,7 @@ public final class StudyModeFocusService extends Service {
             foregroundUnknownLogged = false;
 
             if (!foreground.equals(lastLoggedForegroundPackage)) {
-                if (!foreground.equals(failedPopupPackage)) resetPopupRetryState();
+                resetPopupRetryStateForDifferentPackage(foreground);
                 lastLoggedForegroundPackage = foreground;
                 logStage("FOREGROUND_PACKAGE_RESOLVED", foreground, "", "success", "usage_events");
             }
@@ -426,14 +426,31 @@ public final class StudyModeFocusService extends Service {
         resetPopupRetryState();
     }
 
-    private void resetPopupRetryState() {
+    private synchronized void resetPopupRetryState() {
         failedPopupPackage = "";
         failedPopupAttempts = 0;
         nextPopupRetryElapsedMs = 0L;
         popupRetryExhaustedLogged = false;
     }
 
-    private void recordPopupLaunchFailure(String packageName) {
+    private synchronized void resetPopupRetryStateForDifferentPackage(String packageName) {
+        if (!packageName.equals(failedPopupPackage)) resetPopupRetryState();
+    }
+
+    private synchronized boolean shouldDeferPopupLaunch(String packageName, String requestId) {
+        if (!packageName.equals(failedPopupPackage)) return false;
+        if (failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND) {
+            if (!popupRetryExhaustedLogged) {
+                popupRetryExhaustedLogged = true;
+                logStage("POPUP_LAUNCH_FAILED", packageName, requestId,
+                    "retry_limit_reached", "awaiting_new_foreground_transition");
+            }
+            return true;
+        }
+        return SystemClock.elapsedRealtime() < nextPopupRetryElapsedMs;
+    }
+
+    private synchronized void recordPopupLaunchFailure(String packageName) {
         if (!packageName.equals(failedPopupPackage)) {
             failedPopupPackage = packageName;
             failedPopupAttempts = 0;
@@ -558,17 +575,7 @@ public final class StudyModeFocusService extends Service {
             return;
         }
 
-        if (packageName.equals(failedPopupPackage)) {
-            if (failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND) {
-                if (!popupRetryExhaustedLogged) {
-                    popupRetryExhaustedLogged = true;
-                    logStage("POPUP_LAUNCH_FAILED", packageName, requestId,
-                        "retry_limit_reached", "awaiting_new_foreground_transition");
-                }
-                return;
-            }
-            if (SystemClock.elapsedRealtime() < nextPopupRetryElapsedMs) return;
-        }
+        if (shouldDeferPopupLaunch(packageName, requestId)) return;
 
         if (packageName.equals(shieldedPackage)) {
             if (popupState == PopupState.VISIBLE && isShieldViewVisible(shieldView)) return;
