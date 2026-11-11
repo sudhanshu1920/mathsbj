@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.app.KeyguardManager;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
@@ -375,9 +376,12 @@ public final class StudyModeFocusService extends Service {
             if (shouldShield && !foreground.equals(lastLoggedBlockedPackage)) {
                 lastLoggedBlockedPackage = foreground;
                 logStage("BLOCKED_LIST_MATCHED", foreground, "", "matched", "active_session_or_schedule");
-            } else if (!shouldShield && lastLoggedBlockedPackage != null) {
-                logStage("BLOCKING_REEVALUATED", lastLoggedBlockedPackage, "", "not_required", "foreground_no_longer_blocked");
-                lastLoggedBlockedPackage = null;
+            } else if (!shouldShield) {
+                overlayFailureForStatus = false;
+                if (lastLoggedBlockedPackage != null) {
+                    logStage("BLOCKING_REEVALUATED", lastLoggedBlockedPackage, "", "not_required", "foreground_no_longer_blocked");
+                    lastLoggedBlockedPackage = null;
+                }
             }
 
             final String requestId = shouldShield ? UUID.randomUUID().toString() : "";
