@@ -58,7 +58,7 @@ test('configures complete installed-app visibility, native services and Capacito
 
   for (const permission of [
     'QUERY_ALL_PACKAGES', 'PACKAGE_USAGE_STATS', 'SYSTEM_ALERT_WINDOW', 'SCHEDULE_EXACT_ALARM',
-    'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE', 'RECEIVE_BOOT_COMPLETED',
+    'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE', 'POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED',
     'ACCESS_NOTIFICATION_POLICY',
   ]) assert.match(manifest, new RegExp(`android.permission.${permission}`));
 
