@@ -194,6 +194,11 @@ public final class StudyModeFocusService extends Service {
             );
             monitorThread.start();
             monitorHandler = new Handler(monitorThread.getLooper());
+            String initialAccessibilityPackage = StudyModeAccessibilityService.getLastKnownForegroundPackage();
+            if (initialAccessibilityPackage != null) {
+                lastForegroundPackage = initialAccessibilityPackage;
+                monitorHandler.post(() -> evaluateForegroundPackage(initialAccessibilityPackage));
+            }
             monitorHandler.post(monitorRunnable);
         }
     }
@@ -344,8 +349,13 @@ public final class StudyModeFocusService extends Service {
             }
 
             if (accessibilityConnected) {
-                // Event-driven package detection avoids continuously polling UsageStats.
-                if (lastForegroundPackage != null) evaluateForegroundPackage(lastForegroundPackage);
+                // Re-seed only once if the service was enabled while a target app was
+                // already open. Subsequent decisions come from Accessibility events,
+                // not a periodic replay of stale package state.
+                if (lastForegroundPackage == null && StudyModeManager.hasUsageAccess(StudyModeFocusService.this)) {
+                    String initialPackage = getMostRecentlyResumedPackage();
+                    if (initialPackage != null) evaluateForegroundPackage(initialPackage);
+                }
                 if (monitorHandler != null) monitorHandler.postDelayed(this, 15_000L);
                 return;
             }
