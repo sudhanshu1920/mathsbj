@@ -140,14 +140,9 @@ public final class StudyModeFocusService extends Service {
 
         // Device Owner suspension already blocks packages at the OS level. In that
         // mode this service only maintains the durable session notification/timer.
-        if (!devicePolicyMode) {
-            monitorThread = new HandlerThread(
-                "StudyModeMonitor",
-                android.os.Process.THREAD_PRIORITY_BACKGROUND
-            );
-            monitorThread.start();
-            monitorHandler = new Handler(monitorThread.getLooper());
-            monitorHandler.post(monitorRunnable);
+        if (!devicePolicyMode && !ensureMonitoringThread()) {
+            StudyModeManager.setServiceState(this, "service_stopped");
+            stopSelf();
         }
     }
 
@@ -163,12 +158,11 @@ public final class StudyModeFocusService extends Service {
             updateOngoingNotification();
             return START_STICKY;
         }
-        if (monitorHandler == null) {
+        if (!ensureMonitoringThread()) {
+            StudyModeManager.setServiceState(this, "service_stopped");
             stopSelf(startId);
             return START_NOT_STICKY;
         }
-        monitorHandler.removeCallbacks(monitorRunnable);
-        monitorHandler.post(monitorRunnable);
         return START_STICKY;
     }
 
@@ -194,9 +188,36 @@ public final class StudyModeFocusService extends Service {
 
     public static void onAccessibilitySourceChanged() {
         StudyModeFocusService active = instance;
-        if (active == null || !running || active.monitorHandler == null) return;
-        active.monitorHandler.removeCallbacks(active.monitorRunnable);
-        active.monitorHandler.post(active.monitorRunnable);
+        if (active == null || !running || StudyModeManager.isPolicyOwner(active)) return;
+        active.ensureMonitoringThread();
+    }
+
+    private synchronized boolean ensureMonitoringThread() {
+        if (monitorThread != null && monitorThread.isAlive() && monitorHandler != null) {
+            monitorHandler.removeCallbacks(monitorRunnable);
+            return monitorHandler.post(monitorRunnable);
+        }
+        if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
+        if (monitorThread != null) monitorThread.quitSafely();
+        try {
+            HandlerThread replacement = new HandlerThread(
+                "StudyModeMonitor",
+                android.os.Process.THREAD_PRIORITY_BACKGROUND
+            );
+            replacement.start();
+            Handler replacementHandler = new Handler(replacement.getLooper());
+            if (!replacementHandler.post(monitorRunnable)) {
+                replacement.quitSafely();
+                return false;
+            }
+            monitorThread = replacement;
+            monitorHandler = replacementHandler;
+            return true;
+        } catch (Exception error) {
+            monitorHandler = null;
+            monitorThread = null;
+            return false;
+        }
     }
 
     private String getNotificationContentText() {
@@ -846,9 +867,8 @@ public final class StudyModeFocusService extends Service {
     public void onTaskRemoved(Intent rootIntent) {
         // Page/Activity task removal is not a session stop. The persisted session
         // and scheduled boundaries remain authoritative.
-        if (StudyModeManager.shouldEnforceNow(this) && monitorHandler != null) {
-            monitorHandler.removeCallbacks(monitorRunnable);
-            monitorHandler.post(monitorRunnable);
+        if (StudyModeManager.shouldEnforceNow(this) && !StudyModeManager.isPolicyOwner(this)) {
+            ensureMonitoringThread();
         } else if (StudyModeManager.isPolicyOwner(this) && StudyModeManager.isSessionActive(this)) {
             updateOngoingNotification();
         }
@@ -863,6 +883,8 @@ public final class StudyModeFocusService extends Service {
         stopping = false;
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
+        monitorHandler = null;
+        monitorThread = null;
         mainHandler.removeCallbacksAndMessages(null);
         removeShield();
         overlayFailureForStatus = false;
