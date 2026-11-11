@@ -67,13 +67,13 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.ok(manifest.includes('android.intent.category.HOME'));
   assert.doesNotMatch(manifest, /android.provider.Telephony.SMS_DELIVER/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
-  assert.match(manifest, /StudyModeAccessibilityService[\\s\\S]*BIND_ACCESSIBILITY_SERVICE[\\s\\S]*android.accessibilityservice.AccessibilityService[\\s\\S]*@xml\\/study_mode_accessibility/);
+  assert.match(manifest, /StudyModeAccessibilityService[\s\S]*BIND_ACCESSIBILITY_SERVICE[\s\S]*android.accessibilityservice.AccessibilityService[\s\S]*@xml\/study_mode_accessibility/);
   const accessibilityService = await readFile(
     path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8',
   );
   assert.match(accessibilityService, /TYPE_WINDOW_STATE_CHANGED/);
-  assert.match(accessibilityService, /getPackageName\\(\\)/);
-  assert.doesNotMatch(accessibilityService, /getRootInActiveWindow|getSource\\(|dispatchGesture/);
+  assert.match(accessibilityService, /getPackageName\(\)/);
+  assert.doesNotMatch(accessibilityService, /getRootInActiveWindow|getSource\(|dispatchGesture/);
   const accessibilityConfig = await readFile(
     path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8',
   );
@@ -111,7 +111,7 @@ test('configures complete installed-app visibility, native services and Capacito
   const secondManifest = await readFile(manifestPath, 'utf8');
   const secondActivity = await readFile(activityPath, 'utf8');
   assert.equal((secondManifest.match(/android:name="\.StudyModeFocusService"/g) || []).length, 1);
-  assert.equal((secondManifest.match(/android:name="\\.StudyModeAccessibilityService"/g) || []).length, 1);
+  assert.equal((secondManifest.match(/android:name="\.StudyModeAccessibilityService"/g) || []).length, 1);
   assert.match(secondManifest, /BIND_ACCESSIBILITY_SERVICE/);
   assert.doesNotMatch(secondManifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE/);
   assert.equal((secondManifest.match(/android.intent.category.LAUNCHER/g) || []).length, 1);
