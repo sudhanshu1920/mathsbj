@@ -259,44 +259,49 @@ public final class StudyModeFocusService extends Service {
                 if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
-            if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
+            boolean accessibilityConnected = StudyModeAccessibilityService.isConnected();
+            if (!StudyModeManager.hasForegroundMonitoringSource(StudyModeFocusService.this)
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
                 StudyModeManager.setServiceState(StudyModeFocusService.this, "permission_required");
-                mainHandler.post(() -> { if (running) removeShield(); });
+                mainHandler.post(() -> {
+                    if (running) {
+                        removeShield();
+                        stopSelf();
+                    }
+                });
                 updateOngoingNotification();
-                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
-
-            // UsageStats is the only foreground source in personal-device mode.
-            // It is polled while the screen is active and never reads screen content.
 
             PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive() || (keyguard != null && keyguard.isKeyguardLocked())) {
-                // The current foreground app may not emit a fresh RESUMED event after
-                // the display wakes. Force a broad UsageStats resync on the next
-                // interactive poll instead of relying on the short rolling lookback.
-                initialForegroundLookup = true;
-                lastForegroundPackage = null;
+                // Retain the latest Accessibility package across a screen lock.
+                // Usage Access mode performs a fresh snapshot after the display wakes.
+                if (!accessibilityConnected) {
+                    initialForegroundLookup = true;
+                    lastForegroundPackage = null;
+                    lastUsageEventTimestampMs = 0L;
+                }
                 mainHandler.post(() -> {
                     if (running) removeShield();
                 });
-                if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
+                if (monitorHandler != null) monitorHandler.postDelayed(
+                    this, accessibilityConnected ? 15_000L : POLL_INTERVAL_MS
+                );
                 return;
             }
 
-            // UsageStatsManager and package checks run off the UI thread. Only
-            // WindowManager/View changes are posted back to the main looper.
+            if (accessibilityConnected) {
+                // Event-driven package detection avoids continuously polling UsageStats.
+                if (lastForegroundPackage != null) evaluateForegroundPackage(lastForegroundPackage);
+                if (monitorHandler != null) monitorHandler.postDelayed(this, 15_000L);
+                return;
+            }
+
+            // UsageStats remains the compatibility fallback when Accessibility is off.
             String foreground = getMostRecentlyResumedPackage();
-            boolean shouldShield = foreground != null
-                && !foreground.equals(getPackageName())
-                && StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground);
-            mainHandler.post(() -> {
-                if (!running) return;
-                if (shouldShield) showShield(foreground);
-                else removeShield();
-            });
+            evaluateForegroundPackage(foreground);
             if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
         }
     };
@@ -309,7 +314,7 @@ public final class StudyModeFocusService extends Service {
         long now = System.currentTimeMillis();
         UsageEvents events;
         try {
-            long lookback = initialForegroundLookup ? 24L * 60L * 60L * 1000L : 12000L;
+            long lookback = initialForegroundLookup ? 5L * 60L * 1000L : 12000L;
             events = usage.queryEvents(Math.max(0L, now - lookback), now);
             initialForegroundLookup = false;
         } catch (SecurityException denied) {
@@ -318,17 +323,31 @@ public final class StudyModeFocusService extends Service {
         }
         if (events == null) return lastForegroundPackage;
 
-        String latest = null;
+        String latest = lastForegroundPackage;
+        long newestEventTime = lastUsageEventTimestampMs;
         UsageEvents.Event event = new UsageEvents.Event();
         while (events.hasNextEvent()) {
             events.getNextEvent(event);
+            long eventTime = event.getTimeStamp();
+            if (eventTime <= lastUsageEventTimestampMs) continue;
+
             int type = event.getEventType();
             boolean resumed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                 ? type == UsageEvents.Event.ACTIVITY_RESUMED
                 : type == UsageEvents.Event.MOVE_TO_FOREGROUND;
-            if (resumed) latest = event.getPackageName();
+            boolean paused = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                ? type == UsageEvents.Event.ACTIVITY_PAUSED
+                : type == UsageEvents.Event.MOVE_TO_BACKGROUND;
+            String packageName = event.getPackageName();
+            if (resumed && packageName != null && !packageName.isEmpty()) {
+                latest = packageName;
+            } else if (paused && packageName != null && packageName.equals(latest)) {
+                latest = null;
+            }
+            newestEventTime = Math.max(newestEventTime, eventTime);
         }
-        if (latest != null && !latest.isEmpty()) lastForegroundPackage = latest;
+        lastUsageEventTimestampMs = Math.max(lastUsageEventTimestampMs, newestEventTime);
+        lastForegroundPackage = latest;
         return lastForegroundPackage;
     }
 
@@ -579,6 +598,7 @@ public final class StudyModeFocusService extends Service {
                 // Remember the selected destination while its first resumed event
                 // is still pending, preventing a stale blocked-package overlay loop.
                 lastForegroundPackage = packageName;
+                lastUsageEventTimestampMs = System.currentTimeMillis();
                 removeShield();
             } else {
                 Toast.makeText(StudyModeFocusService.this,
@@ -793,8 +813,11 @@ public final class StudyModeFocusService extends Service {
         if (monitorHandler != null && StudyModeManager.shouldEnforceNow(this)) {
             monitorHandler.removeCallbacks(monitorRunnable);
             monitorHandler.post(() -> {
-                lastForegroundPackage = null;
-                initialForegroundLookup = true;
+                if (!StudyModeAccessibilityService.isConnected()) {
+                    lastForegroundPackage = null;
+                    lastUsageEventTimestampMs = 0L;
+                    initialForegroundLookup = true;
+                }
                 monitorRunnable.run();
             });
         }
@@ -805,6 +828,7 @@ public final class StudyModeFocusService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        if (instance == this) instance = null;
         starting = false;
         stopping = false;
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
@@ -813,7 +837,7 @@ public final class StudyModeFocusService extends Service {
         removeShield();
         overlayFailureForStatus = false;
         if (!StudyModeManager.isPolicyOwner(this) && StudyModeManager.shouldEnforceNow(this)
-            && StudyModeManager.hasForegroundMonitoringPermission(this) && StudyModeManager.hasOverlayPermission(this)) {
+            && StudyModeManager.hasForegroundMonitoringSource(this) && StudyModeManager.hasOverlayPermission(this)) {
             StudyModeManager.setServiceState(this, "service_stopped");
         }
         try {
