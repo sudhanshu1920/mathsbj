@@ -1208,11 +1208,12 @@ public final class StudyModeFocusService extends Service {
         if (monitorThread != null) monitorThread.quitSafely();
         mainHandler.removeCallbacksAndMessages(null);
         removeShield("service_destroyed");
-        overlayFailureForStatus = false;
+        boolean overlayCleanupFailed = shieldView != null;
+        overlayFailureForStatus = overlayCleanupFailed;
         foregroundLookupFailureForStatus = false;
         if (!StudyModeManager.isPolicyOwner(this) && StudyModeManager.shouldEnforceNow(this)
             && StudyModeManager.hasForegroundMonitoringPermission(this) && StudyModeManager.hasOverlayPermission(this)) {
-            StudyModeManager.setServiceState(this, "service_stopped");
+            StudyModeManager.setServiceState(this, overlayCleanupFailed ? "overlay_failed" : "service_stopped");
         }
         try {
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
