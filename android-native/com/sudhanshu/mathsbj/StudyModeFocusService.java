@@ -415,16 +415,17 @@ public final class StudyModeFocusService extends Service {
                 }
             }
 
+            final String resolvedForeground = foreground;
             final String requestId = shouldShield ? UUID.randomUUID().toString() : "";
             mainHandler.post(() -> {
                 if (!running) return;
                 if (decisionSequence != foregroundDecisionSequence.get()) {
                     if (shouldShield) {
-                        logStage("BLOCKING_REEVALUATED", foreground, requestId, "superseded", "newer_foreground_decision");
+                        logStage("BLOCKING_REEVALUATED", resolvedForeground, requestId, "superseded", "newer_foreground_decision");
                     }
                     return;
                 }
-                if (shouldShield) showShield(foreground, requestId, decisionSequence);
+                if (shouldShield) showShield(resolvedForeground, requestId, decisionSequence);
                 else removeShield("foreground_not_blocked");
             });
 
