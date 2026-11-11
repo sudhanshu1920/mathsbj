@@ -134,6 +134,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [draft, setDraft] = useState<StudyModeConfig>(DEFAULT_STUDY_MODE_CONFIG);
   const [status, setStatus] = useState<StudyModeStatus | null>(null);
   const [apps, setApps] = useState<StudyModeApp[]>([]);
+  const [appsLoading, setAppsLoading] = useState(false);
+  const [appsLoadError, setAppsLoadError] = useState("");
   const [studyAppPackages, setStudyAppPackages] = useState<string[]>([]);
   const [studyPickerOpen, setStudyPickerOpen] = useState(false);
   const [studySearch, setStudySearch] = useState("");
@@ -171,6 +173,82 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const isMountedRef = useRef(true);
   const loadInFlightRef = useRef<Promise<void> | null>(null);
   const historyInFlightRef = useRef<Promise<void> | null>(null);
+  const appCatalogRef = useRef<StudyModeApp[] | null>(null);
+  const appCatalogLoadedRef = useRef(false);
+  const appCatalogLoadInFlightRef = useRef<Promise<void> | null>(null);
+  const statusRef = useRef<StudyModeStatus | null>(status);
+  statusRef.current = status;
+
+  // The app catalogue is not needed by the default collapsed screen. Fetch it
+  // only when a picker is opened, and reuse the module-level cache on remount.
+  const loadApps = useCallback((): Promise<void> => {
+    if (!isStudyModeNative()) {
+      setAppsLoadError("Installed apps are available only in the Android app.");
+      return Promise.resolve();
+    }
+    if (appCatalogLoadedRef.current) return Promise.resolve();
+    if (appCatalogLoadInFlightRef.current) return appCatalogLoadInFlightRef.current;
+
+    setAppsLoading(true);
+    setAppsLoadError("");
+    const request = (async () => {
+      try {
+        const installedApps = await getInstalledStudyModeApps();
+        if (!isMountedRef.current) return;
+
+        appCatalogRef.current = installedApps;
+        appCatalogLoadedRef.current = true;
+        setApps(installedApps);
+
+        const latestStatus = statusRef.current;
+        if (!dirtyRef.current && latestStatus) {
+          const selectablePackages = new Set(
+            installedApps.filter((app) => app.selectable).map((app) => app.packageName),
+          );
+          const normalized: StudyModeConfig = {
+            ...DEFAULT_STUDY_MODE_CONFIG,
+            ...latestStatus.config,
+            selectedPackageNames: latestStatus.config.selectedPackageNames.filter((name) =>
+              selectablePackages.has(name)),
+            selectedDays: [...latestStatus.config.selectedDays],
+          };
+          const blockedNow = new Set(normalized.selectedPackageNames);
+          const normalizedStudyApps = (latestStatus.studyAppPackages ?? []).filter((name) =>
+            !blockedNow.has(name) && selectablePackages.has(name));
+          setDraft(normalized);
+          savedSnapshot.current = configSnapshot(normalized);
+          setStudyAppPackages(normalizedStudyApps);
+          savedStudyAppsSnapshot.current = JSON.stringify([...normalizedStudyApps].sort());
+        }
+      } catch (error) {
+        if (isMountedRef.current) {
+          setAppsLoadError(error instanceof Error && error.message
+            ? error.message
+            : "Could not load installed apps. Tap to retry.");
+        }
+      } finally {
+        if (isMountedRef.current) setAppsLoading(false);
+      }
+    })();
+
+    appCatalogLoadInFlightRef.current = request;
+    void request.finally(() => {
+      if (appCatalogLoadInFlightRef.current === request) appCatalogLoadInFlightRef.current = null;
+    });
+    return request;
+  }, []);
+
+  const toggleBlockedPicker = () => {
+    const nextOpen = !pickerOpen;
+    setPickerOpen(nextOpen);
+    if (nextOpen) void loadApps();
+  };
+
+  const toggleStudyPicker = () => {
+    const nextOpen = !studyPickerOpen;
+    setStudyPickerOpen(nextOpen);
+    if (nextOpen) void loadApps();
+  };
 
   const load = useCallback((reconcile = true): Promise<void> => {
     if (!isStudyModeNative()) {
@@ -182,26 +260,25 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
     const request = (async () => {
       try {
-        const [nextStatus, installedApps] = await Promise.all([
-          reconcile ? refreshStudyMode() : getStudyModeStatus(),
-          getInstalledStudyModeApps(),
-        ]);
-        const selectablePackages = new Set(
-          installedApps.filter((app) => app.selectable).map((app) => app.packageName),
-        );
+        const nextStatus = await (reconcile ? refreshStudyMode() : getStudyModeStatus());
+        const installedApps = appCatalogRef.current;
+        const selectablePackages = installedApps
+          ? new Set(installedApps.filter((app) => app.selectable).map((app) => app.packageName))
+          : null;
         const normalized: StudyModeConfig = {
           ...DEFAULT_STUDY_MODE_CONFIG,
           ...nextStatus.config,
-          selectedPackageNames: nextStatus.config.selectedPackageNames.filter((name) =>
-            selectablePackages.has(name)),
+          selectedPackageNames: selectablePackages
+            ? nextStatus.config.selectedPackageNames.filter((name) => selectablePackages.has(name))
+            : [...nextStatus.config.selectedPackageNames],
           selectedDays: [...nextStatus.config.selectedDays],
         };
         const blockedNow = new Set(normalized.selectedPackageNames);
         const normalizedStudyApps = (nextStatus.studyAppPackages ?? []).filter((name) =>
-          !blockedNow.has(name) && selectablePackages.has(name));
+          !blockedNow.has(name) && (!selectablePackages || selectablePackages.has(name)));
 
         if (!isMountedRef.current) return;
-        setApps(installedApps);
+        statusRef.current = nextStatus;
         setStatus(nextStatus);
         if (nextStatus.activeSession?.active) {
           setSessionType(nextStatus.activeSession.sessionType);
@@ -320,11 +397,11 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const appCounts = useMemo(() => countStudyModeApps(apps), [apps]);
   const visibleApps = useMemo(
     () => filterStudyModeApps(apps, appFilter, deferredSearch),
-    [apps, appFilter, search],
+    [apps, appFilter, deferredSearch],
   );
   const visibleStudyApps = useMemo(
     () => filterStudyModeApps(apps, "all", deferredStudySearch),
-    [apps, studySearch],
+    [apps, deferredStudySearch],
   );
 
   const updateDraft = (patch: Partial<StudyModeConfig>) => {
@@ -671,7 +748,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/35">
           <button
             type="button"
-            onClick={() => setPickerOpen((open) => !open)}
+            onClick={toggleBlockedPicker}
             aria-expanded={pickerOpen}
             className="flex min-h-12 w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/45"
           >
@@ -721,8 +798,12 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                 })}
               </div>
               <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto border-t border-border/50 p-1.5 min-[480px]:grid-cols-2">
-                {loading ? (
+                {appsLoading ? (
                   <p className="col-span-full p-3 text-center text-xs text-muted-foreground">Loading apps…</p>
+                ) : appsLoadError ? (
+                  <button type="button" onClick={() => { void loadApps(); }} className="col-span-full p-3 text-center text-xs text-warning">
+                    {appsLoadError} · Retry
+                  </button>
                 ) : visibleApps.length === 0 ? (
                   <p className="col-span-full p-3 text-center text-xs text-muted-foreground">
                     {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
@@ -782,7 +863,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/35">
           <button
             type="button"
-            onClick={() => setStudyPickerOpen((open) => !open)}
+            onClick={toggleStudyPicker}
             aria-expanded={studyPickerOpen}
             className="flex min-h-12 w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/45"
           >
@@ -809,8 +890,12 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                 />
               </div>
               <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto p-1.5 min-[480px]:grid-cols-2">
-                {loading ? (
+                {appsLoading ? (
                   <p className="col-span-full p-3 text-center text-xs text-muted-foreground">Loading apps…</p>
+                ) : appsLoadError ? (
+                  <button type="button" onClick={() => { void loadApps(); }} className="col-span-full p-3 text-center text-xs text-warning">
+                    {appsLoadError} · Retry
+                  </button>
                 ) : visibleStudyApps.length === 0 ? (
                   <p className="col-span-full p-3 text-center text-xs text-muted-foreground">
                     {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
@@ -830,7 +915,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                       className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/65 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {app.iconDataUrl ? (
-                        <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+                        <img src={app.iconDataUrl} alt="" loading="lazy" decoding="async" width={28} height={28} className="h-7 w-7 shrink-0 rounded-lg object-contain" />
                       ) : (
                         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
                           {app.label.slice(0, 1).toLocaleUpperCase()}
