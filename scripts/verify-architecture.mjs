@@ -965,6 +965,21 @@ const studyModeIndex = read('src/pages/Index.tsx');
 const studyModeDeepLink = read('src/lib/studyModeDeepLink.ts');
 const studyModeDeepLinkTests = read('src/lib/studyModeDeepLink.test.ts');
 const studyModeBoot = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java');
+const taskRemovedStart = studyModeFocus.indexOf('public void onTaskRemoved(Intent rootIntent)');
+const taskRemovedEnd = studyModeFocus.indexOf('public void onDestroy()', taskRemovedStart);
+const taskRemovedBody = taskRemovedStart >= 0 && taskRemovedEnd > taskRemovedStart
+  ? studyModeFocus.slice(taskRemovedStart, taskRemovedEnd)
+  : '';
+if (!studyModeSetup.includes('android:stopWithTask="false"') ||
+    taskRemovedStart < 0 ||
+    taskRemovedEnd < 0 ||
+    !taskRemovedBody.includes('Page/Activity task removal is not a session stop') ||
+    /stopSelf|stopService|finishSession|endSession|setEnabled/.test(taskRemovedBody) ||
+    !studyModeFocus.includes('startForegroundSafely()') ||
+    !studyModeFocus.includes('FOREGROUND_SERVICE_TYPE_SPECIAL_USE')) {
+  fail('Removing Math Master from Recents must not stop the foreground service or mutate the persisted Study Mode session');
+}
+
 if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
     !studyModeFocus.includes('Uri.parse("mathmaster://learn")') ||
     !studyModeFocus.includes('getPackageName() + ".MainActivity"') ||
