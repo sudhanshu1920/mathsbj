@@ -965,6 +965,16 @@ const studyModeIndex = read('src/pages/Index.tsx');
 const studyModeDeepLink = read('src/lib/studyModeDeepLink.ts');
 const studyModeDeepLinkTests = read('src/lib/studyModeDeepLink.test.ts');
 const studyModeBoot = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java');
+const normalReconcileStart = studyModeManager.indexOf('if (!releaseSuspendedPackages(app))');
+const normalReconcileEnd = studyModeManager.indexOf('private static void setLastState', normalReconcileStart);
+const normalReconcileBlock = normalReconcileStart >= 0 && normalReconcileEnd > normalReconcileStart
+  ? studyModeManager.slice(normalReconcileStart, normalReconcileEnd)
+  : '';
+if (!normalReconcileBlock.includes('StudyModeFocusService.isMonitoringActive()') ||
+    !normalReconcileBlock.includes('app.startForegroundService(service)') ||
+    !studyModeFocus.includes('ensureMonitoringThread()')) {
+  fail('A live Service with a dead worker must recover its monitor thread through the existing Service start path');
+}
 const taskRemovedStart = studyModeFocus.indexOf('public void onTaskRemoved(Intent rootIntent)');
 const taskRemovedEnd = studyModeFocus.indexOf('public void onDestroy()', taskRemovedStart);
 const taskRemovedBody = taskRemovedStart >= 0 && taskRemovedEnd > taskRemovedStart
