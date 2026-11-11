@@ -890,7 +890,10 @@ public final class StudyModeManager {
         }
 
         try {
-            if ((!StudyModeFocusService.isRunning() || StudyModeFocusService.isStopping())
+            // The Service process may still exist even if its worker thread died.
+            // Re-dispatching startForegroundService targets that same Service and
+            // onStartCommand repairs the worker without creating another instance.
+            if ((!StudyModeFocusService.isMonitoringActive() || StudyModeFocusService.isStopping())
                 && !StudyModeFocusService.isStarting()) {
                 StudyModeFocusService.markStarting();
                 Intent service = new Intent(app, StudyModeFocusService.class);
@@ -898,7 +901,7 @@ public final class StudyModeManager {
                 else app.startService(service);
             }
             setLastState(app, StudyModeFocusService.hasOverlayFailure() ? "overlay_failed"
-                : (StudyModeFocusService.isRunning() ? "focus_shield_running"
+                : (StudyModeFocusService.isMonitoringActive() ? "focus_shield_running"
                     : (StudyModeFocusService.isStarting() ? "focus_shield_starting" : "service_stopped")));
         } catch (Exception error) {
             StudyModeFocusService.clearStarting();
