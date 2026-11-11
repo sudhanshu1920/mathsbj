@@ -1182,7 +1182,7 @@ if (taskRemovalStart < 0 ||
     !taskRemovalHandler.includes('resetForegroundResolution();') ||
     !taskRemovalHandler.includes('monitorRunnable.run();') ||
     !taskRemovalHandler.includes('updateOngoingNotification();') ||
-    /stopSelf|stopService|finishSession|setEnabled|finishIfExpired|\\.delete\\(/.test(taskRemovalHandler) ||
+    /stopSelf|stopService|finishSession|setEnabled|finishIfExpired|\.delete\(/.test(taskRemovalHandler) ||
     !studyModeSetup.includes('android:stopWithTask="false"') ||
     !studyModeFocus.includes('return START_STICKY')) {
   fail('Recent Apps removal must reset the UsageEvents cursor without stopping the native service or mutating the persisted session');
@@ -1201,6 +1201,12 @@ if (!studyModeFocus.includes('boolean decisionChanged = !foreground.equals(lastD
     !studyModeFocus.includes('decision_changed_during_popup_build') ||
     !studyModeFocus.includes('verifiedRequestId, decisionSequence')) {
   fail('Popup request generation must remain stable during unchanged foreground polls and invalidate stale display work on real decision transitions');
+}
+if (!studyModeFocus.includes('private synchronized void resetPopupRetryState()') ||
+    !studyModeFocus.includes('private synchronized void recordPopupLaunchFailure(String packageName)') ||
+    !studyModeFocus.includes('private synchronized boolean shouldDeferPopupLaunch(String packageName, String requestId)') ||
+    !studyModeFocus.includes('resetPopupRetryStateForDifferentPackage(foreground)')) {
+  fail('Popup retry counters must be synchronized because monitor and main threads both update retry state');
 }
 if (!studyModeManager.includes('StudyModeFocusService.hasOverlayFailure()') ||
     !studyModeFocus.includes('view.isAttachedToWindow()') ||
