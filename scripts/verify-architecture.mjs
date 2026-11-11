@@ -1058,11 +1058,20 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeAccessibility.includes('TYPE_WINDOWS_CHANGED') ||
     !studyModeAccessibility.includes('event.getPackageName()') ||
     !studyModeAccessibility.includes('event.getEventTime()') ||
+    !studyModeAccessibility.includes('isEnabled(Context context)') ||
+    !studyModeFocus.includes('reportAccessibilityForegroundPackage') ||
+    !studyModeFocus.includes('foregroundDecisionGeneration') ||
+    !studyModeFocus.includes('KeyEvent.KEYCODE_BACK') ||
+    !studyModeFocus.includes('scroll.setOnKeyListener') ||
+    !studyModeManager.includes('foregroundSourceAvailable = usageGranted || accessibilityConnected') ||
+    !studyModeManager.includes('StudyModeFocusService.hasOverlayFailure()') ||
+    studyModeManager.slice(studyModeManager.indexOf('public static boolean shouldBlockForegroundPackage'), studyModeManager.indexOf('public static boolean hasNotificationPolicyAccess')).includes('getSelectedStudyAppPackages') ||
     !studyModeAccessibility.includes('StudyModeFocusService.reportAccessibilityForegroundPackage') ||
     !studyModeSetup.includes('StudyModeAccessibilityService.java') ||
     !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
     !studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
     !studyModeSetup.includes('@xml/study_mode_accessibility') ||
+    !studyModeSetup.includes('accessibility-events-with-usage-access-fallback') ||
     !studyModePage.includes('key: "accessibility" as const') ||
     !studyModePage.includes('key: "usage" as const') ||
     !studyModePage.includes('does not read screen text, passwords, or window contents') ||
