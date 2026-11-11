@@ -269,6 +269,13 @@ public final class StudyModePlugin extends Plugin {
         String permission = call.getString("permission", "");
         Intent intent;
         switch (permission) {
+            case "notifications":
+                intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+                break;
+            case "accessibility":
+                intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                break;
             case "usage":
                 intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
                 break;

@@ -90,6 +90,8 @@ public final class StudyModeSessionStore extends SQLiteOpenHelper {
         values.put("start_elapsed_ms", elapsed);
         values.put("boot_count", bootCount);
         values.put("duration_seconds", Math.max(0, durationSeconds));
+        values.put("end_time_ms", durationSeconds > 0
+            ? now + (long) durationSeconds * 1000L : 0L);
         values.put("selected_apps", toJson(selectedPackages));
         values.put("enforced", enforced ? 1 : 0);
         values.put("should_enable_dnd", shouldEnableDnd ? 1 : 0);
@@ -201,6 +203,11 @@ public final class StudyModeSessionStore extends SQLiteOpenHelper {
         if (session.bootCount >= 0 && currentBootCount >= 0 && currentBootCount == session.bootCount
             && nowElapsed >= session.startElapsedMs) {
             millis = nowElapsed - session.startElapsedMs;
+        } else if (session.endTimeMs > 0L && session.durationSeconds > 0) {
+            // Across reboot the monotonic clock resets. Use the persisted absolute
+            // expiry boundary, then derive elapsed time from the original duration.
+            long remainingMillis = Math.max(0L, session.endTimeMs - System.currentTimeMillis());
+            millis = Math.max(0L, (long) session.durationSeconds * 1000L - remainingMillis);
         } else {
             millis = Math.max(0L, System.currentTimeMillis() - session.startTimeMs);
         }

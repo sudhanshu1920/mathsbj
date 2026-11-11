@@ -67,15 +67,18 @@ const statusText = (status: StudyModeStatus | null) => {
     return "Android could not confirm that every suspended app is available";
   }
   if (status?.activeSession?.active) {
-    if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
+    if (status.enforcementState === "permission_required") return "Focus session saved · app-blocking permission required";
+    if (status.enforcementState === "accessibility_disconnected") return "Focus session saved · monitoring disconnected; enable Accessibility or Usage Access";
     if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
-    if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
+    if (status.enforcementState === "service_stopped") return "Focus session saved · monitoring service is stopped";
+    if (status.enforcementState === "focus_shield_starting") return "Focus session saved · starting native monitoring";
     const label = status.activeSession.sessionType.charAt(0).toUpperCase()
       + status.activeSession.sessionType.slice(1);
-    return label + " focus session active · continues in background";
+    return label + " focus session active · native protection is running";
   }
   if (!status?.config.enabled) return "Study Mode is off";
-  if (status.enforcementState === "permission_required") return "Enable Usage Access and allow the blocking overlay";
+  if (status.enforcementState === "accessibility_disconnected") return "Accessibility monitoring is disconnected · reconnect it or grant Usage Access fallback";
+  if (status.enforcementState === "permission_required") return "Enable Accessibility monitoring or Usage Access and allow the blocking overlay";
   if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
   if (status.enforcementState === "focus_shield_starting") return "Starting Focus Shield…";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
@@ -240,10 +243,30 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   };
 
   const activeSession = status?.activeSession?.active ? status.activeSession : null;
+  const sessionProtectionActive = status?.enforcementState === "focus_shield_running"
+    || status?.enforcementState === "system_suspension";
   const sessionElapsedSeconds = (activeSession?.elapsedSeconds ?? 0) + sessionTick;
   const sessionRemainingSeconds = activeSession && activeSession.durationSeconds > 0
     ? Math.max(0, activeSession.durationSeconds - sessionElapsedSeconds)
     : 0;
+
+  useEffect(() => {
+    if (!activeSession) return;
+    let disposed = false;
+    const refreshNativeStatus = async () => {
+      try {
+        const nextStatus = await refreshStudyMode();
+        if (!disposed) setStatus(nextStatus);
+      } catch {
+        // The last confirmed status remains visible; a failed refresh is not a new protection state.
+      }
+    };
+    const timer = window.setInterval(() => { void refreshNativeStatus(); }, 10_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [activeSession?.id, activeSession?.active]);
 
   useEffect(() => {
     if (!activeSession || activeSession.durationSeconds <= 0 || sessionRemainingSeconds > 0) return;
@@ -530,11 +553,22 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
   const permissionItems = [
     {
+      key: "accessibility" as const,
+      title: "Accessibility monitoring",
+      granted: status?.permissions.accessibility === true,
+      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner"
+        && !status?.permissions.usageAccess,
+      helper: status?.permissions.accessibilityEnabled && !status?.permissions.accessibility
+        ? "Android lists this service as enabled, but it is not connected. Re-enable it or grant Usage Access fallback."
+        : "Primary app-switch detector. Uses only the foreground package name; it does not read screen text, inspect window content, take screenshots, or perform gestures.",
+    },
+    {
       key: "usage" as const,
-      title: "Usage Access",
+      title: "Usage Access fallback",
       granted: status?.permissions.usageAccess === true,
-      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
-      helper: "Monitors which app is in the foreground on a personal device. Android does not share screen text or window content.",
+      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner"
+        && !status?.permissions.accessibility,
+      helper: "Fallback app-switch detection when Accessibility is unavailable. Polling can be delayed by Android and OEM power management.",
     },
     {
       key: "overlay" as const,
@@ -554,6 +588,14 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         : "Without this, Android may deliver schedule changes late.",
     },
     {
+      key: "notifications" as const,
+      title: "Ongoing notification",
+      granted: status?.permissions.notifications === true,
+      required: (draft.enabled || Boolean(status?.activeSession?.active))
+        && status?.permissions.notifications === false,
+      helper: "Android 13+ requires notification access to show the ongoing Study Mode notice in the notification drawer. The system still lists a running foreground service in Task Manager if denied.",
+    },
+    {
       key: "dnd" as const,
       title: "Do Not Disturb",
       granted: status?.permissions.dndAccess === true,
@@ -562,7 +604,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     },
   ];
 
-  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd") => {
+  const openPermission = async (permission: "accessibility" | "usage" | "overlay" | "exactAlarm" | "dnd" | "notifications") => {
     try {
       await openStudyModePermission(permission);
     } catch {
@@ -820,7 +862,11 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             <Clock3 size={14} className="text-muted-foreground" /> Focus session
           </p>
           {activeSession && (
-            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-bold text-success">ACTIVE</span>
+            <span className={sessionProtectionActive
+              ? "rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-bold text-success"
+              : "rounded-full bg-warning/10 px-2 py-0.5 text-[9px] font-bold text-warning"}>
+              {sessionProtectionActive ? "PROTECTED" : "NOT PROTECTED"}
+            </span>
           )}
         </div>
 

@@ -12,6 +12,7 @@ const NATIVE_FILES = [
   'StudyModeAlarmReceiver.java',
   'StudyModePackageChangeReceiver.java',
   'StudyModeFocusService.java',
+  'StudyModeAccessibilityService.java',
   'StudyModeDeviceAdminReceiver.java',
   'DailyTargetReminderBootReceiver.java',
   'AppUsageAnalyticsStore.java',
@@ -28,6 +29,7 @@ const REQUIRED_PERMISSIONS = [
   'android.permission.SCHEDULE_EXACT_ALARM',
   'android.permission.FOREGROUND_SERVICE',
   'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
+  'android.permission.POST_NOTIFICATIONS',
   'android.permission.RECEIVE_BOOT_COMPLETED',
   'android.permission.ACCESS_NOTIFICATION_POLICY',
 ];
@@ -90,9 +92,8 @@ function removeNotificationListenerService(manifest) {
   return manifest.replace(listenerService, '');
 }
 
-function removeAccessibilityService(manifest) {
-  // Internet-sideloaded apps that declare Accessibility services can be
-  // blocked by Play Protect. Normal-phone Focus Shield uses Usage Access.
+function normalizeAccessibilityServiceDeclaration(manifest) {
+  // Replace stale or partial declarations with one least-privilege definition.
   const service = /\s*<service\b(?=[^>]*\bandroid:name=["']\.StudyModeAccessibilityService["'])[^>]*(?:\/>|>[\s\S]*?<\/service>)/g;
   return manifest.replace(service, '');
 }
@@ -158,6 +159,22 @@ function ensureStudyModeComponents(manifest) {
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled scheduled focus monitoring and a user-approved app blocking overlay" />
+        </service>`,
+    },
+    {
+      marker: 'android:name=".StudyModeAccessibilityService"',
+      xml: `        <service
+            android:name=".StudyModeAccessibilityService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/study_mode_accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/study_mode_accessibility" />
         </service>`,
     },
   ];
@@ -228,6 +245,7 @@ export async function configureAndroidStudyMode(androidRoot) {
   await rm(path.join(valuesTarget, 'study_mode_accessibility.xml'), { force: true });
   for (const resource of [
     'study_mode_device_admin.xml',
+    'study_mode_accessibility.xml',
     'app_usage_backup_rules.xml',
     'app_usage_data_extraction_rules.xml',
   ]) {
@@ -237,6 +255,11 @@ export async function configureAndroidStudyMode(androidRoot) {
     );
   }
 
+  await copyFile(
+    path.resolve(SCRIPT_DIR, '../android-native/res/values/study_mode_accessibility_strings.xml'),
+    path.join(valuesTarget, 'study_mode_accessibility_strings.xml'),
+  );
+
   let mainActivity = await readFile(activityPath, 'utf8');
   mainActivity = registerStudyModePlugin(mainActivity);
   mainActivity = registerAppUsageAnalyticsPlugin(mainActivity);
@@ -244,14 +267,14 @@ export async function configureAndroidStudyMode(androidRoot) {
 
   let manifest = await readFile(manifestPath, 'utf8');
   manifest = removeNotificationListenerService(manifest);
-  manifest = removeAccessibilityService(manifest);
+  manifest = normalizeAccessibilityServiceDeclaration(manifest);
   manifest = ensureManifestQueries(manifest);
   manifest = ensurePermissions(manifest);
   manifest = ensureStudyModeComponents(manifest);
   manifest = ensureBackupExclusions(manifest);
   await writeFile(manifestPath, manifest);
 
-  return { javaFiles: NATIVE_FILES.length, packageVisibility: 'all-installed-packages', localUsageAnalytics: true, foregroundMonitoring: 'usage-access-only' };
+  return { javaFiles: NATIVE_FILES.length, packageVisibility: 'all-installed-packages', localUsageAnalytics: true, foregroundMonitoring: 'accessibility-primary-usage-access-fallback' };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

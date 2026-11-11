@@ -46,8 +46,8 @@ test('configures complete installed-app visibility, native services and Capacito
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 10);
-  assert.equal(result.foregroundMonitoring, 'usage-access-only');
+  assert.equal(result.javaFiles, 11);
+  assert.equal(result.foregroundMonitoring, 'accessibility-primary-usage-access-fallback');
   assert.equal(result.packageVisibility, 'all-installed-packages');
   assert.equal(result.localUsageAnalytics, true);
 
@@ -58,7 +58,7 @@ test('configures complete installed-app visibility, native services and Capacito
 
   for (const permission of [
     'QUERY_ALL_PACKAGES', 'PACKAGE_USAGE_STATS', 'SYSTEM_ALERT_WINDOW', 'SCHEDULE_EXACT_ALARM',
-    'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE', 'RECEIVE_BOOT_COMPLETED',
+    'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE', 'POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED',
     'ACCESS_NOTIFICATION_POLICY',
   ]) assert.match(manifest, new RegExp(`android.permission.${permission}`));
 
@@ -67,19 +67,24 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.ok(manifest.includes('android.intent.category.HOME'));
   assert.doesNotMatch(manifest, /android.provider.Telephony.SMS_DELIVER/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
-  assert.doesNotMatch(manifest, /StudyModeAccessibilityService|BIND_ACCESSIBILITY_SERVICE|android.accessibilityservice/);
-  await assert.rejects(
-    readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8'),
-    { code: 'ENOENT' },
+  assert.match(manifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
+  assert.match(manifest, /StudyModeAccessibilityService[\s\S]*BIND_ACCESSIBILITY_SERVICE[\s\S]*android.accessibilityservice.AccessibilityService[\s\S]*@xml\/study_mode_accessibility/);
+  const accessibilityService = await readFile(
+    path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8',
   );
-  await assert.rejects(
-    readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8'),
-    { code: 'ENOENT' },
+  assert.match(accessibilityService, /TYPE_WINDOW_STATE_CHANGED/);
+  assert.match(accessibilityService, /getPackageName\(\)/);
+  assert.doesNotMatch(accessibilityService, /getRootInActiveWindow|getSource\(|dispatchGesture/);
+  const accessibilityConfig = await readFile(
+    path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8',
   );
-  await assert.rejects(
-    readFile(path.join(root, 'app/src/main/res/values/study_mode_accessibility.xml'), 'utf8'),
-    { code: 'ENOENT' },
+  assert.match(accessibilityConfig, /android:accessibilityEventTypes="typeWindowStateChanged"/);
+  assert.match(accessibilityConfig, /android:canRetrieveWindowContent="false"/);
+  assert.match(accessibilityConfig, /android:canPerformGestures="false"/);
+  const accessibilityStrings = await readFile(
+    path.join(root, 'app/src/main/res/values/study_mode_accessibility_strings.xml'), 'utf8',
   );
+  assert.match(accessibilityStrings, /study_mode_accessibility_description/);
   assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\S]*BIND_DEVICE_ADMIN[\s\S]*device_admin/);
   assert.doesNotMatch(manifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE|READ_SMS|RECEIVE_SMS/);
   await assert.rejects(
@@ -107,7 +112,9 @@ test('configures complete installed-app visibility, native services and Capacito
   const secondManifest = await readFile(manifestPath, 'utf8');
   const secondActivity = await readFile(activityPath, 'utf8');
   assert.equal((secondManifest.match(/android:name="\.StudyModeFocusService"/g) || []).length, 1);
-  assert.doesNotMatch(secondManifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE|StudyModeAccessibilityService|BIND_ACCESSIBILITY_SERVICE/);
+  assert.equal((secondManifest.match(/android:name="\.StudyModeAccessibilityService"/g) || []).length, 1);
+  assert.match(secondManifest, /BIND_ACCESSIBILITY_SERVICE/);
+  assert.doesNotMatch(secondManifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE/);
   assert.equal((secondManifest.match(/android.intent.category.LAUNCHER/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(AppUsageAnalyticsPlugin\.class\)/g) || []).length, 1);
