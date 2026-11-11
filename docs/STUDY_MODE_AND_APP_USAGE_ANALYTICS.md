@@ -24,10 +24,27 @@ The UI identifies this as managed-profile suspension.
 ### Normal personal phone
 
 A regular installed app does not automatically have Device Owner authority.
-When Math Master is not Device Owner/Profile Owner, the available compatibility
-mode is Usage Access + an explicitly approved overlay (Focus Shield). That is
-best-effort foreground monitoring and is not system-level package suspension.
-The interface labels it as **Shield only**, never **Frozen**.
+When Math Master is not Device Owner/Profile Owner, personal-device Focus Shield
+uses a user-approved foreground monitoring source and overlay. The preferred
+source is an optional Accessibility Service configured only for window-state and input-focus events. It reads the event package name and event timestamp
+only; it does not retrieve window content, view hierarchies, text, passwords,
+gestures or key events. The user must explicitly enable this service in Android
+Accessibility settings, and can disable it there at any time.
+
+Usage Access remains a compatibility fallback when Accessibility is disabled or
+disconnected. It polls Android UsageEvents while the display is interactive. On its
+first startup it reads a one-time 24-hour event history; after screen lock/unlock or
+task removal it resumes from the last processed event timestamp, then uses an
+incremental 12-second history window at the 1.6-second poll interval. Android only
+retains UsageEvents for a few days, so this fallback can still miss or delay foreground
+changes and is not guaranteed instant. When Accessibility is enabled without Usage
+Access, Android may not replay the already-open foreground package on service connect;
+Math Master reports that it is waiting for the first package event until the next app
+window/focus event arrives.
+When neither source is available, Focus Shield is not started and the status is
+reported as permission-required. Both personal-device sources only display a
+user-approved overlay; neither suspends a package at OS level. The interface
+labels this mode as **Shield only**, never **Frozen**.
 
 The current DPC receiver is the policy component used after an authorized
 Android/enterprise provisioning flow has already made Math Master the owner.
@@ -69,15 +86,15 @@ affect this fallback calculation.
 
 The foreground service uses Android's `specialUse` foreground-service type,
 an ongoing notification, and `START_STICKY` restoration from the saved session.
-On a normal personal phone, Focus Shield requires foreground-app monitoring
-permission and the existing user-approved overlay. This build does not declare
-an Accessibility Service. It uses Android's UsageStatsManager after the user
-grants Usage Access, polling foreground-app events every 1.6 seconds while the
-screen is active. It does not read screen text, window content, view hierarchies,
-gestures, or passwords. This remains best-effort Focus Shield, not guaranteed
-package suspension; the selected app can appear briefly before the overlay is
-shown. The managed-device Device Owner/Profile Owner path remains separate and
-uses verified `DevicePolicyManager` suspension.
+On a normal personal phone, Focus Shield requires either the user-enabled,
+package-only Accessibility event source or Usage Access fallback, plus the
+existing user-approved overlay. Accessibility notifications are event-driven;
+UsageStats fallback polls foreground-app events every 1.6 seconds while the
+screen is active. The Accessibility service does not retrieve screen text,
+window content, view hierarchies, gestures or passwords. Neither personal-device
+source is equivalent to OS package suspension; the selected app may appear
+briefly before the overlay is displayed. The managed-device Device Owner/Profile
+Owner path remains separate and uses verified `DevicePolicyManager` suspension.
 
 Completed sessions are retained in the local SQLite history. The database is
 excluded from cloud backup and device-to-device transfer. Optional DND requires

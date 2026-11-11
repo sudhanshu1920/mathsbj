@@ -382,12 +382,20 @@ public final class StudyModeManager {
         }
     }
 
+    public static boolean hasAccessibilityServiceEnabled(Context context) {
+        return StudyModeAccessibilityService.isEnabled(context);
+    }
+
+    public static boolean hasAccessibilityServiceConnected() {
+        return StudyModeAccessibilityService.isConnected();
+    }
+
     public static boolean hasForegroundMonitoringPermission(Context context) {
-        return hasUsageAccess(context);
+        return hasForegroundMonitoringSource(context);
     }
 
     public static boolean hasForegroundMonitoringSource(Context context) {
-        return hasUsageAccess(context);
+        return hasUsageAccess(context) || hasAccessibilityServiceConnected();
     }
 
     public static boolean hasOverlayPermission(Context context) {
@@ -640,6 +648,24 @@ public final class StudyModeManager {
         return packageName != null && getEnforcedPackages(context).contains(packageName);
     }
 
+    /**
+     * Single Focus Shield decision path. The active session/schedule contributes
+     * only Blocked Apps; Study Apps are quick-launch destinations, never a global
+     * allow-list. Critical Android interfaces remain protected even if an old or
+     * manually edited preference contains one of their package names.
+     */
+    public static boolean shouldBlockForegroundPackage(Context context, String packageName) {
+        if (context == null || packageName == null
+            || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")
+            || packageName.equals(context.getPackageName())
+            || !shouldEnforceNow(context)
+            || !hasForegroundMonitoringSource(context)
+            || !hasOverlayPermission(context)) return false;
+
+        if (getProtectedPackages(context).contains(packageName)) return false;
+        return getEnforcedPackages(context).contains(packageName);
+    }
+
     public static boolean hasNotificationPolicyAccess(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -707,7 +733,7 @@ public final class StudyModeManager {
 
     public static String getSessionNotificationText(Context context) {
         if (!isPolicyOwner(context) && shouldEnforceNow(context)
-            && (!hasForegroundMonitoringPermission(context) || !hasOverlayPermission(context))) {
+            && (!hasForegroundMonitoringSource(context) || !hasOverlayPermission(context))) {
             return "App blocking paused · required permission is off";
         }
         StudyModeSessionStore.Session session = sessionStore(context).getActiveSession(context);
@@ -1130,6 +1156,8 @@ public final class StudyModeManager {
 
         JSObject permissions = new JSObject();
         permissions.put("usageAccess", hasUsageAccess(context));
+        permissions.put("accessibilityEnabled", hasAccessibilityServiceEnabled(context));
+        permissions.put("accessibilityConnected", hasAccessibilityServiceConnected());
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
         permissions.put("deviceOwner", isDeviceOwner(context));
@@ -1157,7 +1185,9 @@ public final class StudyModeManager {
         boolean active = !enforcedPackages.isEmpty() && (isScheduleActive(context) || sessionActive);
         boolean policyOwner = isPolicyOwner(context);
         boolean usageGranted = hasUsageAccess(context);
+        boolean accessibilityConnected = hasAccessibilityServiceConnected();
         boolean overlayGranted = hasOverlayPermission(context);
+        boolean foregroundSourceAvailable = usageGranted || accessibilityConnected;
         if (!enabled && !sessionActive) {
             if (!"policy_failed".equals(state) && !"policy_unavailable".equals(state)) state = "disabled";
         } else if (!active) {
@@ -1168,15 +1198,20 @@ public final class StudyModeManager {
             if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
-        } else if (!usageGranted || !overlayGranted) {
+        } else if (!foregroundSourceAvailable || !overlayGranted) {
             state = "permission_required";
+        } else if (!usageGranted && accessibilityConnected
+            && !StudyModeAccessibilityService.hasForegroundPackageEvent()
+            && StudyModeFocusService.isRunning()) {
+            state = "waiting_for_foreground_event";
+        } else if (StudyModeFocusService.hasOverlayFailure()) {
+            state = "overlay_failed";
         } else if (StudyModeFocusService.isRunning()) {
-            state = "focus_shield_running";
+            state = StudyModeFocusService.hasOverlayFailure() ? "overlay_failed" : "focus_shield_running";
         } else if (StudyModeFocusService.isStarting()) {
             state = "focus_shield_starting";
-        } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)
-            || "accessibility_disconnected".equals(state)) {
-            // Normalize a state persisted by versions that exposed Accessibility tracking.
+        } else if (!"service_start_blocked".equals(state) && !"overlay_failed".equals(state)) {
+            // A persisted ACTIVE label is never proof that the native monitor is alive.
             state = "service_stopped";
         }
 
@@ -1193,7 +1228,7 @@ public final class StudyModeManager {
         result.put("monitoringServiceRunning", StudyModeFocusService.isRunning());
         result.put("enforcementMode", isDeviceOwner(context) ? "device_owner"
             : (isProfileOwner(context) ? "profile_owner"
-                : (hasForegroundMonitoringPermission(context) && hasOverlayPermission(context) ? "focus_shield" : "unavailable")));
+                : (hasForegroundMonitoringSource(context) && hasOverlayPermission(context) ? "focus_shield" : "unavailable")));
         result.put("enforcementState", state);
         result.put("appliedPackages", appliedArray);
         result.put("suspendedPackages", suspendedArray);

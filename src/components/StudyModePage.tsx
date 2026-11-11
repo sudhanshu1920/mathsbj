@@ -106,15 +106,25 @@ const statusText = (status: StudyModeStatus | null) => {
     return "Android could not confirm that every suspended app is available";
   }
   if (status?.activeSession?.active) {
-    if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
+    if (status.enforcementState === "permission_required") return "Focus session saved · app blocking permission required";
     if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
-    if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
+    if (status.enforcementState === "service_stopped") return "Focus session saved · monitoring service is stopped";
+    if (status.enforcementState === "waiting_for_foreground_event") return "Accessibility connected · switch apps once to initialize foreground detection";
+    if (status.enforcementState === "overlay_failed") return "Focus session saved · blocking overlay is unavailable";
+    if (status.enforcementState === "exact_alarm_required") return "Focus session saved · exact alarm access is required";
+    if (status.enforcementState === "partial_suspension") return "Focus session saved · some selected apps are not suspended";
+    if (status.enforcementState === "policy_failed" || status.enforcementState === "policy_unavailable") {
+      return "Focus session saved · Android system suspension could not be verified";
+    }
     const label = status.activeSession.sessionType.charAt(0).toUpperCase()
       + status.activeSession.sessionType.slice(1);
-    return label + " focus session active · continues in background";
+    if (status.enforcementState === "system_suspension") return label + " focus session active · apps suspended by Android";
+    if (status.enforcementState === "focus_shield_running") return label + " focus session active · Focus Shield monitoring";
+    if (status.enforcementState === "focus_shield_starting") return "Focus session saved · starting Focus Shield…";
+    return "Focus session saved · app blocking is not confirmed";
   }
   if (!status?.config.enabled) return "Study Mode is off";
-  if (status.enforcementState === "permission_required") return "Enable Usage Access and allow the blocking overlay";
+  if (status.enforcementState === "permission_required") return "Enable Accessibility Service or Usage Access and allow the blocking overlay";
   if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
   if (status.enforcementState === "focus_shield_starting") return "Starting Focus Shield…";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
@@ -654,13 +664,28 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     }
   };
 
+  const monitoringSourceAvailable = status?.permissions.usageAccess === true
+    || status?.permissions.accessibilityConnected === true;
   const permissionItems = [
+    {
+      key: "accessibility" as const,
+      title: "Accessibility Service",
+      granted: status?.permissions.accessibilityConnected === true,
+      required: !monitoringSourceAvailable
+        && status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
+      helper: status?.permissions.accessibilityEnabled && !status?.permissions.accessibilityConnected
+        ? "Enabled in Android settings, but the service is not connected yet."
+        : status?.permissions.accessibilityConnected && status?.permissions.usageAccess !== true
+          ? "Reads package-level window/focus events only. If already inside an app when enabled, switch apps once to initialize detection."
+          : "Optional event-driven app detection. Reads package/window changes only — never screen text or passwords.",
+    },
     {
       key: "usage" as const,
       title: "Usage Access",
       granted: status?.permissions.usageAccess === true,
-      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
-      helper: "Monitors which app is in the foreground on a personal device. Android does not share screen text or window content.",
+      required: !monitoringSourceAvailable
+        && status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
+      helper: "Fallback foreground-app detection when Accessibility is unavailable. Android does not share screen text or window content.",
     },
     {
       key: "overlay" as const,
@@ -688,7 +713,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     },
   ];
 
-  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd") => {
+  const openPermission = async (permission: "usage" | "accessibility" | "overlay" | "exactAlarm" | "dnd") => {
     try {
       await openStudyModePermission(permission);
     } catch {
@@ -1114,6 +1139,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
       <section className="space-y-1.5 rounded-xl border border-border/70 bg-card/35 p-3">
         <p className="text-xs font-semibold text-foreground">Android permissions</p>
+        <p className="text-[9px] leading-relaxed text-muted-foreground">
+          Choose either Accessibility Service (event-driven) or Usage Access (fallback) for foreground detection; you do not need both. Accessibility listens only for app/window changes to identify the foreground package. It does not read screen text, passwords, or window contents, and you can turn it off anytime in Android settings. Display over other apps is required for Focus Shield.
+        </p>
         {permissionItems.map((item) => {
           const stateLabel = item.granted ? "Granted" : item.required ? "Required" : "Optional";
           const stateClass = item.granted

@@ -24,6 +24,7 @@ import android.os.Looper;
 import android.util.LruCache;
 import android.text.format.DateFormat;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.WindowManager;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.AnimationSet;
@@ -76,9 +77,65 @@ public final class StudyModeFocusService extends Service {
     private boolean foregroundStarted = false;
     private String lastForegroundPackage = null;
     private boolean initialForegroundLookup = true;
+    private long lastUsageEventTimestampMs = 0L;
+    private long lastAccessibilityEventUptimeMs = 0L;
+    private long foregroundDecisionGeneration = 0L;
 
     public static boolean isRunning() {
         return running;
+    }
+
+    public static boolean isShieldVisible() {
+        StudyModeFocusService service = instance;
+        return service != null && service.shieldView != null;
+    }
+
+    public static void onAccessibilityAvailabilityChanged(Context context, boolean available) {
+        StudyModeFocusService service = instance;
+        if (service == null || service.monitorHandler == null) {
+            StudyModeManager.reconcile(context);
+            return;
+        }
+        service.monitorHandler.post(() -> {
+            // Accessibility clears its package snapshot whenever it reconnects.
+            // Never keep the previous service instance's foreground package as truth.
+            service.lastForegroundPackage = null;
+            service.lastAccessibilityEventUptimeMs = 0L;
+            service.initialForegroundLookup = true;
+            if (!available && !StudyModeAccessibilityService.isConnected()) {
+                service.lastUsageEventTimestampMs = 0L;
+            }
+            service.monitorHandler.removeCallbacks(service.monitorRunnable);
+            service.monitorRunnable.run();
+        });
+    }
+
+    public static void reportAccessibilityForegroundPackage(Context context, String packageName, long eventUptimeMs) {
+        StudyModeFocusService service = instance;
+        if (packageName == null || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) return;
+        if (service == null || service.monitorHandler == null) {
+            // The Accessibility event may arrive before the FGS finishes starting.
+            // Reconcile; onCreate seeds the already-recorded package snapshot.
+            StudyModeManager.reconcile(context);
+            return;
+        }
+        service.monitorHandler.post(() -> {
+            if (!running || !StudyModeAccessibilityService.isConnected()) return;
+            if (eventUptimeMs > 0L && eventUptimeMs < service.lastAccessibilityEventUptimeMs) return;
+            service.lastAccessibilityEventUptimeMs = Math.max(service.lastAccessibilityEventUptimeMs, eventUptimeMs);
+            service.lastForegroundPackage = packageName;
+            service.evaluateForegroundPackage(packageName);
+        });
+    }
+
+    private void evaluateForegroundPackage(String foregroundPackage) {
+        final long generation = ++foregroundDecisionGeneration;
+        final boolean shouldShield = StudyModeManager.shouldBlockForegroundPackage(this, foregroundPackage);
+        mainHandler.post(() -> {
+            if (!running || generation != foregroundDecisionGeneration) return;
+            if (shouldShield) showShield(foregroundPackage);
+            else removeShield();
+        });
     }
 
     public static boolean hasOverlayFailure() {
@@ -86,6 +143,7 @@ public final class StudyModeFocusService extends Service {
     }
 
     private static volatile boolean overlayFailureForStatus = false;
+    private static volatile StudyModeFocusService instance;
     private static final LruCache<String, android.graphics.drawable.Drawable.ConstantState> STUDY_ICON_CACHE =
         new LruCache<>(32);
     private static final LruCache<String, String> STUDY_LABEL_CACHE = new LruCache<>(64);
@@ -108,6 +166,7 @@ public final class StudyModeFocusService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        instance = this;
         starting = false;
         stopping = false;
         boolean devicePolicyMode = StudyModeManager.isPolicyOwner(this);
@@ -143,6 +202,11 @@ public final class StudyModeFocusService extends Service {
             );
             monitorThread.start();
             monitorHandler = new Handler(monitorThread.getLooper());
+            String initialAccessibilityPackage = StudyModeAccessibilityService.getLastKnownForegroundPackage();
+            if (initialAccessibilityPackage != null) {
+                lastForegroundPackage = initialAccessibilityPackage;
+                monitorHandler.post(() -> evaluateForegroundPackage(initialAccessibilityPackage));
+            }
             monitorHandler.post(monitorRunnable);
         }
     }
@@ -259,44 +323,53 @@ public final class StudyModeFocusService extends Service {
                 if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
-            if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
+            boolean accessibilityConnected = StudyModeAccessibilityService.isConnected();
+            if (!StudyModeManager.hasForegroundMonitoringSource(StudyModeFocusService.this)
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
                 StudyModeManager.setServiceState(StudyModeFocusService.this, "permission_required");
-                mainHandler.post(() -> { if (running) removeShield(); });
+                mainHandler.post(() -> {
+                    if (running) {
+                        removeShield();
+                        stopSelf();
+                    }
+                });
                 updateOngoingNotification();
-                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
-
-            // UsageStats is the only foreground source in personal-device mode.
-            // It is polled while the screen is active and never reads screen content.
 
             PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive() || (keyguard != null && keyguard.isKeyguardLocked())) {
-                // The current foreground app may not emit a fresh RESUMED event after
-                // the display wakes. Force a broad UsageStats resync on the next
-                // interactive poll instead of relying on the short rolling lookback.
-                initialForegroundLookup = true;
-                lastForegroundPackage = null;
+                // Retain the latest Accessibility package across a screen lock.
+                // Usage Access mode resumes reading from its last event cursor on wake.
+                if (!accessibilityConnected) {
+                    initialForegroundLookup = true;
+                    lastForegroundPackage = null;
+                }
                 mainHandler.post(() -> {
                     if (running) removeShield();
                 });
-                if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
+                if (monitorHandler != null) monitorHandler.postDelayed(
+                    this, accessibilityConnected ? 15_000L : POLL_INTERVAL_MS
+                );
                 return;
             }
 
-            // UsageStatsManager and package checks run off the UI thread. Only
-            // WindowManager/View changes are posted back to the main looper.
+            if (accessibilityConnected) {
+                // Re-seed only once if the service was enabled while a target app was
+                // already open. Subsequent decisions come from Accessibility events,
+                // not a periodic replay of stale package state.
+                if (lastForegroundPackage == null && StudyModeManager.hasUsageAccess(StudyModeFocusService.this)) {
+                    String initialPackage = getMostRecentlyResumedPackage();
+                    if (initialPackage != null) evaluateForegroundPackage(initialPackage);
+                }
+                if (monitorHandler != null) monitorHandler.postDelayed(this, 15_000L);
+                return;
+            }
+
+            // UsageStats remains the compatibility fallback when Accessibility is off.
             String foreground = getMostRecentlyResumedPackage();
-            boolean shouldShield = foreground != null
-                && !foreground.equals(getPackageName())
-                && StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground);
-            mainHandler.post(() -> {
-                if (!running) return;
-                if (shouldShield) showShield(foreground);
-                else removeShield();
-            });
+            evaluateForegroundPackage(foreground);
             if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
         }
     };
@@ -309,7 +382,13 @@ public final class StudyModeFocusService extends Service {
         long now = System.currentTimeMillis();
         UsageEvents events;
         try {
-            long lookback = initialForegroundLookup ? 24L * 60L * 60L * 1000L : 12000L;
+            // On first startup, scan a broad one-time window because the app being
+            // foregrounded may have happened long before Study Mode was enabled.
+            // After a lock/task transition, resume from the last processed event cursor
+            // instead of rescanning 24 hours; steady state remains a 12-second window.
+            long lookback = lastUsageEventTimestampMs > 0L
+                ? Math.max(12000L, now - lastUsageEventTimestampMs)
+                : (initialForegroundLookup ? 24L * 60L * 60L * 1000L : 12000L);
             events = usage.queryEvents(Math.max(0L, now - lookback), now);
             initialForegroundLookup = false;
         } catch (SecurityException denied) {
@@ -318,17 +397,31 @@ public final class StudyModeFocusService extends Service {
         }
         if (events == null) return lastForegroundPackage;
 
-        String latest = null;
+        String latest = lastForegroundPackage;
+        long newestEventTime = lastUsageEventTimestampMs;
         UsageEvents.Event event = new UsageEvents.Event();
         while (events.hasNextEvent()) {
             events.getNextEvent(event);
+            long eventTime = event.getTimeStamp();
+            if (eventTime <= lastUsageEventTimestampMs) continue;
+
             int type = event.getEventType();
             boolean resumed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                 ? type == UsageEvents.Event.ACTIVITY_RESUMED
                 : type == UsageEvents.Event.MOVE_TO_FOREGROUND;
-            if (resumed) latest = event.getPackageName();
+            boolean paused = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                ? type == UsageEvents.Event.ACTIVITY_PAUSED
+                : type == UsageEvents.Event.MOVE_TO_BACKGROUND;
+            String packageName = event.getPackageName();
+            if (resumed && packageName != null && !packageName.isEmpty()) {
+                latest = packageName;
+            } else if (paused && packageName != null && packageName.equals(latest)) {
+                latest = null;
+            }
+            newestEventTime = Math.max(newestEventTime, eventTime);
         }
-        if (latest != null && !latest.isEmpty()) lastForegroundPackage = latest;
+        lastUsageEventTimestampMs = Math.max(lastUsageEventTimestampMs, newestEventTime);
+        lastForegroundPackage = latest;
         return lastForegroundPackage;
     }
 
@@ -351,6 +444,8 @@ public final class StudyModeFocusService extends Service {
             params.gravity = Gravity.CENTER;
             params.setTitle("Math Master Study Mode");
             windowManager.addView(shieldView, params);
+            shieldView.setFocusableInTouchMode(true);
+            shieldView.requestFocus();
             AnimationSet entrance = new AnimationSet(true);
             AlphaAnimation fade = new AlphaAnimation(0.0f, 1.0f);
             TranslateAnimation rise = new TranslateAnimation(0f, 0f, dp(9), 0f);
@@ -376,6 +471,9 @@ public final class StudyModeFocusService extends Service {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
+        scroll.setFocusable(true);
+        scroll.setFocusableInTouchMode(true);
+        scroll.setOnKeyListener((view, keyCode, event) -> keyCode == KeyEvent.KEYCODE_BACK);
         scroll.setBackgroundColor(palette.scrim);
         LinearLayout stage = new LinearLayout(this);
         stage.setOrientation(LinearLayout.VERTICAL);
@@ -579,6 +677,7 @@ public final class StudyModeFocusService extends Service {
                 // Remember the selected destination while its first resumed event
                 // is still pending, preventing a stale blocked-package overlay loop.
                 lastForegroundPackage = packageName;
+                lastUsageEventTimestampMs = System.currentTimeMillis();
                 removeShield();
             } else {
                 Toast.makeText(StudyModeFocusService.this,
@@ -793,8 +892,10 @@ public final class StudyModeFocusService extends Service {
         if (monitorHandler != null && StudyModeManager.shouldEnforceNow(this)) {
             monitorHandler.removeCallbacks(monitorRunnable);
             monitorHandler.post(() -> {
-                lastForegroundPackage = null;
-                initialForegroundLookup = true;
+                if (!StudyModeAccessibilityService.isConnected()) {
+                    lastForegroundPackage = null;
+                    initialForegroundLookup = true;
+                }
                 monitorRunnable.run();
             });
         }
@@ -805,6 +906,7 @@ public final class StudyModeFocusService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        if (instance == this) instance = null;
         starting = false;
         stopping = false;
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
@@ -813,7 +915,7 @@ public final class StudyModeFocusService extends Service {
         removeShield();
         overlayFailureForStatus = false;
         if (!StudyModeManager.isPolicyOwner(this) && StudyModeManager.shouldEnforceNow(this)
-            && StudyModeManager.hasForegroundMonitoringPermission(this) && StudyModeManager.hasOverlayPermission(this)) {
+            && StudyModeManager.hasForegroundMonitoringSource(this) && StudyModeManager.hasOverlayPermission(this)) {
             StudyModeManager.setServiceState(this, "service_stopped");
         }
         try {

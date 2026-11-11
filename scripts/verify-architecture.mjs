@@ -952,6 +952,7 @@ const studyModePage = read('src/components/StudyModePage.tsx');
 const studyModeBridge = read('src/lib/studyMode.ts');
 const studyModeManager = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
 const studyModeFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
+const studyModeAccessibility = read('android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java');
 const studyModeSessionStore = read('android-native/com/sudhanshu/mathsbj/StudyModeSessionStore.java');
 const studyModeAppPlugin = read('android-native/com/sudhanshu/mathsbj/StudyModePlugin.java');
 const studyModeAppCatalogCache = read('src/lib/studyModeAppCatalogCache.ts');
@@ -1049,12 +1050,36 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeFocus.includes('POLL_INTERVAL_MS') ||
     !studyModeManager.includes('hasUsageAccess(context)') ||
     !studyModeManager.includes('hasForegroundMonitoringPermission') ||
-    !studyModeSetup.includes('removeAccessibilityService') ||
-    studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
-    studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
-    studyModePage.includes('Accessibility tracking') ||
+    !studyModeManager.includes('hasForegroundMonitoringSource') ||
+    !studyModeManager.includes('shouldBlockForegroundPackage') ||
+    !studyModeFocus.includes('StudyModeManager.shouldBlockForegroundPackage(this, foregroundPackage)') ||
+    !studyModeAccessibility.includes('extends AccessibilityService') ||
+    !studyModeAccessibility.includes('TYPE_WINDOW_STATE_CHANGED') ||
+    !studyModeAccessibility.includes('TYPE_VIEW_FOCUSED') ||
+    !studyModeAccessibility.includes('event.getPackageName()') ||
+    !studyModeAccessibility.includes('event.getEventTime()') ||
+    !studyModeAccessibility.includes('isEnabled(Context context)') ||
+    !studyModeFocus.includes('reportAccessibilityForegroundPackage') ||
+    !studyModeFocus.includes('foregroundDecisionGeneration') ||
+    !studyModeFocus.includes('KeyEvent.KEYCODE_BACK') ||
+    !studyModeFocus.includes('scroll.setOnKeyListener') ||
+    !studyModeManager.includes('foregroundSourceAvailable = usageGranted || accessibilityConnected') ||
+    !studyModeManager.includes('StudyModeFocusService.hasOverlayFailure()') ||
+    !studyModeManager.includes('waiting_for_foreground_event') ||
+    !studyModeFocus.includes('24L * 60L * 60L * 1000L') ||
+    studyModeManager.slice(studyModeManager.indexOf('public static boolean shouldBlockForegroundPackage'), studyModeManager.indexOf('public static boolean hasNotificationPolicyAccess')).includes('getSelectedStudyAppPackages') ||
+    !studyModeAccessibility.includes('StudyModeFocusService.reportAccessibilityForegroundPackage') ||
+    !studyModeSetup.includes('StudyModeAccessibilityService.java') ||
+    !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
+    !studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
+    !studyModeSetup.includes('@xml/study_mode_accessibility') ||
+    !studyModeSetup.includes('accessibility-events-with-usage-access-fallback') ||
+    !studyModePage.includes('key: "accessibility" as const') ||
     !studyModePage.includes('key: "usage" as const') ||
-    !studyModePage.includes('Monitors which app is in the foreground') ||
+    !studyModePage.includes('does not read screen text, passwords, or window contents') ||
+    studyModeAccessibility.includes('getRootInActiveWindow') ||
+    studyModeAccessibility.includes('getText()') ||
+    studyModeAccessibility.includes('getSource()') ||
     !studyModeManager.includes('DevicePolicyManager') ||
     !studyModeManager.includes('setPackagesSuspended(getAdminComponent(context)') ||
     !studyModeManager.includes('isPackageSuspended(getAdminComponent(context), packageName)') ||
@@ -1065,7 +1090,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeManager.includes('AlarmManager') ||
     !studyModeManager.includes('canScheduleExactAlarms') ||
     !studyModeManager.includes('isDefaultDialerPackage') && !studyModeManager.includes('getDefaultDialerPackage')) {
-  fail('Managed-device suspension, Usage Access-only Focus Shield, truthful permission state, alarm fallback, or critical app protection is missing');
+  fail('Managed-device suspension, opt-in package-only Accessibility events, UsageStats fallback, truthful permission state, alarm fallback, or critical app protection is missing');
 }
 if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     !studyModeAppPlugin.includes('checkPermission("android.permission.QUERY_ALL_PACKAGES"') ||
@@ -1188,12 +1213,22 @@ if (taskRemovalStart < 0 ||
     !studyModeFocus.includes('return START_STICKY')) {
   fail('Recent Apps removal must resynchronize monitoring without stopping the native service or mutating the persisted session');
 }
-if (!studyModeFocus.includes('initialForegroundLookup = true;') ||
-    !studyModeFocus.includes('Force a broad UsageStats resync on the next') ||
+const studyModeMonitorStart = studyModeFocus.indexOf('private final Runnable monitorRunnable');
+const studyModeMonitorEnd = studyModeFocus.indexOf('private String getMostRecentlyResumedPackage', studyModeMonitorStart);
+const studyModeMonitor = studyModeMonitorStart >= 0 && studyModeMonitorEnd > studyModeMonitorStart
+  ? studyModeFocus.slice(studyModeMonitorStart, studyModeMonitorEnd)
+  : '';
+if (!studyModeMonitor.includes('StudyModeAccessibilityService.isConnected()') ||
+    !studyModeMonitor.includes('if (!accessibilityConnected)') ||
+    !studyModeFocus.includes('lastUsageEventTimestampMs > 0L') ||
+    !studyModeFocus.includes('now - lastUsageEventTimestampMs') ||
+    !studyModeFocus.includes('24L * 60L * 60L * 1000L') ||
+    !studyModeMonitor.includes('if (!accessibilityConnected)') ||
+    !studyModeFocus.includes('initialForegroundLookup = true;') ||
     !studyModeFocus.includes('updateOngoingNotification();') ||
     !studyModeManager.includes('App blocking paused · required permission is off') ||
-    !studyModeFocus.includes('setServiceState(this, "permission_required")')) {
-  fail('Screen unlock must refresh foreground state and permission loss must be surfaced truthfully in the persistent notification');
+    !studyModeFocus.includes('setServiceState(StudyModeFocusService.this, "permission_required")')) {
+  fail('Screen unlock must retain event-driven foreground state, refresh the Usage Access fallback, and report monitoring permission loss');
 }
 const studyModeNativeFiles = studyModeSetup.match(/const NATIVE_FILES = \[([\s\S]*?)\];/)?.[1] ?? '';
 if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
@@ -1209,11 +1244,14 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
   fail('Sideloadable Android builds must not package Play Protect-sensitive notification-listener access');
 }
 if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
-    studyModeNativeFiles.includes('StudyModeAccessibilityService.java') ||
-    !studyModeSetup.includes('removeAccessibilityService') ||
-    studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
-    !studyModeSetup.includes("await rm(path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
-    !studyModeSetup.includes("await rm(path.join(valuesTarget, 'study_mode_accessibility.xml')") ||
+    !studyModeNativeFiles.includes('StudyModeAccessibilityService.java') ||
+    !studyModeSetup.includes('removeAccessibilityServiceDeclaration') ||
+    !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
+    !studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
+    !studyModeSetup.includes('@xml/study_mode_accessibility') ||
+    studyModeSetup.includes("await rm(path.join(packageDir, 'StudyModeAccessibilityService.java')") ||
+    studyModeSetup.includes("await rm(path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
+    studyModeSetup.includes("await rm(path.join(valuesTarget, 'study_mode_accessibility.xml')") ||
     !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
     !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
@@ -1222,7 +1260,7 @@ if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
     !studyModeSetup.includes("packageVisibility: 'all-installed-packages'") ||
     !widgetSetup.includes('configureAndroidStudyMode(root)') ||
     !studyModeBoot.includes('StudyModeManager.reconcile(context)')) {
-  fail('Generated Android project must use launcher-only package visibility, omit SMS queries and notification-listener access, and restore Study Mode schedules');
+  fail('Generated Android project must preserve launcher package queries, omit SMS/notification-listener access, package the opt-in Accessibility service, and restore Study Mode schedules');
 }
 
 
