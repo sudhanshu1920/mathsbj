@@ -1086,6 +1086,8 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeAccessibilityConfig.includes('android:canRetrieveWindowContent="false"') ||
     !studyModeAccessibilityConfig.includes('android:canPerformGestures="false"') ||
     !studyModeFocus.includes('onAccessibilityForegroundChanged') ||
+    !studyModeFocus.includes('isMonitoringActive()') ||
+    !studyModeManager.includes('StudyModeFocusService.isMonitoringActive()') ||
     !studyModeFocus.includes('StudyModeAccessibilityService.isConnected()') ||
     !studyModeFocus.includes('accessibility_disconnected') ||
     !studyModeSessionStore.includes('values.put("end_time_ms"') ||
