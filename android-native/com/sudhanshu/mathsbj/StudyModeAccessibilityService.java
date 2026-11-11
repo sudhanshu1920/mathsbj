@@ -63,7 +63,15 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
                 || type != AccessibilityEvent.TYPE_WINDOWS_CHANGED)) return;
 
         CharSequence rawPackage = event.getPackageName();
-        if (rawPackage == null) return;
+        if (rawPackage == null) {
+            lastDeliveredPackage = "";
+            long unknownEventTime = event.getEventTime();
+            lastDeliveredEventTime = Math.max(lastDeliveredEventTime, unknownEventTime);
+            StudyModeFocusService.clearAccessibilityForegroundPackage(
+                getApplicationContext(), unknownEventTime
+            );
+            return;
+        }
         String packageName = rawPackage.toString();
         if (!packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) return;
 
