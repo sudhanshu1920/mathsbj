@@ -48,6 +48,9 @@ public final class StudyModeFocusService extends Service {
     private static final long EVENT_QUERY_OVERLAP_MS = 5000L;
     private static final long EMPTY_INITIAL_LOOKUP_RETRY_MS = 60_000L;
     private static final long EMPTY_INITIAL_LOOKUP_FALLBACK_MS = 30_000L;
+    private static final long POPUP_RETRY_FIRST_BACKOFF_MS = 2000L;
+    private static final long POPUP_RETRY_SECOND_BACKOFF_MS = 6000L;
+    private static final int MAX_POPUP_FAILURES_PER_FOREGROUND = 3;
     private static final String LOG_TAG = "MathMasterStudyMode";
     private static volatile boolean running = false;
     private static volatile boolean starting = false;
@@ -97,7 +100,14 @@ public final class StudyModeFocusService extends Service {
     private String lastLoggedForegroundPackage = null;
     private String lastLoggedBlockedPackage = null;
     private boolean foregroundUnknownLogged = false;
+    private boolean foregroundLookupFailureLogged = false;
     private boolean permissionUnavailableLogged = false;
+    private String failedPopupPackage = "";
+    private int failedPopupAttempts = 0;
+    private long nextPopupRetryElapsedMs = 0L;
+    private boolean popupRetryExhaustedLogged = false;
+    private volatile String activeDiagnosticSessionId = "none";
+    private long lastDiagnosticSessionRefreshElapsedMs = 0L;
     private final AtomicLong foregroundDecisionSequence = new AtomicLong(0L);
 
     public static boolean isRunning() {
@@ -156,6 +166,7 @@ public final class StudyModeFocusService extends Service {
         }
         running = true;
         if (!devicePolicyMode) StudyModeManager.setServiceState(this, "focus_shield_running");
+        refreshDiagnosticSessionId(true);
         logStage("SESSION_VALIDATED", "", "", "active", "foreground_service_started");
         mainHandler.postDelayed(notificationUpdateRunnable, 60_000L);
 
@@ -180,6 +191,7 @@ public final class StudyModeFocusService extends Service {
         }
         starting = false;
         stopping = false;
+        refreshDiagnosticSessionId(true);
         if (StudyModeManager.isPolicyOwner(this)) {
             updateOngoingNotification();
             return START_STICKY;
@@ -272,6 +284,7 @@ public final class StudyModeFocusService extends Service {
             }
             if (!StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)) {
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
+                activeDiagnosticSessionId = "none";
                 StudyModeManager.setServiceState(StudyModeFocusService.this,
                     StudyModeManager.isEnabled(StudyModeFocusService.this) ? "waiting_for_schedule" : "disabled");
                 mainHandler.post(() -> {
@@ -310,7 +323,11 @@ public final class StudyModeFocusService extends Service {
                 if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
-            permissionUnavailableLogged = false;
+            if (permissionUnavailableLogged) {
+                permissionUnavailableLogged = false;
+                resetForegroundResolution();
+            }
+            refreshDiagnosticSessionId(false);
 
             // UsageStats is the foreground source for ordinary personal devices.
             // It is event-driven: the service polls the event cursor, not the screen.
@@ -348,6 +365,7 @@ public final class StudyModeFocusService extends Service {
             foregroundUnknownLogged = false;
 
             if (!foreground.equals(lastLoggedForegroundPackage)) {
+                if (!foreground.equals(failedPopupPackage)) resetPopupRetryState();
                 lastLoggedForegroundPackage = foreground;
                 logStage("FOREGROUND_PACKAGE_RESOLVED", foreground, "", "success", "usage_events");
             }
@@ -387,13 +405,52 @@ public final class StudyModeFocusService extends Service {
         lastLoggedForegroundPackage = null;
         lastLoggedBlockedPackage = null;
         foregroundUnknownLogged = false;
+        foregroundLookupFailureLogged = false;
+        resetPopupRetryState();
+    }
+
+    private void resetPopupRetryState() {
+        failedPopupPackage = "";
+        failedPopupAttempts = 0;
+        nextPopupRetryElapsedMs = 0L;
+        popupRetryExhaustedLogged = false;
+    }
+
+    private void recordPopupLaunchFailure(String packageName) {
+        if (!packageName.equals(failedPopupPackage)) {
+            failedPopupPackage = packageName;
+            failedPopupAttempts = 0;
+        }
+        failedPopupAttempts++;
+        if (failedPopupAttempts == 1) {
+            nextPopupRetryElapsedMs = SystemClock.elapsedRealtime() + POPUP_RETRY_FIRST_BACKOFF_MS;
+        } else if (failedPopupAttempts == 2) {
+            nextPopupRetryElapsedMs = SystemClock.elapsedRealtime() + POPUP_RETRY_SECOND_BACKOFF_MS;
+        } else {
+            nextPopupRetryElapsedMs = Long.MAX_VALUE;
+        }
+        popupRetryExhaustedLogged = false;
+    }
+
+    private void refreshDiagnosticSessionId(boolean force) {
+        long now = SystemClock.elapsedRealtime();
+        if (!force && now - lastDiagnosticSessionRefreshElapsedMs < 15_000L) return;
+        lastDiagnosticSessionRefreshElapsedMs = now;
+        try {
+            activeDiagnosticSessionId = StudyModeManager.getActiveSessionId(this);
+        } catch (Exception ignored) {
+            activeDiagnosticSessionId = "unavailable";
+        }
     }
 
     private String getMostRecentlyResumedPackage() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return lastForegroundPackage;
         UsageStatsManager usage = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
         if (usage == null) {
-            logStage("FOREGROUND_LOOKUP_FAILED", "", "", "unavailable", "usage_stats_manager_null");
+            if (!foregroundLookupFailureLogged) {
+                foregroundLookupFailureLogged = true;
+                logStage("FOREGROUND_LOOKUP_FAILED", "", "", "unavailable", "usage_stats_manager_null");
+            }
             return lastForegroundPackage;
         }
 
@@ -424,16 +481,26 @@ public final class StudyModeFocusService extends Service {
             events = usage.queryEvents(queryFrom, now);
         } catch (SecurityException denied) {
             StudyModeManager.setServiceState(this, "permission_required");
-            logStage("PERMISSION_MISSING", "", "", "denied", "usage_stats_security_exception");
+            if (!permissionUnavailableLogged) {
+                permissionUnavailableLogged = true;
+                logStage("PERMISSION_MISSING", "", "", "denied", "usage_stats_security_exception");
+            }
             return lastForegroundPackage;
         } catch (RuntimeException error) {
-            logStage("FOREGROUND_LOOKUP_FAILED", "", "", "failed", error.getClass().getSimpleName());
+            if (!foregroundLookupFailureLogged) {
+                foregroundLookupFailureLogged = true;
+                logStage("FOREGROUND_LOOKUP_FAILED", "", "", "failed", error.getClass().getSimpleName());
+            }
             return lastForegroundPackage;
         }
         if (events == null) {
-            logStage("FOREGROUND_LOOKUP_FAILED", "", "", "empty", "usage_events_null");
+            if (!foregroundLookupFailureLogged) {
+                foregroundLookupFailureLogged = true;
+                logStage("FOREGROUND_LOOKUP_FAILED", "", "", "empty", "usage_events_null");
+            }
             return lastForegroundPackage;
         }
+        foregroundLookupFailureLogged = false;
 
         String latest = null;
         long latestTimestamp = -1L;
@@ -466,6 +533,18 @@ public final class StudyModeFocusService extends Service {
 
     private void showShield(String packageName, String requestId) {
         if (packageName == null || packageName.isEmpty()) return;
+
+        if (packageName.equals(failedPopupPackage)) {
+            if (failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND) {
+                if (!popupRetryExhaustedLogged) {
+                    popupRetryExhaustedLogged = true;
+                    logStage("POPUP_LAUNCH_FAILED", packageName, requestId,
+                        "retry_limit_reached", "awaiting_new_foreground_transition");
+                }
+                return;
+            }
+            if (SystemClock.elapsedRealtime() < nextPopupRetryElapsedMs) return;
+        }
 
         if (packageName.equals(shieldedPackage)) {
             if (popupState == PopupState.VISIBLE && isShieldViewVisible(shieldView)) return;
@@ -528,6 +607,7 @@ public final class StudyModeFocusService extends Service {
             popupState = PopupState.RECOVERY_REQUIRED;
             overlayFailureForStatus = true;
             StudyModeManager.setServiceState(this, "overlay_failed");
+            recordPopupLaunchFailure(packageName);
             logStage("POPUP_LAUNCH_FAILED", packageName, activeShieldRequestId,
                 "failed", error.getClass().getSimpleName());
             removeShield("launch_failed");
@@ -555,6 +635,7 @@ public final class StudyModeFocusService extends Service {
         if (isShieldViewVisible(candidate)) {
             popupState = PopupState.VISIBLE;
             overlayFailureForStatus = false;
+            resetPopupRetryState();
             StudyModeManager.setServiceState(this, "focus_shield_running");
             logStage("POPUP_WINDOW_VISIBLE", packageName, requestId, "visible", "attached_shown_and_window_token_present");
             return;
@@ -562,6 +643,7 @@ public final class StudyModeFocusService extends Service {
 
         popupState = PopupState.RECOVERY_REQUIRED;
         overlayFailureForStatus = true;
+        recordPopupLaunchFailure(packageName);
         StudyModeManager.setServiceState(this, "overlay_failed");
         logStage("POPUP_LAUNCH_FAILED", packageName, requestId,
             "not_visible", "window_not_attached_or_hidden");
@@ -1009,12 +1091,7 @@ public final class StudyModeFocusService extends Service {
         // only, and log stage metadata without screen content or unrelated activity.
         if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) == 0) return;
 
-        String sessionId = "unavailable";
-        try {
-            sessionId = StudyModeManager.getActiveSessionId(this);
-        } catch (Exception ignored) {
-            // Diagnostics must never interrupt the enforcement path.
-        }
+        String sessionId = activeDiagnosticSessionId;
         String safePackage = packageName == null || packageName.isEmpty() ? "unknown" : packageName;
         String safeRequest = requestId == null || requestId.isEmpty() ? "none" : requestId;
         Log.d(LOG_TAG,
