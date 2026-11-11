@@ -90,6 +90,8 @@ public final class StudyModeSessionStore extends SQLiteOpenHelper {
         values.put("start_elapsed_ms", elapsed);
         values.put("boot_count", bootCount);
         values.put("duration_seconds", Math.max(0, durationSeconds));
+        values.put("end_time_ms", durationSeconds > 0
+            ? now + (long) durationSeconds * 1000L : 0L);
         values.put("selected_apps", toJson(selectedPackages));
         values.put("enforced", enforced ? 1 : 0);
         values.put("should_enable_dnd", shouldEnableDnd ? 1 : 0);
