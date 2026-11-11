@@ -139,7 +139,7 @@ describe("SettingsPanel compact controls", () => {
     for (const theme of THEMES) {
       const button = screen.getByRole("button", { name: `Select ${theme.name} theme` });
       expect(button).toHaveAttribute("aria-pressed");
-      expect(button).toBeEmptyDOMElement();
+      expect(button.textContent).toBe("");
       expect(button.querySelector("[data-theme-swatch]")).toHaveStyle({
         backgroundImage: `linear-gradient(135deg, ${theme.swatch[1]} 0 50%, ${theme.swatch[2]} 50% 100%)`,
       });
