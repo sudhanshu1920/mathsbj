@@ -356,11 +356,26 @@ public final class StudyModeFocusService extends Service {
 
             // UsageStatsManager and package checks stay on the monitor thread.
             // Only window changes are posted to the main looper.
-            String foreground = getMostRecentlyResumedPackage();
+            String foreground = StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
+                ? getMostRecentlyResumedPackage() : null;
 
-            // An unresolved foreground package is not evidence that the user is
-            // outside a blocked app. Preserve an already-visible shield and wait
-            // for a later authoritative UsageEvents result.
+            // Advanced mode can match any accessible interactive application
+            // window, including a non-focused split pane. The registry stores only
+            // package names and focus state; it never reads node text.
+            String blockedWindowPackage = StudyModeWindowRegistry.findBlockedPackage(
+                StudyModeFocusService.this, foreground);
+            if (blockedWindowPackage != null) {
+                foreground = blockedWindowPackage;
+                logStage("BLOCKED_WINDOW_MATCHED", blockedWindowPackage, "", "matched", "accessible_interactive_window");
+            } else if (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
+                && StudyModeWindowRegistry.hasFreshSnapshot()) {
+                // A fresh, non-empty accessible-window snapshot with no selected
+                // blocked package is an explicit non-blocked decision.
+                foreground = getPackageName();
+            }
+
+            // An unresolved foreground/window snapshot is not evidence that the
+            // user is outside a blocked app. Preserve an already-visible shield.
             if (foreground == null || foreground.trim().isEmpty()) {
                 if (!foregroundUnknownLogged) {
                     foregroundUnknownLogged = true;

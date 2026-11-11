@@ -26,6 +26,13 @@ async function createAndroidFixture() {
       </service>
     </application>
   </manifest>`);
+  await writeFile(path.join(root, 'app/build.gradle'), `plugins { id 'com.android.application' }
+
+android {
+    namespace "com.sudhanshu.mathsbj"
+    defaultConfig { applicationId "com.sudhanshu.mathsbj" }
+}
+`);
   await writeFile(path.join(packageDir, 'MainActivity.java'), `package com.sudhanshu.mathsbj;
 
 import android.os.Bundle;
@@ -46,8 +53,9 @@ test('configures complete installed-app visibility, native services and Capacito
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 10);
-  assert.equal(result.foregroundMonitoring, 'usage-access-only');
+  assert.equal(result.javaFiles, 11);
+  assert.equal(result.foregroundMonitoring, 'usage-access-plus-optional-accessibility');
+  assert.deepEqual(result.variants, ['standard', 'advanced']);
   assert.equal(result.packageVisibility, 'all-installed-packages');
   assert.equal(result.localUsageAnalytics, true);
 
@@ -69,6 +77,20 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
   assert.doesNotMatch(manifest, /StudyModeAccessibilityService|BIND_ACCESSIBILITY_SERVICE|android.accessibilityservice/);
+  const buildGradle = await readFile(path.join(root, 'app/build.gradle'), 'utf8');
+  assert.match(buildGradle, /flavorDimensions "studyMode"/);
+  assert.match(buildGradle, /standard \{ dimension "studyMode" \}/);
+  assert.match(buildGradle, /advanced \{[\s\S]*versionCode defaultConfig\.versionCode \+ 100000[\s\S]*\}/);
+  assert.equal((buildGradle.match(/MATHMASTER_STUDY_MODE_FLAVORS/g) || []).length, 1);
+  assert.doesNotMatch(buildGradle, /applicationIdSuffix/);
+  const advancedManifest = await readFile(path.join(root, 'app/src/advanced/AndroidManifest.xml'), 'utf8');
+  assert.match(advancedManifest, /StudyModeAccessibilityService/);
+  assert.match(advancedManifest, /BIND_ACCESSIBILITY_SERVICE/);
+  const advancedService = await readFile(path.join(root, 'app/src/advanced/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8');
+  assert.match(advancedService, /getWindowsOnAllDisplays\(\)/);
+  const advancedMetadata = await readFile(path.join(root, 'app/src/advanced/res/xml/study_mode_accessibility.xml'), 'utf8');
+  assert.match(advancedMetadata, /flagRetrieveInteractiveWindows/);
+  assert.match(advancedMetadata, /canRetrieveWindowContent="true"/);
   await assert.rejects(
     readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8'),
     { code: 'ENOENT' },
@@ -116,6 +138,8 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.equal((secondManifest.match(/android:name="\.StudyModeFocusService"/g) || []).length, 1);
   assert.match(secondManifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
   assert.doesNotMatch(secondManifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE|StudyModeAccessibilityService|BIND_ACCESSIBILITY_SERVICE/);
+  const secondAdvancedManifest = await readFile(path.join(root, 'app/src/advanced/AndroidManifest.xml'), 'utf8');
+  assert.equal((secondAdvancedManifest.match(/android:name=".StudyModeAccessibilityService"/g) || []).length, 1);
   assert.equal((secondManifest.match(/android.intent.category.LAUNCHER/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(AppUsageAnalyticsPlugin\.class\)/g) || []).length, 1);

@@ -305,6 +305,16 @@ public final class StudyModePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void acceptAccessibilityDisclosure(PluginCall call) {
+        try {
+            StudyModeManager.recordAccessibilityDisclosureConsent(getContext());
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Could not save Accessibility disclosure consent.", error);
+        }
+    }
+
+    @PluginMethod
     public void openPermissionSettings(PluginCall call) {
         String permission = call.getString("permission", "");
         Intent intent;
@@ -332,6 +342,9 @@ public final class StudyModePlugin extends Plugin {
                     call.resolve();
                     return;
                 }
+                break;
+            case "accessibility":
+                intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
                 break;
             default:
                 call.reject("Unknown Study Mode permission.");

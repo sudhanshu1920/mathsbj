@@ -8,6 +8,8 @@ const pagePath = new URL("../src/components/StudyModePage.tsx", import.meta.url)
 const source = readFileSync(focusPath, "utf8");
 const manager = readFileSync(managerPath, "utf8");
 const page = readFileSync(pagePath, "utf8");
+const registry = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeWindowRegistry.java", import.meta.url), "utf8");
+const accessibility = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java", import.meta.url), "utf8");
 
 function between(text, startMarker, endMarker) {
   const start = text.indexOf(startMarker);
@@ -16,6 +18,30 @@ function between(text, startMarker, endMarker) {
   assert.notEqual(end, -1, `Missing end marker: ${endMarker}`);
   return text.slice(start, end);
 }
+
+test("advanced accessibility monitoring enumerates interactive app windows without reading screen content", () => {
+  assert.ok(accessibility.includes("FLAG_RETRIEVE_INTERACTIVE_WINDOWS"));
+  assert.ok(accessibility.includes("getWindowsOnAllDisplays()"));
+  assert.ok(accessibility.includes("getWindows()"));
+  assert.ok(accessibility.includes("AccessibilityWindowInfo.TYPE_APPLICATION"));
+  assert.ok(accessibility.includes("root.getPackageName()"));
+  assert.ok(accessibility.includes("window.isFocused()"));
+  assert.ok(registry.includes("MAX_SNAPSHOT_AGE_MS"));
+  assert.ok(registry.includes("!windows.isEmpty()"));
+  assert.ok(registry.includes("findBlockedPackage"));
+  assert.ok(registry.includes("StudyModeManager.isPackageSelected(context, window.packageName)"));
+  assert.ok(accessibility.includes("hasAccessibilityDisclosureConsent(this)"));
+  const interrupt = accessibility.slice(accessibility.indexOf("public void onInterrupt()"), accessibility.indexOf("@Override", accessibility.indexOf("public void onInterrupt()") + 1));
+  assert.ok(interrupt.includes("invalidateSnapshot()"));
+  assert.ok(interrupt.includes("scheduleScan(RESCAN_INTERVAL_MS)"));
+  assert.ok(!interrupt.includes("StudyModeWindowRegistry.clear()"));
+  assert.ok(manager.includes("recordAccessibilityDisclosureConsent"));
+  assert.ok(manager.includes("accessibilityConsent"));
+  assert.ok(manager.includes("hasAccessibilityDisclosureConsent(context)"));
+  for (const forbidden of ["getText(", "getChild(", "performAction(", "takeScreenshot("]) {
+    assert.ok(!accessibility.includes(forbidden), "Accessibility scanner must not collect text, traverse nodes, act, or take screenshots");
+  }
+});
 
 test("foreground lookup retains a moving event cursor and bounds wide retries", () => {
   const resolver = between(source, "private String getMostRecentlyResumedPackage()", "private void showShield(");

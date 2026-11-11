@@ -5,12 +5,22 @@ import {
   Search, ShieldAlert, ShieldCheck, Smartphone, BookOpen,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   chooseStudyModeTime,
   getInstalledStudyModeApps,
   getStudyModeStatus,
   isStudyModeNative,
   openStudyModePermission,
+  acceptStudyModeAccessibilityDisclosure,
   refreshStudyMode,
   saveStudyModeConfig,
   setStudyModeEnabled,
@@ -107,7 +117,7 @@ const statusText = (status: StudyModeStatus | null) => {
   }
   if (status?.activeSession?.active) {
     if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
-    if (status.enforcementState === "monitoring_unavailable") return "Focus session active · foreground app monitoring unavailable";
+    if (status.enforcementState === "monitoring_unavailable") return "Focus session active · grant Usage Access or enable Advanced window detection";
     if (status.enforcementState === "overlay_failed") return "Focus session active · blocking overlay unavailable";
     if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
     if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
@@ -116,8 +126,8 @@ const statusText = (status: StudyModeStatus | null) => {
     return label + " focus session active · continues in background";
   }
   if (!status?.config.enabled) return "Study Mode is off";
-  if (status.enforcementState === "permission_required") return "Enable Usage Access and allow the blocking overlay";
-  if (status.enforcementState === "monitoring_unavailable") return "Android could not read the foreground app · check Usage Access and restart Study Mode";
+  if (status.enforcementState === "permission_required") return "Allow Usage Access or Advanced window detection, and enable the blocking overlay";
+  if (status.enforcementState === "monitoring_unavailable") return "App monitoring unavailable · grant Usage Access or enable Advanced window detection";
   if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
   if (status.enforcementState === "focus_shield_starting") return "Starting Focus Shield…";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
@@ -151,6 +161,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [refreshError, setRefreshError] = useState("");
+  const [accessibilityDisclosureOpen, setAccessibilityDisclosureOpen] = useState(false);
+  const [accessibilityConsentSaving, setAccessibilityConsentSaving] = useState(false);
   const [sessionType, setSessionType] = useState<"study" | "practice" | "work" | "custom">("study");
   const [sessionDurationSeconds, setSessionDurationSeconds] = useState(25 * 60);
   const [sessionEnforced, setSessionEnforced] = useState(false);
@@ -662,8 +674,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       key: "usage" as const,
       title: "Usage Access",
       granted: status?.permissions.usageAccess === true,
-      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner",
-      helper: "Monitors which app is in the foreground on a personal device. Android does not share screen text or window content.",
+      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner"
+        && !status?.permissions.accessibilityEnabled,
+      helper: "Fallback foreground monitoring on personal devices. It does not read screen text or window content.",
     },
     {
       key: "overlay" as const,
@@ -682,6 +695,17 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         ? "Required for safely timed system-level app suspension and release."
         : "Without this, Android may deliver schedule changes late.",
     },
+    ...(status?.permissions.accessibilityAvailable ? [{
+      key: "accessibility" as const,
+      title: "Advanced multi-window detection",
+      granted: status?.permissions.accessibilityEnabled === true
+        && status?.permissions.accessibilityConsent === true,
+      required: status?.permissions.accessibilityEnabled === true
+        && status?.permissions.accessibilityConsent !== true,
+      helper: status?.permissions.accessibilityConsent
+        ? "Optional. Detects package names in accessible split-screen and supported pop-up app windows. It does not read text, messages, passwords, screenshots, or gestures."
+        : "Review the disclosure and agree before Android Accessibility is allowed to scan app windows.",
+    }] : []),
     {
       key: "dnd" as const,
       title: "Do Not Disturb",
@@ -691,11 +715,35 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     },
   ];
 
-  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd") => {
+  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "accessibility") => {
+    if (permission === "accessibility" && status?.permissions.accessibilityConsent !== true) {
+      setAccessibilityDisclosureOpen(true);
+      return;
+    }
     try {
       await openStudyModePermission(permission);
     } catch {
       setMessage("Android settings could not be opened for this permission.");
+    }
+  };
+
+  const acceptAccessibilityDisclosure = async () => {
+    if (accessibilityConsentSaving) return;
+    setAccessibilityConsentSaving(true);
+    setMessage("");
+    try {
+      // Persist the affirmative choice natively before Android is asked to enable
+      // the service. The service refuses to scan windows without this stored grant.
+      await acceptStudyModeAccessibilityDisclosure();
+      setAccessibilityDisclosureOpen(false);
+      await openStudyModePermission("accessibility");
+      setMessage("Disclosure accepted. Enable Math Master Multi-window App Blocking in Android Accessibility settings, then return here.");
+    } catch (error) {
+      setMessage(error instanceof Error && error.message
+        ? error.message
+        : "Accessibility consent could not be saved or Android settings could not be opened.");
+    } finally {
+      setAccessibilityConsentSaving(false);
     }
   };
 
@@ -1153,6 +1201,34 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           {message || refreshError}
         </p>
       )}
+
+      <Dialog open={accessibilityDisclosureOpen} onOpenChange={(open) => {
+        if (!accessibilityConsentSaving) setAccessibilityDisclosureOpen(open);
+      }}>
+        <DialogContent className="z-[110] w-[calc(100%-1.5rem)] max-w-[360px] max-h-[90dvh] overflow-y-auto rounded-2xl border-border/70 p-4">
+          <DialogHeader className="space-y-2 text-left">
+            <DialogTitle className="font-display text-base font-bold">Advanced multi-window detection</DialogTitle>
+            <DialogDescription className="text-xs leading-relaxed">
+              When Study Mode is actively enforcing a session, Math Master uses Android Accessibility to identify the package name and focused state of interactive app windows that Android exposes. This can help detect blocked apps in supported split-screen and pop-up windows.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 rounded-xl border border-border/70 bg-secondary/35 p-3 text-[11px] leading-relaxed text-muted-foreground">
+            <p><strong className="text-foreground">What is accessed:</strong> app package names and window focus state only.</p>
+            <p><strong className="text-foreground">What is not accessed:</strong> on-screen text, chats, messages, passwords, notification content, screenshots, or gestures.</p>
+            <p><strong className="text-foreground">How it is used:</strong> window package names are checked in memory against your Blocked Apps list. This feature does not upload or save window content.</p>
+            <p><strong className="text-foreground">Limitations:</strong> Android and device manufacturers may hide some windows. Detection cannot be guaranteed for every floating-window implementation.</p>
+            <p>You can turn this service off any time in Android Settings → Accessibility.</p>
+          </div>
+          <DialogFooter className="!grid grid-cols-1 gap-2 !space-x-0">
+            <Button type="button" disabled={accessibilityConsentSaving} className="w-full rounded-xl text-xs" onClick={() => { void acceptAccessibilityDisclosure(); }}>
+              {accessibilityConsentSaving ? "Saving consent…" : "Agree & Open Android Settings"}
+            </Button>
+            <Button type="button" variant="outline" disabled={accessibilityConsentSaving} className="w-full rounded-xl text-xs" onClick={() => setAccessibilityDisclosureOpen(false)}>
+              Not now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <motion.button
         type="button"

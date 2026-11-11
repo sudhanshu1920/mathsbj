@@ -1138,7 +1138,7 @@ jobs:
 
       - name: Build signed release APK
         working-directory: android
-        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
+        run: ./gradlew --no-daemon --stacktrace :app:assembleStandardRelease
 
       - name: Verify APK identity, version, signature and installability
         shell: bash
@@ -1156,7 +1156,7 @@ jobs:
           fi
           test -x "$sdk_apksigner"
 
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
+          apk="$(find android/app/build/outputs/apk/standard/release -type f -name '*release*.apk' | head -n 1)"
           test -n "$apk"
 
           "$sdk_apksigner" verify --verbose "$apk"
@@ -1194,7 +1194,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
+          apk="$(find android/app/build/outputs/apk/standard/release -type f -name '*release*.apk' | head -n 1)"
           test -n "$apk"
           cp "$apk" MathMaster-release.apk
           ls -lh MathMaster-release.apk
