@@ -111,3 +111,14 @@ test("overlay launch failure is not reported as active blocking while the servic
   assert.ok(status.includes('state = "overlay_failed";'));
   assert.ok(source.includes("overlayFailureForStatus = false;"));
 });
+
+test("decision generation changes only when the foreground restriction decision changes", () => {
+  const monitor = between(source, "private final Runnable monitorRunnable", "private void resetForegroundResolution()");
+  assert.ok(monitor.includes("boolean decisionChanged = !foreground.equals(lastDecisionPackage)"));
+  assert.ok(monitor.includes("shouldShield != lastDecisionShouldShield"));
+  assert.ok(monitor.includes("decisionChanged ?"));
+  assert.ok(monitor.includes("foregroundDecisionSequence.get()"));
+  const verify = between(source, "private void verifyShieldVisibility(", "private android.view.View buildShieldView()");
+  assert.ok(verify.includes("decisionSequence != foregroundDecisionSequence.get()"));
+  assert.ok(verify.includes("decision_changed_before_visibility_check"));
+});
