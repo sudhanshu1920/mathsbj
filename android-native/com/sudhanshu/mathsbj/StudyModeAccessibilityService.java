@@ -7,9 +7,6 @@ import android.provider.Settings;
 import android.text.TextUtils;
 import android.view.accessibility.AccessibilityEvent;
 
-import java.util.HashSet;
-import java.util.Set;
-
 /**
  * Opt-in, package-only foreground detection for the Focus Shield.
  *
