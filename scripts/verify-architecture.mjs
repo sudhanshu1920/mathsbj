@@ -1114,6 +1114,30 @@ if (!studyModeFocus.includes('UsageStatsManager') ||
     !studyModeFocus.includes('lastForegroundPackage')) {
   fail('Personal-phone Focus Shield must use Usage Access, overlay permission, a user-visible foreground service and actual service state');
 }
+
+const taskRemovalStart = studyModeFocus.indexOf('public void onTaskRemoved(Intent rootIntent)');
+const taskRemovalEnd = studyModeFocus.indexOf('public void onDestroy()', taskRemovalStart);
+const taskRemovalHandler = taskRemovalStart >= 0 && taskRemovalEnd > taskRemovalStart
+  ? studyModeFocus.slice(taskRemovalStart, taskRemovalEnd)
+  : '';
+if (taskRemovalStart < 0 ||
+    taskRemovalEnd < 0 ||
+    !taskRemovalHandler.includes('lastForegroundPackage = null;') ||
+    !taskRemovalHandler.includes('initialForegroundLookup = true;') ||
+    !taskRemovalHandler.includes('monitorRunnable.run();') ||
+    !taskRemovalHandler.includes('updateOngoingNotification();') ||
+    /stopSelf|stopService|finishSession|setEnabled|finishIfExpired|\.delete\(/.test(taskRemovalHandler) ||
+    !studyModeSetup.includes('android:stopWithTask="false"') ||
+    !studyModeFocus.includes('return START_STICKY')) {
+  fail('Recent Apps removal must resynchronize monitoring without stopping the native service or mutating the persisted session');
+}
+if (!studyModeFocus.includes('initialForegroundLookup = true;') ||
+    !studyModeFocus.includes('Force a broad UsageStats resync on the next') ||
+    !studyModeFocus.includes('updateOngoingNotification();') ||
+    !studyModeManager.includes('App blocking paused · required permission is off') ||
+    !studyModeFocus.includes('setServiceState(this, "permission_required")')) {
+  fail('Screen unlock must refresh foreground state and permission loss must be surfaced truthfully in the persistent notification');
+}
 const studyModeNativeFiles = studyModeSetup.match(/const NATIVE_FILES = \[([\s\S]*?)\];/)?.[1] ?? '';
 if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
     studyModeSetup.includes('BIND_NOTIFICATION_LISTENER_SERVICE') ||

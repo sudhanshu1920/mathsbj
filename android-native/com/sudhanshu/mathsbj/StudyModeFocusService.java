@@ -111,9 +111,15 @@ public final class StudyModeFocusService extends Service {
         starting = false;
         stopping = false;
         boolean devicePolicyMode = StudyModeManager.isPolicyOwner(this);
-        if (!StudyModeManager.shouldEnforceNow(this)
-            || (!devicePolicyMode && (!StudyModeManager.hasForegroundMonitoringPermission(this)
-                || !StudyModeManager.hasOverlayPermission(this)))) {
+        if (!StudyModeManager.shouldEnforceNow(this)) {
+            StudyModeManager.setServiceState(this,
+                StudyModeManager.isEnabled(this) ? "waiting_for_schedule" : "disabled");
+            stopSelf();
+            return;
+        }
+        if (!devicePolicyMode && (!StudyModeManager.hasForegroundMonitoringPermission(this)
+            || !StudyModeManager.hasOverlayPermission(this))) {
+            StudyModeManager.setServiceState(this, "permission_required");
             stopSelf();
             return;
         }
@@ -257,6 +263,7 @@ public final class StudyModeFocusService extends Service {
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
                 StudyModeManager.setServiceState(StudyModeFocusService.this, "permission_required");
                 mainHandler.post(() -> { if (running) removeShield(); });
+                updateOngoingNotification();
                 if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
                 return;
             }
@@ -267,6 +274,10 @@ public final class StudyModeFocusService extends Service {
             PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive() || (keyguard != null && keyguard.isKeyguardLocked())) {
+                // The current foreground app may not emit a fresh RESUMED event after
+                // the display wakes. Force a broad UsageStats resync on the next
+                // interactive poll instead of relying on the short rolling lookback.
+                initialForegroundLookup = true;
                 lastForegroundPackage = null;
                 mainHandler.post(() -> {
                     if (running) removeShield();
@@ -776,14 +787,18 @@ public final class StudyModeFocusService extends Service {
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
-        // Page/Activity task removal is not a session stop. The persisted session
-        // and scheduled boundaries remain authoritative.
-        if (StudyModeManager.shouldEnforceNow(this) && monitorHandler != null) {
+        // Removing the launcher task is not an OFF action. Keep the persisted
+        // session and FGS alive, then re-read UsageStats so stale foreground data
+        // cannot leave a selected app unshielded after the task was swiped away.
+        if (monitorHandler != null && StudyModeManager.shouldEnforceNow(this)) {
             monitorHandler.removeCallbacks(monitorRunnable);
-            monitorHandler.post(monitorRunnable);
-        } else if (StudyModeManager.isPolicyOwner(this) && StudyModeManager.isSessionActive(this)) {
-            updateOngoingNotification();
+            monitorHandler.post(() -> {
+                lastForegroundPackage = null;
+                initialForegroundLookup = true;
+                monitorRunnable.run();
+            });
         }
+        if (running) updateOngoingNotification();
         super.onTaskRemoved(rootIntent);
     }
 

@@ -706,6 +706,10 @@ public final class StudyModeManager {
     }
 
     public static String getSessionNotificationText(Context context) {
+        if (!isPolicyOwner(context) && shouldEnforceNow(context)
+            && (!hasForegroundMonitoringPermission(context) || !hasOverlayPermission(context))) {
+            return "App blocking paused · required permission is off";
+        }
         StudyModeSessionStore.Session session = sessionStore(context).getActiveSession(context);
         if (session == null) return "Scheduled focus is active";
         long elapsed = Math.max(0L, session.elapsedSeconds);
