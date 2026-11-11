@@ -954,6 +954,9 @@ const studyModeManager = read('android-native/com/sudhanshu/mathsbj/StudyModeMan
 const studyModeFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
 const studyModeSessionStore = read('android-native/com/sudhanshu/mathsbj/StudyModeSessionStore.java');
 const studyModeAppPlugin = read('android-native/com/sudhanshu/mathsbj/StudyModePlugin.java');
+const studyModeAppCatalogCache = read('src/lib/studyModeAppCatalogCache.ts');
+const studyModeAppCatalogCacheTests = read('src/lib/studyModeAppCatalogCache.test.ts');
+const studyModePackageReceiver = read('android-native/com/sudhanshu/mathsbj/StudyModePackageChangeReceiver.java');
 const studyModeAppFilters = read('src/lib/studyModeAppFilters.ts');
 const studyModeAppFilterTests = read('src/lib/studyModeAppFilters.test.ts');
 const studyModeSetup = read('scripts/configure-android-study-mode.mjs');
@@ -1083,7 +1086,7 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     studyModeManager.includes('return (info.flags & ApplicationInfo.FLAG_SYSTEM) == 0') ||
     !studyModePage.includes('setAppFilter<') && !studyModePage.includes('setAppFilter(filter.id)') ||
     !studyModePage.includes('aria-label="Filter installed apps"') ||
-    !studyModePage.includes('filterStudyModeApps(apps, appFilter, search)') ||
+    !studyModePage.includes('filterStudyModeApps(apps, appFilter, deferredSearch)') ||
     !studyModeAppFilters.includes('filter === "system" ? app.systemApp : !app.systemApp') ||
     !studyModePage.includes('disabled={!app.selectable || saving}') ||
     !studyModePage.includes('app.selectable ? (') ||
@@ -1091,6 +1094,29 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     !studyModeAppFilterTests.includes('shows user and pre-installed system apps together in All') ||
     !studyModeAppFilterTests.includes('searches app names and package names inside each category')) {
   fail('Study Mode app discovery must include launchable user and system apps, report category metadata, and preserve fast All/User/System filtering');
+}
+
+if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
+    !studyModeBridge.includes('invalidateStudyModeAppCatalogCache') ||
+    !studyModeAppCatalogCache.includes('if (pending) return pending') ||
+    !studyModeAppCatalogCache.includes('generation += 1') ||
+    !studyModeAppCatalogCacheTests.includes('deduplicates concurrent loads') ||
+    !studyModeAppCatalogCacheTests.includes('does not cache a result invalidated while loading') ||
+    !studyModeAppPlugin.includes('APP_CATALOG_CACHE_TTL_MS') ||
+    !studyModeAppPlugin.includes('Collections.unmodifiableList(entries)') ||
+    !studyModeAppPlugin.includes('getOrBuildAppCatalog(pm)') ||
+    !studyModePackageReceiver.includes('StudyModePlugin.invalidateAppCatalogCache()') ||
+    !studyModePackageReceiver.includes('Intent.ACTION_PACKAGE_ADDED') ||
+    !studyModeSetup.includes('ensurePackageChangeReceiverActions(manifest)') ||
+    !studyModeSetup.includes('android.intent.action.PACKAGE_ADDED') ||
+    !studyModeSetup.includes('android.intent.action.PACKAGE_CHANGED') ||
+    !studyModePage.includes('const SessionCountdown = memo') ||
+    studyModePage.includes('setSessionTick') ||
+    !studyModePage.includes('useDeferredValue(search)') ||
+    !studyModePage.includes('loading="lazy" decoding="async"') ||
+    !studyModePage.includes('const [nextStatus, installedApps] = await Promise.all([') ||
+    !studyModePage.includes('History is non-critical')) {
+  fail('Study Mode performance regression: app inventory must be cached/in-flight deduplicated, countdown isolated, app search deferred, and session history must not gate first interaction');
 }
 if (!studyModeManager.includes('public static synchronized void setEnabled') ||
     !studyModeManager.includes('public static synchronized void reconcile') ||

@@ -8,6 +8,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.os.SystemClock;
 import android.provider.Settings;
 
 import com.getcapacitor.JSArray;
@@ -21,6 +22,7 @@ import org.json.JSONArray;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +30,21 @@ import java.util.Set;
 
 @CapacitorPlugin(name = "StudyMode")
 public final class StudyModePlugin extends Plugin {
+    private static final long APP_CATALOG_CACHE_TTL_MS = 5L * 60L * 1000L;
+    private static final Object APP_CATALOG_LOCK = new Object();
+    private static volatile List<AppEntry> appCatalogCache = Collections.emptyList();
+    private static volatile long appCatalogCacheTimeMs = 0L;
+    private static volatile int cachedInstalledPackageCount = 0;
+    private static volatile boolean hasAppCatalogCache = false;
+
+    public static void invalidateAppCatalogCache() {
+        synchronized (APP_CATALOG_LOCK) {
+            appCatalogCache = Collections.emptyList();
+            appCatalogCacheTimeMs = 0L;
+            cachedInstalledPackageCount = 0;
+            hasAppCatalogCache = false;
+        }
+    }
     @PluginMethod
     public void getStatus(PluginCall call) {
         call.resolve(StudyModeManager.getStatus(getContext()));
@@ -164,12 +181,50 @@ public final class StudyModePlugin extends Plugin {
                 call.reject("Full installed-app inventory access is unavailable. Reinstall the private Study Mode build with QUERY_ALL_PACKAGES.");
                 return;
             }
+
+            List<AppEntry> entries = getOrBuildAppCatalog(pm);
+            Set<String> protectedPackages = StudyModeManager.getProtectedPackages(getContext());
+            JSArray apps = new JSArray();
+            for (AppEntry entry : entries) {
+                JSObject item = new JSObject();
+                item.put("packageName", entry.packageName);
+                item.put("label", entry.label);
+                item.put("iconDataUrl", entry.iconDataUrl);
+                item.put("systemApp", entry.systemApp);
+                // Protected/default app roles can change without a package install.
+                // Re-evaluate selectability on every response while reusing icon work.
+                item.put("selectable", StudyModeManager.isSelectableApplication(
+                    getContext(), entry.packageName, protectedPackages));
+                apps.put(item);
+            }
+            JSObject result = new JSObject();
+            result.put("apps", apps);
+            result.put("discoveryScope", "all-installed-packages-filtered-to-launchable");
+            result.put("installedPackageCount", cachedInstalledPackageCount);
+            result.put("appCount", entries.size());
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("Unable to read the installed application inventory. Check package visibility access.", error);
+        }
+    }
+
+    private List<AppEntry> getOrBuildAppCatalog(android.content.pm.PackageManager pm) {
+        long now = SystemClock.elapsedRealtime();
+        List<AppEntry> cached = appCatalogCache;
+        if (hasAppCatalogCache && now - appCatalogCacheTimeMs < APP_CATALOG_CACHE_TTL_MS) {
+            return cached;
+        }
+
+        synchronized (APP_CATALOG_LOCK) {
+            now = SystemClock.elapsedRealtime();
+            if (hasAppCatalogCache && now - appCatalogCacheTimeMs < APP_CATALOG_CACHE_TTL_MS) {
+                return appCatalogCache;
+            }
+
             List<ApplicationInfo> installedApplications = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 ? pm.getInstalledApplications(android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
                 : pm.getInstalledApplications(0);
             Set<String> launchablePackages = findLaunchablePackages(pm);
-            Set<String> protectedPackages = StudyModeManager.getProtectedPackages(getContext());
-            JSArray apps = new JSArray();
             Set<String> seen = new HashSet<>();
             List<AppEntry> entries = new ArrayList<>();
 
@@ -196,35 +251,20 @@ public final class StudyModePlugin extends Plugin {
                     // Keep an otherwise launchable app visible when its OEM icon is unavailable.
                 }
 
-                boolean selectable = StudyModeManager.isSelectableApplication(
-                    getContext(), packageName, protectedPackages);
                 entries.add(new AppEntry(
                     packageName,
                     label,
                     iconDataUrl,
-                    StudyModeManager.isSystemApplication(info),
-                    selectable
+                    StudyModeManager.isSystemApplication(info)
                 ));
             }
 
             entries.sort(Comparator.comparing(entry -> entry.label.toLowerCase(java.util.Locale.ROOT)));
-            for (AppEntry entry : entries) {
-                JSObject item = new JSObject();
-                item.put("packageName", entry.packageName);
-                item.put("label", entry.label);
-                item.put("iconDataUrl", entry.iconDataUrl);
-                item.put("systemApp", entry.systemApp);
-                item.put("selectable", entry.selectable);
-                apps.put(item);
-            }
-            JSObject result = new JSObject();
-            result.put("apps", apps);
-            result.put("discoveryScope", "all-installed-packages-filtered-to-launchable");
-            result.put("installedPackageCount", installedApplications.size());
-            result.put("appCount", entries.size());
-            call.resolve(result);
-        } catch (Exception error) {
-            call.reject("Unable to read the installed application inventory. Check package visibility access.", error);
+            appCatalogCache = Collections.unmodifiableList(entries);
+            cachedInstalledPackageCount = installedApplications.size();
+            appCatalogCacheTimeMs = SystemClock.elapsedRealtime();
+            hasAppCatalogCache = true;
+            return appCatalogCache;
         }
     }
 
@@ -352,13 +392,12 @@ public final class StudyModePlugin extends Plugin {
         final String label;
         final String iconDataUrl;
         final boolean systemApp;
-        final boolean selectable;
-        AppEntry(String packageName, String label, String iconDataUrl, boolean systemApp, boolean selectable) {
+
+        AppEntry(String packageName, String label, String iconDataUrl, boolean systemApp) {
             this.packageName = packageName;
             this.label = label;
             this.iconDataUrl = iconDataUrl;
             this.systemApp = systemApp;
-            this.selectable = selectable;
         }
     }
 }

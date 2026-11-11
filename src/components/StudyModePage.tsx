@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { App } from "@capacitor/app";
 import {
   ArrowLeft, CalendarDays, Check, ChevronDown, Clock3, LockKeyhole,
@@ -60,6 +60,45 @@ const configSnapshot = (config: StudyModeConfig) => JSON.stringify({
   selectedDays: [...config.selectedDays].sort((a, b) => a - b),
 });
 
+const formatSessionTime = (value: number) => {
+  const total = Math.max(0, Math.floor(value));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+};
+
+const SessionCountdown = memo(({
+  session,
+  onExpired,
+}: {
+  session: StudyModeSession;
+  onExpired: (sessionId: string) => void;
+}) => {
+  const [tick, setTick] = useState(0);
+  const expirationNotified = useRef(false);
+
+  useEffect(() => {
+    setTick(0);
+    expirationNotified.current = false;
+    const timer = window.setInterval(() => setTick((value) => value + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [session.id, session.elapsedSeconds]);
+
+  const elapsedSeconds = session.elapsedSeconds + tick;
+  const remainingSeconds = session.durationSeconds > 0
+    ? Math.max(0, session.durationSeconds - elapsedSeconds)
+    : 0;
+
+  useEffect(() => {
+    if (session.durationSeconds <= 0 || remainingSeconds > 0 || expirationNotified.current) return;
+    expirationNotified.current = true;
+    onExpired(session.id);
+  }, [session.id, session.durationSeconds, remainingSeconds, onExpired]);
+
+  return <>{formatSessionTime(session.durationSeconds > 0 ? remainingSeconds : elapsedSeconds)}</>;
+});
+
 const statusText = (status: StudyModeStatus | null) => {
   if (!isStudyModeNative()) return "Available in the Android app";
   if (!status) return "Reading saved Study Mode state…";
@@ -102,6 +141,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [appFilter, setAppFilter] = useState<StudyModeAppFilter>("all");
+  const deferredSearch = useDeferredValue(search);
+  const deferredStudySearch = useDeferredValue(studySearch);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [refreshError, setRefreshError] = useState("");
@@ -110,7 +151,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [sessionEnforced, setSessionEnforced] = useState(false);
   const [sessionDnd, setSessionDnd] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
-  const [sessionTick, setSessionTick] = useState(0);
   const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
   const savedStudyAppsSnapshot = useRef("[]");
   const recoveryAttemptRef = useRef(false);
@@ -128,56 +168,94 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     onBackRef.current();
   }, []);
 
-  const load = useCallback(async (reconcile = true) => {
+  const isMountedRef = useRef(true);
+  const loadInFlightRef = useRef<Promise<void> | null>(null);
+  const historyInFlightRef = useRef<Promise<void> | null>(null);
+
+  const load = useCallback((reconcile = true): Promise<void> => {
     if (!isStudyModeNative()) {
       setLoading(false);
       setRefreshError("Study Mode controls require the installed Android app.");
-      return;
+      return Promise.resolve();
     }
-    try {
-      const [nextStatus, installedApps, history] = await Promise.all([
-        reconcile ? refreshStudyMode() : getStudyModeStatus(),
-        getInstalledStudyModeApps(),
-        getStudyModeSessionHistory(),
-      ]);
-      const available = new Set(installedApps.map((app) => app.packageName));
-      const normalized: StudyModeConfig = {
-        ...DEFAULT_STUDY_MODE_CONFIG,
-        ...nextStatus.config,
-        selectedPackageNames: nextStatus.config.selectedPackageNames.filter((name) => available.has(name)
-          && installedApps.some((app) => app.packageName === name && app.selectable)),
-        selectedDays: [...nextStatus.config.selectedDays],
-      };
-      const blockedNow = new Set(normalized.selectedPackageNames);
-      const normalizedStudyApps = (nextStatus.studyAppPackages ?? []).filter((name) =>
-        !blockedNow.has(name) && installedApps.some((app) =>
-          app.packageName === name && app.selectable));
-      setApps(installedApps);
-      setStatus(nextStatus);
-      setSessionHistory(history);
-      setSessionTick(0);
-      if (nextStatus.activeSession?.active) {
-        setSessionType(nextStatus.activeSession.sessionType);
-        setSessionDurationSeconds(nextStatus.activeSession.durationSeconds);
-        setSessionEnforced(nextStatus.activeSession.isEnforced);
-        setSessionDnd(nextStatus.activeSession.shouldEnableDnd);
+    if (loadInFlightRef.current) return loadInFlightRef.current;
+
+    const request = (async () => {
+      try {
+        const [nextStatus, installedApps] = await Promise.all([
+          reconcile ? refreshStudyMode() : getStudyModeStatus(),
+          getInstalledStudyModeApps(),
+        ]);
+        const selectablePackages = new Set(
+          installedApps.filter((app) => app.selectable).map((app) => app.packageName),
+        );
+        const normalized: StudyModeConfig = {
+          ...DEFAULT_STUDY_MODE_CONFIG,
+          ...nextStatus.config,
+          selectedPackageNames: nextStatus.config.selectedPackageNames.filter((name) =>
+            selectablePackages.has(name)),
+          selectedDays: [...nextStatus.config.selectedDays],
+        };
+        const blockedNow = new Set(normalized.selectedPackageNames);
+        const normalizedStudyApps = (nextStatus.studyAppPackages ?? []).filter((name) =>
+          !blockedNow.has(name) && selectablePackages.has(name));
+
+        if (!isMountedRef.current) return;
+        setApps(installedApps);
+        setStatus(nextStatus);
+        if (nextStatus.activeSession?.active) {
+          setSessionType(nextStatus.activeSession.sessionType);
+          setSessionDurationSeconds(nextStatus.activeSession.durationSeconds);
+          setSessionEnforced(nextStatus.activeSession.isEnforced);
+          setSessionDnd(nextStatus.activeSession.shouldEnableDnd);
+        }
+        // Returning from Android permission settings must refresh actual system
+        // grants without silently discarding edits still in this page.
+        if (!dirtyRef.current) {
+          setDraft(normalized);
+          savedSnapshot.current = configSnapshot(normalized);
+          setStudyAppPackages(normalizedStudyApps);
+          savedStudyAppsSnapshot.current = JSON.stringify([...normalizedStudyApps].sort());
+        }
+        setRefreshError("");
+
+        // History is non-critical and must not delay first interaction.
+        if (!historyInFlightRef.current) {
+          const historyRequest = getStudyModeSessionHistory()
+            .then((history) => {
+              if (isMountedRef.current) setSessionHistory(history);
+            })
+            .catch(() => {
+              // Keep core Study Mode controls usable when history is unavailable.
+            })
+            .finally(() => {
+              if (historyInFlightRef.current === historyRequest) historyInFlightRef.current = null;
+            });
+          historyInFlightRef.current = historyRequest;
+        }
+      } catch (error) {
+        if (isMountedRef.current) {
+          setRefreshError(error instanceof Error && error.message
+            ? error.message
+            : "Could not read Android Study Mode status. Reopen this page to retry.");
+        }
+      } finally {
+        if (isMountedRef.current) setLoading(false);
       }
-      // Returning from Android permission settings must refresh actual system
-      // grants without silently discarding edits still in this page.
-      if (!dirtyRef.current) {
-        setDraft(normalized);
-        savedSnapshot.current = configSnapshot(normalized);
-        setStudyAppPackages(normalizedStudyApps);
-        savedStudyAppsSnapshot.current = JSON.stringify([...normalizedStudyApps].sort());
-      }
-      setRefreshError("");
-    } catch (error) {
-      setRefreshError(error instanceof Error && error.message
-        ? error.message
-        : "Could not read Android Study Mode status. Reopen this page to retry.");
-    } finally {
-      setLoading(false);
-    }
+    })();
+
+    loadInFlightRef.current = request;
+    void request.finally(() => {
+      if (loadInFlightRef.current === request) loadInFlightRef.current = null;
+    });
+    return request;
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -220,59 +298,32 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     };
   }, [handleBack]);
 
-  useEffect(() => {
-    if (!status?.activeSession?.active) {
-      setSessionTick(0);
-      return;
-    }
-    const timer = window.setInterval(() => setSessionTick((value) => value + 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [status?.activeSession?.id, status?.activeSession?.active, status?.activeSession?.elapsedSeconds]);
-
-
-
-  const formatSessionTime = (value: number) => {
-    const total = Math.max(0, Math.floor(value));
-    const hours = Math.floor(total / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const seconds = total % 60;
-    return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
-  };
 
   const activeSession = status?.activeSession?.active ? status.activeSession : null;
-  const sessionElapsedSeconds = (activeSession?.elapsedSeconds ?? 0) + sessionTick;
-  const sessionRemainingSeconds = activeSession && activeSession.durationSeconds > 0
-    ? Math.max(0, activeSession.durationSeconds - sessionElapsedSeconds)
-    : 0;
 
-  useEffect(() => {
-    if (!activeSession || activeSession.durationSeconds <= 0 || sessionRemainingSeconds > 0) return;
-    let active = true;
-    const timer = window.setTimeout(() => {
-      void refreshStudyMode().then(async (nextStatus) => {
-        if (!active) return;
-        setStatus(nextStatus);
-        const history = await getStudyModeSessionHistory();
-        if (active) setSessionHistory(history);
-      }).catch(() => {
-        if (active) setMessage("The session reached its timer boundary. Refresh Study Mode to verify completion.");
-      });
-    }, 350);
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
-  }, [activeSession?.id, activeSession?.durationSeconds, sessionRemainingSeconds]);
+  const handleSessionExpired = useCallback(async (_sessionId: string) => {
+    try {
+      const nextStatus = await refreshStudyMode();
+      if (!isMountedRef.current) return;
+      setStatus(nextStatus);
+      const history = await getStudyModeSessionHistory();
+      if (isMountedRef.current) setSessionHistory(history);
+    } catch {
+      if (isMountedRef.current) {
+        setMessage("The session reached its timer boundary. Refresh Study Mode to verify completion.");
+      }
+    }
+  }, []);
 
   const suspendedPackages = useMemo(() => new Set(status?.suspendedPackages ?? []), [status?.suspendedPackages]);
   const selectedCount = draft.selectedPackageNames.length;
   const appCounts = useMemo(() => countStudyModeApps(apps), [apps]);
   const visibleApps = useMemo(
-    () => filterStudyModeApps(apps, appFilter, search),
+    () => filterStudyModeApps(apps, appFilter, deferredSearch),
     [apps, appFilter, search],
   );
   const visibleStudyApps = useMemo(
-    () => filterStudyModeApps(apps, "all", studySearch),
+    () => filterStudyModeApps(apps, "all", deferredStudySearch),
     [apps, studySearch],
   );
 
@@ -443,7 +494,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         shouldEnableDnd: sessionDnd,
       });
       setStatus(nextStatus);
-      setSessionTick(0);
       setSessionHistory(await getStudyModeSessionHistory());
       if (nextStatus.enforcementState === "permission_required") {
         setMessage("Session is saved and running, but app blocking is unavailable until Usage Access and overlay permissions are granted.");
@@ -467,7 +517,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     try {
       const nextStatus = await endStudyModeSession(activeSession.id);
       setStatus(nextStatus);
-      setSessionTick(0);
       setSessionHistory(await getStudyModeSessionHistory());
       setMessage("Focus session ended. Your saved schedule and app selection remain unchanged.");
     } catch {
@@ -688,10 +737,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                       disabled={!app.selectable || saving}
                       aria-pressed={selected}
                       aria-disabled={!app.selectable}
-                      className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/65 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/65 disabled:cursor-not-allowed disabled:opacity-60 [content-visibility:auto] [contain-intrinsic-size:44px]"
                     >
                       {app.iconDataUrl ? (
-                        <img src={app.iconDataUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+                        <img src={app.iconDataUrl} alt="" loading="lazy" decoding="async" width={28} height={28} className="h-7 w-7 shrink-0 rounded-lg object-contain" />
                       ) : (
                         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
                           {app.label.slice(0, 1).toLocaleUpperCase()}
@@ -829,7 +878,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             <div className="flex min-w-0 items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-display text-2xl font-bold tabular-nums tracking-tight text-foreground">
-                  {formatSessionTime(activeSession.durationSeconds > 0 ? sessionRemainingSeconds : sessionElapsedSeconds)}
+                  <SessionCountdown session={activeSession} onExpired={handleSessionExpired} />
                 </p>
                 <p className="text-[10px] text-muted-foreground">
                   {activeSession.durationSeconds > 0 ? "Remaining" : "Elapsed"} · {activeSession.sessionType}
