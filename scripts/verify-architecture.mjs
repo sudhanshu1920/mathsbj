@@ -1211,12 +1211,19 @@ if (taskRemovalStart < 0 ||
     !studyModeFocus.includes('return START_STICKY')) {
   fail('Recent Apps removal must resynchronize monitoring without stopping the native service or mutating the persisted session');
 }
-if (!studyModeFocus.includes('initialForegroundLookup = true;') ||
-    !studyModeFocus.includes('Force a broad UsageStats resync on the next') ||
+const studyModeMonitorStart = studyModeFocus.indexOf('private final Runnable monitorRunnable');
+const studyModeMonitorEnd = studyModeFocus.indexOf('private String getMostRecentlyResumedPackage', studyModeMonitorStart);
+const studyModeMonitor = studyModeMonitorStart >= 0 && studyModeMonitorEnd > studyModeMonitorStart
+  ? studyModeFocus.slice(studyModeMonitorStart, studyModeMonitorEnd)
+  : '';
+if (!studyModeMonitor.includes('StudyModeAccessibilityService.isConnected()') ||
+    !studyModeMonitor.includes('if (!accessibilityConnected)') ||
+    !studyModeMonitor.includes('lastUsageEventTimestampMs = 0L;') ||
+    !studyModeFocus.includes('initialForegroundLookup = true;') ||
     !studyModeFocus.includes('updateOngoingNotification();') ||
     !studyModeManager.includes('App blocking paused · required permission is off') ||
-    !studyModeFocus.includes('setServiceState(this, "permission_required")')) {
-  fail('Screen unlock must refresh foreground state and permission loss must be surfaced truthfully in the persistent notification');
+    !studyModeFocus.includes('setServiceState(StudyModeFocusService.this, "permission_required")')) {
+  fail('Screen unlock must retain event-driven foreground state, refresh the Usage Access fallback, and report monitoring permission loss');
 }
 const studyModeNativeFiles = studyModeSetup.match(/const NATIVE_FILES = \[([\s\S]*?)\];/)?.[1] ?? '';
 if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
