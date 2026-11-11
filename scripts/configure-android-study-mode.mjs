@@ -226,29 +226,98 @@ function registerAppUsageAnalyticsPlugin(mainActivity) {
   return mainActivity.replace(anchor, `${anchor}\n        ${registration}`);
 }
 
+function findMatchingBrace(source, openingBraceIndex) {
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let index = openingBraceIndex; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+
+    if (lineComment) {
+      if (character === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (character === '*' && next === '/') {
+        blockComment = false;
+        index += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (character === '/' && next === '/') {
+      lineComment = true;
+      index += 1;
+      continue;
+    }
+    if (character === '/' && next === '*') {
+      blockComment = true;
+      index += 1;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (character === '{') depth += 1;
+    if (character === '}') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+
+  throw new Error('Unclosed Gradle block while configuring Study Mode product flavors.');
+}
+
 function configureStudyModeFlavors(buildGradle) {
   const marker = '/* MATHMASTER_STUDY_MODE_FLAVORS */';
   if (buildGradle.includes(marker)) return buildGradle;
+
   const androidOpenTag = 'android {';
-  const firstAndroidBlock = buildGradle.indexOf(androidOpenTag);
-  if (firstAndroidBlock < 0 ||
-      buildGradle.indexOf(androidOpenTag, firstAndroidBlock + androidOpenTag.length) >= 0) {
+  const androidIndex = buildGradle.indexOf(androidOpenTag);
+  if (androidIndex < 0 ||
+      buildGradle.indexOf(androidOpenTag, androidIndex + androidOpenTag.length) >= 0) {
     throw new Error('Expected exactly one android { block in app/build.gradle to configure Study Mode variants.');
   }
-  const flavorBlock = `android {
+
+  // Product flavors must be declared after defaultConfig has received its
+  // versionCode; Advanced uses that value plus a reserved update-channel offset.
+  const defaultConfigTag = 'defaultConfig {';
+  const defaultConfigIndex = buildGradle.indexOf(defaultConfigTag, androidIndex + androidOpenTag.length);
+  if (defaultConfigIndex < 0 ||
+      buildGradle.indexOf(defaultConfigTag, defaultConfigIndex + defaultConfigTag.length) >= 0) {
+    throw new Error('Expected exactly one defaultConfig { block in app/build.gradle.');
+  }
+  const openingBraceIndex = defaultConfigIndex + defaultConfigTag.length - 1;
+  const defaultConfigEnd = findMatchingBrace(buildGradle, openingBraceIndex);
+  const flavorBlock = `
+
     ${marker}
     flavorDimensions "studyMode"
     productFlavors {
         standard { dimension "studyMode" }
         advanced {
             dimension "studyMode"
-            // Keep the Advanced build above Standard so a Standard auto-update
-            // cannot silently remove its optional Accessibility service.
+            // Keep Advanced above Standard so a Standard auto-update cannot
+            // silently remove the optional Accessibility service.
             versionCode defaultConfig.versionCode + 100000
         }
     }`;
-  return buildGradle.slice(0, firstAndroidBlock) + flavorBlock
-    + buildGradle.slice(firstAndroidBlock + androidOpenTag.length);
+  return buildGradle.slice(0, defaultConfigEnd + 1) + flavorBlock
+    + buildGradle.slice(defaultConfigEnd + 1);
 }
 
 function ensureBackupExclusions(manifest) {

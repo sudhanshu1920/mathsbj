@@ -30,7 +30,10 @@ async function createAndroidFixture() {
 
 android {
     namespace "com.sudhanshu.mathsbj"
-    defaultConfig { applicationId "com.sudhanshu.mathsbj" }
+    defaultConfig {
+        applicationId "com.sudhanshu.mathsbj"
+        versionCode 1
+    }
 }
 `);
   await writeFile(path.join(packageDir, 'MainActivity.java'), `package com.sudhanshu.mathsbj;
@@ -81,6 +84,10 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.match(buildGradle, /flavorDimensions "studyMode"/);
   assert.match(buildGradle, /standard \{ dimension "studyMode" \}/);
   assert.match(buildGradle, /advanced \{[\s\S]*versionCode defaultConfig\.versionCode \+ 100000[\s\S]*\}/);
+  assert.ok(buildGradle.indexOf('productFlavors {')
+    > buildGradle.indexOf('defaultConfig {'), 'product flavors must follow defaultConfig');
+  assert.ok(buildGradle.indexOf('versionCode defaultConfig.versionCode + 100000')
+    > buildGradle.indexOf('versionCode 1'), 'Advanced offset must use the configured default version code');
   assert.equal((buildGradle.match(/MATHMASTER_STUDY_MODE_FLAVORS/g) || []).length, 1);
   assert.doesNotMatch(buildGradle, /applicationIdSuffix/);
   const advancedManifest = await readFile(path.join(root, 'app/src/advanced/AndroidManifest.xml'), 'utf8');
