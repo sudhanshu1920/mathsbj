@@ -195,10 +195,12 @@ public final class StudyModeFocusService extends Service {
     private synchronized boolean ensureMonitoringThread() {
         if (monitorThread != null && monitorThread.isAlive() && monitorHandler != null) {
             monitorHandler.removeCallbacks(monitorRunnable);
-            return monitorHandler.post(monitorRunnable);
+            if (monitorHandler.post(monitorRunnable)) return true;
         }
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
+        monitorHandler = null;
+        monitorThread = null;
         try {
             HandlerThread replacement = new HandlerThread(
                 "StudyModeMonitor",
@@ -206,12 +208,14 @@ public final class StudyModeFocusService extends Service {
             );
             replacement.start();
             Handler replacementHandler = new Handler(replacement.getLooper());
+            monitorThread = replacement;
+            monitorHandler = replacementHandler;
             if (!replacementHandler.post(monitorRunnable)) {
+                monitorHandler = null;
+                monitorThread = null;
                 replacement.quitSafely();
                 return false;
             }
-            monitorThread = replacement;
-            monitorHandler = replacementHandler;
             return true;
         } catch (Exception error) {
             monitorHandler = null;
