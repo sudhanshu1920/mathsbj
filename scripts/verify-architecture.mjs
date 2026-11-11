@@ -1179,21 +1179,22 @@ const taskRemovalHandler = taskRemovalStart >= 0 && taskRemovalEnd > taskRemoval
   : '';
 if (taskRemovalStart < 0 ||
     taskRemovalEnd < 0 ||
-    !taskRemovalHandler.includes('lastForegroundPackage = null;') ||
-    !taskRemovalHandler.includes('initialForegroundLookup = true;') ||
+    !taskRemovalHandler.includes('resetForegroundResolution();') ||
     !taskRemovalHandler.includes('monitorRunnable.run();') ||
     !taskRemovalHandler.includes('updateOngoingNotification();') ||
-    /stopSelf|stopService|finishSession|setEnabled|finishIfExpired|\.delete\(/.test(taskRemovalHandler) ||
+    /stopSelf|stopService|finishSession|setEnabled|finishIfExpired|\\.delete\\(/.test(taskRemovalHandler) ||
     !studyModeSetup.includes('android:stopWithTask="false"') ||
     !studyModeFocus.includes('return START_STICKY')) {
-  fail('Recent Apps removal must resynchronize monitoring without stopping the native service or mutating the persisted session');
+  fail('Recent Apps removal must reset the UsageEvents cursor without stopping the native service or mutating the persisted session');
 }
-if (!studyModeFocus.includes('initialForegroundLookup = true;') ||
-    !studyModeFocus.includes('Force a broad UsageStats resync on the next') ||
+if (!studyModeFocus.includes('resetForegroundResolution();') ||
+    !studyModeFocus.includes('EMPTY_INITIAL_LOOKUP_RETRY_MS') ||
+    !studyModeFocus.includes('INITIAL_EVENT_LOOKBACK_MS') ||
+    !studyModeFocus.includes('EVENT_QUERY_OVERLAP_MS') ||
     !studyModeFocus.includes('updateOngoingNotification();') ||
     !studyModeManager.includes('App blocking paused · required permission is off') ||
     !studyModeFocus.includes('setServiceState(this, "permission_required")')) {
-  fail('Screen unlock must refresh foreground state and permission loss must be surfaced truthfully in the persistent notification');
+  fail('Screen wake must reset/rebuild the foreground cursor, wide-history recovery must be bounded, and permission loss must remain visible in the persistent notification');
 }
 const studyModeNativeFiles = studyModeSetup.match(/const NATIVE_FILES = \[([\s\S]*?)\];/)?.[1] ?? '';
 if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
