@@ -1084,6 +1084,8 @@ public final class StudyModeFocusService extends Service {
                 // Keep the reference and RECOVERY_REQUIRED state. A new blocker must
                 // not be stacked over a window that Android may still have attached.
                 popupState = PopupState.RECOVERY_REQUIRED;
+                overlayFailureForStatus = true;
+                StudyModeManager.setServiceState(this, "overlay_failed");
                 logStage("POPUP_DISMISSED", removedPackage, removedRequestId,
                     "remove_failed", error.getClass().getSimpleName());
                 return;
