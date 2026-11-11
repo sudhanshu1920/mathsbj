@@ -1058,7 +1058,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeFocus.includes('StudyModeWindowRegistry.findBlockedPackage') ||
     !studyModeWindowRegistry.includes('MAX_SNAPSHOT_AGE_MS') ||
     !studyModeManager.includes('hasAccessibilityDisclosureConsent') ||
-    !studyModeAppPlugin.includes('recordAccessibilityDisclosureConsent') ||
+    !studyModeNativePlugin.includes('recordAccessibilityDisclosureConsent') ||
     !studyModeAccessibilityService.includes('hasAccessibilityDisclosureConsent(this)') ||
     !studyModePage.includes('Agree & Open Android Settings') ||
     !studyModePage.includes('acceptStudyModeAccessibilityDisclosure') ||
@@ -1220,9 +1220,11 @@ if (!studyModeFocus.includes('boolean decisionChanged = !foreground.equals(lastD
 }
 if (!studyModeFocus.includes('public static boolean hasForegroundLookupFailure()') ||
     !studyModeManager.includes('state = "monitoring_unavailable"') ||
+    !studyModeManager.includes('StudyModeFocusService.hasForegroundLookupFailure()') ||
+    !studyModeManager.includes('!StudyModeWindowRegistry.hasFreshSnapshot()') ||
     !studyModePage.includes('status.enforcementState === "monitoring_unavailable"') ||
-    !studyModePage.includes('foreground app monitoring unavailable')) {
-  fail('Study Mode must not report healthy monitoring when Android foreground UsageStats queries are unavailable');
+    !studyModePage.includes('grant Usage Access or enable Advanced window detection')) {
+  fail('Study Mode must not report healthy monitoring when neither UsageStats nor a fresh Advanced window snapshot is available');
 }
 if (!studyModeFocus.includes('private synchronized void resetPopupRetryState()') ||
     !studyModeFocus.includes('private synchronized void recordPopupLaunchFailure(String packageName)') ||
