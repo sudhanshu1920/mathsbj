@@ -1177,6 +1177,9 @@ public final class StudyModeManager {
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
         } else if (!usageGranted || !overlayGranted) {
             state = "permission_required";
+        } else if (StudyModeFocusService.hasForegroundLookupFailure()) {
+            // Usage Access can appear enabled while queryEvents is unavailable or throws.
+            state = "monitoring_unavailable";
         } else if (StudyModeFocusService.hasOverlayFailure()) {
             // The monitor can remain alive while Android refuses or detaches the overlay.
             // Do not report this as active blocking until the view is actually visible.
