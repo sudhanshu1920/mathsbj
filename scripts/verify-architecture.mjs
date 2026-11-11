@@ -1196,6 +1196,11 @@ if (!studyModeFocus.includes('resetForegroundResolution();') ||
     !studyModeFocus.includes('setServiceState(this, "permission_required")')) {
   fail('Screen wake must reset/rebuild the foreground cursor, wide-history recovery must be bounded, and permission loss must remain visible in the persistent notification');
 }
+if (!studyModeFocus.includes('boolean decisionChanged = !foreground.equals(lastDecisionPackage)') ||
+    !studyModeFocus.includes('decision_changed_before_visibility_check') ||
+    !studyModeFocus.includes('decision_changed_during_popup_build')) {
+  fail('Popup request generation must remain stable during unchanged foreground polls and invalidate stale display work on real decision transitions');
+}
 if (!studyModeManager.includes('StudyModeFocusService.hasOverlayFailure()') ||
     !studyModeFocus.includes('view.isAttachedToWindow()') ||
     !studyModeFocus.includes('view.getWindowToken()') ||
