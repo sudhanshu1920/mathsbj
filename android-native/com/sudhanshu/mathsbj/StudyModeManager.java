@@ -1201,12 +1201,11 @@ public final class StudyModeManager {
         } else if (StudyModeFocusService.hasOverlayFailure()) {
             state = "overlay_failed";
         } else if (StudyModeFocusService.isRunning()) {
-            state = "focus_shield_running";
+            state = StudyModeFocusService.hasOverlayFailure() ? "overlay_failed" : "focus_shield_running";
         } else if (StudyModeFocusService.isStarting()) {
             state = "focus_shield_starting";
-        } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)
-            || "accessibility_disconnected".equals(state)) {
-            // Normalize a state persisted by versions that exposed Accessibility tracking.
+        } else if (!"service_start_blocked".equals(state) && !"overlay_failed".equals(state)) {
+            // A persisted ACTIVE label is never proof that the native monitor is alive.
             state = "service_stopped";
         }
 
