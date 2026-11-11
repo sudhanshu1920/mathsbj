@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="study_mode_accessibility_label">Math Master Study Mode</string>
+    <string name="study_mode_accessibility_description">With your permission, detects which app is in the foreground so Math Master can show the Study Mode blocking shield. It does not read screen text, passwords, or window contents.</string>
+</resources>
