@@ -95,6 +95,8 @@ public final class StudyModeFocusService extends Service {
     // losing an app transition when the monitor thread is delayed for longer than a
     // fixed rolling lookback window.
     private String lastForegroundPackage = null;
+    private String lastDecisionPackage = null;
+    private boolean lastDecisionShouldShield = false;
     private long lastUsageEventScanTimeMs = 0L;
     private long lastFullLookupElapsedMs = 0L;
     private boolean hasResolvedForegroundOnce = false;
@@ -350,7 +352,6 @@ public final class StudyModeFocusService extends Service {
             // UsageStatsManager and package checks stay on the monitor thread.
             // Only window changes are posted to the main looper.
             String foreground = getMostRecentlyResumedPackage();
-            long decisionSequence = foregroundDecisionSequence.incrementAndGet();
 
             // An unresolved foreground package is not evidence that the user is
             // outside a blocked app. Preserve an already-visible shield and wait
@@ -373,6 +374,16 @@ public final class StudyModeFocusService extends Service {
 
             boolean shouldShield = !foreground.equals(getPackageName())
                 && StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground);
+            boolean decisionChanged = !foreground.equals(lastDecisionPackage)
+                || shouldShield != lastDecisionShouldShield;
+            if (decisionChanged) {
+                lastDecisionPackage = foreground;
+                lastDecisionShouldShield = shouldShield;
+            }
+            long decisionSequence = decisionChanged
+                ? foregroundDecisionSequence.incrementAndGet()
+                : foregroundDecisionSequence.get();
+
             if (shouldShield && !foreground.equals(lastLoggedBlockedPackage)) {
                 lastLoggedBlockedPackage = foreground;
                 logStage("BLOCKED_LIST_MATCHED", foreground, "", "matched", "active_session_or_schedule");
@@ -393,7 +404,7 @@ public final class StudyModeFocusService extends Service {
                     }
                     return;
                 }
-                if (shouldShield) showShield(foreground, requestId);
+                if (shouldShield) showShield(foreground, requestId, decisionSequence);
                 else removeShield("foreground_not_blocked");
             });
 
@@ -403,6 +414,8 @@ public final class StudyModeFocusService extends Service {
 
     private void resetForegroundResolution() {
         lastForegroundPackage = null;
+        lastDecisionPackage = null;
+        lastDecisionShouldShield = false;
         lastUsageEventScanTimeMs = 0L;
         lastFullLookupElapsedMs = 0L;
         hasResolvedForegroundOnce = false;
@@ -538,8 +551,12 @@ public final class StudyModeFocusService extends Service {
         return lastForegroundPackage;
     }
 
-    private void showShield(String packageName, String requestId) {
+    private void showShield(String packageName, String requestId, long decisionSequence) {
         if (packageName == null || packageName.isEmpty()) return;
+        if (!running || decisionSequence != foregroundDecisionSequence.get()) {
+            logStage("BLOCKING_REEVALUATED", packageName, requestId, "superseded", "decision_changed_before_popup");
+            return;
+        }
 
         if (packageName.equals(failedPopupPackage)) {
             if (failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND) {
@@ -586,6 +603,12 @@ public final class StudyModeFocusService extends Service {
             if (windowManager == null) throw new IllegalStateException("WindowManager unavailable");
 
             android.view.View candidate = buildShieldView();
+            if (!running || decisionSequence != foregroundDecisionSequence.get()) {
+                logStage("BLOCKING_REEVALUATED", packageName, activeShieldRequestId,
+                    "superseded", "decision_changed_during_popup_build");
+                removeShield("stale_request_before_window_add");
+                return;
+            }
             shieldView = candidate;
             shieldedPackage = packageName;
 
@@ -616,7 +639,9 @@ public final class StudyModeFocusService extends Service {
             logStage("POPUP_LAUNCH_ACCEPTED", packageName, activeShieldRequestId, "window_added", "awaiting_attachment_visibility_check");
 
             final String verifiedRequestId = activeShieldRequestId;
-            mainHandler.post(() -> verifyShieldVisibility(candidate, packageName, verifiedRequestId));
+            mainHandler.post(() -> verifyShieldVisibility(
+                candidate, packageName, verifiedRequestId, decisionSequence
+            ));
         } catch (Exception error) {
             popupState = PopupState.RECOVERY_REQUIRED;
             overlayFailureForStatus = true;
@@ -640,11 +665,19 @@ public final class StudyModeFocusService extends Service {
     private void verifyShieldVisibility(
         android.view.View candidate,
         String packageName,
-        String requestId
+        String requestId,
+        long decisionSequence
     ) {
         if (shieldView != candidate
             || !packageName.equals(shieldedPackage)
             || !requestId.equals(activeShieldRequestId)) return;
+
+        if (!running || decisionSequence != foregroundDecisionSequence.get()) {
+            logStage("BLOCKING_REEVALUATED", packageName, requestId,
+                "superseded", "decision_changed_before_visibility_check");
+            removeShield("stale_request_before_visibility_check");
+            return;
+        }
 
         if (isShieldViewVisible(candidate)) {
             popupState = PopupState.VISIBLE;
