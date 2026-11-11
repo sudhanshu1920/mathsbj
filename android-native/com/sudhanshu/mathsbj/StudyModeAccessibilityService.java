@@ -22,6 +22,10 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         return connected;
     }
 
+    public static String getLastKnownForegroundPackage() {
+        return connected && !lastDeliveredPackage.isEmpty() ? lastDeliveredPackage : null;
+    }
+
     public static boolean isEnabled(Context context) {
         try {
             String enabledServices = Settings.Secure.getString(
