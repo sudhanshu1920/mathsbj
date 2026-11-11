@@ -1096,6 +1096,25 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
   fail('Study Mode app discovery must include launchable user and system apps, report category metadata, and preserve fast All/User/System filtering');
 }
 
+const studyModeInitialLoadStart = studyModePage.indexOf('const load = useCallback((reconcile = true): Promise<void> => {');
+const studyModeInitialLoadEnd = studyModePage.indexOf(
+  '\n\n  useEffect(() => {\n    isMountedRef.current',
+  studyModeInitialLoadStart,
+);
+const studyModeInitialLoad = studyModeInitialLoadStart >= 0 && studyModeInitialLoadEnd > studyModeInitialLoadStart
+  ? studyModePage.slice(studyModeInitialLoadStart, studyModeInitialLoadEnd)
+  : '';
+const studyModeAppLoaderStart = studyModePage.indexOf('const loadApps = useCallback');
+const studyModeAppLoaderEnd = studyModePage.indexOf('const toggleBlockedPicker', studyModeAppLoaderStart);
+const studyModeAppLoader = studyModeAppLoaderStart >= 0 && studyModeAppLoaderEnd > studyModeAppLoaderStart
+  ? studyModePage.slice(studyModeAppLoaderStart, studyModeAppLoaderEnd)
+  : '';
+const studyModePickerHandlersStart = studyModePage.indexOf('const toggleBlockedPicker');
+const studyModePickerHandlersEnd = studyModePage.indexOf('const load = useCallback', studyModePickerHandlersStart);
+const studyModePickerHandlers = studyModePickerHandlersStart >= 0 && studyModePickerHandlersEnd > studyModePickerHandlersStart
+  ? studyModePage.slice(studyModePickerHandlersStart, studyModePickerHandlersEnd)
+  : '';
+
 if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModeBridge.includes('invalidateStudyModeAppCatalogCache') ||
     !studyModeAppCatalogCache.includes('if (pending) return pending') ||
@@ -1114,7 +1133,19 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     studyModePage.includes('setSessionTick') ||
     !studyModePage.includes('useDeferredValue(search)') ||
     !studyModePage.includes('loading="lazy" decoding="async"') ||
-    !studyModePage.includes('const [nextStatus, installedApps] = await Promise.all([') ||
+    studyModeInitialLoad.length === 0 ||
+    studyModeInitialLoad.includes('getInstalledStudyModeApps(') ||
+    !studyModeInitialLoad.includes('refreshStudyMode()') ||
+    !studyModeInitialLoad.includes('getStudyModeStatus()') ||
+    !studyModeAppLoader.includes('getInstalledStudyModeApps()') ||
+    !studyModeAppLoader.includes('appCatalogLoadedRef.current') ||
+    !studyModeAppLoader.includes('appCatalogLoadInFlightRef.current') ||
+    !studyModeAppLoader.includes('setAppsLoadError(') ||
+    !studyModePickerHandlers.includes('if (nextOpen) void loadApps()') ||
+    !studyModePage.includes('appsLoading ? (') ||
+    !studyModePage.includes('appsLoadError ? (') ||
+    !studyModePage.includes('[apps, appFilter, deferredSearch]') ||
+    !studyModePage.includes('[apps, deferredStudySearch]') ||
     !studyModePage.includes('History is non-critical')) {
   fail('Study Mode performance regression: app inventory must be cached/in-flight deduplicated, countdown isolated, app search deferred, and session history must not gate first interaction');
 }
