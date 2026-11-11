@@ -77,7 +77,8 @@ const statusText = (status: StudyModeStatus | null) => {
     return label + " focus session active · native protection is running";
   }
   if (!status?.config.enabled) return "Study Mode is off";
-  if (status.enforcementState === "permission_required") return "Enable Usage Access and allow the blocking overlay";
+  if (status.enforcementState === "accessibility_disconnected") return "Accessibility monitoring is disconnected · reconnect it or grant Usage Access fallback";
+  if (status.enforcementState === "permission_required") return "Enable Accessibility monitoring or Usage Access and allow the blocking overlay";
   if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
   if (status.enforcementState === "focus_shield_starting") return "Starting Focus Shield…";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
