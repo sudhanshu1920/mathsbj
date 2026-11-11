@@ -252,7 +252,7 @@ public final class StudyModeFocusService extends Service {
                 : new Notification.Builder(this);
             builder.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setContentTitle(StudyModeManager.getSessionNotificationTitle(this))
-                .setContentText(StudyModeManager.getSessionNotificationText(this))
+                .setContentText(getNotificationContentText())
                 .setOngoing(true)
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setOnlyAlertOnce(true);
