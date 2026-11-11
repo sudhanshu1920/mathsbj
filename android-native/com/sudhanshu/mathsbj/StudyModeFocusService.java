@@ -497,7 +497,9 @@ public final class StudyModeFocusService extends Service {
         long now = System.currentTimeMillis();
         long elapsedNow = SystemClock.elapsedRealtime();
         if (lastUsageEventScanTimeMs > now) {
-            // A user/system clock adjustment invalidates the wall-clock query cursor.
+            // A user/system clock adjustment invalidates the wall-clock query cursor
+            // and any popup request that was built from the previous foreground state.
+            foregroundDecisionSequence.incrementAndGet();
             resetForegroundResolution();
         }
 
