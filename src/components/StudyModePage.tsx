@@ -251,6 +251,24 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     : 0;
 
   useEffect(() => {
+    if (!activeSession) return;
+    let disposed = false;
+    const refreshNativeStatus = async () => {
+      try {
+        const nextStatus = await refreshStudyMode();
+        if (!disposed) setStatus(nextStatus);
+      } catch {
+        // The last confirmed status remains visible; a failed refresh is not a new protection state.
+      }
+    };
+    const timer = window.setInterval(() => { void refreshNativeStatus(); }, 10_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [activeSession?.id, activeSession?.active]);
+
+  useEffect(() => {
     if (!activeSession || activeSession.durationSeconds <= 0 || sessionRemainingSeconds > 0) return;
     let active = true;
     const timer = window.setTimeout(() => {
