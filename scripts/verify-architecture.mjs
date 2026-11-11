@@ -1165,9 +1165,9 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
   fail('Sideloadable Android builds must not package Play Protect-sensitive notification-listener access');
 }
 if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
-    studyModeNativeFiles.includes('StudyModeAccessibilityService.java') ||
-    !studyModeSetup.includes('removeAccessibilityService') ||
-    studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
+    !studyModeNativeFiles.includes('StudyModeAccessibilityService.java') ||
+    !studyModeSetup.includes('normalizeAccessibilityServiceDeclaration') ||
+    !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
     !studyModeSetup.includes("await rm(path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
     !studyModeSetup.includes("await rm(path.join(valuesTarget, 'study_mode_accessibility.xml')") ||
     !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
