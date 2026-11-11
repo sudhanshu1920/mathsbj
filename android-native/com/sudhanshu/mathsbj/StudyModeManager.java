@@ -657,6 +657,12 @@ public final class StudyModeManager {
         return packageName != null && getEnforcedPackages(context).contains(packageName);
     }
 
+    public static boolean hasNotificationPermission(Context context) {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+            || context.checkSelfPermission("android.permission.POST_NOTIFICATIONS")
+                == android.content.pm.PackageManager.PERMISSION_GRANTED;
+    }
+
     public static boolean hasNotificationPolicyAccess(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -1154,6 +1160,7 @@ public final class StudyModeManager {
         permissions.put("deviceOwner", isDeviceOwner(context));
         permissions.put("profileOwner", isProfileOwner(context));
         permissions.put("dndAccess", hasNotificationPolicyAccess(context));
+        permissions.put("notifications", hasNotificationPermission(context));
 
         List<String> applied = readAppliedPackages(context);
         JSArray appliedArray = new JSArray();
