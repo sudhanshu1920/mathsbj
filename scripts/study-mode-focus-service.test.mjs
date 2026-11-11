@@ -91,3 +91,8 @@ test("diagnostic session lookup is cached off the main-thread popup path", () =>
   const logger = between(source, "private void logStage(", "public void onTaskRemoved(");
   assert.doesNotMatch(logger, /getActiveSessionId\\(this\\)/);
 });
+
+test("status does not report a running service as active blocking after overlay failure", () => {
+  assert.match(manager, /else if \\(StudyModeFocusService\\.hasOverlayFailure\\(\\)\\)\\s*\\{[\\s\\S]*?state = "overlay_failed"/);
+  assert.match(source, /overlayFailureForStatus = false;/);
+});
