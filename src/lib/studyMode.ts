@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { createAsyncCache } from "@/lib/studyModeAppCatalogCache";
 import { getTheme, getMode } from "@/lib/theme";
 import {
   DEFAULT_STUDY_MODE_CONFIG,
@@ -81,6 +82,13 @@ interface NativeStudyModePlugin {
 
 const NativeStudyMode = registerPlugin<NativeStudyModePlugin>("StudyMode");
 
+// App discovery/icon decoding is expensive on Android. Keep the complete catalogue
+// for one minute across screen mounts and de-duplicate simultaneous refreshes.
+const installedAppsCache = createAsyncCache<StudyModeApp[]>(async () => {
+  const result = await NativeStudyMode.listApps();
+  return Array.isArray(result.apps) ? result.apps : [];
+}, 60_000);
+
 export const isStudyModeNative = (): boolean => Capacitor.isNativePlatform();
 
 export async function syncStudyModePopupAppearance(): Promise<void> {
@@ -137,10 +145,14 @@ export async function refreshStudyMode(): Promise<StudyModeStatus> {
   return NativeStudyMode.refresh();
 }
 
-export async function getInstalledStudyModeApps(): Promise<StudyModeApp[]> {
+export async function getInstalledStudyModeApps(forceRefresh = false): Promise<StudyModeApp[]> {
   if (!isStudyModeNative()) return [];
-  const result = await NativeStudyMode.listApps();
-  return Array.isArray(result.apps) ? result.apps : [];
+  return installedAppsCache.get(forceRefresh);
+}
+
+/** Explicit invalidation hook for package-catalogue lifecycle changes. */
+export function invalidateStudyModeAppCatalogCache(): void {
+  installedAppsCache.clear();
 }
 
 export async function saveStudyModeConfig(config: StudyModeConfig, studyAppPackageNames: string[] = []): Promise<StudyModeStatus> {
