@@ -82,17 +82,17 @@ test("popup launch recovery is bounded and does not become an infinite overlay r
   assert.match(source, /POPUP_RETRY_SECOND_BACKOFF_MS/);
   assert.match(source, /failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND/);
   assert.match(source, /awaiting_new_foreground_transition/);
-  assert.match(source, /resetPopupRetryState\\(\\)/);
+  assert.match(source, /resetPopupRetryState\(\)/);
 });
 
 test("diagnostic session lookup is cached off the main-thread popup path", () => {
-  assert.match(source, /refreshDiagnosticSessionId\\(false\\)/);
+  assert.match(source, /refreshDiagnosticSessionId\(false\)/);
   assert.match(source, /lastDiagnosticSessionRefreshElapsedMs/);
   const logger = between(source, "private void logStage(", "public void onTaskRemoved(");
-  assert.doesNotMatch(logger, /getActiveSessionId\\(this\\)/);
+  assert.doesNotMatch(logger, /getActiveSessionId\(this\)/);
 });
 
 test("status does not report a running service as active blocking after overlay failure", () => {
-  assert.match(manager, /else if \\(StudyModeFocusService\\.hasOverlayFailure\\(\\)\\)\\s*\\{[\\s\\S]*?state = "overlay_failed"/);
+  assert.match(manager, /else if \(StudyModeFocusService\.hasOverlayFailure\(\)\)\s*\{[\s\S]*?state = "overlay_failed"/);
   assert.match(source, /overlayFailureForStatus = false;/);
 });
