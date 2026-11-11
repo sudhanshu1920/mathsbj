@@ -640,6 +640,13 @@ public final class StudyModeManager {
         return packageName != null && getEnforcedPackages(context).contains(packageName);
     }
 
+    /** Stable diagnostic context for a foreground blocking request. */
+    public static String getActiveSessionId(Context context) {
+        StudyModeSessionStore.Session active = sessionStore(context).getActiveSession(context);
+        if (active != null && active.id != null && !active.id.isEmpty()) return active.id;
+        return isScheduleActive(context) ? "scheduled" : "none";
+    }
+
     public static boolean hasNotificationPolicyAccess(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
