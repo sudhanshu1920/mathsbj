@@ -1067,7 +1067,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeManager.includes('permissions.put("notifications", hasNotificationPermission(context))') ||
     !studyModeAppPlugin.includes('Settings.ACTION_APP_NOTIFICATION_SETTINGS') ||
     !studyModePage.includes('key: "notifications" as const') ||
-    !studyModeBridge.includes('"notifications" |') ||
+    !studyModeBridge.includes('| "notifications"') || !studyModeBridge.includes('notifications: boolean') ||
     !studyModeManager.includes('isAccessibilityMonitoringEnabled') ||
     !studyModeManager.includes('StudyModeAccessibilityService.isConnected()') ||
     !studyModeSetup.includes('normalizeAccessibilityServiceDeclaration') ||
