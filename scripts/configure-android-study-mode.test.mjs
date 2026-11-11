@@ -96,7 +96,6 @@ test('configures complete installed-app visibility, native services and Capacito
   for (const action of ['PACKAGE_ADDED', 'PACKAGE_CHANGED', 'PACKAGE_REMOVED']) {
     assert.ok(packageReceiver.includes('android.intent.action.' + action));
   }
-  assert.match(manifest, /StudyModePackageChangeReceiver[\\s\\S]*PACKAGE_REMOVED/);
   assert.match(manifest, /android.permission.QUERY_ALL_PACKAGES/);
   assert.equal((activity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
   assert.equal((activity.match(/registerPlugin\(AppUsageAnalyticsPlugin\.class\)/g) || []).length, 1);
