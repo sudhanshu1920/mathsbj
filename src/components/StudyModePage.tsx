@@ -517,7 +517,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     try {
       const nextStatus = await endStudyModeSession(activeSession.id);
       setStatus(nextStatus);
-      setSessionTick(0);
       setSessionHistory(await getStudyModeSessionHistory());
       setMessage("Focus session ended. Your saved schedule and app selection remain unchanged.");
     } catch {
