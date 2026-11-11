@@ -89,7 +89,7 @@ test('configures complete installed-app visibility, native services and Capacito
   );
   assert.match(manifest, /DailyTargetReminderBootReceiver[\s\S]*BOOT_COMPLETED[\s\S]*TIMEZONE_CHANGED/);
   assert.match(manifest, /StudyModeAlarmReceiver/);
-  assert.match(manifest, /StudyModePackageChangeReceiver[\s\S]*PACKAGE_REMOVED/);
+  assert.match(manifest, /StudyModePackageChangeReceiver[\s\S]*PACKAGE_ADDED[\s\S]*PACKAGE_CHANGED[\s\S]*PACKAGE_REMOVED/);
   assert.match(manifest, /android.permission.QUERY_ALL_PACKAGES/);
   assert.equal((activity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
   assert.equal((activity.match(/registerPlugin\(AppUsageAnalyticsPlugin\.class\)/g) || []).length, 1);
@@ -113,6 +113,9 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.equal((secondManifest.match(/android.intent.category.LAUNCHER/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(AppUsageAnalyticsPlugin\.class\)/g) || []).length, 1);
+  for (const action of ['PACKAGE_ADDED', 'PACKAGE_CHANGED', 'PACKAGE_REMOVED']) {
+    assert.equal((secondManifest.match(new RegExp('android.intent.action.' + action, 'g')) || []).length, 1);
+  }
   for (const action of ['PACKAGE_ADDED', 'PACKAGE_CHANGED', 'PACKAGE_REMOVED']) {
     assert.equal((secondManifest.match(new RegExp('android.intent.action.' + action, 'g')) || []).length, 1);
   }
