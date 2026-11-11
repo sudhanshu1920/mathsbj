@@ -1200,6 +1200,10 @@ public final class StudyModeManager {
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
         } else if (!foregroundSourceAvailable || !overlayGranted) {
             state = "permission_required";
+        } else if (!usageGranted && accessibilityConnected
+            && !StudyModeAccessibilityService.hasForegroundPackageEvent()
+            && StudyModeFocusService.isRunning()) {
+            state = "waiting_for_foreground_event";
         } else if (StudyModeFocusService.hasOverlayFailure()) {
             state = "overlay_failed";
         } else if (StudyModeFocusService.isRunning()) {
