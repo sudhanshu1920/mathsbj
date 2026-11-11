@@ -97,10 +97,12 @@ public final class StudyModeFocusService extends Service {
             return;
         }
         service.monitorHandler.post(() -> {
+            // Accessibility clears its package snapshot whenever it reconnects.
+            // Never keep the previous service instance's foreground package as truth.
+            service.lastForegroundPackage = null;
+            service.lastAccessibilityEventUptimeMs = 0L;
+            service.initialForegroundLookup = true;
             if (!available && !StudyModeAccessibilityService.isConnected()) {
-                service.lastForegroundPackage = null;
-                service.lastAccessibilityEventUptimeMs = 0L;
-                service.initialForegroundLookup = true;
                 service.lastUsageEventTimestampMs = 0L;
             }
             service.monitorHandler.removeCallbacks(service.monitorRunnable);
@@ -110,8 +112,13 @@ public final class StudyModeFocusService extends Service {
 
     public static void reportAccessibilityForegroundPackage(Context context, String packageName, long eventUptimeMs) {
         StudyModeFocusService service = instance;
-        if (service == null || service.monitorHandler == null || packageName == null
-            || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) return;
+        if (packageName == null || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) return;
+        if (service == null || service.monitorHandler == null) {
+            // The Accessibility event may arrive before the FGS finishes starting.
+            // Reconcile; onCreate seeds the already-recorded package snapshot.
+            StudyModeManager.reconcile(context);
+            return;
+        }
         service.monitorHandler.post(() -> {
             if (!running || !StudyModeAccessibilityService.isConnected()) return;
             if (eventUptimeMs > 0L && eventUptimeMs < service.lastAccessibilityEventUptimeMs) return;
