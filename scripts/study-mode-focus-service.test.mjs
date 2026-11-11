@@ -122,6 +122,12 @@ test("foreground lookup failures surface as unavailable while service is alive",
   assert.ok(page.includes("foreground app monitoring unavailable"));
 });
 
+test("service teardown preserves an overlay cleanup failure instead of overwriting it as stopped", () => {
+  const destroy = between(source, "public void onDestroy()", "public IBinder onBind(");
+  assert.ok(destroy.includes("boolean overlayCleanupFailed = shieldView != null;"));
+  assert.ok(destroy.includes('overlayCleanupFailed ? "overlay_failed" : "service_stopped"'));
+});
+
 test("overlay launch failure is not reported as active blocking while the service stays alive", () => {
   const status = between(manager, "public static JSObject getStatus(Context context)", "boolean exactFallback");
   const failureIndex = status.indexOf("StudyModeFocusService.hasOverlayFailure()");
@@ -135,8 +141,9 @@ test("decision generation changes only when the foreground restriction decision 
   const monitor = between(source, "private final Runnable monitorRunnable", "private void resetForegroundResolution()");
   assert.ok(monitor.includes("boolean decisionChanged = !foreground.equals(lastDecisionPackage)"));
   assert.ok(monitor.includes("shouldShield != lastDecisionShouldShield"));
-  assert.ok(monitor.includes("decisionChanged ?"));
-  assert.ok(monitor.includes("foregroundDecisionSequence.get()"));
+  assert.ok(monitor.includes("long decisionSequence = decisionChanged"));
+  assert.ok(monitor.includes("? foregroundDecisionSequence.incrementAndGet()"));
+  assert.ok(monitor.includes(": foregroundDecisionSequence.get()"));
   assert.ok(source.includes("verifiedRequestId, decisionSequence"));
   const verify = between(source, "private void verifyShieldVisibility(", "private android.view.View buildShieldView()");
   assert.ok(verify.includes("decisionSequence != foregroundDecisionSequence.get()"));
