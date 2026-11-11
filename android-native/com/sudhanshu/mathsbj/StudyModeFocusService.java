@@ -121,7 +121,12 @@ public final class StudyModeFocusService extends Service {
         return running && overlayFailureForStatus;
     }
 
+    public static boolean hasForegroundLookupFailure() {
+        return running && foregroundLookupFailureForStatus;
+    }
+
     private static volatile boolean overlayFailureForStatus = false;
+    private static volatile boolean foregroundLookupFailureForStatus = false;
     private static final LruCache<String, android.graphics.drawable.Drawable.ConstantState> STUDY_ICON_CACHE =
         new LruCache<>(32);
     private static final LruCache<String, String> STUDY_LABEL_CACHE = new LruCache<>(64);
@@ -481,6 +486,7 @@ public final class StudyModeFocusService extends Service {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return lastForegroundPackage;
         UsageStatsManager usage = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
         if (usage == null) {
+            foregroundLookupFailureForStatus = true;
             if (!foregroundLookupFailureLogged) {
                 foregroundLookupFailureLogged = true;
                 logStage("FOREGROUND_LOOKUP_FAILED", "", "", "unavailable", "usage_stats_manager_null");
@@ -517,6 +523,7 @@ public final class StudyModeFocusService extends Service {
         try {
             events = usage.queryEvents(queryFrom, now);
         } catch (SecurityException denied) {
+            foregroundLookupFailureForStatus = true;
             StudyModeManager.setServiceState(this, "permission_required");
             if (!permissionUnavailableLogged) {
                 permissionUnavailableLogged = true;
@@ -524,6 +531,7 @@ public final class StudyModeFocusService extends Service {
             }
             return lastForegroundPackage;
         } catch (RuntimeException error) {
+            foregroundLookupFailureForStatus = true;
             if (!foregroundLookupFailureLogged) {
                 foregroundLookupFailureLogged = true;
                 logStage("FOREGROUND_LOOKUP_FAILED", "", "", "failed", error.getClass().getSimpleName());
@@ -531,6 +539,7 @@ public final class StudyModeFocusService extends Service {
             return lastForegroundPackage;
         }
         if (events == null) {
+            foregroundLookupFailureForStatus = true;
             if (!foregroundLookupFailureLogged) {
                 foregroundLookupFailureLogged = true;
                 logStage("FOREGROUND_LOOKUP_FAILED", "", "", "empty", "usage_events_null");
@@ -538,6 +547,7 @@ public final class StudyModeFocusService extends Service {
             return lastForegroundPackage;
         }
         foregroundLookupFailureLogged = false;
+        foregroundLookupFailureForStatus = false;
 
         String latest = null;
         long latestTimestamp = -1L;
@@ -1199,6 +1209,7 @@ public final class StudyModeFocusService extends Service {
         mainHandler.removeCallbacksAndMessages(null);
         removeShield("service_destroyed");
         overlayFailureForStatus = false;
+        foregroundLookupFailureForStatus = false;
         if (!StudyModeManager.isPolicyOwner(this) && StudyModeManager.shouldEnforceNow(this)
             && StudyModeManager.hasForegroundMonitoringPermission(this) && StudyModeManager.hasOverlayPermission(this)) {
             StudyModeManager.setServiceState(this, "service_stopped");
