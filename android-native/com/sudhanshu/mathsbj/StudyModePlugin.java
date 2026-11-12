@@ -13,6 +13,8 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.provider.Settings;
 
+import androidx.core.content.ContextCompat;
+
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -326,7 +328,7 @@ public final class StudyModePlugin extends Plugin {
     @PluginMethod
     public void requestNotificationPermission(PluginCall call) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
-            || getContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+            || ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS)
                 == PackageManager.PERMISSION_GRANTED) {
             resolveNotificationPermission(call);
             return;
