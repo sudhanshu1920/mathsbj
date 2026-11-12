@@ -1225,7 +1225,7 @@ if (!studyModeFocus.includes('boolean decisionChanged = !foreground.equals(lastD
 }
 if (!studyModeFocus.includes('public static boolean hasForegroundLookupFailure()') ||
     !studyModeManager.includes('state = "monitoring_unavailable"') ||
-    !studyModeManager.includes('(!accessibilityEnabled || !StudyModeWindowRegistry.hasFreshSnapshot())') ||
+    !studyModeManager.includes('(!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady') ||
     !studyModePage.includes('status.enforcementState === "monitoring_unavailable"') ||
     !studyModePage.includes('grant Usage Access or enable Advanced window detection')) {
   fail('Study Mode must report monitoring unavailable when neither UsageStats nor a fresh, consented Accessibility window snapshot can identify app windows');
