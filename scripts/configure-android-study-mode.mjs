@@ -235,7 +235,31 @@ function configureStudyModeFlavors(buildGradle) {
       buildGradle.indexOf(androidOpenTag, firstAndroidBlock + androidOpenTag.length) >= 0) {
     throw new Error('Expected exactly one android { block in app/build.gradle to configure Study Mode variants.');
   }
-  const flavorBlock = `android {
+
+  // Insert flavors after defaultConfig so all variant-specific overrides have
+  // a fully initialized base applicationId/versionCode to inherit from.
+  const defaultConfigOpen = buildGradle.indexOf('defaultConfig {', firstAndroidBlock + androidOpenTag.length);
+  if (defaultConfigOpen < 0) {
+    throw new Error('Expected defaultConfig { in app/build.gradle before configuring Study Mode variants.');
+  }
+  let depth = 0;
+  let defaultConfigEnd = -1;
+  for (let index = defaultConfigOpen; index < buildGradle.length; index++) {
+    if (buildGradle[index] === '{') depth++;
+    else if (buildGradle[index] === '}') {
+      depth--;
+      if (depth === 0) {
+        defaultConfigEnd = index + 1;
+        break;
+      }
+    }
+  }
+  if (defaultConfigEnd < 0) {
+    throw new Error('The defaultConfig block in app/build.gradle is not closed.');
+  }
+
+  const flavorBlock = `
+
     ${marker}
     flavorDimensions "studyMode"
     productFlavors {
@@ -247,8 +271,8 @@ function configureStudyModeFlavors(buildGradle) {
             versionCode defaultConfig.versionCode + 100000
         }
     }`;
-  return buildGradle.slice(0, firstAndroidBlock) + flavorBlock
-    + buildGradle.slice(firstAndroidBlock + androidOpenTag.length);
+  return buildGradle.slice(0, defaultConfigEnd) + flavorBlock
+    + buildGradle.slice(defaultConfigEnd);
 }
 
 function ensureBackupExclusions(manifest) {
