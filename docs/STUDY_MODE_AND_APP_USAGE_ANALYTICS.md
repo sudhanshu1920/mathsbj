@@ -38,6 +38,10 @@ scan. The Advanced service reads only the package name and focus state exposed
 by accessible interactive application windows. It does not read node text,
 messages, passwords, screenshots, or gestures. Android/OEM window availability
 varies, so unsupported floating-window implementations cannot be guaranteed.
+If Android cannot expose an application window's package name, or any exposed
+application window cannot be read, the Advanced snapshot is marked incomplete.
+The monitor preserves an existing shield and reports monitoring unavailable
+instead of interpreting a partial list as proof that no blocked pane is visible.
 Usage Access remains available as a fallback. Standard and Advanced share the
 same application ID and signing identity and therefore cannot be installed
 side-by-side. Advanced uses a reserved version-code offset so the Standard

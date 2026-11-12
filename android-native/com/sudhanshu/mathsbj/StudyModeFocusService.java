@@ -104,6 +104,7 @@ public final class StudyModeFocusService extends Service {
     private String lastLoggedBlockedPackage = null;
     private boolean foregroundUnknownLogged = false;
     private boolean foregroundLookupFailureLogged = false;
+    private boolean windowSnapshotUnavailableLogged = false;
     private boolean permissionUnavailableLogged = false;
     private String failedPopupPackage = "";
     private int failedPopupAttempts = 0;
@@ -394,6 +395,24 @@ public final class StudyModeFocusService extends Service {
 
             boolean shouldShield = !foreground.equals(getPackageName())
                 && StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground);
+
+            // If the user enabled Advanced detection, an incomplete window list
+            // cannot prove that no blocked split-screen pane exists. Keep any
+            // current shield visible and report monitoring as unavailable.
+            boolean accessibilityWindowCoverageRequired =
+                StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);
+            if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()
+                && !shouldShield) {
+                if (!windowSnapshotUnavailableLogged) {
+                    windowSnapshotUnavailableLogged = true;
+                    logStage("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE", "", "", "deferred",
+                        "stale_or_incomplete_interactive_window_snapshot");
+                }
+                if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
+                return;
+            }
+            windowSnapshotUnavailableLogged = false;
+
             boolean decisionChanged = !foreground.equals(lastDecisionPackage)
                 || shouldShield != lastDecisionShouldShield;
             if (decisionChanged) {
@@ -415,16 +434,17 @@ public final class StudyModeFocusService extends Service {
                 }
             }
 
+            final String decisionPackage = foreground;
             final String requestId = shouldShield ? UUID.randomUUID().toString() : "";
             mainHandler.post(() -> {
                 if (!running) return;
                 if (decisionSequence != foregroundDecisionSequence.get()) {
                     if (shouldShield) {
-                        logStage("BLOCKING_REEVALUATED", foreground, requestId, "superseded", "newer_foreground_decision");
+                        logStage("BLOCKING_REEVALUATED", decisionPackage, requestId, "superseded", "newer_foreground_decision");
                     }
                     return;
                 }
-                if (shouldShield) showShield(foreground, requestId, decisionSequence);
+                if (shouldShield) showShield(decisionPackage, requestId, decisionSequence);
                 else removeShield("foreground_not_blocked");
             });
 
@@ -443,6 +463,7 @@ public final class StudyModeFocusService extends Service {
         lastLoggedBlockedPackage = null;
         foregroundUnknownLogged = false;
         foregroundLookupFailureLogged = false;
+        windowSnapshotUnavailableLogged = false;
         resetPopupRetryState();
     }
 

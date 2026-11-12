@@ -27,8 +27,15 @@ test("advanced accessibility monitoring enumerates interactive app windows witho
   assert.ok(accessibility.includes("root.getPackageName()"));
   assert.ok(accessibility.includes("window.isFocused()"));
   assert.ok(registry.includes("MAX_SNAPSHOT_AGE_MS"));
-  assert.ok(registry.includes("!windows.isEmpty()"));
+  assert.ok(registry.includes("snapshotComplete"));
   assert.ok(registry.includes("findBlockedPackage"));
+  assert.ok(accessibility.includes("snapshot.complete"));
+  assert.ok(accessibility.includes("hasApplicationWindow"));
+  assert.ok(accessibility.includes("IDLE_RESCAN_INTERVAL_MS"));
+  assert.ok(accessibility.includes("nextDelayMs = IDLE_RESCAN_INTERVAL_MS"));
+  assert.ok(source.includes("isAccessibilityWindowMonitoringRequired"));
+  assert.ok(source.includes("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE"));
+  assert.ok(manager.includes("accessibilityConsent"));
   assert.ok(registry.includes("StudyModeManager.isPackageSelected(context, window.packageName)"));
   assert.ok(accessibility.includes("hasAccessibilityDisclosureConsent(this)"));
   const interrupt = accessibility.slice(accessibility.indexOf("public void onInterrupt()"), accessibility.indexOf("@Override", accessibility.indexOf("public void onInterrupt()") + 1));

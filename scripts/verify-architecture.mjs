@@ -1057,7 +1057,10 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeSetup.includes('StudyModeAccessibilityService.java') ||
     !studyModeFocus.includes('StudyModeWindowRegistry.findBlockedPackage') ||
     !studyModeWindowRegistry.includes('MAX_SNAPSHOT_AGE_MS') ||
+    !studyModeWindowRegistry.includes('snapshotComplete') ||
     !studyModeManager.includes('hasAccessibilityDisclosureConsent') ||
+    !studyModeManager.includes('isAccessibilityWindowMonitoringRequired') ||
+    !studyModeManager.includes('accessibilitySnapshotReady') ||
     !studyModeAppPlugin.includes('recordAccessibilityDisclosureConsent') ||
     !studyModeAccessibilityService.includes('hasAccessibilityDisclosureConsent(this)') ||
     !studyModePage.includes('Agree & Open Android Settings') ||

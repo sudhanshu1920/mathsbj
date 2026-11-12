@@ -395,11 +395,16 @@ public final class StudyModeManager {
     }
 
     public static boolean hasForegroundMonitoringPermission(Context context) {
-        return hasUsageAccess(context) || StudyModeWindowRegistry.isAccessibilityServiceEnabled(context);
+        return hasUsageAccess(context) || isAccessibilityWindowMonitoringRequired(context);
     }
 
     public static boolean hasForegroundMonitoringSource(Context context) {
         return hasForegroundMonitoringPermission(context);
+    }
+
+    public static boolean isAccessibilityWindowMonitoringRequired(Context context) {
+        return hasAccessibilityDisclosureConsent(context)
+            && StudyModeWindowRegistry.isAccessibilityServiceEnabled(context);
     }
 
     public static boolean hasOverlayPermission(Context context) {
@@ -1151,6 +1156,7 @@ public final class StudyModeManager {
         boolean accessibilityAvailable = StudyModeWindowRegistry.isAccessibilityServiceAvailable(context);
         boolean accessibilityEnabled = accessibilityAvailable
             && StudyModeWindowRegistry.isAccessibilityServiceEnabled(context);
+        boolean accessibilityConsent = hasAccessibilityDisclosureConsent(context);
         permissions.put("usageAccess", hasUsageAccess(context));
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
@@ -1159,6 +1165,8 @@ public final class StudyModeManager {
         permissions.put("dndAccess", hasNotificationPolicyAccess(context));
         permissions.put("accessibilityAvailable", accessibilityAvailable);
         permissions.put("accessibilityEnabled", accessibilityEnabled);
+        permissions.put("accessibilityConsent", accessibilityConsent);
+        permissions.put("accessibilitySnapshotReady", StudyModeWindowRegistry.hasFreshSnapshot());
 
         List<String> applied = readAppliedPackages(context);
         JSArray appliedArray = new JSArray();
@@ -1192,9 +1200,10 @@ public final class StudyModeManager {
             if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
-        } else if ((!usageGranted && !accessibilityEnabled) || !overlayGranted) {
+        } else if ((!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted) {
             state = "permission_required";
-        } else if (!usageGranted && (!accessibilityEnabled || !StudyModeWindowRegistry.hasFreshSnapshot())) {
+        } else if ((accessibilityEnabled && accessibilityConsent && !StudyModeWindowRegistry.hasFreshSnapshot())
+            || (!usageGranted && (!accessibilityEnabled || !accessibilityConsent || !StudyModeWindowRegistry.hasFreshSnapshot()))) {
             state = "monitoring_unavailable";
         } else if ((!accessibilityEnabled || !StudyModeWindowRegistry.hasFreshSnapshot())
             && StudyModeFocusService.hasForegroundLookupFailure()) {

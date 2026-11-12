@@ -17,6 +17,7 @@ public final class StudyModeWindowRegistry {
 
     private static boolean serviceConnected = false;
     private static long snapshotAtElapsedMs = 0L;
+    private static boolean snapshotComplete = false;
     private static List<WindowRecord> windows = Collections.emptyList();
 
     private StudyModeWindowRegistry() {}
@@ -24,18 +25,20 @@ public final class StudyModeWindowRegistry {
     static void markConnected() {
         synchronized (LOCK) {
             serviceConnected = true;
-            snapshotAtElapsedMs = SystemClock.elapsedRealtime();
+            snapshotAtElapsedMs = 0L;
+            snapshotComplete = false;
             windows = Collections.emptyList();
         }
     }
 
-    static void publish(List<WindowRecord> visibleWindows) {
+    static void publish(List<WindowRecord> visibleWindows, boolean complete) {
         List<WindowRecord> safeCopy = visibleWindows == null
             ? Collections.emptyList()
             : Collections.unmodifiableList(new ArrayList<>(visibleWindows));
         synchronized (LOCK) {
             if (!serviceConnected) return;
             windows = safeCopy;
+            snapshotComplete = complete && !safeCopy.isEmpty();
             snapshotAtElapsedMs = SystemClock.elapsedRealtime();
         }
     }
@@ -44,6 +47,7 @@ public final class StudyModeWindowRegistry {
         synchronized (LOCK) {
             serviceConnected = false;
             snapshotAtElapsedMs = 0L;
+            snapshotComplete = false;
             windows = Collections.emptyList();
         }
     }
@@ -52,6 +56,7 @@ public final class StudyModeWindowRegistry {
         synchronized (LOCK) {
             windows = Collections.emptyList();
             snapshotAtElapsedMs = 0L;
+            snapshotComplete = false;
         }
     }
 
@@ -64,8 +69,8 @@ public final class StudyModeWindowRegistry {
     public static boolean hasFreshSnapshot() {
         synchronized (LOCK) {
             return serviceConnected
+                && snapshotComplete
                 && snapshotAtElapsedMs > 0L
-                && !windows.isEmpty()
                 && SystemClock.elapsedRealtime() - snapshotAtElapsedMs <= MAX_SNAPSHOT_AGE_MS;
         }
     }
@@ -127,7 +132,7 @@ public final class StudyModeWindowRegistry {
 
         final List<WindowRecord> visibleSnapshot;
         synchronized (LOCK) {
-            if (!serviceConnected || snapshotAtElapsedMs <= 0L
+            if (!serviceConnected || !snapshotComplete || snapshotAtElapsedMs <= 0L
                 || SystemClock.elapsedRealtime() - snapshotAtElapsedMs > MAX_SNAPSHOT_AGE_MS) {
                 return null;
             }

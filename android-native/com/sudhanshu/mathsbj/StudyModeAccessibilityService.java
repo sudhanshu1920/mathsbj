@@ -16,6 +16,7 @@ import java.util.List;
 
 public final class StudyModeAccessibilityService extends AccessibilityService {
     private static final long RESCAN_INTERVAL_MS = 1200L;
+    private static final long IDLE_RESCAN_INTERVAL_MS = 15_000L;
     private static final long EVENT_RESCAN_DELAY_MS = 100L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -23,7 +24,19 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         @Override
         public void run() {
             scanAccessibleWindows();
-            handler.postDelayed(this, RESCAN_INTERVAL_MS);
+            long nextDelayMs = RESCAN_INTERVAL_MS;
+            try {
+                if (!StudyModeManager.hasAccessibilityDisclosureConsent(StudyModeAccessibilityService.this)
+                    || !StudyModeManager.shouldEnforceNow(StudyModeAccessibilityService.this)) {
+                    // The service remains bound by Android, but avoid continuous
+                    // window enumeration when the user has not consented or no
+                    // Study Mode schedule/session is actively enforcing.
+                    nextDelayMs = IDLE_RESCAN_INTERVAL_MS;
+                }
+            } catch (RuntimeException unavailableState) {
+                nextDelayMs = IDLE_RESCAN_INTERVAL_MS;
+            }
+            handler.postDelayed(this, nextDelayMs);
         }
     };
 
@@ -78,44 +91,61 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     private void scanAccessibleWindows() {
         try {
             if (!StudyModeManager.hasAccessibilityDisclosureConsent(this)) {
-                StudyModeWindowRegistry.publish(Collections.emptyList());
+                StudyModeWindowRegistry.publish(Collections.emptyList(), false);
                 return;
             }
             if (!StudyModeManager.shouldEnforceNow(this)) {
-                StudyModeWindowRegistry.publish(Collections.emptyList());
+                StudyModeWindowRegistry.publish(Collections.emptyList(), false);
                 return;
             }
-            StudyModeWindowRegistry.publish(readVisibleApplicationWindows());
+            WindowSnapshot snapshot = readVisibleApplicationWindows();
+            StudyModeWindowRegistry.publish(snapshot.windows, snapshot.complete);
         } catch (RuntimeException unavailableSnapshot) {
             StudyModeWindowRegistry.invalidateSnapshot();
         }
     }
 
-    private List<StudyModeWindowRegistry.WindowRecord> readVisibleApplicationWindows() {
+    private WindowSnapshot readVisibleApplicationWindows() {
         List<AccessibilityWindowInfo> allWindows = new ArrayList<>();
+        boolean complete = true;
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 SparseArray<List<AccessibilityWindowInfo>> byDisplay = getWindowsOnAllDisplays();
-                if (byDisplay != null) {
+                if (byDisplay == null || byDisplay.size() == 0) {
+                    complete = false;
+                } else {
                     for (int displayIndex = 0; displayIndex < byDisplay.size(); displayIndex++) {
                         List<AccessibilityWindowInfo> displayWindows = byDisplay.valueAt(displayIndex);
-                        if (displayWindows != null) allWindows.addAll(displayWindows);
+                        if (displayWindows == null) {
+                            complete = false;
+                            continue;
+                        }
+                        allWindows.addAll(displayWindows);
                     }
                 }
             } else {
                 List<AccessibilityWindowInfo> defaultDisplayWindows = getWindows();
-                if (defaultDisplayWindows != null) allWindows.addAll(defaultDisplayWindows);
+                if (defaultDisplayWindows == null || defaultDisplayWindows.isEmpty()) {
+                    complete = false;
+                } else {
+                    allWindows.addAll(defaultDisplayWindows);
+                }
             }
         } catch (RuntimeException unavailableWindowList) {
-            return Collections.emptyList();
+            return new WindowSnapshot(Collections.emptyList(), false);
         }
 
         List<StudyModeWindowRegistry.WindowRecord> records = new ArrayList<>();
+        boolean hasApplicationWindow = false;
         for (AccessibilityWindowInfo window : allWindows) {
-            if (window == null) continue;
+            if (window == null) {
+                complete = false;
+                continue;
+            }
             try {
                 // System, input-method and overlay windows are deliberately excluded.
                 if (window.getType() != AccessibilityWindowInfo.TYPE_APPLICATION) continue;
+                hasApplicationWindow = true;
 
                 AccessibilityNodeInfo root = null;
                 String packageName = null;
@@ -129,17 +159,32 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
                     if (root != null) root.recycle();
                 }
 
-                if (packageName == null || packageName.isEmpty()) continue;
+                if (packageName == null || packageName.isEmpty()) {
+                    complete = false;
+                    continue;
+                }
                 int displayId = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
                     ? window.getDisplayId() : android.view.Display.DEFAULT_DISPLAY;
                 records.add(new StudyModeWindowRegistry.WindowRecord(
                     packageName, window.isFocused(), window.getId(), displayId));
             } catch (RuntimeException inaccessibleWindow) {
-                // A transient OEM/system window must not invalidate other readable windows.
+                // A single unreadable app window makes the whole view snapshot incomplete.
+                complete = false;
             } finally {
                 window.recycle();
             }
         }
-        return records;
+        complete = complete && hasApplicationWindow && !records.isEmpty();
+        return new WindowSnapshot(records, complete);
+    }
+
+    private static final class WindowSnapshot {
+        final List<StudyModeWindowRegistry.WindowRecord> windows;
+        final boolean complete;
+
+        WindowSnapshot(List<StudyModeWindowRegistry.WindowRecord> windows, boolean complete) {
+            this.windows = windows;
+            this.complete = complete;
+        }
     }
 }
