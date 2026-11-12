@@ -93,15 +93,23 @@ describe("getStudyModePermissionReadiness", () => {
     expect(readiness.overlayReady).toBe(true);
   });
 
-  it("blocks managed scheduled enforcement only when native status requires exact alarms", () => {
-    const status = makeStatus({
-      permissions: { ...makeStatus().permissions, deviceOwner: true },
+  it("requires Exact Alarms for managed schedules but keeps the personal-device fallback optional", () => {
+    const managed = makeStatus({
+      permissions: { ...makeStatus().permissions, deviceOwner: true, exactAlarm: false },
       enforcementMode: "device_owner",
-      enforcementState: "exact_alarm_required",
+      exactAlarmFallback: true,
     });
-    expect(getStudyModePermissionReadiness(status).coreReady).toBe(false);
-    expect(getStudyModePermissionReadiness(status).missing).toContain(
+    expect(getStudyModePermissionReadiness(managed).coreReady).toBe(false);
+    expect(getStudyModePermissionReadiness(managed).missing).toContain(
       "Allow Exact Alarms for managed scheduling",
     );
+
+    const personal = makeStatus({
+      permissions: { ...makeStatus().permissions, usageAccess: true, overlay: true, exactAlarm: false },
+      enforcementMode: "focus_shield",
+      exactAlarmFallback: true,
+    });
+    expect(getStudyModePermissionReadiness(personal).coreReady).toBe(true);
+    expect(getStudyModePermissionReadiness(personal).exactAlarmRequired).toBe(false);
   });
 });
