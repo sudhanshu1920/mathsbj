@@ -53,7 +53,6 @@ public final class StudyModeFocusService extends Service {
     private static final long POPUP_RETRY_FIRST_BACKOFF_MS = 2000L;
     private static final long POPUP_RETRY_SECOND_BACKOFF_MS = 6000L;
     private static final long POPUP_RETRY_RECOVERY_BACKOFF_MS = 30_000L;
-    private static final long POPUP_VISIBILITY_VERIFY_DELAY_MS = 150L;
     private static final long MIN_IMMEDIATE_RECHECK_INTERVAL_MS = 250L;
     private static final int MAX_POPUP_FAILURES_PER_FOREGROUND = 3;
     private static final String LOG_TAG = "MathMasterStudyMode";
@@ -740,12 +739,11 @@ public final class StudyModeFocusService extends Service {
             logStage("POPUP_LAUNCH_ACCEPTED", packageName, activeShieldRequestId, "window_added", "awaiting_attachment_visibility_check");
 
             final String verifiedRequestId = activeShieldRequestId;
-            // addView() can return before WindowManager completes the first
-            // traversal. Verify after that frame rather than treating a transient
-            // not-yet-visible hierarchy as a failed overlay launch.
-            mainHandler.postDelayed(() -> verifyShieldVisibility(
+            // Verify on the next view frame, after WindowManager has had an
+            // opportunity to attach and traverse the newly-added overlay.
+            candidate.postOnAnimation(() -> verifyShieldVisibility(
                 candidate, packageName, verifiedRequestId, decisionSequence
-            ), POPUP_VISIBILITY_VERIFY_DELAY_MS);
+            ));
         } catch (Exception error) {
             popupState = PopupState.RECOVERY_REQUIRED;
             overlayFailureForStatus = true;
