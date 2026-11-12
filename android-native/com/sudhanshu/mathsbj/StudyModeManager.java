@@ -1210,9 +1210,6 @@ public final class StudyModeManager {
             // Usage Access is the normal foreground fallback. Advanced window
             // scanning is required only when UsageStats is unavailable or failing.
             state = "monitoring_unavailable";
-        }
-            // Usage Access can appear enabled while queryEvents is unavailable or throws.
-            state = "monitoring_unavailable";
         } else if (StudyModeFocusService.hasOverlayFailure()) {
             // The monitor can remain alive while Android refuses or detaches the overlay.
             // Do not report this as active blocking until the view is actually visible.
