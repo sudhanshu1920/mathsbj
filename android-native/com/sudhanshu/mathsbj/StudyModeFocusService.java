@@ -87,13 +87,7 @@ public final class StudyModeFocusService extends Service {
     private Handler monitorHandler;
     private final AtomicBoolean immediateEvaluationQueued = new AtomicBoolean(false);
     private volatile long lastImmediateEvaluationElapsedMs = 0L;
-    private final Runnable immediateEvaluationRunnable = () -> {
-        immediateEvaluationQueued.set(false);
-        Handler currentHandler = monitorHandler;
-        if (!running || currentHandler == null) return;
-        currentHandler.removeCallbacks(monitorRunnable);
-        monitorRunnable.run();
-    };
+    private final Runnable immediateEvaluationRunnable = this::runImmediateEvaluation;
     private WindowManager windowManager;
     private android.view.View shieldView;
     private TextView remainingTimeView;
@@ -493,6 +487,15 @@ public final class StudyModeFocusService extends Service {
             if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
         }
     };
+
+    private void runImmediateEvaluation() {
+        immediateEvaluationQueued.set(false);
+        Handler currentHandler = monitorHandler;
+        if (!running || currentHandler == null) return;
+        lastImmediateEvaluationElapsedMs = SystemClock.elapsedRealtime();
+        currentHandler.removeCallbacks(monitorRunnable);
+        monitorRunnable.run();
+    }
 
     private void resetForegroundResolution() {
         lastForegroundPackage = null;
