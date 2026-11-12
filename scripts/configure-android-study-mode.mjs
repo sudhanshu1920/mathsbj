@@ -31,6 +31,7 @@ const REQUIRED_PERMISSIONS = [
   'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
   'android.permission.RECEIVE_BOOT_COMPLETED',
   'android.permission.ACCESS_NOTIFICATION_POLICY',
+  'android.permission.POST_NOTIFICATIONS',
 ];
 
 function ensureManifestQueries(manifest) {

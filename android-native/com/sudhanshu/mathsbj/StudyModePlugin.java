@@ -1,8 +1,10 @@
 package com.sudhanshu.mathsbj;
 
+import android.Manifest;
 import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -11,12 +13,16 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.provider.Settings;
 
+import androidx.core.content.ContextCompat;
+
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import org.json.JSONArray;
 
@@ -28,7 +34,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-@CapacitorPlugin(name = "StudyMode")
+@CapacitorPlugin(
+    name = "StudyMode",
+    permissions = {
+        @Permission(alias = "postNotifications", strings = { Manifest.permission.POST_NOTIFICATIONS })
+    }
+)
 public final class StudyModePlugin extends Plugin {
     private static final long APP_CATALOG_CACHE_TTL_MS = 5L * 60L * 1000L;
     private static final Object APP_CATALOG_LOCK = new Object();
@@ -315,6 +326,28 @@ public final class StudyModePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void requestNotificationPermission(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+            || ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            resolveNotificationPermission(call);
+            return;
+        }
+        requestPermissionForAlias("postNotifications", call, "notificationPermissionResult");
+    }
+
+    @PermissionCallback
+    private void notificationPermissionResult(PluginCall call) {
+        resolveNotificationPermission(call);
+    }
+
+    private void resolveNotificationPermission(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("enabled", StudyModeManager.areNotificationsEnabled(getContext()));
+        call.resolve(result);
+    }
+
+    @PluginMethod
     public void openPermissionSettings(PluginCall call) {
         String permission = call.getString("permission", "");
         Intent intent;
@@ -325,6 +358,25 @@ public final class StudyModePlugin extends Plugin {
             case "overlay":
                 intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     android.net.Uri.parse("package:" + getContext().getPackageName()));
+                break;
+            case "battery":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    // General settings are user-controlled; do not request the
+                    // policy-restricted REQUEST_IGNORE_BATTERY_OPTIMIZATIONS exemption.
+                    intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                } else {
+                    intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getContext().getPackageName()));
+                }
+                break;
+            case "notifications":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                    intent.putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+                } else {
+                    intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getContext().getPackageName()));
+                }
                 break;
             case "exactAlarm":
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

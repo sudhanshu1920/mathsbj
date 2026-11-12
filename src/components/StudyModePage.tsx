@@ -20,6 +20,7 @@ import {
   getStudyModeStatus,
   isStudyModeNative,
   openStudyModePermission,
+  requestStudyModeNotificationPermission,
   acceptStudyModeAccessibilityDisclosure,
   refreshStudyMode,
   saveStudyModeConfig,
@@ -31,6 +32,8 @@ import {
   type StudyModeSession,
   type StudyModeStatus,
 } from "@/lib/studyMode";
+import { getStudyModePermissionReadiness } from "@/lib/studyModePermissions";
+import StudyModePermissionSetup, { type StudyModePermissionKey } from "@/components/StudyModePermissionSetup";
 import {
   DEFAULT_STUDY_MODE_CONFIG,
   validateStudyModeSchedule,
@@ -153,6 +156,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [studyPickerOpen, setStudyPickerOpen] = useState(false);
   const [studySearch, setStudySearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [permissionSetupOpen, setPermissionSetupOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [appFilter, setAppFilter] = useState<StudyModeAppFilter>("all");
@@ -186,6 +190,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   }, []);
 
   const isMountedRef = useRef(true);
+  const permissionSetupAutoOpenedRef = useRef(false);
   const loadInFlightRef = useRef<Promise<void> | null>(null);
   const historyInFlightRef = useRef<Promise<void> | null>(null);
   const appCatalogRef = useRef<StudyModeApp[] | null>(null);
@@ -295,6 +300,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         if (!isMountedRef.current) return;
         statusRef.current = nextStatus;
         setStatus(nextStatus);
+        if (!permissionSetupAutoOpenedRef.current) {
+          permissionSetupAutoOpenedRef.current = true;
+          if (!nextStatus.config.enabled && !nextStatus.activeSession?.active
+            && !getStudyModePermissionReadiness(nextStatus).coreReady) {
+            setPermissionSetupOpen(true);
+          }
+        }
         if (nextStatus.activeSession?.active) {
           setSessionType(nextStatus.activeSession.sessionType);
           setSessionDurationSeconds(nextStatus.activeSession.durationSeconds);
@@ -392,6 +404,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
 
   const activeSession = status?.activeSession?.active ? status.activeSession : null;
+  const permissionReadiness = status ? getStudyModePermissionReadiness(status) : null;
+  const corePermissionsReady = permissionReadiness?.coreReady === true;
 
   const handleSessionExpired = useCallback(async (_sessionId: string) => {
     try {
@@ -553,6 +567,11 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
 
   const handleStartSession = async () => {
     if (saving || loading) return;
+    if (sessionEnforced && !corePermissionsReady) {
+      setPermissionSetupOpen(true);
+      setMessage("Complete the required Android permissions before starting an enforced focus session.");
+      return;
+    }
     if (draft.selectedPackageNames.length === 0) {
       setMessage("Select at least one app before starting a focus session.");
       return;
@@ -639,6 +658,12 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       return;
     }
 
+    if (!corePermissionsReady) {
+      setMessage("Study Mode cannot start app blocking until its required Android permissions are ready.");
+      setPermissionSetupOpen(true);
+      return;
+    }
+
     const validation = validateStudyModeSchedule(draft);
     if (validation || draft.selectedPackageNames.length === 0) {
       setMessage(validation || "Select at least one app before enabling Study Mode.");
@@ -669,40 +694,62 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     }
   };
 
+  const advancedMonitoringReady = status?.permissions.accessibilityEnabled === true
+    && status?.permissions.accessibilityConsent === true
+    && status?.permissions.accessibilitySnapshotReady === true;
+  const advancedMonitoringRequested = permissionReadiness?.advancedMonitoringRequested === true;
+  const managedDevice = status?.permissions.deviceOwner === true || status?.permissions.profileOwner === true;
   const permissionItems = [
     {
       key: "usage" as const,
       title: "Usage Access",
-      granted: status?.permissions.usageAccess === true,
-      required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner"
-        && !(status?.permissions.accessibilityEnabled && status?.permissions.accessibilityConsent),
-      helper: "Fallback foreground monitoring on personal devices. It does not read screen text or window content.",
+      granted: status?.permissions.usageAccess === true || managedDevice,
+      required: permissionReadiness
+        ? !permissionReadiness.monitoringReady && !advancedMonitoringRequested
+        : true,
+      helper: managedDevice
+        ? "Not required for managed-device system suspension."
+        : advancedMonitoringReady && !status?.permissions.usageAccess
+          ? "Advanced window detection is active; Usage Access remains an optional fallback."
+          : "Detects the foreground app. A complete, consented Advanced window scan can also provide monitoring.",
     },
     {
       key: "overlay" as const,
       title: "Display over other apps",
-      granted: status?.permissions.overlay === true,
-      required: !status?.permissions.deviceOwner && !status?.permissions.profileOwner,
-      helper: "Shows the Study Mode shield over a selected app.",
+      granted: permissionReadiness?.overlayReady === true,
+      required: permissionReadiness ? !permissionReadiness.overlayReady : true,
+      helper: managedDevice ? "Not required for managed-device system suspension." : "Shows the Study Mode blocking screen.",
     },
     {
+      key: "battery" as const,
+      title: "Battery optimization",
+      granted: status?.permissions.batteryOptimizationIgnored === true,
+      required: false,
+      helper: "Optional. Review Android battery settings; background execution is still subject to Android and OEM limits.",
+    },
+    ...(status?.exactAlarmFallback ? [{
       key: "exactAlarm" as const,
       title: "Exact alarms",
       granted: status?.permissions.exactAlarm === true,
-      required: (status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")
-        && (draft.enabled || Boolean(status?.activeSession?.active)),
-      helper: status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner"
-        ? "Required for safely timed system-level app suspension and release."
-        : "Without this, Android may deliver schedule changes late.",
-    },
+      required: permissionReadiness?.exactAlarmRequired === true,
+      helper: permissionReadiness?.exactAlarmRequired
+        ? "Required for this managed-device schedule."
+        : "Optional on personal devices. Android uses an inexact fallback when this access is unavailable.",
+    }] : []),
     ...(status?.permissions.accessibilityAvailable ? [{
       key: "accessibility" as const,
       title: "Advanced multi-window detection",
-      granted: status?.permissions.accessibilityEnabled === true
-        && status?.permissions.accessibilityConsent === true,
-      required: false,
-      helper: "Optional. After your in-app agreement, detects package names in accessible split-screen and supported pop-up app windows. It does not read text, messages, passwords, screenshots, or gestures.",
+      granted: advancedMonitoringReady,
+      required: advancedMonitoringRequested && !advancedMonitoringReady,
+      helper: "Optional Advanced feature. After your in-app agreement, checks accessible app-window package names without reading screen text, messages, passwords, screenshots, or gestures.",
     }] : []),
+    {
+      key: "notifications" as const,
+      title: "Notifications",
+      granted: status?.permissions.notificationsEnabled === true,
+      required: false,
+      helper: "Optional. Controls whether Android can show Study Mode and reminder notifications.",
+    },
     {
       key: "dnd" as const,
       title: "Do Not Disturb",
@@ -712,9 +759,28 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     },
   ];
 
-  const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "accessibility") => {
+  const openPermission = async (permission: StudyModePermissionKey | "dnd") => {
     if (permission === "accessibility") {
-      setAccessibilityDisclosureOpen(true);
+      if (status?.permissions.accessibilityConsent === true) {
+        try {
+          await openStudyModePermission("accessibility");
+        } catch {
+          setMessage("Android Accessibility settings could not be opened.");
+        }
+      } else {
+        setAccessibilityDisclosureOpen(true);
+      }
+      return;
+    }
+    if (permission === "notifications") {
+      try {
+        const enabled = await requestStudyModeNotificationPermission();
+        if (!enabled) await openStudyModePermission("notifications");
+        const latestStatus = await getStudyModeStatus();
+        if (isMountedRef.current) setStatus(latestStatus);
+      } catch {
+        setMessage("Android notification permission or settings could not be opened.");
+      }
       return;
     }
     try {
@@ -744,8 +810,29 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     }
   };
 
+  const requestNotifications = async (): Promise<boolean> => {
+    await openPermission("notifications");
+    const latestStatus = await getStudyModeStatus();
+    if (isMountedRef.current) setStatus(latestStatus);
+    return latestStatus.permissions.notificationsEnabled === true;
+  };
+
   return (
     <div className="study-mode-page min-w-0 space-y-2.5 pb-2">
+      {permissionSetupOpen && status && !loading ? (
+        <StudyModePermissionSetup
+          status={status}
+          onClose={() => setPermissionSetupOpen(false)}
+          onComplete={() => {
+            if (!corePermissionsReady) return;
+            setPermissionSetupOpen(false);
+            setMessage("Required permissions are ready. Study Mode remains off until you turn it on.");
+          }}
+          onOpenPermission={(permission) => { void openPermission(permission); }}
+          onRequestNotifications={requestNotifications}
+        />
+      ) : (
+      <>
       <header className="flex min-w-0 items-center gap-2">
         <button
           type="button"
@@ -791,6 +878,24 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           </div>
         )}
       </section>
+
+      {status && !corePermissionsReady && (
+        <section role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-foreground">App blocking is not fully available</p>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+              {permissionReadiness?.missing.join(" · ") || "Review the required Android permissions."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPermissionSetupOpen(true)}
+            className="min-h-9 shrink-0 rounded-lg border border-warning/35 px-3 text-[10px] font-semibold text-warning transition-colors hover:bg-warning/10"
+          >
+            Review permissions
+          </button>
+        </section>
+      )}
 
       <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
         <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/35">
@@ -1199,6 +1304,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         </p>
       )}
 
+      </>
+      )}
+
       <Dialog open={accessibilityDisclosureOpen} onOpenChange={(open) => {
         if (!accessibilityConsentSaving) setAccessibilityDisclosureOpen(open);
       }}>
@@ -1227,15 +1335,17 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         </DialogContent>
       </Dialog>
 
-      <motion.button
-        type="button"
-        whileTap={{ scale: MOTION.scale.press }}
-        disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
-        onClick={() => { void handleSave(); }}
-        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl gradient-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
-      >
-        <Check size={14} /> {saving ? "Applying…" : hasUnsavedChanges ? "Save & Apply" : "Saved"}
-      </motion.button>
+      {!permissionSetupOpen && (
+        <motion.button
+          type="button"
+          whileTap={{ scale: MOTION.scale.press }}
+          disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
+          onClick={() => { void handleSave(); }}
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl gradient-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <Check size={14} /> {saving ? "Applying…" : hasUnsavedChanges ? "Save & Apply" : "Saved"}
+        </motion.button>
+      )}
     </div>
   );
 };
