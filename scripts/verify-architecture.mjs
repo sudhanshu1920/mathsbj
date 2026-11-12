@@ -987,7 +987,7 @@ if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(f
     !studyModePage.includes('aria-label="Study Mode master switch"') ||
     studyModePage.indexOf('aria-label="Study Mode master switch"') > studyModePage.indexOf('>Blocked Apps</span>') ||
     !studyModePage.includes('chooseStudyModeTime') ||
-    !studyModePage.includes('(status?.enforcementMode === "device_owner" || status?.enforcementMode === "profile_owner")') ||
+    !studyModePage.includes('profileOwner === true') ||
     !studyModePage.includes('status?.activeSession?.active') ||
     !studyModePage.includes('aria-label={day.name}') ||
     !studyModeIndex.includes('studyModePageOpen.current') ||
