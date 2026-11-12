@@ -1075,7 +1075,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     studyModePage.includes('Accessibility tracking') ||
     !studyModePage.includes('key: "accessibility" as const') ||
     !studyModePage.includes('key: "usage" as const') ||
-    !studyModePage.includes('Fallback foreground monitoring on personal devices') ||
+    !studyModePage.includes('getStudyModePermissionReadiness') ||
     !studyModeManager.includes('DevicePolicyManager') ||
     !studyModeManager.includes('setPackagesSuspended(getAdminComponent(context)') ||
     !studyModeManager.includes('isPackageSuspended(getAdminComponent(context), packageName)') ||
