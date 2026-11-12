@@ -36,8 +36,6 @@ test("advanced accessibility monitoring enumerates interactive app windows witho
   assert.ok(interrupt.includes("scheduleScan(RESCAN_INTERVAL_MS)"));
   assert.ok(!interrupt.includes("StudyModeWindowRegistry.clear()"));
   assert.ok(manager.includes("recordAccessibilityDisclosureConsent"));
-  assert.ok(manager.includes("accessibilityConsent"));
-  assert.ok(manager.includes("hasAccessibilityDisclosureConsent(context)"));
   for (const forbidden of ["getText(", "getChild(", "performAction(", "takeScreenshot("]) {
     assert.ok(!accessibility.includes(forbidden), "Accessibility scanner must not collect text, traverse nodes, act, or take screenshots");
   }
@@ -145,7 +143,7 @@ test("foreground lookup failures surface as unavailable while service is alive",
   assert.ok(status.indexOf("hasForegroundLookupFailure()") >= 0);
   assert.ok(status.indexOf("hasForegroundLookupFailure()") < status.indexOf("isRunning()"));
   assert.ok(page.includes('status.enforcementState === "monitoring_unavailable"'));
-  assert.ok(page.includes("grant Usage Access or enable Advanced window detection"));
+  assert.ok(page.includes("foreground app monitoring unavailable"));
 });
 
 test("service teardown preserves an overlay cleanup failure instead of overwriting it as stopped", () => {

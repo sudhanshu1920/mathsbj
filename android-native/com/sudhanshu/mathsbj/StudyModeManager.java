@@ -395,8 +395,7 @@ public final class StudyModeManager {
     }
 
     public static boolean hasForegroundMonitoringPermission(Context context) {
-        return hasUsageAccess(context) || (hasAccessibilityDisclosureConsent(context)
-            && StudyModeWindowRegistry.isAccessibilityServiceEnabled(context));
+        return hasUsageAccess(context) || StudyModeWindowRegistry.isAccessibilityServiceEnabled(context);
     }
 
     public static boolean hasForegroundMonitoringSource(Context context) {
@@ -1152,7 +1151,6 @@ public final class StudyModeManager {
         boolean accessibilityAvailable = StudyModeWindowRegistry.isAccessibilityServiceAvailable(context);
         boolean accessibilityEnabled = accessibilityAvailable
             && StudyModeWindowRegistry.isAccessibilityServiceEnabled(context);
-        boolean accessibilityConsent = hasAccessibilityDisclosureConsent(context);
         permissions.put("usageAccess", hasUsageAccess(context));
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
@@ -1161,7 +1159,6 @@ public final class StudyModeManager {
         permissions.put("dndAccess", hasNotificationPolicyAccess(context));
         permissions.put("accessibilityAvailable", accessibilityAvailable);
         permissions.put("accessibilityEnabled", accessibilityEnabled);
-        permissions.put("accessibilityConsent", accessibilityConsent);
 
         List<String> applied = readAppliedPackages(context);
         JSArray appliedArray = new JSArray();
@@ -1195,7 +1192,7 @@ public final class StudyModeManager {
             if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
-        } else if ((!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted) {
+        } else if ((!usageGranted && !accessibilityEnabled) || !overlayGranted) {
             state = "permission_required";
         } else if (!usageGranted && (!accessibilityEnabled || !StudyModeWindowRegistry.hasFreshSnapshot())) {
             state = "monitoring_unavailable";

@@ -48,7 +48,6 @@ export interface StudyModeStatus {
     dndAccess: boolean;
     accessibilityAvailable?: boolean;
     accessibilityEnabled?: boolean;
-    accessibilityConsent?: boolean;
   };
   scheduleActive: boolean;
   sessionActive: boolean;
@@ -127,7 +126,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       permissions: {
         usageAccess: false, overlay: false,
         exactAlarm: false, deviceOwner: false, profileOwner: false, dndAccess: false,
-        accessibilityAvailable: false, accessibilityEnabled: false, accessibilityConsent: false,
+        accessibilityAvailable: false, accessibilityEnabled: false,
       },
       scheduleActive: false,
       sessionActive: false,

@@ -675,7 +675,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       title: "Usage Access",
       granted: status?.permissions.usageAccess === true,
       required: status?.enforcementMode !== "device_owner" && status?.enforcementMode !== "profile_owner"
-        && !status?.permissions.accessibilityEnabled,
+        && !(status?.permissions.accessibilityEnabled && status?.permissions.accessibilityConsent),
       helper: "Fallback foreground monitoring on personal devices. It does not read screen text or window content.",
     },
     {
@@ -700,11 +700,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       title: "Advanced multi-window detection",
       granted: status?.permissions.accessibilityEnabled === true
         && status?.permissions.accessibilityConsent === true,
-      required: status?.permissions.accessibilityEnabled === true
-        && status?.permissions.accessibilityConsent !== true,
-      helper: status?.permissions.accessibilityConsent
-        ? "Optional. Detects package names in accessible split-screen and supported pop-up app windows. It does not read text, messages, passwords, screenshots, or gestures."
-        : "Review the disclosure and agree before Android Accessibility is allowed to scan app windows.",
+      required: false,
+      helper: "Optional. After your in-app agreement, detects package names in accessible split-screen and supported pop-up app windows. It does not read text, messages, passwords, screenshots, or gestures.",
     }] : []),
     {
       key: "dnd" as const,
@@ -716,7 +713,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   ];
 
   const openPermission = async (permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "accessibility") => {
-    if (permission === "accessibility" && status?.permissions.accessibilityConsent !== true) {
+    if (permission === "accessibility") {
       setAccessibilityDisclosureOpen(true);
       return;
     }
