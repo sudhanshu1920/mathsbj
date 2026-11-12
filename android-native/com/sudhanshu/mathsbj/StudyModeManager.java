@@ -1204,7 +1204,7 @@ public final class StudyModeManager {
             if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
-        } else if ((!usageGranted && !accessibilityMonitoringReady) || !overlayGranted) {
+        } else if ((!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted) {
             state = "permission_required";
         } else if ((!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady) {
             // Usage Access is the normal foreground fallback. Advanced window

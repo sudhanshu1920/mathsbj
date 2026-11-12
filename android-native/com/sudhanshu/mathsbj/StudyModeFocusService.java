@@ -368,10 +368,11 @@ public final class StudyModeFocusService extends Service {
             if (blockedWindowPackage != null) {
                 foreground = blockedWindowPackage;
                 logStage("BLOCKED_WINDOW_MATCHED", blockedWindowPackage, "", "matched", "accessible_interactive_window");
-            } else if (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
-                && StudyModeWindowRegistry.hasFreshSnapshot()) {
-                // A fresh, non-empty accessible-window snapshot with no selected
-                // blocked package is an explicit non-blocked decision.
+            } else if (StudyModeWindowRegistry.hasFreshSnapshot()
+                && (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
+                    || hasForegroundLookupFailure())) {
+                // A complete accessible-window snapshot with no selected blocked
+                // package supersedes a stale UsageEvents package (or missing Usage Access).
                 foreground = getPackageName();
             }
 
