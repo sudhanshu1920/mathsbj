@@ -29,18 +29,29 @@ test("advanced accessibility monitoring enumerates interactive app windows witho
   assert.ok(registry.includes("MAX_SNAPSHOT_AGE_MS"));
   assert.ok(registry.includes("snapshotComplete"));
   assert.ok(registry.includes("findBlockedPackage"));
+  const blockedWindowLookup = between(
+    registry,
+    "public static String findBlockedPackage(",
+    "static final class WindowRecord",
+  );
+  assert.ok(!blockedWindowLookup.includes("!snapshotComplete"));
+  assert.ok(blockedWindowLookup.includes("snapshotAtElapsedMs"));
+  assert.ok(blockedWindowLookup.includes("StudyModeManager.isPackageSelected(context, window.packageName)"));
   assert.ok(accessibility.includes("snapshot.complete"));
   assert.ok(accessibility.includes("hasApplicationWindow"));
   assert.ok(accessibility.includes("IDLE_RESCAN_INTERVAL_MS"));
   assert.ok(accessibility.includes("nextDelayMs = IDLE_RESCAN_INTERVAL_MS"));
   assert.ok(source.includes("isAccessibilityWindowMonitoringRequired"));
   assert.ok(source.includes("hasForegroundLookupFailure()"));
-  assert.ok(source.includes("!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)"));
-  assert.ok(source.includes("|| hasForegroundLookupFailure()"));
-  assert.ok(source.includes("complete accessible-window snapshot with no selected blocked"));
+  assert.ok(source.includes("boolean accessibilityWindowCoverageRequired ="));
+  assert.ok(source.includes("StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);"));
+  assert.ok(source.includes("if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()"));
+  assert.ok(source.includes("an incomplete window list"));
+  assert.ok(source.includes("cannot prove that no blocked split-screen pane exists"));
   assert.ok(source.includes("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE"));
   assert.ok(manager.includes("accessibilityMonitoringReady"));
   assert.ok(manager.includes("(!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted"));
+  assert.ok(manager.includes("accessibilityEnabled && accessibilityConsent && !accessibilityMonitoringReady"));
   assert.ok(manager.includes("(!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady"));
   assert.ok(manager.includes("accessibilityConsent"));
   assert.ok(registry.includes("StudyModeManager.isPackageSelected(context, window.packageName)"));
@@ -111,15 +122,27 @@ test("failed overlay removal does not permit a second overlapping blocker", () =
   assert.ok(removal.includes('StudyModeManager.setServiceState(this, "overlay_failed")'));
 });
 
-test("popup failure retries are bounded, back off, and reset on a fresh condition", () => {
+test("popup failures back off, then periodically retry the same blocked package", () => {
   for (const invariant of [
     "MAX_POPUP_FAILURES_PER_FOREGROUND = 3",
     "POPUP_RETRY_FIRST_BACKOFF_MS",
     "POPUP_RETRY_SECOND_BACKOFF_MS",
+    "POPUP_RETRY_RECOVERY_BACKOFF_MS = 30_000L",
     "failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND",
-    "awaiting_new_foreground_transition",
+    "POPUP_RETRY_CYCLE_REARMED",
+    "recovery_backoff_elapsed",
     "resetPopupRetryState()",
   ]) assert.ok(source.includes(invariant), `Missing retry invariant: ${invariant}`);
+
+  const retryGate = between(
+    source,
+    "private synchronized boolean shouldDeferPopupLaunch(",
+    "private synchronized void recordPopupLaunchFailure(",
+  );
+  assert.ok(retryGate.indexOf("SystemClock.elapsedRealtime() < nextPopupRetryElapsedMs")
+    < retryGate.indexOf("failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND"));
+  assert.ok(retryGate.includes("failedPopupAttempts = 0;"));
+  assert.ok(retryGate.includes("return false;"));
 });
 
 test("popup retry state is synchronized across worker and UI threads", () => {

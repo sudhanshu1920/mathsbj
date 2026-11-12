@@ -132,10 +132,13 @@ public final class StudyModeWindowRegistry {
 
         final List<WindowRecord> visibleSnapshot;
         synchronized (LOCK) {
-            if (!serviceConnected || !snapshotComplete || snapshotAtElapsedMs <= 0L
+            if (!serviceConnected || snapshotAtElapsedMs <= 0L
                 || SystemClock.elapsedRealtime() - snapshotAtElapsedMs > MAX_SNAPSHOT_AGE_MS) {
                 return null;
             }
+            // An incomplete snapshot can still positively identify a readable blocked
+            // window. Only its absence of a match is inconclusive; callers must keep
+            // using hasFreshSnapshot() when they need proof that no blocked pane exists.
             visibleSnapshot = new ArrayList<>(windows);
         }
         if (visibleSnapshot.isEmpty()) return null;

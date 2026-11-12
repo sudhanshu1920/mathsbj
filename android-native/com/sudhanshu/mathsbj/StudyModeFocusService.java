@@ -51,6 +51,7 @@ public final class StudyModeFocusService extends Service {
     private static final long EMPTY_INITIAL_LOOKUP_FALLBACK_MS = 30_000L;
     private static final long POPUP_RETRY_FIRST_BACKOFF_MS = 2000L;
     private static final long POPUP_RETRY_SECOND_BACKOFF_MS = 6000L;
+    private static final long POPUP_RETRY_RECOVERY_BACKOFF_MS = 30_000L;
     private static final int MAX_POPUP_FAILURES_PER_FOREGROUND = 3;
     private static final String LOG_TAG = "MathMasterStudyMode";
     private static volatile boolean running = false;
@@ -109,7 +110,6 @@ public final class StudyModeFocusService extends Service {
     private String failedPopupPackage = "";
     private int failedPopupAttempts = 0;
     private long nextPopupRetryElapsedMs = 0L;
-    private boolean popupRetryExhaustedLogged = false;
     private volatile String activeDiagnosticSessionId = "none";
     private long lastDiagnosticSessionRefreshElapsedMs = 0L;
     private final AtomicLong foregroundDecisionSequence = new AtomicLong(0L);
@@ -401,9 +401,7 @@ public final class StudyModeFocusService extends Service {
             // cannot prove that no blocked split-screen pane exists. Keep any
             // current shield visible and report monitoring as unavailable.
             boolean accessibilityWindowCoverageRequired =
-                StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this)
-                    && (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
-                        || hasForegroundLookupFailure());
+                StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);
             if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()
                 && !shouldShield) {
                 if (!windowSnapshotUnavailableLogged) {
@@ -474,7 +472,6 @@ public final class StudyModeFocusService extends Service {
         failedPopupPackage = "";
         failedPopupAttempts = 0;
         nextPopupRetryElapsedMs = 0L;
-        popupRetryExhaustedLogged = false;
     }
 
     private synchronized void resetPopupRetryStateForDifferentPackage(String packageName) {
@@ -483,15 +480,18 @@ public final class StudyModeFocusService extends Service {
 
     private synchronized boolean shouldDeferPopupLaunch(String packageName, String requestId) {
         if (!packageName.equals(failedPopupPackage)) return false;
+        if (SystemClock.elapsedRealtime() < nextPopupRetryElapsedMs) return true;
+
+        // Three failures pause rapid retries, not blocking itself. Re-arm a slow
+        // recovery attempt for the same package so a transient overlay/OEM failure
+        // cannot leave that package unshielded until the user switches apps.
         if (failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND) {
-            if (!popupRetryExhaustedLogged) {
-                popupRetryExhaustedLogged = true;
-                logStage("POPUP_LAUNCH_FAILED", packageName, requestId,
-                    "retry_limit_reached", "awaiting_new_foreground_transition");
-            }
-            return true;
+            failedPopupAttempts = 0;
+            nextPopupRetryElapsedMs = 0L;
+            logStage("POPUP_RETRY_CYCLE_REARMED", packageName, requestId,
+                "retrying", "recovery_backoff_elapsed");
         }
-        return SystemClock.elapsedRealtime() < nextPopupRetryElapsedMs;
+        return false;
     }
 
     private synchronized void recordPopupLaunchFailure(String packageName) {
@@ -505,9 +505,8 @@ public final class StudyModeFocusService extends Service {
         } else if (failedPopupAttempts == 2) {
             nextPopupRetryElapsedMs = SystemClock.elapsedRealtime() + POPUP_RETRY_SECOND_BACKOFF_MS;
         } else {
-            nextPopupRetryElapsedMs = Long.MAX_VALUE;
+            nextPopupRetryElapsedMs = SystemClock.elapsedRealtime() + POPUP_RETRY_RECOVERY_BACKOFF_MS;
         }
-        popupRetryExhaustedLogged = false;
     }
 
     private void refreshDiagnosticSessionId(boolean force) {
