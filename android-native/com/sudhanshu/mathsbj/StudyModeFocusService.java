@@ -51,6 +51,7 @@ public final class StudyModeFocusService extends Service {
     private static final long EMPTY_INITIAL_LOOKUP_FALLBACK_MS = 30_000L;
     private static final long POPUP_RETRY_FIRST_BACKOFF_MS = 2000L;
     private static final long POPUP_RETRY_SECOND_BACKOFF_MS = 6000L;
+    private static final long POPUP_RETRY_RECOVERY_BACKOFF_MS = 30_000L;
     private static final int MAX_POPUP_FAILURES_PER_FOREGROUND = 3;
     private static final String LOG_TAG = "MathMasterStudyMode";
     private static volatile boolean running = false;
@@ -483,15 +484,19 @@ public final class StudyModeFocusService extends Service {
 
     private synchronized boolean shouldDeferPopupLaunch(String packageName, String requestId) {
         if (!packageName.equals(failedPopupPackage)) return false;
+        if (SystemClock.elapsedRealtime() < nextPopupRetryElapsedMs) return true;
+
+        // Three failures pause rapid retries, not blocking itself. Re-arm a slow
+        // recovery attempt for the same package so a transient overlay/OEM failure
+        // cannot leave that package unshielded until the user switches apps.
         if (failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND) {
-            if (!popupRetryExhaustedLogged) {
-                popupRetryExhaustedLogged = true;
-                logStage("POPUP_LAUNCH_FAILED", packageName, requestId,
-                    "retry_limit_reached", "awaiting_new_foreground_transition");
-            }
-            return true;
+            failedPopupAttempts = 0;
+            nextPopupRetryElapsedMs = 0L;
+            popupRetryExhaustedLogged = false;
+            logStage("POPUP_RETRY_CYCLE_REARMED", packageName, requestId,
+                "retrying", "recovery_backoff_elapsed");
         }
-        return SystemClock.elapsedRealtime() < nextPopupRetryElapsedMs;
+        return false;
     }
 
     private synchronized void recordPopupLaunchFailure(String packageName) {
@@ -505,7 +510,7 @@ public final class StudyModeFocusService extends Service {
         } else if (failedPopupAttempts == 2) {
             nextPopupRetryElapsedMs = SystemClock.elapsedRealtime() + POPUP_RETRY_SECOND_BACKOFF_MS;
         } else {
-            nextPopupRetryElapsedMs = Long.MAX_VALUE;
+            nextPopupRetryElapsedMs = SystemClock.elapsedRealtime() + POPUP_RETRY_RECOVERY_BACKOFF_MS;
         }
         popupRetryExhaustedLogged = false;
     }
