@@ -29,6 +29,14 @@ test("advanced accessibility monitoring enumerates interactive app windows witho
   assert.ok(registry.includes("MAX_SNAPSHOT_AGE_MS"));
   assert.ok(registry.includes("snapshotComplete"));
   assert.ok(registry.includes("findBlockedPackage"));
+  const blockedWindowLookup = between(
+    registry,
+    "public static String findBlockedPackage(",
+    "static final class WindowRecord",
+  );
+  assert.ok(!blockedWindowLookup.includes("!snapshotComplete"));
+  assert.ok(blockedWindowLookup.includes("snapshotAtElapsedMs"));
+  assert.ok(blockedWindowLookup.includes("StudyModeManager.isPackageSelected(context, window.packageName)"));
   assert.ok(accessibility.includes("snapshot.complete"));
   assert.ok(accessibility.includes("hasApplicationWindow"));
   assert.ok(accessibility.includes("IDLE_RESCAN_INTERVAL_MS"));
@@ -111,15 +119,27 @@ test("failed overlay removal does not permit a second overlapping blocker", () =
   assert.ok(removal.includes('StudyModeManager.setServiceState(this, "overlay_failed")'));
 });
 
-test("popup failure retries are bounded, back off, and reset on a fresh condition", () => {
+test("popup failures back off, then periodically retry the same blocked package", () => {
   for (const invariant of [
     "MAX_POPUP_FAILURES_PER_FOREGROUND = 3",
     "POPUP_RETRY_FIRST_BACKOFF_MS",
     "POPUP_RETRY_SECOND_BACKOFF_MS",
+    "POPUP_RETRY_RECOVERY_BACKOFF_MS = 30_000L",
     "failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND",
-    "awaiting_new_foreground_transition",
+    "POPUP_RETRY_CYCLE_REARMED",
+    "recovery_backoff_elapsed",
     "resetPopupRetryState()",
   ]) assert.ok(source.includes(invariant), `Missing retry invariant: ${invariant}`);
+
+  const retryGate = between(
+    source,
+    "private synchronized boolean shouldDeferPopupLaunch(",
+    "private synchronized void recordPopupLaunchFailure(",
+  );
+  assert.ok(retryGate.indexOf("SystemClock.elapsedRealtime() < nextPopupRetryElapsedMs")
+    < retryGate.indexOf("failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND"));
+  assert.ok(retryGate.includes("failedPopupAttempts = 0;"));
+  assert.ok(retryGate.includes("return false;"));
 });
 
 test("popup retry state is synchronized across worker and UI threads", () => {
