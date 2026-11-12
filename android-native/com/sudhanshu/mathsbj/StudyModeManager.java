@@ -14,6 +14,9 @@ import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Process;
+import android.os.PowerManager;
+
+import androidx.core.app.NotificationManagerCompat;
 import android.os.SystemClock;
 import android.provider.Settings;
 
@@ -409,6 +412,25 @@ public final class StudyModeManager {
 
     public static boolean hasOverlayPermission(Context context) {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context);
+    }
+
+    public static boolean isBatteryOptimizationIgnored(Context context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true;
+        try {
+            PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+            return powerManager != null
+                && powerManager.isIgnoringBatteryOptimizations(context.getPackageName());
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    public static boolean areNotificationsEnabled(Context context) {
+        try {
+            return NotificationManagerCompat.from(context).areNotificationsEnabled();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     public static boolean hasExactAlarmPermission(Context context) {
@@ -1161,6 +1183,8 @@ public final class StudyModeManager {
         permissions.put("usageAccess", hasUsageAccess(context));
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
+        permissions.put("batteryOptimizationIgnored", isBatteryOptimizationIgnored(context));
+        permissions.put("notificationsEnabled", areNotificationsEnabled(context));
         permissions.put("deviceOwner", isDeviceOwner(context));
         permissions.put("profileOwner", isProfileOwner(context));
         permissions.put("dndAccess", hasNotificationPolicyAccess(context));
