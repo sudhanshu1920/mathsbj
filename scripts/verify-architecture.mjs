@@ -1070,6 +1070,11 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeAccessibilityService.includes('getWindowsOnAllDisplays()') ||
     !studyModeAccessibilityService.includes('FLAG_RETRIEVE_INTERACTIVE_WINDOWS') ||
     !studyModeAccessibilityService.includes('root.getPackageName()') ||
+    !studyModeAccessibilityService.includes('recordAccessibilityEvent') ||
+    !studyModeAccessibilityService.includes('scheduleEventScan') ||
+    !studyModeWindowRegistry.includes('ACCESSIBILITY_EVENT_TTL_MS = 2200L') ||
+    !studyModeFocus.includes('requestImmediateEvaluation()') ||
+    !studyModeFocus.includes('POPUP_VISIBILITY_VERIFY_DELAY_MS = 150L') ||
     studyModeAccessibilityService.includes('getText(') ||
     studyModeAccessibilityService.includes('performAction(') ||
     studyModePage.includes('Accessibility tracking') ||
