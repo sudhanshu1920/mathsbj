@@ -48,6 +48,7 @@ export interface StudyModeStatus {
     dndAccess: boolean;
     accessibilityAvailable?: boolean;
     accessibilityEnabled?: boolean;
+    accessibilityConsent?: boolean;
   };
   scheduleActive: boolean;
   sessionActive: boolean;
