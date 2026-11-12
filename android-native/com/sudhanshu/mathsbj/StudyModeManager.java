@@ -1206,9 +1206,12 @@ public final class StudyModeManager {
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
         } else if ((!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted) {
             state = "permission_required";
+        } else if (accessibilityEnabled && accessibilityConsent && !accessibilityMonitoringReady) {
+            // Advanced multi-window mode is an explicit request for cross-window
+            // coverage. UsageStats alone cannot prove that every visible pane was inspected.
+            state = "monitoring_unavailable";
         } else if ((!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady) {
-            // Usage Access is the normal foreground fallback. Advanced window
-            // scanning is required only when UsageStats is unavailable or failing.
+            // Without Usage Access, a fresh complete Accessibility snapshot is the fallback.
             state = "monitoring_unavailable";
         } else if (StudyModeFocusService.hasOverlayFailure()) {
             // The monitor can remain alive while Android refuses or detaches the overlay.
