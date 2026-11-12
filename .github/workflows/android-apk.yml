@@ -354,7 +354,7 @@ jobs:
 
       - name: Build signed release APK
         working-directory: android
-        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
+        run: ./gradlew --no-daemon --stacktrace :app:assembleStandardRelease :app:assembleAdvancedRelease
 
       - name: Verify APK identity, version, signature and installability
         shell: bash
@@ -373,12 +373,18 @@ jobs:
           test -x "$APKSIGNER"
           test -x "$AAPT2"
 
-          apk="$(find android/app/build/outputs/apk/release -type f -name '*release*.apk' | head -n 1)"
-          test -n "$apk"
+          apk="android/app/build/outputs/apk/standard/release/app-standard-release.apk"
+          advanced_apk="android/app/build/outputs/apk/advanced/release/app-advanced-release.apk"
+          test -s "$apk"
+          test -s "$advanced_apk"
 
           "$APKSIGNER" verify --verbose "$apk"
+          "$APKSIGNER" verify --verbose "$advanced_apk"
 
           badging="$("$AAPT2" dump badging "$apk")"
+          advanced_badging="$("$AAPT2" dump badging "$advanced_apk")"
+          ADVANCED_VERSION_CODE=$((VERSION_CODE + 100000))
+          echo "$advanced_badging" | grep -q "package: name='$EXPECTED_APPLICATION_ID' versionCode='$ADVANCED_VERSION_CODE' versionName='$EXPECTED_VERSION_NAME'"
           echo "$badging" | grep -q "package: name='$EXPECTED_APPLICATION_ID' versionCode='$EXPECTED_VERSION_CODE' versionName='$EXPECTED_VERSION_NAME'"
 
           expected_fp="$(
@@ -399,8 +405,17 @@ jobs:
             tr '[:lower:]' '[:upper:]' || true
           )"
 
+          advanced_certificate_output="$("$APKSIGNER" verify --print-certs "$advanced_apk" 2>&1)"
+          advanced_fp="$(
+            printf '%s\n' "$advanced_certificate_output" |
+            grep -i 'certificate SHA-256 digest' |
+            grep -Eo '[[:xdigit:]]{64}' |
+            head -n 1 |
+            tr '[:lower:]' '[:upper:]' || true
+          )"
           printf 'Signing keystore certificate SHA-256: %s\n' "$expected_fp"
-          printf 'Built APK signer SHA-256: %s\n' "$actual_fp"
+          printf 'Standard APK signer SHA-256: %s\n' "$actual_fp"
+          printf 'Advanced APK signer SHA-256: %s\n' "$advanced_fp"
           printf 'Pinned production certificate SHA-256: %s\n' "$EXPECTED_RELEASE_CERT_SHA256"
 
           if [[ -z "$expected_fp" || -z "$actual_fp" ]]; then
@@ -411,19 +426,27 @@ jobs:
             echo "::error::The APK was not signed by the certificate in the configured release keystore."
             exit 1
           fi
-          if [[ "$actual_fp" != "$EXPECTED_RELEASE_CERT_SHA256" ]]; then
-            echo "::error::The configured release certificate does not match the pinned production certificate used by existing MathMaster installations."
+          if [[ "$actual_fp" != "$EXPECTED_RELEASE_CERT_SHA256" || "$advanced_fp" != "$actual_fp" ]]; then
+            echo "::error::Standard and Advanced APKs must use the pinned production signing certificate."
             exit 1
           fi
 
-          sha256sum "$apk"
-          ls -lh "$apk"
+          sha256sum "$apk" "$advanced_apk"
+          ls -lh "$apk" "$advanced_apk"
           rm -f "$MATHMASTER_RELEASE_KEYSTORE_PATH"
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: math-master-android-release
-          path: android/app/build/outputs/apk/release/*release*.apk
+          name: math-master-android-standard-release
+          path: android/app/build/outputs/apk/standard/release/app-standard-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Advanced multi-window APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: math-master-android-advanced-release
+          path: android/app/build/outputs/apk/advanced/release/app-advanced-release.apk
           if-no-files-found: error
           retention-days: 14
