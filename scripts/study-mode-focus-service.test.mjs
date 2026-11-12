@@ -46,7 +46,8 @@ test("advanced accessibility monitoring enumerates interactive app windows witho
   assert.ok(source.includes("boolean accessibilityWindowCoverageRequired ="));
   assert.ok(source.includes("StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);"));
   assert.ok(source.includes("if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()"));
-  assert.ok(source.includes("incomplete window list cannot prove"));
+  assert.ok(source.includes("an incomplete window list"));
+  assert.ok(source.includes("cannot prove that no blocked split-screen pane exists"));
   assert.ok(source.includes("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE"));
   assert.ok(manager.includes("accessibilityMonitoringReady"));
   assert.ok(manager.includes("(!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted"));
