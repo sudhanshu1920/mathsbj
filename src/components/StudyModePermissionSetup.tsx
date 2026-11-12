@@ -58,7 +58,7 @@ const StudyModePermissionSetup = ({
         ? "Advanced window detection is active. Usage Access remains a useful fallback."
         : "Let Math Master detect which app is currently being used.",
       granted: permissions.usageAccess === true || managed,
-      required: !readiness.monitoringReady,
+      required: !readiness.monitoringReady && !readiness.advancedMonitoringRequested,
       icon: Smartphone,
       statusText: managed ? "Not required" : advancedReady && !permissions.usageAccess ? "Alternative active" : undefined,
     },
