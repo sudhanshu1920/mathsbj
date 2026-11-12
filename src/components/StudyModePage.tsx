@@ -704,7 +704,9 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       key: "usage" as const,
       title: "Usage Access",
       granted: status?.permissions.usageAccess === true || managedDevice,
-      required: permissionReadiness ? !permissionReadiness.monitoringReady : true,
+      required: permissionReadiness
+        ? !permissionReadiness.monitoringReady && !advancedMonitoringRequested
+        : true,
       helper: managedDevice
         ? "Not required for managed-device system suspension."
         : advancedMonitoringReady && !status?.permissions.usageAccess
