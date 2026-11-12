@@ -488,7 +488,6 @@ public final class StudyModeFocusService extends Service {
         if (failedPopupAttempts >= MAX_POPUP_FAILURES_PER_FOREGROUND) {
             failedPopupAttempts = 0;
             nextPopupRetryElapsedMs = 0L;
-            popupRetryExhaustedLogged = false;
             logStage("POPUP_RETRY_CYCLE_REARMED", packageName, requestId,
                 "retrying", "recovery_backoff_elapsed");
         }
@@ -508,7 +507,6 @@ public final class StudyModeFocusService extends Service {
         } else {
             nextPopupRetryElapsedMs = SystemClock.elapsedRealtime() + POPUP_RETRY_RECOVERY_BACKOFF_MS;
         }
-        popupRetryExhaustedLogged = false;
     }
 
     private void refreshDiagnosticSessionId(boolean force) {
