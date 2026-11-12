@@ -110,7 +110,6 @@ public final class StudyModeFocusService extends Service {
     private String failedPopupPackage = "";
     private int failedPopupAttempts = 0;
     private long nextPopupRetryElapsedMs = 0L;
-    private boolean popupRetryExhaustedLogged = false;
     private volatile String activeDiagnosticSessionId = "none";
     private long lastDiagnosticSessionRefreshElapsedMs = 0L;
     private final AtomicLong foregroundDecisionSequence = new AtomicLong(0L);
@@ -402,9 +401,7 @@ public final class StudyModeFocusService extends Service {
             // cannot prove that no blocked split-screen pane exists. Keep any
             // current shield visible and report monitoring as unavailable.
             boolean accessibilityWindowCoverageRequired =
-                StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this)
-                    && (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
-                        || hasForegroundLookupFailure());
+                StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);
             if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()
                 && !shouldShield) {
                 if (!windowSnapshotUnavailableLogged) {
@@ -475,7 +472,6 @@ public final class StudyModeFocusService extends Service {
         failedPopupPackage = "";
         failedPopupAttempts = 0;
         nextPopupRetryElapsedMs = 0L;
-        popupRetryExhaustedLogged = false;
     }
 
     private synchronized void resetPopupRetryStateForDifferentPackage(String packageName) {
