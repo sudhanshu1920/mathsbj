@@ -27,7 +27,11 @@ A regular installed app does not automatically have Device Owner authority.
 When Math Master is not Device Owner/Profile Owner, the Standard build uses
 Usage Access + an explicitly approved overlay (Focus Shield). The separate
 Advanced build can additionally enable a user-approved Accessibility Service
-for multi-window package detection. Both are best-effort Focus Shield modes,
+for multi-window package detection. Its configured window-state, windows-changed,
+and view-focused events provide short-lived positive package evidence and wake
+the foreground monitor promptly. A separately throttled event scan never cancels
+the periodic all-window scan. The scanner reads package names only and does not
+traverse nodes or read screen text. Both are best-effort Focus Shield modes,
 not system-level package suspension. The interface labels them as **Shield
 only**, never **Frozen**.
 
@@ -90,6 +94,9 @@ affect this fallback calculation.
 
 The foreground service uses Android's `specialUse` foreground-service type,
 an ongoing notification, and `START_STICKY` restoration from the saved session.
+Accessibility package events are held only as a bounded, short-lived in-memory
+signal to reduce detection latency; they are not written to session history or
+uploaded. The popup checks visibility after the initial WindowManager traversal.
 On a normal personal phone, Focus Shield requires an enabled foreground
 monitoring source and the existing user-approved overlay. Standard uses
 Android's UsageStatsManager after Usage Access is granted, polling foreground

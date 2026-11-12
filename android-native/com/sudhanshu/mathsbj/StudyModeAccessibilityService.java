@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.SparseArray;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -18,8 +19,21 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     private static final long RESCAN_INTERVAL_MS = 1200L;
     private static final long IDLE_RESCAN_INTERVAL_MS = 15_000L;
     private static final long EVENT_RESCAN_DELAY_MS = 100L;
+    private static final long EVENT_SCAN_MIN_INTERVAL_MS = 350L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean eventScanQueued = false;
+    private long lastEventScanElapsedMs = 0L;
+
+    private final Runnable eventScanRunnable = new Runnable() {
+        @Override
+        public void run() {
+            eventScanQueued = false;
+            lastEventScanElapsedMs = SystemClock.elapsedRealtime();
+            scanAccessibleWindows();
+        }
+    };
+
     private final Runnable scanRunnable = new Runnable() {
         @Override
         public void run() {
@@ -57,8 +71,20 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        if (event == null) return;
-        scheduleScan(EVENT_RESCAN_DELAY_MS);
+        if (event == null || !StudyModeManager.hasAccessibilityDisclosureConsent(this)) return;
+
+        CharSequence eventPackage = event.getPackageName();
+        if (eventPackage != null) {
+            // Keep only package/window metadata; never inspect the event source or
+            // read text, messages, passwords, screenshots, or gestures.
+            StudyModeWindowRegistry.recordAccessibilityEvent(
+                eventPackage.toString(), event.getEventType(), event.getWindowId());
+        }
+
+        // Wake the already-running monitor immediately. Its bounded coalescing
+        // prevents an Accessibility event burst from creating duplicate work.
+        StudyModeFocusService.requestImmediateEvaluation();
+        scheduleEventScan();
     }
 
     @Override
@@ -66,12 +92,16 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         // Interrupt does not necessarily mean the service was unbound. Keep the
         // registry connected and resume polling after invalidating the stale view.
         StudyModeWindowRegistry.invalidateSnapshot();
+        handler.removeCallbacks(eventScanRunnable);
+        eventScanQueued = false;
         scheduleScan(RESCAN_INTERVAL_MS);
     }
 
     @Override
     public boolean onUnbind(android.content.Intent intent) {
         handler.removeCallbacks(scanRunnable);
+        handler.removeCallbacks(eventScanRunnable);
+        eventScanQueued = false;
         StudyModeWindowRegistry.clear();
         return super.onUnbind(intent);
     }
@@ -79,6 +109,7 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     @Override
     public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        eventScanQueued = false;
         StudyModeWindowRegistry.clear();
         super.onDestroy();
     }
@@ -86,6 +117,22 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     private void scheduleScan(long delayMs) {
         handler.removeCallbacks(scanRunnable);
         handler.postDelayed(scanRunnable, Math.max(0L, delayMs));
+    }
+
+    /**
+     * Keep event-driven scans independent from the periodic safety scan.
+     * Coalescing prevents repeated event callbacks from cancelling/reposting
+     * the periodic task and starving all-window enumeration.
+     */
+    private void scheduleEventScan() {
+        if (eventScanQueued) return;
+        long now = SystemClock.elapsedRealtime();
+        long elapsedSinceLastScan = lastEventScanElapsedMs == 0L
+            ? EVENT_SCAN_MIN_INTERVAL_MS
+            : now - lastEventScanElapsedMs;
+        long throttleDelay = Math.max(0L, EVENT_SCAN_MIN_INTERVAL_MS - elapsedSinceLastScan);
+        eventScanQueued = true;
+        handler.postDelayed(eventScanRunnable, Math.max(EVENT_RESCAN_DELAY_MS, throttleDelay));
     }
 
     private void scanAccessibleWindows() {

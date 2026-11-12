@@ -39,6 +39,7 @@ import android.widget.Toast;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class StudyModeFocusService extends Service {
@@ -52,11 +53,13 @@ public final class StudyModeFocusService extends Service {
     private static final long POPUP_RETRY_FIRST_BACKOFF_MS = 2000L;
     private static final long POPUP_RETRY_SECOND_BACKOFF_MS = 6000L;
     private static final long POPUP_RETRY_RECOVERY_BACKOFF_MS = 30_000L;
+    private static final long MIN_IMMEDIATE_RECHECK_INTERVAL_MS = 250L;
     private static final int MAX_POPUP_FAILURES_PER_FOREGROUND = 3;
     private static final String LOG_TAG = "MathMasterStudyMode";
     private static volatile boolean running = false;
     private static volatile boolean starting = false;
     private static volatile boolean stopping = false;
+    private static volatile StudyModeFocusService activeService;
 
     public static boolean isStopping() {
         return stopping;
@@ -81,6 +84,9 @@ public final class StudyModeFocusService extends Service {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private HandlerThread monitorThread;
     private Handler monitorHandler;
+    private final AtomicBoolean immediateEvaluationQueued = new AtomicBoolean(false);
+    private volatile long lastImmediateEvaluationElapsedMs = 0L;
+    private final Runnable immediateEvaluationRunnable = this::runImmediateEvaluation;
     private WindowManager windowManager;
     private android.view.View shieldView;
     private TextView remainingTimeView;
@@ -116,6 +122,30 @@ public final class StudyModeFocusService extends Service {
 
     public static boolean isRunning() {
         return running;
+    }
+
+    /**
+     * AccessibilityService calls this after a real app-window event. Rechecks
+     * run on the monitor HandlerThread and are bounded/coalesced.
+     */
+    public static void requestImmediateEvaluation() {
+        StudyModeFocusService service = activeService;
+        if (service != null) service.enqueueImmediateEvaluation();
+    }
+
+    private void enqueueImmediateEvaluation() {
+        Handler currentHandler = monitorHandler;
+        if (!running || currentHandler == null
+            || !immediateEvaluationQueued.compareAndSet(false, true)) return;
+
+        long now = SystemClock.elapsedRealtime();
+        long elapsed = now - lastImmediateEvaluationElapsedMs;
+        long delay = elapsed >= MIN_IMMEDIATE_RECHECK_INTERVAL_MS
+            ? 0L
+            : MIN_IMMEDIATE_RECHECK_INTERVAL_MS - elapsed;
+        if (!currentHandler.postDelayed(immediateEvaluationRunnable, delay)) {
+            immediateEvaluationQueued.set(false);
+        }
     }
 
     public static boolean hasOverlayFailure() {
@@ -188,6 +218,7 @@ public final class StudyModeFocusService extends Service {
             );
             monitorThread.start();
             monitorHandler = new Handler(monitorThread.getLooper());
+            activeService = this;
             monitorHandler.post(monitorRunnable);
         }
     }
@@ -209,6 +240,8 @@ public final class StudyModeFocusService extends Service {
             stopSelf(startId);
             return START_NOT_STICKY;
         }
+        monitorHandler.removeCallbacks(immediateEvaluationRunnable);
+        immediateEvaluationQueued.set(false);
         monitorHandler.removeCallbacks(monitorRunnable);
         monitorHandler.post(monitorRunnable);
         return START_STICKY;
@@ -355,19 +388,20 @@ public final class StudyModeFocusService extends Service {
                 return;
             }
 
-            // UsageStatsManager and package checks stay on the monitor thread.
-            // Only window changes are posted to the main looper.
-            String foreground = StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
-                ? getMostRecentlyResumedPackage() : null;
+            // UsageStatsManager is the standard foreground source. Advanced Accessibility
+            // can add positive package evidence even when Android withholds a complete
+            // interactive-window snapshot.
+            boolean usageAccessAvailable = StudyModeManager.hasUsageAccess(StudyModeFocusService.this);
+            String foreground = usageAccessAvailable ? getMostRecentlyResumedPackage() : null;
+            String foregroundSource = usageAccessAvailable ? "usage_events" : "accessibility_window_or_event";
 
-            // Advanced mode can match any accessible interactive application
-            // window, including a non-focused split pane. The registry stores only
-            // package names and focus state; it never reads node text.
             String blockedWindowPackage = StudyModeWindowRegistry.findBlockedPackage(
                 StudyModeFocusService.this, foreground);
             if (blockedWindowPackage != null) {
                 foreground = blockedWindowPackage;
-                logStage("BLOCKED_WINDOW_MATCHED", blockedWindowPackage, "", "matched", "accessible_interactive_window");
+                boolean eventMatched = StudyModeWindowRegistry.wasRecentlyObservedAccessibilityEvent(blockedWindowPackage);
+                foregroundSource = eventMatched ? "accessibility_event" : "accessible_interactive_window";
+                logStage("BLOCKED_WINDOW_MATCHED", blockedWindowPackage, "", "matched", foregroundSource);
             } else if (StudyModeWindowRegistry.hasFreshSnapshot()
                 && (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
                     || hasForegroundLookupFailure())) {
@@ -391,7 +425,7 @@ public final class StudyModeFocusService extends Service {
             if (!foreground.equals(lastLoggedForegroundPackage)) {
                 resetPopupRetryStateForDifferentPackage(foreground);
                 lastLoggedForegroundPackage = foreground;
-                logStage("FOREGROUND_PACKAGE_RESOLVED", foreground, "", "success", "usage_events");
+                logStage("FOREGROUND_PACKAGE_RESOLVED", foreground, "", "success", foregroundSource);
             }
 
             boolean shouldShield = !foreground.equals(getPackageName())
@@ -452,6 +486,15 @@ public final class StudyModeFocusService extends Service {
             if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
         }
     };
+
+    private void runImmediateEvaluation() {
+        immediateEvaluationQueued.set(false);
+        Handler currentHandler = monitorHandler;
+        if (!running || currentHandler == null) return;
+        lastImmediateEvaluationElapsedMs = SystemClock.elapsedRealtime();
+        currentHandler.removeCallbacks(monitorRunnable);
+        monitorRunnable.run();
+    }
 
     private void resetForegroundResolution() {
         lastForegroundPackage = null;
@@ -696,7 +739,9 @@ public final class StudyModeFocusService extends Service {
             logStage("POPUP_LAUNCH_ACCEPTED", packageName, activeShieldRequestId, "window_added", "awaiting_attachment_visibility_check");
 
             final String verifiedRequestId = activeShieldRequestId;
-            mainHandler.post(() -> verifyShieldVisibility(
+            // Verify on the next view frame, after WindowManager has had an
+            // opportunity to attach and traverse the newly-added overlay.
+            candidate.postOnAnimation(() -> verifyShieldVisibility(
                 candidate, packageName, verifiedRequestId, decisionSequence
             ));
         } catch (Exception error) {
@@ -1244,6 +1289,8 @@ public final class StudyModeFocusService extends Service {
         running = false;
         starting = false;
         stopping = false;
+        if (activeService == this) activeService = null;
+        immediateEvaluationQueued.set(false);
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
         mainHandler.removeCallbacksAndMessages(null);
