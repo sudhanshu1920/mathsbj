@@ -400,7 +400,9 @@ public final class StudyModeFocusService extends Service {
             // cannot prove that no blocked split-screen pane exists. Keep any
             // current shield visible and report monitoring as unavailable.
             boolean accessibilityWindowCoverageRequired =
-                StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);
+                StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this)
+                    && (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
+                        || hasForegroundLookupFailure());
             if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()
                 && !shouldShield) {
                 if (!windowSnapshotUnavailableLogged) {

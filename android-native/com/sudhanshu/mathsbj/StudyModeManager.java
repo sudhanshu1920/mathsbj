@@ -1157,6 +1157,7 @@ public final class StudyModeManager {
         boolean accessibilityEnabled = accessibilityAvailable
             && StudyModeWindowRegistry.isAccessibilityServiceEnabled(context);
         boolean accessibilityConsent = hasAccessibilityDisclosureConsent(context);
+        boolean accessibilitySnapshotReady = StudyModeWindowRegistry.hasFreshSnapshot();
         permissions.put("usageAccess", hasUsageAccess(context));
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
@@ -1166,7 +1167,7 @@ public final class StudyModeManager {
         permissions.put("accessibilityAvailable", accessibilityAvailable);
         permissions.put("accessibilityEnabled", accessibilityEnabled);
         permissions.put("accessibilityConsent", accessibilityConsent);
-        permissions.put("accessibilitySnapshotReady", StudyModeWindowRegistry.hasFreshSnapshot());
+        permissions.put("accessibilitySnapshotReady", accessibilitySnapshotReady);
 
         List<String> applied = readAppliedPackages(context);
         JSArray appliedArray = new JSArray();
@@ -1190,6 +1191,9 @@ public final class StudyModeManager {
         boolean policyOwner = isPolicyOwner(context);
         boolean usageGranted = hasUsageAccess(context);
         boolean overlayGranted = hasOverlayPermission(context);
+        boolean accessibilityMonitoringReady = accessibilityEnabled && accessibilityConsent
+            && accessibilitySnapshotReady;
+        boolean usageLookupFailed = StudyModeFocusService.hasForegroundLookupFailure();
         if (!enabled && !sessionActive) {
             if (!"policy_failed".equals(state) && !"policy_unavailable".equals(state)) state = "disabled";
         } else if (!active) {
@@ -1200,13 +1204,13 @@ public final class StudyModeManager {
             if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
-        } else if ((!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted) {
+        } else if ((!usageGranted && !accessibilityMonitoringReady) || !overlayGranted) {
             state = "permission_required";
-        } else if ((accessibilityEnabled && accessibilityConsent && !StudyModeWindowRegistry.hasFreshSnapshot())
-            || (!usageGranted && (!accessibilityEnabled || !accessibilityConsent || !StudyModeWindowRegistry.hasFreshSnapshot()))) {
+        } else if ((!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady) {
+            // Usage Access is the normal foreground fallback. Advanced window
+            // scanning is required only when UsageStats is unavailable or failing.
             state = "monitoring_unavailable";
-        } else if ((!accessibilityEnabled || !StudyModeWindowRegistry.hasFreshSnapshot())
-            && StudyModeFocusService.hasForegroundLookupFailure()) {
+        }
             // Usage Access can appear enabled while queryEvents is unavailable or throws.
             state = "monitoring_unavailable";
         } else if (StudyModeFocusService.hasOverlayFailure()) {

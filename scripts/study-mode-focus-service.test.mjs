@@ -34,7 +34,11 @@ test("advanced accessibility monitoring enumerates interactive app windows witho
   assert.ok(accessibility.includes("IDLE_RESCAN_INTERVAL_MS"));
   assert.ok(accessibility.includes("nextDelayMs = IDLE_RESCAN_INTERVAL_MS"));
   assert.ok(source.includes("isAccessibilityWindowMonitoringRequired"));
+  assert.ok(source.includes("hasForegroundLookupFailure()"));
+  assert.ok(source.includes("!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)"));
   assert.ok(source.includes("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE"));
+  assert.ok(manager.includes("accessibilityMonitoringReady"));
+  assert.ok(manager.includes("(!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady"));
   assert.ok(manager.includes("accessibilityConsent"));
   assert.ok(registry.includes("StudyModeManager.isPackageSelected(context, window.packageName)"));
   assert.ok(accessibility.includes("hasAccessibilityDisclosureConsent(this)"));
