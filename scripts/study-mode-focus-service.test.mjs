@@ -210,3 +210,70 @@ test("decision generation changes only when the foreground restriction decision 
   assert.ok(verify.includes("decisionSequence != foregroundDecisionSequence.get()"));
   assert.ok(verify.includes("decision_changed_before_visibility_check"));
 });
+
+
+test("Accessibility events are retained as bounded positive package evidence", () => {
+  assert.ok(registry.includes("ACCESSIBILITY_EVENT_TTL_MS = 2200L"));
+  assert.ok(registry.includes("MAX_RECENT_ACCESSIBILITY_EVENTS = 8"));
+  assert.ok(registry.includes("recordAccessibilityEvent("));
+  assert.ok(registry.includes("recentAccessibilityEvents"));
+  assert.ok(registry.includes("pruneRecentAccessibilityEventsLocked"));
+  assert.ok(registry.includes("StudyModeManager.isPackageSelected(context, packageName)"));
+  assert.ok(registry.includes("wasRecentlyObservedAccessibilityEvent"));
+  const lookup = between(
+    registry,
+    "public static String findBlockedPackage(",
+    "private static final class AccessibilityEventRecord",
+  );
+  assert.ok(lookup.includes("eventSnapshot"));
+  assert.ok(lookup.indexOf("eventSnapshot.size() - 1") < lookup.indexOf("for (WindowRecord window"));
+  assert.ok(lookup.includes("snapshotFresh"));
+});
+
+test("Accessibility events wake the monitor without cancelling the periodic window scan", () => {
+  const eventHandler = between(
+    accessibility,
+    "public void onAccessibilityEvent(AccessibilityEvent event)",
+    "public void onInterrupt()",
+  );
+  assert.ok(eventHandler.includes("event.getPackageName()"));
+  assert.ok(eventHandler.includes("event.getEventType()"));
+  assert.ok(eventHandler.includes("event.getWindowId()"));
+  assert.ok(eventHandler.includes("StudyModeWindowRegistry.recordAccessibilityEvent"));
+  assert.ok(eventHandler.includes("StudyModeFocusService.requestImmediateEvaluation()"));
+  assert.ok(eventHandler.includes("scheduleEventScan()"));
+  assert.ok(!eventHandler.includes("scheduleScan("));
+
+  const eventScheduler = between(
+    accessibility,
+    "private void scheduleEventScan()",
+    "private void scanAccessibleWindows()",
+  );
+  assert.ok(eventScheduler.includes("if (eventScanQueued) return;"));
+  assert.ok(eventScheduler.includes("EVENT_SCAN_MIN_INTERVAL_MS"));
+  assert.ok(!eventScheduler.includes("removeCallbacks(scanRunnable)"));
+  assert.ok(accessibility.includes("handler.postDelayed(this, nextDelayMs)"));
+  assert.ok(accessibility.includes("handler.removeCallbacks(eventScanRunnable)"));
+  for (const forbidden of ["TYPE_WINDOW_CONTENT_CHANGED", "getText(", "getChild(", "getSource(", "performAction(", "takeScreenshot("]) {
+    assert.ok(!accessibility.includes(forbidden), "Accessibility monitoring must not read or traverse screen content");
+  }
+});
+
+test("Accessibility package events trigger bounded immediate foreground reevaluation", () => {
+  assert.ok(source.includes("activeService = this"));
+  assert.ok(source.includes("public static void requestImmediateEvaluation()"));
+  assert.ok(source.includes("AtomicBoolean immediateEvaluationQueued"));
+  assert.ok(source.includes("MIN_IMMEDIATE_RECHECK_INTERVAL_MS = 250L"));
+  assert.ok(source.includes("currentHandler.removeCallbacks(monitorRunnable)"));
+  assert.ok(source.includes("currentHandler.postDelayed(immediateEvaluationRunnable, delay)"));
+  const monitor = between(source, "private final Runnable monitorRunnable", "private void resetForegroundResolution()");
+  assert.ok(monitor.includes('foregroundSource = eventMatched ? "accessibility_event" : "accessible_interactive_window"'));
+  assert.ok(monitor.includes("foregroundSource);"));
+});
+
+test("popup first-frame verification waits for WindowManager traversal", () => {
+  assert.ok(source.includes("POPUP_VISIBILITY_VERIFY_DELAY_MS = 150L"));
+  const show = between(source, "private void showShield(", "private boolean isShieldViewVisible");
+  assert.ok(show.includes("mainHandler.postDelayed(() -> verifyShieldVisibility("));
+  assert.ok(show.includes("POPUP_VISIBILITY_VERIFY_DELAY_MS"));
+});
