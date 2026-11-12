@@ -134,11 +134,6 @@ public final class StudyModeWindowRegistry {
     }
 
     /**
-     * Returns a selected blocked package from accessible application windows.
-     * Focused windows win; UsageStats is used as a tie-breaker; remaining windows
-     * preserve Android's reported top-to-bottom ordering.
-     */
-    /**
      * Bounded positive package evidence from configured AccessibilityEvents.
      * Values are volatile in-process only; no screen text or event history is saved.
      */
@@ -155,7 +150,8 @@ public final class StudyModeWindowRegistry {
             Iterator<AccessibilityEventRecord> iterator = recentAccessibilityEvents.iterator();
             while (iterator.hasNext()) {
                 AccessibilityEventRecord existing = iterator.next();
-                if (existing.windowId == windowId || existing.packageName.equals(packageName)) {
+                if (existing.packageName.equals(packageName)
+                    || (windowId >= 0 && existing.windowId == windowId)) {
                     iterator.remove();
                 }
             }
