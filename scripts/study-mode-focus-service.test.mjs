@@ -272,8 +272,7 @@ test("Accessibility package events trigger bounded immediate foreground reevalua
 });
 
 test("popup first-frame verification waits for WindowManager traversal", () => {
-  assert.ok(source.includes("POPUP_VISIBILITY_VERIFY_DELAY_MS = 150L"));
   const show = between(source, "private void showShield(", "private boolean isShieldViewVisible");
-  assert.ok(show.includes("mainHandler.postDelayed(() -> verifyShieldVisibility("));
-  assert.ok(show.includes("POPUP_VISIBILITY_VERIFY_DELAY_MS"));
+  assert.ok(show.includes("candidate.postOnAnimation(() -> verifyShieldVisibility("));
+  assert.ok(!show.includes("postDelayed(() -> verifyShieldVisibility("));
 });
