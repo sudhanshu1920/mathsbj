@@ -56,10 +56,10 @@ const StudyModePermissionSetup = ({
       key: "usage",
       title: "Usage Access",
       description: managed
-        ? "Not required on managed devices."
+        ? "Managed device access."
         : advancedReady && !permissions.usageAccess
-          ? "Advanced window detection is active."
-          : "Detect the app currently in use.",
+          ? "Advanced detection is active."
+          : "Detect the app in use.",
       granted: permissions.usageAccess === true || managed,
       required: !readiness.monitoringReady && !readiness.advancedMonitoringRequested,
       icon: Smartphone,
@@ -70,7 +70,7 @@ const StudyModePermissionSetup = ({
       title: "Floating Window",
       description: managed
         ? "Not required for system suspension."
-        : "Display the Study Mode blocking screen.",
+        : "Show the blocking screen.",
       granted: readiness.overlayReady,
       required: !readiness.overlayReady,
       icon: ShieldCheck,
@@ -79,7 +79,7 @@ const StudyModePermissionSetup = ({
     {
       key: "battery",
       title: "Background Operation",
-      description: "Optional. Review battery limits on this device.",
+      description: "Review battery restrictions.",
       granted: permissions.batteryOptimizationIgnored === true,
       required: false,
       icon: BatteryCharging,
@@ -89,7 +89,7 @@ const StudyModePermissionSetup = ({
       title: "Accessibility Service",
       description: advancedReady
         ? "Advanced window detection is ready."
-        : "Optional Advanced feature. Requires your agreement and Android access.",
+        : "Detect app windows in supported views.",
       granted: advancedReady,
       required: readiness.advancedMonitoringRequested && !advancedReady,
       icon: ShieldCheck,
@@ -100,7 +100,7 @@ const StudyModePermissionSetup = ({
       title: "Exact Alarms",
       description: readiness.exactAlarmRequired
         ? "Required for this managed schedule."
-        : "Optional on personal devices; inexact scheduling remains available.",
+        : "Inexact scheduling remains available.",
       granted: permissions.exactAlarm === true,
       required: readiness.exactAlarmRequired,
       icon: Clock3,
@@ -108,7 +108,7 @@ const StudyModePermissionSetup = ({
     {
       key: "notifications",
       title: "Notifications",
-      description: "Optional Study Mode and reminder notifications.",
+      description: "Study Mode and reminder alerts.",
       granted: permissions.notificationsEnabled === true,
       required: false,
       icon: Bell,
@@ -132,8 +132,7 @@ const StudyModePermissionSetup = ({
           </span>
           <div className="min-w-0 pt-0.5">
             <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-primary">Study Mode</p>
-            <h2 className="mt-0.5 font-display text-xl font-bold tracking-tight text-foreground">Enable permissions</h2>
-            <p className="mt-1 text-[10px] text-muted-foreground">Required access first. Optional access later.</p>
+            <h2 className="mt-0.5 font-display text-[19px] font-bold tracking-tight text-foreground">Enable permissions</h2>
           </div>
         </div>
         <button
@@ -146,7 +145,7 @@ const StudyModePermissionSetup = ({
         </button>
       </header>
 
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/55 px-3 py-2.5 shadow-sm">
         <span className="text-[10px] font-semibold text-foreground">Required permissions</span>
         <span className={readiness.coreReady
           ? "inline-flex items-center gap-1 text-[10px] font-bold text-success"
@@ -173,14 +172,14 @@ const StudyModePermissionSetup = ({
               type="button"
               onClick={() => handleCardPress(item.key)}
               aria-label={item.title + ". " + stateText + ". " + item.description}
-              className="motion-press group flex min-h-[86px] min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-3 py-3 text-left shadow-sm transition-colors hover:border-primary/35 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="motion-press group flex min-h-[76px] min-w-0 items-center gap-2.5 rounded-[1.15rem] border border-border/70 bg-card/65 px-3 py-2.5 text-left shadow-sm transition-colors hover:border-primary/30 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
-                <Icon size={18} strokeWidth={1.9} />
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+                <Icon size={17} strokeWidth={1.9} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[11px] font-bold leading-snug text-foreground">{item.title}</span>
-                <span className="mt-1 block line-clamp-2 text-[9px] leading-relaxed text-muted-foreground">{item.description}</span>
+                <span className="mt-0.5 block line-clamp-1 text-[9px] leading-relaxed text-muted-foreground">{item.description}</span>
               </span>
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <span className={"rounded-full px-2 py-1 text-[8px] font-bold " + stateClass}>{stateText}</span>
@@ -209,7 +208,6 @@ const StudyModePermissionSetup = ({
         >
           Let&apos;s Go
         </button>
-        <p className="text-center text-[9px] text-muted-foreground">You can review these permissions in Android Settings later.</p>
       </footer>
     </section>
   );
