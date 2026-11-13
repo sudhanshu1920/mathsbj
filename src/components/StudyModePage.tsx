@@ -144,7 +144,7 @@ const SessionDurationPreview = ({ durationSeconds }: { durationSeconds: number }
     : `${Math.floor(durationSeconds / 60)}:${String(durationSeconds % 60).padStart(2, "0")}`;
 
   return (
-    <div className="relative grid h-[124px] w-[124px] shrink-0 place-items-center" aria-label={`Session duration ${durationSeconds} seconds`}>
+    <div role="img" className="relative grid h-[124px] w-[124px] shrink-0 place-items-center" aria-label={`Session duration ${durationSeconds} seconds`}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
         <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--border))" strokeWidth="4" />
         <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--primary))" strokeOpacity="0.28" strokeWidth="4" strokeDasharray="4 7" />
@@ -1203,7 +1203,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                         )}
                         {app.selectable ? (
                           selected && (
-                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
                               <Check size={10} strokeWidth={3} />
                             </span>
                           )
@@ -1276,7 +1276,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                         {blocked && !selected && <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning">Move</span>}
                         {app.selectable ? (
                           selected && (
-                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-accent-foreground">
                               <Check size={10} strokeWidth={3} />
                             </span>
                           )
