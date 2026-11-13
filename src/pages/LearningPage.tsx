@@ -12,6 +12,7 @@ import SwipeBack from '@/components/SwipeBack';
 import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/components/PercentageLearning';
 import PracticeModeSelector, { type PracticeSettings } from '@/components/PracticeModeSelector';
 const FormulasLearning = lazy(() => import('@/components/FormulasLearning'));
+const StudyModePage = lazy(() => import('@/components/StudyModePage'));
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, RANGE_GROUPS } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
 const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearning'));
@@ -21,7 +22,6 @@ import { shouldCountLearningStudySecond } from '@/lib/studyTimeTracking';
 import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
 import StudyTracker from '@/components/StudyTracker';
-import StudyModePage from '@/components/StudyModePage';
 import { getTrigAngles, type TrigFunction } from '@/lib/trigData';
 import type { PracticeLaunchContext } from '@/lib/practiceNavigation';
 import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
@@ -287,7 +287,11 @@ const LearningPage = ({
   // keeps Learning Mode mounted so Back returns to its topic list without
   // touching the persisted native session or its shared configuration.
   if (studyModeTopicOpen) {
-    return <StudyModePage onBack={() => setStudyModeTopicOpen(false)} />;
+    return (
+      <Suspense fallback={<div className="py-16 text-center text-sm font-semibold text-muted-foreground">Loading Study Mode…</div>}>
+        <StudyModePage onBack={() => setStudyModeTopicOpen(false)} />
+      </Suspense>
+    );
   }
 
   // Practice mode selector overlay
