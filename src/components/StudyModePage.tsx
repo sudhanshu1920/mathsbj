@@ -1149,7 +1149,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                             <Check size={10} strokeWidth={3} />
                           </span>
                         )}
-                        {!app.selectable && (
+                        {app.selectable ? (
+                          selected && (
+                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Check size={10} strokeWidth={3} />
+                            </span>
+                          )
+                        ) : (
                           <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-muted-foreground" aria-label="Protected app">
                             <LockKeyhole size={10} />
                           </span>
@@ -1222,7 +1228,13 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                             <Check size={10} strokeWidth={3} />
                           </span>
                         )}
-                        {!app.selectable && (
+                        {app.selectable ? (
+                          selected && (
+                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Check size={10} strokeWidth={3} />
+                            </span>
+                          )
+                        ) : (
                           <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-muted-foreground" aria-label="Protected app">
                             <LockKeyhole size={10} />
                           </span>
