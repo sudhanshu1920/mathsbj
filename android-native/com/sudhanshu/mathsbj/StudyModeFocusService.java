@@ -965,6 +965,7 @@ public final class StudyModeFocusService extends Service {
             resetPopupRetryState();
             StudyModeManager.setServiceState(this, "blocking_active");
             logStage("POPUP_VISIBLE", packageName, requestId, "visible", "attached_shown_and_window_token_present");
+            logStage("POPUP_WINDOW_VISIBLE", packageName, requestId, "visible", "verified_window_attachment_and_visibility");
             return;
         }
 
