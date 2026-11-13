@@ -143,8 +143,7 @@ const StudyModeAppIcon = ({ app, size = 30 }: { app: StudyModeApp; size?: number
     <img
       src={app.iconDataUrl}
       alt=""
-      loading="lazy"
-      decoding="async"
+      loading="lazy" decoding="async"
       width={size}
       height={size}
       className="shrink-0 rounded-[0.7rem] object-contain"
