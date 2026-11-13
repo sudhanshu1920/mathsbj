@@ -71,7 +71,10 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.doesNotMatch(manifest, /android.provider.Telephony.SMS_DELIVER/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
-  assert.match(manifest, /StudyModeAccessibilityService[\\s\\S]*BIND_ACCESSIBILITY_SERVICE/);
+  const accessibilityServiceStart = manifest.indexOf('<service\\n            android:name=".StudyModeAccessibilityService"');
+  const accessibilityServiceEnd = manifest.indexOf('</service>', accessibilityServiceStart);
+  assert.ok(accessibilityServiceStart >= 0 && accessibilityServiceEnd > accessibilityServiceStart);
+  assert.ok(manifest.slice(accessibilityServiceStart, accessibilityServiceEnd).includes('android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"'));
   assert.match(manifest, /android.accessibilityservice/);
   assert.match(manifest, /android:resource="@xml\/study_mode_accessibility"/);
   assert.ok(manifest.includes("\n        <service\n            android:name=\".StudyModeAccessibilityService\""));
