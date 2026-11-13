@@ -157,6 +157,7 @@ const Index = () => {
   const [practiceBackRequest, setPracticeBackRequest] = useState(0);
   const [practicePhase, setPracticePhase] = useState<PracticePhase>('setup');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [studyModePageVisible, setStudyModePageVisible] = useState(false);
   const [sectionTransitionDirection, setSectionTransitionDirection] = useState<SectionTransitionDirection | null>(null);
   const prefersReducedMotion = useReducedMotion();
   const appFrameScrollRef = useRef<HTMLDivElement>(null);
@@ -195,15 +196,15 @@ const Index = () => {
       : 0,
   };
 
-  // A single shared policy handles Learning topic depth, Settings, and Quiz phase.
-  // activeTopic remains set throughout selections and nested detail screens.
-  // Topic detail/nested states unmount the nav; the existing measured reserve then
-  // clears to 0px. Returning to the landing state restores it without stale state.
+  // A single shared policy handles Learning topics, Settings, Study Mode, and Quiz.
+  // Study Mode's layout-phase visibility event removes the nav before the first
+  // visible frame, then restores it when the shared screen closes.
   const { show: showBottomNav, mount: mountBottomNav } = getFloatingBarVisibility({
     tab,
     activeTopic: learningState.activeTopic,
     settingsOpen,
     quizInProgress: isPracticeSessionInProgress(practicePhase),
+    studyModeOpen: studyModePageVisible,
   });
 
   // Keep the content reserve synchronized with the floating bar's actual
@@ -335,7 +336,9 @@ const Index = () => {
   useEffect(() => {
     const syncStudyModePage = (event: Event) => {
       const detail = (event as CustomEvent<{ open?: unknown }>).detail;
-      studyModePageOpen.current = detail?.open === true;
+      const open = detail?.open === true;
+      studyModePageOpen.current = open;
+      setStudyModePageVisible(open);
     };
     window.addEventListener('study-mode-page-state', syncStudyModePage);
     return () => window.removeEventListener('study-mode-page-state', syncStudyModePage);

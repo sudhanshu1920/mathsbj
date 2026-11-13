@@ -61,6 +61,24 @@ describe('central Floating Bar visibility policy', () => {
     })).toEqual({ show: false, mount: true });
   });
 
+  it('fully unmounts the Floating Bar while the shared Study Mode page is open from either entry point', () => {
+    expect(getFloatingBarVisibility({
+      tab: 'learn',
+      activeTopic: null,
+      settingsOpen: false,
+      quizInProgress: false,
+      studyModeOpen: true,
+    })).toEqual({ show: false, mount: false });
+
+    expect(getFloatingBarVisibility({
+      tab: 'progress',
+      activeTopic: null,
+      settingsOpen: true,
+      quizInProgress: false,
+      studyModeOpen: true,
+    })).toEqual({ show: false, mount: false });
+  });
+
   it('unmounts the bar during the Learning-origin Quiz startup handoff before questions mount', () => {
     expect(getFloatingBarVisibility({
       tab: 'practice',

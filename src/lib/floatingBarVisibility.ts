@@ -5,6 +5,7 @@ export interface FloatingBarVisibilityInput {
   activeTopic: string | null;
   settingsOpen: boolean;
   quizInProgress: boolean;
+  studyModeOpen?: boolean;
 }
 
 export interface FloatingBarVisibility {
@@ -16,6 +17,7 @@ export interface FloatingBarVisibility {
  * One policy for the shared Floating Bar:
  * - Learning landing screen: visible.
  * - Any active Learning topic (including its nested detail states): unmounted.
+ * - Study Mode from either entry point: fully unmounted until the page closes.
  * - Settings: hidden, preserving the existing mounted-but-hidden behavior.
  * - Active/finished Quiz session: unmounted.
  * - Normal sections and Quiz setup: visible unless Settings is open.
@@ -25,10 +27,13 @@ export function getFloatingBarVisibility({
   activeTopic,
   settingsOpen,
   quizInProgress,
+  studyModeOpen = false,
 }: FloatingBarVisibilityInput): FloatingBarVisibility {
   const learningTopicOpen = tab === 'learn' && activeTopic !== null;
   const quizSessionOpen = tab === 'practice' && quizInProgress;
-  const mount = !learningTopicOpen && !quizSessionOpen;
+  // Study Mode is a nested destination from both Learning and Settings. It
+  // must remove the shared bar entirely, regardless of the originating tab.
+  const mount = !studyModeOpen && !learningTopicOpen && !quizSessionOpen;
 
   return {
     show: mount && !settingsOpen,
