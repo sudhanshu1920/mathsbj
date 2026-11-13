@@ -30,7 +30,7 @@ async function createAndroidFixture() {
 
 android {
     namespace "com.sudhanshu.mathsbj"
-    defaultConfig { applicationId "com.sudhanshu.mathsbj" }
+    defaultConfig { applicationId "com.sudhanshu.mathsbj" versionCode 1 }
 }
 `);
   await writeFile(path.join(packageDir, 'MainActivity.java'), `package com.sudhanshu.mathsbj;
@@ -82,7 +82,7 @@ test('configures complete installed-app visibility, native services and Capacito
   const buildGradle = await readFile(path.join(root, 'app/build.gradle'), 'utf8');
   assert.doesNotMatch(buildGradle, /flavorDimensions|productFlavors|MATHMASTER_STUDY_MODE_FLAVORS/);
   assert.match(buildGradle, /MATHMASTER_UNIVERSAL_STUDY_MODE/);
-  assert.match(buildGradle, /versionCode 100001/);
+  assert.match(buildGradle, /versionCode 1/);
   assert.doesNotMatch(buildGradle, /applicationIdSuffix/);
   const universalService = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8');
   assert.match(universalService, /getWindowsOnAllDisplays\\(\\)/);
