@@ -324,11 +324,14 @@ public final class StudyModeFocusService extends Service {
         STUDY_LABEL_CACHE.remove(packageName);
     }
 
-    private final Runnable monitorThreadRecoveryRunnable = () -> {
-        if (!running || !StudyModeManager.shouldEnforceNow(this)) return;
-        if (!ensureMonitorThreadStarted("foreground_service_retry")
-            && running && StudyModeManager.shouldEnforceNow(this)) {
-            mainHandler.postDelayed(monitorThreadRecoveryRunnable, MONITOR_THREAD_RETRY_MS);
+    private final Runnable monitorThreadRecoveryRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!running || !StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)) return;
+            if (!ensureMonitorThreadStarted("foreground_service_retry")
+                && running && StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)) {
+                mainHandler.postDelayed(this, MONITOR_THREAD_RETRY_MS);
+            }
         }
     };
 
