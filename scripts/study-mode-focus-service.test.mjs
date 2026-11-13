@@ -380,7 +380,7 @@ test("Focus Service health is based on a live monitor heartbeat, not the process
   for (const invariant of [
     "MONITOR_HEALTH_TIMEOUT_MS = 10_000L",
     "lastMonitorHeartbeatElapsedMs",
-    "monitorThread.getLooper().getThread().isAlive()",
+    "thread.getLooper().getThread().isAlive()",
     "SystemClock.elapsedRealtime() - heartbeat <= MONITOR_HEALTH_TIMEOUT_MS",
     "public static boolean isMonitoringHealthy()",
     "public static boolean requestMonitorRecovery(String reason)",
