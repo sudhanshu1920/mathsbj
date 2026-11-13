@@ -12,6 +12,7 @@ import SwipeBack from '@/components/SwipeBack';
 import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/components/PercentageLearning';
 import PracticeModeSelector, { type PracticeSettings } from '@/components/PracticeModeSelector';
 const FormulasLearning = lazy(() => import('@/components/FormulasLearning'));
+const StudyModePage = lazy(() => import('@/components/StudyModePage'));
 import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, RANGE_GROUPS } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
 const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearning'));
@@ -55,6 +56,7 @@ const topics: LearningTopicId[] = [
   'formulas',
   'periodic-table',
   'study-tracker',
+  'study-mode',
 ];
 
 const LearningPage = ({
@@ -87,6 +89,7 @@ const LearningPage = ({
   );
   const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
   const [pendingPeriodicPractice, setPendingPeriodicPractice] = useState<PeriodicPracticeSelection | null>(null);
+  const [studyModeTopicOpen, setStudyModeTopicOpen] = useState(false);
 
   // Learning topics are part of the same daily study-minute target as quizzes.
   // Count only while a topic is open and the visible learning screen is not
@@ -279,6 +282,17 @@ const LearningPage = ({
       ))}
     </div>
   );
+
+  // Reuse the exact Study Mode destination opened from Settings. This entry
+  // keeps Learning Mode mounted so Back returns to its topic list without
+  // touching the persisted native session or its shared configuration.
+  if (studyModeTopicOpen) {
+    return (
+      <Suspense fallback={<div className="py-16 text-center text-sm font-semibold text-muted-foreground">Loading Study Mode…</div>}>
+        <StudyModePage onBack={() => setStudyModeTopicOpen(false)} />
+      </Suspense>
+    );
+  }
 
   // Practice mode selector overlay
   if (showPracticeMode) {
@@ -656,7 +670,13 @@ const LearningPage = ({
             <button
               key={topicId}
               type="button"
-              onClick={() => setActiveTopic(topicId)}
+              onClick={() => {
+                if (topicId === 'study-mode') {
+                  setStudyModeTopicOpen(true);
+                  return;
+                }
+                setActiveTopic(topicId);
+              }}
               aria-label={`Open ${TOPIC_ICON_MAP[topicId].label} learning topic`}
               className="group glass-lite relative flex min-h-[132px] w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-[1.15rem] px-3.5 py-4 text-center outline-none transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[var(--ds-shadow-elevated)] focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0" 
             >
