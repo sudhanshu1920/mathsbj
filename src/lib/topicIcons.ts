@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Atom, Box, CalendarCheck, Grid3x3, Percent, Radical, Sigma, Square, Superscript, Triangle } from 'lucide-react';
+import { Atom, Box, CalendarCheck, Grid3x3, LockKeyhole, Percent, Radical, Sigma, Square, Superscript, Triangle } from 'lucide-react';
 
 export type LearningTopicId =
   | 'tables'
@@ -11,7 +11,8 @@ export type LearningTopicId =
   | 'percentage'
   | 'formulas'
   | 'periodic-table'
-  | 'study-tracker';
+  | 'study-tracker'
+  | 'study-mode';
 
 export type AppTopicId =
   | LearningTopicId
@@ -100,5 +101,10 @@ export const TOPIC_ICON_MAP: Record<AppTopicId, TopicIconConfig> = {
     icon: CalendarCheck,
     toneClass: 'text-primary',
     label: 'Study Tracker',
+  },
+  'study-mode': {
+    icon: LockKeyhole,
+    toneClass: 'text-primary',
+    label: 'Study Mode',
   },
 };
