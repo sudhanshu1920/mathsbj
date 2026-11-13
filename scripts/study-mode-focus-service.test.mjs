@@ -193,10 +193,10 @@ test("service teardown preserves an overlay cleanup failure instead of overwriti
 
 test("overlay launch failure is not reported as active blocking while the service stays alive", () => {
   const status = between(manager, "public static JSObject getStatus(Context context)", "boolean exactFallback");
-  const failureIndex = status.indexOf("StudyModeFocusService.hasOverlayFailure()");
-  const runningIndex = status.indexOf("StudyModeFocusService.isRunning()");
-  assert.ok(failureIndex >= 0 && runningIndex > failureIndex);
-  assert.ok(status.includes('state = "overlay_failed";'));
+  assert.ok(status.includes("StudyModeFocusService.getMonitoringState()"));
+  assert.ok(status.includes('"overlay_failed".equals(monitorState)'));
+  const healthState = between(source, "public static String getMonitoringState()", "public static boolean requestMonitorRecovery(");
+  assert.ok(healthState.includes('return "overlay_failed"'));
   assert.ok(source.includes("overlayFailureForStatus = false;"));
 });
 
