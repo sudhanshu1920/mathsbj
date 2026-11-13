@@ -289,7 +289,7 @@ const LearningPage = ({
   if (studyModeTopicOpen) {
     return (
       <Suspense fallback={<div className="py-16 text-center text-sm font-semibold text-muted-foreground">Loading Study Mode…</div>}>
-        <StudyModePage onBack={() => setStudyModeTopicOpen(false)} />
+        <StudyModePage backLabel="Back to Learning Mode" onBack={() => setStudyModeTopicOpen(false)} />
       </Suspense>
     );
   }
