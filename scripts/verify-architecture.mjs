@@ -1003,15 +1003,19 @@ if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(f
     !studyModePage.includes('aria-label={day.name}') ||
     !studyModeIndex.includes('studyModePageOpen.current') ||
     !studyModeIndex.includes("new CustomEvent('study-mode-back')")) {
-const studyModeSaveRowStart = studyModePage.indexOf('aria-label="Study Mode master switch"');
-const studyModeSaveRowEnd = studyModePage.indexOf('\\n            </div>', studyModeSaveRowStart);
-const studyModeSaveRow = studyModeSaveRowStart >= 0 && studyModeSaveRowEnd > studyModeSaveRowStart
-  ? studyModePage.slice(studyModeSaveRowStart, studyModeSaveRowEnd)
-  : '';
-if (!studyModePage.includes('useLayoutEffect(() => {\\n    window.dispatchEvent(new CustomEvent("study-mode-page-state"') ||
+  fail('Study Mode settings entry, middle master control, native time/day controls, or Back navigation are missing');
+}
+
+const studyModeSwitchIndex = studyModePage.indexOf('aria-label="Study Mode master switch"');
+const studyModeSaveIndex = studyModePage.indexOf('min-h-9 min-w-[76px]', studyModeSwitchIndex);
+const studyModeHeroGridIndex = studyModePage.indexOf('className="mt-4 grid grid-cols-[112px_minmax(0,1fr)]', studyModeSwitchIndex);
+if (!studyModePage.includes('useLayoutEffect(() => {') ||
+    !studyModePage.includes('study-mode-page-state", { detail: { open: true }') ||
     !studyModePage.includes('aria-label={backLabel}') ||
-    !studyModeSaveRow.includes('min-h-9 min-w-[76px]') ||
-    !studyModeSaveRow.includes('Save Study Mode settings') ||
+    studyModeSwitchIndex < 0 ||
+    studyModeSaveIndex <= studyModeSwitchIndex ||
+    studyModeHeroGridIndex <= studyModeSaveIndex ||
+    !studyModePage.includes('Save Study Mode settings') ||
     studyModePage.includes('sticky bottom-0 z-20 -mx-1') ||
     !studyModePage.includes('if (saving || saveInFlightRef.current) return;') ||
     !studyModePage.includes('saveInFlightRef.current = true;') ||
@@ -1019,8 +1023,6 @@ if (!studyModePage.includes('useLayoutEffect(() => {\\n    window.dispatchEvent(
   fail('Study Mode must hide the Floating Bar before paint and keep a compact, duplicate-safe Save action beside the master switch');
 }
 
-  fail('Study Mode settings entry, middle master control, native time/day controls, or Back navigation are missing');
-}
 if (!studyModeSchedule.includes('isStudyModeScheduledAt') ||
     !studyModeSchedule.includes('getNextStudyModeTransition') ||
     !studyModeSchedule.includes('Overnight sessions belong to the day') ||
