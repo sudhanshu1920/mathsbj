@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.SparseArray;
+import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
@@ -20,6 +21,12 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     private static final long IDLE_RESCAN_INTERVAL_MS = 15_000L;
     private static final long EVENT_RESCAN_DELAY_MS = 100L;
     private static final long EVENT_SCAN_MIN_INTERVAL_MS = 350L;
+
+    // Retry only from the system-bound Accessibility lifecycle/events. This avoids
+    // a tight restart loop if Android or an OEM temporarily rejects an FGS start.
+    private static final long FOCUS_SERVICE_RECOVERY_COOLDOWN_MS = 15_000L;
+    private static final String LOG_TAG = "MathMasterStudyMode";
+    private long lastFocusServiceRecoveryAttemptElapsedMs = 0L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean eventScanQueued = false;
@@ -66,6 +73,9 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
             setServiceInfo(info);
         }
         StudyModeWindowRegistry.markConnected();
+        // Android can reconnect an enabled AccessibilityService after the app
+        // process was reclaimed. Reconcile the durable session before scanning.
+        recoverFocusServiceIfNeeded("service_connected");
         scheduleScan(0L);
     }
 
@@ -80,6 +90,10 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
             StudyModeWindowRegistry.recordAccessibilityEvent(
                 eventPackage.toString(), event.getEventType(), event.getWindowId());
         }
+
+        // If Cleaner/recents cleanup removed the monitor while this system-bound
+        // service survived, restore it from the persisted session before waking it.
+        recoverFocusServiceIfNeeded("accessibility_event");
 
         // Wake the already-running monitor immediately. Its bounded coalescing
         // prevents an Accessibility event burst from creating duplicate work.
@@ -112,6 +126,35 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
         eventScanQueued = false;
         StudyModeWindowRegistry.clear();
         super.onDestroy();
+    }
+
+    /**
+     * Reconcile the durable Study Mode session when Android reconnects this
+     * system-bound service or reports a window event. The cooldown prevents an
+     * event burst from repeatedly starting the foreground service.
+     */
+    private void recoverFocusServiceIfNeeded(String reason) {
+        if (!StudyModeManager.hasAccessibilityDisclosureConsent(this)
+            || !StudyModeManager.shouldEnforceNow(this)) return;
+
+        if ((StudyModeFocusService.isRunning() && !StudyModeFocusService.isStopping())
+            || StudyModeFocusService.isStarting()) return;
+
+        long now = SystemClock.elapsedRealtime();
+        if (lastFocusServiceRecoveryAttemptElapsedMs > 0L
+            && now - lastFocusServiceRecoveryAttemptElapsedMs < FOCUS_SERVICE_RECOVERY_COOLDOWN_MS) {
+            return;
+        }
+        lastFocusServiceRecoveryAttemptElapsedMs = now;
+
+        try {
+            Log.i(LOG_TAG, "Recovering active Study Mode monitor after " + reason);
+            StudyModeManager.reconcile(this);
+        } catch (RuntimeException recoveryFailure) {
+            // Keep Accessibility monitoring alive; a later lifecycle/event callback
+            // may retry after a transient Android/OEM service-start restriction.
+            Log.w(LOG_TAG, "Study Mode monitor recovery attempt failed", recoveryFailure);
+        }
     }
 
     private void scheduleScan(long delayMs) {
