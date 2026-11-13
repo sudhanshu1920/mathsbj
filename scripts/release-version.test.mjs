@@ -100,3 +100,19 @@ test("recognizes the Universal marker in published release metadata", () => {
   });
   assert.equal(previous.universalApk, true);
 });
+
+
+test("migrates a legacy release even when rebuilding the exact same source commit", () => {
+  const commit = "9".repeat(40);
+  const previous = {
+    versionCode: 1135,
+    versionName: "1.0.0",
+    sourceCommit: commit,
+    signingCertificateSHA256: null,
+    universalApk: false,
+  };
+  const next = resolveNextReleaseVersion(previous, commit, true);
+  assert.equal(next.versionCode, 101136);
+  assert.equal(next.universalApk, true);
+  assert.equal(next.reusedForSameCommit, false);
+});
