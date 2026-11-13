@@ -1282,7 +1282,8 @@ if (!studyModeFocus.includes('private synchronized void resetPopupRetryState()')
     !studyModeFocus.includes('resetPopupRetryStateForDifferentPackage(foreground)')) {
   fail('Popup retry counters must be synchronized because monitor and main threads both update retry state');
 }
-if (!studyModeManager.includes('StudyModeFocusService.hasOverlayFailure()') ||
+if (!studyModeFocus.includes('hasOverlayFailure()') ||
+    !studyModeManager.includes('StudyModeFocusService.getMonitoringState()') ||
     !studyModeFocus.includes('view.isAttachedToWindow()') ||
     !studyModeFocus.includes('view.getWindowToken()') ||
     !studyModeFocus.includes('windowManager.removeViewImmediate(existingView)') ||
