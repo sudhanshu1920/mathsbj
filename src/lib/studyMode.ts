@@ -48,6 +48,7 @@ export interface StudyModeStatus {
     dndAccess: boolean;
     batteryOptimizationIgnored?: boolean;
     notificationsEnabled?: boolean;
+    xiaomiDevice?: boolean;
     accessibilityAvailable?: boolean;
     accessibilityEnabled?: boolean;
     accessibilityConsent?: boolean;
@@ -79,7 +80,7 @@ interface NativeStudyModePlugin {
   acceptAccessibilityDisclosure(): Promise<void>;
   requestNotificationPermission(): Promise<{ enabled: boolean }>;
   openPermissionSettings(options: {
-    permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "accessibility" | "battery" | "notifications";
+    permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "accessibility" | "battery" | "notifications" | "oemBackground";
   }): Promise<void>;
   showTimePicker(options: {
     title: string;
@@ -207,7 +208,7 @@ export async function requestStudyModeNotificationPermission(): Promise<boolean>
 }
 
 export async function openStudyModePermission(
-  permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "accessibility" | "battery" | "notifications",
+  permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "accessibility" | "battery" | "notifications" | "oemBackground",
 ): Promise<void> {
   if (!isStudyModeNative()) return;
   await NativeStudyMode.openPermissionSettings({ permission });

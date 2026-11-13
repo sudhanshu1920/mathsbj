@@ -53,6 +53,8 @@ public final class StudyModeFocusService extends Service {
     private static final long POPUP_RETRY_SECOND_BACKOFF_MS = 6000L;
     private static final long POPUP_RETRY_RECOVERY_BACKOFF_MS = 30_000L;
     private static final long MIN_IMMEDIATE_RECHECK_INTERVAL_MS = 250L;
+    private static final long MONITOR_HEALTH_TIMEOUT_MS = 10_000L;
+    private static final long MONITOR_THREAD_RETRY_MS = 3_000L;
     private static final int MAX_POPUP_FAILURES_PER_FOREGROUND = 3;
     private static final String LOG_TAG = "MathMasterStudyMode";
     private static volatile boolean running = false;
@@ -81,8 +83,13 @@ public final class StudyModeFocusService extends Service {
     }
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private HandlerThread monitorThread;
-    private Handler monitorHandler;
+    private final Object monitorThreadLock = new Object();
+    private volatile HandlerThread monitorThread;
+    private volatile Handler monitorHandler;
+    private volatile long monitorGeneration = 0L;
+    private volatile long monitorThreadStartedElapsedMs = 0L;
+    private volatile long lastMonitorHeartbeatElapsedMs = 0L;
+    private final AtomicBoolean monitorRecoveryInFlight = new AtomicBoolean(false);
     private final AtomicBoolean immediateEvaluationQueued = new AtomicBoolean(false);
     private volatile long lastImmediateEvaluationElapsedMs = 0L;
     private final Runnable immediateEvaluationRunnable = this::runImmediateEvaluation;
@@ -94,7 +101,7 @@ public final class StudyModeFocusService extends Service {
 
     private String shieldedPackage = "";
     private String activeShieldRequestId = "";
-    private PopupState popupState = PopupState.IDLE;
+    private volatile PopupState popupState = PopupState.IDLE;
     private boolean foregroundStarted = false;
 
     // UsageEvents is consumed from a moving cursor with a small overlap. This avoids
@@ -121,6 +128,156 @@ public final class StudyModeFocusService extends Service {
 
     public static boolean isRunning() {
         return running;
+    }
+
+    /**
+     * A service process being alive is not proof that its monitor thread is
+     * still processing app/window events. Require a live HandlerThread and a
+     * recent monitor heartbeat before exposing a healthy monitoring state.
+     */
+    public static boolean isMonitoringHealthy() {
+        StudyModeFocusService service = activeService;
+        return running && !stopping && service != null && service.isMonitorThreadHealthy();
+    }
+
+    private boolean isMonitorThreadHealthy() {
+        if (!foregroundStarted || !running || stopping) return false;
+        if (StudyModeManager.isPolicyOwner(this)) return true;
+        HandlerThread thread = monitorThread;
+        Handler handler = monitorHandler;
+        long heartbeat = lastMonitorHeartbeatElapsedMs;
+        return thread != null && thread.isAlive()
+            && handler != null && thread.getLooper() != null
+            && thread.getLooper().getThread().isAlive()
+            && heartbeat > 0L
+            && SystemClock.elapsedRealtime() - heartbeat <= MONITOR_HEALTH_TIMEOUT_MS;
+    }
+
+    public static boolean isMonitorStarting() {
+        StudyModeFocusService service = activeService;
+        if (!running || stopping || service == null || StudyModeManager.isPolicyOwner(service)) return false;
+        HandlerThread thread = service.monitorThread;
+        return thread != null && thread.isAlive()
+            && service.lastMonitorHeartbeatElapsedMs == 0L
+            && SystemClock.elapsedRealtime() - service.monitorThreadStartedElapsedMs
+                <= MONITOR_HEALTH_TIMEOUT_MS;
+    }
+
+    public static boolean isBlockingActive() {
+        StudyModeFocusService service = activeService;
+        return service != null && running
+            && service.popupState == PopupState.VISIBLE
+            && service.isShieldViewVisible(service.shieldView);
+    }
+
+    public static String getMonitoringState() {
+        StudyModeFocusService service = activeService;
+        if (!running || service == null) return starting ? "focus_shield_starting" : "service_stopped";
+        if (StudyModeManager.isPolicyOwner(service)) return "system_suspension";
+        if (service.popupState == PopupState.VISIBLE && isBlockingActive()) return "blocking_active";
+        if (service.popupState == PopupState.LAUNCH_PENDING) return "blocking_pending";
+        if (service.popupState == PopupState.RECOVERY_REQUIRED || hasOverlayFailure()) return "overlay_failed";
+        if (isMonitoringHealthy()) return "focus_shield_running";
+        if (isMonitorStarting()) return "focus_shield_starting";
+        return "monitoring_unavailable";
+    }
+
+    /**
+     * Recover a failed/dead monitor inside an already-running foreground
+     * service. This avoids starting a second FGS while the original one lives.
+     */
+    public static boolean requestMonitorRecovery(String reason) {
+        StudyModeFocusService service = activeService;
+        if (service == null || !running || stopping) return false;
+        if (service.isMonitorThreadHealthy()) return true;
+        return service.ensureMonitorThreadStarted(reason == null ? "unspecified" : reason);
+    }
+
+    private boolean ensureMonitorThreadStarted(String reason) {
+        if (!running || stopping || StudyModeManager.isPolicyOwner(this)
+            || !StudyModeManager.shouldEnforceNow(this)
+            || !StudyModeManager.hasForegroundMonitoringPermission(this)
+            || !StudyModeManager.hasOverlayPermission(this)) return false;
+
+        if (isMonitorThreadHealthy()) return true;
+        HandlerThread currentThread = monitorThread;
+        if (currentThread != null && currentThread.isAlive()
+            && lastMonitorHeartbeatElapsedMs == 0L
+            && SystemClock.elapsedRealtime() - monitorThreadStartedElapsedMs
+                <= MONITOR_HEALTH_TIMEOUT_MS) {
+            return true;
+        }
+        if (!monitorRecoveryInFlight.compareAndSet(false, true)) return false;
+
+        try {
+            synchronized (monitorThreadLock) {
+                if (isMonitorThreadHealthy()) return true;
+                long generation = ++monitorGeneration;
+                foregroundDecisionSequence.incrementAndGet();
+
+                Handler previousHandler = monitorHandler;
+                if (previousHandler != null) previousHandler.removeCallbacksAndMessages(null);
+                HandlerThread previousThread = monitorThread;
+                if (previousThread != null) previousThread.quitSafely();
+                monitorHandler = null;
+                monitorThread = null;
+                lastMonitorHeartbeatElapsedMs = 0L;
+
+                HandlerThread replacement = new HandlerThread(
+                    "StudyModeMonitor",
+                    android.os.Process.THREAD_PRIORITY_BACKGROUND
+                );
+                replacement.start();
+                Looper looper = replacement.getLooper();
+                if (looper == null || !replacement.isAlive()) {
+                    replacement.quitSafely();
+                    StudyModeManager.setServiceState(this, "monitoring_unavailable");
+                    logStage("PROCESS_RECOVERY_FAILED", "", "", "failed", "monitor_looper_unavailable");
+                    return false;
+                }
+
+                monitorThread = replacement;
+                monitorHandler = new Handler(looper);
+                monitorThreadStartedElapsedMs = SystemClock.elapsedRealtime();
+                activeService = this;
+                if (!monitorHandler.post(monitorRunnable)) {
+                    monitorHandler.removeCallbacksAndMessages(null);
+                    replacement.quitSafely();
+                    monitorHandler = null;
+                    monitorThread = null;
+                    StudyModeManager.setServiceState(this, "monitoring_unavailable");
+                    logStage("PROCESS_RECOVERY_FAILED", "", "", "failed", "monitor_handler_rejected");
+                    return false;
+                }
+                StudyModeManager.setServiceState(this, "focus_shield_starting");
+                logStage("PROCESS_RECOVERY_STARTED", "", "", "started",
+                    reason + "_generation_" + generation);
+                return true;
+            }
+        } catch (RuntimeException recoveryFailure) {
+            StudyModeManager.setServiceState(this, "monitoring_unavailable");
+            logStage("PROCESS_RECOVERY_FAILED", "", "", "failed",
+                recoveryFailure.getClass().getSimpleName());
+            return false;
+        } finally {
+            monitorRecoveryInFlight.set(false);
+        }
+    }
+
+    private void scheduleMonitorCycle(long delayMs, long expectedGeneration) {
+        if (!running || expectedGeneration != monitorGeneration) return;
+        Handler handler = monitorHandler;
+        HandlerThread thread = monitorThread;
+        if (handler == null || thread == null || !thread.isAlive()) {
+            StudyModeManager.setServiceState(this, "monitoring_unavailable");
+            return;
+        }
+        handler.removeCallbacks(monitorRunnable);
+        if (!handler.postDelayed(monitorRunnable, Math.max(0L, delayMs))) {
+            lastMonitorHeartbeatElapsedMs = 0L;
+            StudyModeManager.setServiceState(this, "monitoring_unavailable");
+            logStage("PROCESS_RECOVERY_FAILED", "", "", "failed", "monitor_handler_rejected");
+        }
     }
 
     /**
@@ -167,6 +324,17 @@ public final class StudyModeFocusService extends Service {
         STUDY_LABEL_CACHE.remove(packageName);
     }
 
+    private final Runnable monitorThreadRecoveryRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!running || !StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)) return;
+            if (!ensureMonitorThreadStarted("foreground_service_retry")
+                && running && StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)) {
+                mainHandler.postDelayed(this, MONITOR_THREAD_RETRY_MS);
+            }
+        }
+    };
+
     private final Runnable notificationUpdateRunnable = new Runnable() {
         @Override
         public void run() {
@@ -180,6 +348,7 @@ public final class StudyModeFocusService extends Service {
     public void onCreate() {
         super.onCreate();
         starting = false;
+        logStage("FOCUS_SERVICE_CREATED", "", "", "created", "service_on_create");
         stopping = false;
         boolean devicePolicyMode = StudyModeManager.isPolicyOwner(this);
         if (!StudyModeManager.shouldEnforceNow(this)) {
@@ -203,22 +372,19 @@ public final class StudyModeFocusService extends Service {
             return;
         }
         running = true;
-        if (!devicePolicyMode) StudyModeManager.setServiceState(this, "focus_shield_running");
+        activeService = this;
+        overlayFailureForStatus = false;
+        foregroundLookupFailureForStatus = false;
+        if (!devicePolicyMode) StudyModeManager.setServiceState(this, "focus_shield_starting");
         refreshDiagnosticSessionId(true);
         logStage("SESSION_VALIDATED", "", "", "active", "foreground_service_started");
         mainHandler.postDelayed(notificationUpdateRunnable, 60_000L);
 
         // Device Owner suspension already blocks packages at the OS level. In that
         // mode this service only maintains the durable session notification/timer.
-        if (!devicePolicyMode) {
-            monitorThread = new HandlerThread(
-                "StudyModeMonitor",
-                android.os.Process.THREAD_PRIORITY_BACKGROUND
-            );
-            monitorThread.start();
-            monitorHandler = new Handler(monitorThread.getLooper());
-            activeService = this;
-            monitorHandler.post(monitorRunnable);
+        if (!devicePolicyMode && !ensureMonitorThreadStarted("service_created")) {
+            StudyModeManager.setServiceState(this, "monitoring_unavailable");
+            mainHandler.postDelayed(monitorThreadRecoveryRunnable, MONITOR_THREAD_RETRY_MS);
         }
     }
 
@@ -231,18 +397,25 @@ public final class StudyModeFocusService extends Service {
         starting = false;
         stopping = false;
         refreshDiagnosticSessionId(true);
+        if (intent == null) {
+            logStage("SERVICE_RESTARTED_WITH_NULL_INTENT", "", "", "restoring", "sticky_service_restart");
+        }
         if (StudyModeManager.isPolicyOwner(this)) {
             updateOngoingNotification();
             return START_STICKY;
         }
-        if (monitorHandler == null) {
-            stopSelf(startId);
-            return START_NOT_STICKY;
+        if (!ensureMonitorThreadStarted(intent == null ? "sticky_restart" : "start_command")) {
+            StudyModeManager.setServiceState(this, "monitoring_unavailable");
+            mainHandler.removeCallbacks(monitorThreadRecoveryRunnable);
+            mainHandler.postDelayed(monitorThreadRecoveryRunnable, MONITOR_THREAD_RETRY_MS);
+            return START_STICKY;
         }
-        monitorHandler.removeCallbacks(immediateEvaluationRunnable);
-        immediateEvaluationQueued.set(false);
-        monitorHandler.removeCallbacks(monitorRunnable);
-        monitorHandler.post(monitorRunnable);
+        Handler currentHandler = monitorHandler;
+        if (currentHandler != null) {
+            currentHandler.removeCallbacks(immediateEvaluationRunnable);
+            immediateEvaluationQueued.set(false);
+            scheduleMonitorCycle(0L, monitorGeneration);
+        }
         return START_STICKY;
     }
 
@@ -274,7 +447,12 @@ public final class StudyModeFocusService extends Service {
             foregroundStarted = true;
             return true;
         } catch (Exception error) {
-            StudyModeManager.setServiceState(this, "service_start_blocked");
+            boolean startRestricted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && "ForegroundServiceStartNotAllowedException".equals(error.getClass().getSimpleName());
+            StudyModeManager.setServiceState(this,
+                startRestricted ? "monitoring_unavailable" : "service_start_blocked");
+            logStage(startRestricted ? "FOREGROUND_START_RESTRICTED" : "FOREGROUND_START_FAILED",
+                "", "", "failed", error.getClass().getSimpleName());
             return false;
         }
     }
@@ -318,7 +496,9 @@ public final class StudyModeFocusService extends Service {
     private final Runnable monitorRunnable = new Runnable() {
         @Override
         public void run() {
-            if (!running) return;
+            long monitorGenerationAtStart = monitorGeneration;
+            if (!running || Thread.currentThread() != monitorThread) return;
+            lastMonitorHeartbeatElapsedMs = SystemClock.elapsedRealtime();
 
             if (StudyModeManager.completeExpiredSession(StudyModeFocusService.this)) {
                 StudyModeManager.reconcile(StudyModeFocusService.this);
@@ -329,7 +509,8 @@ public final class StudyModeFocusService extends Service {
                 StudyModeManager.setServiceState(StudyModeFocusService.this,
                     StudyModeManager.isEnabled(StudyModeFocusService.this) ? "waiting_for_schedule" : "disabled");
                 mainHandler.post(() -> {
-                    if (!running || invalidation != foregroundDecisionSequence.get()) return;
+                    if (monitorGenerationAtStart != monitorGeneration
+                        || !running || invalidation != foregroundDecisionSequence.get()) return;
                     removeShield("session_inactive");
                     stopSelf();
                 });
@@ -338,12 +519,13 @@ public final class StudyModeFocusService extends Service {
             if (StudyModeManager.isPolicyOwner(StudyModeFocusService.this)) {
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 mainHandler.post(() -> {
-                    if (running && invalidation == foregroundDecisionSequence.get()) {
+                    if (monitorGenerationAtStart == monitorGeneration
+                        && running && invalidation == foregroundDecisionSequence.get()) {
                         removeShield("device_policy_enforces_packages");
                     }
                 });
                 updateOngoingNotification();
-                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
+                if (monitorHandler != null)  scheduleMonitorCycle(60_000L, monitorGenerationAtStart);
                 return;
             }
             if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
@@ -356,12 +538,13 @@ public final class StudyModeFocusService extends Service {
                 }
                 StudyModeManager.setServiceState(StudyModeFocusService.this, "permission_required");
                 mainHandler.post(() -> {
-                    if (running && invalidation == foregroundDecisionSequence.get()) {
+                    if (monitorGenerationAtStart == monitorGeneration
+                        && running && invalidation == foregroundDecisionSequence.get()) {
                         removeShield("permission_missing");
                     }
                 });
                 updateOngoingNotification();
-                if (monitorHandler != null) monitorHandler.postDelayed(this, 60_000L);
+                if (monitorHandler != null)  scheduleMonitorCycle(60_000L, monitorGenerationAtStart);
                 return;
             }
             if (permissionUnavailableLogged) {
@@ -379,11 +562,12 @@ public final class StudyModeFocusService extends Service {
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 resetForegroundResolution();
                 mainHandler.post(() -> {
-                    if (running && invalidation == foregroundDecisionSequence.get()) {
+                    if (monitorGenerationAtStart == monitorGeneration
+                        && running && invalidation == foregroundDecisionSequence.get()) {
                         removeShield("screen_not_interactive");
                     }
                 });
-                if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
+                if (monitorHandler != null)  scheduleMonitorCycle(POLL_INTERVAL_MS, monitorGenerationAtStart);
                 return;
             }
 
@@ -416,7 +600,7 @@ public final class StudyModeFocusService extends Service {
                     foregroundUnknownLogged = true;
                     logStage("FOREGROUND_PACKAGE_UNRESOLVED", "", "", "deferred", "no_usable_resume_event");
                 }
-                if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
+                if (monitorHandler != null)  scheduleMonitorCycle(POLL_INTERVAL_MS, monitorGenerationAtStart);
                 return;
             }
             foregroundUnknownLogged = false;
@@ -442,7 +626,7 @@ public final class StudyModeFocusService extends Service {
                     logStage("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE", "", "", "deferred",
                         "stale_or_incomplete_interactive_window_snapshot");
                 }
-                if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
+                if (monitorHandler != null)  scheduleMonitorCycle(POLL_INTERVAL_MS, monitorGenerationAtStart);
                 return;
             }
             windowSnapshotUnavailableLogged = false;
@@ -459,6 +643,7 @@ public final class StudyModeFocusService extends Service {
 
             if (shouldShield && !foreground.equals(lastLoggedBlockedPackage)) {
                 lastLoggedBlockedPackage = foreground;
+                logStage("BLOCKED_PACKAGE_DETECTED", foreground, "", "detected", foregroundSource);
                 logStage("BLOCKED_LIST_MATCHED", foreground, "", "matched", "active_session_or_schedule");
             } else if (!shouldShield) {
                 overlayFailureForStatus = false;
@@ -470,8 +655,9 @@ public final class StudyModeFocusService extends Service {
 
             final String decisionPackage = foreground;
             final String requestId = shouldShield ? UUID.randomUUID().toString() : "";
+            if (monitorGenerationAtStart != monitorGeneration) return;
             mainHandler.post(() -> {
-                if (!running) return;
+                if (monitorGenerationAtStart != monitorGeneration || !running) return;
                 if (decisionSequence != foregroundDecisionSequence.get()) {
                     if (shouldShield) {
                         logStage("BLOCKING_REEVALUATED", decisionPackage, requestId, "superseded", "newer_foreground_decision");
@@ -482,14 +668,14 @@ public final class StudyModeFocusService extends Service {
                 else removeShield("foreground_not_blocked");
             });
 
-            if (monitorHandler != null) monitorHandler.postDelayed(this, POLL_INTERVAL_MS);
+            if (monitorHandler != null)  scheduleMonitorCycle(POLL_INTERVAL_MS, monitorGenerationAtStart);
         }
     };
 
     private void runImmediateEvaluation() {
         immediateEvaluationQueued.set(false);
         Handler currentHandler = monitorHandler;
-        if (!running || currentHandler == null) return;
+        if (!running || currentHandler == null || Thread.currentThread() != monitorThread) return;
         lastImmediateEvaluationElapsedMs = SystemClock.elapsedRealtime();
         currentHandler.removeCallbacks(monitorRunnable);
         monitorRunnable.run();
@@ -689,6 +875,8 @@ public final class StudyModeFocusService extends Service {
         }
 
         popupState = PopupState.LAUNCH_PENDING;
+        logStage("POPUP_REQUESTED", packageName, requestId, "requested", "window_manager_overlay");
+        StudyModeManager.setServiceState(this, "blocking_pending");
         activeShieldRequestId = requestId == null || requestId.isEmpty()
             ? UUID.randomUUID().toString() : requestId;
         logStage("BLOCKING_DECISION_CREATED", packageName, activeShieldRequestId, "required", "active_session_and_blocked_package");
@@ -784,8 +972,9 @@ public final class StudyModeFocusService extends Service {
             popupState = PopupState.VISIBLE;
             overlayFailureForStatus = false;
             resetPopupRetryState();
-            StudyModeManager.setServiceState(this, "focus_shield_running");
-            logStage("POPUP_WINDOW_VISIBLE", packageName, requestId, "visible", "attached_shown_and_window_token_present");
+            StudyModeManager.setServiceState(this, "blocking_active");
+            logStage("POPUP_VISIBLE", packageName, requestId, "visible", "attached_shown_and_window_token_present");
+            logStage("POPUP_WINDOW_VISIBLE", packageName, requestId, "visible", "verified_window_attachment_and_visibility");
             return;
         }
 
@@ -793,6 +982,8 @@ public final class StudyModeFocusService extends Service {
         overlayFailureForStatus = true;
         recordPopupLaunchFailure(packageName);
         StudyModeManager.setServiceState(this, "overlay_failed");
+        logStage("POPUP_VISIBILITY_FAILED", packageName, requestId,
+            "not_visible", "window_not_attached_or_hidden");
         logStage("POPUP_LAUNCH_FAILED", packageName, requestId,
             "not_visible", "window_not_attached_or_hidden");
         removeShield("window_not_visible");
@@ -1216,12 +1407,15 @@ public final class StudyModeFocusService extends Service {
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
+        logStage("FOCUS_TASK_REMOVED", "", "", "continuing", "launcher_task_removed");
         // Removing the launcher task is not an OFF action. Keep the persisted
         // session and FGS alive, then re-read UsageStats so stale foreground data
         // cannot leave a selected app unshielded after the task was swiped away.
-        if (monitorHandler != null && StudyModeManager.shouldEnforceNow(this)) {
-            monitorHandler.removeCallbacks(monitorRunnable);
-            monitorHandler.post(() -> {
+        Handler currentHandler = monitorHandler;
+        long expectedGeneration = monitorGeneration;
+        if (currentHandler != null && StudyModeManager.shouldEnforceNow(this)) {
+            currentHandler.post(() -> {
+                if (currentHandler != monitorHandler || expectedGeneration != monitorGeneration) return;
                 foregroundDecisionSequence.incrementAndGet();
                 resetForegroundResolution();
                 monitorRunnable.run();
@@ -1233,12 +1427,17 @@ public final class StudyModeFocusService extends Service {
 
     @Override
     public void onDestroy() {
+        logStage("FOCUS_SERVICE_DESTROYED", "", "", "destroyed", "service_on_destroy");
         foregroundDecisionSequence.incrementAndGet();
+        monitorGeneration++;
+        lastMonitorHeartbeatElapsedMs = 0L;
+        mainHandler.removeCallbacks(monitorThreadRecoveryRunnable);
         running = false;
         starting = false;
         stopping = false;
         if (activeService == this) activeService = null;
         immediateEvaluationQueued.set(false);
+        monitorRecoveryInFlight.set(false);
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
         mainHandler.removeCallbacksAndMessages(null);

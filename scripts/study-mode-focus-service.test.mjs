@@ -5,9 +5,11 @@ import test from "node:test";
 const focusPath = new URL("../android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java", import.meta.url);
 const managerPath = new URL("../android-native/com/sudhanshu/mathsbj/StudyModeManager.java", import.meta.url);
 const pagePath = new URL("../src/components/StudyModePage.tsx", import.meta.url);
+const permissionSetupPath = new URL("../src/components/StudyModePermissionSetup.tsx", import.meta.url);
 const source = readFileSync(focusPath, "utf8");
 const manager = readFileSync(managerPath, "utf8");
 const page = readFileSync(pagePath, "utf8");
+const permissionSetup = readFileSync(permissionSetupPath, "utf8");
 const registry = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeWindowRegistry.java", import.meta.url), "utf8");
 const accessibility = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java", import.meta.url), "utf8");
 
@@ -178,7 +180,8 @@ test("foreground lookup failures surface as unavailable while service is alive",
   assert.ok(source.includes("foregroundLookupFailureForStatus = false;"));
   const status = between(manager, "public static JSObject getStatus(Context context)", "boolean exactFallback");
   assert.ok(status.indexOf("hasForegroundLookupFailure()") >= 0);
-  assert.ok(status.indexOf("hasForegroundLookupFailure()") < status.indexOf("isRunning()"));
+  assert.ok(status.indexOf("hasForegroundLookupFailure()") < status.indexOf("getMonitoringState()"));
+  assert.ok(status.includes('"monitoring_unavailable".equals(monitorState)'));
   assert.ok(page.includes('status.enforcementState === "monitoring_unavailable"'));
   assert.ok(page.includes("grant Usage Access or enable Advanced window detection"));
 });
@@ -191,10 +194,10 @@ test("service teardown preserves an overlay cleanup failure instead of overwriti
 
 test("overlay launch failure is not reported as active blocking while the service stays alive", () => {
   const status = between(manager, "public static JSObject getStatus(Context context)", "boolean exactFallback");
-  const failureIndex = status.indexOf("StudyModeFocusService.hasOverlayFailure()");
-  const runningIndex = status.indexOf("StudyModeFocusService.isRunning()");
-  assert.ok(failureIndex >= 0 && runningIndex > failureIndex);
-  assert.ok(status.includes('state = "overlay_failed";'));
+  assert.ok(status.includes("StudyModeFocusService.getMonitoringState()"));
+  assert.ok(status.includes('"overlay_failed".equals(monitorState)'));
+  const healthState = between(source, "public static String getMonitoringState()", "public static boolean requestMonitorRecovery(");
+  assert.ok(healthState.includes('return "overlay_failed"'));
   assert.ok(source.includes("overlayFailureForStatus = false;"));
 });
 
@@ -271,6 +274,51 @@ test("Accessibility package events trigger bounded immediate foreground reevalua
   assert.ok(monitor.includes("foregroundSource);"));
 });
 
+test("Advanced Accessibility reconnect and window events recover unhealthy monitoring with bounded backoff", () => {
+  const recovery = between(
+    accessibility,
+    "private void recoverFocusServiceIfNeeded(String reason)",
+    "private void scheduleScan(",
+  );
+  for (const invariant of [
+    "FOCUS_SERVICE_RECOVERY_BACKOFF_MS",
+    "StudyModeManager.hasAccessibilityDisclosureConsent(this)",
+    "StudyModeManager.shouldEnforceNow(this)",
+    "StudyModeFocusService.isMonitoringHealthy()",
+    "StudyModeFocusService.isRunning()",
+    "StudyModeFocusService.isStopping()",
+    "StudyModeFocusService.isStarting()",
+    "StudyModeFocusService.requestMonitorRecovery(reason)",
+    "StudyModeManager.reconcile(this)",
+    "PROCESS_RECOVERY_STARTED",
+    "PROCESS_RECOVERY_FAILED",
+  ]) {
+    assert.ok(recovery.includes(invariant), `Missing recovery invariant: ${invariant}`);
+  }
+  assert.ok(accessibility.includes("1500L, 3000L, 6000L, 15_000L, 30_000L"));
+  assert.ok(accessibility.includes('recoverFocusServiceIfNeeded("periodic_health_check")'));
+
+  const connected = between(
+    accessibility,
+    "protected void onServiceConnected()",
+    "public void onAccessibilityEvent(AccessibilityEvent event)",
+  );
+  assert.ok(connected.indexOf("StudyModeWindowRegistry.markConnected()")
+    < connected.indexOf('recoverFocusServiceIfNeeded("service_connected")'));
+  assert.ok(connected.includes('ACCESSIBILITY_CONNECTED'));
+
+  const eventHandler = between(
+    accessibility,
+    "public void onAccessibilityEvent(AccessibilityEvent event)",
+    "public void onInterrupt()",
+  );
+  assert.ok(eventHandler.indexOf("StudyModeWindowRegistry.recordAccessibilityEvent(")
+    < eventHandler.indexOf('recoverFocusServiceIfNeeded("accessibility_event")'));
+  assert.ok(eventHandler.indexOf('recoverFocusServiceIfNeeded("accessibility_event")')
+    < eventHandler.indexOf("StudyModeFocusService.requestImmediateEvaluation()"));
+  assert.ok(accessibility.includes('ACCESSIBILITY_DISCONNECTED'));
+});
+
 test("popup first-frame verification waits for WindowManager traversal", () => {
   const show = between(source, "private void showShield(", "private boolean isShieldViewVisible");
   assert.ok(show.includes("candidate.postOnAnimation(() -> verifyShieldVisibility("));
@@ -327,4 +375,56 @@ test("popup and Study App interactions cannot end the Study Mode session", () =>
   }
   assert.ok(source.includes("StudyModeManager.shouldEnforceNow(this)"));
   assert.ok(source.includes("private final Runnable monitorRunnable"));
+});
+
+test("Focus Service health is based on a live monitor heartbeat, not the process flag", () => {
+  for (const invariant of [
+    "MONITOR_HEALTH_TIMEOUT_MS = 10_000L",
+    "lastMonitorHeartbeatElapsedMs",
+    "thread.getLooper().getThread().isAlive()",
+    "SystemClock.elapsedRealtime() - heartbeat <= MONITOR_HEALTH_TIMEOUT_MS",
+    "public static boolean isMonitoringHealthy()",
+    "public static boolean requestMonitorRecovery(String reason)",
+    "monitorGeneration",
+    "monitorThreadLock",
+    "monitorRecoveryInFlight.compareAndSet(false, true)",
+  ]) assert.ok(source.includes(invariant), `Missing monitor-health invariant: ${invariant}`);
+
+  const monitor = between(source, "private final Runnable monitorRunnable", "private void resetForegroundResolution()");
+  assert.ok(monitor.includes("Thread.currentThread() != monitorThread"));
+  assert.ok(monitor.includes("lastMonitorHeartbeatElapsedMs = SystemClock.elapsedRealtime()"));
+  assert.ok(monitor.includes("scheduleMonitorCycle(POLL_INTERVAL_MS, monitorGenerationAtStart)"));
+  assert.ok(source.includes("SERVICE_RESTARTED_WITH_NULL_INTENT"));
+  const start = between(source, "public int onStartCommand(", "private boolean startForegroundSafely()");
+  assert.ok(start.includes("intent == null"));
+  assert.ok(start.includes("return START_STICKY"));
+  assert.ok(start.includes('intent == null ? "sticky_restart" : "start_command"'));
+});
+
+test("blocking_active is only reported after actual overlay attachment and visibility", () => {
+  const verify = between(source, "private void verifyShieldVisibility(", "private android.view.View buildShieldView()");
+  assert.ok(verify.indexOf("isShieldViewVisible(candidate)")
+    < verify.indexOf('StudyModeManager.setServiceState(this, "blocking_active")'));
+  assert.ok(source.includes("public static boolean isBlockingActive()"));
+  const status = between(source, "public static String getMonitoringState()", "public static boolean requestMonitorRecovery(");
+  assert.ok(source.includes("service.isShieldViewVisible(service.shieldView)"));
+  assert.ok(status.includes('"blocking_pending"'));
+  assert.ok(status.includes('"monitoring_unavailable"'));
+});
+
+test("background foreground-service restrictions are reported rather than faked as healthy", () => {
+  assert.ok(source.includes('"ForegroundServiceStartNotAllowedException"'));
+  assert.ok(source.includes('"FOREGROUND_START_RESTRICTED"'));
+  assert.ok(manager.includes('"ForegroundServiceStartNotAllowedException"'));
+  assert.ok(manager.includes('"monitoring_unavailable"'));
+  assert.ok(manager.includes("public static void logStudyModeDiagnostic"));
+  assert.ok(accessibility.includes('"PROCESS_RECOVERY_FAILED"'));
+});
+
+test("HyperOS background switches are shown as manual, unverified OEM settings", () => {
+  assert.ok(manager.includes("public static boolean isXiaomiDevice()"));
+  assert.ok(manager.includes('permissions.put("xiaomiDevice", isXiaomiDevice())'));
+  assert.ok(permissionSetup.includes('key: "oemBackground"'));
+  assert.ok(permissionSetup.includes("Check manually"));
+  assert.ok(permissionSetup.includes("Android cannot reliably verify these OEM-only switches."));
 });

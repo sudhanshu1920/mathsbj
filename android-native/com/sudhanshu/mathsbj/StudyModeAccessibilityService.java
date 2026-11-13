@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.SparseArray;
+import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
@@ -20,6 +21,17 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     private static final long IDLE_RESCAN_INTERVAL_MS = 15_000L;
     private static final long EVENT_RESCAN_DELAY_MS = 100L;
     private static final long EVENT_SCAN_MIN_INTERVAL_MS = 350L;
+
+    // Retries are driven only by the user-enabled, system-bound Accessibility
+    // lifecycle and its app-window events. Backoff never suppresses blocked-app
+    // detection or popup requests.
+    private static final long[] FOCUS_SERVICE_RECOVERY_BACKOFF_MS = {
+        1500L, 3000L, 6000L, 15_000L, 30_000L
+    };
+    private static final String LOG_TAG = "MathMasterStudyMode";
+    private long nextFocusServiceRecoveryElapsedMs = 0L;
+    private int focusServiceRecoveryAttempt = 0;
+    private boolean lastWindowSnapshotReady = false;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean eventScanQueued = false;
@@ -37,6 +49,7 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
     private final Runnable scanRunnable = new Runnable() {
         @Override
         public void run() {
+            recoverFocusServiceIfNeeded("periodic_health_check");
             scanAccessibleWindows();
             long nextDelayMs = RESCAN_INTERVAL_MS;
             try {
@@ -66,6 +79,10 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
             setServiceInfo(info);
         }
         StudyModeWindowRegistry.markConnected();
+        StudyModeManager.logStudyModeDiagnostic(this, "ACCESSIBILITY_CONNECTED", "system_bound_service_connected");
+        // Android can reconnect an enabled AccessibilityService after the app
+        // process was reclaimed. Reconcile the durable session before scanning.
+        recoverFocusServiceIfNeeded("service_connected");
         scheduleScan(0L);
     }
 
@@ -81,6 +98,10 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
                 eventPackage.toString(), event.getEventType(), event.getWindowId());
         }
 
+        // If Cleaner/recents cleanup removed the monitor while this system-bound
+        // service survived, restore it from the persisted session before waking it.
+        recoverFocusServiceIfNeeded("accessibility_event");
+
         // Wake the already-running monitor immediately. Its bounded coalescing
         // prevents an Accessibility event burst from creating duplicate work.
         StudyModeFocusService.requestImmediateEvaluation();
@@ -89,6 +110,7 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
 
     @Override
     public void onInterrupt() {
+        StudyModeManager.logStudyModeDiagnostic(this, "ACCESSIBILITY_INTERRUPTED", "system_interrupt_callback");
         // Interrupt does not necessarily mean the service was unbound. Keep the
         // registry connected and resume polling after invalidating the stale view.
         StudyModeWindowRegistry.invalidateSnapshot();
@@ -99,6 +121,7 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
 
     @Override
     public boolean onUnbind(android.content.Intent intent) {
+        StudyModeManager.logStudyModeDiagnostic(this, "ACCESSIBILITY_DISCONNECTED", "service_unbound");
         handler.removeCallbacks(scanRunnable);
         handler.removeCallbacks(eventScanRunnable);
         eventScanQueued = false;
@@ -108,10 +131,83 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        StudyModeManager.logStudyModeDiagnostic(this, "ACCESSIBILITY_DESTROYED", "service_destroyed");
         handler.removeCallbacksAndMessages(null);
         eventScanQueued = false;
         StudyModeWindowRegistry.clear();
         super.onDestroy();
+    }
+
+    /**
+     * Reconcile the durable Study Mode session when Android reconnects this
+     * system-bound service or reports a window event. The cooldown prevents an
+     * event burst from repeatedly starting the foreground service.
+     */
+    private void recoverFocusServiceIfNeeded(String reason) {
+        if (!StudyModeManager.hasAccessibilityDisclosureConsent(this)
+            || !StudyModeManager.shouldEnforceNow(this)) {
+            focusServiceRecoveryAttempt = 0;
+            nextFocusServiceRecoveryElapsedMs = 0L;
+            return;
+        }
+
+        if (StudyModeFocusService.isMonitoringHealthy()) {
+            if (focusServiceRecoveryAttempt > 0) {
+                StudyModeManager.logStudyModeDiagnostic(this, "PROCESS_RECOVERY_SUCCESS",
+                    reason + "_monitor_heartbeat_restored");
+            }
+            focusServiceRecoveryAttempt = 0;
+            nextFocusServiceRecoveryElapsedMs = 0L;
+            return;
+        }
+
+        long now = SystemClock.elapsedRealtime();
+        if (now < nextFocusServiceRecoveryElapsedMs) return;
+        long[] retrySchedule = FOCUS_SERVICE_RECOVERY_BACKOFF_MS;
+        int backoffIndex = Math.min(focusServiceRecoveryAttempt, retrySchedule.length - 1);
+        long retryDelayMs = retrySchedule[backoffIndex];
+        focusServiceRecoveryAttempt = Math.min(focusServiceRecoveryAttempt + 1, retrySchedule.length - 1);
+        nextFocusServiceRecoveryElapsedMs = now + retryDelayMs;
+
+        StudyModeManager.logStudyModeDiagnostic(this, "PROCESS_RECOVERY_STARTED",
+            reason + "_attempt_" + focusServiceRecoveryAttempt);
+
+        try {
+            if (StudyModeFocusService.isRunning() && !StudyModeFocusService.isStopping()) {
+                // Recreate a dead/stalled monitor thread inside the existing FGS.
+                // Do not start a second foreground service while one is still alive.
+                boolean accepted = StudyModeFocusService.requestMonitorRecovery(reason);
+                if (accepted) {
+                    StudyModeManager.logStudyModeDiagnostic(this, "PROCESS_RECOVERY_STARTED",
+                        reason + "_monitor_thread_recreated_or_initializing");
+                } else {
+                    StudyModeManager.setServiceState(this, "monitoring_unavailable");
+                    StudyModeManager.logStudyModeDiagnostic(this, "PROCESS_RECOVERY_FAILED",
+                        reason + "_monitor_recovery_rejected");
+                }
+                return;
+            }
+
+            if (StudyModeFocusService.isStarting()) {
+                // The Android service start has been accepted; wait for its first
+                // heartbeat instead of issuing a duplicate start.
+                return;
+            }
+
+            // reconcile() validates the persisted SQLite session and all runtime
+            // permissions before it attempts an Android-allowed service start.
+            StudyModeManager.reconcile(this);
+            if (!StudyModeFocusService.isMonitoringHealthy()
+                && !StudyModeFocusService.isStarting()
+                && !StudyModeFocusService.isRunning()) {
+                StudyModeManager.logStudyModeDiagnostic(this, "PROCESS_RECOVERY_FAILED",
+                    reason + "_service_not_started");
+            }
+        } catch (RuntimeException recoveryFailure) {
+            StudyModeManager.setServiceState(this, "monitoring_unavailable");
+            StudyModeManager.logStudyModeDiagnostic(this, "PROCESS_RECOVERY_FAILED",
+                reason + "_" + recoveryFailure.getClass().getSimpleName());
+        }
     }
 
     private void scheduleScan(long delayMs) {
@@ -147,6 +243,10 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
             }
             WindowSnapshot snapshot = readVisibleApplicationWindows();
             StudyModeWindowRegistry.publish(snapshot.windows, snapshot.complete);
+            if (snapshot.complete && !lastWindowSnapshotReady) {
+                StudyModeManager.logStudyModeDiagnostic(this, "WINDOW_SCAN_READY", "complete_interactive_window_snapshot");
+            }
+            lastWindowSnapshotReady = snapshot.complete;
         } catch (RuntimeException unavailableSnapshot) {
             StudyModeWindowRegistry.invalidateSnapshot();
         }

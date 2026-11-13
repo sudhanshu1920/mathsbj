@@ -359,6 +359,13 @@ public final class StudyModePlugin extends Plugin {
                 intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     android.net.Uri.parse("package:" + getContext().getPackageName()));
                 break;
+            case "oemBackground":
+                // HyperOS exposes Autostart/background controls through OEM
+                // settings that vary by version. Open standard App info and
+                // explain the remaining manual switches in the Study Mode UI.
+                intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.parse("package:" + getContext().getPackageName()));
+                break;
             case "battery":
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     // General settings are user-controlled; do not request the

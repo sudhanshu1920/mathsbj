@@ -1104,6 +1104,15 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeAccessibilityService.includes('root.getPackageName()') ||
     !studyModeAccessibilityService.includes('recordAccessibilityEvent') ||
     !studyModeAccessibilityService.includes('scheduleEventScan') ||
+    !studyModeAccessibilityService.includes('FOCUS_SERVICE_RECOVERY_BACKOFF_MS') ||
+    !studyModeAccessibilityService.includes('PROCESS_RECOVERY_STARTED') ||
+    !studyModeFocus.includes('MONITOR_HEALTH_TIMEOUT_MS = 10_000L') ||
+    !studyModeFocus.includes('isMonitoringHealthy()') ||
+    !studyModeFocus.includes('blocking_active') ||
+    !studyModeManager.includes('permissions.put("xiaomiDevice", isXiaomiDevice())') ||
+    !studyModeAccessibilityService.includes('recoverFocusServiceIfNeeded("service_connected")') ||
+    !studyModeAccessibilityService.includes('recoverFocusServiceIfNeeded("accessibility_event")') ||
+    !studyModeAccessibilityService.includes('StudyModeManager.reconcile(this)') ||
     !studyModeWindowRegistry.includes('ACCESSIBILITY_EVENT_TTL_MS = 2200L') ||
     !studyModeFocus.includes('requestImmediateEvaluation()') ||
     !studyModeFocus.includes('candidate.postOnAnimation(() -> verifyShieldVisibility(') ||
@@ -1123,7 +1132,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeManager.includes('AlarmManager') ||
     !studyModeManager.includes('canScheduleExactAlarms') ||
     !studyModeManager.includes('isDefaultDialerPackage') && !studyModeManager.includes('getDefaultDialerPackage')) {
-  fail('Managed-device suspension, Usage Access/optional Accessibility Focus Shield, truthful permission state, alarm fallback, or critical app protection is missing');
+  fail('Managed-device suspension, Advanced Accessibility recovery, Usage Access Focus Shield, truthful permission state, alarm fallback, or critical app protection is missing');
 }
 if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     !studyModeAppPlugin.includes('checkPermission("android.permission.QUERY_ALL_PACKAGES"') ||
@@ -1273,7 +1282,8 @@ if (!studyModeFocus.includes('private synchronized void resetPopupRetryState()')
     !studyModeFocus.includes('resetPopupRetryStateForDifferentPackage(foreground)')) {
   fail('Popup retry counters must be synchronized because monitor and main threads both update retry state');
 }
-if (!studyModeManager.includes('StudyModeFocusService.hasOverlayFailure()') ||
+if (!studyModeFocus.includes('hasOverlayFailure()') ||
+    !studyModeManager.includes('StudyModeFocusService.getMonitoringState()') ||
     !studyModeFocus.includes('view.isAttachedToWindow()') ||
     !studyModeFocus.includes('view.getWindowToken()') ||
     !studyModeFocus.includes('windowManager.removeViewImmediate(existingView)') ||
