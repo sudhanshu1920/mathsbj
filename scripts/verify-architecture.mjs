@@ -56,7 +56,7 @@ if (!icons.includes('Grid3x3') || !icons.includes('Radical') || !icons.includes(
 if (!icons.includes('LockKeyhole') ||
     !learning.includes("const StudyModePage = lazy(() => import('@/components/StudyModePage'));") ||
     !learning.includes('if (studyModeTopicOpen)') ||
-    !learning.includes('<StudyModePage onBack={() => setStudyModeTopicOpen(false)} />') ||
+    !learning.includes('<StudyModePage backLabel="Back to Learning Mode" onBack={() => setStudyModeTopicOpen(false)} />') ||
     !learning.includes("if (topicId === 'study-mode')")) {
   fail('Learning Mode Study Mode entry must reuse the canonical StudyModePage and return to its topic list');
 }
@@ -74,15 +74,19 @@ if (practiceExitStart < 0 || practiceExitEnd < 0 ||
 if (!index.includes('getFloatingBarVisibility({') ||
     !index.includes('activeTopic: learningState.activeTopic') ||
     !index.includes('quizInProgress: isPracticeSessionInProgress(practicePhase)') ||
+    !index.includes('studyModeOpen: studyModePageVisible') ||
+    !index.includes('setStudyModePageVisible(open)') ||
     !index.includes('const { show: showBottomNav, mount: mountBottomNav } = getFloatingBarVisibility({')) {
   fail('Floating Bar visibility must use the centralized policy with Learning topic and Quiz state');
 }
 if (!floatingBarVisibility.includes("tab === 'learn' && activeTopic !== null") ||
     !floatingBarVisibility.includes("tab === 'practice' && quizInProgress") ||
+    !floatingBarVisibility.includes('!studyModeOpen && !learningTopicOpen && !quizSessionOpen') ||
     !floatingBarVisibility.includes('show: mount && !settingsOpen') ||
     !floatingBarVisibilityTests.includes('restores the bar when Back returns to the Learning landing state') ||
     !floatingBarVisibilityTests.includes('unmounts the bar for the %s topic and its nested screens') ||
-    !floatingBarVisibilityTests.includes('keeps Settings hidden without changing its existing mount behavior')) {
+    !floatingBarVisibilityTests.includes('keeps Settings hidden without changing its existing mount behavior') ||
+    !floatingBarVisibilityTests.includes('fully unmounts the Floating Bar while the shared Study Mode page is open from either entry point')) {
   fail('Floating Bar topic-depth, auto-restore, Settings, and Quiz regression tests are missing');
 }
 if (index.includes("custom={sectionTransitionDirection ?? 'left'}") ||
@@ -999,6 +1003,22 @@ if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(f
     !studyModePage.includes('aria-label={day.name}') ||
     !studyModeIndex.includes('studyModePageOpen.current') ||
     !studyModeIndex.includes("new CustomEvent('study-mode-back')")) {
+const studyModeSaveRowStart = studyModePage.indexOf('aria-label="Study Mode master switch"');
+const studyModeSaveRowEnd = studyModePage.indexOf('\\n            </div>', studyModeSaveRowStart);
+const studyModeSaveRow = studyModeSaveRowStart >= 0 && studyModeSaveRowEnd > studyModeSaveRowStart
+  ? studyModePage.slice(studyModeSaveRowStart, studyModeSaveRowEnd)
+  : '';
+if (!studyModePage.includes('useLayoutEffect(() => {\\n    window.dispatchEvent(new CustomEvent("study-mode-page-state"') ||
+    !studyModePage.includes('aria-label={backLabel}') ||
+    !studyModeSaveRow.includes('min-h-9 min-w-[76px]') ||
+    !studyModeSaveRow.includes('Save Study Mode settings') ||
+    studyModePage.includes('sticky bottom-0 z-20 -mx-1') ||
+    !studyModePage.includes('if (saving || saveInFlightRef.current) return;') ||
+    !studyModePage.includes('saveInFlightRef.current = true;') ||
+    !studyModePage.includes('saveInFlightRef.current = false;')) {
+  fail('Study Mode must hide the Floating Bar before paint and keep a compact, duplicate-safe Save action beside the master switch');
+}
+
   fail('Study Mode settings entry, middle master control, native time/day controls, or Back navigation are missing');
 }
 if (!studyModeSchedule.includes('isStudyModeScheduledAt') ||
