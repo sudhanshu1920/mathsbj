@@ -12,7 +12,6 @@ import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.PixelFormat;
@@ -809,13 +808,13 @@ public final class StudyModeFocusService extends Service {
         LinearLayout stage = new LinearLayout(this);
         stage.setOrientation(LinearLayout.VERTICAL);
         stage.setGravity(Gravity.CENTER);
-        stage.setPadding(dp(16), dp(22), dp(16), dp(22));
+        stage.setPadding(dp(14), dp(12), dp(14), dp(12));
         scroll.addView(stage, new ScrollView.LayoutParams(-1, -2));
 
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setGravity(Gravity.CENTER_HORIZONTAL);
-        panel.setPadding(dp(19), dp(20), dp(19), dp(18));
+        panel.setPadding(dp(17), dp(16), dp(17), dp(15));
         panel.setBackground(roundedGradient(palette.panelTop, palette.panelBottom, palette.border, dp(26)));
         panel.setElevation(dp(18));
         int availableWidth = Math.max(dp(240),
@@ -830,14 +829,14 @@ public final class StudyModeFocusService extends Service {
         TextView quote = popupText(StudyModeManager.getNextMotivationalQuote(this),
             15, palette.text, Typeface.BOLD, Gravity.CENTER);
         quote.setPadding(dp(3), dp(1), dp(3), dp(1));
-        quote.setLineSpacing(dp(3), 1.0f);
+        quote.setLineSpacing(dp(2), 1.0f);
         panel.addView(quote, matchWrap());
-        addGap(panel, 14);
+        addGap(panel, 8);
 
         LinearLayout activePill = new LinearLayout(this);
         activePill.setGravity(Gravity.CENTER);
         activePill.setOrientation(LinearLayout.HORIZONTAL);
-        activePill.setPadding(dp(11), dp(6), dp(11), dp(6));
+        activePill.setPadding(dp(10), dp(5), dp(10), dp(5));
         activePill.setBackground(rounded(palette.pill, palette.border, dp(30)));
         TextView dot = popupText("●", 9, palette.accent, Typeface.BOLD, Gravity.CENTER);
         activePill.addView(dot, wrapWrap());
@@ -846,24 +845,21 @@ public final class StudyModeFocusService extends Service {
         LinearLayout.LayoutParams activeLabelParams = wrapWrap();
         activeLabelParams.leftMargin = dp(7);
         activePill.addView(activeLabel, activeLabelParams);
-        if (StudyModeManager.shouldEnforceNow(this)
-            && (StudyModeManager.isPolicyOwner(this) || running)) {
-            panel.addView(activePill, wrapWrap());
-        }
-        addGap(panel, 15);
+        panel.addView(activePill, wrapWrap());
+        addGap(panel, 10);
 
         LinearLayout focusIcon = new LinearLayout(this);
         focusIcon.setGravity(Gravity.CENTER);
-        focusIcon.setBackground(rounded(palette.iconSurface, palette.border, dp(24)));
+        focusIcon.setBackground(rounded(palette.iconSurface, palette.border, dp(23)));
         ImageView lock = new ImageView(this);
         lock.setImageResource(android.R.drawable.ic_lock_lock);
         lock.setColorFilter(palette.accent);
-        focusIcon.addView(lock, new LinearLayout.LayoutParams(dp(30), dp(30)));
-        panel.addView(focusIcon, new LinearLayout.LayoutParams(dp(54), dp(54)));
+        focusIcon.addView(lock, new LinearLayout.LayoutParams(dp(25), dp(25)));
+        panel.addView(focusIcon, new LinearLayout.LayoutParams(dp(46), dp(46)));
 
-        TextView heading = popupText("Stay Focused", 23, palette.text, Typeface.BOLD, Gravity.CENTER);
+        TextView heading = popupText("Stay Focused", 21, palette.text, Typeface.BOLD, Gravity.CENTER);
         LinearLayout.LayoutParams headingParams = matchWrap();
-        headingParams.topMargin = dp(9);
+        headingParams.topMargin = dp(7);
         panel.addView(heading, headingParams);
 
         TextView description = popupText(
@@ -871,88 +867,39 @@ public final class StudyModeFocusService extends Service {
             12, palette.secondaryText, Typeface.NORMAL, Gravity.CENTER);
         description.setLineSpacing(dp(2), 1.0f);
         LinearLayout.LayoutParams descriptionParams = matchWrap();
-        descriptionParams.topMargin = dp(4);
+        descriptionParams.topMargin = dp(3);
         panel.addView(description, descriptionParams);
-        addGap(panel, 15);
+        addGap(panel, 10);
 
         LinearLayout countdownCard = new LinearLayout(this);
         countdownCard.setOrientation(LinearLayout.VERTICAL);
         countdownCard.setGravity(Gravity.CENTER);
-        countdownCard.setPadding(dp(15), dp(12), dp(15), dp(13));
+        countdownCard.setPadding(dp(13), dp(9), dp(13), dp(10));
         countdownCard.setBackground(roundedGradient(palette.cardTop, palette.cardBottom,
-            palette.cardBorder, dp(18)));
-        TextView timerLabel = popupText("◷  TIME REMAINING", 10, palette.secondaryText,
+            palette.cardBorder, dp(16)));
+        TextView timerLabel = popupText("◷  TIME REMAINING", 9, palette.secondaryText,
             Typeface.BOLD, Gravity.CENTER);
         countdownCard.addView(timerLabel, matchWrap());
-        remainingTimeView = popupText("—", 28, palette.text, Typeface.BOLD, Gravity.CENTER);
+        remainingTimeView = popupText("—", 25, palette.text, Typeface.BOLD, Gravity.CENTER);
         remainingTimeView.setIncludeFontPadding(true);
         LinearLayout.LayoutParams timeParams = matchWrap();
-        timeParams.topMargin = dp(5);
+        timeParams.topMargin = dp(4);
         countdownCard.addView(remainingTimeView, timeParams);
         panel.addView(countdownCard, matchWrap());
 
         sessionEndView = popupText("", 11, palette.secondaryText, Typeface.NORMAL, Gravity.CENTER);
         LinearLayout.LayoutParams untilParams = matchWrap();
-        untilParams.topMargin = dp(10);
+        untilParams.topMargin = dp(6);
         panel.addView(sessionEndView, untilParams);
 
-        TextView back = popupText("⌂   Back to Math Master", 14, Color.WHITE,
-            Typeface.BOLD, Gravity.CENTER);
-        back.setGravity(Gravity.CENTER);
-        back.setPadding(dp(12), dp(13), dp(12), dp(13));
-        back.setMinHeight(dp(48));
-        back.setBackground(roundedGradient(palette.accent, palette.accentDark, palette.accentBorder, dp(15)));
-        back.setElevation(dp(3));
-        back.setOnClickListener(view -> {
-            // Navigation only: the native session store and foreground service are untouched.
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("mathmaster://learn"));
-            intent.setClassName(getPackageName(), getPackageName() + ".MainActivity");
-            intent.addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    | Intent.FLAG_ACTIVITY_SINGLE_TOP
-            );
-            try {
-                startActivity(intent);
-                // Avoid replaying the previous blocked foreground package while
-                // Android is bringing Math Master back to the foreground.
-                lastForegroundPackage = getPackageName();
-                removeShield();
-            } catch (Exception error) {
-                Toast.makeText(
-                    StudyModeFocusService.this,
-                    "Math Master could not be opened. Try launching it from the app icon.",
-                    Toast.LENGTH_LONG
-                ).show();
-            }
-        });
-        LinearLayout.LayoutParams buttonParams = matchWrap();
-        buttonParams.topMargin = dp(15);
-        panel.addView(back, buttonParams);
-
-        addGap(panel, 18);
-        TextView studyTitle = popupText("Study Apps", 16, palette.text, Typeface.BOLD, Gravity.CENTER);
-        panel.addView(studyTitle, matchWrap());
-        TextView studySubtitle = popupText(
-            "Continue learning with your selected apps.",
-            11, palette.secondaryText, Typeface.NORMAL, Gravity.CENTER);
-        LinearLayout.LayoutParams subtitleParams = matchWrap();
-        subtitleParams.topMargin = dp(3);
-        panel.addView(studySubtitle, subtitleParams);
-        addGap(panel, 11);
 
         List<String> studyPackages = StudyModeManager.getSelectedStudyAppPackages(this);
-        if (studyPackages.isEmpty()) {
-            TextView emptyTitle = popupText("No Study Apps selected", 12, palette.text,
-                Typeface.BOLD, Gravity.CENTER);
-            panel.addView(emptyTitle, matchWrap());
-            TextView emptyDescription = popupText(
-                "Add your study apps in Study Mode settings.",
-                10, palette.secondaryText, Typeface.NORMAL, Gravity.CENTER);
-            LinearLayout.LayoutParams emptyParams = matchWrap();
-            emptyParams.topMargin = dp(3);
-            panel.addView(emptyDescription, emptyParams);
-        } else {
+        if (!studyPackages.isEmpty()) {
+            addGap(panel, 10);
+            TextView studyTitle = popupText("Study Apps", 14, palette.text, Typeface.BOLD, Gravity.CENTER);
+            panel.addView(studyTitle, matchWrap());
+            addGap(panel, 8);
+
             int widthDp = Math.round(getResources().getDisplayMetrics().widthPixels
                 / getResources().getDisplayMetrics().density);
             int columns = widthDp >= 560 ? 3 : 2;
@@ -961,23 +908,24 @@ public final class StudyModeFocusService extends Service {
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 LinearLayout.LayoutParams rowParams = matchWrap();
-                if (i > 0) rowParams.topMargin = dp(8);
+                if (i > 0) rowParams.topMargin = dp(6);
                 panel.addView(row, rowParams);
                 for (int column = 0; column < columns; column++) {
                     int index = i + column;
                     if (index < studyPackages.size()) {
                         String packageName = studyPackages.get(index);
                         row.addView(buildStudyAppShortcut(packageName, palette),
-                            new LinearLayout.LayoutParams(0, dp(64), 1f));
+                            new LinearLayout.LayoutParams(0, dp(56), 1f));
                     } else {
                         row.addView(new android.view.View(this),
-                            new LinearLayout.LayoutParams(0, dp(64), 1f));
+                            new LinearLayout.LayoutParams(0, dp(56), 1f));
                     }
                     if (column < columns - 1) row.addView(new android.view.View(this),
                         new LinearLayout.LayoutParams(dp(8), 1));
                 }
             }
         }
+
         return scroll;
     }
 
@@ -985,7 +933,7 @@ public final class StudyModeFocusService extends Service {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setGravity(Gravity.CENTER_VERTICAL);
-        card.setPadding(dp(8), dp(7), dp(7), dp(7));
+        card.setPadding(dp(7), dp(6), dp(7), dp(6));
         card.setBackground(rounded(palette.shortcutSurface, palette.border, dp(14)));
         card.setClickable(true);
         card.setFocusable(true);
@@ -995,13 +943,13 @@ public final class StudyModeFocusService extends Service {
         android.graphics.drawable.Drawable drawable = getStudyAppIcon(packageName);
         if (drawable != null) icon.setImageDrawable(drawable);
         else icon.setImageResource(android.R.drawable.sym_def_app_icon);
-        card.addView(icon, new LinearLayout.LayoutParams(dp(38), dp(38)));
-        TextView label = popupText(appLabel, 11, palette.text,
+        card.addView(icon, new LinearLayout.LayoutParams(dp(34), dp(34)));
+        TextView label = popupText(appLabel, 10, palette.text,
             Typeface.BOLD, Gravity.CENTER_VERTICAL);
         label.setMaxLines(2);
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, -2, 1f);
-        labelParams.leftMargin = dp(7);
+        labelParams.leftMargin = dp(6);
         card.addView(label, labelParams);
         card.setOnClickListener(view -> {
             if (StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)) {
