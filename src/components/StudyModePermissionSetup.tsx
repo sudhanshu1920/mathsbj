@@ -19,6 +19,7 @@ export type StudyModePermissionKey =
   | "exactAlarm"
   | "accessibility"
   | "notifications"
+  | "oemBackground"
   | "dnd";
 
 interface StudyModePermissionSetupProps {
@@ -84,6 +85,15 @@ const StudyModePermissionSetup = ({
       required: false,
       icon: BatteryCharging,
     },
+    ...(permissions.xiaomiDevice === true ? [{
+      key: "oemBackground" as const,
+      title: "HyperOS Background Setup",
+      description: "Autostart ON · No restrictions · Background allowed",
+      granted: false,
+      required: false,
+      icon: BatteryCharging,
+      statusText: "Check manually",
+    }] : []),
     ...(permissions.accessibilityAvailable ? [{
       key: "accessibility" as const,
       title: "Accessibility Service",
@@ -189,6 +199,13 @@ const StudyModePermissionSetup = ({
           );
         })}
       </div>
+
+      {permissions.xiaomiDevice === true && (
+        <p role="note" className="text-[9px] leading-relaxed text-muted-foreground">
+          HyperOS: enable Background autostart and Background activity, set Battery saver to No restrictions,
+          and lock Math Master in Recent Apps when available. Android cannot reliably verify these OEM-only switches.
+        </p>
+      )}
 
       <footer className="sticky bottom-0 -mx-1 space-y-2 border-t border-border/60 bg-background/95 px-1 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl">
         {!readiness.coreReady ? (
