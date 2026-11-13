@@ -276,3 +276,55 @@ test("popup first-frame verification waits for WindowManager traversal", () => {
   assert.ok(show.includes("candidate.postOnAnimation(() -> verifyShieldVisibility("));
   assert.ok(!show.includes("postDelayed(() -> verifyShieldVisibility("));
 });
+
+
+test("focus popup removes navigation and uses a compact, theme-aware layout", () => {
+  const popup = between(source, "private android.view.View buildShieldView()", "private android.view.View buildStudyAppShortcut(");
+  assert.ok(!popup.includes("Back to Math Master"));
+  assert.ok(!popup.includes("mathmaster://learn"));
+  assert.ok(!popup.includes("TextView back"));
+  assert.ok(!popup.includes("buttonParams"));
+  assert.ok(popup.includes("stage.setPadding(dp(14), dp(12), dp(14), dp(12))"));
+  assert.ok(popup.includes("panel.setPadding(dp(17), dp(16), dp(17), dp(15))"));
+  assert.ok(popup.includes("new LinearLayout.LayoutParams(dp(46), dp(46))"));
+  assert.ok(popup.includes("StudyModeManager.getNextMotivationalQuote(this)"));
+  assert.ok(popup.includes("panel.addView(activePill, wrapWrap())"));
+  assert.ok(source.includes('preferences.getString("popupMode", "dark")'));
+  assert.ok(source.includes("palette.light = \"light\".equals(mode)"));
+});
+
+test("popup timer remains bound to the persisted native session and configured end time", () => {
+  const timer = between(source, "private void updateRemainingTime()", "private final Runnable countdownRunnable");
+  assert.ok(timer.includes("StudyModeManager.getCurrentSessionRemainingSeconds(this)"));
+  assert.ok(timer.includes("StudyModeManager.getCurrentSessionEndMillis(this)"));
+  assert.ok(timer.includes("DateFormat.getTimeFormat(this).format(new Date(sessionEnd))"));
+  assert.ok(source.includes("mainHandler.postDelayed(countdownRunnable, 1000L)"));
+});
+
+test("Study Apps only render real selected launch targets and keep native launch behavior", () => {
+  const popup = between(source, "private android.view.View buildShieldView()", "private android.view.View buildStudyAppShortcut(");
+  const shortcut = between(source, "private android.view.View buildStudyAppShortcut(", "private String getStudyAppLabel(");
+  assert.ok(popup.includes("List<String> studyPackages = StudyModeManager.getSelectedStudyAppPackages(this)"));
+  assert.ok(popup.includes("if (!studyPackages.isEmpty())"));
+  assert.ok(!popup.includes("No Study Apps selected"));
+  assert.ok(!popup.includes("emptyDescription"));
+  assert.ok(popup.includes("new LinearLayout.LayoutParams(0, dp(56), 1f)"));
+  assert.ok(shortcut.includes("StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)"));
+  assert.ok(shortcut.includes("lastForegroundPackage = packageName"));
+  assert.ok(shortcut.includes("removeShield()"));
+  assert.ok(manager.includes("getSelectedStudyAppPackages(Context context)"));
+  assert.ok(manager.includes("isInstalledSelectablePackage(context, packageName)"));
+});
+
+test("popup and Study App interactions cannot end the Study Mode session", () => {
+  const popup = between(source, "private android.view.View buildShieldView()", "private android.view.View buildStudyAppShortcut(");
+  const shortcut = between(source, "private android.view.View buildStudyAppShortcut(", "private String getStudyAppLabel(");
+  for (const forbidden of ["finishSession(", "setEnabled(", "stopSelf(", "mathmaster://learn"]) {
+    assert.ok(!popup.includes(forbidden), "Popup must not end or navigate away from the active session");
+  }
+  for (const forbidden of ["finishSession(", "setEnabled(", "stopSelf("]) {
+    assert.ok(!shortcut.includes(forbidden), "Study App launch must not stop the active session");
+  }
+  assert.ok(source.includes("StudyModeManager.shouldEnforceNow(this)"));
+  assert.ok(source.includes("private final Runnable monitorRunnable"));
+});
