@@ -17,6 +17,7 @@ export interface FloatingBarVisibility {
  * One policy for the shared Floating Bar:
  * - Learning landing screen: visible.
  * - Any active Learning topic (including its nested detail states): unmounted.
+ * - Study Mode from either entry point: fully unmounted until the page closes.
  * - Settings: hidden, preserving the existing mounted-but-hidden behavior.
  * - Active/finished Quiz session: unmounted.
  * - Normal sections and Quiz setup: visible unless Settings is open.
