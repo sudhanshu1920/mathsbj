@@ -1104,7 +1104,12 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeAccessibilityService.includes('root.getPackageName()') ||
     !studyModeAccessibilityService.includes('recordAccessibilityEvent') ||
     !studyModeAccessibilityService.includes('scheduleEventScan') ||
-    !studyModeAccessibilityService.includes('FOCUS_SERVICE_RECOVERY_COOLDOWN_MS = 15_000L') ||
+    !studyModeAccessibilityService.includes('FOCUS_SERVICE_RECOVERY_BACKOFF_MS') ||
+    !studyModeAccessibilityService.includes('PROCESS_RECOVERY_STARTED') ||
+    !studyModeFocus.includes('MONITOR_HEALTH_TIMEOUT_MS = 10_000L') ||
+    !studyModeFocus.includes('isMonitoringHealthy()') ||
+    !studyModeFocus.includes('blocking_active') ||
+    !studyModeManager.includes('permissions.put("xiaomiDevice", isXiaomiDevice())') ||
     !studyModeAccessibilityService.includes('recoverFocusServiceIfNeeded("service_connected")') ||
     !studyModeAccessibilityService.includes('recoverFocusServiceIfNeeded("accessibility_event")') ||
     !studyModeAccessibilityService.includes('StudyModeManager.reconcile(this)') ||
