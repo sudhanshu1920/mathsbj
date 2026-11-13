@@ -92,11 +92,25 @@ function removeNotificationListenerService(manifest) {
   return manifest.replace(listenerService, '');
 }
 
-function removeAccessibilityService(manifest) {
-  // Internet-sideloaded apps that declare Accessibility services can be
-  // blocked by Play Protect. Normal-phone Focus Shield uses Usage Access.
-  const service = /\s*<service\b(?=[^>]*\bandroid:name=["']\.StudyModeAccessibilityService["'])[^>]*(?:\/>|>[\s\S]*?<\/service>)/g;
-  return manifest.replace(service, '');
+function ensureAccessibilityService(manifest) {
+  const marker = 'android:name=".StudyModeAccessibilityService"';
+  if (manifest.includes(marker)) return manifest;
+  const applicationClose = manifest.lastIndexOf('</application>');
+  if (applicationClose < 0) throw new Error('AndroidManifest.xml has no closing </application> tag.');
+  const service = `        <service
+            android:name=".StudyModeAccessibilityService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/study_mode_accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/study_mode_accessibility" />
+        </service>`;
+  return manifest.slice(0, applicationClose) + '\\n' + service + '\\n' + manifest.slice(applicationClose);
 }
 
 function ensurePackageChangeReceiverActions(manifest) {
@@ -227,53 +241,24 @@ function registerAppUsageAnalyticsPlugin(mainActivity) {
   return mainActivity.replace(anchor, `${anchor}\n        ${registration}`);
 }
 
-function configureStudyModeFlavors(buildGradle) {
-  const marker = '/* MATHMASTER_STUDY_MODE_FLAVORS */';
-  if (buildGradle.includes(marker)) return buildGradle;
-  const androidOpenTag = 'android {';
-  const firstAndroidBlock = buildGradle.indexOf(androidOpenTag);
-  if (firstAndroidBlock < 0 ||
-      buildGradle.indexOf(androidOpenTag, firstAndroidBlock + androidOpenTag.length) >= 0) {
-    throw new Error('Expected exactly one android { block in app/build.gradle to configure Study Mode variants.');
+function configureUniversalBuild(buildGradle) {
+  const marker = '/* MATHMASTER_UNIVERSAL_STUDY_MODE */';
+  let result = buildGradle.replace(/\\s*\\/\\* MATHMASTER_STUDY_MODE_FLAVORS \\*\\/[\\s\\S]*?versionCode defaultConfig\\.versionCode \\+ 100000[\\s\\S]*?\\n\\s*\\}/, '');
+  result = result.replace(/\\s*flavorDimensions ["']studyMode["']\\s*productFlavors\\s*\\{[\\s\\S]*?\\n\\s*\\}/, '');
+  if (result.includes(marker)) return result;
+  const match = /defaultConfig\\s*\\{/.exec(result);
+  if (!match) throw new Error('Expected defaultConfig in app/build.gradle.');
+  let depth = 0, close = -1;
+  for (let index = match.index; index < result.length; index++) {
+    if (result[index] === '{') depth++;
+    else if (result[index] === '}' && --depth === 0) { close = index; break; }
   }
-
-  // Insert flavors after defaultConfig so all variant-specific overrides have
-  // a fully initialized base applicationId/versionCode to inherit from.
-  const defaultConfigOpen = buildGradle.indexOf('defaultConfig {', firstAndroidBlock + androidOpenTag.length);
-  if (defaultConfigOpen < 0) {
-    throw new Error('Expected defaultConfig { in app/build.gradle before configuring Study Mode variants.');
+  if (close < 0) throw new Error('The defaultConfig block is not closed.');
+  if (!/versionCode\\s+/.test(result.slice(match.index, close))) {
+    result = result.slice(0, close) + '\\n        versionCode 100001' + result.slice(close);
+    close += '\\n        versionCode 100001'.length;
   }
-  let depth = 0;
-  let defaultConfigEnd = -1;
-  for (let index = defaultConfigOpen; index < buildGradle.length; index++) {
-    if (buildGradle[index] === '{') depth++;
-    else if (buildGradle[index] === '}') {
-      depth--;
-      if (depth === 0) {
-        defaultConfigEnd = index + 1;
-        break;
-      }
-    }
-  }
-  if (defaultConfigEnd < 0) {
-    throw new Error('The defaultConfig block in app/build.gradle is not closed.');
-  }
-
-  const flavorBlock = `
-
-    ${marker}
-    flavorDimensions "studyMode"
-    productFlavors {
-        standard { dimension "studyMode" }
-        advanced {
-            dimension "studyMode"
-            // Keep the Advanced build above Standard so a Standard auto-update
-            // cannot silently remove its optional Accessibility service.
-            versionCode defaultConfig.versionCode + 100000
-        }
-    }`;
-  return buildGradle.slice(0, defaultConfigEnd) + flavorBlock
-    + buildGradle.slice(defaultConfigEnd);
+  return result.slice(0, close + 1) + '\\n\\n    ' + marker + result.slice(close + 1);
 }
 
 function ensureBackupExclusions(manifest) {
@@ -307,7 +292,6 @@ export async function configureAndroidStudyMode(androidRoot) {
 
   await mkdir(packageDir, { recursive: true });
   await rm(path.join(packageDir, 'StudyModeNotificationListenerService.java'), { force: true });
-  await rm(path.join(packageDir, 'StudyModeAccessibilityService.java'), { force: true });
   for (const file of NATIVE_FILES) {
     await copyFile(path.join(NATIVE_DIR, file), path.join(packageDir, file));
   }
@@ -315,22 +299,9 @@ export async function configureAndroidStudyMode(androidRoot) {
   await mkdir(xmlTarget, { recursive: true });
   const valuesTarget = path.join(root, 'app/src/main/res/values');
   await mkdir(valuesTarget, { recursive: true });
-  await rm(path.join(xmlTarget, 'study_mode_accessibility.xml'), { force: true });
-  await rm(path.join(valuesTarget, 'study_mode_accessibility.xml'), { force: true });
-
-  // Accessibility is packaged only in the explicit Advanced flavor. Standard
-  // continues to ship without an Accessibility Service declaration or source.
-  const advancedJavaTarget = path.join(root, 'app/src/advanced/java', PACKAGE_PATH);
-  const advancedXmlTarget = path.join(root, 'app/src/advanced/res/xml');
-  const advancedValuesTarget = path.join(root, 'app/src/advanced/res/values');
-  await mkdir(advancedJavaTarget, { recursive: true });
-  await mkdir(advancedXmlTarget, { recursive: true });
-  await mkdir(advancedValuesTarget, { recursive: true });
-  await copyFile(
-    path.join(NATIVE_DIR, 'StudyModeAccessibilityService.java'),
-    path.join(advancedJavaTarget, 'StudyModeAccessibilityService.java'),
-  );
-  await writeFile(path.join(advancedXmlTarget, 'study_mode_accessibility.xml'), `<?xml version="1.0" encoding="utf-8"?>
+  await copyFile(path.join(NATIVE_DIR, 'StudyModeAccessibilityService.java'),
+    path.join(packageDir, 'StudyModeAccessibilityService.java'));
+  await writeFile(path.join(xmlTarget, 'study_mode_accessibility.xml'), `<?xml version="1.0" encoding="utf-8"?>
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowsChanged|typeWindowStateChanged|typeViewFocused"
     android:accessibilityFeedbackType="feedbackGeneric"
@@ -339,31 +310,16 @@ export async function configureAndroidStudyMode(androidRoot) {
     android:description="@string/study_mode_accessibility_service_description"
     android:notificationTimeout="100" />
 `);
-  await writeFile(path.join(advancedValuesTarget, 'study_mode_accessibility_strings.xml'), `<?xml version="1.0" encoding="utf-8"?>
+  await writeFile(path.join(valuesTarget, 'study_mode_accessibility_strings.xml'), `<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="study_mode_accessibility_service_label">Math Master Multi-window App Blocking</string>
     <string name="study_mode_accessibility_service_description">When Study Mode is active, identifies package names of accessible interactive app windows, including supported split-screen and pop-up windows. It does not read on-screen text, messages, passwords, screenshots, or record gestures.</string>
 </resources>
 `);
-  await writeFile(path.join(root, 'app/src/advanced/AndroidManifest.xml'), `<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application>
-        <service
-            android:name=".StudyModeAccessibilityService"
-            android:enabled="true"
-            android:exported="true"
-            android:label="@string/study_mode_accessibility_service_label"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/study_mode_accessibility" />
-        </service>
-    </application>
-</manifest>
-`);
+  await rm(path.join(root, 'app/src/advanced/AndroidManifest.xml'), { force: true });
+  await rm(path.join(root, 'app/src/advanced/java', PACKAGE_PATH, 'StudyModeAccessibilityService.java'), { force: true });
+  await rm(path.join(root, 'app/src/advanced/res/xml/study_mode_accessibility.xml'), { force: true });
+  await rm(path.join(root, 'app/src/advanced/res/values/study_mode_accessibility_strings.xml'), { force: true });
   for (const resource of [
     'study_mode_device_admin.xml',
     'app_usage_backup_rules.xml',
@@ -381,12 +337,12 @@ export async function configureAndroidStudyMode(androidRoot) {
   await writeFile(activityPath, mainActivity);
 
   let buildGradle = await readFile(buildGradlePath, 'utf8');
-  buildGradle = configureStudyModeFlavors(buildGradle);
+  buildGradle = configureUniversalBuild(buildGradle);
   await writeFile(buildGradlePath, buildGradle);
 
   let manifest = await readFile(manifestPath, 'utf8');
   manifest = removeNotificationListenerService(manifest);
-  manifest = removeAccessibilityService(manifest);
+  manifest = ensureAccessibilityService(manifest);
   manifest = ensureManifestQueries(manifest);
   manifest = ensurePermissions(manifest);
   manifest = ensureStudyModeComponents(manifest);
@@ -399,7 +355,8 @@ export async function configureAndroidStudyMode(androidRoot) {
     packageVisibility: 'all-installed-packages',
     localUsageAnalytics: true,
     foregroundMonitoring: 'usage-access-plus-optional-accessibility',
-    variants: ['standard', 'advanced'],
+    variants: ['universal'],
+    accessibility: 'optional-user-consent',
   };
 }
 
