@@ -12,7 +12,6 @@ import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.PixelFormat;
@@ -809,48 +808,57 @@ public final class StudyModeFocusService extends Service {
         LinearLayout stage = new LinearLayout(this);
         stage.setOrientation(LinearLayout.VERTICAL);
         stage.setGravity(Gravity.CENTER);
-        stage.setPadding(dp(16), dp(22), dp(16), dp(22));
+        stage.setPadding(dp(14), dp(12), dp(14), dp(12));
         scroll.addView(stage, new ScrollView.LayoutParams(-1, -2));
 
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setGravity(Gravity.CENTER_HORIZONTAL);
-        panel.setPadding(dp(19), dp(20), dp(19), dp(18));
+        panel.setPadding(dp(17), dp(16), dp(17), dp(15));
         panel.setBackground(roundedGradient(palette.panelTop, palette.panelBottom, palette.border, dp(26)));
         panel.setElevation(dp(18));
-        int availableWidth = Math.max(dp(240),
-            getResources().getDisplayMetrics().widthPixels - dp(64));
+        // Keep the panel inside the padded stage on narrow phones while capping
+        // its width on tablets and landscape displays.
+        int availableWidth = Math.max(dp(1),
+            getResources().getDisplayMetrics().widthPixels - dp(28));
         int panelWidth = Math.min(availableWidth, dp(560));
         LinearLayout.LayoutParams panelParams = new LinearLayout.LayoutParams(panelWidth, -2);
         panelParams.gravity = Gravity.CENTER_HORIZONTAL;
         stage.addView(panel, panelParams);
 
-        // Quote is selected only when this overlay is newly constructed. It is
-        // persisted as a shuffled deck so rebuilds/countdown ticks never change it.
-        TextView quote = popupText(StudyModeManager.getNextMotivationalQuote(this),
-            15, palette.text, Typeface.BOLD, Gravity.CENTER);
-        quote.setPadding(dp(3), dp(1), dp(3), dp(1));
-        quote.setLineSpacing(dp(3), 1.0f);
-        panel.addView(quote, matchWrap());
-        addGap(panel, 14);
+        // A compact quote capsule keeps the shuffled Hindi motivation prominent.
+        // The quote is chosen once per newly-created overlay, never per timer tick.
+        LinearLayout quoteCapsule = new LinearLayout(this);
+        quoteCapsule.setGravity(Gravity.CENTER);
+        quoteCapsule.setPadding(dp(12), dp(8), dp(12), dp(8));
+        quoteCapsule.setBackground(rounded(palette.pill, palette.border, dp(14)));
+        TextView quote = popupText(
+            "“" + StudyModeManager.getNextMotivationalQuote(this) + "”",
+            14, palette.text, Typeface.BOLD, Gravity.CENTER);
+        quote.setLineSpacing(dp(2), 1.0f);
+        quote.setMaxLines(2);
+        quoteCapsule.addView(quote, matchWrap());
+        panel.addView(quoteCapsule, matchWrap());
 
-        LinearLayout activePill = new LinearLayout(this);
-        activePill.setGravity(Gravity.CENTER);
-        activePill.setOrientation(LinearLayout.HORIZONTAL);
-        activePill.setPadding(dp(11), dp(6), dp(11), dp(6));
-        activePill.setBackground(rounded(palette.pill, palette.border, dp(30)));
-        TextView dot = popupText("●", 9, palette.accent, Typeface.BOLD, Gravity.CENTER);
-        activePill.addView(dot, wrapWrap());
-        TextView activeLabel = popupText("STUDY MODE ACTIVE", 10, palette.secondaryText,
-            Typeface.BOLD, Gravity.CENTER);
-        LinearLayout.LayoutParams activeLabelParams = wrapWrap();
-        activeLabelParams.leftMargin = dp(7);
-        activePill.addView(activeLabel, activeLabelParams);
-        if (StudyModeManager.shouldEnforceNow(this)
-            && (StudyModeManager.isPolicyOwner(this) || running)) {
+        boolean showActiveBadge = StudyModeManager.shouldEnforceNow(this)
+            && (StudyModeManager.isPolicyOwner(this) || running);
+        if (showActiveBadge) {
+            addGap(panel, 10);
+            LinearLayout activePill = new LinearLayout(this);
+            activePill.setGravity(Gravity.CENTER);
+            activePill.setOrientation(LinearLayout.HORIZONTAL);
+            activePill.setPadding(dp(10), dp(5), dp(10), dp(5));
+            activePill.setBackground(rounded(palette.pill, palette.border, dp(30)));
+            TextView dot = popupText("●", 8, palette.accent, Typeface.BOLD, Gravity.CENTER);
+            activePill.addView(dot, wrapWrap());
+            TextView activeLabel = popupText("STUDY MODE ACTIVE", 10, palette.secondaryText,
+                Typeface.BOLD, Gravity.CENTER);
+            LinearLayout.LayoutParams activeLabelParams = wrapWrap();
+            activeLabelParams.leftMargin = dp(6);
+            activePill.addView(activeLabel, activeLabelParams);
             panel.addView(activePill, wrapWrap());
         }
-        addGap(panel, 15);
+        addGap(panel, 12);
 
         LinearLayout focusIcon = new LinearLayout(this);
         focusIcon.setGravity(Gravity.CENTER);
@@ -859,11 +867,11 @@ public final class StudyModeFocusService extends Service {
         lock.setImageResource(android.R.drawable.ic_lock_lock);
         lock.setColorFilter(palette.accent);
         focusIcon.addView(lock, new LinearLayout.LayoutParams(dp(30), dp(30)));
-        panel.addView(focusIcon, new LinearLayout.LayoutParams(dp(54), dp(54)));
+        panel.addView(focusIcon, new LinearLayout.LayoutParams(dp(50), dp(50)));
 
-        TextView heading = popupText("Stay Focused", 23, palette.text, Typeface.BOLD, Gravity.CENTER);
+        TextView heading = popupText("Stay Focused", 22, palette.text, Typeface.BOLD, Gravity.CENTER);
         LinearLayout.LayoutParams headingParams = matchWrap();
-        headingParams.topMargin = dp(9);
+        headingParams.topMargin = dp(7);
         panel.addView(heading, headingParams);
 
         TextView description = popupText(
@@ -871,20 +879,20 @@ public final class StudyModeFocusService extends Service {
             12, palette.secondaryText, Typeface.NORMAL, Gravity.CENTER);
         description.setLineSpacing(dp(2), 1.0f);
         LinearLayout.LayoutParams descriptionParams = matchWrap();
-        descriptionParams.topMargin = dp(4);
+        descriptionParams.topMargin = dp(3);
         panel.addView(description, descriptionParams);
-        addGap(panel, 15);
+        addGap(panel, 12);
 
         LinearLayout countdownCard = new LinearLayout(this);
         countdownCard.setOrientation(LinearLayout.VERTICAL);
         countdownCard.setGravity(Gravity.CENTER);
-        countdownCard.setPadding(dp(15), dp(12), dp(15), dp(13));
+        countdownCard.setPadding(dp(14), dp(10), dp(14), dp(10));
         countdownCard.setBackground(roundedGradient(palette.cardTop, palette.cardBottom,
             palette.cardBorder, dp(18)));
         TextView timerLabel = popupText("◷  TIME REMAINING", 10, palette.secondaryText,
             Typeface.BOLD, Gravity.CENTER);
         countdownCard.addView(timerLabel, matchWrap());
-        remainingTimeView = popupText("—", 28, palette.text, Typeface.BOLD, Gravity.CENTER);
+        remainingTimeView = popupText("—", 26, palette.text, Typeface.BOLD, Gravity.CENTER);
         remainingTimeView.setIncludeFontPadding(true);
         LinearLayout.LayoutParams timeParams = matchWrap();
         timeParams.topMargin = dp(5);
@@ -893,45 +901,13 @@ public final class StudyModeFocusService extends Service {
 
         sessionEndView = popupText("", 11, palette.secondaryText, Typeface.NORMAL, Gravity.CENTER);
         LinearLayout.LayoutParams untilParams = matchWrap();
-        untilParams.topMargin = dp(10);
+        untilParams.topMargin = dp(8);
         panel.addView(sessionEndView, untilParams);
 
-        TextView back = popupText("⌂   Back to Math Master", 14, Color.WHITE,
-            Typeface.BOLD, Gravity.CENTER);
-        back.setGravity(Gravity.CENTER);
-        back.setPadding(dp(12), dp(13), dp(12), dp(13));
-        back.setMinHeight(dp(48));
-        back.setBackground(roundedGradient(palette.accent, palette.accentDark, palette.accentBorder, dp(15)));
-        back.setElevation(dp(3));
-        back.setOnClickListener(view -> {
-            // Navigation only: the native session store and foreground service are untouched.
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("mathmaster://learn"));
-            intent.setClassName(getPackageName(), getPackageName() + ".MainActivity");
-            intent.addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    | Intent.FLAG_ACTIVITY_SINGLE_TOP
-            );
-            try {
-                startActivity(intent);
-                // Avoid replaying the previous blocked foreground package while
-                // Android is bringing Math Master back to the foreground.
-                lastForegroundPackage = getPackageName();
-                removeShield();
-            } catch (Exception error) {
-                Toast.makeText(
-                    StudyModeFocusService.this,
-                    "Math Master could not be opened. Try launching it from the app icon.",
-                    Toast.LENGTH_LONG
-                ).show();
-            }
-        });
-        LinearLayout.LayoutParams buttonParams = matchWrap();
-        buttonParams.topMargin = dp(15);
-        panel.addView(back, buttonParams);
-
-        addGap(panel, 18);
-        TextView studyTitle = popupText("Study Apps", 16, palette.text, Typeface.BOLD, Gravity.CENTER);
+        // Keep the Study Apps section directly beneath the session timing; the
+        // former navigation CTA and its margins are intentionally absent.
+        addGap(panel, 12);
+        TextView studyTitle = popupText("Study Apps", 15, palette.text, Typeface.BOLD, Gravity.CENTER);
         panel.addView(studyTitle, matchWrap());
         TextView studySubtitle = popupText(
             "Continue learning with your selected apps.",
@@ -939,7 +915,7 @@ public final class StudyModeFocusService extends Service {
         LinearLayout.LayoutParams subtitleParams = matchWrap();
         subtitleParams.topMargin = dp(3);
         panel.addView(studySubtitle, subtitleParams);
-        addGap(panel, 11);
+        addGap(panel, 9);
 
         List<String> studyPackages = StudyModeManager.getSelectedStudyAppPackages(this);
         if (studyPackages.isEmpty()) {
@@ -961,20 +937,15 @@ public final class StudyModeFocusService extends Service {
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 LinearLayout.LayoutParams rowParams = matchWrap();
-                if (i > 0) rowParams.topMargin = dp(8);
+                if (i > 0) rowParams.topMargin = dp(6);
                 panel.addView(row, rowParams);
-                for (int column = 0; column < columns; column++) {
-                    int index = i + column;
-                    if (index < studyPackages.size()) {
-                        String packageName = studyPackages.get(index);
-                        row.addView(buildStudyAppShortcut(packageName, palette),
-                            new LinearLayout.LayoutParams(0, dp(64), 1f));
-                    } else {
-                        row.addView(new android.view.View(this),
-                            new LinearLayout.LayoutParams(0, dp(64), 1f));
-                    }
-                    if (column < columns - 1) row.addView(new android.view.View(this),
-                        new LinearLayout.LayoutParams(dp(8), 1));
+                int itemsInRow = Math.min(columns, studyPackages.size() - i);
+                for (int column = 0; column < itemsInRow; column++) {
+                    String packageName = studyPackages.get(i + column);
+                    row.addView(buildStudyAppShortcut(packageName, palette),
+                        new LinearLayout.LayoutParams(0, dp(60), 1f));
+                    if (column < itemsInRow - 1) row.addView(new android.view.View(this),
+                        new LinearLayout.LayoutParams(dp(7), 1));
                 }
             }
         }
@@ -991,11 +962,13 @@ public final class StudyModeFocusService extends Service {
         card.setFocusable(true);
         String appLabel = getStudyAppLabel(packageName);
         card.setContentDescription("Open " + appLabel);
-        ImageView icon = new ImageView(this);
         android.graphics.drawable.Drawable drawable = getStudyAppIcon(packageName);
-        if (drawable != null) icon.setImageDrawable(drawable);
-        else icon.setImageResource(android.R.drawable.sym_def_app_icon);
-        card.addView(icon, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        if (drawable != null) {
+            ImageView icon = new ImageView(this);
+            icon.setImageDrawable(drawable);
+            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            card.addView(icon, new LinearLayout.LayoutParams(dp(36), dp(36)));
+        }
         TextView label = popupText(appLabel, 11, palette.text,
             Typeface.BOLD, Gravity.CENTER_VERTICAL);
         label.setMaxLines(2);
@@ -1062,7 +1035,7 @@ public final class StudyModeFocusService extends Service {
         palette.accentDark = blendColor(palette.accent, Color.BLACK, 0.25f);
         palette.accentBorder = blendColor(palette.accent, Color.WHITE, 0.18f);
         if (palette.light) {
-            palette.scrim = Color.argb(238, 238, 243, 251);
+            palette.scrim = Color.argb(248, 238, 243, 251);
             palette.panelTop = Color.rgb(255, 255, 255);
             palette.panelBottom = Color.rgb(243, 247, 253);
             palette.text = Color.rgb(24, 35, 55);
@@ -1075,7 +1048,7 @@ public final class StudyModeFocusService extends Service {
             palette.shortcutSurface = Color.rgb(249, 251, 255);
             palette.border = Color.rgb(218, 226, 238);
         } else {
-            palette.scrim = Color.argb(246, 5, 10, 23);
+            palette.scrim = Color.argb(248, 5, 10, 23);
             palette.panelTop = Color.rgb(15, 25, 45);
             palette.panelBottom = Color.rgb(10, 17, 33);
             palette.text = Color.rgb(245, 248, 255);

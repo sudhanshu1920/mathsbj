@@ -979,9 +979,9 @@ const studyModeIndex = read('src/pages/Index.tsx');
 const studyModeDeepLink = read('src/lib/studyModeDeepLink.ts');
 const studyModeDeepLinkTests = read('src/lib/studyModeDeepLink.test.ts');
 const studyModeBoot = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java');
-if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
-    !studyModeFocus.includes('Uri.parse("mathmaster://learn")') ||
-    !studyModeFocus.includes('getPackageName() + ".MainActivity"') ||
+if (studyModeFocus.includes('Intent.ACTION_VIEW') ||
+    studyModeFocus.includes('Uri.parse("mathmaster://learn")') ||
+    studyModeFocus.includes('Back to Math Master') ||
     !index.includes("App.addListener('appUrlOpen'") ||
     !index.includes('App.getLaunchUrl()') ||
     !index.includes('openLearningFromStudyShield') ||
@@ -990,7 +990,7 @@ if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
     !studyModeDeepLink.includes('url.hostname === "learn"') ||
     !studyModeDeepLinkTests.includes("accepts only the app's exact Learning destination") ||
     !studyModeDeepLinkTests.includes('rejects unrelated or modified destination')) {
-  fail('Study Shield Back button must route the native Activity to the Learning landing page for warm and cold app launches');
+  fail('Blocking shield must not expose a return-to-app CTA; independent warm/cold Learning deep-link validation must remain intact');
 }
 
 if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(false)} />') ||
@@ -1326,7 +1326,12 @@ if (!studyModeQuoteAndApps.includes('KEY_STUDY_PACKAGES')
     || !studyModeShieldUi.includes('StudyModeManager.getSelectedStudyAppPackages(this)')
     || !studyModeShieldUi.includes('StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)')
     || !studyModeShieldUi.includes('Session ends at ')
-    || !studyModeShieldUi.includes('Back to Math Master')
+    || studyModeShieldUi.includes('Back to Math Master')
+    || studyModeShieldUi.includes('mathmaster://learn')
+    || !studyModeShieldUi.includes('quoteCapsule')
+    || !studyModeShieldUi.includes('dp(60)')
+    || !studyModeShieldUi.includes('getCurrentSessionRemainingSeconds(this)')
+    || !studyModeShieldUi.includes('getCurrentSessionEndMillis(this)')
     || !studyModeNativePlugin.includes('setPopupAppearance')
     || !studyModeNativePlugin.includes('studyAppPackageNames')
     || !studyModeBridge.includes('studyAppPackageNames')
