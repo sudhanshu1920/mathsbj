@@ -1112,6 +1112,11 @@ jobs:
                       storePassword System.getenv("MATHMASTER_RELEASE_KEYSTORE_PASSWORD")
                       keyAlias System.getenv("MATHMASTER_RELEASE_KEY_ALIAS")
                       keyPassword System.getenv("MATHMASTER_RELEASE_KEY_PASSWORD")
+                      // Keep legacy JAR signing as well as modern APK schemes.
+                      // Some OEM package installers are stricter than stock Android.
+                      enableV1Signing true
+                      enableV2Signing true
+                      enableV3Signing true
                   }
               }
           """
@@ -1159,7 +1164,15 @@ jobs:
 
           apk="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$apk"
-          "$sdk_apksigner" verify --verbose "$apk"
+          signature_report="$("$sdk_apksigner" verify --verbose "$apk" 2>&1)"
+          printf '%s\\n' "$signature_report"
+          grep -q 'Verified using v1 scheme (JAR signing): true' <<< "$signature_report"
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' <<< "$signature_report"
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' <<< "$signature_report"
+
+          zipalign_bin="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+          test -x "$zipalign_bin"
+          "$zipalign_bin" -c -v 4 "$apk"
 
           aapt2_bin="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           test -x "$aapt2_bin"
