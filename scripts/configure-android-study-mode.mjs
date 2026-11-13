@@ -110,7 +110,7 @@ function ensureAccessibilityService(manifest) {
                 android:name="android.accessibilityservice"
                 android:resource="@xml/study_mode_accessibility" />
         </service>`;
-  return manifest.slice(0, applicationClose) + '\\n' + service + '\\n' + manifest.slice(applicationClose);
+  return manifest.slice(0, applicationClose) + '\n' + service + '\n' + manifest.slice(applicationClose);
 }
 
 function ensurePackageChangeReceiverActions(manifest) {
@@ -269,7 +269,7 @@ function configureUniversalBuild(buildGradle) {
   }
   if (close < 0) throw new Error('The defaultConfig block is not closed.');
   if (!result.slice(configOpen, close).includes('versionCode ')) {
-    const addition = '\n        versionCode 100001';
+    const addition = '\n        versionCode 1';
     result = result.slice(0, close) + addition + result.slice(close);
     close += addition.length;
   }
