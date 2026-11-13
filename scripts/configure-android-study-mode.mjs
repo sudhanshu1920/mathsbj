@@ -243,13 +243,30 @@ function registerAppUsageAnalyticsPlugin(mainActivity) {
 
 function configureUniversalBuild(buildGradle) {
   const marker = '/* MATHMASTER_UNIVERSAL_STUDY_MODE */';
-  let result = buildGradle.replace(/\\s*\\/\\* MATHMASTER_STUDY_MODE_FLAVORS \\*\\/[\\s\\S]*?versionCode defaultConfig\\.versionCode \\+ 100000[\\s\\S]*?\\n\\s*\\}/, '');
-  result = result.replace(/\\s*flavorDimensions ["']studyMode["']\\s*productFlavors\\s*\\{[\\s\\S]*?\\n\\s*\\}/, '');
+  let result = buildGradle;
+  const flavorMarker = '/* MATHMASTER_STUDY_MODE_FLAVORS */';
+  const markerIndex = result.indexOf(flavorMarker);
+  if (markerIndex >= 0) {
+    const flavorOpen = result.indexOf('productFlavors {', markerIndex);
+    if (flavorOpen < 0) throw new Error('Study Mode flavor block is malformed.');
+    let depth = 0, flavorEnd = -1;
+    for (let index = result.indexOf('{', flavorOpen); index < result.length; index++) {
+      if (result[index] === '{') depth++;
+      else if (result[index] === '}' && --depth === 0) { flavorEnd = index + 1; break; }
+    }
+    if (flavorEnd < 0) throw new Error('Study Mode flavor block is not closed.');
+    let start = markerIndex;
+    while (start > 0 && /[ \\t]/.test(result[start - 1])) start--;
+    result = result.slice(0, start) + result.slice(flavorEnd);
+  } else {
+    const flavorOpen = result.indexOf('productFlavors {');
+    if (flavorOpen >= 0) throw new Error('Unexpected productFlavors block; refusing to remove unrelated variants.');
+  }
   if (result.includes(marker)) return result;
   const match = /defaultConfig\\s*\\{/.exec(result);
   if (!match) throw new Error('Expected defaultConfig in app/build.gradle.');
   let depth = 0, close = -1;
-  for (let index = match.index; index < result.length; index++) {
+  for (let index = result.indexOf('{', match.index); index < result.length; index++) {
     if (result[index] === '{') depth++;
     else if (result[index] === '}' && --depth === 0) { close = index; break; }
   }
