@@ -1141,6 +1141,7 @@ jobs:
             --ks-key-alias "$MATHMASTER_RELEASE_KEY_ALIAS" \
             --ks-pass "env:MATHMASTER_RELEASE_KEYSTORE_PASSWORD" \
             --key-pass "env:MATHMASTER_RELEASE_KEY_PASSWORD" \
+            --min-sdk-version 23 \
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled true \
