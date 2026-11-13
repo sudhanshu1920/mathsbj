@@ -506,7 +506,8 @@ public final class StudyModeFocusService extends Service {
                 StudyModeManager.setServiceState(StudyModeFocusService.this,
                     StudyModeManager.isEnabled(StudyModeFocusService.this) ? "waiting_for_schedule" : "disabled");
                 mainHandler.post(() -> {
-                    if (!running || invalidation != foregroundDecisionSequence.get()) return;
+                    if (monitorGenerationAtStart != monitorGeneration
+                        || !running || invalidation != foregroundDecisionSequence.get()) return;
                     removeShield("session_inactive");
                     stopSelf();
                 });
@@ -515,7 +516,8 @@ public final class StudyModeFocusService extends Service {
             if (StudyModeManager.isPolicyOwner(StudyModeFocusService.this)) {
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 mainHandler.post(() -> {
-                    if (running && invalidation == foregroundDecisionSequence.get()) {
+                    if (monitorGenerationAtStart == monitorGeneration
+                        && running && invalidation == foregroundDecisionSequence.get()) {
                         removeShield("device_policy_enforces_packages");
                     }
                 });
@@ -533,7 +535,8 @@ public final class StudyModeFocusService extends Service {
                 }
                 StudyModeManager.setServiceState(StudyModeFocusService.this, "permission_required");
                 mainHandler.post(() -> {
-                    if (running && invalidation == foregroundDecisionSequence.get()) {
+                    if (monitorGenerationAtStart == monitorGeneration
+                        && running && invalidation == foregroundDecisionSequence.get()) {
                         removeShield("permission_missing");
                     }
                 });
@@ -556,7 +559,8 @@ public final class StudyModeFocusService extends Service {
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 resetForegroundResolution();
                 mainHandler.post(() -> {
-                    if (running && invalidation == foregroundDecisionSequence.get()) {
+                    if (monitorGenerationAtStart == monitorGeneration
+                        && running && invalidation == foregroundDecisionSequence.get()) {
                         removeShield("screen_not_interactive");
                     }
                 });
@@ -636,6 +640,7 @@ public final class StudyModeFocusService extends Service {
 
             if (shouldShield && !foreground.equals(lastLoggedBlockedPackage)) {
                 lastLoggedBlockedPackage = foreground;
+                logStage("BLOCKED_PACKAGE_DETECTED", foreground, "", "detected", foregroundSource);
                 logStage("BLOCKED_LIST_MATCHED", foreground, "", "matched", "active_session_or_schedule");
             } else if (!shouldShield) {
                 overlayFailureForStatus = false;
@@ -647,8 +652,9 @@ public final class StudyModeFocusService extends Service {
 
             final String decisionPackage = foreground;
             final String requestId = shouldShield ? UUID.randomUUID().toString() : "";
+            if (monitorGenerationAtStart != monitorGeneration) return;
             mainHandler.post(() -> {
-                if (!running) return;
+                if (monitorGenerationAtStart != monitorGeneration || !running) return;
                 if (decisionSequence != foregroundDecisionSequence.get()) {
                     if (shouldShield) {
                         logStage("BLOCKING_REEVALUATED", decisionPackage, requestId, "superseded", "newer_foreground_decision");
@@ -973,6 +979,8 @@ public final class StudyModeFocusService extends Service {
         overlayFailureForStatus = true;
         recordPopupLaunchFailure(packageName);
         StudyModeManager.setServiceState(this, "overlay_failed");
+        logStage("POPUP_VISIBILITY_FAILED", packageName, requestId,
+            "not_visible", "window_not_attached_or_hidden");
         logStage("POPUP_LAUNCH_FAILED", packageName, requestId,
             "not_visible", "window_not_attached_or_hidden");
         removeShield("window_not_visible");
