@@ -979,9 +979,12 @@ const studyModeIndex = read('src/pages/Index.tsx');
 const studyModeDeepLink = read('src/lib/studyModeDeepLink.ts');
 const studyModeDeepLinkTests = read('src/lib/studyModeDeepLink.test.ts');
 const studyModeBoot = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java');
-if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
-    !studyModeFocus.includes('Uri.parse("mathmaster://learn")') ||
-    !studyModeFocus.includes('getPackageName() + ".MainActivity"') ||
+if (studyModeFocus.includes('Back to Math Master') ||
+    studyModeFocus.includes('mathmaster://learn') ||
+    !studyModeFocus.includes('StudyModeManager.getNextMotivationalQuote(this)') ||
+    !studyModeFocus.includes('StudyModeManager.getCurrentSessionRemainingSeconds(this)') ||
+    !studyModeFocus.includes('StudyModeManager.getCurrentSessionEndMillis(this)') ||
+    !studyModeFocus.includes('StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)') ||
     !index.includes("App.addListener('appUrlOpen'") ||
     !index.includes('App.getLaunchUrl()') ||
     !index.includes('openLearningFromStudyShield') ||
@@ -990,7 +993,7 @@ if (!studyModeFocus.includes('Intent.ACTION_VIEW') ||
     !studyModeDeepLink.includes('url.hostname === "learn"') ||
     !studyModeDeepLinkTests.includes("accepts only the app's exact Learning destination") ||
     !studyModeDeepLinkTests.includes('rejects unrelated or modified destination')) {
-  fail('Study Shield Back button must route the native Activity to the Learning landing page for warm and cold app launches');
+  fail('Study Shield popup must omit navigation while preserving the native quote, session timer, Study Apps launcher, and safe deep-link routing');
 }
 
 if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(false)} />') ||
