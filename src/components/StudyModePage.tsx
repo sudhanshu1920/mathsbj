@@ -116,18 +116,18 @@ const SessionCountdown = memo(({
     : 0;
 
   return (
-    <div className="relative grid h-[116px] w-[116px] shrink-0 place-items-center" aria-live="off">
+    <div className="relative grid h-[124px] w-[124px] shrink-0 place-items-center" aria-live="off">
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
-        <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
+        <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--border))" strokeWidth="4" />
         <circle
-          cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--primary))" strokeWidth="5"
+          cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--primary))" strokeWidth="4"
           strokeLinecap="round" strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - progress)}
           className="transition-[stroke-dashoffset] duration-700 ease-out"
         />
       </svg>
       <div className="relative flex flex-col items-center">
-        <span className="font-display text-[17px] font-bold tabular-nums tracking-tight text-foreground">
+        <span className="font-display text-[19px] font-bold tabular-nums tracking-tight text-foreground">
           {formatSessionTime(session.durationSeconds > 0 ? remainingSeconds : elapsedSeconds)}
         </span>
         <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -137,6 +137,25 @@ const SessionCountdown = memo(({
     </div>
   );
 });
+
+const SessionDurationPreview = ({ durationSeconds }: { durationSeconds: number }) => {
+  const label = durationSeconds <= 0
+    ? "∞"
+    : `${Math.floor(durationSeconds / 60)}:${String(durationSeconds % 60).padStart(2, "0")}`;
+
+  return (
+    <div role="img" className="relative grid h-[124px] w-[124px] shrink-0 place-items-center" aria-label={`Session duration ${durationSeconds} seconds`}>
+      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
+        <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--border))" strokeWidth="4" />
+        <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--primary))" strokeOpacity="0.28" strokeWidth="4" strokeDasharray="4 7" />
+      </svg>
+      <div className="relative flex flex-col items-center">
+        <span className="font-display text-[20px] font-bold tabular-nums tracking-tight text-foreground">{label}</span>
+        <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Ready</span>
+      </div>
+    </div>
+  );
+};
 
 const StudyModeAppIcon = ({ app, size = 30 }: { app: StudyModeApp; size?: number }) => (
   app.iconDataUrl ? (
@@ -900,26 +919,25 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               <ArrowLeft size={17} />
             </button>
             <div className="min-w-0 flex-1">
-              <h2 className="font-display text-base font-bold leading-tight text-foreground">Study Mode</h2>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">Focus workspace</p>
+              <h2 className="font-display text-base font-bold leading-tight tracking-tight text-foreground">Study Mode</h2>
             </div>
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <ShieldCheck size={17} />
             </span>
           </header>
 
-          <section className="relative isolate overflow-hidden rounded-[1.45rem] border border-primary/25 bg-card/70 p-4 shadow-lg backdrop-blur-sm sm:p-5">
-            <div className="pointer-events-none absolute -right-9 -top-12 -z-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+          <section className="relative isolate overflow-hidden rounded-[1.6rem] border border-border/70 bg-card p-4 shadow-md sm:p-5">
+            <div className="pointer-events-none absolute -right-12 -top-12 -z-10 h-44 w-44 rounded-full bg-primary/8 blur-3xl" />
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl gradient-primary text-primary-foreground shadow-md">
-                <ShieldCheck size={22} strokeWidth={1.8} />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.1rem] bg-primary/10 text-primary">
+                <ShieldCheck size={21} strokeWidth={1.8} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-bold text-foreground">Focus protection</span>
+                  <span className="text-[13px] font-bold tracking-tight text-foreground">Focus protection</span>
                   <span className={(draft.enabled || Boolean(status?.activeSession?.active))
-                    ? "rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-bold tracking-wide text-success"
-                    : "rounded-full bg-secondary px-2 py-0.5 text-[9px] font-bold tracking-wide text-muted-foreground"}>
+                    ? "rounded-full bg-success/10 px-2 py-0.5 text-[8px] font-bold tracking-[0.12em] text-success"
+                    : "rounded-full bg-secondary px-2 py-0.5 text-[8px] font-bold tracking-[0.12em] text-muted-foreground"}>
                     {loading ? "LOADING" : draft.enabled || status?.activeSession?.active ? "ACTIVE" : "OFF"}
                   </span>
                 </div>
@@ -939,7 +957,47 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               )}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-border/55 pt-3">
+            <div className="mt-4 grid grid-cols-[124px_minmax(0,1fr)] items-center gap-3 border-t border-border/55 pt-3 sm:gap-5 sm:pt-4">
+              {activeSession ? (
+                <>
+                  <SessionCountdown session={activeSession} onExpired={handleSessionExpired} />
+                  <div className="min-w-0 space-y-2">
+                    <div>
+                      <p className="text-[13px] font-bold capitalize tracking-tight text-foreground">{activeSession.sessionType} session</p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {activeSession.selectedPackageNames.length} apps · {activeSession.isEnforced ? "Enforced" : "Standard"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { void handleEndSession(); }}
+                      disabled={saving}
+                      className="motion-press inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-[10px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                    >
+                      {saving ? "Ending…" : "End session"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <SessionDurationPreview durationSeconds={sessionDurationSeconds} />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold capitalize tracking-tight text-foreground">{sessionType} focus</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {sessionDurationSeconds > 0 ? "Ready for a focused session" : "Open-ended session"}
+                    </p>
+                    <div className="mt-3 flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+                      <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                        {sessionEnforced ? "Enforced" : "Standard"}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/55 pt-3">
               {status?.enforcementMode === "device_owner" ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[9px] font-semibold text-success">
                   <ShieldCheck size={11} /> System enforcement
@@ -1106,7 +1164,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     );
                   })}
                 </div>
-                <div className="grid max-h-[340px] grid-cols-3 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6" role="group" aria-label="Select blocked apps">
+                <div className="grid max-h-[340px] grid-cols-4 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-5 sm:grid-cols-6 lg:grid-cols-7" role="group" aria-label="Select blocked apps">
                   {appsLoading ? (
                     <p className="col-span-full py-8 text-center text-xs text-muted-foreground">Loading apps…</p>
                   ) : appsLoadError ? (
@@ -1128,10 +1186,10 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                         aria-pressed={selected}
                         aria-disabled={!app.selectable}
                         className={selected
-                          ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-primary/55 bg-primary/10 px-1.5 py-2 text-center shadow-sm transition-colors"
-                          : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-background/35 px-1.5 py-2 text-center transition-colors hover:border-primary/35 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-50"}
+                          ? "group relative flex min-h-[74px] min-w-0 flex-col items-center justify-center gap-1 rounded-[1.05rem] border border-primary/55 bg-primary/10 px-1.5 py-2 text-center shadow-sm transition-colors"
+                          : "group relative flex min-h-[74px] min-w-0 flex-col items-center justify-center gap-1 rounded-[1.05rem] border border-border/60 bg-background/35 px-1.5 py-2 text-center transition-colors hover:border-primary/35 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-50"}
                       >
-                        <StudyModeAppIcon app={app} size={30} />
+                        <StudyModeAppIcon app={app} size={34} />
                         <span className="line-clamp-1 w-full text-[9px] font-semibold text-foreground">{app.label}</span>
                         {selected && status?.enforcementMode !== "focus_shield" && (
                           <span className={suspendedPackages.has(app.packageName)
@@ -1142,11 +1200,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                         )}
                         {selected && status?.enforcementMode === "focus_shield" && (
                           <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning">Shield</span>
-                        )}
-                        {selected && (
-                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Check size={10} strokeWidth={3} />
-                          </span>
                         )}
                         {app.selectable ? (
                           selected && (
@@ -1163,7 +1216,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     );
                   })}
                 </div>
-                <p className="text-right text-[9px] text-muted-foreground">{apps.length} apps · locked apps cannot be selected</p>
               </div>
             </section>
           )}
@@ -1192,7 +1244,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     className="h-10 w-full rounded-xl border border-border/70 bg-background/75 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
                   />
                 </div>
-                <div className="grid max-h-[340px] grid-cols-3 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6" role="group" aria-label="Select Study Apps">
+                <div className="grid max-h-[340px] grid-cols-4 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-5 sm:grid-cols-6 lg:grid-cols-7" role="group" aria-label="Select Study Apps">
                   {appsLoading ? (
                     <p className="col-span-full py-8 text-center text-xs text-muted-foreground">Loading apps…</p>
                   ) : appsLoadError ? (
@@ -1216,20 +1268,15 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                         aria-pressed={selected}
                         aria-disabled={!app.selectable}
                         className={selected
-                          ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-accent/55 bg-accent/10 px-1.5 py-2 text-center shadow-sm transition-colors"
-                          : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-background/35 px-1.5 py-2 text-center transition-colors hover:border-accent/35 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-50"}
+                          ? "group relative flex min-h-[74px] min-w-0 flex-col items-center justify-center gap-1 rounded-[1.05rem] border border-accent/55 bg-accent/10 px-1.5 py-2 text-center shadow-sm transition-colors"
+                          : "group relative flex min-h-[74px] min-w-0 flex-col items-center justify-center gap-1 rounded-[1.05rem] border border-border/60 bg-background/35 px-1.5 py-2 text-center transition-colors hover:border-accent/35 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-50"}
                       >
-                        <StudyModeAppIcon app={app} size={30} />
+                        <StudyModeAppIcon app={app} size={34} />
                         <span className="line-clamp-1 w-full text-[9px] font-semibold text-foreground">{app.label}</span>
                         {blocked && !selected && <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning">Move</span>}
-                        {selected && (
-                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                            <Check size={10} strokeWidth={3} />
-                          </span>
-                        )}
                         {app.selectable ? (
                           selected && (
-                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-accent-foreground">
                               <Check size={10} strokeWidth={3} />
                             </span>
                           )
@@ -1246,111 +1293,82 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </section>
           )}
 
-          <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/50 p-3 shadow-sm backdrop-blur-sm sm:p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+          {!activeSession && (
+            <section className="overflow-hidden rounded-[1.35rem] border border-border/70 bg-card/55 p-3 shadow-sm sm:p-4">
+              <div className="mb-3 flex items-center gap-2">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><Clock3 size={15} /></span>
-                <div>
-                  <h3 className="text-xs font-bold text-foreground">Focus session</h3>
-                  <p className="text-[9px] text-muted-foreground">Timer &amp; session</p>
-                </div>
+                <h3 className="text-xs font-bold tracking-tight text-foreground">Focus session</h3>
               </div>
-              {activeSession && <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[9px] font-bold text-success"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> ACTIVE</span>}
-            </div>
 
-            {activeSession ? (
-              <div className="grid grid-cols-[116px_minmax(0,1fr)] items-center gap-3 sm:gap-5">
-                <SessionCountdown session={activeSession} onExpired={handleSessionExpired} />
-                <div className="min-w-0 space-y-2">
-                  <p className="text-sm font-bold capitalize text-foreground">{activeSession.sessionType} session</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {activeSession.selectedPackageNames.length} blocked apps · {activeSession.isEnforced ? "Enforced" : "Standard"}
-                  </p>
-                  <p className="text-[9px] text-muted-foreground">
-                    Started {new Date(activeSession.startTimestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => { void handleEndSession(); }}
-                    disabled={saving}
-                    className="motion-press inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-destructive/35 bg-destructive/5 px-3 py-2 text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+              <div className="grid grid-cols-2 gap-2">
+                <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Session
+                  <select
+                    value={sessionType}
+                    onChange={(event) => setSessionType(event.target.value as typeof sessionType)}
+                    disabled={saving || loading}
+                    className="mt-1.5 h-10 w-full rounded-xl border border-border/70 bg-background/75 px-2.5 text-xs font-medium normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
                   >
-                    {saving ? "Ending…" : "End session"}
-                  </button>
+                    <option value="study">Study</option>
+                    <option value="practice">Practice</option>
+                    <option value="work">Work</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+                <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Duration
+                  <select
+                    value={sessionDurationSeconds}
+                    onChange={(event) => setSessionDurationSeconds(Number(event.target.value))}
+                    disabled={saving || loading}
+                    className="mt-1.5 h-10 w-full rounded-xl border border-border/70 bg-background/75 px-2.5 text-xs font-medium normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
+                  >
+                    <option value={15 * 60}>15 min</option>
+                    <option value={25 * 60}>25 min</option>
+                    <option value={45 * 60}>45 min</option>
+                    <option value={60 * 60}>60 min</option>
+                    <option value={90 * 60}>90 min</option>
+                    <option value={0}>Unlimited</option>
+                  </select>
+                </label>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-border/65 bg-background/35 px-3">
+                  <span className="text-[10px] font-medium text-foreground">Enforced</span>
+                  <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
+                </div>
+                <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-border/65 bg-background/35 px-3">
+                  <span className="text-[10px] font-medium text-foreground">Do Not Disturb</span>
+                  <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Session
-                    <select
-                      value={sessionType}
-                      onChange={(event) => setSessionType(event.target.value as typeof sessionType)}
-                      disabled={saving || loading}
-                      className="mt-1.5 h-10 w-full rounded-xl border border-border/70 bg-background/75 px-2.5 text-xs font-medium normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
-                    >
-                      <option value="study">Study</option>
-                      <option value="practice">Practice</option>
-                      <option value="work">Work</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                  </label>
-                  <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Duration
-                    <select
-                      value={sessionDurationSeconds}
-                      onChange={(event) => setSessionDurationSeconds(Number(event.target.value))}
-                      disabled={saving || loading}
-                      className="mt-1.5 h-10 w-full rounded-xl border border-border/70 bg-background/75 px-2.5 text-xs font-medium normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
-                    >
-                      <option value={15 * 60}>15 min</option>
-                      <option value={25 * 60}>25 min</option>
-                      <option value={45 * 60}>45 min</option>
-                      <option value={60 * 60}>60 min</option>
-                      <option value={90 * 60}>90 min</option>
-                      <option value={0}>Unlimited</option>
-                    </select>
-                  </label>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-border/65 bg-background/35 px-3">
-                    <span className="text-[10px] font-medium text-foreground">Enforced</span>
-                    <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
-                  </div>
-                  <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-border/65 bg-background/35 px-3">
-                    <span className="text-[10px] font-medium text-foreground">Do Not Disturb</span>
-                    <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { void handleStartSession(); }}
-                  disabled={saving || loading || !isStudyModeNative()}
-                  className="motion-press gradient-primary mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm disabled:opacity-50"
-                >
-                  <Clock3 size={15} /> {saving ? "Starting…" : "Start focus session"}
-                </button>
-              </>
-            )}
+              <button
+                type="button"
+                onClick={() => { void handleStartSession(); }}
+                disabled={saving || loading || !isStudyModeNative()}
+                className="motion-press gradient-primary mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm disabled:opacity-50"
+              >
+                <Clock3 size={15} /> {saving ? "Starting…" : "Start focus session"}
+              </button>
 
-            {sessionHistory.length > 0 && !activeSession && (
-              <div className="mt-3 border-t border-border/55 pt-2.5">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recent sessions</p>
-                  <span className="text-[9px] text-muted-foreground">{sessionHistory.length} total</span>
+              {sessionHistory.length > 0 && (
+                <div className="mt-3 border-t border-border/55 pt-2.5">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recent sessions</p>
+                    <span className="text-[9px] text-muted-foreground">{sessionHistory.length} total</span>
+                  </div>
+                  <div className="space-y-1">
+                    {sessionHistory.slice(0, 3).map((session) => (
+                      <div key={session.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/35 px-2.5 py-2 text-[10px]">
+                        <span className="min-w-0 truncate capitalize text-foreground">{session.sessionType} · {new Date(session.startTimestamp).toLocaleDateString()}</span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">{formatSessionTime(session.elapsedSeconds)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  {sessionHistory.slice(0, 3).map((session) => (
-                    <div key={session.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/35 px-2.5 py-2 text-[10px]">
-                      <span className="min-w-0 truncate capitalize text-foreground">{session.sessionType} · {new Date(session.startTimestamp).toLocaleDateString()}</span>
-                      <span className="shrink-0 tabular-nums text-muted-foreground">{formatSessionTime(session.elapsedSeconds)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
+              )}
+            </section>
+          )}
 
           <section className="rounded-2xl border border-border/70 bg-card/45 p-3 shadow-sm sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -1391,7 +1409,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-2">
-              <span className="text-[10px] font-semibold text-muted-foreground">Repeat</span>
+              <span className="sr-only">Repeat days</span>
               <div className="flex items-center gap-1">
                 {DAY_LABELS.map((day) => {
                   const selected = draft.selectedDays.includes(day.value);
