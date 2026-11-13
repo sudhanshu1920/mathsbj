@@ -1,8 +1,9 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { App } from "@capacitor/app";
 import {
-  ArrowLeft, CalendarDays, Check, ChevronDown, Clock3, LockKeyhole,
-  Search, ShieldAlert, ShieldCheck, Smartphone, BookOpen,
+  ArrowLeft, BatteryCharging, Bell, BookOpen, CalendarDays, Check,
+  ChevronDown, ChevronRight, Clock3, LockKeyhole, Search,
+  ShieldAlert, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -109,8 +110,55 @@ const SessionCountdown = memo(({
     onExpired(session.id);
   }, [session.id, session.durationSeconds, remainingSeconds, onExpired]);
 
-  return <>{formatSessionTime(session.durationSeconds > 0 ? remainingSeconds : elapsedSeconds)}</>;
+  const circumference = 2 * Math.PI * 43;
+  const progress = session.durationSeconds > 0
+    ? Math.max(0, Math.min(1, elapsedSeconds / session.durationSeconds))
+    : 0;
+
+  return (
+    <div className="relative grid h-[116px] w-[116px] shrink-0 place-items-center" aria-live="off">
+      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
+        <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
+        <circle
+          cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--primary))" strokeWidth="5"
+          strokeLinecap="round" strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - progress)}
+          className="transition-[stroke-dashoffset] duration-700 ease-out"
+        />
+      </svg>
+      <div className="relative flex flex-col items-center">
+        <span className="font-display text-[17px] font-bold tabular-nums tracking-tight text-foreground">
+          {formatSessionTime(session.durationSeconds > 0 ? remainingSeconds : elapsedSeconds)}
+        </span>
+        <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          {session.durationSeconds > 0 ? "Remaining" : "Elapsed"}
+        </span>
+      </div>
+    </div>
+  );
 });
+
+const StudyModeAppIcon = ({ app, size = 30 }: { app: StudyModeApp; size?: number }) => (
+  app.iconDataUrl ? (
+    <img
+      src={app.iconDataUrl}
+      alt=""
+      loading="lazy" decoding="async"
+      width={size}
+      height={size}
+      className="shrink-0 rounded-[0.7rem] object-contain"
+      style={{ width: size, height: size }}
+    />
+  ) : (
+    <span
+      className="inline-flex shrink-0 items-center justify-center rounded-[0.7rem] bg-secondary text-xs font-bold text-muted-foreground"
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+    >
+      {app.label.slice(0, 1).toLocaleUpperCase()}
+    </span>
+  )
+);
 
 const statusText = (status: StudyModeStatus | null) => {
   if (!isStudyModeNative()) return "Available in the Android app";
@@ -157,6 +205,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [studySearch, setStudySearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [permissionSetupOpen, setPermissionSetupOpen] = useState(false);
+  const [permissionsExpanded, setPermissionsExpanded] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [appFilter, setAppFilter] = useState<StudyModeAppFilter>("all");
@@ -431,6 +480,14 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const visibleStudyApps = useMemo(
     () => filterStudyModeApps(apps, "all", deferredStudySearch),
     [apps, deferredStudySearch],
+  );
+  const selectedBlockedApps = useMemo(
+    () => apps.filter((app) => draft.selectedPackageNames.includes(app.packageName)),
+    [apps, draft.selectedPackageNames],
+  );
+  const selectedStudyApps = useMemo(
+    () => apps.filter((app) => studyAppPackages.includes(app.packageName)),
+    [apps, studyAppPackages],
   );
 
   const updateDraft = (patch: Partial<StudyModeConfig>) => {
@@ -818,7 +875,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   };
 
   return (
-    <div className="study-mode-page min-w-0 space-y-2.5 pb-2">
+    <div className="study-mode-page mx-auto w-full max-w-3xl min-w-0 space-y-3 pb-2">
       {permissionSetupOpen && status && !loading ? (
         <StudyModePermissionSetup
           status={status}
@@ -832,479 +889,597 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           onRequestNotifications={requestNotifications}
         />
       ) : (
-      <>
-      <header className="flex min-w-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={handleBack}
-          aria-label="Back to Settings"
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card/45 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-        >
-          <ArrowLeft size={17} />
-        </button>
-        <h2 className="min-w-0 flex-1 font-display text-base font-bold text-foreground">Study Mode</h2>
-        <LockKeyhole size={16} className="shrink-0 text-primary" />
-      </header>
-
-      <section className="rounded-xl border border-primary/25 bg-card/55 p-3 shadow-sm backdrop-blur-sm">
-        <div className="flex min-h-10 items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">Study Mode</p>
-            <p className="truncate text-[10px] text-muted-foreground" role="status">
-              {loading ? "Loading…" : statusText(status)}
-            </p>
-          </div>
-          {status ? (
-            <Switch
-              checked={draft.enabled || Boolean(status.activeSession?.active)}
-              disabled={loading || saving || !isStudyModeNative()}
-              onCheckedChange={(enabled) => { void handleMasterToggle(enabled); }}
-              aria-label="Study Mode master switch"
-            />
-          ) : (
-            <span className="shrink-0 text-[10px] text-muted-foreground">
-              {loading ? "Loading…" : "Unavailable"}
-            </span>
-          )}
-        </div>
-        {status?.enforcementMode === "device_owner" && (
-          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-medium text-success">
-            <ShieldCheck size={12} /> System-level enforcement
-          </div>
-        )}
-        {status?.enforcementMode === "focus_shield" && (
-          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-warning">
-            <ShieldAlert size={12} /> Best-effort app blocking
-          </div>
-        )}
-      </section>
-
-      {status && !corePermissionsReady && (
-        <section role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2.5">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-foreground">App blocking is not fully available</p>
-            <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-              {permissionReadiness?.missing.join(" · ") || "Review the required Android permissions."}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setPermissionSetupOpen(true)}
-            className="min-h-9 shrink-0 rounded-lg border border-warning/35 px-3 text-[10px] font-semibold text-warning transition-colors hover:bg-warning/10"
-          >
-            Review permissions
-          </button>
-        </section>
-      )}
-
-      <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
-        <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/35">
-          <button
-            type="button"
-            onClick={toggleBlockedPicker}
-            aria-expanded={pickerOpen}
-            className="flex min-h-12 w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/45"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <Smartphone size={15} className="shrink-0 text-muted-foreground" />
-              <span className="truncate text-xs font-semibold text-foreground">Blocked Apps</span>
-              <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-                {selectedCount}
-              </span>
-            </span>
-            <ChevronDown size={16} className={pickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
-          </button>
-          {pickerOpen && (
-            <div className="border-t border-border/60">
-              <div className="relative p-2">
-                <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search apps"
-                  aria-label="Search blocked apps"
-                  className="h-9 w-full rounded-lg border border-border/70 bg-background/75 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-1 px-2 pb-2" role="group" aria-label="Filter installed apps">
-                {([
-                  { id: "all", label: "All", count: appCounts.all },
-                  { id: "user", label: "User", count: appCounts.user },
-                  { id: "system", label: "System", count: appCounts.system },
-                ] as const).map((filter) => {
-                  const active = appFilter === filter.id;
-                  return (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      onClick={() => setAppFilter(filter.id)}
-                      aria-pressed={active}
-                      className={active
-                        ? "flex min-h-9 min-w-0 items-center justify-center gap-1 rounded-lg bg-primary px-2 text-[10px] font-semibold text-primary-foreground"
-                        : "flex min-h-9 min-w-0 items-center justify-center gap-1 rounded-lg bg-secondary/65 px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-secondary"}
-                    >
-                      <span>{filter.label}</span>
-                      <span className="tabular-nums opacity-80">{filter.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto border-t border-border/50 p-1.5 min-[480px]:grid-cols-2">
-                {appsLoading ? (
-                  <p className="col-span-full p-3 text-center text-xs text-muted-foreground">Loading apps…</p>
-                ) : appsLoadError ? (
-                  <button type="button" onClick={() => { void loadApps(); }} className="col-span-full p-3 text-center text-xs text-warning">
-                    {appsLoadError} · Retry
-                  </button>
-                ) : visibleApps.length === 0 ? (
-                  <p className="col-span-full p-3 text-center text-xs text-muted-foreground">
-                    {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
-                  </p>
-                ) : visibleApps.map((app) => {
-                  const selected = draft.selectedPackageNames.includes(app.packageName);
-                  return (
-                    <button
-                      key={app.packageName}
-                      type="button"
-                      onClick={() => toggleApp(app.packageName, app.selectable)}
-                      disabled={!app.selectable || saving}
-                      aria-pressed={selected}
-                      aria-disabled={!app.selectable}
-                      className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/65 disabled:cursor-not-allowed disabled:opacity-60 [content-visibility:auto] [contain-intrinsic-size:44px]"
-                    >
-                      {app.iconDataUrl ? (
-                        <img src={app.iconDataUrl} alt="" loading="lazy" decoding="async" width={28} height={28} className="h-7 w-7 shrink-0 rounded-lg object-contain" />
-                      ) : (
-                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
-                          {app.label.slice(0, 1).toLocaleUpperCase()}
-                        </span>
-                      )}
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{app.label}</span>
-                      {selected && status?.enforcementMode !== "focus_shield" && (
-                        <span className={suspendedPackages.has(app.packageName)
-                          ? "shrink-0 rounded-md bg-success/10 px-1 py-0.5 text-[8px] font-semibold text-success"
-                          : "shrink-0 rounded-md bg-warning/10 px-1 py-0.5 text-[8px] font-semibold text-warning"}>
-                          {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Not frozen" : "Scheduled"}
-                        </span>
-                      )}
-                      {selected && status?.enforcementMode === "focus_shield" && (
-                        <span className="shrink-0 rounded-md bg-warning/10 px-1 py-0.5 text-[8px] font-semibold text-warning">Shield</span>
-                      )}
-                      {app.selectable ? (
-                        <span className={selected
-                          ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground"
-                          : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
-                          <Check size={11} />
-                        </span>
-                      ) : (
-                        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" aria-label="Protected app">
-                          <LockKeyhole size={12} />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="border-t border-border/50 px-3 py-1.5 text-[9px] text-muted-foreground">
-                {apps.length} apps · Locked apps cannot be selected
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card/35">
-          <button
-            type="button"
-            onClick={toggleStudyPicker}
-            aria-expanded={studyPickerOpen}
-            className="flex min-h-12 w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/45"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <BookOpen size={15} className="shrink-0 text-primary" />
-              <span className="truncate text-xs font-semibold text-foreground">Study Apps</span>
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-primary">
-                {studyAppPackages.length}
-              </span>
-            </span>
-            <ChevronDown size={16} className={studyPickerOpen ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
-          </button>
-          {studyPickerOpen && (
-            <div className="border-t border-border/60">
-              <div className="relative p-2">
-                <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="search"
-                  value={studySearch}
-                  onChange={(event) => setStudySearch(event.target.value)}
-                  placeholder="Search apps"
-                  aria-label="Search Study Apps"
-                  className="h-9 w-full rounded-lg border border-border/70 bg-background/75 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-                />
-              </div>
-              <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto p-1.5 min-[480px]:grid-cols-2">
-                {appsLoading ? (
-                  <p className="col-span-full p-3 text-center text-xs text-muted-foreground">Loading apps…</p>
-                ) : appsLoadError ? (
-                  <button type="button" onClick={() => { void loadApps(); }} className="col-span-full p-3 text-center text-xs text-warning">
-                    {appsLoadError} · Retry
-                  </button>
-                ) : visibleStudyApps.length === 0 ? (
-                  <p className="col-span-full p-3 text-center text-xs text-muted-foreground">
-                    {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
-                  </p>
-                ) : visibleStudyApps.map((app) => {
-                  const selected = studyAppPackages.includes(app.packageName);
-                  const blocked = draft.selectedPackageNames.includes(app.packageName)
-                    || (status?.enforcedPackages ?? []).includes(app.packageName);
-                  return (
-                    <button
-                      key={app.packageName}
-                      type="button"
-                      onClick={() => toggleStudyApp(app.packageName, app.selectable)}
-                      disabled={!app.selectable || saving}
-                      aria-pressed={selected}
-                      aria-disabled={!app.selectable}
-                      className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/65 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {app.iconDataUrl ? (
-                        <img src={app.iconDataUrl} alt="" loading="lazy" decoding="async" width={28} height={28} className="h-7 w-7 shrink-0 rounded-lg object-contain" />
-                      ) : (
-                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
-                          {app.label.slice(0, 1).toLocaleUpperCase()}
-                        </span>
-                      )}
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{app.label}</span>
-                      {blocked && !selected && (
-                        <span className="shrink-0 text-[9px] font-semibold text-warning">Move</span>
-                      )}
-                      {app.selectable ? (
-                        <span className={selected
-                          ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground"
-                          : "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-transparent"}>
-                          <Check size={11} />
-                        </span>
-                      ) : (
-                        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" aria-label="Protected app">
-                          <LockKeyhole size={12} />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="border-t border-border/50 px-3 py-1.5 text-[9px] text-muted-foreground">
-                {studyAppPackages.length} selected
-              </div>
-            </div>
-          )}
-        </section>
-      </div>
-
-      <section className="space-y-2 rounded-xl border border-border/70 bg-card/45 p-3 shadow-sm backdrop-blur-sm">
-        <div className="flex min-h-7 items-center justify-between gap-2">
-          <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
-            <Clock3 size={14} className="text-muted-foreground" /> Focus session
-          </p>
-          {activeSession && (
-            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-bold text-success">ACTIVE</span>
-          )}
-        </div>
-
-        {activeSession ? (
-          <>
-            <div className="flex min-w-0 items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-display text-2xl font-bold tabular-nums tracking-tight text-foreground">
-                  <SessionCountdown session={activeSession} onExpired={handleSessionExpired} />
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {activeSession.durationSeconds > 0 ? "Remaining" : "Elapsed"} · {activeSession.sessionType}
-                </p>
-              </div>
-              <div className="shrink-0 rounded-lg bg-secondary/75 px-2.5 py-1.5 text-[10px] font-medium text-foreground">
-                {activeSession.selectedPackageNames.length} apps
-              </div>
-            </div>
-            <p className="text-[9px] text-muted-foreground">
-              Started {new Date(activeSession.startTimestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-              {activeSession.isEnforced ? " · Enforced stop" : " · Standard"}
-            </p>
+        <>
+          <header className="flex min-w-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => { void handleEndSession(); }}
-              disabled={saving}
-              className="min-h-10 w-full rounded-lg border border-destructive/35 px-3 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+              onClick={handleBack}
+              aria-label="Back to Settings"
+              className="motion-press inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card/55 text-muted-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-secondary hover:text-foreground"
             >
-              {saving ? "Ending…" : "End Session"}
+              <ArrowLeft size={17} />
             </button>
-          </>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="min-w-0 text-[10px] font-medium text-muted-foreground">
-                Session
-                <select
-                  value={sessionType}
-                  onChange={(event) => setSessionType(event.target.value as typeof sessionType)}
-                  disabled={saving || loading}
-                  className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
-                >
-                  <option value="study">Study</option>
-                  <option value="practice">Practice</option>
-                  <option value="work">Work</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </label>
-              <label className="min-w-0 text-[10px] font-medium text-muted-foreground">
-                Duration
-                <select
-                  value={sessionDurationSeconds}
-                  onChange={(event) => setSessionDurationSeconds(Number(event.target.value))}
-                  disabled={saving || loading}
-                  className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
-                >
-                  <option value={15 * 60}>15 minutes</option>
-                  <option value={25 * 60}>25 minutes</option>
-                  <option value={45 * 60}>45 minutes</option>
-                  <option value={60 * 60}>60 minutes</option>
-                  <option value={90 * 60}>90 minutes</option>
-                  <option value={0}>Unlimited</option>
-                </select>
-              </label>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-display text-base font-bold leading-tight text-foreground">Study Mode</h2>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">Focus workspace</p>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5">
-                <span className="text-[10px] font-medium text-foreground">Enforced</span>
-                <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <ShieldCheck size={17} />
+            </span>
+          </header>
+
+          <section className="relative isolate overflow-hidden rounded-[1.45rem] border border-primary/25 bg-card/70 p-4 shadow-lg backdrop-blur-sm sm:p-5">
+            <div className="pointer-events-none absolute -right-9 -top-12 -z-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl gradient-primary text-primary-foreground shadow-md">
+                <ShieldCheck size={22} strokeWidth={1.8} />
               </div>
-              <div className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5">
-                <span className="text-[10px] font-medium text-foreground">Do Not Disturb</span>
-                <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => { void handleStartSession(); }}
-              disabled={saving || loading || !isStudyModeNative()}
-              className="min-h-11 w-full rounded-lg gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
-            >
-              {saving ? "Starting…" : "Start Focus Session"}
-            </button>
-          </>
-        )}
-        {sessionHistory.length > 0 && !activeSession && (
-          <div className="border-t border-border/60 pt-2">
-            <p className="mb-1.5 text-[10px] font-semibold text-muted-foreground">Recent sessions</p>
-            <div className="space-y-1">
-              {sessionHistory.slice(0, 3).map((session) => (
-                <div key={session.id} className="flex items-center justify-between gap-2 text-[10px]">
-                  <span className="min-w-0 truncate capitalize text-foreground">{session.sessionType} · {new Date(session.startTimestamp).toLocaleDateString()}</span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">{formatSessionTime(session.elapsedSeconds)}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-foreground">Focus protection</span>
+                  <span className={(draft.enabled || Boolean(status?.activeSession?.active))
+                    ? "rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-bold tracking-wide text-success"
+                    : "rounded-full bg-secondary px-2 py-0.5 text-[9px] font-bold tracking-wide text-muted-foreground"}>
+                    {loading ? "LOADING" : draft.enabled || status?.activeSession?.active ? "ACTIVE" : "OFF"}
+                  </span>
                 </div>
-              ))}
+                <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground" role="status">
+                  {loading ? "Loading…" : statusText(status)}
+                </p>
+              </div>
+              {status ? (
+                <Switch
+                  checked={draft.enabled || Boolean(status.activeSession?.active)}
+                  disabled={loading || saving || !isStudyModeNative()}
+                  onCheckedChange={(enabled) => { void handleMasterToggle(enabled); }}
+                  aria-label="Study Mode master switch"
+                />
+              ) : (
+                <span className="shrink-0 text-[10px] text-muted-foreground">{loading ? "…" : "—"}</span>
+              )}
             </div>
-          </div>
-        )}
-      </section>
 
-      <section className="space-y-2 rounded-xl border border-border/70 bg-card/35 p-3">
-        <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <CalendarDays size={14} className="text-muted-foreground" /> Study schedule
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => { void chooseTime("start"); }}
-            disabled={!isStudyModeNative() || loading}
-            className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-lg border border-border/70 bg-background/35 px-3 py-2 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
-          >
-            <span className="text-[10px] text-muted-foreground">Start</span>
-            <span className="text-sm font-bold tabular-nums text-foreground">{toTimeLabel(draft.startHour, draft.startMinute)}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { void chooseTime("end"); }}
-            disabled={!isStudyModeNative() || loading}
-            className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-lg border border-border/70 bg-background/35 px-3 py-2 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
-          >
-            <span className="text-[10px] text-muted-foreground">End</span>
-            <span className="text-sm font-bold tabular-nums text-foreground">{toTimeLabel(draft.endHour, draft.endMinute)}</span>
-          </button>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-medium text-muted-foreground">Repeat</span>
-          <div className="flex flex-wrap items-center justify-end gap-1">
-            {DAY_LABELS.map((day) => {
-              const selected = draft.selectedDays.includes(day.value);
-              return (
-                <button
-                  key={day.value}
-                  type="button"
-                  onClick={() => updateDraft({
-                    selectedDays: selected
-                      ? draft.selectedDays.filter((value) => value !== day.value)
-                      : [...draft.selectedDays, day.value].sort((a, b) => a - b),
-                  })}
-                  aria-label={day.name}
-                  aria-pressed={selected}
-                  className={selected
-                    ? "h-10 w-10 shrink-0 rounded-full border border-primary bg-primary text-[11px] font-bold text-primary-foreground transition-colors"
-                    : "h-10 w-10 shrink-0 rounded-full border border-border bg-transparent text-[11px] font-bold text-muted-foreground transition-colors hover:border-primary/50"}
-                >
-                  {day.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="flex justify-end gap-4 text-[10px]">
-          <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5] })} className="min-h-9 text-muted-foreground underline-offset-2 hover:text-primary hover:underline">Weekdays</button>
-          <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5, 6, 7] })} className="min-h-9 text-muted-foreground underline-offset-2 hover:text-primary hover:underline">Every day</button>
-          <button type="button" onClick={() => updateDraft({ selectedDays: [] })} className="min-h-9 text-muted-foreground underline-offset-2 hover:text-primary hover:underline">Clear</button>
-        </div>
-      </section>
+            <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-border/55 pt-3">
+              {status?.enforcementMode === "device_owner" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[9px] font-semibold text-success">
+                  <ShieldCheck size={11} /> System enforcement
+                </span>
+              ) : status?.enforcementMode === "profile_owner" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[9px] font-semibold text-success">
+                  <ShieldCheck size={11} /> Managed profile
+                </span>
+              ) : status?.enforcementMode === "focus_shield" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-1 text-[9px] font-semibold text-warning">
+                  <ShieldAlert size={11} /> Focus Shield
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[9px] font-semibold text-muted-foreground">
+                  <LockKeyhole size={11} /> Android protection
+                </span>
+              )}
+              {status?.monitoringServiceRunning && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[9px] font-semibold text-primary">
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" /> Monitoring
+                </span>
+              )}
+              {status?.scheduleActive && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[9px] font-semibold text-muted-foreground">
+                  <CalendarDays size={11} /> Schedule active
+                </span>
+              )}
+            </div>
+          </section>
 
-      <section className="space-y-1.5 rounded-xl border border-border/70 bg-card/35 p-3">
-        <p className="text-xs font-semibold text-foreground">Android permissions</p>
-        {permissionItems.map((item) => {
-          const stateLabel = item.granted ? "Granted" : item.required ? "Required" : "Optional";
-          const stateClass = item.granted
-            ? "shrink-0 text-[10px] font-semibold text-success"
-            : item.required
-              ? "shrink-0 text-[10px] font-semibold text-warning"
-              : "shrink-0 text-[10px] font-semibold text-muted-foreground";
-          return (
+          {status && !corePermissionsReady && (
+            <section role="alert" className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2.5">
+              <ShieldAlert size={16} className="shrink-0 text-warning" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold text-foreground">Blocking needs attention</p>
+                <p className="mt-0.5 line-clamp-2 text-[9px] text-muted-foreground">
+                  {permissionReadiness?.missing.join(" · ") || "Review Android permissions."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPermissionSetupOpen(true)}
+                className="motion-press min-h-9 shrink-0 rounded-lg border border-warning/35 px-2.5 text-[10px] font-semibold text-warning transition-colors hover:bg-warning/10"
+              >
+                Review
+              </button>
+            </section>
+          )}
+
+          <section aria-label="App collections" className="grid grid-cols-2 gap-2">
             <button
-              key={item.key}
               type="button"
-              onClick={() => { void openPermission(item.key); }}
-              aria-label={item.title + ": " + stateLabel + ". " + item.helper}
-              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-border/55 px-2.5 py-1.5 text-left transition-colors hover:border-primary/35"
+              onClick={toggleBlockedPicker}
+              aria-expanded={pickerOpen}
+              className="motion-press min-w-0 rounded-2xl border border-border/70 bg-card/55 p-3 text-left shadow-sm transition-colors hover:border-primary/35 hover:bg-card sm:p-3.5"
             >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[11px] font-medium text-foreground">{item.title}</span>
-                <span className="block truncate text-[9px] text-muted-foreground">{item.helper}</span>
-              </span>
-              <span className={stateClass}>{stateLabel}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Smartphone size={16} />
+                </span>
+                <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-bold tabular-nums text-foreground">{selectedCount}</span>
+              </div>
+              <p className="mt-2 text-xs font-bold text-foreground">Blocked Apps</p>
+              <div className="mt-2 flex min-h-7 items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center -space-x-2">
+                  {selectedBlockedApps.slice(0, 4).map((app) => (
+                    <span key={app.packageName} className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-xl border-2 border-card bg-secondary">
+                      <StudyModeAppIcon app={app} size={24} />
+                    </span>
+                  ))}
+                  {selectedCount > selectedBlockedApps.length && (
+                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-card bg-secondary px-1 text-[9px] font-bold text-muted-foreground">
+                      +{selectedCount - selectedBlockedApps.length}
+                    </span>
+                  )}
+                  {selectedCount === 0 && <span className="text-[9px] text-muted-foreground">Choose apps</span>}
+                  {selectedCount > 0 && selectedBlockedApps.length === 0 && <span className="text-[9px] text-muted-foreground">Selected apps</span>}
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold text-primary">
+                  {pickerOpen ? "Open" : "Manage"} <ChevronRight size={12} />
+                </span>
+              </div>
             </button>
-          );
-        })}
-        {status?.enforcementMode === "device_owner" && (
-          <p className="pt-1 text-[9px] text-success">Managed device enforcement is available.</p>
-        )}
-        {status?.exactAlarmFallback && (
-          <p className="pt-1 text-[9px] text-warning">Schedule boundaries may be delayed by Android.</p>
-        )}
-      </section>
 
-      {(message || refreshError) && (
-        <p role="status" className="rounded-lg border border-border/70 bg-secondary/60 px-3 py-2 text-[10px] text-muted-foreground">
-          {message || refreshError}
-        </p>
-      )}
+            <button
+              type="button"
+              onClick={toggleStudyPicker}
+              aria-expanded={studyPickerOpen}
+              className="motion-press min-w-0 rounded-2xl border border-border/70 bg-card/55 p-3 text-left shadow-sm transition-colors hover:border-primary/35 hover:bg-card sm:p-3.5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                  <BookOpen size={16} />
+                </span>
+                <span className="rounded-full bg-accent/10 px-2 py-1 text-[10px] font-bold tabular-nums text-accent">{studyAppPackages.length}</span>
+              </div>
+              <p className="mt-2 text-xs font-bold text-foreground">Study Apps</p>
+              <div className="mt-2 flex min-h-7 items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center -space-x-2">
+                  {selectedStudyApps.slice(0, 4).map((app) => (
+                    <span key={app.packageName} className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-xl border-2 border-card bg-secondary">
+                      <StudyModeAppIcon app={app} size={24} />
+                    </span>
+                  ))}
+                  {studyAppPackages.length > selectedStudyApps.length && (
+                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-card bg-secondary px-1 text-[9px] font-bold text-muted-foreground">
+                      +{studyAppPackages.length - selectedStudyApps.length}
+                    </span>
+                  )}
+                  {studyAppPackages.length === 0 && <span className="text-[9px] text-muted-foreground">Choose apps</span>}
+                  {studyAppPackages.length > 0 && selectedStudyApps.length === 0 && <span className="text-[9px] text-muted-foreground">Selected apps</span>}
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold text-accent">
+                  {studyPickerOpen ? "Open" : "Manage"} <ChevronRight size={12} />
+                </span>
+              </div>
+            </button>
+          </section>
 
-      </>
+          {pickerOpen && (
+            <section className="overflow-hidden rounded-2xl border border-primary/20 bg-card/45 shadow-sm">
+              <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
+                <Smartphone size={15} className="text-primary" />
+                <span className="flex-1 text-xs font-bold text-foreground">Blocked Apps</span>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[9px] font-bold text-muted-foreground">{selectedCount} selected</span>
+                {selectedCount > 0 && (
+                  <button type="button" onClick={() => updateDraft({ selectedPackageNames: [] })} disabled={saving} className="motion-press rounded-lg px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2 p-2.5">
+                <div className="relative">
+                  <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search apps"
+                    aria-label="Search blocked apps"
+                    className="h-10 w-full rounded-xl border border-border/70 bg-background/75 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Filter installed apps">
+                  {([
+                    { id: "all", label: "All", count: appCounts.all },
+                    { id: "user", label: "User", count: appCounts.user },
+                    { id: "system", label: "System", count: appCounts.system },
+                  ] as const).map((filter) => {
+                    const active = appFilter === filter.id;
+                    return (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        onClick={() => setAppFilter(filter.id)}
+                        aria-pressed={active}
+                        className={active
+                          ? "flex min-h-9 items-center justify-center gap-1 rounded-lg bg-primary px-2 text-[10px] font-semibold text-primary-foreground shadow-sm"
+                          : "flex min-h-9 items-center justify-center gap-1 rounded-lg bg-secondary/70 px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-secondary"}
+                      >
+                        <span>{filter.label}</span>
+                        <span className="tabular-nums opacity-80">{filter.count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="grid max-h-[340px] grid-cols-3 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6" role="group" aria-label="Select blocked apps">
+                  {appsLoading ? (
+                    <p className="col-span-full py-8 text-center text-xs text-muted-foreground">Loading apps…</p>
+                  ) : appsLoadError ? (
+                    <button type="button" onClick={() => { void loadApps(); }} className="col-span-full rounded-xl bg-secondary/60 p-4 text-center text-xs text-warning">
+                      {appsLoadError} · Retry
+                    </button>
+                  ) : visibleApps.length === 0 ? (
+                    <p className="col-span-full py-8 text-center text-xs text-muted-foreground">
+                      {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
+                    </p>
+                  ) : visibleApps.map((app) => {
+                    const selected = draft.selectedPackageNames.includes(app.packageName);
+                    return (
+                      <button
+                        key={app.packageName}
+                        type="button"
+                        onClick={() => toggleApp(app.packageName, app.selectable)}
+                        disabled={!app.selectable || saving}
+                        aria-pressed={selected}
+                        aria-disabled={!app.selectable}
+                        className={selected
+                          ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-primary/55 bg-primary/10 px-1.5 py-2 text-center shadow-sm transition-colors"
+                          : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-background/35 px-1.5 py-2 text-center transition-colors hover:border-primary/35 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-50"}
+                      >
+                        <StudyModeAppIcon app={app} size={30} />
+                        <span className="line-clamp-1 w-full text-[9px] font-semibold text-foreground">{app.label}</span>
+                        {selected && status?.enforcementMode !== "focus_shield" && (
+                          <span className={suspendedPackages.has(app.packageName)
+                            ? "rounded-full bg-success/10 px-1.5 py-0.5 text-[8px] font-semibold text-success"
+                            : "rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning"}>
+                            {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Not frozen" : "Scheduled"}
+                          </span>
+                        )}
+                        {selected && status?.enforcementMode === "focus_shield" && (
+                          <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning">Shield</span>
+                        )}
+                        {selected && (
+                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Check size={10} strokeWidth={3} />
+                          </span>
+                        )}
+                        {app.selectable ? (
+                          selected && (
+                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Check size={10} strokeWidth={3} />
+                            </span>
+                          )
+                        ) : (
+                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-muted-foreground" aria-label="Protected app">
+                            <LockKeyhole size={10} />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-right text-[9px] text-muted-foreground">{apps.length} apps · locked apps cannot be selected</p>
+              </div>
+            </section>
+          )}
+
+          {studyPickerOpen && (
+            <section className="overflow-hidden rounded-2xl border border-accent/25 bg-card/45 shadow-sm">
+              <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
+                <BookOpen size={15} className="text-accent" />
+                <span className="flex-1 text-xs font-bold text-foreground">Study Apps</span>
+                <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[9px] font-bold text-accent">{studyAppPackages.length} selected</span>
+                {studyAppPackages.length > 0 && (
+                  <button type="button" onClick={() => setStudyAppPackages([])} disabled={saving} className="motion-press rounded-lg px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2 p-2.5">
+                <div className="relative">
+                  <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="search"
+                    value={studySearch}
+                    onChange={(event) => setStudySearch(event.target.value)}
+                    placeholder="Search study apps"
+                    aria-label="Search Study Apps"
+                    className="h-10 w-full rounded-xl border border-border/70 bg-background/75 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
+                  />
+                </div>
+                <div className="grid max-h-[340px] grid-cols-3 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6" role="group" aria-label="Select Study Apps">
+                  {appsLoading ? (
+                    <p className="col-span-full py-8 text-center text-xs text-muted-foreground">Loading apps…</p>
+                  ) : appsLoadError ? (
+                    <button type="button" onClick={() => { void loadApps(); }} className="col-span-full rounded-xl bg-secondary/60 p-4 text-center text-xs text-warning">
+                      {appsLoadError} · Retry
+                    </button>
+                  ) : visibleStudyApps.length === 0 ? (
+                    <p className="col-span-full py-8 text-center text-xs text-muted-foreground">
+                      {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
+                    </p>
+                  ) : visibleStudyApps.map((app) => {
+                    const selected = studyAppPackages.includes(app.packageName);
+                    const blocked = draft.selectedPackageNames.includes(app.packageName)
+                      || (status?.enforcedPackages ?? []).includes(app.packageName);
+                    return (
+                      <button
+                        key={app.packageName}
+                        type="button"
+                        onClick={() => toggleStudyApp(app.packageName, app.selectable)}
+                        disabled={!app.selectable || saving}
+                        aria-pressed={selected}
+                        aria-disabled={!app.selectable}
+                        className={selected
+                          ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-accent/55 bg-accent/10 px-1.5 py-2 text-center shadow-sm transition-colors"
+                          : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-background/35 px-1.5 py-2 text-center transition-colors hover:border-accent/35 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-50"}
+                      >
+                        <StudyModeAppIcon app={app} size={30} />
+                        <span className="line-clamp-1 w-full text-[9px] font-semibold text-foreground">{app.label}</span>
+                        {blocked && !selected && <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning">Move</span>}
+                        {selected && (
+                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                            <Check size={10} strokeWidth={3} />
+                          </span>
+                        )}
+                        {app.selectable ? (
+                          selected && (
+                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Check size={10} strokeWidth={3} />
+                            </span>
+                          )
+                        ) : (
+                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-muted-foreground" aria-label="Protected app">
+                            <LockKeyhole size={10} />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          )}
+
+          <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/50 p-3 shadow-sm backdrop-blur-sm sm:p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><Clock3 size={15} /></span>
+                <div>
+                  <h3 className="text-xs font-bold text-foreground">Focus session</h3>
+                  <p className="text-[9px] text-muted-foreground">Timer &amp; session</p>
+                </div>
+              </div>
+              {activeSession && <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[9px] font-bold text-success"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> ACTIVE</span>}
+            </div>
+
+            {activeSession ? (
+              <div className="grid grid-cols-[116px_minmax(0,1fr)] items-center gap-3 sm:gap-5">
+                <SessionCountdown session={activeSession} onExpired={handleSessionExpired} />
+                <div className="min-w-0 space-y-2">
+                  <p className="text-sm font-bold capitalize text-foreground">{activeSession.sessionType} session</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {activeSession.selectedPackageNames.length} blocked apps · {activeSession.isEnforced ? "Enforced" : "Standard"}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">
+                    Started {new Date(activeSession.startTimestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { void handleEndSession(); }}
+                    disabled={saving}
+                    className="motion-press inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-destructive/35 bg-destructive/5 px-3 py-2 text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                  >
+                    {saving ? "Ending…" : "End session"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Session
+                    <select
+                      value={sessionType}
+                      onChange={(event) => setSessionType(event.target.value as typeof sessionType)}
+                      disabled={saving || loading}
+                      className="mt-1.5 h-10 w-full rounded-xl border border-border/70 bg-background/75 px-2.5 text-xs font-medium normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
+                    >
+                      <option value="study">Study</option>
+                      <option value="practice">Practice</option>
+                      <option value="work">Work</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </label>
+                  <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Duration
+                    <select
+                      value={sessionDurationSeconds}
+                      onChange={(event) => setSessionDurationSeconds(Number(event.target.value))}
+                      disabled={saving || loading}
+                      className="mt-1.5 h-10 w-full rounded-xl border border-border/70 bg-background/75 px-2.5 text-xs font-medium normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
+                    >
+                      <option value={15 * 60}>15 min</option>
+                      <option value={25 * 60}>25 min</option>
+                      <option value={45 * 60}>45 min</option>
+                      <option value={60 * 60}>60 min</option>
+                      <option value={90 * 60}>90 min</option>
+                      <option value={0}>Unlimited</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-border/65 bg-background/35 px-3">
+                    <span className="text-[10px] font-medium text-foreground">Enforced</span>
+                    <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
+                  </div>
+                  <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-border/65 bg-background/35 px-3">
+                    <span className="text-[10px] font-medium text-foreground">Do Not Disturb</span>
+                    <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { void handleStartSession(); }}
+                  disabled={saving || loading || !isStudyModeNative()}
+                  className="motion-press gradient-primary mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm disabled:opacity-50"
+                >
+                  <Clock3 size={15} /> {saving ? "Starting…" : "Start focus session"}
+                </button>
+              </>
+            )}
+
+            {sessionHistory.length > 0 && !activeSession && (
+              <div className="mt-3 border-t border-border/55 pt-2.5">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recent sessions</p>
+                  <span className="text-[9px] text-muted-foreground">{sessionHistory.length} total</span>
+                </div>
+                <div className="space-y-1">
+                  {sessionHistory.slice(0, 3).map((session) => (
+                    <div key={session.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/35 px-2.5 py-2 text-[10px]">
+                      <span className="min-w-0 truncate capitalize text-foreground">{session.sessionType} · {new Date(session.startTimestamp).toLocaleDateString()}</span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">{formatSessionTime(session.elapsedSeconds)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-border/70 bg-card/45 p-3 shadow-sm sm:p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><CalendarDays size={15} /></span>
+                <div>
+                  <h3 className="text-xs font-bold text-foreground">Study schedule</h3>
+                  <p className="text-[9px] text-muted-foreground">{draft.selectedDays.length === 0 ? "No repeat days" : draft.selectedDays.length === 7 ? "Every day" : draft.selectedDays.length === 5 && [1,2,3,4,5].every((day) => draft.selectedDays.includes(day)) ? "Weekdays" : "Custom days"}</p>
+                </div>
+              </div>
+              {status?.scheduleActive && <span className="rounded-full bg-success/10 px-2.5 py-1 text-[9px] font-bold text-success">ACTIVE</span>}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { void chooseTime("start"); }}
+                disabled={!isStudyModeNative() || loading}
+                className="motion-press flex min-h-[62px] min-w-0 items-center gap-2 rounded-xl border border-border/65 bg-background/35 px-3 py-2 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
+              >
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Clock3 size={14} /></span>
+                <span className="min-w-0">
+                  <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Start</span>
+                  <span className="mt-0.5 block truncate text-sm font-bold tabular-nums text-foreground">{toTimeLabel(draft.startHour, draft.startMinute)}</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { void chooseTime("end"); }}
+                disabled={!isStudyModeNative() || loading}
+                className="motion-press flex min-h-[62px] min-w-0 items-center gap-2 rounded-xl border border-border/65 bg-background/35 px-3 py-2 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
+              >
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent"><Clock3 size={14} /></span>
+                <span className="min-w-0">
+                  <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">End</span>
+                  <span className="mt-0.5 block truncate text-sm font-bold tabular-nums text-foreground">{toTimeLabel(draft.endHour, draft.endMinute)}</span>
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-semibold text-muted-foreground">Repeat</span>
+              <div className="flex items-center gap-1">
+                {DAY_LABELS.map((day) => {
+                  const selected = draft.selectedDays.includes(day.value);
+                  return (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => updateDraft({
+                        selectedDays: selected
+                          ? draft.selectedDays.filter((value) => value !== day.value)
+                          : [...draft.selectedDays, day.value].sort((a, b) => a - b),
+                      })}
+                      aria-label={day.name}
+                      aria-pressed={selected}
+                      className={selected
+                        ? "motion-press h-8 min-w-8 rounded-full border border-primary bg-primary px-2 text-[10px] font-bold text-primary-foreground shadow-sm transition-colors"
+                        : "motion-press h-8 min-w-8 rounded-full border border-border bg-background/35 px-2 text-[10px] font-bold text-muted-foreground transition-colors hover:border-primary/50"}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="mt-2 flex justify-end gap-1.5">
+              <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5] })} className="motion-press rounded-lg px-2 py-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">Weekdays</button>
+              <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5, 6, 7] })} className="motion-press rounded-lg px-2 py-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">Every day</button>
+              <button type="button" onClick={() => updateDraft({ selectedDays: [] })} className="motion-press rounded-lg px-2 py-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">Clear</button>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/40 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setPermissionsExpanded((value) => !value)}
+              aria-expanded={permissionsExpanded}
+              className="motion-press flex min-h-12 w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-secondary/35"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><ShieldCheck size={15} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-bold text-foreground">Android permissions</span>
+                <span className="block text-[9px] text-muted-foreground">
+                  {permissionItems.filter((item) => item.granted).length} of {permissionItems.length} enabled
+                </span>
+              </span>
+              {!corePermissionsReady && <span className="rounded-full bg-warning/10 px-2 py-1 text-[9px] font-semibold text-warning">Needs attention</span>}
+              <ChevronDown size={15} className={permissionsExpanded ? "rotate-180 text-muted-foreground transition-transform" : "text-muted-foreground transition-transform"} />
+            </button>
+            {permissionsExpanded && (
+              <div className="grid grid-cols-1 gap-1.5 border-t border-border/55 p-2 sm:grid-cols-2">
+                {permissionItems.map((item) => {
+                  const stateLabel = item.granted ? "Enabled" : item.required ? "Required" : "Optional";
+                  const stateClass = item.granted
+                    ? "text-success"
+                    : item.required
+                      ? "text-warning"
+                      : "text-muted-foreground";
+                  const Icon = item.key === "usage" ? Smartphone
+                    : item.key === "overlay" ? ShieldCheck
+                      : item.key === "battery" ? BatteryCharging
+                        : item.key === "exactAlarm" ? Clock3
+                          : item.key === "accessibility" ? ShieldAlert
+                            : item.key === "notifications" ? Bell
+                              : Bell;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => { void openPermission(item.key); }}
+                      aria-label={item.title + ": " + stateLabel + ". " + item.helper}
+                      className="motion-press flex min-h-12 items-center gap-2.5 rounded-xl border border-border/55 bg-background/35 px-2.5 py-2 text-left transition-colors hover:border-primary/30 hover:bg-secondary/35"
+                    >
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground"><Icon size={14} /></span>
+                      <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-foreground">{item.title}</span>
+                      <span className={"shrink-0 text-[9px] font-bold " + stateClass}>{stateLabel}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {(message || refreshError) && (
+            <p role="status" className="rounded-xl border border-border/70 bg-secondary/60 px-3 py-2.5 text-[10px] leading-relaxed text-muted-foreground">
+              {message || refreshError}
+            </p>
+          )}
+        </>
       )}
 
       <Dialog open={accessibilityDisclosureOpen} onOpenChange={(open) => {
@@ -1336,15 +1511,17 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       </Dialog>
 
       {!permissionSetupOpen && (
-        <motion.button
-          type="button"
-          whileTap={{ scale: MOTION.scale.press }}
-          disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
-          onClick={() => { void handleSave(); }}
-          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl gradient-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
-        >
-          <Check size={14} /> {saving ? "Applying…" : hasUnsavedChanges ? "Save & Apply" : "Saved"}
-        </motion.button>
+        <div className="sticky bottom-0 z-20 -mx-1 border-t border-border/60 bg-background/90 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
+          <motion.button
+            type="button"
+            whileTap={{ scale: MOTION.scale.press }}
+            disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
+            onClick={() => { void handleSave(); }}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl gradient-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <Check size={14} /> {saving ? "Applying…" : hasUnsavedChanges ? "Save & Apply" : "Saved"}
+          </motion.button>
+        </div>
       )}
     </div>
   );
