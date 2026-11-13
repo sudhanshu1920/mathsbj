@@ -290,7 +290,7 @@ test("blocking shield has no navigation CTA, cannot dismiss or stop the session 
   assert.ok(shield.includes("StudyModeManager.getNextMotivationalQuote(this)"));
   assert.ok(shield.includes("Study Apps"));
   assert.ok(shield.includes("dp(60)"));
-  assert.ok(!shield.includes("new android.view.View(this),\\n                        new LinearLayout.LayoutParams(0, dp(60), 1f)"));
+  assert.ok(!shield.includes(`} else {\n                        row.addView(new android.view.View(this),\n                            new LinearLayout.LayoutParams(0, dp(60), 1f));\n                    }`));
   assert.ok(!shield.includes("sym_def_app_icon"));
   assert.ok(shield.indexOf("Study Apps") > shield.indexOf("sessionEndView"));
 });
