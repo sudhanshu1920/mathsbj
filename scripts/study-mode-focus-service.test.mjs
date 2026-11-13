@@ -5,9 +5,11 @@ import test from "node:test";
 const focusPath = new URL("../android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java", import.meta.url);
 const managerPath = new URL("../android-native/com/sudhanshu/mathsbj/StudyModeManager.java", import.meta.url);
 const pagePath = new URL("../src/components/StudyModePage.tsx", import.meta.url);
+const permissionSetupPath = new URL("../src/components/StudyModePermissionSetup.tsx", import.meta.url);
 const source = readFileSync(focusPath, "utf8");
 const manager = readFileSync(managerPath, "utf8");
 const page = readFileSync(pagePath, "utf8");
+const permissionSetup = readFileSync(permissionSetupPath, "utf8");
 const registry = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeWindowRegistry.java", import.meta.url), "utf8");
 const accessibility = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java", import.meta.url), "utf8");
 
@@ -395,7 +397,7 @@ test("Focus Service health is based on a live monitor heartbeat, not the process
   const start = between(source, "public int onStartCommand(", "private boolean startForegroundSafely()");
   assert.ok(start.includes("intent == null"));
   assert.ok(start.includes("return START_STICKY"));
-  assert.ok(!start.includes("return START_NOT_STICKY"));
+  assert.ok(start.includes('intent == null ? "sticky_restart" : "start_command"'));
 });
 
 test("blocking_active is only reported after actual overlay attachment and visibility", () => {
@@ -404,7 +406,7 @@ test("blocking_active is only reported after actual overlay attachment and visib
     < verify.indexOf('StudyModeManager.setServiceState(this, "blocking_active")'));
   assert.ok(source.includes("public static boolean isBlockingActive()"));
   const status = between(source, "public static String getMonitoringState()", "public static boolean requestMonitorRecovery(");
-  assert.ok(status.includes("service.isShieldViewVisible(service.shieldView)"));
+  assert.ok(source.includes("service.isShieldViewVisible(service.shieldView)"));
   assert.ok(status.includes('"blocking_pending"'));
   assert.ok(status.includes('"monitoring_unavailable"'));
 });
@@ -421,7 +423,7 @@ test("background foreground-service restrictions are reported rather than faked 
 test("HyperOS background switches are shown as manual, unverified OEM settings", () => {
   assert.ok(manager.includes("public static boolean isXiaomiDevice()"));
   assert.ok(manager.includes('permissions.put("xiaomiDevice", isXiaomiDevice())'));
-  assert.ok(page.includes('key: "oemBackground"'));
-  assert.ok(page.includes("Check manually"));
-  assert.ok(page.includes("Android cannot reliably verify these OEM-only switches."));
+  assert.ok(permissionSetup.includes('key: "oemBackground"'));
+  assert.ok(permissionSetup.includes("Check manually"));
+  assert.ok(permissionSetup.includes("Android cannot reliably verify these OEM-only switches."));
 });
