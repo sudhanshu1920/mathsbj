@@ -1067,7 +1067,7 @@ jobs:
 
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 
-      - name: Configure production release signing
+      - name: Prepare production signing key
         shell: bash
         env:
           MATHMASTER_RELEASE_KEYSTORE_BASE64: ${{ secrets.MATHMASTER_RELEASE_KEYSTORE_BASE64 }}
@@ -1089,7 +1089,10 @@ jobs:
           printf '%s' "$MATHMASTER_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore"
           test -s "$keystore"
 
-          keytool -list -v             -keystore "$keystore"             -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD"             -alias "$MATHMASTER_RELEASE_KEY_ALIAS" >/dev/null
+          keytool -list -v \
+            -keystore "$keystore" \
+            -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD" \
+            -alias "$MATHMASTER_RELEASE_KEY_ALIAS" >/dev/null
 
           {
             echo "MATHMASTER_RELEASE_KEYSTORE_PATH=$keystore"
@@ -1098,55 +1101,11 @@ jobs:
             echo "MATHMASTER_RELEASE_KEY_PASSWORD=$MATHMASTER_RELEASE_KEY_PASSWORD"
           } >> "$GITHUB_ENV"
 
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("android/app/build.gradle")
-          text = path.read_text(encoding="utf-8")
-
-          marker = "android {"
-          signing = """android {
-              signingConfigs {
-                  productionRelease {
-                      storeFile file(System.getenv("MATHMASTER_RELEASE_KEYSTORE_PATH"))
-                      storePassword System.getenv("MATHMASTER_RELEASE_KEYSTORE_PASSWORD")
-                      keyAlias System.getenv("MATHMASTER_RELEASE_KEY_ALIAS")
-                      keyPassword System.getenv("MATHMASTER_RELEASE_KEY_PASSWORD")
-                      // Keep legacy JAR signing as well as modern APK schemes.
-                      // Some OEM package installers are stricter than stock Android.
-                      enableV1Signing = true
-                      enableV2Signing = true
-                      enableV3Signing = true
-                  }
-              }
-          """
-
-          if text.count(marker) != 1:
-              raise SystemExit("Expected exactly one android { block")
-
-          if "signingConfigs {" not in text:
-              text = text.replace(marker, signing, 1)
-          elif "productionRelease" not in text:
-              raise SystemExit("Existing signingConfigs block is present but productionRelease is missing")
-
-          target = "buildTypes {\n        release {"
-          replacement = """buildTypes {
-                  release {
-                      signingConfig signingConfigs.productionRelease"""
-          if target not in text:
-              raise SystemExit("Expected release buildTypes block not found")
-
-          text = text.replace(target, replacement, 1)
-          path.write_text(text, encoding="utf-8")
-          PY
-
-          grep -q "signingConfigs.productionRelease" android/app/build.gradle
-
-      - name: Build signed Universal release APK
+      - name: Build unsigned Universal release APK
         working-directory: android
         run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
 
-      - name: Verify Universal APK identity, version, signature and installability
+      - name: Sign and verify Universal APK (v1 + v2 + v3)
         shell: bash
         env:
           EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
@@ -1156,27 +1115,49 @@ jobs:
           EXPECTED_VERSION_CODE="${VERSION_CODE:?Missing resolved versionCode}"
           EXPECTED_VERSION_NAME="${VERSION_NAME:?Missing resolved versionName}"
 
-          sdk_apksigner="${ANDROID_HOME}/build-tools/35.0.0/apksigner"
-          if [ ! -x "$sdk_apksigner" ]; then
-            sdk_apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          fi
-          test -x "$sdk_apksigner"
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          ZIPALIGN="$BUILD_TOOLS/zipalign"
+          AAPT2="$BUILD_TOOLS/aapt2"
+          test -x "$APKSIGNER"
+          test -x "$ZIPALIGN"
+          test -x "$AAPT2"
 
-          apk="android/app/build/outputs/apk/release/app-release.apk"
-          test -s "$apk"
-          signature_report="$("$sdk_apksigner" verify --verbose "$apk" 2>&1)"
+          release_dir="android/app/build/outputs/apk/release"
+          unsigned_apk="$release_dir/app-release-unsigned.apk"
+          aligned_apk="$RUNNER_TEMP/MathMaster-release-aligned.apk"
+          signed_apk="$release_dir/app-release.apk"
+          signed_tmp="$RUNNER_TEMP/MathMaster-release-signed.apk"
+          test -s "$unsigned_apk"
+
+          # Align the unsigned APK before any signatures are applied.
+          "$ZIPALIGN" -p -f -v 4 "$unsigned_apk" "$aligned_apk"
+          test -s "$aligned_apk"
+
+          # Sign explicitly with every APK scheme. Do not rely on AGP defaults,
+          # which may omit JAR/v1 signing for modern min/target SDK values.
+          "$APKSIGNER" sign \
+            --ks "$MATHMASTER_RELEASE_KEYSTORE_PATH" \
+            --ks-key-alias "$MATHMASTER_RELEASE_KEY_ALIAS" \
+            --ks-pass "env:MATHMASTER_RELEASE_KEYSTORE_PASSWORD" \
+            --key-pass "env:MATHMASTER_RELEASE_KEY_PASSWORD" \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out "$signed_tmp" \
+            "$aligned_apk"
+
+          test -s "$signed_tmp"
+          mv "$signed_tmp" "$signed_apk"
+
+          signature_report="$("$APKSIGNER" verify --verbose "$signed_apk" 2>&1)"
           printf '%s\\n' "$signature_report"
           grep -q 'Verified using v1 scheme (JAR signing): true' <<< "$signature_report"
           grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' <<< "$signature_report"
           grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' <<< "$signature_report"
+          "$ZIPALIGN" -c -v 4 "$signed_apk"
 
-          zipalign_bin="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
-          test -x "$zipalign_bin"
-          "$zipalign_bin" -c -v 4 "$apk"
-
-          aapt2_bin="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
-          test -x "$aapt2_bin"
-          badging="$("$aapt2_bin" dump badging "$apk")"
+          badging="$("$AAPT2" dump badging "$signed_apk")"
           echo "$badging" | grep -q "package: name='$EXPECTED_APPLICATION_ID' versionCode='$EXPECTED_VERSION_CODE' versionName='$EXPECTED_VERSION_NAME'"
 
           expected_fp="$(
@@ -1187,7 +1168,7 @@ jobs:
             openssl x509 -noout -fingerprint -sha256 |
             sed 's/.*=//' | tr -d ':' | tr '[:lower:]' '[:upper:]'
           )"
-          certificate_output="$("$sdk_apksigner" verify --print-certs "$apk" 2>&1)"
+          certificate_output="$("$APKSIGNER" verify --print-certs "$signed_apk" 2>&1)"
           actual_fp="$(
             printf '%s\\n' "$certificate_output" |
             grep -i 'certificate SHA-256 digest' |
@@ -1199,10 +1180,13 @@ jobs:
           test -n "$actual_fp"
           test "$expected_fp" = "$actual_fp"
           test "$actual_fp" = "$EXPECTED_RELEASE_CERT_SHA256"
-          echo "MATHMASTER_RELEASE_CERT_SHA256=$actual_fp" >> "$GITHUB_ENV"
 
-          echo "Universal APK applicationId/version/signature/installability verified."
+          echo "MATHMASTER_RELEASE_CERT_SHA256=$actual_fp" >> "$GITHUB_ENV"
+          echo "Universal APK package/version/signature/alignment verified."
+          echo "v1, v2 and v3 signatures: true"
           echo "Certificate SHA-256: $actual_fp"
+
+          rm -f "$aligned_apk" "$MATHMASTER_RELEASE_KEYSTORE_PATH"
 
       - name: Collect Universal release APK
         shell: bash
