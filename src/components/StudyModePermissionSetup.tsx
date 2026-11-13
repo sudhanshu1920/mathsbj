@@ -127,8 +127,8 @@ const StudyModePermissionSetup = ({
     <section className="mx-auto flex min-h-[min(700px,calc(100dvh-7rem))] w-full max-w-2xl flex-col gap-3">
       <header className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl gradient-primary text-primary-foreground shadow-sm">
-            <ShieldCheck size={20} />
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.15rem] border border-primary/15 bg-primary/10 text-primary shadow-inner">
+            <ShieldCheck size={20} strokeWidth={1.8} />
           </span>
           <div className="min-w-0 pt-0.5">
             <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-primary">Study Mode</p>
@@ -145,7 +145,7 @@ const StudyModePermissionSetup = ({
         </button>
       </header>
 
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/55 px-3 py-2.5 shadow-sm">
+      <div className="flex items-center justify-between gap-3 rounded-[1.15rem] border border-primary/15 bg-gradient-to-r from-card to-primary/5 px-3 py-3 shadow-sm">
         <span className="text-[10px] font-semibold text-foreground">Required permissions</span>
         <span className={readiness.coreReady
           ? "inline-flex items-center gap-1 text-[10px] font-bold text-success"
@@ -172,9 +172,9 @@ const StudyModePermissionSetup = ({
               type="button"
               onClick={() => handleCardPress(item.key)}
               aria-label={item.title + ". " + stateText + ". " + item.description}
-              className="motion-press group flex min-h-[76px] min-w-0 items-center gap-2.5 rounded-[1.15rem] border border-border/70 bg-card/65 px-3 py-2.5 text-left shadow-sm transition-colors hover:border-primary/30 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="motion-press group flex min-h-[78px] min-w-0 items-center gap-2.5 rounded-[1.2rem] border border-border/65 bg-gradient-to-br from-card to-background/45 px-3 py-2.5 text-left shadow-sm transition-[border-color,background-color,transform] duration-200 hover:border-primary/30 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[1.05rem] border border-border/55 bg-secondary/70 text-primary shadow-inner transition-colors group-hover:bg-primary/10">
                 <Icon size={17} strokeWidth={1.9} />
               </span>
               <span className="min-w-0 flex-1">
@@ -204,7 +204,7 @@ const StudyModePermissionSetup = ({
           type="button"
           onClick={onComplete}
           disabled={!readiness.coreReady}
-          className="motion-press gradient-primary min-h-12 w-full rounded-xl px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+          className="motion-press gradient-primary min-h-12 w-full rounded-[1.15rem] px-4 py-3 text-sm font-bold text-primary-foreground shadow-md transition-[transform,opacity,box-shadow] duration-200 hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100"
         >
           Let&apos;s Go
         </button>
