@@ -25,6 +25,15 @@ async function createAndroidFixture() {
 android {
     namespace "com.sudhanshu.mathsbj"
     defaultConfig { applicationId "com.sudhanshu.mathsbj" versionCode 1 }
+    /* MATHMASTER_STUDY_MODE_FLAVORS */
+    flavorDimensions "studyMode"
+    productFlavors {
+        standard { dimension "studyMode" }
+        advanced {
+            dimension "studyMode"
+            versionCode defaultConfig.versionCode + 100000
+        }
+    }
 }
 `);
   await writeFile(path.join(packageDir, 'MainActivity.java'), `package com.sudhanshu.mathsbj;
