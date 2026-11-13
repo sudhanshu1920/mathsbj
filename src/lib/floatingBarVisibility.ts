@@ -5,6 +5,7 @@ export interface FloatingBarVisibilityInput {
   activeTopic: string | null;
   settingsOpen: boolean;
   quizInProgress: boolean;
+  studyModeOpen?: boolean;
 }
 
 export interface FloatingBarVisibility {
@@ -25,10 +26,13 @@ export function getFloatingBarVisibility({
   activeTopic,
   settingsOpen,
   quizInProgress,
+  studyModeOpen = false,
 }: FloatingBarVisibilityInput): FloatingBarVisibility {
   const learningTopicOpen = tab === 'learn' && activeTopic !== null;
   const quizSessionOpen = tab === 'practice' && quizInProgress;
-  const mount = !learningTopicOpen && !quizSessionOpen;
+  // Study Mode is a nested destination from both Learning and Settings. It
+  // must remove the shared bar entirely, regardless of the originating tab.
+  const mount = !studyModeOpen && !learningTopicOpen && !quizSessionOpen;
 
   return {
     show: mount && !settingsOpen,
