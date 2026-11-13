@@ -85,7 +85,7 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.match(buildGradle, /versionCode 1/);
   assert.doesNotMatch(buildGradle, /applicationIdSuffix/);
   const universalService = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8');
-  assert.match(universalService, /getWindowsOnAllDisplays\\(\\)/);
+  assert.ok(universalService.includes('getWindowsOnAllDisplays()'));
   const universalMetadata = await readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8');
   assert.match(universalMetadata, /flagRetrieveInteractiveWindows/);
   assert.match(universalMetadata, /canRetrieveWindowContent="true"/);
