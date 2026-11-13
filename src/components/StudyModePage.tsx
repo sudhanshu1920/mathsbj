@@ -110,24 +110,24 @@ const SessionCountdown = memo(({
     onExpired(session.id);
   }, [session.id, session.durationSeconds, remainingSeconds, onExpired]);
 
-  const circumference = 2 * Math.PI * 43;
+  const circumference = 2 * Math.PI * 44;
   const progress = session.durationSeconds > 0
     ? Math.max(0, Math.min(1, elapsedSeconds / session.durationSeconds))
     : 0;
 
   return (
-    <div className="relative grid h-[124px] w-[124px] shrink-0 place-items-center" aria-live="off">
+    <div className="relative grid h-[112px] w-[112px] shrink-0 place-items-center rounded-full border border-border/60 bg-background/30 shadow-inner sm:h-[136px] sm:w-[136px]" aria-live="off">
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
-        <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--border))" strokeWidth="4" />
+        <circle cx="50" cy="50" r="44" fill="none" stroke="hsl(var(--border))" strokeWidth="3.5" />
         <circle
-          cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--primary))" strokeWidth="4"
+          cx="50" cy="50" r="44" fill="none" stroke="hsl(var(--primary))" strokeWidth="3.5"
           strokeLinecap="round" strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - progress)}
-          className="transition-[stroke-dashoffset] duration-700 ease-out"
+          className="transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none"
         />
       </svg>
       <div className="relative flex flex-col items-center">
-        <span className="font-display text-[19px] font-bold tabular-nums tracking-tight text-foreground">
+        <span className="font-display text-[18px] font-bold tabular-nums tracking-tight text-foreground sm:text-[20px]">
           {formatSessionTime(session.durationSeconds > 0 ? remainingSeconds : elapsedSeconds)}
         </span>
         <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -144,13 +144,13 @@ const SessionDurationPreview = ({ durationSeconds }: { durationSeconds: number }
     : `${Math.floor(durationSeconds / 60)}:${String(durationSeconds % 60).padStart(2, "0")}`;
 
   return (
-    <div role="img" className="relative grid h-[124px] w-[124px] shrink-0 place-items-center" aria-label={`Session duration ${durationSeconds} seconds`}>
+    <div role="img" className="relative grid h-[112px] w-[112px] shrink-0 place-items-center rounded-full border border-border/60 bg-background/30 shadow-inner sm:h-[136px] sm:w-[136px]" aria-label={`Session duration ${durationSeconds} seconds`}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
-        <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--border))" strokeWidth="4" />
-        <circle cx="50" cy="50" r="43" fill="none" stroke="hsl(var(--primary))" strokeOpacity="0.28" strokeWidth="4" strokeDasharray="4 7" />
+        <circle cx="50" cy="50" r="44" fill="none" stroke="hsl(var(--border))" strokeWidth="3.5" />
+        <circle cx="50" cy="50" r="44" fill="none" stroke="hsl(var(--primary))" strokeOpacity="0.28" strokeWidth="3.5" strokeDasharray="4 7" />
       </svg>
       <div className="relative flex flex-col items-center">
-        <span className="font-display text-[20px] font-bold tabular-nums tracking-tight text-foreground">{label}</span>
+        <span className="font-display text-[19px] font-bold tabular-nums tracking-tight text-foreground sm:text-[21px]">{label}</span>
         <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Ready</span>
       </div>
     </div>
@@ -919,17 +919,17 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               <ArrowLeft size={17} />
             </button>
             <div className="min-w-0 flex-1">
-              <h2 className="font-display text-base font-bold leading-tight tracking-tight text-foreground">Study Mode</h2>
+              <h2 className="font-display text-[17px] font-bold leading-tight tracking-tight text-foreground">Study Mode</h2>
             </div>
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <ShieldCheck size={17} />
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-[1rem] border border-primary/15 bg-primary/10 text-primary shadow-inner">
+              <ShieldCheck size={17} strokeWidth={1.8} />
             </span>
           </header>
 
-          <section className="relative isolate overflow-hidden rounded-[1.6rem] border border-border/70 bg-card p-4 shadow-md sm:p-5">
-            <div className="pointer-events-none absolute -right-12 -top-12 -z-10 h-44 w-44 rounded-full bg-primary/8 blur-3xl" />
+          <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 p-4 shadow-lg sm:p-5">
+            <div className="pointer-events-none absolute inset-x-8 top-0 -z-10 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.1rem] bg-primary/10 text-primary">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.1rem] border border-primary/15 bg-primary/10 text-primary shadow-inner">
                 <ShieldCheck size={21} strokeWidth={1.8} />
               </div>
               <div className="min-w-0 flex-1">
@@ -957,14 +957,14 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               )}
             </div>
 
-            <div className="mt-4 grid grid-cols-[124px_minmax(0,1fr)] items-center gap-3 border-t border-border/55 pt-3 sm:gap-5 sm:pt-4">
+            <div className="mt-4 grid grid-cols-[112px_minmax(0,1fr)] sm:grid-cols-[136px_minmax(0,1fr)] items-center gap-3 border-t border-border/55 pt-4 sm:gap-5 sm:pt-5">
               {activeSession ? (
                 <>
                   <SessionCountdown session={activeSession} onExpired={handleSessionExpired} />
-                  <div className="min-w-0 space-y-2">
+                  <div className="min-w-0 space-y-2.5">
                     <div>
-                      <p className="text-[13px] font-bold capitalize tracking-tight text-foreground">{activeSession.sessionType} session</p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      <p className="text-[14px] font-bold capitalize tracking-tight text-foreground">{activeSession.sessionType} session</p>
+                      <p className="mt-1 text-[10px] font-medium text-muted-foreground">
                         {activeSession.selectedPackageNames.length} apps · {activeSession.isEnforced ? "Enforced" : "Standard"}
                       </p>
                     </div>
@@ -972,7 +972,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                       type="button"
                       onClick={() => { void handleEndSession(); }}
                       disabled={saving}
-                      className="motion-press inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-[10px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                      className="motion-press inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[1.05rem] border border-destructive/25 bg-destructive/5 px-3 py-2 text-[10px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
                     >
                       {saving ? "Ending…" : "End session"}
                     </button>
@@ -982,16 +982,14 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                 <>
                   <SessionDurationPreview durationSeconds={sessionDurationSeconds} />
                   <div className="min-w-0">
-                    <p className="text-[13px] font-bold capitalize tracking-tight text-foreground">{sessionType} focus</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      {sessionDurationSeconds > 0 ? "Ready for a focused session" : "Open-ended session"}
+                    <p className="text-[15px] font-bold capitalize tracking-tight text-foreground">{sessionType} focus</p>
+                    <p className="mt-1.5 text-[10px] text-muted-foreground">
+                      {sessionDurationSeconds > 0 ? "Session duration" : "No time limit"}
                     </p>
-                    <div className="mt-3 flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
-                      <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                        {sessionEnforced ? "Enforced" : "Standard"}
-                      </span>
-                    </div>
+                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/45 px-2.5 py-1 text-[9px] font-semibold text-muted-foreground">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      {sessionEnforced ? "Enforced" : "Standard"}
+                    </span>
                   </div>
                 </>
               )}
@@ -1029,7 +1027,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           </section>
 
           {status && !corePermissionsReady && (
-            <section role="alert" className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2.5">
+            <section role="alert" className="flex items-center gap-2 rounded-[1.15rem] border border-warning/25 bg-warning/5 px-3 py-2.5">
               <ShieldAlert size={16} className="shrink-0 text-warning" />
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold text-foreground">Blocking needs attention</p>
@@ -1047,37 +1045,39 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </section>
           )}
 
-          <section aria-label="App collections" className="grid grid-cols-2 gap-2">
+          <section aria-label="App collections" className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
               onClick={toggleBlockedPicker}
               aria-expanded={pickerOpen}
-              className="motion-press min-w-0 rounded-2xl border border-border/70 bg-card/55 p-3 text-left shadow-sm transition-colors hover:border-primary/35 hover:bg-card sm:p-3.5"
+              className="motion-press group min-w-0 overflow-hidden rounded-[1.35rem] border border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 p-3 text-left shadow-sm transition-[border-color,transform,background-color] duration-200 hover:border-primary/30 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Smartphone size={16} />
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-bold tracking-tight text-foreground">Blocked Apps</p>
+                  <p className="mt-0.5 text-[9px] text-muted-foreground">{selectedCount} selected</p>
+                </div>
+                <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-primary/10 px-2 text-[10px] font-bold tabular-nums text-primary ring-1 ring-primary/10">
+                  {selectedCount}
                 </span>
-                <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-bold tabular-nums text-foreground">{selectedCount}</span>
               </div>
-              <p className="mt-2 text-xs font-bold text-foreground">Blocked Apps</p>
-              <div className="mt-2 flex min-h-7 items-center justify-between gap-2">
+              <div className="mt-3 flex min-h-8 items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center -space-x-2">
                   {selectedBlockedApps.slice(0, 4).map((app) => (
-                    <span key={app.packageName} className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-xl border-2 border-card bg-secondary">
-                      <StudyModeAppIcon app={app} size={24} />
+                    <span key={app.packageName} className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-[0.85rem] border-2 border-card bg-secondary shadow-sm">
+                      <StudyModeAppIcon app={app} size={26} />
                     </span>
                   ))}
                   {selectedCount > selectedBlockedApps.length && (
-                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-card bg-secondary px-1 text-[9px] font-bold text-muted-foreground">
+                    <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border-2 border-card bg-secondary px-1 text-[9px] font-bold text-muted-foreground">
                       +{selectedCount - selectedBlockedApps.length}
                     </span>
                   )}
-                  {selectedCount === 0 && <span className="text-[9px] text-muted-foreground">Choose apps</span>}
-                  {selectedCount > 0 && selectedBlockedApps.length === 0 && <span className="text-[9px] text-muted-foreground">Selected apps</span>}
+                  {selectedCount === 0 && <span className="text-[9px] text-muted-foreground">Select apps</span>}
+                  {selectedCount > 0 && selectedBlockedApps.length === 0 && <span className="text-[9px] text-muted-foreground">Saved apps</span>}
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold text-primary">
-                  {pickerOpen ? "Open" : "Manage"} <ChevronRight size={12} />
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-transform duration-200 group-hover:translate-x-0.5">
+                  <ChevronRight size={15} />
                 </span>
               </div>
             </button>
@@ -1086,39 +1086,41 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
               type="button"
               onClick={toggleStudyPicker}
               aria-expanded={studyPickerOpen}
-              className="motion-press min-w-0 rounded-2xl border border-border/70 bg-card/55 p-3 text-left shadow-sm transition-colors hover:border-primary/35 hover:bg-card sm:p-3.5"
+              className="motion-press group min-w-0 overflow-hidden rounded-[1.35rem] border border-accent/15 bg-gradient-to-br from-card via-card to-accent/5 p-3 text-left shadow-sm transition-[border-color,transform,background-color] duration-200 hover:border-accent/30 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                  <BookOpen size={16} />
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-bold tracking-tight text-foreground">Study Apps</p>
+                  <p className="mt-0.5 text-[9px] text-muted-foreground">{studyAppPackages.length} selected</p>
+                </div>
+                <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-accent/10 px-2 text-[10px] font-bold tabular-nums text-accent ring-1 ring-accent/10">
+                  {studyAppPackages.length}
                 </span>
-                <span className="rounded-full bg-accent/10 px-2 py-1 text-[10px] font-bold tabular-nums text-accent">{studyAppPackages.length}</span>
               </div>
-              <p className="mt-2 text-xs font-bold text-foreground">Study Apps</p>
-              <div className="mt-2 flex min-h-7 items-center justify-between gap-2">
+              <div className="mt-3 flex min-h-8 items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center -space-x-2">
                   {selectedStudyApps.slice(0, 4).map((app) => (
-                    <span key={app.packageName} className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-xl border-2 border-card bg-secondary">
-                      <StudyModeAppIcon app={app} size={24} />
+                    <span key={app.packageName} className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-[0.85rem] border-2 border-card bg-secondary shadow-sm">
+                      <StudyModeAppIcon app={app} size={26} />
                     </span>
                   ))}
                   {studyAppPackages.length > selectedStudyApps.length && (
-                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-card bg-secondary px-1 text-[9px] font-bold text-muted-foreground">
+                    <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border-2 border-card bg-secondary px-1 text-[9px] font-bold text-muted-foreground">
                       +{studyAppPackages.length - selectedStudyApps.length}
                     </span>
                   )}
-                  {studyAppPackages.length === 0 && <span className="text-[9px] text-muted-foreground">Choose apps</span>}
-                  {studyAppPackages.length > 0 && selectedStudyApps.length === 0 && <span className="text-[9px] text-muted-foreground">Selected apps</span>}
+                  {studyAppPackages.length === 0 && <span className="text-[9px] text-muted-foreground">Select apps</span>}
+                  {studyAppPackages.length > 0 && selectedStudyApps.length === 0 && <span className="text-[9px] text-muted-foreground">Saved apps</span>}
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold text-accent">
-                  {studyPickerOpen ? "Open" : "Manage"} <ChevronRight size={12} />
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent transition-transform duration-200 group-hover:translate-x-0.5">
+                  <ChevronRight size={15} />
                 </span>
               </div>
             </button>
           </section>
 
           {pickerOpen && (
-            <section className="overflow-hidden rounded-2xl border border-primary/20 bg-card/45 shadow-sm">
+            <section className="overflow-hidden rounded-[1.4rem] border border-primary/15 bg-card/70 shadow-sm">
               <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
                 <Smartphone size={15} className="text-primary" />
                 <span className="flex-1 text-xs font-bold text-foreground">Blocked Apps</span>
@@ -1138,7 +1140,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Search apps"
                     aria-label="Search blocked apps"
-                    className="h-10 w-full rounded-xl border border-border/70 bg-background/75 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
+                    className="h-10 w-full rounded-[1.05rem] border border-border/70 bg-background/65 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Filter installed apps">
@@ -1186,10 +1188,12 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                         aria-pressed={selected}
                         aria-disabled={!app.selectable}
                         className={selected
-                          ? "group relative flex min-h-[74px] min-w-0 flex-col items-center justify-center gap-1 rounded-[1.05rem] border border-primary/55 bg-primary/10 px-1.5 py-2 text-center shadow-sm transition-colors"
-                          : "group relative flex min-h-[74px] min-w-0 flex-col items-center justify-center gap-1 rounded-[1.05rem] border border-border/60 bg-background/35 px-1.5 py-2 text-center transition-colors hover:border-primary/35 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-50"}
+                          ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-primary/35 bg-gradient-to-b from-primary/10 to-card/80 px-1.5 py-2 text-center shadow-sm ring-1 ring-primary/10 transition-[border-color,background-color,transform] duration-200 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+                          : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-border/55 bg-gradient-to-b from-card/75 to-background/45 px-1.5 py-2 text-center transition-[border-color,background-color,transform] duration-200 hover:border-primary/30 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"}
                       >
-                        <StudyModeAppIcon app={app} size={34} />
+                        <span className="grid h-11 w-11 place-items-center rounded-[1rem] border border-border/45 bg-card/85 shadow-inner">
+                          <StudyModeAppIcon app={app} size={31} />
+                        </span>
                         <span className="line-clamp-1 w-full text-[9px] font-semibold text-foreground">{app.label}</span>
                         {selected && status?.enforcementMode !== "focus_shield" && (
                           <span className={suspendedPackages.has(app.packageName)
@@ -1221,7 +1225,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           )}
 
           {studyPickerOpen && (
-            <section className="overflow-hidden rounded-2xl border border-accent/25 bg-card/45 shadow-sm">
+            <section className="overflow-hidden rounded-[1.4rem] border border-accent/15 bg-card/70 shadow-sm">
               <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
                 <BookOpen size={15} className="text-accent" />
                 <span className="flex-1 text-xs font-bold text-foreground">Study Apps</span>
@@ -1241,7 +1245,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     onChange={(event) => setStudySearch(event.target.value)}
                     placeholder="Search study apps"
                     aria-label="Search Study Apps"
-                    className="h-10 w-full rounded-xl border border-border/70 bg-background/75 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
+                    className="h-10 w-full rounded-[1.05rem] border border-border/70 bg-background/65 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
                   />
                 </div>
                 <div className="grid max-h-[340px] grid-cols-4 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-5 sm:grid-cols-6 lg:grid-cols-7" role="group" aria-label="Select Study Apps">
@@ -1268,10 +1272,12 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                         aria-pressed={selected}
                         aria-disabled={!app.selectable}
                         className={selected
-                          ? "group relative flex min-h-[74px] min-w-0 flex-col items-center justify-center gap-1 rounded-[1.05rem] border border-accent/55 bg-accent/10 px-1.5 py-2 text-center shadow-sm transition-colors"
-                          : "group relative flex min-h-[74px] min-w-0 flex-col items-center justify-center gap-1 rounded-[1.05rem] border border-border/60 bg-background/35 px-1.5 py-2 text-center transition-colors hover:border-accent/35 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-50"}
+                          ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-accent/35 bg-gradient-to-b from-accent/10 to-card/80 px-1.5 py-2 text-center shadow-sm ring-1 ring-accent/10 transition-[border-color,background-color,transform] duration-200 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+                          : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-border/55 bg-gradient-to-b from-card/75 to-background/45 px-1.5 py-2 text-center transition-[border-color,background-color,transform] duration-200 hover:border-accent/30 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"}
                       >
-                        <StudyModeAppIcon app={app} size={34} />
+                        <span className="grid h-11 w-11 place-items-center rounded-[1rem] border border-border/45 bg-card/85 shadow-inner">
+                          <StudyModeAppIcon app={app} size={31} />
+                        </span>
                         <span className="line-clamp-1 w-full text-[9px] font-semibold text-foreground">{app.label}</span>
                         {blocked && !selected && <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning">Move</span>}
                         {app.selectable ? (
@@ -1294,7 +1300,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
           )}
 
           {!activeSession && (
-            <section className="overflow-hidden rounded-[1.35rem] border border-border/70 bg-card/55 p-3 shadow-sm sm:p-4">
+            <section className="overflow-hidden rounded-[1.4rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-4">
               <div className="mb-3 flex items-center gap-2">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><Clock3 size={15} /></span>
                 <h3 className="text-xs font-bold tracking-tight text-foreground">Focus session</h3>
@@ -1307,7 +1313,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     value={sessionType}
                     onChange={(event) => setSessionType(event.target.value as typeof sessionType)}
                     disabled={saving || loading}
-                    className="mt-1.5 h-10 w-full rounded-xl border border-border/70 bg-background/75 px-2.5 text-xs font-medium normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
+                    className="mt-1.5 h-11 w-full rounded-[1.05rem] border border-border/70 bg-background/65 px-3 text-xs font-medium normal-case tracking-normal text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
                   >
                     <option value="study">Study</option>
                     <option value="practice">Practice</option>
@@ -1321,7 +1327,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                     value={sessionDurationSeconds}
                     onChange={(event) => setSessionDurationSeconds(Number(event.target.value))}
                     disabled={saving || loading}
-                    className="mt-1.5 h-10 w-full rounded-xl border border-border/70 bg-background/75 px-2.5 text-xs font-medium normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
+                    className="mt-1.5 h-11 w-full rounded-[1.05rem] border border-border/70 bg-background/65 px-3 text-xs font-medium normal-case tracking-normal text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
                   >
                     <option value={15 * 60}>15 min</option>
                     <option value={25 * 60}>25 min</option>
@@ -1333,11 +1339,11 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                 </label>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-border/65 bg-background/35 px-3">
+                <div className="flex min-h-11 items-center justify-between gap-2 rounded-[1.05rem] border border-border/65 bg-background/45 px-3">
                   <span className="text-[10px] font-medium text-foreground">Enforced</span>
                   <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
                 </div>
-                <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-border/65 bg-background/35 px-3">
+                <div className="flex min-h-11 items-center justify-between gap-2 rounded-[1.05rem] border border-border/65 bg-background/45 px-3">
                   <span className="text-[10px] font-medium text-foreground">Do Not Disturb</span>
                   <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
                 </div>
@@ -1346,7 +1352,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                 type="button"
                 onClick={() => { void handleStartSession(); }}
                 disabled={saving || loading || !isStudyModeNative()}
-                className="motion-press gradient-primary mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm disabled:opacity-50"
+                className="motion-press gradient-primary mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-[1.1rem] px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm disabled:opacity-50"
               >
                 <Clock3 size={15} /> {saving ? "Starting…" : "Start focus session"}
               </button>
@@ -1370,7 +1376,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </section>
           )}
 
-          <section className="rounded-2xl border border-border/70 bg-card/45 p-3 shadow-sm sm:p-4">
+          <section className="rounded-[1.4rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><CalendarDays size={15} /></span>
@@ -1386,31 +1392,29 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                 type="button"
                 onClick={() => { void chooseTime("start"); }}
                 disabled={!isStudyModeNative() || loading}
-                className="motion-press flex min-h-[62px] min-w-0 items-center gap-2 rounded-xl border border-border/65 bg-background/35 px-3 py-2 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
+                className="motion-press flex min-h-[72px] min-w-0 flex-col justify-center gap-1 rounded-[1.15rem] border border-primary/15 bg-gradient-to-br from-background/75 to-primary/5 px-3 py-2.5 text-left transition-colors hover:border-primary/35 disabled:opacity-50"
               >
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Clock3 size={14} /></span>
-                <span className="min-w-0">
-                  <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Start</span>
-                  <span className="mt-0.5 block truncate text-sm font-bold tabular-nums text-foreground">{toTimeLabel(draft.startHour, draft.startMinute)}</span>
+                <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Start
                 </span>
+                <span className="truncate font-display text-[17px] font-bold tabular-nums tracking-tight text-foreground">{toTimeLabel(draft.startHour, draft.startMinute)}</span>
               </button>
               <button
                 type="button"
                 onClick={() => { void chooseTime("end"); }}
                 disabled={!isStudyModeNative() || loading}
-                className="motion-press flex min-h-[62px] min-w-0 items-center gap-2 rounded-xl border border-border/65 bg-background/35 px-3 py-2 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
+                className="motion-press flex min-h-[72px] min-w-0 flex-col justify-center gap-1 rounded-[1.15rem] border border-accent/15 bg-gradient-to-br from-background/75 to-accent/5 px-3 py-2.5 text-left transition-colors hover:border-accent/35 disabled:opacity-50"
               >
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent"><Clock3 size={14} /></span>
-                <span className="min-w-0">
-                  <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">End</span>
-                  <span className="mt-0.5 block truncate text-sm font-bold tabular-nums text-foreground">{toTimeLabel(draft.endHour, draft.endMinute)}</span>
+                <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" /> End
                 </span>
+                <span className="truncate font-display text-[17px] font-bold tabular-nums tracking-tight text-foreground">{toTimeLabel(draft.endHour, draft.endMinute)}</span>
               </button>
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-2">
               <span className="sr-only">Repeat days</span>
-              <div className="flex items-center gap-1">
+              <div className="grid w-full grid-cols-7 gap-1">
                 {DAY_LABELS.map((day) => {
                   const selected = draft.selectedDays.includes(day.value);
                   return (
@@ -1425,8 +1429,8 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                       aria-label={day.name}
                       aria-pressed={selected}
                       className={selected
-                        ? "motion-press h-8 min-w-8 rounded-full border border-primary bg-primary px-2 text-[10px] font-bold text-primary-foreground shadow-sm transition-colors"
-                        : "motion-press h-8 min-w-8 rounded-full border border-border bg-background/35 px-2 text-[10px] font-bold text-muted-foreground transition-colors hover:border-primary/50"}
+                        ? "motion-press h-9 min-w-0 rounded-[0.95rem] border border-primary bg-primary px-1 text-[10px] font-bold text-primary-foreground shadow-sm transition-colors"
+                        : "motion-press h-9 min-w-0 rounded-[0.95rem] border border-border bg-background/35 px-1 text-[10px] font-bold text-muted-foreground transition-colors hover:border-primary/50"}
                     >
                       {day.label}
                     </button>
@@ -1441,7 +1445,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/40 shadow-sm">
+          <section className="overflow-hidden rounded-[1.4rem] border border-border/70 bg-card/65 shadow-sm">
             <button
               type="button"
               onClick={() => setPermissionsExpanded((value) => !value)}
