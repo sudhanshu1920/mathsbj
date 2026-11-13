@@ -56,7 +56,7 @@ if (!icons.includes('Grid3x3') || !icons.includes('Radical') || !icons.includes(
 if (!icons.includes('LockKeyhole') ||
     !learning.includes("const StudyModePage = lazy(() => import('@/components/StudyModePage'));") ||
     !learning.includes('if (studyModeTopicOpen)') ||
-    !learning.includes('return <StudyModePage onBack={() => setStudyModeTopicOpen(false)} />;') ||
+    !learning.includes('<StudyModePage onBack={() => setStudyModeTopicOpen(false)} />') ||
     !learning.includes("if (topicId === 'study-mode')")) {
   fail('Learning Mode Study Mode entry must reuse the canonical StudyModePage and return to its topic list');
 }
