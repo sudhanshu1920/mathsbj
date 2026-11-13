@@ -415,8 +415,8 @@ public final class StudyModeManager {
     }
 
     public static boolean isXiaomiDevice() {
-        String manufacturer = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.toLowerCase(Locale.ROOT);
-        String brand = Build.BRAND == null ? "" : Build.BRAND.toLowerCase(Locale.ROOT);
+        String manufacturer = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.toLowerCase(java.util.Locale.ROOT);
+        String brand = Build.BRAND == null ? "" : Build.BRAND.toLowerCase(java.util.Locale.ROOT);
         return manufacturer.contains("xiaomi") || manufacturer.contains("redmi")
             || manufacturer.contains("poco") || brand.contains("xiaomi")
             || brand.contains("redmi") || brand.contains("poco");
