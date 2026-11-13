@@ -56,7 +56,7 @@ export function resolveNextReleaseVersion(previous, currentCommit, isPreviousCom
   const commit = String(currentCommit ?? "").toLowerCase();
   if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error("Current source commit must be a full 40-character Git SHA.");
 
-  if (previous.sourceCommit && commit === previous.sourceCommit) {
+  if (previous.universalApk && previous.sourceCommit && commit === previous.sourceCommit) {
     return {
       versionCode: previous.versionCode,
       versionName: previous.versionName,
