@@ -55,7 +55,8 @@ test('configures complete installed-app visibility, native services and Capacito
   const result = await configureAndroidStudyMode(root);
   assert.equal(result.javaFiles, 11);
   assert.equal(result.foregroundMonitoring, 'usage-access-plus-optional-accessibility');
-  assert.deepEqual(result.variants, ['standard', 'advanced']);
+  assert.deepEqual(result.variants, ['universal']);
+  assert.equal(result.accessibility, 'optional-user-consent');
   assert.equal(result.packageVisibility, 'all-installed-packages');
   assert.equal(result.localUsageAnalytics, true);
 
@@ -76,33 +77,21 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.doesNotMatch(manifest, /android.provider.Telephony.SMS_DELIVER/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
-  assert.doesNotMatch(manifest, /StudyModeAccessibilityService|BIND_ACCESSIBILITY_SERVICE|android.accessibilityservice/);
+  assert.match(manifest, /StudyModeAccessibilityService[\\s\\S]*BIND_ACCESSIBILITY_SERVICE/);
+  assert.match(manifest, /android.accessibilityservice/);
   const buildGradle = await readFile(path.join(root, 'app/build.gradle'), 'utf8');
-  assert.match(buildGradle, /flavorDimensions "studyMode"/);
-  assert.match(buildGradle, /standard \{ dimension "studyMode" \}/);
-  assert.match(buildGradle, /advanced \{[\s\S]*versionCode defaultConfig\.versionCode \+ 100000[\s\S]*\}/);
-  assert.equal((buildGradle.match(/MATHMASTER_STUDY_MODE_FLAVORS/g) || []).length, 1);
+  assert.doesNotMatch(buildGradle, /flavorDimensions|productFlavors|MATHMASTER_STUDY_MODE_FLAVORS/);
+  assert.match(buildGradle, /MATHMASTER_UNIVERSAL_STUDY_MODE/);
+  assert.match(buildGradle, /versionCode 100001/);
   assert.doesNotMatch(buildGradle, /applicationIdSuffix/);
-  const advancedManifest = await readFile(path.join(root, 'app/src/advanced/AndroidManifest.xml'), 'utf8');
-  assert.match(advancedManifest, /StudyModeAccessibilityService/);
-  assert.match(advancedManifest, /BIND_ACCESSIBILITY_SERVICE/);
-  const advancedService = await readFile(path.join(root, 'app/src/advanced/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8');
-  assert.match(advancedService, /getWindowsOnAllDisplays\(\)/);
-  const advancedMetadata = await readFile(path.join(root, 'app/src/advanced/res/xml/study_mode_accessibility.xml'), 'utf8');
-  assert.match(advancedMetadata, /flagRetrieveInteractiveWindows/);
-  assert.match(advancedMetadata, /canRetrieveWindowContent="true"/);
-  await assert.rejects(
-    readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8'),
-    { code: 'ENOENT' },
-  );
-  await assert.rejects(
-    readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8'),
-    { code: 'ENOENT' },
-  );
-  await assert.rejects(
-    readFile(path.join(root, 'app/src/main/res/values/study_mode_accessibility.xml'), 'utf8'),
-    { code: 'ENOENT' },
-  );
+  const universalService = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8');
+  assert.match(universalService, /getWindowsOnAllDisplays\\(\\)/);
+  const universalMetadata = await readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8');
+  assert.match(universalMetadata, /flagRetrieveInteractiveWindows/);
+  assert.match(universalMetadata, /canRetrieveWindowContent="true"/);
+  const accessibilityStrings = await readFile(path.join(root, 'app/src/main/res/values/study_mode_accessibility_strings.xml'), 'utf8');
+  assert.match(accessibilityStrings, /does not read on-screen text/);
+  await assert.rejects(readFile(path.join(root, 'app/src/advanced/AndroidManifest.xml'), 'utf8'), { code: 'ENOENT' });
   assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\S]*BIND_DEVICE_ADMIN[\s\S]*device_admin/);
   assert.doesNotMatch(manifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE|READ_SMS|RECEIVE_SMS/);
   await assert.rejects(
@@ -137,9 +126,9 @@ test('configures complete installed-app visibility, native services and Capacito
   const secondActivity = await readFile(activityPath, 'utf8');
   assert.equal((secondManifest.match(/android:name="\.StudyModeFocusService"/g) || []).length, 1);
   assert.match(secondManifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
-  assert.doesNotMatch(secondManifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE|StudyModeAccessibilityService|BIND_ACCESSIBILITY_SERVICE/);
-  const secondAdvancedManifest = await readFile(path.join(root, 'app/src/advanced/AndroidManifest.xml'), 'utf8');
-  assert.equal((secondAdvancedManifest.match(/android:name=".StudyModeAccessibilityService"/g) || []).length, 1);
+  assert.doesNotMatch(secondManifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE/);
+  assert.equal((secondManifest.match(/android:name=".StudyModeAccessibilityService"/g) || []).length, 1);
+  assert.doesNotMatch(await readFile(path.join(root, 'app/build.gradle'), 'utf8'), /productFlavors|flavorDimensions/);
   assert.equal((secondManifest.match(/android.intent.category.LAUNCHER/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(AppUsageAnalyticsPlugin\.class\)/g) || []).length, 1);
