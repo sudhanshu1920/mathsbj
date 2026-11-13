@@ -1136,11 +1136,11 @@ jobs:
 
           grep -q "signingConfigs.productionRelease" android/app/build.gradle
 
-      - name: Build signed release APK
+      - name: Build signed Universal release APK
         working-directory: android
-        run: ./gradlew --no-daemon --stacktrace :app:assembleStandardRelease :app:assembleAdvancedRelease
+        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease
 
-      - name: Verify APK identity, version, signature and installability
+      - name: Verify Universal APK identity, version, signature and installability
         shell: bash
         env:
           EXPECTED_APPLICATION_ID: "com.sudhanshu.mathsbj"
@@ -1156,84 +1156,54 @@ jobs:
           fi
           test -x "$sdk_apksigner"
 
-          apk="$(find android/app/build/outputs/apk/standard/release -type f -name '*release*.apk' | head -n 1)"
-          advanced_apk="$(find android/app/build/outputs/apk/advanced/release -type f -name '*release*.apk' | head -n 1)"
+          apk="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$apk"
-          test -s "$advanced_apk"
-
           "$sdk_apksigner" verify --verbose "$apk"
-          "$sdk_apksigner" verify --verbose "$advanced_apk"
 
           aapt2_bin="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           test -x "$aapt2_bin"
           badging="$("$aapt2_bin" dump badging "$apk")"
-          advanced_badging="$("$aapt2_bin" dump badging "$advanced_apk")"
-          ADVANCED_VERSION_CODE=$((VERSION_CODE + 100000))
-          if [ "$ADVANCED_VERSION_CODE" -gt 2100000000 ]; then
-            echo "::error::Advanced APK versionCode exceeds Android's supported range."
-            exit 1
-          fi
           echo "$badging" | grep -q "package: name='$EXPECTED_APPLICATION_ID' versionCode='$EXPECTED_VERSION_CODE' versionName='$EXPECTED_VERSION_NAME'"
-          echo "$advanced_badging" | grep -q "package: name='$EXPECTED_APPLICATION_ID' versionCode='$ADVANCED_VERSION_CODE' versionName='$EXPECTED_VERSION_NAME'"
 
           expected_fp="$(
-            keytool -exportcert -rfc               -keystore "$MATHMASTER_RELEASE_KEYSTORE_PATH"               -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD"               -alias "$MATHMASTER_RELEASE_KEY_ALIAS" |
+            keytool -exportcert -rfc \
+              -keystore "$MATHMASTER_RELEASE_KEYSTORE_PATH" \
+              -storepass "$MATHMASTER_RELEASE_KEYSTORE_PASSWORD" \
+              -alias "$MATHMASTER_RELEASE_KEY_ALIAS" |
             openssl x509 -noout -fingerprint -sha256 |
             sed 's/.*=//' | tr -d ':' | tr '[:lower:]' '[:upper:]'
           )"
-
           certificate_output="$("$sdk_apksigner" verify --print-certs "$apk" 2>&1)"
           actual_fp="$(
-            printf '%s\n' "$certificate_output" |
+            printf '%s\\n' "$certificate_output" |
             grep -i 'certificate SHA-256 digest' |
             grep -Eo '[[:xdigit:]]{64}' |
             head -n 1 |
             tr '[:lower:]' '[:upper:]' || true
           )"
-          advanced_certificate_output="$("$sdk_apksigner" verify --print-certs "$advanced_apk" 2>&1)"
-          advanced_fp="$(
-            printf '%s\n' "$advanced_certificate_output" |
-            grep -i 'certificate SHA-256 digest' |
-            grep -Eo '[[:xdigit:]]{64}' |
-            head -n 1 |
-            tr '[:lower:]' '[:upper:]' || true
-          )"
-
           test -n "$expected_fp"
           test -n "$actual_fp"
           test "$expected_fp" = "$actual_fp"
           test "$actual_fp" = "$EXPECTED_RELEASE_CERT_SHA256"
-          test "$advanced_fp" = "$actual_fp"
           echo "MATHMASTER_RELEASE_CERT_SHA256=$actual_fp" >> "$GITHUB_ENV"
 
-          echo "Standard and Advanced APK applicationId/version/signature/installability verified."
+          echo "Universal APK applicationId/version/signature/installability verified."
           echo "Certificate SHA-256: $actual_fp"
 
-      - name: Collect release APK
+      - name: Collect Universal release APK
         shell: bash
         run: |
           set -euo pipefail
-          apk="$(find android/app/build/outputs/apk/standard/release -type f -name '*release*.apk' | head -n 1)"
-          advanced_apk="$(find android/app/build/outputs/apk/advanced/release -type f -name '*release*.apk' | head -n 1)"
+          apk="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$apk"
-          test -s "$advanced_apk"
           cp "$apk" MathMaster-release.apk
-          cp "$advanced_apk" MathMaster-advanced-release.apk
-          ls -lh MathMaster-release.apk MathMaster-advanced-release.apk
+          ls -lh MathMaster-release.apk
 
-      - name: Upload release APK
+      - name: Upload Universal release APK
         uses: actions/upload-artifact@v4
         with:
-          name: MathMaster-release
+          name: MathMaster-universal-release
           path: MathMaster-release.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload Advanced multi-window APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: MathMaster-advanced-release
-          path: MathMaster-advanced-release.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -1248,7 +1218,7 @@ jobs:
           CERT_SHA256="${MATHMASTER_RELEASE_CERT_SHA256:?Missing verified release certificate fingerprint}"
           release_tag="latest"
           release_title="MathMaster ${VERSION_NAME} (${VERSION_CODE})"
-          release_notes="$(printf 'Automated signed Android release.\nversionCode: %s\nversionName: %s\nsourceCommit: %s\napplicationId: %s\nsigningCertificateSHA256: %s\n' "$VERSION_CODE" "$VERSION_NAME" "$GITHUB_SHA" "com.sudhanshu.mathsbj" "$CERT_SHA256")"
+          release_notes="$(printf 'Automated signed Universal Android release.\nversionCode: %s\nversionName: %s\nuniversalApk: true\nsourceCommit: %s\napplicationId: %s\nsigningCertificateSHA256: %s\n' "$VERSION_CODE" "$VERSION_NAME" "$GITHUB_SHA" "com.sudhanshu.mathsbj" "$CERT_SHA256")"
 
           if gh release view "$release_tag" >/dev/null 2>&1; then
             # Replace the APK first; only commit the new version/source metadata after upload succeeds.
@@ -1313,7 +1283,7 @@ jobs:
           VERSION_NAME="${VERSION_NAME:?Missing resolved versionName}"
           release_tag="latest"
           release_title="MathMaster ${VERSION_NAME} (${VERSION_CODE})"
-          release_notes="Automated signed Android release; versionCode=${VERSION_CODE}; versionName=${VERSION_NAME}; sourceCommit=${GITHUB_SHA}; applicationId=com.sudhanshu.mathsbj; signingCertificateSHA256=${MATHMASTER_RELEASE_CERT_SHA256:?Missing verified release certificate fingerprint}"
+          release_notes="Automated signed Universal Android release; versionCode=${VERSION_CODE}; versionName=${VERSION_NAME}; universalApk=true; sourceCommit=${GITHUB_SHA}; applicationId=com.sudhanshu.mathsbj; signingCertificateSHA256=${MATHMASTER_RELEASE_CERT_SHA256:?Missing verified release certificate fingerprint}"
 
           # Publish the signed APK first. The manifest changes only after the asset upload succeeds.
           if gh release view "$release_tag" --repo "$UPDATES_REPO" >/dev/null 2>&1; then
