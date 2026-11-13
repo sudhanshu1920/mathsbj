@@ -54,7 +54,7 @@ if (!icons.includes('Grid3x3') || !icons.includes('Radical') || !icons.includes(
   fail('core semantic topic icon imports are missing');
 }
 if (!icons.includes('LockKeyhole') ||
-    !learning.includes("import StudyModePage from '@/components/StudyModePage';") ||
+    !learning.includes("const StudyModePage = lazy(() => import('@/components/StudyModePage'));") ||
     !learning.includes('if (studyModeTopicOpen)') ||
     !learning.includes('return <StudyModePage onBack={() => setStudyModeTopicOpen(false)} />;') ||
     !learning.includes("if (topicId === 'study-mode')")) {
