@@ -1114,9 +1114,9 @@ jobs:
                       keyPassword System.getenv("MATHMASTER_RELEASE_KEY_PASSWORD")
                       // Keep legacy JAR signing as well as modern APK schemes.
                       // Some OEM package installers are stricter than stock Android.
-                      enableV1Signing true
-                      enableV2Signing true
-                      enableV3Signing true
+                      enableV1Signing = true
+                      enableV2Signing = true
+                      enableV3Signing = true
                   }
               }
           """
