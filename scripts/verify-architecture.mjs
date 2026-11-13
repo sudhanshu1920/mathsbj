@@ -430,8 +430,8 @@ if (!releaseWorkflow.includes('name: Verify published APK asset SHA-256 before p
     notificationSendStep.includes('continue-on-error: true')) {
   fail('release push must verify the actually published APK checksum and expose configured FCM failures to Actions');
 }
-const collectApkAt = releaseWorkflow.indexOf('name: Collect release APK');
-const uploadApkAt = releaseWorkflow.indexOf('name: Upload release APK');
+const collectApkAt = releaseWorkflow.indexOf('name: Collect Universal release APK');
+const uploadApkAt = releaseWorkflow.indexOf('name: Upload Universal release APK');
 const publishReleaseAt = releaseWorkflow.indexOf('name: Publish latest GitHub Release APK');
 const uploadFeedAt = releaseWorkflow.indexOf('name: Upload update feed bundle for hosting');
 const publishPublicUpdateAt = releaseWorkflow.indexOf('name: Publish APK and update manifest to public update host');
