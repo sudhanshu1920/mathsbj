@@ -44,7 +44,7 @@ if (!learning.includes('TOPIC_ICON_MAP[topicId]')) {
 }
 for (const id of [
   'tables', 'squares', 'square-roots', 'cubes', 'cube-roots',
-  'powers', 'percentage', 'formulas', 'periodic-table', 'study-tracker',
+  'powers', 'percentage', 'formulas', 'periodic-table', 'study-tracker', 'study-mode',
 ]) {
   if (!icons.includes(id)) {
     fail(`missing canonical topic icon mapping: ${id}`);
@@ -52,6 +52,13 @@ for (const id of [
 }
 if (!icons.includes('Grid3x3') || !icons.includes('Radical') || !icons.includes('Sigma') || !icons.includes('Atom')) {
   fail('core semantic topic icon imports are missing');
+}
+if (!icons.includes('LockKeyhole') ||
+    !learning.includes("import StudyModePage from '@/components/StudyModePage';") ||
+    !learning.includes('if (studyModeTopicOpen)') ||
+    !learning.includes('return <StudyModePage onBack={() => setStudyModeTopicOpen(false)} />;') ||
+    !learning.includes("if (topicId === 'study-mode')")) {
+  fail('Learning Mode Study Mode entry must reuse the canonical StudyModePage and return to its topic list');
 }
 if (practice.includes('sort(() => Math.random() - 0.5)')) {
   fail('biased random sort shuffle reintroduced');
