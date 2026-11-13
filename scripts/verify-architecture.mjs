@@ -1083,7 +1083,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeFocus.includes('POLL_INTERVAL_MS') ||
     !studyModeManager.includes('hasUsageAccess(context)') ||
     !studyModeManager.includes('hasForegroundMonitoringPermission') ||
-    !studyModeSetup.includes('removeAccessibilityService') ||
+    !studyModeSetup.includes('ensureAccessibilityService') ||
     !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
     !studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
     !studyModeSetup.includes('StudyModeAccessibilityService.java') ||
@@ -1307,13 +1307,13 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
 }
 if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
     !studyModeNativeFiles.includes('StudyModeWindowRegistry.java') ||
-    !studyModeSetup.includes('removeAccessibilityService') ||
-    !studyModeSetup.includes('app/src/advanced/java') ||
+    !studyModeSetup.includes('ensureAccessibilityService') ||
+    !studyModeSetup.includes('app/src/main/java') ||
     !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
     !studyModeSetup.includes('flagRetrieveInteractiveWindows') ||
-    !studyModeSetup.includes('flavorDimensions "studyMode"') ||
-    !studyModeSetup.includes("await rm(path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
-    !studyModeSetup.includes("await rm(path.join(valuesTarget, 'study_mode_accessibility.xml')") ||
+    !studyModeSetup.includes('MATHMASTER_UNIVERSAL_STUDY_MODE') ||
+    !studyModeSetup.includes("path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
+    !studyModeSetup.includes("path.join(valuesTarget, 'study_mode_accessibility_strings.xml')") ||
     !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
     !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
