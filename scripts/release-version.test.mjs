@@ -22,7 +22,7 @@ test("continues from the actual legacy release instead of resetting existing ver
 
 test("increments both version values once for a new successful-release candidate", () => {
   const previous = {
-    versionCode: 1136,
+    versionCode: 101136,
     versionName: "1.0.1",
     sourceCommit: "a".repeat(40),
     signingCertificateSHA256: "B".repeat(64),
@@ -96,7 +96,7 @@ test("continues normal one-step version increments after the Universal migration
 test("recognizes the Universal marker in published release metadata", () => {
   const previous = parsePublishedRelease({
     name: "MathMaster 2.0.0 (101137)",
-    body: "versionCode: 101137\\nversionName: 2.0.0\\nuniversalApk: true",
+    body: "versionCode: 101137\nversionName: 2.0.0\nuniversalApk: true",
   });
   assert.equal(previous.universalApk, true);
 });
