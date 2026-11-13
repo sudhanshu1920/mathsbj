@@ -271,24 +271,29 @@ test("Accessibility package events trigger bounded immediate foreground reevalua
   assert.ok(monitor.includes("foregroundSource);"));
 });
 
-test("Advanced Accessibility reconnect and window events recover a missing Focus Service", () => {
+test("Advanced Accessibility reconnect and window events recover unhealthy monitoring with bounded backoff", () => {
   const recovery = between(
     accessibility,
     "private void recoverFocusServiceIfNeeded(String reason)",
     "private void scheduleScan(",
   );
   for (const invariant of [
-    "FOCUS_SERVICE_RECOVERY_COOLDOWN_MS = 15_000L",
+    "FOCUS_SERVICE_RECOVERY_BACKOFF_MS",
     "StudyModeManager.hasAccessibilityDisclosureConsent(this)",
     "StudyModeManager.shouldEnforceNow(this)",
+    "StudyModeFocusService.isMonitoringHealthy()",
     "StudyModeFocusService.isRunning()",
     "StudyModeFocusService.isStopping()",
     "StudyModeFocusService.isStarting()",
-    "SystemClock.elapsedRealtime()",
+    "StudyModeFocusService.requestMonitorRecovery(reason)",
     "StudyModeManager.reconcile(this)",
+    "PROCESS_RECOVERY_STARTED",
+    "PROCESS_RECOVERY_FAILED",
   ]) {
     assert.ok(recovery.includes(invariant), `Missing recovery invariant: ${invariant}`);
   }
+  assert.ok(accessibility.includes("1500L, 3000L, 6000L, 15_000L, 30_000L"));
+  assert.ok(accessibility.includes('recoverFocusServiceIfNeeded("periodic_health_check")'));
 
   const connected = between(
     accessibility,
@@ -297,6 +302,7 @@ test("Advanced Accessibility reconnect and window events recover a missing Focus
   );
   assert.ok(connected.indexOf("StudyModeWindowRegistry.markConnected()")
     < connected.indexOf('recoverFocusServiceIfNeeded("service_connected")'));
+  assert.ok(connected.includes('ACCESSIBILITY_CONNECTED'));
 
   const eventHandler = between(
     accessibility,
@@ -307,6 +313,7 @@ test("Advanced Accessibility reconnect and window events recover a missing Focus
     < eventHandler.indexOf('recoverFocusServiceIfNeeded("accessibility_event")'));
   assert.ok(eventHandler.indexOf('recoverFocusServiceIfNeeded("accessibility_event")')
     < eventHandler.indexOf("StudyModeFocusService.requestImmediateEvaluation()"));
+  assert.ok(accessibility.includes('ACCESSIBILITY_DISCONNECTED'));
 });
 
 test("popup first-frame verification waits for WindowManager traversal", () => {
@@ -365,4 +372,56 @@ test("popup and Study App interactions cannot end the Study Mode session", () =>
   }
   assert.ok(source.includes("StudyModeManager.shouldEnforceNow(this)"));
   assert.ok(source.includes("private final Runnable monitorRunnable"));
+});
+
+test("Focus Service health is based on a live monitor heartbeat, not the process flag", () => {
+  for (const invariant of [
+    "MONITOR_HEALTH_TIMEOUT_MS = 10_000L",
+    "lastMonitorHeartbeatElapsedMs",
+    "monitorThread.getLooper().getThread().isAlive()",
+    "SystemClock.elapsedRealtime() - heartbeat <= MONITOR_HEALTH_TIMEOUT_MS",
+    "public static boolean isMonitoringHealthy()",
+    "public static boolean requestMonitorRecovery(String reason)",
+    "monitorGeneration",
+    "monitorThreadLock",
+    "monitorRecoveryInFlight.compareAndSet(false, true)",
+  ]) assert.ok(source.includes(invariant), `Missing monitor-health invariant: ${invariant}`);
+
+  const monitor = between(source, "private final Runnable monitorRunnable", "private void resetForegroundResolution()");
+  assert.ok(monitor.includes("Thread.currentThread() != monitorThread"));
+  assert.ok(monitor.includes("lastMonitorHeartbeatElapsedMs = SystemClock.elapsedRealtime()"));
+  assert.ok(monitor.includes("scheduleMonitorCycle(POLL_INTERVAL_MS, monitorGenerationAtStart)"));
+  assert.ok(source.includes("SERVICE_RESTARTED_WITH_NULL_INTENT"));
+  const start = between(source, "public int onStartCommand(", "private boolean startForegroundSafely()");
+  assert.ok(start.includes("intent == null"));
+  assert.ok(start.includes("return START_STICKY"));
+  assert.ok(!start.includes("return START_NOT_STICKY"));
+});
+
+test("blocking_active is only reported after actual overlay attachment and visibility", () => {
+  const verify = between(source, "private void verifyShieldVisibility(", "private android.view.View buildShieldView()");
+  assert.ok(verify.indexOf("isShieldViewVisible(candidate)")
+    < verify.indexOf('StudyModeManager.setServiceState(this, "blocking_active")'));
+  assert.ok(source.includes("public static boolean isBlockingActive()"));
+  const status = between(source, "public static String getMonitoringState()", "public static boolean requestMonitorRecovery(");
+  assert.ok(status.includes("service.isShieldViewVisible(service.shieldView)"));
+  assert.ok(status.includes('"blocking_pending"'));
+  assert.ok(status.includes('"monitoring_unavailable"'));
+});
+
+test("background foreground-service restrictions are reported rather than faked as healthy", () => {
+  assert.ok(source.includes('"ForegroundServiceStartNotAllowedException"'));
+  assert.ok(source.includes('"FOREGROUND_START_RESTRICTED"'));
+  assert.ok(manager.includes('"ForegroundServiceStartNotAllowedException"'));
+  assert.ok(manager.includes('"monitoring_unavailable"'));
+  assert.ok(manager.includes("public static void logStudyModeDiagnostic"));
+  assert.ok(accessibility.includes('"PROCESS_RECOVERY_FAILED"'));
+});
+
+test("HyperOS background switches are shown as manual, unverified OEM settings", () => {
+  assert.ok(manager.includes("public static boolean isXiaomiDevice()"));
+  assert.ok(manager.includes('permissions.put("xiaomiDevice", isXiaomiDevice())'));
+  assert.ok(page.includes('key: "oemBackground"'));
+  assert.ok(page.includes("Check manually"));
+  assert.ok(page.includes("Android cannot reliably verify these OEM-only switches."));
 });
