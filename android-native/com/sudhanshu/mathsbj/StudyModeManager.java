@@ -414,6 +414,14 @@ public final class StudyModeManager {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context);
     }
 
+    public static boolean isXiaomiDevice() {
+        String manufacturer = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.toLowerCase(Locale.ROOT);
+        String brand = Build.BRAND == null ? "" : Build.BRAND.toLowerCase(Locale.ROOT);
+        return manufacturer.contains("xiaomi") || manufacturer.contains("redmi")
+            || manufacturer.contains("poco") || brand.contains("xiaomi")
+            || brand.contains("redmi") || brand.contains("poco");
+    }
+
     public static boolean isBatteryOptimizationIgnored(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true;
         try {
@@ -917,21 +925,39 @@ public final class StudyModeManager {
         }
 
         try {
-            if ((!StudyModeFocusService.isRunning() || StudyModeFocusService.isStopping())
-                && !StudyModeFocusService.isStarting()) {
+            if (StudyModeFocusService.isRunning() && !StudyModeFocusService.isStopping()) {
+                if (!StudyModeFocusService.isMonitoringHealthy()
+                    && !StudyModeFocusService.requestMonitorRecovery("manager_reconcile")) {
+                    setLastState(app, "monitoring_unavailable");
+                    return;
+                }
+            } else if (!StudyModeFocusService.isStarting()) {
                 StudyModeFocusService.markStarting();
                 Intent service = new Intent(app, StudyModeFocusService.class);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) app.startForegroundService(service);
                 else app.startService(service);
             }
-            setLastState(app, StudyModeFocusService.hasOverlayFailure() ? "overlay_failed"
-                : (StudyModeFocusService.isRunning() ? "focus_shield_running"
-                    : (StudyModeFocusService.isStarting() ? "focus_shield_starting" : "service_stopped")));
+            setLastState(app, StudyModeFocusService.getMonitoringState());
         } catch (Exception error) {
             StudyModeFocusService.clearStarting();
-            stopFocusShield(app);
-            setLastState(app, "service_start_blocked");
+            boolean startRestricted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && "ForegroundServiceStartNotAllowedException".equals(error.getClass().getSimpleName());
+            setLastState(app, startRestricted ? "monitoring_unavailable" : "service_start_blocked");
+            logStudyModeDiagnostic(app,
+                startRestricted ? "FOREGROUND_START_RESTRICTED" : "FOREGROUND_START_FAILED",
+                error.getClass().getSimpleName());
         }
+    }
+
+    public static void logStudyModeDiagnostic(Context context, String event, String reason) {
+        if (context == null || event == null || event.isEmpty()) return;
+        if ((context.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0) return;
+        String safeReason = reason == null || reason.isEmpty() ? "unspecified" : reason;
+        android.util.Log.d("MathMasterStudyMode",
+            "event=" + event
+                + " timestampMs=" + System.currentTimeMillis()
+                + " result=observed"
+                + " reason=" + safeReason);
     }
 
     private static void setLastState(Context context, String state) {
@@ -1086,7 +1112,12 @@ public final class StudyModeManager {
             else context.startService(service);
         } catch (Exception error) {
             StudyModeFocusService.clearStarting();
-            setLastState(context, "service_start_blocked");
+            boolean startRestricted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && "ForegroundServiceStartNotAllowedException".equals(error.getClass().getSimpleName());
+            setLastState(context, startRestricted ? "monitoring_unavailable" : "service_start_blocked");
+            logStudyModeDiagnostic(context,
+                startRestricted ? "FOREGROUND_START_RESTRICTED" : "FOREGROUND_START_FAILED",
+                error.getClass().getSimpleName());
         }
     }
 
@@ -1185,6 +1216,9 @@ public final class StudyModeManager {
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
         permissions.put("batteryOptimizationIgnored", isBatteryOptimizationIgnored(context));
         permissions.put("notificationsEnabled", areNotificationsEnabled(context));
+        // HyperOS autostart/background restrictions are OEM-controlled and are
+        // not reliably queryable through public Android APIs.
+        permissions.put("xiaomiDevice", isXiaomiDevice());
         permissions.put("deviceOwner", isDeviceOwner(context));
         permissions.put("profileOwner", isProfileOwner(context));
         permissions.put("dndAccess", hasNotificationPolicyAccess(context));
@@ -1237,18 +1271,23 @@ public final class StudyModeManager {
         } else if ((!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady) {
             // Without Usage Access, a fresh complete Accessibility snapshot is the fallback.
             state = "monitoring_unavailable";
-        } else if (StudyModeFocusService.hasOverlayFailure()) {
-            // The monitor can remain alive while Android refuses or detaches the overlay.
-            // Do not report this as active blocking until the view is actually visible.
-            state = "overlay_failed";
-        } else if (StudyModeFocusService.isRunning()) {
-            state = "focus_shield_running";
-        } else if (StudyModeFocusService.isStarting()) {
-            state = "focus_shield_starting";
-        } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)
-            || "accessibility_disconnected".equals(state)) {
-            // Normalize a state persisted by versions that exposed Accessibility tracking.
-            state = "service_stopped";
+        } else if (!policyOwner) {
+            // Never infer healthy monitoring from the foreground Service flag alone.
+            // The Focus Service supplies a fresh HandlerThread heartbeat and verifies
+            // the overlay attachment before it reports blocking_active.
+            String monitorState = StudyModeFocusService.getMonitoringState();
+            if ("focus_shield_running".equals(monitorState)
+                || "focus_shield_starting".equals(monitorState)
+                || "blocking_pending".equals(monitorState)
+                || "blocking_active".equals(monitorState)
+                || "monitoring_unavailable".equals(monitorState)
+                || "overlay_failed".equals(monitorState)) {
+                state = monitorState;
+            } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)
+                || "accessibility_disconnected".equals(state)) {
+                // Normalize states persisted by versions that did not track monitor health.
+                state = "service_stopped";
+            }
         }
 
         boolean exactFallback = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasExactAlarmPermission(context);
@@ -1261,7 +1300,7 @@ public final class StudyModeManager {
         result.put("sessionActive", sessionActive);
         result.put("activeSession", sessionJson);
         result.put("enforcedPackages", enforcedArray);
-        result.put("monitoringServiceRunning", StudyModeFocusService.isRunning());
+        result.put("monitoringServiceRunning", StudyModeFocusService.isMonitoringHealthy());
         result.put("enforcementMode", isDeviceOwner(context) ? "device_owner"
             : (isProfileOwner(context) ? "profile_owner"
                 : (hasForegroundMonitoringPermission(context) && hasOverlayPermission(context) ? "focus_shield" : "unavailable")));
