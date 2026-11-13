@@ -255,25 +255,23 @@ function configureUniversalBuild(buildGradle) {
       else if (result[index] === '}' && --depth === 0) { flavorEnd = index + 1; break; }
     }
     if (flavorEnd < 0) throw new Error('Study Mode flavor block is not closed.');
-    let start = markerIndex;
-    while (start > 0 && /[ \\t]/.test(result[start - 1])) start--;
-    result = result.slice(0, start) + result.slice(flavorEnd);
-  } else {
-    const flavorOpen = result.indexOf('productFlavors {');
-    if (flavorOpen >= 0) throw new Error('Unexpected productFlavors block; refusing to remove unrelated variants.');
+    result = result.slice(0, markerIndex) + result.slice(flavorEnd);
+  } else if (result.includes('productFlavors {')) {
+    throw new Error('Unexpected productFlavors block; refusing to remove unrelated variants.');
   }
   if (result.includes(marker)) return result;
-  const match = /defaultConfig\\s*\\{/.exec(result);
-  if (!match) throw new Error('Expected defaultConfig in app/build.gradle.');
+  const configOpen = result.indexOf('defaultConfig {');
+  if (configOpen < 0) throw new Error('Expected defaultConfig in app/build.gradle.');
   let depth = 0, close = -1;
-  for (let index = result.indexOf('{', match.index); index < result.length; index++) {
+  for (let index = result.indexOf('{', configOpen); index < result.length; index++) {
     if (result[index] === '{') depth++;
     else if (result[index] === '}' && --depth === 0) { close = index; break; }
   }
   if (close < 0) throw new Error('The defaultConfig block is not closed.');
-  if (!/versionCode\\s+/.test(result.slice(match.index, close))) {
-    result = result.slice(0, close) + '\\n        versionCode 100001' + result.slice(close);
-    close += '\\n        versionCode 100001'.length;
+  if (!result.slice(configOpen, close).includes('versionCode ')) {
+    const addition = '\\n        versionCode 100001';
+    result = result.slice(0, close) + addition + result.slice(close);
+    close += addition.length;
   }
   return result.slice(0, close + 1) + '\\n\\n    ' + marker + result.slice(close + 1);
 }
