@@ -2,8 +2,8 @@ import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useSta
 import { App } from "@capacitor/app";
 import {
   ArrowLeft, BatteryCharging, Bell, BookOpen, CalendarDays, Check,
-  ChevronDown, ChevronRight, Clock3, LockKeyhole, Plus, Search,
-  ShieldAlert, ShieldCheck, Smartphone, Trash2,
+  ChevronDown, ChevronRight, Clock3, LockKeyhole, Search,
+  ShieldAlert, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
