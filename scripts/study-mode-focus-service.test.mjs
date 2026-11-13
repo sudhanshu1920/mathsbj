@@ -180,7 +180,8 @@ test("foreground lookup failures surface as unavailable while service is alive",
   assert.ok(source.includes("foregroundLookupFailureForStatus = false;"));
   const status = between(manager, "public static JSObject getStatus(Context context)", "boolean exactFallback");
   assert.ok(status.indexOf("hasForegroundLookupFailure()") >= 0);
-  assert.ok(status.indexOf("hasForegroundLookupFailure()") < status.indexOf("isRunning()"));
+  assert.ok(status.indexOf("hasForegroundLookupFailure()") < status.indexOf("getMonitoringState()"));
+  assert.ok(status.includes('"monitoring_unavailable".equals(monitorState)'));
   assert.ok(page.includes('status.enforcementState === "monitoring_unavailable"'));
   assert.ok(page.includes("grant Usage Access or enable Advanced window detection"));
 });
