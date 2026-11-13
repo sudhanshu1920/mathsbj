@@ -18,12 +18,6 @@ async function createAndroidFixture() {
           <action android:name="android.service.notification.NotificationListenerService" />
         </intent-filter>
       </service>
-      <service android:name=".StudyModeAccessibilityService"
-          android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-        <intent-filter>
-          <action android:name="android.accessibilityservice.AccessibilityService" />
-        </intent-filter>
-      </service>
     </application>
   </manifest>`);
   await writeFile(path.join(root, 'app/build.gradle'), `plugins { id 'com.android.application' }
@@ -79,6 +73,8 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.match(manifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
   assert.match(manifest, /StudyModeAccessibilityService[\\s\\S]*BIND_ACCESSIBILITY_SERVICE/);
   assert.match(manifest, /android.accessibilityservice/);
+  assert.match(manifest, /android:resource="@xml\/study_mode_accessibility"/);
+  assert.ok(manifest.includes("\n        <service\n            android:name=\".StudyModeAccessibilityService\""));
   const buildGradle = await readFile(path.join(root, 'app/build.gradle'), 'utf8');
   assert.doesNotMatch(buildGradle, /flavorDimensions|productFlavors|MATHMASTER_STUDY_MODE_FLAVORS/);
   assert.match(buildGradle, /MATHMASTER_UNIVERSAL_STUDY_MODE/);
