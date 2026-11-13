@@ -1,4 +1,4 @@
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { App } from "@capacitor/app";
 import {
   ArrowLeft, BatteryCharging, Bell, BookOpen, CalendarDays, Check,
@@ -50,6 +50,7 @@ import { m as motion } from "framer-motion";
 
 interface StudyModePageProps {
   onBack: () => void;
+  backLabel?: string;
 }
 
 const DAY_LABELS = [
@@ -213,7 +214,7 @@ const statusText = (status: StudyModeStatus | null) => {
   return "Study Mode enabled";
 };
 
-const StudyModePage = ({ onBack }: StudyModePageProps) => {
+const StudyModePage = ({ onBack, backLabel = "Back to Settings" }: StudyModePageProps) => {
   const [draft, setDraft] = useState<StudyModeConfig>(DEFAULT_STUDY_MODE_CONFIG);
   const [status, setStatus] = useState<StudyModeStatus | null>(null);
   const [apps, setApps] = useState<StudyModeApp[]>([]);
@@ -241,6 +242,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   const [sessionDnd, setSessionDnd] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
   const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
+  const saveInFlightRef = useRef(false);
   const savedStudyAppsSnapshot = useRef("[]");
   const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
@@ -452,8 +454,14 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     };
   }, [load]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     window.dispatchEvent(new CustomEvent("study-mode-page-state", { detail: { open: true } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent("study-mode-page-state", { detail: { open: false } }));
+    };
+  }, []);
+
+  useEffect(() => {
     const onBackRequest = () => handleBack();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -464,7 +472,6 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
     window.addEventListener("study-mode-back", onBackRequest);
     window.addEventListener("keydown", onKeyDown, true);
     return () => {
-      window.dispatchEvent(new CustomEvent("study-mode-page-state", { detail: { open: false } }));
       window.removeEventListener("study-mode-back", onBackRequest);
       window.removeEventListener("keydown", onKeyDown, true);
     };
@@ -565,6 +572,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
   };
 
   const handleSave = async () => {
+    if (saving || saveInFlightRef.current) return;
     const validation = validateStudyModeSchedule(draft);
     if (validation) {
       setMessage(validation);
@@ -574,6 +582,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
       setMessage("Select at least one app to protect from distractions.");
       return;
     }
+    saveInFlightRef.current = true;
     setSaving(true);
     setMessage("");
     try {
@@ -592,6 +601,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         ? error.message
         : "Settings could not be saved. Your previous configuration is unchanged.");
     } finally {
+      saveInFlightRef.current = false;
       setSaving(false);
     }
   };
@@ -913,7 +923,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
             <button
               type="button"
               onClick={handleBack}
-              aria-label="Back to Settings"
+              aria-label={backLabel}
               className="motion-press inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card/55 text-muted-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-secondary hover:text-foreground"
             >
               <ArrowLeft size={17} />
@@ -945,16 +955,30 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
                   {loading ? "Loading…" : statusText(status)}
                 </p>
               </div>
-              {status ? (
-                <Switch
-                  checked={draft.enabled || Boolean(status.activeSession?.active)}
-                  disabled={loading || saving || !isStudyModeNative()}
-                  onCheckedChange={(enabled) => { void handleMasterToggle(enabled); }}
-                  aria-label="Study Mode master switch"
-                />
-              ) : (
-                <span className="shrink-0 text-[10px] text-muted-foreground">{loading ? "…" : "—"}</span>
-              )}
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                {status ? (
+                  <Switch
+                    checked={draft.enabled || Boolean(status.activeSession?.active)}
+                    disabled={loading || saving || !isStudyModeNative()}
+                    onCheckedChange={(enabled) => { void handleMasterToggle(enabled); }}
+                    aria-label="Study Mode master switch"
+                  />
+                ) : (
+                  <span className="shrink-0 text-[10px] text-muted-foreground">{loading ? "…" : "—"}</span>
+                )}
+                {!permissionSetupOpen && (
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: MOTION.scale.press }}
+                    disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
+                    onClick={() => { void handleSave(); }}
+                    aria-label={saving ? "Saving Study Mode settings" : hasUnsavedChanges ? "Save Study Mode settings" : "Study Mode settings saved"}
+                    className="motion-press inline-flex min-h-9 min-w-[76px] shrink-0 items-center justify-center gap-1.5 rounded-lg gradient-primary px-2.5 text-[10px] font-bold text-primary-foreground shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-45 sm:px-3"
+                  >
+                    <Check size={13} /> {saving ? "Saving…" : hasUnsavedChanges ? "Save" : "Saved"}
+                  </motion.button>
+                )}
+              </div>
             </div>
 
             <div className="mt-4 grid grid-cols-[112px_minmax(0,1fr)] sm:grid-cols-[136px_minmax(0,1fr)] items-center gap-3 border-t border-border/55 pt-4 sm:gap-5 sm:pt-5">
@@ -1532,19 +1556,7 @@ const StudyModePage = ({ onBack }: StudyModePageProps) => {
         </DialogContent>
       </Dialog>
 
-      {!permissionSetupOpen && (
-        <div className="sticky bottom-0 z-20 -mx-1 border-t border-border/60 bg-background/90 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
-          <motion.button
-            type="button"
-            whileTap={{ scale: MOTION.scale.press }}
-            disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
-            onClick={() => { void handleSave(); }}
-            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl gradient-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <Check size={14} /> {saving ? "Applying…" : hasUnsavedChanges ? "Save & Apply" : "Saved"}
-          </motion.button>
-        </div>
-      )}
+
     </div>
   );
 };
