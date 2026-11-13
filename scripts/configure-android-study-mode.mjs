@@ -269,11 +269,11 @@ function configureUniversalBuild(buildGradle) {
   }
   if (close < 0) throw new Error('The defaultConfig block is not closed.');
   if (!result.slice(configOpen, close).includes('versionCode ')) {
-    const addition = '\\n        versionCode 100001';
+    const addition = '\n        versionCode 100001';
     result = result.slice(0, close) + addition + result.slice(close);
     close += addition.length;
   }
-  return result.slice(0, close + 1) + '\\n\\n    ' + marker + result.slice(close + 1);
+  return result.slice(0, close + 1) + '\n\n    ' + marker + result.slice(close + 1);
 }
 
 function ensureBackupExclusions(manifest) {
