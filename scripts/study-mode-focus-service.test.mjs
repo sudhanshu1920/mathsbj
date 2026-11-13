@@ -276,3 +276,39 @@ test("popup first-frame verification waits for WindowManager traversal", () => {
   assert.ok(show.includes("candidate.postOnAnimation(() -> verifyShieldVisibility("));
   assert.ok(!show.includes("postDelayed(() -> verifyShieldVisibility("));
 });
+
+test("blocking shield has no navigation CTA, cannot dismiss or stop the session from its chrome, and remains compact", () => {
+  const shield = between(source, "private android.view.View buildShieldView()", "private android.view.View buildStudyAppShortcut(");
+  assert.ok(!source.includes("Back to Math Master"));
+  assert.ok(!source.includes("mathmaster://learn"));
+  assert.ok(!source.includes("Intent.ACTION_VIEW"));
+  assert.ok(!shield.includes("setOnClickListener("), "The shield chrome must not expose a return/dismiss action");
+  assert.ok(!shield.includes("removeShield("), "Rebuilding the shield must not mutate its active session");
+  assert.ok(!shield.includes("stopSelf("));
+  assert.ok(!shield.includes("setStudyModeEnabled("));
+  assert.ok(shield.includes("quoteCapsule"));
+  assert.ok(shield.includes("StudyModeManager.getNextMotivationalQuote(this)"));
+  assert.ok(shield.includes("Study Apps"));
+  assert.ok(shield.includes("dp(60)"));
+  assert.ok(!shield.includes("new android.view.View(this),\\n                        new LinearLayout.LayoutParams(0, dp(60), 1f)"));
+  assert.ok(!shield.includes("sym_def_app_icon"));
+  assert.ok(shield.indexOf("Study Apps") > shield.indexOf("sessionEndView"));
+});
+
+test("blocking shield retains the real session countdown, schedule end time, and real Study App launches", () => {
+  const shield = between(source, "private android.view.View buildShieldView()", "private android.view.View buildStudyAppShortcut(");
+  const shortcut = between(source, "private android.view.View buildStudyAppShortcut(", "private String getStudyAppLabel(");
+  const timer = between(source, "private void updateRemainingTime()", "private final Runnable countdownRunnable");
+  assert.ok(shield.includes("StudyModeManager.getNextMotivationalQuote(this)"));
+  assert.ok(timer.includes("StudyModeManager.getCurrentSessionRemainingSeconds(this)"));
+  assert.ok(timer.includes("StudyModeManager.getCurrentSessionEndMillis(this)"));
+  assert.ok(timer.includes("DateFormat.getTimeFormat(this)"));
+  assert.ok(source.includes("mainHandler.postDelayed(countdownRunnable, 1000L)"));
+  assert.ok(source.includes("mainHandler.removeCallbacks(countdownRunnable)"));
+  assert.ok(shortcut.includes("getStudyAppIcon(packageName)"));
+  assert.ok(shortcut.includes("getStudyAppLabel(packageName)"));
+  assert.ok(shortcut.includes("StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)"));
+  assert.ok(manager.includes("getSelectedStudyAppPackages(context)"));
+  assert.ok(manager.includes("getSelectedPackages(context)"));
+});
+
