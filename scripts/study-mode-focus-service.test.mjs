@@ -271,6 +271,44 @@ test("Accessibility package events trigger bounded immediate foreground reevalua
   assert.ok(monitor.includes("foregroundSource);"));
 });
 
+test("Advanced Accessibility reconnect and window events recover a missing Focus Service", () => {
+  const recovery = between(
+    accessibility,
+    "private void recoverFocusServiceIfNeeded(String reason)",
+    "private void scheduleScan(",
+  );
+  for (const invariant of [
+    "FOCUS_SERVICE_RECOVERY_COOLDOWN_MS = 15_000L",
+    "StudyModeManager.hasAccessibilityDisclosureConsent(this)",
+    "StudyModeManager.shouldEnforceNow(this)",
+    "StudyModeFocusService.isRunning()",
+    "StudyModeFocusService.isStopping()",
+    "StudyModeFocusService.isStarting()",
+    "SystemClock.elapsedRealtime()",
+    "StudyModeManager.reconcile(this)",
+  ]) {
+    assert.ok(recovery.includes(invariant), `Missing recovery invariant: ${invariant}`);
+  }
+
+  const connected = between(
+    accessibility,
+    "protected void onServiceConnected()",
+    "public void onAccessibilityEvent(AccessibilityEvent event)",
+  );
+  assert.ok(connected.indexOf("StudyModeWindowRegistry.markConnected()")
+    < connected.indexOf('recoverFocusServiceIfNeeded("service_connected")'));
+
+  const eventHandler = between(
+    accessibility,
+    "public void onAccessibilityEvent(AccessibilityEvent event)",
+    "public void onInterrupt()",
+  );
+  assert.ok(eventHandler.indexOf("StudyModeWindowRegistry.recordAccessibilityEvent(")
+    < eventHandler.indexOf('recoverFocusServiceIfNeeded("accessibility_event")'));
+  assert.ok(eventHandler.indexOf('recoverFocusServiceIfNeeded("accessibility_event")')
+    < eventHandler.indexOf("StudyModeFocusService.requestImmediateEvaluation()"));
+});
+
 test("popup first-frame verification waits for WindowManager traversal", () => {
   const show = between(source, "private void showShield(", "private boolean isShieldViewVisible");
   assert.ok(show.includes("candidate.postOnAnimation(() -> verifyShieldVisibility("));
