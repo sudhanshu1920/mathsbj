@@ -206,22 +206,14 @@ jobs:
       - name: Configure Android home-screen widgets
         run: node scripts/configure-android-widgets.mjs
 
-      - name: Compile Standard and Advanced Android debug APKs
+      - name: Compile Universal Android debug APK
         working-directory: android
-        run: ./gradlew --no-daemon --stacktrace :app:assembleStandardDebug :app:assembleAdvancedDebug
+        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug
 
-      - name: Upload Standard debug APK
+      - name: Upload Universal debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: math-master-standard-debug-apk
-          path: android/app/build/outputs/apk/standard/debug/app-standard-debug.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload Advanced multi-window debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: math-master-advanced-debug-apk
-          path: android/app/build/outputs/apk/advanced/debug/app-advanced-debug.apk
+          name: math-master-universal-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14

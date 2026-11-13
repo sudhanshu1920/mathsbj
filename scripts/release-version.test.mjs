@@ -15,20 +15,22 @@ test("continues from the actual legacy release instead of resetting existing ver
   assert.equal(previous.sourceCommit, legacySourceCommit);
 
   const next = resolveNextReleaseVersion(previous, "a".repeat(40));
-  assert.equal(next.versionCode, 1136);
+  assert.equal(next.versionCode, 101136);
   assert.equal(next.versionName, "1.0.1");
+  assert.equal(next.universalApk, true);
 });
 
 test("increments both version values once for a new successful-release candidate", () => {
   const previous = {
-    versionCode: 1136,
+    versionCode: 101136,
     versionName: "1.0.1",
     sourceCommit: "a".repeat(40),
     signingCertificateSHA256: "B".repeat(64),
+    universalApk: true,
   };
 
   const next = resolveNextReleaseVersion(previous, "b".repeat(40), true);
-  assert.equal(next.versionCode, 1137);
+  assert.equal(next.versionCode, 101137);
   assert.equal(next.versionName, "1.0.2");
   assert.equal(next.sourceCommit, "b".repeat(40));
   assert.equal(next.signingCertificateSHA256, "B".repeat(64));
@@ -37,14 +39,15 @@ test("increments both version values once for a new successful-release candidate
 
 test("re-running the same commit reuses its published version without another increment", () => {
   const previous = {
-    versionCode: 1137,
+    versionCode: 101137,
     versionName: "1.0.2",
     sourceCommit: "c".repeat(40),
     signingCertificateSHA256: "D".repeat(64),
+    universalApk: true,
   };
 
   const retry = resolveNextReleaseVersion(previous, "c".repeat(40), true);
-  assert.equal(retry.versionCode, 1137);
+  assert.equal(retry.versionCode, 101137);
   assert.equal(retry.versionName, "1.0.2");
   assert.equal(retry.reusedForSameCommit, true);
 });
@@ -73,4 +76,43 @@ test("rejects malformed commits and versionCode overflow", () => {
   const previous = { versionCode: 2_100_000_000, versionName: "1.0.0", sourceCommit: null };
   assert.throws(() => resolveNextReleaseVersion(previous, "short"), /full 40-character Git SHA/);
   assert.throws(() => resolveNextReleaseVersion(previous, "e".repeat(40)), /upper bound/);
+});
+
+
+test("continues normal one-step version increments after the Universal migration", () => {
+  const previous = {
+    versionCode: 101136,
+    versionName: "1.0.1",
+    sourceCommit: "f".repeat(40),
+    signingCertificateSHA256: null,
+    universalApk: true,
+  };
+  const next = resolveNextReleaseVersion(previous, "1".repeat(40), true);
+  assert.equal(next.versionCode, 101137);
+  assert.equal(next.versionName, "1.0.2");
+  assert.equal(next.universalApk, true);
+});
+
+test("recognizes the Universal marker in published release metadata", () => {
+  const previous = parsePublishedRelease({
+    name: "MathMaster 2.0.0 (101137)",
+    body: "versionCode: 101137\nversionName: 2.0.0\nuniversalApk: true",
+  });
+  assert.equal(previous.universalApk, true);
+});
+
+
+test("migrates a legacy release even when rebuilding the exact same source commit", () => {
+  const commit = "9".repeat(40);
+  const previous = {
+    versionCode: 1135,
+    versionName: "1.0.0",
+    sourceCommit: commit,
+    signingCertificateSHA256: null,
+    universalApk: false,
+  };
+  const next = resolveNextReleaseVersion(previous, commit, true);
+  assert.equal(next.versionCode, 101136);
+  assert.equal(next.universalApk, true);
+  assert.equal(next.reusedForSameCommit, false);
 });

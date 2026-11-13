@@ -29,6 +29,7 @@ export function parsePublishedRelease(release) {
     ?? /MathMaster\s+([0-9]+(?:\.[0-9]+){1,2})\s+\(\d+\)/i.exec(name);
   const sourceMatch = /sourceCommit\s*:\s*([0-9a-f]{40})/i.exec(body);
   const certificateMatch = /signingCertificateSHA256\s*:\s*([0-9a-f]{64})/i.exec(body);
+  const universalApk = /^universalApk\s*:\s*true\s*$/im.test(body);
 
   if (!codeMatch || !nameMatch) {
     throw new Error("Latest published release is missing a readable versionCode/versionName; refusing to reset Android versions.");
@@ -47,6 +48,7 @@ export function parsePublishedRelease(release) {
     versionName,
     sourceCommit: sourceMatch?.[1]?.toLowerCase() ?? null,
     signingCertificateSHA256: certificateMatch?.[1]?.toUpperCase() ?? null,
+    universalApk,
   };
 }
 
@@ -54,12 +56,13 @@ export function resolveNextReleaseVersion(previous, currentCommit, isPreviousCom
   const commit = String(currentCommit ?? "").toLowerCase();
   if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error("Current source commit must be a full 40-character Git SHA.");
 
-  if (previous.sourceCommit && commit === previous.sourceCommit) {
+  if (previous.universalApk && previous.sourceCommit && commit === previous.sourceCommit) {
     return {
       versionCode: previous.versionCode,
       versionName: previous.versionName,
       sourceCommit: commit,
       signingCertificateSHA256: previous.signingCertificateSHA256 ?? null,
+      universalApk: previous.universalApk === true,
       reusedForSameCommit: true,
     };
   }
@@ -68,7 +71,11 @@ export function resolveNextReleaseVersion(previous, currentCommit, isPreviousCom
     throw new Error("Refusing to publish an older/divergent commit over a newer release. Build the current main branch instead.");
   }
 
-  const versionCode = previous.versionCode + 1;
+  // Legacy Advanced APKs used standardVersionCode + 100000. The first
+  // Universal build must be newer than that installed Advanced APK; after
+  // this one-time migration, Universal releases increment normally.
+  const migrationOffset = previous.universalApk ? 1 : 100001;
+  const versionCode = previous.versionCode + migrationOffset;
   if (!Number.isSafeInteger(versionCode) || versionCode > MAX_ANDROID_VERSION_CODE) {
     throw new Error("Android versionCode has reached the supported upper bound.");
   }
@@ -78,6 +85,7 @@ export function resolveNextReleaseVersion(previous, currentCommit, isPreviousCom
     versionName: bumpPatchVersion(previous.versionName),
     sourceCommit: commit,
     signingCertificateSHA256: previous.signingCertificateSHA256 ?? null,
+    universalApk: true,
     reusedForSameCommit: false,
   };
 }

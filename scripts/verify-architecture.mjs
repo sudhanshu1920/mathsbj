@@ -430,8 +430,8 @@ if (!releaseWorkflow.includes('name: Verify published APK asset SHA-256 before p
     notificationSendStep.includes('continue-on-error: true')) {
   fail('release push must verify the actually published APK checksum and expose configured FCM failures to Actions');
 }
-const collectApkAt = releaseWorkflow.indexOf('name: Collect release APK');
-const uploadApkAt = releaseWorkflow.indexOf('name: Upload release APK');
+const collectApkAt = releaseWorkflow.indexOf('name: Collect Universal release APK');
+const uploadApkAt = releaseWorkflow.indexOf('name: Upload Universal release APK');
 const publishReleaseAt = releaseWorkflow.indexOf('name: Publish latest GitHub Release APK');
 const uploadFeedAt = releaseWorkflow.indexOf('name: Upload update feed bundle for hosting');
 const publishPublicUpdateAt = releaseWorkflow.indexOf('name: Publish APK and update manifest to public update host');
@@ -1083,7 +1083,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeFocus.includes('POLL_INTERVAL_MS') ||
     !studyModeManager.includes('hasUsageAccess(context)') ||
     !studyModeManager.includes('hasForegroundMonitoringPermission') ||
-    !studyModeSetup.includes('removeAccessibilityService') ||
+    !studyModeSetup.includes('ensureAccessibilityService') ||
     !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
     !studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
     !studyModeSetup.includes('StudyModeAccessibilityService.java') ||
@@ -1307,13 +1307,13 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
 }
 if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
     !studyModeNativeFiles.includes('StudyModeWindowRegistry.java') ||
-    !studyModeSetup.includes('removeAccessibilityService') ||
-    !studyModeSetup.includes('app/src/advanced/java') ||
+    !studyModeSetup.includes('ensureAccessibilityService') ||
+    !studyModeSetup.includes('app/src/main/java') ||
     !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
     !studyModeSetup.includes('flagRetrieveInteractiveWindows') ||
-    !studyModeSetup.includes('flavorDimensions "studyMode"') ||
-    !studyModeSetup.includes("await rm(path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
-    !studyModeSetup.includes("await rm(path.join(valuesTarget, 'study_mode_accessibility.xml')") ||
+    !studyModeSetup.includes('MATHMASTER_UNIVERSAL_STUDY_MODE') ||
+    !studyModeSetup.includes("path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
+    !studyModeSetup.includes("path.join(valuesTarget, 'study_mode_accessibility_strings.xml')") ||
     !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
     !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
