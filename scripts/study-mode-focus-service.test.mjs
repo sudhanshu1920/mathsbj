@@ -442,7 +442,8 @@ test("Advanced Accessibility recovery uses a deduplicated exact alarm before res
   assert.ok(recovery.includes("hasExactAlarmPermission(app)"));
   assert.ok(recovery.includes("FOCUS_RECOVERY_PENDING_WINDOW_MS"));
   assert.ok(recovery.includes("setExactAndAllowWhileIdle("));
-  assert.ok(recovery.includes("ACTION_FOCUS_SERVICE_RECOVERY"));
+  assert.ok(recovery.includes("focusServiceRecoveryPendingIntent(app)"));
+  assert.ok(manager.includes("ACTION_FOCUS_SERVICE_RECOVERY"));
   assert.ok(!recovery.includes("startForegroundService("));
   assert.ok(manager.includes("onFocusServiceRecoveryAlarm(Context context)"));
   assert.ok(alarmReceiver.includes("StudyModeManager.onFocusServiceRecoveryAlarm(context)"));
