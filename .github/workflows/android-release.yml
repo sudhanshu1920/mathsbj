@@ -1153,7 +1153,10 @@ jobs:
 
           signature_report="$("$APKSIGNER" verify --verbose "$signed_apk" 2>&1)"
           printf '%s\\n' "$signature_report"
-          grep -q 'Verified using v1 scheme (JAR signing): true' <<< "$signature_report"
+          # The app's supported minSdk is Android 7.0/API 24. APK Signature
+          # Scheme v2 is supported from API 24 and v3 from API 28. JAR/v1 is
+          # a legacy fallback for API 23 and below, which this app does not support.
+          # Report v1, but only require the schemes relevant to supported Android.
           grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' <<< "$signature_report"
           grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' <<< "$signature_report"
           "$ZIPALIGN" -c -v 4 "$signed_apk"
