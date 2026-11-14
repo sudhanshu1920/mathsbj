@@ -48,9 +48,14 @@ public final class StudyModeManager {
     private static final String KEY_ACCESSIBILITY_DISCLOSURE_CONSENT = "accessibilityDisclosureConsent";
     private static final String ACTION_BOUNDARY = "com.sudhanshu.mathsbj.STUDY_MODE_BOUNDARY";
     private static final String ACTION_SESSION_BOUNDARY = "com.sudhanshu.mathsbj.STUDY_MODE_SESSION_BOUNDARY";
+    private static final String ACTION_FOCUS_SERVICE_RECOVERY = "com.sudhanshu.mathsbj.STUDY_MODE_FOCUS_SERVICE_RECOVERY";
+    private static final String KEY_FOCUS_RECOVERY_ALARM_AT_WALL_MS = "focusRecoveryAlarmAtWallMs";
+    private static final long FOCUS_RECOVERY_ALARM_DELAY_MS = 1200L;
+    private static final long FOCUS_RECOVERY_PENDING_WINDOW_MS = 15_000L;
     private static final int ALARM_REQUEST_CODE = 9527;
     private static final int ALARM_BACKUP_REQUEST_CODE = 9528;
     private static final int SESSION_ALARM_REQUEST_CODE = 9529;
+    private static final int FOCUS_RECOVERY_ALARM_REQUEST_CODE = 9530;
     private static final int FOCUS_NOTIFICATION_ID = 9528;
 
     private StudyModeManager() {}
@@ -863,6 +868,139 @@ public final class StudyModeManager {
         pending.cancel();
     }
 
+    private static PendingIntent focusServiceRecoveryPendingIntent(Context context) {
+        Intent intent = new Intent(context, StudyModeAlarmReceiver.class);
+        intent.setAction(ACTION_FOCUS_SERVICE_RECOVERY);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
+        return PendingIntent.getBroadcast(context, FOCUS_RECOVERY_ALARM_REQUEST_CODE, intent, flags);
+    }
+
+    private static void cancelFocusServiceRecoveryAlarm(Context context) {
+        AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        PendingIntent pending = focusServiceRecoveryPendingIntent(context);
+        if (manager != null) manager.cancel(pending);
+        pending.cancel();
+        prefs(context).edit().remove(KEY_FOCUS_RECOVERY_ALARM_AT_WALL_MS).apply();
+    }
+
+    /**
+     * Accessibility callbacks run while the Activity is in the background. Do not
+     * start a foreground service directly from that callback: Android 12+ can reject
+     * it. When the monitor service is gone, schedule one user-session-scoped exact
+     * alarm; its BroadcastReceiver is an allowed FGS-start entry point.
+     */
+    public static synchronized boolean requestFocusServiceRecovery(Context context, String reason) {
+        Context app = context.getApplicationContext();
+        String recoveryReason = reason == null || reason.trim().isEmpty() ? "unspecified" : reason;
+
+        if (!hasAccessibilityDisclosureConsent(app) || !shouldEnforceNow(app)
+            || getEnforcedPackages(app).isEmpty()) {
+            cancelFocusServiceRecoveryAlarm(app);
+            return false;
+        }
+
+        // Device-owner package suspension is already enforced by Android itself.
+        if (isPolicyOwner(app)) return true;
+
+        if (!hasForegroundMonitoringPermission(app) || !hasOverlayPermission(app)) {
+            setLastState(app, "permission_required");
+            logStudyModeDiagnostic(app, "PROCESS_RECOVERY_FAILED", recoveryReason + "_permissions_missing");
+            return false;
+        }
+
+        if (StudyModeFocusService.isMonitoringHealthy() || StudyModeFocusService.isMonitorStarting()
+            || StudyModeFocusService.isStarting()) {
+            cancelFocusServiceRecoveryAlarm(app);
+            return true;
+        }
+
+        if (StudyModeFocusService.isRunning() && !StudyModeFocusService.isStopping()) {
+            boolean recovered = StudyModeFocusService.requestMonitorRecovery(recoveryReason);
+            if (!recovered) {
+                setLastState(app, "monitoring_unavailable");
+                logStudyModeDiagnostic(app, "PROCESS_RECOVERY_FAILED", recoveryReason + "_monitor_thread_recovery_failed");
+            }
+            return recovered;
+        }
+
+        if (!hasExactAlarmPermission(app)) {
+            setLastState(app, "permission_required");
+            logStudyModeDiagnostic(app, "PROCESS_RECOVERY_FAILED", recoveryReason + "_exact_alarm_permission_missing");
+            return false;
+        }
+
+        AlarmManager alarmManager = (AlarmManager) app.getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager == null) {
+            setLastState(app, "monitoring_unavailable");
+            logStudyModeDiagnostic(app, "PROCESS_RECOVERY_FAILED", recoveryReason + "_alarm_manager_unavailable");
+            return false;
+        }
+
+        long nowWallMs = System.currentTimeMillis();
+        long existingDueWallMs = prefs(app).getLong(KEY_FOCUS_RECOVERY_ALARM_AT_WALL_MS, 0L);
+        if (existingDueWallMs > nowWallMs
+            && existingDueWallMs - nowWallMs <= FOCUS_RECOVERY_PENDING_WINDOW_MS) {
+            return true; // One pending recovery alarm is enough for repeated events.
+        }
+
+        PendingIntent pending = focusServiceRecoveryPendingIntent(app);
+        long triggerElapsedMs = SystemClock.elapsedRealtime() + FOCUS_RECOVERY_ALARM_DELAY_MS;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerElapsedMs, pending);
+            } else {
+                alarmManager.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerElapsedMs, pending);
+            }
+
+            boolean saved = prefs(app).edit()
+                .putLong(KEY_FOCUS_RECOVERY_ALARM_AT_WALL_MS, nowWallMs + FOCUS_RECOVERY_ALARM_DELAY_MS)
+                .commit();
+            if (!saved) {
+                alarmManager.cancel(pending);
+                pending.cancel();
+                setLastState(app, "monitoring_unavailable");
+                logStudyModeDiagnostic(app, "PROCESS_RECOVERY_FAILED", recoveryReason + "_recovery_alarm_state_not_saved");
+                return false;
+            }
+
+            logStudyModeDiagnostic(app, "PROCESS_RECOVERY_STARTED",
+                recoveryReason + "_exact_alarm_scheduled");
+            return true;
+        } catch (SecurityException permissionRevoked) {
+            cancelFocusServiceRecoveryAlarm(app);
+            setLastState(app, "permission_required");
+            logStudyModeDiagnostic(app, "PROCESS_RECOVERY_FAILED",
+                recoveryReason + "_exact_alarm_security_exception");
+            return false;
+        } catch (RuntimeException alarmFailure) {
+            cancelFocusServiceRecoveryAlarm(app);
+            setLastState(app, "monitoring_unavailable");
+            logStudyModeDiagnostic(app, "PROCESS_RECOVERY_FAILED",
+                recoveryReason + "_" + alarmFailure.getClass().getSimpleName());
+            return false;
+        }
+    }
+
+    /** Called only by StudyModeAlarmReceiver for the scheduled exact-alarm action. */
+    public static synchronized void onFocusServiceRecoveryAlarm(Context context) {
+        Context app = context.getApplicationContext();
+        cancelFocusServiceRecoveryAlarm(app);
+        logStudyModeDiagnostic(app, "PROCESS_RECOVERY_STARTED", "exact_alarm_callback");
+        if (!shouldEnforceNow(app) || getEnforcedPackages(app).isEmpty()) {
+            logStudyModeDiagnostic(app, "PROCESS_RECOVERY_FAILED", "exact_alarm_session_no_longer_active");
+            return;
+        }
+
+        reconcile(app);
+        if (!isPolicyOwner(app) && !StudyModeFocusService.isRunning()
+            && !StudyModeFocusService.isStarting()) {
+            setLastState(app, "service_start_blocked");
+            logStudyModeDiagnostic(app, "PROCESS_RECOVERY_FAILED", "exact_alarm_service_start_not_accepted");
+        }
+    }
+
     public static synchronized void reconcile(Context context) {
         Context app = context.getApplicationContext();
         expireSessionIfNeeded(app);
@@ -879,6 +1017,10 @@ public final class StudyModeManager {
 
         List<String> packages = getEnforcedPackages(app);
         boolean active = !packages.isEmpty() && (scheduleActive || activeSession != null);
+
+        if (!active || StudyModeFocusService.isRunning() || StudyModeFocusService.isStarting()) {
+            cancelFocusServiceRecoveryAlarm(app);
+        }
 
         if (isPolicyOwner(app)) {
             if (!hasExactAlarmPermission(app) && active) {
@@ -1122,6 +1264,7 @@ public final class StudyModeManager {
     }
 
     private static void stopFocusShield(Context context) {
+        cancelFocusServiceRecoveryAlarm(context);
         if (StudyModeFocusService.isRunning()) StudyModeFocusService.markStopping();
         else StudyModeFocusService.clearStarting();
         try { context.stopService(new Intent(context, StudyModeFocusService.class)); }
