@@ -37,7 +37,7 @@ export function getStudyModePermissionReadiness(
       : "Enable Usage Access");
   }
   if (!overlayReady) missing.push("Allow Display over other apps");
-  if (exactAlarmRequired) missing.push("Allow Exact Alarms for managed scheduling");
+  if (exactAlarmRequired) missing.push("Allow Exact Alarms for background recovery and managed scheduling");
 
   return {
     advancedMonitoringRequested,
