@@ -970,6 +970,7 @@ const studyModeAppPlugin = read('android-native/com/sudhanshu/mathsbj/StudyModeP
 const studyModeAppCatalogCache = read('src/lib/studyModeAppCatalogCache.ts');
 const studyModeAppCatalogCacheTests = read('src/lib/studyModeAppCatalogCache.test.ts');
 const studyModePackageReceiver = read('android-native/com/sudhanshu/mathsbj/StudyModePackageChangeReceiver.java');
+const studyModeAlarmReceiver = read('android-native/com/sudhanshu/mathsbj/StudyModeAlarmReceiver.java');
 const studyModeAppFilters = read('src/lib/studyModeAppFilters.ts');
 const studyModeAppFilterTests = read('src/lib/studyModeAppFilters.test.ts');
 const studyModeSetup = read('scripts/configure-android-study-mode.mjs');
@@ -1112,7 +1113,11 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeManager.includes('permissions.put("xiaomiDevice", isXiaomiDevice())') ||
     !studyModeAccessibilityService.includes('recoverFocusServiceIfNeeded("service_connected")') ||
     !studyModeAccessibilityService.includes('recoverFocusServiceIfNeeded("accessibility_event")') ||
-    !studyModeAccessibilityService.includes('StudyModeManager.reconcile(this)') ||
+    !studyModeAccessibilityService.includes('StudyModeManager.requestFocusServiceRecovery(this, reason)') ||
+    studyModeAccessibilityService.includes('StudyModeManager.reconcile(this)') ||
+    !studyModeManager.includes('requestFocusServiceRecovery(Context context, String reason)') ||
+    !studyModeManager.includes('setExactAndAllowWhileIdle(') ||
+    !studyModeAlarmReceiver.includes('onFocusServiceRecoveryAlarm(context)') ||
     !studyModeWindowRegistry.includes('ACCESSIBILITY_EVENT_TTL_MS = 2200L') ||
     !studyModeFocus.includes('requestImmediateEvaluation()') ||
     !studyModeFocus.includes('candidate.postOnAnimation(() -> verifyShieldVisibility(') ||
