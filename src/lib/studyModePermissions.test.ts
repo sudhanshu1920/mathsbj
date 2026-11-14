@@ -101,7 +101,7 @@ describe("getStudyModePermissionReadiness", () => {
     });
     expect(getStudyModePermissionReadiness(managed).coreReady).toBe(false);
     expect(getStudyModePermissionReadiness(managed).missing).toContain(
-      "Allow Exact Alarms for managed scheduling",
+      "Allow Exact Alarms for background recovery and managed scheduling",
     );
 
     const personal = makeStatus({
@@ -111,5 +111,27 @@ describe("getStudyModePermissionReadiness", () => {
     });
     expect(getStudyModePermissionReadiness(personal).coreReady).toBe(true);
     expect(getStudyModePermissionReadiness(personal).exactAlarmRequired).toBe(false);
+  });
+
+  it("requires Exact Alarms for Advanced background recovery on Android 12+", () => {
+    const advancedWithoutExactAlarm = makeStatus({
+      permissions: {
+        ...makeStatus().permissions,
+        overlay: true,
+        exactAlarm: false,
+        accessibilityAvailable: true,
+        accessibilityEnabled: true,
+        accessibilityConsent: true,
+        accessibilitySnapshotReady: true,
+      },
+      enforcementMode: "focus_shield",
+      exactAlarmFallback: true,
+    });
+    const readiness = getStudyModePermissionReadiness(advancedWithoutExactAlarm);
+    expect(readiness.coreReady).toBe(false);
+    expect(readiness.exactAlarmRequired).toBe(true);
+    expect(readiness.missing).toContain(
+      "Allow Exact Alarms for background recovery and managed scheduling",
+    );
   });
 });
