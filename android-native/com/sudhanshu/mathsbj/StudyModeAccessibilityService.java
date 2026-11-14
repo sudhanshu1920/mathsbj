@@ -194,14 +194,14 @@ public final class StudyModeAccessibilityService extends AccessibilityService {
                 return;
             }
 
-            // reconcile() validates the persisted SQLite session and all runtime
-            // permissions before it attempts an Android-allowed service start.
-            StudyModeManager.reconcile(this);
-            if (!StudyModeFocusService.isMonitoringHealthy()
-                && !StudyModeFocusService.isStarting()
-                && !StudyModeFocusService.isRunning()) {
+            // Never invoke reconcile() here: this callback runs in the background,
+            // where startForegroundService() can be rejected on Android 12+.
+            // The manager schedules one deduplicated exact-alarm callback, which is
+            // the documented background FGS-start exemption for user-requested work.
+            boolean recoveryScheduled = StudyModeManager.requestFocusServiceRecovery(this, reason);
+            if (!recoveryScheduled) {
                 StudyModeManager.logStudyModeDiagnostic(this, "PROCESS_RECOVERY_FAILED",
-                    reason + "_service_not_started");
+                    reason + "_exact_alarm_recovery_not_scheduled");
             }
         } catch (RuntimeException recoveryFailure) {
             StudyModeManager.setServiceState(this, "monitoring_unavailable");
