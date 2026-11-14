@@ -12,6 +12,7 @@ const page = readFileSync(pagePath, "utf8");
 const permissionSetup = readFileSync(permissionSetupPath, "utf8");
 const registry = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeWindowRegistry.java", import.meta.url), "utf8");
 const accessibility = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java", import.meta.url), "utf8");
+const alarmReceiver = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAlarmReceiver.java", import.meta.url), "utf8");
 
 function between(text, startMarker, endMarker) {
   const start = text.indexOf(startMarker);
@@ -289,12 +290,13 @@ test("Advanced Accessibility reconnect and window events recover unhealthy monit
     "StudyModeFocusService.isStopping()",
     "StudyModeFocusService.isStarting()",
     "StudyModeFocusService.requestMonitorRecovery(reason)",
-    "StudyModeManager.reconcile(this)",
+    "StudyModeManager.requestFocusServiceRecovery(this, reason)",
     "PROCESS_RECOVERY_STARTED",
     "PROCESS_RECOVERY_FAILED",
   ]) {
     assert.ok(recovery.includes(invariant), `Missing recovery invariant: ${invariant}`);
   }
+  assert.ok(!recovery.includes("StudyModeManager.reconcile(this)"));
   assert.ok(accessibility.includes("1500L, 3000L, 6000L, 15_000L, 30_000L"));
   assert.ok(accessibility.includes('recoverFocusServiceIfNeeded("periodic_health_check")'));
 
@@ -427,4 +429,29 @@ test("HyperOS background switches are shown as manual, unverified OEM settings",
   assert.ok(permissionSetup.includes('key: "oemBackground"'));
   assert.ok(permissionSetup.includes("Check manually"));
   assert.ok(permissionSetup.includes("Android cannot reliably verify these OEM-only switches."));
+});
+
+test("Advanced Accessibility recovery uses a deduplicated exact alarm before restarting a stopped foreground service", () => {
+  const recovery = between(
+    manager,
+    "public static synchronized boolean requestFocusServiceRecovery(Context context, String reason)",
+    "/** Called only by StudyModeAlarmReceiver for the scheduled exact-alarm action. */",
+  );
+  assert.ok(recovery.includes("hasAccessibilityDisclosureConsent(app)"));
+  assert.ok(recovery.includes("shouldEnforceNow(app)"));
+  assert.ok(recovery.includes("hasExactAlarmPermission(app)"));
+  assert.ok(recovery.includes("FOCUS_RECOVERY_PENDING_WINDOW_MS"));
+  assert.ok(recovery.includes("setExactAndAllowWhileIdle("));
+  assert.ok(recovery.includes("ACTION_FOCUS_SERVICE_RECOVERY"));
+  assert.ok(!recovery.includes("startForegroundService("));
+  assert.ok(manager.includes("onFocusServiceRecoveryAlarm(Context context)"));
+  assert.ok(alarmReceiver.includes("StudyModeManager.onFocusServiceRecoveryAlarm(context)"));
+
+  const accessRecovery = between(
+    accessibility,
+    "private void recoverFocusServiceIfNeeded(String reason)",
+    "private void scheduleScan(",
+  );
+  assert.ok(accessRecovery.includes("StudyModeManager.requestFocusServiceRecovery(this, reason)"));
+  assert.ok(!accessRecovery.includes("StudyModeManager.reconcile(this)"));
 });
