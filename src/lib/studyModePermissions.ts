@@ -27,7 +27,8 @@ export function getStudyModePermissionReadiness(
     : permissions.usageAccess === true);
   const overlayReady = managedEnforcement || permissions.overlay === true;
   const exactAlarmRequired = status.enforcementState === "exact_alarm_required"
-    || (managedEnforcement && status.exactAlarmFallback && permissions.exactAlarm !== true);
+    || (managedEnforcement && status.exactAlarmFallback && permissions.exactAlarm !== true)
+    || (advancedMonitoringRequested && status.exactAlarmFallback && permissions.exactAlarm !== true);
   const missing: string[] = [];
 
   if (!monitoringReady) {
@@ -36,7 +37,7 @@ export function getStudyModePermissionReadiness(
       : "Enable Usage Access");
   }
   if (!overlayReady) missing.push("Allow Display over other apps");
-  if (exactAlarmRequired) missing.push("Allow Exact Alarms for managed scheduling");
+  if (exactAlarmRequired) missing.push("Allow Exact Alarms for background recovery and managed scheduling");
 
   return {
     advancedMonitoringRequested,

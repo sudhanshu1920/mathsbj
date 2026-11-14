@@ -109,8 +109,8 @@ const StudyModePermissionSetup = ({
       key: "exactAlarm" as const,
       title: "Exact Alarms",
       description: readiness.exactAlarmRequired
-        ? "Required for this managed schedule."
-        : "Inexact scheduling remains available.",
+        ? "Required to restore background monitoring after cleanup."
+        : "Not required on this Android version.",
       granted: permissions.exactAlarm === true,
       required: readiness.exactAlarmRequired,
       icon: Clock3,

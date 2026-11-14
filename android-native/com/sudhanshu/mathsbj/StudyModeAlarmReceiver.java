@@ -9,6 +9,10 @@ public final class StudyModeAlarmReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
         String action = intent.getAction();
+        if ("com.sudhanshu.mathsbj.STUDY_MODE_FOCUS_SERVICE_RECOVERY".equals(action)) {
+            StudyModeManager.onFocusServiceRecoveryAlarm(context);
+            return;
+        }
         if (!"com.sudhanshu.mathsbj.STUDY_MODE_BOUNDARY".equals(action)
             && !"com.sudhanshu.mathsbj.STUDY_MODE_SESSION_BOUNDARY".equals(action)) return;
         StudyModeManager.reconcile(context);
