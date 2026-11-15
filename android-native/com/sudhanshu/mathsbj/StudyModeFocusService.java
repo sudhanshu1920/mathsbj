@@ -679,7 +679,9 @@ public final class StudyModeFocusService extends Service {
                 activePackage, SystemClock.elapsedRealtime(), reminderEligible,
                 StudyModeManager.getReminderIntervalMinutes(StudyModeFocusService.this));
             if (periodicReminderVisible.get() && !periodicReminderPackage.isEmpty()
-                && activePackage != null && !activePackage.equals(periodicReminderPackage)) {
+                && activePackage != null
+                && !activePackage.equals(getPackageName())
+                && !activePackage.equals(periodicReminderPackage)) {
                 mainHandler.post(() -> dismissPeriodicReminder("focused_app_changed", false));
             }
 
@@ -725,6 +727,8 @@ public final class StudyModeFocusService extends Service {
                     removeShield("foreground_not_blocked");
                     if (requestPeriodicReminder) showPeriodicReminder(reminderTargetPackage, decisionSequence);
                     else if (periodicReminderVisible.get() && reminderTargetPackage != null
+                        && !reminderTargetPackage.equals(getPackageName())
+                        && !periodicReminderPackage.isEmpty()
                         && !reminderTargetPackage.equals(periodicReminderPackage)) {
                         dismissPeriodicReminder("focused_app_changed", false);
                     }

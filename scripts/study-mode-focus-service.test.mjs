@@ -48,6 +48,8 @@ test("usage accounting is monotonic, one shared accumulator and pauses on uncert
   assert.ok(registry.includes("window.focused"));
   assert.ok(source.includes("periodicReminderUsage.pause()"));
   assert.ok(source.includes("periodicReminderVisible.get()"));
+  assert.ok(source.includes("!activePackage.equals(getPackageName())"));
+  assert.ok(source.includes("!reminderTargetPackage.equals(getPackageName())"));
 });
 
 test("Blocked Apps and Study Apps precedence is retained for periodic reminders", () => {
