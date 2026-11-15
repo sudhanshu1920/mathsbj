@@ -976,6 +976,7 @@ const studyModeAppFilters = read('src/lib/studyModeAppFilters.ts');
 const studyModeAppFilterTests = read('src/lib/studyModeAppFilters.test.ts');
 const studyModeSetup = read('scripts/configure-android-study-mode.mjs');
 const widgetSetup = read('scripts/configure-android-widgets.mjs');
+const validationWorkflow = read('.github/workflows/validation.yml');
 const studyModeSettings = read('src/components/SettingsPanel.tsx');
 const studyModeIndex = read('src/pages/Index.tsx');
 const studyModeDeepLink = read('src/lib/studyModeDeepLink.ts');
@@ -1326,7 +1327,9 @@ if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
     !studyModeSetup.includes('android.permission.QUERY_ALL_PACKAGES') ||
     !studyModeSetup.includes('StudyModeDeviceAdminReceiver') ||
     !studyModeSetup.includes("packageVisibility: 'all-installed-packages'") ||
-    !widgetSetup.includes('configureAndroidStudyMode(root)') ||
+    !widgetSetup.includes('configureAndroidWidgets(androidRoot)') ||
+    !validationWorkflow.includes('run: node scripts/configure-android-study-mode.mjs') ||
+    !validationWorkflow.includes('run: node scripts/configure-android-widgets.mjs') ||
     !studyModeBoot.includes('StudyModeManager.reconcile(context)')) {
   fail('Generated Android project must use launcher-only package visibility, omit SMS queries and notification-listener access, and restore Study Mode schedules');
 }
