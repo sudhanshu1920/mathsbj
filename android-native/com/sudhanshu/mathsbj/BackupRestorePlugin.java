@@ -54,7 +54,7 @@ public class BackupRestorePlugin extends Plugin {
         "^instance_([0-9]+)_(contentJson|style|composition|themeMode|theme|contentSchemaVersion)$"
     );
     private static final Set<String> CONTENT_OPTIONS = new TreeSet<>(Arrays.asList(
-        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"
+        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
     ));
     private static final Set<String> COMPOSITIONS = new TreeSet<>(Arrays.asList(
         "auto", "hero_wide", "compact_green", "square_math_bot", "medium_study",
@@ -374,7 +374,7 @@ public class BackupRestorePlugin extends Plugin {
 
     private static boolean isValidInstancePreference(String field, Object value) {
         if ("contentSchemaVersion".equals(field)) {
-            return value instanceof Number && ((Number) value).intValue() >= 1 && ((Number) value).intValue() <= 2;
+            return value instanceof Number && ((Number) value).intValue() >= 1 && ((Number) value).intValue() <= 3;
         }
         return INSTANCE_STRING_FIELDS.contains(field) && value instanceof String && validateWidgetString(field, (String) value);
     }

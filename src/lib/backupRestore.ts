@@ -25,7 +25,7 @@ const WIDGET_INSTANCE_STRING_KEYS = new Set([
 ]);
 const WIDGET_INSTANCE_NUMBER_KEYS = new Set(['contentSchemaVersion']);
 const WIDGET_CONTENT_OPTIONS = new Set([
-  'appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'updateStatus',
+  'appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'quiz', 'updateStatus',
 ]);
 const WIDGET_COMPOSITIONS = new Set([
   'auto', 'hero_wide', 'compact_green', 'square_math_bot', 'medium_study',
@@ -183,7 +183,7 @@ function validateWidgetPreferences(value: unknown): WidgetPreferenceSnapshot | n
       if (WIDGET_INSTANCE_STRING_KEYS.has(field)) {
         if (!validateWidgetString(field, item)) throw new Error('Invalid widget instance preference: ' + field);
       } else if (WIDGET_INSTANCE_NUMBER_KEYS.has(field)) {
-        if (typeof item !== 'number' || !Number.isInteger(item) || item < 1 || item > 2) {
+        if (typeof item !== 'number' || !Number.isInteger(item) || item < 1 || item > 3) {
           throw new Error('Invalid widget instance preference: ' + field);
         }
       } else {

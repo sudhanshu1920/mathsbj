@@ -7,57 +7,54 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.ColorStateList;
-import android.graphics.Color;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.BitmapRegionDecoder;
-import android.graphics.Rect;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.RectF;
-import android.graphics.Matrix;
-import android.graphics.SweepGradient;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
-import android.util.TypedValue;
-import android.util.SizeF;
-import android.view.View;
-import android.view.Gravity;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
+import android.util.SizeF;
 import android.widget.RemoteViews;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import java.io.IOException;
-import java.io.InputStream;
-
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
+/**
+ * Math Master home-screen widget.
+ *
+ * One registered provider, seven "neon glass" compositions. Every composition is drawn by
+ * {@link MathMasterWidgetRenderer} into a single bitmap, so it looks the same on every launcher;
+ * this class only reads the saved data / preferences, picks the composition and wires the tap.
+ */
 public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     private static final String WIDGET_PREFS = "math_master_home_widget";
     private static final int REQUEST_CODE = 8907;
-    private static BitmapRegionDecoder widgetArtworkDecoder;
-    private static final Map<String, Bitmap> WIDGET_ARTWORK_CACHE = new LinkedHashMap<String, Bitmap>(16, 0.75f, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<String, Bitmap> eldest) {
-            return size() > 14;
-        }
-    };
+    private static final int CONTENT_SCHEMA_VERSION = 3;
     private static final String[] WIDGET_COMPOSITIONS = {
         "auto", "hero_wide", "compact_green", "square_math_bot",
         "medium_study", "square_cosmic", "extra_wide_weekly", "minimal_progress"
     };
+    static final String[] CONTENT_OPTIONS = {
+        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
+    };
+    private static final int[] COMPLETION_ACCENTS = {
+        Color.parseColor("#50D9A0"), Color.parseColor("#58D6F2"),
+        Color.parseColor("#FFCA68"), Color.parseColor("#FF83B5"),
+        Color.parseColor("#B8A0FF"), Color.parseColor("#FF9A72"),
+        Color.parseColor("#A8E063")
+    };
+    private static MathMasterWidgetRenderer.Fonts widgetFonts;
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] appWidgetIds) {
@@ -147,170 +144,30 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         updateWidgets(context);
     }
 
-    private static BitmapRegionDecoder getWidgetArtworkDecoder(Context context) {
-        synchronized (MathMasterHomeWidgetProvider.class) {
-            if (widgetArtworkDecoder != null && !widgetArtworkDecoder.isRecycled()) {
-                return widgetArtworkDecoder;
-            }
-            try (InputStream input = context.getResources().openRawResource(R.drawable.math_master_widget_atlas)) {
-                widgetArtworkDecoder = BitmapRegionDecoder.newInstance(input, false);
-            } catch (IOException | RuntimeException exception) {
-                // Optional artwork must never prevent a widget from rendering its live metrics.
-                widgetArtworkDecoder = null;
-            }
-            return widgetArtworkDecoder;
+    // ------------------------------------------------------------------ fonts
+
+    /** Inter (bundled in assets/fonts); falls back to the system sans-serif if an asset is missing. */
+    private static synchronized MathMasterWidgetRenderer.Fonts getWidgetFonts(Context context) {
+        if (widgetFonts == null) {
+            Context app = context.getApplicationContext() != null ? context.getApplicationContext() : context;
+            widgetFonts = new MathMasterWidgetRenderer.Fonts(
+                loadFont(app, "fonts/MathMaster-Regular.otf", Typeface.create("sans-serif", Typeface.NORMAL)),
+                loadFont(app, "fonts/MathMaster-Medium.otf", Typeface.create("sans-serif-medium", Typeface.NORMAL)),
+                loadFont(app, "fonts/MathMaster-Bold.otf", Typeface.create("sans-serif", Typeface.BOLD)));
         }
+        return widgetFonts;
     }
 
-    private static Bitmap getWidgetArtwork(Context context, String composition, int widthDp, int heightDp) {
-        int panelIndex;
-        if ("hero_wide".equals(composition)) panelIndex = 0;
-        else if ("compact_green".equals(composition)) panelIndex = 1;
-        else if ("square_math_bot".equals(composition)) panelIndex = 2;
-        else if ("medium_study".equals(composition)) panelIndex = 3;
-        else if ("square_cosmic".equals(composition)) panelIndex = 4;
-        else if ("extra_wide_weekly".equals(composition)) panelIndex = 5;
-        else return null;
-
-        float ratio = widthDp > 0 && heightDp > 0
-            ? Math.max(0.72f, Math.min(3.6f, widthDp / (float) heightDp)) : 1.65f;
-
-        // Store only the exact optimized rendition needed by the RemoteViews, never a full decoded atlas.
-        int desiredWidth = Math.max(200, Math.min(520, Math.round(Math.max(1, widthDp) * 1.7f)));
-        int outputHeight = Math.max(1, Math.min(300, Math.round(desiredWidth / ratio)));
-        int outputWidth = Math.max(1, Math.min(desiredWidth, Math.round(outputHeight * ratio)));
-        outputHeight = Math.max(1, Math.min(300, Math.round(outputWidth / ratio)));
-        String cacheKey = composition + "_" + Math.round(ratio * 100f)
-            + "_" + outputWidth + "x" + outputHeight;
-        synchronized (WIDGET_ARTWORK_CACHE) {
-            Bitmap cached = WIDGET_ARTWORK_CACHE.get(cacheKey);
-            if (cached != null && !cached.isRecycled()) return cached;
-        }
-
-        BitmapRegionDecoder decoder = getWidgetArtworkDecoder(context);
-        if (decoder == null || decoder.isRecycled()) return null;
-
-        int atlasWidth = decoder.getWidth();
-        int atlasHeight = decoder.getHeight();
-        float[][] rects = {
-            {0.003f, 0.015f, 0.322f, 0.475f},
-            {0.330f, 0.015f, 0.642f, 0.475f},
-            {0.652f, 0.015f, 0.965f, 0.475f},
-            {0.003f, 0.497f, 0.322f, 0.954f},
-            {0.330f, 0.497f, 0.642f, 0.954f},
-            {0.652f, 0.497f, 0.965f, 0.954f}
-        };
-        float[] rect = rects[panelIndex];
-        int left = Math.max(0, Math.min(atlasWidth - 1, Math.round(rect[0] * atlasWidth)));
-        int top = Math.max(0, Math.min(atlasHeight - 1, Math.round(rect[1] * atlasHeight)));
-        int right = Math.max(left + 1, Math.min(atlasWidth, Math.round(rect[2] * atlasWidth)));
-        int bottom = Math.max(top + 1, Math.min(atlasHeight, Math.round(rect[3] * atlasHeight)));
-        int panelWidth = right - left;
-        int panelHeight = bottom - top;
-
-        if (panelWidth / (float) panelHeight > ratio) {
-            int cropWidth = Math.max(1, Math.min(panelWidth, Math.round(panelHeight * ratio)));
-            float focus = ("square_math_bot".equals(composition) || "square_cosmic".equals(composition)) ? 0.72f
-                : ("compact_green".equals(composition) || "medium_study".equals(composition)) ? 0.64f : 0.50f;
-            int cropLeft = left + Math.round((panelWidth - cropWidth) * focus);
-            cropLeft = Math.max(left, Math.min(right - cropWidth, cropLeft));
-            left = cropLeft;
-            right = cropLeft + cropWidth;
-            panelWidth = cropWidth;
-        } else if (panelWidth / (float) panelHeight < ratio) {
-            int cropHeight = Math.max(1, Math.min(panelHeight, Math.round(panelWidth / ratio)));
-            int cropTop = top + Math.max(0, (panelHeight - cropHeight) / 2);
-            top = cropTop;
-            bottom = cropTop + cropHeight;
-            panelHeight = cropHeight;
-        }
-
-        // Sample the source region before allocating pixels. This avoids a full-resolution ARGB atlas
-        // and avoids creating a full-resolution intermediate crop on each refresh.
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-        int sampleSize = 1;
-        while (panelWidth / (sampleSize * 2) >= outputWidth
-            && panelHeight / (sampleSize * 2) >= outputHeight) {
-            sampleSize *= 2;
-        }
-        options.inSampleSize = sampleSize;
-
-        Bitmap decoded;
+    private static Typeface loadFont(Context context, String assetPath, Typeface fallback) {
         try {
-            synchronized (decoder) {
-                decoded = decoder.decodeRegion(new Rect(left, top, right, bottom), options);
-            }
-        } catch (RuntimeException exception) {
-            // Invalid or unsupported image data falls back to the widget's native glass background.
-            return null;
+            Typeface face = Typeface.createFromAsset(context.getAssets(), assetPath);
+            return face != null ? face : fallback;
+        } catch (RuntimeException ignored) {
+            return fallback;
         }
-        if (decoded == null || decoded.isRecycled()) return null;
-
-        Bitmap optimized = decoded;
-        if (decoded.getWidth() != outputWidth || decoded.getHeight() != outputHeight) {
-            try {
-                optimized = Bitmap.createScaledBitmap(decoded, outputWidth, outputHeight, true);
-            } catch (RuntimeException exception) {
-                if (!decoded.isRecycled()) decoded.recycle();
-                return null;
-            }
-            if (optimized != decoded && !decoded.isRecycled()) decoded.recycle();
-        }
-
-        synchronized (WIDGET_ARTWORK_CACHE) {
-            WIDGET_ARTWORK_CACHE.put(cacheKey, optimized);
-        }
-        return optimized;
     }
 
-    /** Returns a size-optimized sample for the in-app native widget configuration preview. */
-    public static Bitmap getConfigurationPreviewArtwork(Context context, String composition, int widthDp, int heightDp) {
-        String safeComposition = normalizeComposition(composition);
-        if ("auto".equals(safeComposition)) safeComposition = "hero_wide";
-        return getWidgetArtwork(context, safeComposition, Math.max(1, widthDp), Math.max(1, heightDp));
-    }
-
-    private static Bitmap createProgressRing(Context context, int progress, int accentColor) {
-        float density = context.getResources().getDisplayMetrics().density;
-        int size = Math.max(96, Math.round(82f * density));
-        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        float center = size / 2f;
-        float stroke = Math.max(5f, size * 0.085f);
-        float radius = center - stroke - 2f;
-        RectF bounds = new RectF(center - radius, center - radius, center + radius, center + radius);
-
-        Paint track = new Paint(Paint.ANTI_ALIAS_FLAG);
-        track.setStyle(Paint.Style.STROKE);
-        track.setStrokeWidth(stroke);
-        track.setStrokeCap(Paint.Cap.ROUND);
-        track.setColor(Color.argb(90, 235, 245, 255));
-        canvas.drawCircle(center, center, radius, track);
-
-        Paint arc = new Paint(Paint.ANTI_ALIAS_FLAG);
-        arc.setStyle(Paint.Style.STROKE);
-        arc.setStrokeWidth(stroke);
-        arc.setStrokeCap(Paint.Cap.ROUND);
-        SweepGradient gradient = new SweepGradient(center, center,
-            new int[] { accentColor, Color.WHITE, accentColor }, new float[] { 0f, 0.62f, 1f });
-        Matrix rotate = new Matrix();
-        rotate.setRotate(-90f, center, center);
-        gradient.setLocalMatrix(rotate);
-        arc.setShader(gradient);
-        canvas.drawArc(bounds, -90f, Math.max(0f, Math.min(100f, progress)) * 3.6f, false, arc);
-
-        Paint label = new Paint(Paint.ANTI_ALIAS_FLAG);
-        label.setColor(Color.WHITE);
-        label.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        label.setTextAlign(Paint.Align.CENTER);
-        label.setTextSize(size * (progress >= 100 ? 0.205f : 0.225f));
-        label.setShadowLayer(size * 0.012f, 0f, size * 0.006f, Color.argb(150, 0, 0, 0));
-        canvas.drawText(Math.max(0, Math.min(100, progress)) + "%", center,
-            center - (label.ascent() + label.descent()) / 2f, label);
-        bitmap.setDensity(context.getResources().getDisplayMetrics().densityDpi);
-        return bitmap;
-    }
+    // ------------------------------------------------------------------ composition
 
     private static Bundle getWidgetOptions(Context context, int appWidgetId) {
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return Bundle.EMPTY;
@@ -330,29 +187,10 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return minimum > 0 ? minimum : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
     }
 
-    private static boolean isCompactSize(int widthDp, int heightDp) {
-        if (isTallWidget(widthDp, heightDp) || isWideWidget(widthDp, heightDp)) return false;
-        // Reserve the compact layout for genuinely narrow or very short launcher tiles.
-        return (widthDp > 0 && widthDp < 190) || (heightDp > 0 && heightDp < 135);
-    }
-
-    private static boolean isTallWidget(int widthDp, int heightDp) {
-        return widthDp > 0 && heightDp > widthDp * 1.3f;
-    }
-
-    private static boolean isWideWidget(int widthDp, int heightDp) {
-        return widthDp > 0 && heightDp > 0 && widthDp >= heightDp * 1.7f;
-    }
-
     private static String normalizeComposition(String value) {
         if (value == null) return "auto";
         for (String allowed : WIDGET_COMPOSITIONS) if (allowed.equals(value)) return value;
         return "auto";
-    }
-
-    /** Only the two wallpaper-first surfaces are supported; legacy styles migrate to blur. */
-    private static String normalizeWidgetStyle(String value) {
-        return "transparent".equals(value) ? "transparent" : "blur";
     }
 
     private static String resolveComposition(SharedPreferences preferences, int appWidgetId, int widthDp, int heightDp) {
@@ -360,65 +198,28 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             preferences, appWidgetId, "composition", preferences.getString("composition", "auto")
         ));
         if (!"auto".equals(requested)) return requested;
-        if (isWideWidget(widthDp, heightDp)) return widthDp >= 360 ? "extra_wide_weekly" : "hero_wide";
-        if (isCompactSize(widthDp, heightDp)) return "minimal_progress";
-        if (widthDp > 0 && heightDp > 0 && widthDp <= heightDp * 1.25f) return "square_math_bot";
-        return "medium_study";
+        return MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
     }
 
-    private static int getSizeClass(int widthDp, int heightDp) {
-        if (isTallWidget(widthDp, heightDp)) return 1;
-        if (isWideWidget(widthDp, heightDp)) return 2;
-        if (isCompactSize(widthDp, heightDp)) return 0;
-        return 1;
+    /** Accent colour for one of the Settings colour themes, or 0 to keep each design's own reference colours. */
+    static int themeAccent(String theme) {
+        int index = getPaletteThemeIndex(normalizeWidgetTheme(theme));
+        return index >= 0 ? COMPLETION_ACCENTS[index] : 0;
     }
 
-    private static int getWidgetLayoutForDimensions(int widthDp, int heightDp, String composition) {
-        int sizeClass = getSizeClass(widthDp, heightDp);
-        switch (composition) {
-            case "hero_wide":
-                if (sizeClass == 0) return R.layout.math_master_widget_hero_wide_compact;
-                if (sizeClass == 2) return R.layout.math_master_widget_hero_wide_wide;
-                return R.layout.math_master_widget_hero_wide_regular;
-            case "compact_green":
-                if (sizeClass == 0) return R.layout.math_master_widget_compact_green_compact;
-                if (sizeClass == 2) return R.layout.math_master_widget_compact_green_wide;
-                return R.layout.math_master_widget_compact_green_regular;
-            case "square_math_bot":
-                if (sizeClass == 0) return R.layout.math_master_widget_square_math_bot_compact;
-                if (sizeClass == 2) return R.layout.math_master_widget_square_math_bot_wide;
-                return R.layout.math_master_widget_square_math_bot_regular;
-            case "medium_study":
-                if (sizeClass == 0) return R.layout.math_master_widget_medium_study_compact;
-                if (sizeClass == 2) return R.layout.math_master_widget_medium_study_wide;
-                return R.layout.math_master_widget_medium_study_regular;
-            case "square_cosmic":
-                if (sizeClass == 0) return R.layout.math_master_widget_square_cosmic_compact;
-                if (sizeClass == 2) return R.layout.math_master_widget_square_cosmic_wide;
-                return R.layout.math_master_widget_square_cosmic_regular;
-            case "extra_wide_weekly":
-                if (sizeClass == 0) return R.layout.math_master_widget_extra_wide_weekly_compact;
-                if (sizeClass == 2) return R.layout.math_master_widget_extra_wide_weekly_wide;
-                return R.layout.math_master_widget_extra_wide_weekly_regular;
-            case "minimal_progress":
-                if (sizeClass == 0) return R.layout.math_master_widget_minimal_progress_compact;
-                if (sizeClass == 2) return R.layout.math_master_widget_minimal_progress_wide;
-                return R.layout.math_master_widget_minimal_progress_regular;
-            default:
-                return sizeClass == 0 ? R.layout.math_master_widget_minimal_progress_compact
-                    : (sizeClass == 2 ? R.layout.math_master_widget_hero_wide_wide
-                        : R.layout.math_master_widget_square_math_bot_regular);
-        }
+    private static int getPaletteThemeIndex(String theme) {
+        if ("emerald".equals(theme)) return 0;
+        if ("ocean".equals(theme)) return 1;
+        if ("graphite".equals(theme)) return 2;
+        if ("rose".equals(theme)) return 3;
+        if ("violet".equals(theme)) return 4;
+        if ("sapphire".equals(theme)) return 5;
+        if ("aurora".equals(theme)) return 6;
+        return -1;
     }
 
-    private static boolean compositionUsesProgressRing(String composition) {
-        return "compact_green".equals(composition)
-            || "square_math_bot".equals(composition)
-            || "square_cosmic".equals(composition);
-    }
-
-    private static float responsiveTextSize(float base, float scale, float minimum, float maximum) {
-        return Math.max(minimum, Math.min(maximum, base * scale));
+    private static String normalizeWidgetTheme(String theme) {
+        return "app".equals(theme) || getPaletteThemeIndex(theme) >= 0 ? theme : "app";
     }
 
     private static Set<String> getCompletedDays(SharedPreferences preferences) {
@@ -437,41 +238,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return completed;
     }
 
-    private static void bindWeekProgress(
-        RemoteViews views, SharedPreferences preferences, int accentColor, boolean lightMode
-    ) {
-        int[] dayIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
-            R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
-        int[] dateIds = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
-            R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
-        int[] statusIds = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
-            R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
-        Set<String> completed = getCompletedDays(preferences);
-        Calendar day = Calendar.getInstance();
-        day.set(Calendar.HOUR_OF_DAY, 12);
-        day.set(Calendar.MINUTE, 0);
-        day.set(Calendar.SECOND, 0);
-        day.set(Calendar.MILLISECOND, 0);
-        day.add(Calendar.DAY_OF_MONTH, -6);
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        SimpleDateFormat labelFormat = new SimpleDateFormat("EEEEE", Locale.getDefault());
-        int idleColor = lightMode ? Color.parseColor("#7C8498") : Color.parseColor("#9F9AB8");
-        for (int i = 0; i < 7; i++) {
-            String date = dateFormat.format(day.getTime());
-            boolean done = completed.contains(date);
-            String label = labelFormat.format(day.getTime());
-            views.setTextViewText(dayIds[i], label);
-            views.setTextViewText(dateIds[i], String.valueOf(day.get(Calendar.DAY_OF_MONTH)));
-            views.setTextViewText(statusIds[i], done ? "✓" : "·");
-            views.setTextColor(dayIds[i], idleColor);
-            views.setTextColor(dateIds[i], idleColor);
-            views.setTextColor(statusIds[i], done ? accentColor : idleColor);
-            views.setContentDescription(statusIds[i], date + ", " + label
-                + (done ? ", target completed" : ", target not completed"));
-            day.add(Calendar.DAY_OF_MONTH, 1);
-        }
-    }
-
     private static String getInstanceString(SharedPreferences preferences, int appWidgetId, String field, String fallback) {
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
             String key = "instance_" + appWidgetId + "_" + field;
@@ -480,54 +246,119 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return preferences.getString(field, fallback);
     }
 
+    // ------------------------------------------------------------------ saved data
+
+    /** Sunday .. Saturday of the current week, ticked from the saved completed days. */
+    private static void fillWeek(SharedPreferences preferences, MathMasterWidgetRenderer.Data data) {
+        Set<String> completed = getCompletedDays(preferences);
+        Calendar day = Calendar.getInstance();
+        int todayIndex = day.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY;
+        day.set(Calendar.HOUR_OF_DAY, 12);
+        day.set(Calendar.MINUTE, 0);
+        day.set(Calendar.SECOND, 0);
+        day.set(Calendar.MILLISECOND, 0);
+        day.add(Calendar.DAY_OF_MONTH, -todayIndex);
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        for (int i = 0; i < 7; i++) {
+            data.weekDone[i] = completed.contains(dateFormat.format(day.getTime()));
+            day.add(Calendar.DAY_OF_MONTH, 1);
+        }
+        data.todayIndex = Math.max(0, Math.min(6, todayIndex));
+    }
+
+    static MathMasterWidgetRenderer.Data readWidgetData(SharedPreferences preferences) {
+        MathMasterWidgetRenderer.Data data = new MathMasterWidgetRenderer.Data();
+        int targetMinutes = Math.max(1, Math.min(1440, preferences.getInt("targetMinutes", 5)));
+        String storedDay = preferences.getString("dayKey", "");
+        long elapsedSeconds = Math.max(0L, preferences.getLong("elapsedSeconds", 0L));
+        if (!todayKey().equals(storedDay)) elapsedSeconds = 0L;
+        long targetSeconds = targetMinutes * 60L;
+        long progressSeconds = Math.min(elapsedSeconds, targetSeconds);
+        data.targetMinutes = targetMinutes;
+        data.progress = (int) Math.max(0L, Math.min(100L, progressSeconds * 100L / targetSeconds));
+        // Study time stays the real accumulated duration, even after today's target is reached.
+        data.elapsedMinutes = (int) Math.min(Integer.MAX_VALUE, elapsedSeconds / 60L);
+        data.remainingMinutes = (int) Math.max(0L, (targetSeconds - elapsedSeconds + 59L) / 60L);
+        data.streak = Math.max(0, preferences.getInt("currentStreak", 0));
+        fillWeek(preferences, data);
+        String installedVersion = preferences.getString("installedVersionName", "");
+        String latestVersion = preferences.getString("latestVersionName", "");
+        if (preferences.getBoolean("updateAvailable", false) && isSafeVersion(installedVersion) && isSafeVersion(latestVersion)) {
+            data.updateLabel = "UPDATE";
+        }
+        return data;
+    }
+
+    static MathMasterWidgetRenderer.Options buildOptions(
+        String composition, String style, int themeAccent, boolean enabled, Set<String> selected
+    ) {
+        MathMasterWidgetRenderer.Options options = new MathMasterWidgetRenderer.Options();
+        options.composition = composition;
+        options.style = "compact".equals(style) || "minimal".equals(style) ? style : "glass";
+        options.themeAccent = themeAccent;
+        options.enabled = enabled;
+        options.identity = selected.contains("appIdentity");
+        options.progress = selected.contains("progress");
+        options.target = selected.contains("target");
+        options.remaining = selected.contains("remaining");
+        options.studyTime = selected.contains("studyTime");
+        options.streak = selected.contains("streak");
+        options.weekly = selected.contains("weekly");
+        options.quiz = selected.contains("quiz");
+        options.update = selected.contains("updateStatus");
+        return options;
+    }
+
+    private static Set<String> defaultContent() {
+        return new HashSet<>(Arrays.asList(CONTENT_OPTIONS));
+    }
+
+    private static boolean jsonArrayContains(JSONArray array, String value) {
+        for (int i = 0; i < array.length(); i++) {
+            if (value.equals(array.optString(i, ""))) return true;
+        }
+        return false;
+    }
+
     private static Set<String> getSelectedContent(SharedPreferences preferences, int appWidgetId) {
         String json = getInstanceString(preferences, appWidgetId, "contentJson", preferences.getString("contentJson", null));
+        boolean instanceContent = false;
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
             String prefix = "instance_" + appWidgetId + "_";
             String contentKey = prefix + "contentJson";
-            if (preferences.contains(contentKey) && preferences.getInt(prefix + "contentSchemaVersion", 0) < 2) {
-                JSONArray migratedContent;
+            instanceContent = preferences.contains(contentKey);
+            int storedVersion = preferences.getInt(prefix + "contentSchemaVersion", 0);
+            if (instanceContent && storedVersion < CONTENT_SCHEMA_VERSION) {
+                JSONArray migrated;
                 try {
-                    migratedContent = new JSONArray(preferences.getString(contentKey, "[]"));
+                    migrated = new JSONArray(preferences.getString(contentKey, "[]"));
                 } catch (JSONException ignored) {
-                    migratedContent = new JSONArray();
-                    migratedContent.put("appIdentity");
-                    migratedContent.put("target");
-                    migratedContent.put("progress");
-                    migratedContent.put("remaining");
-                    migratedContent.put("studyTime");
-                    migratedContent.put("streak");
-                    migratedContent.put("weekly");
-                    migratedContent.put("updateStatus");
+                    migrated = new JSONArray();
+                    for (String option : CONTENT_OPTIONS) migrated.put(option);
                 }
-                boolean hasWeekly = false;
-                for (int i = 0; i < migratedContent.length(); i++) {
-                    if ("weekly".equals(migratedContent.optString(i, ""))) hasWeekly = true;
-                }
-                if (!hasWeekly && migratedContent.length() < 32) migratedContent.put("weekly");
+                if (storedVersion < 2 && !jsonArrayContains(migrated, "weekly") && migrated.length() < 32) migrated.put("weekly");
+                if (!jsonArrayContains(migrated, "quiz") && migrated.length() < 32) migrated.put("quiz");
                 preferences.edit()
-                    .putString(contentKey, migratedContent.toString())
-                    .putInt(prefix + "contentSchemaVersion", 2)
+                    .putString(contentKey, migrated.toString())
+                    .putInt(prefix + "contentSchemaVersion", CONTENT_SCHEMA_VERSION)
                     .apply();
-                json = migratedContent.toString();
+                json = migrated.toString();
             }
         }
-        if (json == null) {
-            return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"));
-        }
+        if (json == null) return defaultContent();
         Set<String> selected = new HashSet<>();
         try {
             JSONArray array = new JSONArray(json);
             for (int i = 0; i < array.length(); i++) {
                 String item = array.optString(i, "");
-                if (Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus").contains(item)) {
-                    selected.add(item);
-                }
+                if (Arrays.asList(CONTENT_OPTIONS).contains(item)) selected.add(item);
             }
         } catch (JSONException ignored) {
-            return new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "updateStatus"));
+            return defaultContent();
         }
         if (selected.isEmpty()) selected.add("progress");
+        // The web app's own (non-instance) list does not know the quiz tile, so keep it on there.
+        if (!instanceContent) selected.add("quiz");
         return selected;
     }
 
@@ -540,236 +371,118 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Calendar.getInstance().getTime());
     }
 
+    // ------------------------------------------------------------------ rendering
+
+    /**
+     * Draws the widget for a launcher size. variantCount is how many sizes the launcher asked for,
+     * so the combined bitmap memory of one RemoteViews stays well inside Android's limit.
+     */
+    static Bitmap renderWidgetBitmap(
+        Context context, MathMasterWidgetRenderer.Options options, MathMasterWidgetRenderer.Data data,
+        int widthDp, int heightDp, int variantCount
+    ) {
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        float density = metrics.density > 0f ? metrics.density : 2.75f;
+        float widthPx = Math.max(1, widthDp) * density;
+        float heightPx = Math.max(1, heightDp) * density;
+        long screenPixels = (long) metrics.widthPixels * (long) metrics.heightPixels;
+        long budget = Math.min(1200000L, Math.max(300000L, (long) (screenPixels * 0.75d / Math.max(1, variantCount))));
+        float scale = 1f;
+        if ((double) widthPx * (double) heightPx > budget) {
+            scale = (float) Math.sqrt(budget / ((double) widthPx * (double) heightPx));
+        }
+        int width = Math.max(48, Math.round(widthPx * scale));
+        int height = Math.max(32, Math.round(heightPx * scale));
+        return MathMasterWidgetRenderer.render(getWidgetFonts(context), data, options, width, height, density * scale);
+    }
+
+    /** Live preview for the configuration screen: same renderer, saved data, the user's unsaved choices. */
+    public static Bitmap renderConfigurationPreview(
+        Context context, String composition, String style, String theme, Set<String> selected, int widthDp, int heightDp
+    ) {
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        String resolved = normalizeComposition(composition);
+        if ("auto".equals(resolved)) resolved = MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
+        MathMasterWidgetRenderer.Options options = buildOptions(
+            resolved, style, themeAccent(theme), preferences.getBoolean("enabled", true), selected);
+        return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
+    }
+
+    private static String describe(MathMasterWidgetRenderer.Options options, MathMasterWidgetRenderer.Data data) {
+        if (!options.enabled) return "Math Master widgets are turned off in app settings.";
+        StringBuilder text = new StringBuilder("Math Master.");
+        if (options.progress) text.append(' ').append(data.progress).append("% of today's target completed.");
+        if (options.target) {
+            text.append(' ').append(Math.min(data.elapsedMinutes, data.targetMinutes)).append(" of ")
+                .append(data.targetMinutes).append(" minutes studied today.");
+        } else if (options.studyTime) {
+            text.append(' ').append(data.elapsedMinutes).append(" minutes studied today.");
+        }
+        if (options.remaining) {
+            text.append(data.progress >= 100 ? " Daily target complete." : " " + data.remainingMinutes + " minutes left today.");
+        }
+        if (options.streak) text.append(' ').append(data.streak).append(" day streak.");
+        if (options.weekly) {
+            int done = 0;
+            for (boolean day : data.weekDone) if (day) done++;
+            text.append(' ').append(done).append(" of 7 days completed this week.");
+        }
+        if (options.update && data.updateLabel != null) text.append(" An app update is available.");
+        return text.toString();
+    }
+
     public static RemoteViews createViews(Context context, int appWidgetId) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             Bundle options = getWidgetOptions(context, appWidgetId);
             ArrayList<SizeF> availableSizes = options.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES);
             if (availableSizes != null && !availableSizes.isEmpty()) {
-                Map<SizeF, RemoteViews> viewsBySize = new LinkedHashMap<>();
+                List<SizeF> validSizes = new ArrayList<>();
                 for (SizeF size : availableSizes) {
                     if (size == null
                         || Float.isNaN(size.getWidth()) || Float.isInfinite(size.getWidth())
                         || Float.isNaN(size.getHeight()) || Float.isInfinite(size.getHeight())
                         || size.getWidth() <= 0f || size.getHeight() <= 0f) continue;
+                    validSizes.add(size);
+                }
+                Map<SizeF, RemoteViews> viewsBySize = new LinkedHashMap<>();
+                for (SizeF size : validSizes) {
                     int widthDp = Math.max(1, Math.round(size.getWidth()));
                     int heightDp = Math.max(1, Math.round(size.getHeight()));
-                    viewsBySize.put(size, createViewsForSize(context, appWidgetId, widthDp, heightDp));
+                    viewsBySize.put(size, createViewsForSize(context, appWidgetId, widthDp, heightDp, validSizes.size()));
                 }
                 if (!viewsBySize.isEmpty()) return new RemoteViews(viewsBySize);
             }
         }
         return createViewsForSize(context, appWidgetId,
-            getWidgetWidthDp(context, appWidgetId), getWidgetHeightDp(context, appWidgetId));
+            getWidgetWidthDp(context, appWidgetId), getWidgetHeightDp(context, appWidgetId), 1);
     }
 
-    private static RemoteViews createViewsForSize(Context context, int appWidgetId, int widthDp, int heightDp) {
-        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
-        String composition = resolveComposition(preferences, appWidgetId, widthDp, heightDp);
-        int sizeClass = getSizeClass(widthDp, heightDp);
-        int layoutId = getWidgetLayoutForDimensions(widthDp, heightDp, composition);
-        return createViewsForLayout(context, appWidgetId, layoutId, widthDp, heightDp, sizeClass, composition);
-    }
-
-    private static RemoteViews createViewsForLayout(
-        Context context, int appWidgetId, int layoutId, int widthDp, int heightDp, int sizeClass, String composition
+    private static RemoteViews createViewsForSize(
+        Context context, int appWidgetId, int widthDp, int heightDp, int variantCount
     ) {
         SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
-        int targetMinutes = Math.max(1, Math.min(1440, preferences.getInt("targetMinutes", 5)));
-        String storedDay = preferences.getString("dayKey", "");
-        long elapsedSeconds = Math.max(0L, preferences.getLong("elapsedSeconds", 0L));
-        if (!todayKey().equals(storedDay)) elapsedSeconds = 0L;
+        int sizeWidthDp = widthDp > 0 ? widthDp : 320;
+        int sizeHeightDp = heightDp > 0 ? heightDp : 146;
+        String composition = resolveComposition(preferences, appWidgetId, sizeWidthDp, sizeHeightDp);
+        String style = getInstanceString(preferences, appWidgetId, "style", "glass");
+        String theme = getInstanceString(preferences, appWidgetId, "theme", "app");
+        boolean enabled = preferences.getBoolean("enabled", true);
+        MathMasterWidgetRenderer.Options options = buildOptions(
+            composition, style, themeAccent(theme), enabled, getSelectedContent(preferences, appWidgetId));
+        MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
 
-        long targetSeconds = targetMinutes * 60L;
-        long progressSeconds = Math.min(elapsedSeconds, targetSeconds);
-        int progress = (int) Math.max(0L, Math.min(100L, progressSeconds * 100L / targetSeconds));
-        // Study time remains the actual accumulated duration, even after today's target is reached.
-        int elapsedMinutes = (int) Math.min(Integer.MAX_VALUE, elapsedSeconds / 60L);
-        int remainingMinutes = (int) Math.max(0L, (targetSeconds - elapsedSeconds + 59L) / 60L);
-        int streak = Math.max(0, preferences.getInt("currentStreak", 0));
-        Set<String> selected = getSelectedContent(preferences, appWidgetId);
-
-        RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
-        boolean widgetsEnabled = preferences.getBoolean("enabled", true);
-        String mode = preferences.getString("mode", "dark");
-        String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "blur"));
-        int accentColor = Color.parseColor("#35CDE2");
-        boolean targetComplete = progress >= 100;
-        boolean lightMode = "light".equals(mode);
-        int backgroundResource = "transparent".equals(style)
-            ? R.drawable.math_master_home_widget_background
-            : R.drawable.math_master_home_widget_background_blur;
-        views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);
-        // Keep transparent drawable outlines so launchers retain safe rounded clipping without visible card fills.
-        views.setInt(R.id.widget_streak_container, "setBackgroundResource", R.drawable.math_master_widget_panel);
-        views.setInt(R.id.widget_update_badge, "setBackgroundResource", R.drawable.math_master_home_widget_badge);
-        // Reference design uses the wallpaper as the visual background; decorative artwork is disabled.
-        views.setViewVisibility(R.id.widget_artwork, View.GONE);
-        views.setViewVisibility(R.id.widget_artwork_overlay, View.GONE);
-        boolean compactLayout = sizeClass == 0;
-        boolean wideLayout = sizeClass == 2;
-        float measuredWidthDp = widthDp > 0 ? widthDp : 220f;
-        float measuredHeightDp = heightDp > 0 ? heightDp : 150f;
-        float fontScale = Math.max(0.92f, Math.min(1.30f,
-            Math.min(measuredWidthDp / 220f, measuredHeightDp / 155f)));
-        int paddingDp = "minimal_progress".equals(composition) ? 3
-            : ("extra_wide_weekly".equals(composition) ? 4 : (widthDp > 0 && widthDp < 200 ? 5 : (widthDp >= 320 ? 8 : 7)));
-        int paddingPx = (int) (paddingDp * context.getResources().getDisplayMetrics().density + 0.5f);
-        views.setViewPadding(R.id.widget_content, paddingPx, paddingPx, paddingPx, paddingPx);
-
-        float percentBase = compactLayout ? 27f : (wideLayout ? 36f : 38f);
-        views.setTextViewTextSize(R.id.widget_title_text, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 9.5f : (wideLayout ? 11.5f : 12f), fontScale,
-                compactLayout ? 9f : (wideLayout ? 10.5f : 11f), compactLayout ? 12f : (wideLayout ? 13f : 13.5f)));
-        views.setTextViewTextSize(R.id.widget_progress_percent, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(percentBase, fontScale,
-                compactLayout ? 24f : (wideLayout ? 32f : 34f), compactLayout ? 32f : (wideLayout ? 44f : 46f)));
-        views.setTextViewTextSize(R.id.widget_target_value, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 16f : (wideLayout ? 17.5f : 18.5f), fontScale,
-                compactLayout ? 14f : (wideLayout ? 15.5f : 16.5f), compactLayout ? 19f : (wideLayout ? 21f : 22f)));
-        views.setTextViewTextSize(R.id.widget_target_label, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 10.5f : (wideLayout ? 12f : 12.5f), fontScale,
-                compactLayout ? 10f : (wideLayout ? 11f : 11.5f), compactLayout ? 13f : (wideLayout ? 14f : 14.5f)));
-        views.setTextViewTextSize(R.id.widget_study_time_text, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 11.5f : (wideLayout ? 12.5f : 13.5f), fontScale,
-                compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 15f : 16f)));
-        views.setTextViewTextSize(R.id.widget_remaining_text, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 11.5f : (wideLayout ? 12.5f : 13.5f), fontScale,
-                compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 15f : 16f)));
-        views.setTextViewTextSize(R.id.widget_streak_text, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 11.5f : (wideLayout ? 12.5f : 13.5f), fontScale,
-                compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 15f : 16f)));
-        views.setTextViewTextSize(R.id.widget_update_text, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 9f : (wideLayout ? 9.5f : 10.5f), fontScale,
-                compactLayout ? 8.5f : (wideLayout ? 9f : 9.5f), compactLayout ? 10.5f : (wideLayout ? 11.5f : 12f)));
-        views.setTextViewTextSize(R.id.widget_week_title, TypedValue.COMPLEX_UNIT_SP,
-            responsiveTextSize(compactLayout ? 8.5f : (wideLayout ? 9.5f : 10f), fontScale,
-                compactLayout ? 8f : (wideLayout ? 8.5f : 9.5f), compactLayout ? 10f : (wideLayout ? 11f : 12f)));
-
-        int[] dayLabelIds = { R.id.widget_week_day_0, R.id.widget_week_day_1, R.id.widget_week_day_2,
-            R.id.widget_week_day_3, R.id.widget_week_day_4, R.id.widget_week_day_5, R.id.widget_week_day_6 };
-        int[] dayDateIds = { R.id.widget_week_date_0, R.id.widget_week_date_1, R.id.widget_week_date_2,
-            R.id.widget_week_date_3, R.id.widget_week_date_4, R.id.widget_week_date_5, R.id.widget_week_date_6 };
-        int[] dayStatusIds = { R.id.widget_week_status_0, R.id.widget_week_status_1, R.id.widget_week_status_2,
-            R.id.widget_week_status_3, R.id.widget_week_status_4, R.id.widget_week_status_5, R.id.widget_week_status_6 };
-        for (int i = 0; i < 7; i++) {
-            views.setTextViewTextSize(dayLabelIds[i], TypedValue.COMPLEX_UNIT_SP,
-                responsiveTextSize(compactLayout ? 9f : (wideLayout ? 9.5f : 10f), fontScale,
-                    compactLayout ? 8.5f : (wideLayout ? 9f : 9.5f), compactLayout ? 10.5f : (wideLayout ? 11f : 12f)));
-            views.setTextViewTextSize(dayDateIds[i], TypedValue.COMPLEX_UNIT_SP,
-                responsiveTextSize(compactLayout ? 8.5f : (wideLayout ? 8.5f : 9f), fontScale,
-                    compactLayout ? 8f : (wideLayout ? 8f : 8.5f), compactLayout ? 9.5f : (wideLayout ? 9.5f : 10.5f)));
-            views.setTextViewTextSize(dayStatusIds[i], TypedValue.COMPLEX_UNIT_SP,
-                responsiveTextSize(compactLayout ? 12f : (wideLayout ? 12.5f : 13.5f), fontScale,
-                    compactLayout ? 10.5f : (wideLayout ? 11.5f : 12.5f), compactLayout ? 14f : (wideLayout ? 14.5f : 15.5f)));
+        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.math_master_home_widget);
+        try {
+            views.setImageViewBitmap(R.id.widget_canvas,
+                renderWidgetBitmap(context, options, data, sizeWidthDp, sizeHeightDp, variantCount));
+        } catch (RuntimeException | OutOfMemoryError ignored) {
+            // Keep the static preview image rather than losing the widget if drawing ever fails.
         }
-        views.setTextColor(R.id.widget_progress_percent, accentColor);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            views.setColorStateList(R.id.widget_progress_bar, "setProgressTintList", ColorStateList.valueOf(accentColor));
-        }
-        if (lightMode) {
-            views.setTextColor(R.id.widget_title_text, Color.parseColor("#253047"));
-            views.setTextColor(R.id.widget_target_label, Color.parseColor("#536078"));
-            views.setTextColor(R.id.widget_target_value, Color.parseColor("#202A3D"));
-            views.setTextColor(R.id.widget_study_time_text, Color.parseColor("#475569"));
-            views.setTextColor(R.id.widget_remaining_text, Color.parseColor("#475569"));
-            views.setTextColor(R.id.widget_streak_text, Color.parseColor("#805A11"));
-            views.setTextColor(R.id.widget_week_title, Color.parseColor("#526078"));
-            views.setTextColor(R.id.widget_update_text, Color.parseColor("#526078"));
-            views.setTextColor(R.id.widget_update_badge, accentColor);
-            views.setTextColor(R.id.widget_disabled_text, accentColor);
-        } else {
-            views.setTextColor(R.id.widget_progress_percent, accentColor);
-            views.setTextColor(R.id.widget_target_label, Color.parseColor("#AFAAC7"));
-            views.setTextColor(R.id.widget_week_title, Color.parseColor("#9F9AB8"));
-        }
-        views.setTextViewText(R.id.widget_progress_percent, progress + "%");
-        views.setTextViewText(R.id.widget_target_value, Math.min(elapsedMinutes, targetMinutes) + " / " + targetMinutes + " min");
-        views.setTextViewText(R.id.widget_study_time_text, elapsedMinutes + " min studied");
-        views.setProgressBar(R.id.widget_progress_bar, 100, progress, false);
-        views.setTextViewText(R.id.widget_remaining_text,
-            targetComplete ? "✓ Daily target complete!" : remainingMinutes + " min left today");
-        if (targetComplete) views.setTextColor(R.id.widget_remaining_text, accentColor);
-        views.setTextViewText(R.id.widget_streak_text, "🔥 " + streak + "-day streak");
-        bindWeekProgress(views, preferences, accentColor, lightMode);
+        views.setContentDescription(R.id.widget_canvas, describe(options, data));
 
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
         boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
-        String installedVersion = preferences.getString("installedVersionName", "");
         String latestVersion = preferences.getString("latestVersionName", "");
-        if (updateAvailable && isSafeVersion(installedVersion) && isSafeVersion(latestVersion)) {
-            views.setViewVisibility(R.id.widget_update_badge, android.view.View.VISIBLE);
-            views.setTextViewText(R.id.widget_update_badge, "UPDATE");
-            views.setTextViewText(R.id.widget_update_text, "New version available · v" + latestVersion);
-        } else {
-            views.setViewVisibility(R.id.widget_update_badge, android.view.View.GONE);
-            if (hasChecked && isSafeVersion(installedVersion)) {
-                views.setTextViewText(R.id.widget_update_text, "v" + installedVersion + " · You're up to date");
-            } else {
-                views.setTextViewText(R.id.widget_update_text, "Updates refresh when the app opens");
-            }
-        }
-
-        boolean showIdentity = widgetsEnabled && selected.contains("appIdentity");
-        boolean showProgress = widgetsEnabled && selected.contains("progress");
-        boolean showTarget = widgetsEnabled && selected.contains("target");
-        boolean showStudyTime = widgetsEnabled && selected.contains("studyTime");
-        boolean showRemaining = widgetsEnabled && selected.contains("remaining");
-        boolean showStreak = widgetsEnabled && selected.contains("streak");
-        boolean showWeekly = widgetsEnabled && selected.contains("weekly");
-        boolean showUpdateStatus = widgetsEnabled && selected.contains("updateStatus");
-        boolean useProgressRing = showProgress && compositionUsesProgressRing(composition);
-        if (useProgressRing) {
-            views.setImageViewBitmap(R.id.widget_progress_ring, createProgressRing(context, progress, accentColor));
-            views.setContentDescription(R.id.widget_progress_ring, progress + "% completion progress");
-        }
-        // A weighted spacer pushed metrics to opposite ends of the card on some launchers,
-        // leaving a large empty band through the middle. Keep the content group compact and balanced.
-        views.setViewVisibility(R.id.widget_flex_spacer, View.GONE);
-        views.setInt(R.id.widget_content, "setGravity", Gravity.CENTER_VERTICAL);
-        views.setViewVisibility(R.id.widget_header_row, showIdentity ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_target_label, showTarget ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_target_value, showTarget ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_progress_percent, showProgress && !useProgressRing ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_progress_bar, showProgress && !useProgressRing ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_progress_ring, useProgressRing ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_study_time_text, showStudyTime ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_remaining_text, showRemaining ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_streak_container, showStreak ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_streak_text, showStreak ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_week_section, showWeekly ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_week_title, showWeekly ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_week_strip, showWeekly ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_primary_row,
-            (showProgress || showTarget) ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_study_remaining_row,
-            (showStudyTime || showRemaining) ? View.VISIBLE : View.GONE);
-        if (wideLayout) {
-            boolean showWideLowerRow = showStudyTime || showRemaining || showStreak || showWeekly;
-            views.setViewVisibility(R.id.widget_lower_row,
-                showWideLowerRow ? View.VISIBLE : View.GONE);
-            views.setViewVisibility(R.id.widget_side_column,
-                (showStreak || showWeekly) ? View.VISIBLE : View.GONE);
-        }
-        views.setViewVisibility(R.id.widget_update_text, showUpdateStatus ? View.VISIBLE : View.GONE);
-        if (!showUpdateStatus) views.setViewVisibility(R.id.widget_update_badge, View.GONE);
-        views.setViewVisibility(R.id.widget_disabled_text, widgetsEnabled ? View.GONE : View.VISIBLE);
-        if (!widgetsEnabled) {
-            views.setViewVisibility(R.id.widget_target_label, View.GONE);
-            views.setViewVisibility(R.id.widget_progress_percent, View.GONE);
-            views.setViewVisibility(R.id.widget_progress_bar, View.GONE);
-            views.setViewVisibility(R.id.widget_progress_ring, View.GONE);
-            views.setViewVisibility(R.id.widget_target_value, View.GONE);
-            views.setViewVisibility(R.id.widget_study_time_text, View.GONE);
-            views.setViewVisibility(R.id.widget_remaining_text, View.GONE);
-            views.setViewVisibility(R.id.widget_streak_container, View.GONE);
-            views.setViewVisibility(R.id.widget_streak_text, View.GONE);
-            views.setViewVisibility(R.id.widget_week_section, View.GONE);
-            views.setViewVisibility(R.id.widget_week_title, View.GONE);
-            views.setViewVisibility(R.id.widget_week_strip, View.GONE);
-            views.setViewVisibility(R.id.widget_update_text, View.GONE);
-            views.setViewVisibility(R.id.widget_update_badge, View.GONE);
-        }
-
         Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
         if (launchIntent != null) {
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);

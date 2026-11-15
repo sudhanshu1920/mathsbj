@@ -2,7 +2,6 @@ import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeRemoteViewsLayout } from './configure-android-notifications.mjs';
-import { configureAndroidStudyMode } from './configure-android-study-mode.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const NATIVE_ROOT = path.resolve(SCRIPT_DIR, '../android-native');
@@ -10,16 +9,27 @@ const PACKAGE_DIR = path.join(NATIVE_ROOT, 'com/sudhanshu/mathsbj');
 const PACKAGE_PATH = 'com.sudhanshu.mathsbj';
 const NATIVE_JAVA_FILES = [
   'MathMasterHomeWidgetProvider.java',
+  'MathMasterWidgetRenderer.java',
   'MathMasterWidgetConfigActivity.java',
   'DailyTargetReminderPlugin.java',
   'DailyTargetReminderReceiver.java',
   'DailyTargetReminderBootReceiver.java',
 ];
+// 'drawable' no longer exists in the source tree; it is still listed so a checkout that kept old files copies them consistently.
 const RESOURCE_DIRS = ['drawable', 'drawable-nodpi', 'layout', 'values', 'xml', 'xml-v31'];
+// Bundled widget fonts (Inter, OFL) live in app/src/main/assets and are read with Typeface.createFromAsset.
+const ASSET_DIRS = ['fonts'];
 
 async function copyDirectory(source, destination, resourcePath = '') {
+  let entries;
+  try {
+    entries = await readdir(source, { withFileTypes: true });
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return;
+    throw error;
+  }
   await mkdir(destination, { recursive: true });
-  for (const entry of await readdir(source, { withFileTypes: true })) {
+  for (const entry of entries) {
     const sourcePath = path.join(source, entry.name);
     const destinationPath = path.join(destination, entry.name);
     const relativePath = path.posix.join(resourcePath, entry.name);
@@ -123,6 +133,15 @@ export async function configureAndroidWidgets(androidRoot) {
     );
   }
 
+  const assetTarget = path.join(root, 'app/src/main/assets');
+  for (const assetDirectory of ASSET_DIRS) {
+    await copyDirectory(
+      path.join(NATIVE_ROOT, 'assets', assetDirectory),
+      path.join(assetTarget, assetDirectory),
+      assetDirectory,
+    );
+  }
+
   const activityPath = path.join(javaTarget, 'MainActivity.java');
   const mainActivity = await readFile(activityPath, 'utf8');
   await writeFile(activityPath, ensureWidgetPluginRegistration(mainActivity));
@@ -133,11 +152,11 @@ export async function configureAndroidWidgets(androidRoot) {
   manifest = ensureApplicationComponents(manifest);
   await writeFile(manifestPath, manifest);
 
-  // Keep Study Mode native registration in the same generated-project setup
-  // used by both release APK and artifact-only APK workflows.
-  await configureAndroidStudyMode(root);
-
-  return { javaFiles: NATIVE_JAVA_FILES.length, resourceDirectories: RESOURCE_DIRS.length };
+  return {
+    javaFiles: NATIVE_JAVA_FILES.length,
+    resourceDirectories: RESOURCE_DIRS.length,
+    assetDirectories: ASSET_DIRS.length,
+  };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

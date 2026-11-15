@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-05 — Neon-glass home-screen widgets matching the reference designs
+
+- Redraw all seven widget compositions (Hero Wide, Compact Green, Square Math Bot, Medium Study, Square Cosmic, Extra-Wide Weekly, Minimal Progress) to follow the supplied Math Master reference images: dark glass cards with neon edge light, glowing gradient progress ring, target panel with progress bar, streak with flame, weekly Sunday-Saturday strip, and the Upcoming Quiz tile.
+- Add `MathMasterWidgetRenderer`, which draws each composition with Canvas into one bitmap per launcher size, so blur, glow and gradient rings no longer depend on the launcher. The provider keeps its preferences, size handling, tap/update behaviour and sync hooks.
+- Replace the 23 per-composition RemoteViews layouts, 25 drawables and the 400 x 133 artwork atlas with one canvas layout and a rendered picker preview (`math_master_widget_preview.webp`); the widget now defaults to 4 x 2.
+- Bundle Inter (OFL, Latin subset, with its licence) in `android-native/assets/fonts`; fall back to the system font if an asset cannot be loaded.
+- The Customize Your Widget screen now previews the real renderer output at the widget's own launcher size and adds an Upcoming Quiz option. Content schema is now 3; older selections receive the tile once, and the backup/restore validators (TypeScript and Java) accept the new key and schema.
+- Add `tools/widget-preview` (desktop Java2D stand-in for `android.graphics` plus a fake Context) to render every design and settings combination without a phone, and rewrite `scripts/android-widget-layout.test.mjs` for the new structure and add it to `npm test`.
+- Behaviour notes: the widget is always dark glass (app light/dark mode and app accent colour no longer tint it; "Match App Theme" keeps each design's reference colours); the week strip shows the current calendar week instead of the last seven days; the Upcoming Quiz tile is a fixed shortcut label, not live data.
+
+Verified here: all node tests (18) and the architecture regression check pass; the renderer, provider and configuration screen compile against Android API stubs, and every composition was drawn through the real provider on desktop. Not verified: a Gradle build, the TypeScript/vitest suites, and rendering on a physical launcher.
+
 ## 2026-10-25 — Math Space Shooter moving answer targets
 
 - Replace the fixed answer row with independently animated answer targets that enter from above, drift and reverse horizontally within their lanes, and respawn before overlapping the player ship.

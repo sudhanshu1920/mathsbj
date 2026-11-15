@@ -1,250 +1,191 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { normalizeRemoteViewsLayout } from "./configure-android-notifications.mjs";
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtemp, mkdir, readFile, rm, writeFile, readdir } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { configureAndroidWidgets } from './configure-android-widgets.mjs';
 
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const provider = read("android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java");
-const bootReceiver = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java");
-const configureAndroid = read("scripts/configure-android-widgets.mjs");
-const legacyWidgetInfo = read("android-native/res/xml/math_master_home_widget_info.xml");
-const android31WidgetInfo = read("android-native/res/xml-v31/math_master_home_widget_info.xml");
-const widgetProviderFiles = readdirSync(new URL("../android-native/com/sudhanshu/mathsbj/", import.meta.url))
-  .filter((name) => name.endsWith("WidgetProvider.java"));
-const nativePlugin = read("android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java");
-const bridge = read("src/lib/dailyTargetReminders.ts");
-const config = read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java");
-const settings = read("src/lib/settings.ts");
-const settingsPanel = read("src/components/SettingsPanel.tsx");
-const compositionIds = [
-  "hero_wide", "compact_green", "square_math_bot", "medium_study",
-  "square_cosmic", "extra_wide_weekly", "minimal_progress",
+const ROOT = new URL('../', import.meta.url);
+const read = (relative) => readFileSync(new URL(relative, ROOT), 'utf8');
+const exists = (relative) => existsSync(new URL(relative, ROOT));
+const list = (relative) => readdirSync(new URL(relative, ROOT)).sort();
+
+const PROVIDER = 'android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java';
+const RENDERER = 'android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java';
+const CONFIG = 'android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java';
+const BACKUP_PLUGIN = 'android-native/com/sudhanshu/mathsbj/BackupRestorePlugin.java';
+
+const COMPOSITIONS = [
+  'hero_wide', 'compact_green', 'square_math_bot', 'medium_study',
+  'square_cosmic', 'extra_wide_weekly', 'minimal_progress',
 ];
-const sizeVariants = ["compact", "regular", "wide"];
-const compositionLayoutPaths = compositionIds.flatMap((composition) =>
-  sizeVariants.map((size) => `android-native/res/layout/math_master_widget_${composition}_${size}.xml`));
-const legacyLayoutPaths = [
-  "android-native/res/layout/math_master_home_widget.xml",
-  "android-native/res/layout/math_master_home_widget_compact.xml",
-  "android-native/res/layout/math_master_home_widget_wide.xml",
+const CONTENT_OPTIONS = [
+  'appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'quiz', 'updateStatus',
 ];
-const layouts = [...legacyLayoutPaths, ...compositionLayoutPaths].map(read);
 
-test("all responsive layouts preserve selectable fields and remove the launcher logo", () => {
-  const ids = [
-    "widget_header_row",
-    "widget_target_label",
-    "widget_target_value",
-    "widget_progress_percent",
-    "widget_progress_bar",
-    "widget_flex_spacer",
-    "widget_artwork",
-    "widget_artwork_overlay",
-    "widget_progress_ring",
-    "widget_content",
-    "widget_study_time_text",
-    "widget_remaining_text",
-    "widget_streak_text",
-    "widget_streak_container",
-    "widget_week_section",
-    "widget_week_title",
-    "widget_week_strip",
-    "widget_update_text",
-    "widget_disabled_text",
-  ];
-  for (const layout of layouts) {
-    for (const id of ids) assert.match(layout, new RegExp(`@\\+id/${id}\\b`), `missing ${id}`);
-    for (let i = 0; i < 7; i++) {
-      assert.match(layout, new RegExp(`@\\+id/widget_week_day_${i}\\b`));
-      assert.match(layout, new RegExp(`@\\+id/widget_week_date_${i}\\b`));
-      assert.match(layout, new RegExp(`@\\+id/widget_week_status_${i}\\b`));
-    }
-    assert.equal(layout.includes("@mipmap/ic_launcher"), false);
-    assert.doesNotMatch(normalizeRemoteViewsLayout(layout), /<View\b/, "packaged RemoteViews layouts must not use plain View classes");
-    assert.equal(layout.includes("widget_progress_text"), false);
-  }
-  assert.match(layouts[2], /widget_lower_row[\s\S]*android:orientation="horizontal"/);
-  assert.match(layouts[2], /widget_study_remaining_row[\s\S]*widget_side_column/);
-});
+function quotedList(source, pattern) {
+  const match = source.match(pattern);
+  assert.ok(match, `Could not find ${pattern}`);
+  return [...match[1].matchAll(/"([A-Za-z_]+)"|'([A-Za-z_]+)'/g)].map((item) => item[1] ?? item[2]);
+}
 
-test("selected content is not silently suppressed at compact sizes", () => {
-  assert.match(provider, /boolean showIdentity = widgetsEnabled && selected\.contains\("appIdentity"\);/);
-  assert.match(provider, /boolean showRemaining = widgetsEnabled && selected\.contains\("remaining"\);/);
-  assert.match(provider, /boolean showStreak = widgetsEnabled && selected\.contains\("streak"\);/);
-  assert.match(provider, /boolean showWeekly = widgetsEnabled && selected\.contains\("weekly"\);/);
-  assert.match(provider, /boolean showUpdateStatus = widgetsEnabled && selected\.contains\("updateStatus"\);/);
-  assert.match(provider, /setViewVisibility\(R\.id\.widget_week_section, showWeekly \? View\.VISIBLE : View\.GONE\)/);
-  assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_bar, showProgress && !useProgressRing \? View\.VISIBLE : View\.GONE\)/);
-  assert.match(provider, /setViewVisibility\(R\.id\.widget_progress_ring, useProgressRing \? View\.VISIBLE : View\.GONE\)/);
-  assert.match(provider, /R\.layout\.math_master_widget_minimal_progress_compact/);
-  assert.match(provider, /R\.layout\.math_master_widget_hero_wide_wide/);
-  assert.equal(provider.includes("showProgress && !smallWidget"), false);
-  assert.equal(provider.includes('selected.contains("remaining") &&'), false);
-  assert.match(provider, /OPTION_APPWIDGET_SIZES/);
-  assert.match(provider, /new RemoteViews\(viewsBySize\)/);
-  assert.match(provider, /getWidgetLayoutForDimensions\(widthDp, heightDp, composition\)/);
-  assert.match(provider, /heightDp > 0 && heightDp < 135/);
-  assert.match(provider, /isTallWidget\(widthDp, heightDp\) \|\| isWideWidget\(widthDp, heightDp\)/);
-  assert.match(config, /"transparent", "Full Transparent"/);
-  assert.match(config, /"blur", "Transparent Blur"/);
-  assert.match(provider, /normalizeWidgetStyle\(getInstanceString\(preferences, appWidgetId, "style", "blur"\)\)/);
-  assert.doesNotMatch(config, /PREMIUM_THEMES|Random Premium Theme|themeGroup/);
-});
-
-test("weekly tracker is selectable through the native widget configuration", () => {
-  assert.match(config, /\{\"weekly\", \"Weekly Target Tracker\"\}/);
-  assert.match(config, /selected\.contains\("weekly"\)/);
-  assert.match(provider, /selected\.contains\("weekly"\)/);
-  assert.match(provider, /setViewVisibility\(R\.id\.widget_week_section, showWeekly \? View\.VISIBLE : View\.GONE\)/);
-  assert.match(provider, /contentSchemaVersion/);
-  assert.match(provider, /migratedContent\.put\("weekly"\)/);
-});
-
-test("weekly checkmarks use the existing daily streak data and validate native input", () => {
-  assert.match(bridge, /streak\.days\[dateKey\]\?\.completed === true/);
-  assert.match(bridge, /const completedDaysJson = JSON\.stringify\(/);
-  assert.match(bridge, /return streak\.days\[dateKey\]\?\.completed === true \? dateKey : null/);
-  assert.match(nativePlugin, /sanitizeCompletedDaysJson\(completedDaysJson\)/);
-  assert.match(nativePlugin, /raw\.length\(\) > 512/);
-  assert.match(nativePlugin, /Math\.min\(incoming\.length\(\), 7\)/);
-  assert.match(nativePlugin, /formatter\.setLenient\(false\)/);
-  assert.match(nativePlugin, /firstAllowed\.add\(Calendar\.DAY_OF_MONTH, -6\)/);
-  assert.match(nativePlugin, /candidate\.before\(firstAllowed\) \|\| candidate\.after\(today\)/);
-  assert.match(nativePlugin, /seen\.contains\(date\)/);
-  assert.match(nativePlugin, /MathMasterHomeWidgetProvider\.syncProgressSnapshot/);
-  assert.match(provider, /getCompletedDays\(SharedPreferences preferences\)/);
-  assert.match(provider, /views\.setTextViewText\(statusIds\[i\], done \? "✓" : "·"\)/);
-  assert.match(provider, /views\.setTextViewText\(dateIds\[i\], String\.valueOf\(day\.get\(Calendar\.DAY_OF_MONTH\)\)\)/);
-  assert.match(provider, /date \+ ", " \+ label/);
-});
-
-test("widgets expose only full-transparent and translucent-glass background effects", () => {
-  const transparent = read("android-native/res/drawable/math_master_home_widget_background.xml");
-  const blur = read("android-native/res/drawable/math_master_home_widget_background_blur.xml");
-  const panel = read("android-native/res/drawable/math_master_widget_panel.xml");
-  const badge = read("android-native/res/drawable/math_master_home_widget_badge.xml");
-  assert.match(transparent, /#00000000/);
-  assert.match(blur, /#6639434D/);
-  assert.match(blur, /#28FFFFFF/);
-  assert.match(panel, /#00000000/);
-  assert.match(badge, /#00000000/);
-  assert.match(provider, /normalizeWidgetStyle\(getInstanceString\(preferences, appWidgetId, "style", "blur"\)\)/);
-  assert.match(provider, /R\.drawable\.math_master_home_widget_background/);
-  assert.doesNotMatch(provider, /android\.R\.color\.transparent/);
-  assert.match(provider, /R\.drawable\.math_master_home_widget_background_blur/);
-  assert.match(provider, /views\.setViewVisibility\(R\.id\.widget_artwork, View\.GONE\)/);
-  assert.match(provider, /views\.setViewVisibility\(R\.id\.widget_artwork_overlay, View\.GONE\)/);
-  assert.match(config, /"transparent", "Full Transparent"/);
-  assert.match(config, /"blur", "Transparent Blur"/);
-  assert.doesNotMatch(config, /PREMIUM_THEMES|Random Premium Theme|themeGroup/);
-  assert.match(provider, /return "transparent".equals\(value\) \? "transparent" : "blur";/);
-  assert.match(config, /return "transparent".equals\(style\) \? "transparent" : "blur";/);
-  assert.match(provider, /targetComplete \? "✓ Daily target complete!"/);
-});
-
-test("responsive typography is more prominent and weighted spacers cannot split widget content", () => {
-  assert.ok(provider.includes("responsiveTextSize(percentBase, fontScale"));
-  assert.ok(provider.includes("measuredWidthDp / 220f, measuredHeightDp / 155f"));
-  assert.ok(provider.includes("float percentBase = compactLayout ? 27f : (wideLayout ? 36f : 38f);"));
-  assert.ok(provider.includes("responsiveTextSize(percentBase, fontScale"));
-  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_flex_spacer, View.GONE);"));
-  assert.ok(provider.includes('views.setInt(R.id.widget_content, "setGravity", Gravity.CENTER_VERTICAL);'));
-  assert.equal(provider.includes("boolean distributeVerticalSpace"), false);
-  assert.equal(provider.includes("distributeVerticalSpace ? Gravity.TOP"), false);
-  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_primary_row,"));
-  assert.ok(provider.includes("(showProgress || showTarget) ? View.VISIBLE : View.GONE);"));
-  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_study_remaining_row,"));
-  assert.ok(provider.includes("(showStudyTime || showRemaining) ? View.VISIBLE : View.GONE);"));
-  assert.ok(provider.includes("boolean showWideLowerRow = showStudyTime || showRemaining || showStreak || showWeekly;"));
-  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_lower_row,"));
-  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_side_column,"));
-  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_artwork, View.GONE);"));
-  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_artwork_overlay, View.GONE);"));
-  assert.ok(provider.includes('views.setInt(R.id.widget_root, "setBackgroundResource", backgroundResource);'));
-  for (const layout of layouts) {
-    assert.ok(layout.includes('android:id="@+id/widget_flex_spacer"'));
-    assert.ok(layout.includes('android:layout_height="0dp"'));
-    assert.ok(layout.includes('android:layout_weight="1"'));
-    assert.ok(layout.includes('android:visibility="gone"'));
-    assert.ok(layout.includes('android:minWidth="50dp"') || layout.includes('android:minWidth="62dp"'));
-  }
-});
-
-test("every native widget provider and responsive layout is registered and copied into Android builds", () => {
-  assert.ok(widgetProviderFiles.length > 0, "native AppWidgetProvider inventory must not be empty");
-  for (const filename of widgetProviderFiles) {
-    const componentName = filename.replace(".java", "");
-    assert.ok(configureAndroid.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
-    assert.ok(configureAndroid.includes(`name: '${componentName}'`), `${componentName} must be included in the Android manifest component generator`);
-    assert.ok(configureAndroid.includes("@xml/math_master_home_widget_info"), `${componentName} must reference widget metadata`);
-  }
-
-  assert.match(configureAndroid, /const RESOURCE_DIRS = \['drawable', 'drawable-nodpi', 'layout', 'values', 'xml', 'xml-v31'\]/);
-  assert.match(configureAndroid, /await copyDirectory\(/);
-  assert.match(configureAndroid, /normalizeRemoteViewsLayout\(xml\)/);
-  assert.ok(legacyWidgetInfo.includes('android:initialLayout="@layout/math_master_home_widget"'));
-  assert.ok(legacyWidgetInfo.includes('android:resizeMode="horizontal|vertical"'));
-  assert.ok(android31WidgetInfo.includes('android:initialLayout="@layout/math_master_home_widget"'));
-  assert.ok(android31WidgetInfo.includes('android:previewLayout="@layout/math_master_home_widget"'));
-  assert.ok(android31WidgetInfo.includes('android:widgetFeatures="reconfigurable"'));
-  assert.ok(provider.includes("OPTION_APPWIDGET_SIZES"));
-  assert.ok(provider.includes("new RemoteViews(viewsBySize)"));
-  assert.ok(provider.includes("getWidgetLayoutForDimensions(widthDp, heightDp, composition)"));
-});
-
-test("all seven design compositions have three responsive XML variants and packaged art resources", () => {
-  assert.equal(compositionLayoutPaths.length, 21);
-  for (const composition of compositionIds) {
-    assert.ok(provider.includes(`case "${composition}":`), `provider must route ${composition}`);
-    for (const size of sizeVariants) {
-      const path = `android-native/res/layout/math_master_widget_${composition}_${size}.xml`;
-      const layout = read(path);
-      for (const id of ["widget_root", "widget_content", "widget_artwork", "widget_artwork_overlay", "widget_progress_ring", "widget_progress_percent", "widget_target_value", "widget_progress_bar", "widget_week_strip"]) {
-        assert.ok(layout.includes(`@+id/${id}`), `${path} must contain ${id}`);
-      }
-      assert.ok(layout.includes(`math_master_widget_art_overlay_${composition}`));
-    }
-  }
-  assert.ok(configureAndroid.includes("'drawable-nodpi'"));
-  assert.ok(existsSync(new URL("../android-native/res/drawable-nodpi/math_master_widget_atlas.webp", import.meta.url)));
-  assert.ok(existsSync(new URL("../public/math_master_widget_atlas.webp", import.meta.url)));
-  assert.ok(read("android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java").includes('"instance_" + widgetId + "_composition"'));
-  assert.ok(provider.includes("createProgressRing(context, progress, accentColor)"));
-  assert.ok(provider.includes("views.setViewVisibility(R.id.widget_artwork, View.GONE);"));
-});
-
-test("widget artwork uses sampled region decoding and bounded output renditions", () => {
-  assert.ok(provider.includes("BitmapRegionDecoder"));
-  assert.ok(provider.includes("decoder.decodeRegion(new Rect(left, top, right, bottom), options)"));
-  assert.ok(provider.includes("options.inSampleSize = sampleSize"));
-  assert.ok(provider.includes("outputWidth = Math.max(1, Math.min(desiredWidth"));
-  assert.ok(provider.includes("outputHeight = Math.max(1, Math.min(300"));
-  assert.ok(provider.includes("WIDGET_ARTWORK_CACHE"));
-  assert.ok(provider.includes("catch (IOException | RuntimeException exception)"));
-  assert.equal(
-    provider.includes("BitmapFactory.decodeResource(context.getResources(), R.drawable.math_master_widget_atlas)"),
-    false,
-    "the full-resolution artwork atlas must not be decoded into one ARGB bitmap",
+test('renderer draws every composition and the provider offers the same set', () => {
+  const renderer = read(RENDERER);
+  const provider = read(PROVIDER);
+  assert.deepEqual(
+    quotedList(renderer, /static final String\[\] COMPOSITIONS = \{([\s\S]*?)\};/),
+    COMPOSITIONS,
   );
+  assert.deepEqual(
+    quotedList(provider, /WIDGET_COMPOSITIONS = \{([\s\S]*?)\};/),
+    ['auto', ...COMPOSITIONS],
+  );
+  for (const composition of COMPOSITIONS) {
+    assert.ok(renderer.includes(`case "${composition}"`), `renderer is missing a case for ${composition}`);
+  }
+  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal']) {
+    assert.ok(renderer.includes(`void ${method}()`), `renderer is missing ${method}`);
+  }
+  assert.match(renderer, /static Bitmap render\(/);
+  assert.match(renderer, /static String autoComposition\(/);
 });
 
-test("native widget configuration preview uses the selected background effect and live metrics", () => {
-  assert.ok(config.includes('String style = normalizeWidgetStyle(selectedRadioValue(styleGroup, "blur"));'));
-  assert.ok(config.includes('int previewBackground = "transparent".equals(style)'));
-  assert.ok(config.includes('Color.argb(102, 57, 67, 77)'));
-  assert.ok(config.includes('previewSummary.setBackgroundColor(Color.TRANSPARENT)'));
-  assert.ok(config.includes("previewMetric.setText(primaryMetric)"));
-  assert.ok(config.includes("previewDesignTitle.setText("));
-  assert.ok(config.includes("previewSubtitle.setText(android.text.TextUtils.join"));
-  assert.ok(config.includes('Background: " + effectLabel'));
+test('renderer is Context-free and only uses plain android.graphics drawing', () => {
+  const renderer = read(RENDERER);
+  assert.doesNotMatch(renderer, /import android\.content\./);
+  assert.doesNotMatch(renderer, /import android\.widget\./);
+  assert.doesNotMatch(renderer, /import android\.view\./);
+  assert.doesNotMatch(renderer, /BitmapFactory|decodeResource|R\.drawable/);
 });
 
-test("package updates refresh all existing pinned widget instances without replacing their saved configuration", () => {
-  assert.ok(bootReceiver.includes("Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)"));
-  assert.match(bootReceiver, /Intent\.ACTION_MY_PACKAGE_REPLACED\.equals\(action\)[\s\S]*?MathMasterHomeWidgetProvider\.updateWidgetPreferences\(context\)/);
-  assert.ok(provider.includes("AppWidgetManager.getInstance(context)"));
-  assert.ok(provider.includes("getAppWidgetIds(provider)"));
-  assert.ok(provider.includes("for (int widgetId : widgetIds)"));
-  assert.ok(provider.includes("getSelectedContent(preferences, appWidgetId)"));
-  assert.ok(provider.includes('getInstanceString(preferences, appWidgetId, "style"'));
+test('provider renders one bitmap per size and keeps its tap, preferences and sync hooks', () => {
+  const provider = read(PROVIDER);
+  assert.match(provider, /MathMasterWidgetRenderer\.render\(/);
+  assert.match(provider, /R\.layout\.math_master_home_widget/);
+  assert.match(provider, /R\.id\.widget_canvas/);
+  assert.match(provider, /R\.id\.widget_root/);
+  assert.match(provider, /setImageViewBitmap\(/);
+  assert.match(provider, /setContentDescription\(/);
+  assert.match(provider, /new RemoteViews\(viewsBySize\)/);
+  assert.match(provider, /OPTION_APPWIDGET_SIZES/);
+  assert.match(provider, /PendingIntent\.FLAG_IMMUTABLE/);
+  assert.match(provider, /renderConfigurationPreview\(/);
+  for (const hook of ['syncProgressSnapshot', 'updateWidgetPreferences', 'updateReleaseStatus', 'refreshWidgetInstances', 'onDeleted']) {
+    assert.ok(provider.includes(hook), `provider lost ${hook}`);
+  }
+  // The old RemoteViews-per-composition layouts and artwork atlas are gone.
+  assert.doesNotMatch(provider, /R\.layout\.math_master_widget_/);
+  assert.doesNotMatch(provider, /R\.drawable\./);
+  assert.doesNotMatch(provider, /BitmapRegionDecoder|math_master_widget_atlas|COMPLETION_BACKGROUND/);
+});
+
+test('bitmap memory stays inside the launcher budget', () => {
+  const provider = read(PROVIDER);
+  assert.match(provider, /variantCount/);
+  assert.match(provider, /getDisplayMetrics\(\)/);
+  assert.match(provider, /catch \(RuntimeException \| OutOfMemoryError ignored\)/);
+});
+
+test('bundled fonts load from assets and fall back to the system font', () => {
+  const provider = read(PROVIDER);
+  assert.match(provider, /Typeface\.createFromAsset\(context\.getAssets\(\), assetPath\)/);
+  assert.match(provider, /catch \(RuntimeException ignored\)/);
+  for (const weight of ['Regular', 'Medium', 'Bold']) {
+    assert.ok(provider.includes(`fonts/MathMaster-${weight}.otf`));
+    assert.ok(exists(`android-native/assets/fonts/MathMaster-${weight}.otf`), `missing ${weight} font`);
+  }
+  assert.ok(exists('android-native/assets/fonts/LICENSE-Inter.txt'), 'font licence must ship with the fonts');
+});
+
+test('content options and schema version agree in the provider, configuration screen and backup code', () => {
+  const provider = read(PROVIDER);
+  const config = read(CONFIG);
+  const backupPlugin = read(BACKUP_PLUGIN);
+  const backupTs = read('src/lib/backupRestore.ts');
+  assert.deepEqual(quotedList(provider, /static final String\[\] CONTENT_OPTIONS = \{([\s\S]*?)\};/), CONTENT_OPTIONS);
+  assert.deepEqual(quotedList(backupTs, /WIDGET_CONTENT_OPTIONS = new Set\(\[([\s\S]*?)\]\)/), CONTENT_OPTIONS);
+  assert.deepEqual(quotedList(backupPlugin, /CONTENT_OPTIONS = new TreeSet<>\(Arrays\.asList\(([\s\S]*?)\)\);/), CONTENT_OPTIONS);
+  for (const option of CONTENT_OPTIONS) {
+    assert.ok(config.includes(`{"${option}",`), `configuration screen is missing ${option}`);
+  }
+  assert.match(provider, /CONTENT_SCHEMA_VERSION = 3/);
+  assert.match(config, /_contentSchemaVersion", 3\)/);
+  assert.match(backupTs, /item < 1 \|\| item > 3/);
+  assert.match(backupPlugin, /intValue\(\) <= 3/);
+});
+
+test('older saved selections gain the quiz tile exactly once', () => {
+  const provider = read(PROVIDER);
+  assert.match(provider, /storedVersion < CONTENT_SCHEMA_VERSION/);
+  assert.match(provider, /!jsonArrayContains\(migrated, "quiz"\)/);
+  assert.match(provider, /storedVersion < 2 && !jsonArrayContains\(migrated, "weekly"\)/);
+});
+
+test('configuration screen previews the real renderer output', () => {
+  const config = read(CONFIG);
+  assert.match(config, /MathMasterHomeWidgetProvider\.renderConfigurationPreview\(/);
+  assert.match(config, /AppWidgetManager\.OPTION_APPWIDGET_MIN_WIDTH/);
+  assert.doesNotMatch(config, /getConfigurationPreviewArtwork|previewShade|previewMetric/);
+  for (const composition of COMPOSITIONS) {
+    assert.ok(config.includes(`{"${composition}",`), `configuration screen is missing ${composition}`);
+  }
+});
+
+test('widget resources are one canvas layout, one preview image and the info files', () => {
+  assert.deepEqual(list('android-native/res/layout'), ['math_master_home_widget.xml']);
+  assert.deepEqual(list('android-native/res/drawable-nodpi'), ['math_master_widget_preview.webp']);
+  assert.deepEqual(list('android-native/res/values'), ['math_master_home_widget_strings.xml']);
+  // An empty leftover folder is harmless (git does not track it); old drawable files are not.
+  assert.deepEqual(exists('android-native/res/drawable') ? list('android-native/res/drawable') : [], [], 'old artwork drawables must be gone');
+  assert.ok(!exists('public/math_master_widget_atlas.webp'), 'the old artwork atlas must be gone');
+  const layout = read('android-native/res/layout/math_master_home_widget.xml');
+  assert.match(layout, /android:id="@\+id\/widget_root"/);
+  assert.match(layout, /android:id="@\+id\/widget_canvas"/);
+  assert.match(layout, /@drawable\/math_master_widget_preview/);
+  assert.match(layout, /android:contentDescription=/);
+  for (const file of ['xml/math_master_home_widget_info.xml', 'xml-v31/math_master_home_widget_info.xml']) {
+    const info = read(`android-native/res/${file}`);
+    assert.match(info, /android:previewImage="@drawable\/math_master_widget_preview"/, file);
+    assert.match(info, /android:configure="com\.sudhanshu\.mathsbj\.MathMasterWidgetConfigActivity"/, file);
+    assert.match(info, /android:initialLayout="@layout\/math_master_home_widget"/, file);
+    assert.match(info, /android:resizeMode="horizontal\|vertical"/, file);
+  }
+  assert.match(read('android-native/res/xml-v31/math_master_home_widget_info.xml'), /android:targetCellWidth="4"/);
+  assert.match(read('android-native/res/xml-v31/math_master_home_widget_info.xml'), /android:widgetFeatures="reconfigurable"/);
+});
+
+test('configure script ships the renderer, fonts and resources into a generated Android project', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mathsbj-widget-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const javaDir = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj');
+  await mkdir(javaDir, { recursive: true });
+  await writeFile(
+    path.join(root, 'app/src/main/AndroidManifest.xml'),
+    '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <application>\n    </application>\n</manifest>\n',
+  );
+  await writeFile(
+    path.join(javaDir, 'MainActivity.java'),
+    'package com.sudhanshu.mathsbj;\npublic class MainActivity {\n    protected void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n    }\n}\n',
+  );
+
+  const result = await configureAndroidWidgets(root);
+  assert.equal(result.assetDirectories, 1);
+  for (const file of [
+    'MathMasterHomeWidgetProvider.java', 'MathMasterWidgetRenderer.java', 'MathMasterWidgetConfigActivity.java',
+    'DailyTargetReminderPlugin.java', 'DailyTargetReminderReceiver.java', 'DailyTargetReminderBootReceiver.java',
+  ]) {
+    assert.ok(existsSync(path.join(javaDir, file)), `${file} was not copied`);
+  }
+  const fonts = await readdir(path.join(root, 'app/src/main/assets/fonts'));
+  assert.deepEqual(fonts.sort(), ['LICENSE-Inter.txt', 'MathMaster-Bold.otf', 'MathMaster-Medium.otf', 'MathMaster-Regular.otf']);
+  assert.deepEqual(await readdir(path.join(root, 'app/src/main/res/layout')), ['math_master_home_widget.xml']);
+  assert.deepEqual(await readdir(path.join(root, 'app/src/main/res/drawable-nodpi')), ['math_master_widget_preview.webp']);
+  const manifest = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
+  assert.match(manifest, /MathMasterHomeWidgetProvider/);
+  assert.match(manifest, /@xml\/math_master_home_widget_info/);
+  // Running it twice must not duplicate anything.
+  await configureAndroidWidgets(root);
+  const again = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
+  assert.equal(again.match(/MathMasterHomeWidgetProvider/g).length, manifest.match(/MathMasterHomeWidgetProvider/g).length);
 });

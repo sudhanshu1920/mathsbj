@@ -1,79 +1,62 @@
-# Math Master Android Home Screen Widgets
+# Android Home Screen Widget
 
-Math Master uses one native Android AppWidget provider with seven adaptive layout compositions. These are seven presentation/layout choices handled by the same provider, not seven duplicate Android providers.
+Math Master includes a native Android home-screen widget backed by the existing daily streak record. It shows today's target progress, elapsed/target study minutes, the current streak, this week's days and a quiz shortcut, all in a "neon glass" style with seven designs.
 
-## Visual redesign
+## Add it to the home screen
 
-Every widget now supports only two background effects:
+1. Install the latest Math Master Android APK and open the app once so it can sync the current progress.
+2. Long-press an empty area of the Android home screen and choose **Widgets**.
+3. Find **Math Master**, then drag the widget onto the home screen. It is placed as 4 x 2 by default; resize it if your launcher supports resizing.
 
-- **Full Transparent** — the widget surface, inner panels and update badge have no fill or border. The home-screen wallpaper remains visible behind the widget.
-- **Transparent Blur** — a rounded, translucent charcoal glass surface with a very light edge. This is a frosted-glass approximation.
+Tap the widget to open Math Master. When an update is known to be available, tapping also asks the app to refresh its normal verified update check; it does not bypass package, checksum, or signing-certificate validation.
 
-The Android RemoteViews widget API does not let an app sample and dynamically blur the launcher wallpaper behind its widget. Therefore Transparent Blur uses an alpha-translucent surface, not a true live wallpaper blur. The final appearance can vary with the launcher, wallpaper and Android version.
+## The seven designs
 
-The previous colorful artwork, tinted overlays, gradient card fills, palette themes and neon card treatment are not displayed. Progress uses one restrained cyan accent. Content and layout remain responsive.
+Every design is drawn at runtime by `MathMasterWidgetRenderer` (see "How it is drawn"). The sizes below are the launcher sizes each design was laid out for; any other size scales smoothly.
 
-## Layout compositions
+| Composition | Look | Designed for | Blocks |
+|---|---|---|---|
+| `hero_wide` | Deep blue with violet edge light | 4 x 2 | Header, progress ring, target + progress bar, streak, week strip, quiz tile |
+| `compact_green` | Emerald | 3 x 2 | Header, ring, target, streak |
+| `square_math_bot` | Indigo with magenta glow | 2 x 2 | Header, ring, target, streak, quiz tile |
+| `medium_study` | Violet / magenta | 2 x 2 | Header, ring, target, streak |
+| `square_cosmic` | Midnight blue | 3 x 2 | Header, ring, target, streak, week strip |
+| `extra_wide_weekly` | Cyan strip | 4 x 1 | Header, "This Week" strip, target, streak |
+| `minimal_progress` | Mini green | 2 x 1 | Header, percentage + minutes, streak |
+| `auto` | Picks one of the above from the launcher's size | any | - |
 
-The native configuration screen offers:
+## Widget customization
 
-- Auto Responsive
-- Wide Dashboard
-- Compact Dashboard
-- Square Dashboard
-- Medium Dashboard
-- Square Tracker
-- Extra-Wide Weekly
-- Minimal Progress
+Widget settings live in the native **Customize Your Widget** screen that Android shows when you add the widget; the app's own Settings screen has no widget controls. The screen saves content, style, theme and design against that unique Android widget ID, so several widgets can look different. Its preview is the real renderer output at this widget's launcher size. Android 12+ launchers can reconfigure a placed widget; on older launchers remove and add it again. If the saved "widgets enabled" flag is ever off (for example from a restored backup), widgets show a small "Math Master widgets are off" card instead of the data.
 
-Each composition retains compact, regular and wide layout resources where appropriate. Android 12+ receives size-aware RemoteViews; older Android versions use the safest size fallback available.
+- **Content** - App Identity (logo + title), Today's Target, Progress (ring), Remaining Target, Study Time, Streak, Weekly Target Tracker, Upcoming Quiz, Update Status. A design only draws the blocks it has; unselected blocks free their space for the others. Today's Target shows "25 / 35 min" with its label; when it is off, Study Time and Remaining Target fill the same panel ("25 min / Studied today", "10 min / Left today").
+- **Style** - Glass (full glow), Compact (no tagline), Minimal (flat, no glow).
+- **Theme** - *Match App Theme* keeps each design's own colours. Emerald, Ocean, Graphite, Rose Quartz, Midnight Violet, Sapphire and Aurora re-tint the whole design from one accent. *Random Premium Theme* picks an unused palette and keeps it stable for that widget. The widget is always dark glass; the app's light/dark mode no longer changes it.
+- **Weekly strip** - Sunday to Saturday of the current week. A green tick means the saved daily record for that date is complete; today and past days without a record, and future days, show an empty circle. Only the last seven saved days exist, so earlier weeks are never invented.
+- **Upcoming Quiz tile** - a fixed shortcut label ("Upcoming Quiz, 5 Questions"), not live data; tapping anywhere on the widget opens the app. Widgets saved before this tile existed receive it once through the content-schema migration (schema 3) and can switch it off.
+- **Update Status** - a small "UPDATE" pill in the top-right corner while an update is available.
 
-## Available live content
+## How it is drawn
 
-The widget reads the existing Math Master study/streak record. It does not create a second study timer or a duplicate progress database.
+`MathMasterHomeWidgetProvider` reads the saved data and preferences, picks the design, and asks `MathMasterWidgetRenderer` for one bitmap per launcher size. The bitmap goes into a single `ImageView` (`res/layout/math_master_home_widget.xml`), so blur, glow, gradient rings and glass panels look the same on every launcher and Android version, which `RemoteViews` layouts cannot do.
 
-Selectable fields:
+- Android 12+ sends one bitmap for each size the launcher reports; older versions send one. The combined bitmap size is capped well below Android's per-widget limit, and if drawing ever fails the static preview image stays on screen.
+- Text uses Inter (OFL) from `android-native/assets/fonts`, falling back to the system font if an asset is missing. The licence is shipped next to the fonts.
+- Each widget carries a content description with the live numbers, for TalkBack.
+- `res/drawable-nodpi/math_master_widget_preview.webp` is the picker preview and the placeholder before the first update. It is rendered by the same renderer.
+- There is no per-design XML any more, and the old artwork atlas is gone.
 
-- App Identity
-- Today's Target
-- Progress
-- Remaining Target
-- Study Time
-- Streak
-- Weekly Target Tracker
-- Update Status
+## Refresh and data behavior
 
-The weekly tracker uses saved daily completion records only. It never invents completed days. Update status uses the app's existing verified update-check flow; the widget does not install an APK by itself.
+- Progress is copied from the existing `math-app-streak-v1` daily record. It is not stored in a second target-tracking system.
+- While the app is actively tracking study time, the widget refreshes at minute boundaries and when target/streak settings change. Android also refreshes the widget periodically and resets the displayed progress when the local date changes.
+- A successful in-app update check refreshes the update pill. A validated Firebase release push can also set it while the app is closed, provided Firebase is configured in the installed APK and update notifications are enabled.
+- Android launchers control widget sizing, exact refresh timing, and whether the widget is available on the lock screen. The widget does not install updates automatically.
 
-## Add a widget
+## Previewing designs without a phone
 
-1. Install an Android APK built from a source revision containing the native widget implementation.
-2. Open Math Master once so the app can synchronize its current progress snapshot.
-3. Long-press an empty area of the Android home screen and open **Widgets**.
-4. Find **Math Master**, then drag it onto the home screen.
-5. In **Customize Your Widget**, choose the content, layout composition and one of the two background effects.
-6. Save the configuration, then resize the widget if the launcher supports resizing.
+`tools/widget-preview` renders the real renderer with a desktop Java2D stand-in for `android.graphics`, and runs the provider against a fake Context. See its README. The images it produces are a faithful preview of the drawing code, not a screenshot from a launcher.
 
-For a widget that was already pinned before this redesign, open its reconfiguration option when the launcher provides it. If reconfiguration is unavailable, remove and add that widget again, then select the new effect. Existing old style values migrate to Transparent Blur for readability.
+## Build requirement
 
-## Per-instance configuration
-
-Each Android AppWidget ID stores its own selected fields, background effect and composition. Multiple instances may therefore use different content, different layouts and different effects.
-
-Changing or deleting one instance must not overwrite or delete another instance's settings. Global application progress remains shared across all instances.
-
-## Refresh and lifecycle behavior
-
-- Study progress is synchronized from the existing daily streak record.
-- Target and streak changes refresh the pinned widgets.
-- Active study tracking refreshes on the existing minute-boundary schedule.
-- Date rollover uses the local day key and existing daily tracking rules.
-- Package replacement refreshes existing pinned instances without replacing their saved per-instance settings.
-- Android controls exact launcher refresh scheduling and size negotiation.
-- The widget does not run an aggressive polling loop or install updates automatically.
-
-## Verification
-
-Source-level tests cover layout registration, selected fields, responsive variants, data validation, weekly completion and the two background modes. Android compilation verifies native resource and Java integration.
-
-A successful CI build does not prove visual fidelity on every launcher. Capture and review screenshots on the target device at compact, regular, wide and tall sizes. In particular, verify wallpaper visibility, blur-surface opacity, text contrast, clipping and touch behavior after installing the release APK.
+This is a native Android AppWidget. Install an Android APK built with this source before looking for **Math Master** in the picker; updating only the web/PWA bundle cannot add or change a native widget. CI compilation does not verify launcher-specific rendering, so check the widget at 4 x 2, 3 x 2, 2 x 2, 4 x 1 and 2 x 1 on the device after installing.
