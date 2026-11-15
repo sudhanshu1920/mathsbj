@@ -72,8 +72,13 @@ public final class StudyModePlugin extends Plugin {
 
     @PluginMethod
     public void setReminderIntervalMinutes(PluginCall call) {
-        Integer value = call.getInt("minutes");
-        if (value == null || value < 1 || value > 10) {
+        Object rawValue = call.getData().opt("minutes");
+        if (!(rawValue instanceof Integer) && !(rawValue instanceof Long)) {
+            call.reject("Reminder interval must be a whole number from 1 to 10 minutes.");
+            return;
+        }
+        int value = ((Number) rawValue).intValue();
+        if (value < 1 || value > 10) {
             call.reject("Reminder interval must be an integer from 1 to 10 minutes.");
             return;
         }

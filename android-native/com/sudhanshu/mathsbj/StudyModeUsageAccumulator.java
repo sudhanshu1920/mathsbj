@@ -25,9 +25,10 @@ final class StudyModeUsageAccumulator {
             pause();
             return false;
         }
-        if (hasSample && packageName.equals(lastPackageName)
-            && elapsedRealtimeMs >= lastSampleElapsedMs) {
+        if (hasSample && elapsedRealtimeMs >= lastSampleElapsedMs) {
             long delta = elapsedRealtimeMs - lastSampleElapsedMs;
+            // Both endpoint samples were eligible, so a short app transition
+            // is still part of the single global non-study usage total.
             if (delta > 0L && delta <= MAX_SAMPLE_GAP_MS) {
                 accumulatedUsageMs = Math.min(Long.MAX_VALUE - delta, accumulatedUsageMs) + delta;
             }

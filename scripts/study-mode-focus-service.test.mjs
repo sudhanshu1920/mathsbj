@@ -39,7 +39,7 @@ test("periodic reminder intervals persist, validate 1–10 and apply without res
 test("usage accounting is monotonic, one shared accumulator and pauses on uncertain focus", () => {
   for (const invariant of [
     "MAX_SAMPLE_GAP_MS = 4_000L", "elapsedRealtimeMs >= lastSampleElapsedMs",
-    "packageName.equals(lastPackageName)", "void pause()", "void resetInterval()",
+    "lastPackageName = packageName", "Both endpoint samples were eligible", "void pause()", "void resetInterval()",
     "long thresholdMs = intervalMinutes * 60_000L",
   ]) assert.ok(usageAccumulator.includes(invariant), `Missing usage invariant: ${invariant}`);
   assert.ok(source.includes("SystemClock.elapsedRealtime()"));
@@ -105,12 +105,25 @@ test("usage model covers 1, 2, 5, 10-minute periods and cumulative time across a
     }
     assert.equal(fired, true, `${interval}-minute interval should fire`);
   }
-  const shared = new Model(2);
+  class GlobalUsageModel extends Model {
+    sample(pkg, at, eligible = true) {
+      if (!eligible || !pkg) { this.anchor = null; this.pkg = ""; return false; }
+      if (this.anchor !== null && at >= this.anchor) {
+        const delta = at - this.anchor;
+        if (delta > 0 && delta <= 4000) this.total += delta;
+      }
+      this.anchor = at; this.pkg = pkg;
+      if (this.total >= this.interval * 60000) { this.reset(); return true; }
+      return false;
+    }
+  }
+  const shared = new GlobalUsageModel(2);
   shared.sample("com.example.a", 1000);
   for (let at = 2000; at <= 60000; at += 1000) shared.sample("com.example.a", at);
-  shared.sample("com.example.b", 61000);
   let fired = false;
-  for (let at = 62000; at <= 122000; at += 1000) fired = shared.sample("com.example.b", at) || fired;
+  for (let at = 61000; at <= 122000; at += 1000) {
+    fired = shared.sample("com.example.b", at) || fired;
+  }
   assert.equal(fired, true, "App A + App B usage must share the two-minute accumulator");
 });
 
