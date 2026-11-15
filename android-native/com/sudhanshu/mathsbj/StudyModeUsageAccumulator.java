@@ -1,20 +1,19 @@
 package com.sudhanshu.mathsbj;
 
 /**
- * Accounts only monitor-confirmed consecutive samples of the same focused app.
- * Package transitions break the sample anchor but preserve the global interval.
- * Uncertain boundaries are under-counted rather than charging background time.
+ * Accumulates monitor-confirmed eligible foreground usage across all non-study apps.
+ * Package transitions preserve the shared total; uncertain focus and long sample
+ * gaps are paused/under-counted rather than charging background or downtime.
  */
 final class StudyModeUsageAccumulator {
     private static final int DEFAULT_INTERVAL_MINUTES = 2;
     private static final long MAX_SAMPLE_GAP_MS = 4_000L;
     private long accumulatedUsageMs = 0L;
     private long lastSampleElapsedMs = 0L;
-    private String lastPackageName = "";
     private boolean hasSample = false;
     private int intervalMinutes = DEFAULT_INTERVAL_MINUTES;
 
-    boolean sample(String packageName, long elapsedRealtimeMs, boolean eligible, int configuredIntervalMinutes) {
+    synchronized boolean sample(String packageName, long elapsedRealtimeMs, boolean eligible, int configuredIntervalMinutes) {
         int safeInterval = isValidInterval(configuredIntervalMinutes)
             ? configuredIntervalMinutes : DEFAULT_INTERVAL_MINUTES;
         if (safeInterval != intervalMinutes) {
@@ -34,28 +33,27 @@ final class StudyModeUsageAccumulator {
             }
         }
         lastSampleElapsedMs = elapsedRealtimeMs;
-        lastPackageName = packageName;
         hasSample = true;
         long thresholdMs = intervalMinutes * 60_000L;
         if (accumulatedUsageMs < thresholdMs) return false;
-        resetInterval();
+        // Latch the due state until a reminder is actually shown and acknowledged.
+        pause();
         return true;
     }
 
-    void setIntervalMinutes(int value) {
+    synchronized void setIntervalMinutes(int value) {
         if (!isValidInterval(value)) throw new IllegalArgumentException("Reminder interval must be an integer from 1 to 10 minutes.");
         intervalMinutes = value;
         resetInterval();
     }
-    void pause() {
+    synchronized void pause() {
         hasSample = false;
         lastSampleElapsedMs = 0L;
-        lastPackageName = "";
     }
-    void resetInterval() { accumulatedUsageMs = 0L; pause(); }
-    void clear() { resetInterval(); }
-    long getAccumulatedUsageMs() { return accumulatedUsageMs; }
-    int getIntervalMinutes() { return intervalMinutes; }
+    synchronized void resetInterval() { accumulatedUsageMs = 0L; pause(); }
+    synchronized void clear() { resetInterval(); }
+    synchronized long getAccumulatedUsageMs() { return accumulatedUsageMs; }
+    synchronized int getIntervalMinutes() { return intervalMinutes; }
     static boolean isValidInterval(int value) { return value >= 1 && value <= 10; }
     private static boolean isValidPackageName(String value) {
         return value != null && value.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+");

@@ -1089,6 +1089,15 @@ public final class StudyModeFocusService extends Service {
             windowManager.addView(candidate, params);
             periodicReminderView = candidate;
             periodicReminderPackage = packageName;
+            Handler usageHandler = monitorHandler;
+            Runnable resetUsageInterval = () -> {
+                if (periodicReminderVisible.get() && packageName.equals(periodicReminderPackage)) {
+                    periodicReminderUsage.resetInterval();
+                }
+            };
+            if (usageHandler == null || !usageHandler.post(resetUsageInterval)) {
+                periodicReminderUsage.resetInterval();
+            }
             logStage("PERIODIC_REMINDER_VISIBLE", packageName, "", "visible", "eligible_usage_interval_elapsed");
         } catch (Exception error) {
             periodicReminderVisible.set(false);

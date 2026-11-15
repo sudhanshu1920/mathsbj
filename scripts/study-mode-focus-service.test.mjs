@@ -39,7 +39,7 @@ test("periodic reminder intervals persist, validate 1–10 and apply without res
 test("usage accounting is monotonic, one shared accumulator and pauses on uncertain focus", () => {
   for (const invariant of [
     "MAX_SAMPLE_GAP_MS = 4_000L", "elapsedRealtimeMs >= lastSampleElapsedMs",
-    "lastPackageName = packageName", "Both endpoint samples were eligible", "void pause()", "void resetInterval()",
+    "Both endpoint samples were eligible", "void pause()", "void resetInterval()",
     "long thresholdMs = intervalMinutes * 60_000L",
   ]) assert.ok(usageAccumulator.includes(invariant), `Missing usage invariant: ${invariant}`);
   assert.ok(source.includes("SystemClock.elapsedRealtime()"));
@@ -59,6 +59,16 @@ test("Blocked Apps and Study Apps precedence is retained for periodic reminders"
   assert.ok(source.includes('dismissPeriodicReminder("blocked_app"'));
   assert.ok(manager.includes("getEnforcedPackages(context).contains(packageName)"));
   assert.ok(manager.includes("Settings is intentionally not globally exempt."));
+});
+
+test("a due interval remains latched across a rapid focus change until the reminder is actually attached", () => {
+  const sampling = between(usageAccumulator, "synchronized boolean sample(", "synchronized void setIntervalMinutes(");
+  assert.ok(sampling.includes("if (accumulatedUsageMs < thresholdMs) return false;"));
+  assert.ok(sampling.includes("pause();\n        return true;"));
+  assert.ok(!sampling.includes("resetInterval();"));
+  const show = between(source, "private void showPeriodicReminder(", "private android.view.View buildPeriodicReminderView(");
+  assert.ok(show.indexOf("windowManager.addView(candidate, params)")
+    < show.indexOf("periodicReminderUsage.resetInterval()"));
 });
 
 test("periodic reminder is a separate deduplicated overlay; Continue Anyway resets its interval", () => {
