@@ -1373,7 +1373,7 @@ if (!studyModeUsageAccumulator.includes('MAX_SAMPLE_GAP_MS = 4_000L') ||
     !studyModeFocus.includes('dismissPeriodicReminder("continue_anyway", true)') ||
     !studyModePage.includes('Reminder Interval') ||
     !studyModePage.includes('Array.from({ length: 10 }, (_, index) => index + 1)') ||
-    !studyModeBridge.includes('setStudyModeReminderInterval(minutes)') ||
+    !studyModeBridge.includes('export async function setStudyModeReminderInterval(minutes: number)') ||
     !studyModeSetup.includes('StudyModeUsageAccumulator.java')) {
   fail('Periodic reminders must use monotonic focused-window usage, validated 1–10 minute persistence and generated Android packaging');
 }
