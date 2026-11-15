@@ -65,6 +65,7 @@ export interface StudyModeStatus {
   suspendedPackages: string[];
   exactAlarmFallback: boolean;
   studyAppPackages?: string[];
+  reminderIntervalMinutes?: number;
 }
 
 interface NativeStudyModePlugin {
@@ -73,6 +74,7 @@ interface NativeStudyModePlugin {
   listApps(): Promise<{ apps: StudyModeApp[] }>;
   saveConfig(options: StudyModeConfig & { studyAppPackageNames: string[] }): Promise<StudyModeStatus>;
   setPopupAppearance(options: { theme: string; mode: "dark" | "light" }): Promise<void>;
+  setReminderIntervalMinutes(options: { minutes: number }): Promise<StudyModeStatus>;
   setEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
   startSession(options: StudyModeSessionOptions): Promise<StudyModeStatus>;
   endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
@@ -145,6 +147,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       suspendedPackages: [],
       exactAlarmFallback: false,
       studyAppPackages: [],
+      reminderIntervalMinutes: 2,
     };
   }
   return NativeStudyMode.getStatus();
@@ -173,6 +176,14 @@ export async function saveStudyModeConfig(config: StudyModeConfig, studyAppPacka
     selectedPackageNames: [...new Set(config.selectedPackageNames)],
     selectedDays: [...new Set(config.selectedDays)],
   });
+}
+
+export async function setStudyModeReminderInterval(minutes: number): Promise<StudyModeStatus> {
+  if (!isStudyModeNative()) throw new Error("Reminder intervals require the Android app.");
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10) {
+    throw new Error("Reminder interval must be an integer from 1 to 10 minutes.");
+  }
+  return NativeStudyMode.setReminderIntervalMinutes({ minutes });
 }
 
 export async function setStudyModeEnabled(enabled: boolean): Promise<StudyModeStatus> {

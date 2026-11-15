@@ -963,6 +963,7 @@ const studyModePage = read('src/components/StudyModePage.tsx');
 const studyModeBridge = read('src/lib/studyMode.ts');
 const studyModeManager = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
 const studyModeFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
+const studyModeUsageAccumulator = read('android-native/com/sudhanshu/mathsbj/StudyModeUsageAccumulator.java');
 const studyModeWindowRegistry = read('android-native/com/sudhanshu/mathsbj/StudyModeWindowRegistry.java');
 const studyModeAccessibilityService = read('android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java');
 const studyModeSessionStore = read('android-native/com/sudhanshu/mathsbj/StudyModeSessionStore.java');
@@ -1353,6 +1354,25 @@ if (!studyModeQuoteAndApps.includes('KEY_STUDY_PACKAGES')
     || !studyModeBridge.includes('studyAppPackageNames')
     || !studyModeBridge.includes('theme-updated')) {
   fail('Study Mode shield must keep separate persisted app lists, conflict-safe real launcher actions, dynamic quotes, countdown, and theme synchronization');
+}
+
+if (!studyModeUsageAccumulator.includes('MAX_SAMPLE_GAP_MS = 4_000L') ||
+    !studyModeUsageAccumulator.includes('elapsedRealtimeMs >= lastSampleElapsedMs') ||
+    !studyModeUsageAccumulator.includes('void resetInterval()') ||
+    !studyModeWindowRegistry.includes('findFocusedPackage(Context context, String usageForegroundPackage)') ||
+    !studyModeWindowRegistry.includes('if (!fresh || !complete) return null;') ||
+    !studyModeManager.includes('setReminderIntervalMinutes(Context context, int value)') ||
+    !studyModeManager.includes('KEY_REMINDER_INTERVAL_MINUTES') ||
+    !studyModeManager.includes('periodicReminderSystemPackagesCacheAtElapsedMs') ||
+    !studyModeManager.includes('5L * 60L * 1000L') ||
+    !studyModeFocus.includes('findFocusedPackage(StudyModeFocusService.this, foreground)') ||
+    !studyModeFocus.includes('periodicReminderUsage.sample(') ||
+    !studyModeFocus.includes('dismissPeriodicReminder("continue_anyway", true)') ||
+    !studyModePage.includes('Reminder Interval') ||
+    !studyModePage.includes('Array.from({ length: 10 }, (_, index) => index + 1)') ||
+    !studyModeBridge.includes('setStudyModeReminderInterval(minutes)') ||
+    !studyModeSetup.includes('StudyModeUsageAccumulator.java')) {
+  fail('Periodic reminders must use monotonic focused-window usage, validated 1–10 minute persistence and generated Android packaging');
 }
 
 console.log('Architecture regression checks passed.');

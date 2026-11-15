@@ -29,6 +29,7 @@ import android.view.WindowManager;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.AnimationSet;
 import android.view.animation.TranslateAnimation;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.LinearLayout;
@@ -97,6 +98,10 @@ public final class StudyModeFocusService extends Service {
     private android.view.View shieldView;
     private TextView remainingTimeView;
     private TextView sessionEndView;
+    private final StudyModeUsageAccumulator periodicReminderUsage = new StudyModeUsageAccumulator();
+    private final AtomicBoolean periodicReminderVisible = new AtomicBoolean(false);
+    private android.view.View periodicReminderView;
+    private String periodicReminderPackage = "";
     private enum PopupState { IDLE, LAUNCH_PENDING, VISIBLE, RECOVERY_REQUIRED }
 
     private String shieldedPackage = "";
@@ -212,6 +217,7 @@ public final class StudyModeFocusService extends Service {
         try {
             synchronized (monitorThreadLock) {
                 if (isMonitorThreadHealthy()) return true;
+                periodicReminderUsage.pause();
                 long generation = ++monitorGeneration;
                 foregroundDecisionSequence.incrementAndGet();
 
@@ -284,6 +290,19 @@ public final class StudyModeFocusService extends Service {
      * AccessibilityService calls this after a real app-window event. Rechecks
      * run on the monitor HandlerThread and are bounded/coalesced.
      */
+    public static void onReminderIntervalChanged(int intervalMinutes) {
+        StudyModeFocusService service = activeService;
+        if (service == null || !running || !StudyModeUsageAccumulator.isValidInterval(intervalMinutes)) return;
+        Handler handler = service.monitorHandler;
+        if (handler == null) return;
+        handler.post(() -> {
+            if (!running || service != activeService) return;
+            service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
+            service.periodicReminderUsage.pause();
+            service.monitorRunnable.run();
+        });
+    }
+
     public static void requestImmediateEvaluation() {
         StudyModeFocusService service = activeService;
         if (service != null) service.enqueueImmediateEvaluation();
@@ -373,6 +392,7 @@ public final class StudyModeFocusService extends Service {
         }
         running = true;
         activeService = this;
+        periodicReminderUsage.setIntervalMinutes(StudyModeManager.getReminderIntervalMinutes(this));
         overlayFailureForStatus = false;
         foregroundLookupFailureForStatus = false;
         if (!devicePolicyMode) StudyModeManager.setServiceState(this, "focus_shield_starting");
@@ -504,6 +524,8 @@ public final class StudyModeFocusService extends Service {
                 StudyModeManager.reconcile(StudyModeFocusService.this);
             }
             if (!StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)) {
+                periodicReminderUsage.clear();
+                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("session_inactive", false));
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 activeDiagnosticSessionId = "none";
                 StudyModeManager.setServiceState(StudyModeFocusService.this,
@@ -517,6 +539,8 @@ public final class StudyModeFocusService extends Service {
                 return;
             }
             if (StudyModeManager.isPolicyOwner(StudyModeFocusService.this)) {
+                periodicReminderUsage.pause();
+                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("device_policy_enforces_packages", false));
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 mainHandler.post(() -> {
                     if (monitorGenerationAtStart == monitorGeneration
@@ -530,6 +554,8 @@ public final class StudyModeFocusService extends Service {
             }
             if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
+                periodicReminderUsage.pause();
+                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("permission_missing", false));
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 if (!permissionUnavailableLogged) {
                     permissionUnavailableLogged = true;
@@ -559,6 +585,8 @@ public final class StudyModeFocusService extends Service {
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive()
                 || (keyguard != null && keyguard.isKeyguardLocked())) {
+                periodicReminderUsage.pause();
+                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("screen_not_interactive", false));
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 resetForegroundResolution();
                 mainHandler.post(() -> {
@@ -596,6 +624,8 @@ public final class StudyModeFocusService extends Service {
             // An unresolved foreground/window snapshot is not evidence that the
             // user is outside a blocked app. Preserve an already-visible shield.
             if (foreground == null || foreground.trim().isEmpty()) {
+                periodicReminderUsage.pause();
+                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("foreground_unresolved", false));
                 if (!foregroundUnknownLogged) {
                     foregroundUnknownLogged = true;
                     logStage("FOREGROUND_PACKAGE_UNRESOLVED", "", "", "deferred", "no_usable_resume_event");
@@ -621,6 +651,8 @@ public final class StudyModeFocusService extends Service {
                 StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);
             if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()
                 && !shouldShield) {
+                periodicReminderUsage.pause();
+                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("window_snapshot_unavailable", false));
                 if (!windowSnapshotUnavailableLogged) {
                     windowSnapshotUnavailableLogged = true;
                     logStage("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE", "", "", "deferred",
@@ -630,6 +662,22 @@ public final class StudyModeFocusService extends Service {
                 return;
             }
             windowSnapshotUnavailableLogged = false;
+
+            String activePackage = StudyModeWindowRegistry.findFocusedPackage(StudyModeFocusService.this, foreground);
+            boolean selectedStudyApp = activePackage != null
+                && StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage);
+            boolean reminderEligible = !shouldShield && activePackage != null
+                && !activePackage.equals(getPackageName())
+                && !selectedStudyApp
+                && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)
+                && !periodicReminderVisible.get();
+            boolean reminderDue = periodicReminderUsage.sample(
+                activePackage, SystemClock.elapsedRealtime(), reminderEligible,
+                StudyModeManager.getReminderIntervalMinutes(StudyModeFocusService.this));
+            if (periodicReminderVisible.get() && activePackage != null
+                && !activePackage.equals(periodicReminderPackage)) {
+                mainHandler.post(() -> dismissPeriodicReminder("focused_app_changed", false));
+            }
 
             boolean decisionChanged = !foreground.equals(lastDecisionPackage)
                 || shouldShield != lastDecisionShouldShield;
@@ -654,6 +702,8 @@ public final class StudyModeFocusService extends Service {
             }
 
             final String decisionPackage = foreground;
+            final String reminderTargetPackage = activePackage;
+            final boolean requestPeriodicReminder = reminderDue;
             final String requestId = shouldShield ? UUID.randomUUID().toString() : "";
             if (monitorGenerationAtStart != monitorGeneration) return;
             mainHandler.post(() -> {
@@ -664,8 +714,17 @@ public final class StudyModeFocusService extends Service {
                     }
                     return;
                 }
-                if (shouldShield) showShield(decisionPackage, requestId, decisionSequence);
-                else removeShield("foreground_not_blocked");
+                if (shouldShield) {
+                    if (periodicReminderVisible.get()) dismissPeriodicReminder("blocked_app", false);
+                    showShield(decisionPackage, requestId, decisionSequence);
+                } else {
+                    removeShield("foreground_not_blocked");
+                    if (requestPeriodicReminder) showPeriodicReminder(reminderTargetPackage, decisionSequence);
+                    else if (periodicReminderVisible.get() && reminderTargetPackage != null
+                        && !reminderTargetPackage.equals(periodicReminderPackage)) {
+                        dismissPeriodicReminder("focused_app_changed", false);
+                    }
+                }
             });
 
             if (monitorHandler != null)  scheduleMonitorCycle(POLL_INTERVAL_MS, monitorGenerationAtStart);
@@ -682,6 +741,7 @@ public final class StudyModeFocusService extends Service {
     }
 
     private void resetForegroundResolution() {
+        periodicReminderUsage.pause();
         lastForegroundPackage = null;
         lastDecisionPackage = null;
         lastDecisionShouldShield = false;
@@ -987,6 +1047,172 @@ public final class StudyModeFocusService extends Service {
         logStage("POPUP_LAUNCH_FAILED", packageName, requestId,
             "not_visible", "window_not_attached_or_hidden");
         removeShield("window_not_visible");
+    }
+
+    private void showPeriodicReminder(String packageName, long decisionSequence) {
+        if (packageName == null || packageName.isEmpty()
+            || !periodicReminderVisible.compareAndSet(false, true)) return;
+        if (!running || decisionSequence != foregroundDecisionSequence.get()
+            || !StudyModeManager.shouldEnforceNow(this)
+            || StudyModeManager.isPackageSelected(this, packageName)
+            || StudyModeManager.isSelectedStudyAppPackage(this, packageName)
+            || StudyModeManager.isPeriodicReminderExemptPackage(this, packageName)
+            || shieldView != null || popupState != PopupState.IDLE) {
+            periodicReminderVisible.set(false);
+            return;
+        }
+        String focusedNow = StudyModeWindowRegistry.findFocusedPackage(this, lastForegroundPackage);
+        if (!packageName.equals(focusedNow)) {
+            periodicReminderVisible.set(false);
+            return;
+        }
+        try {
+            if (windowManager == null) windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+            if (windowManager == null) throw new IllegalStateException("WindowManager unavailable");
+            android.view.View candidate = buildPeriodicReminderView(packageName);
+            if (!running || decisionSequence != foregroundDecisionSequence.get()
+                || !StudyModeManager.shouldEnforceNow(this)
+                || StudyModeManager.isPackageSelected(this, packageName)
+                || StudyModeManager.isSelectedStudyAppPackage(this, packageName)
+                || StudyModeManager.isPeriodicReminderExemptPackage(this, packageName)
+                || !packageName.equals(StudyModeWindowRegistry.findFocusedPackage(this, lastForegroundPackage))) {
+                periodicReminderVisible.set(false);
+                return;
+            }
+            int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
+            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+                type, WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT);
+            params.gravity = Gravity.CENTER;
+            params.setTitle("Math Master Periodic Study Reminder");
+            windowManager.addView(candidate, params);
+            periodicReminderView = candidate;
+            periodicReminderPackage = packageName;
+            logStage("PERIODIC_REMINDER_VISIBLE", packageName, "", "visible", "eligible_usage_interval_elapsed");
+        } catch (Exception error) {
+            periodicReminderVisible.set(false);
+            periodicReminderView = null;
+            periodicReminderPackage = "";
+            logStage("PERIODIC_REMINDER_LAUNCH_FAILED", packageName, "", "failed", error.getClass().getSimpleName());
+        }
+    }
+
+    private android.view.View buildPeriodicReminderView(String packageName) {
+        PopupPalette palette = getPopupPalette();
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(palette.scrim);
+        root.setClickable(true);
+        root.setFocusable(true);
+        root.setContentDescription("Math Master Study Mode periodic reminder");
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setGravity(Gravity.CENTER_HORIZONTAL);
+        panel.setPadding(dp(20), dp(20), dp(20), dp(18));
+        panel.setBackground(roundedGradient(palette.panelTop, palette.panelBottom, palette.border, dp(24)));
+        panel.setElevation(dp(18));
+        int availableWidth = Math.max(dp(240), getResources().getDisplayMetrics().widthPixels - dp(48));
+        int panelWidth = Math.min(availableWidth, dp(420));
+        root.addView(panel, new FrameLayout.LayoutParams(panelWidth, -2, Gravity.CENTER));
+
+        LinearLayout activePill = new LinearLayout(this);
+        activePill.setGravity(Gravity.CENTER);
+        activePill.setOrientation(LinearLayout.HORIZONTAL);
+        activePill.setPadding(dp(10), dp(5), dp(10), dp(5));
+        activePill.setBackground(rounded(palette.pill, palette.border, dp(30)));
+        activePill.addView(popupText("●", 9, palette.accent, Typeface.BOLD, Gravity.CENTER), wrapWrap());
+        TextView activeLabel = popupText("STUDY MODE ACTIVE", 10, palette.secondaryText, Typeface.BOLD, Gravity.CENTER);
+        LinearLayout.LayoutParams activeLabelParams = wrapWrap();
+        activeLabelParams.leftMargin = dp(7);
+        activePill.addView(activeLabel, activeLabelParams);
+        panel.addView(activePill, wrapWrap());
+        addGap(panel, 12);
+
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(android.R.drawable.ic_dialog_info);
+        icon.setColorFilter(palette.accent);
+        panel.addView(icon, new LinearLayout.LayoutParams(dp(32), dp(32)));
+        addGap(panel, 7);
+
+        panel.addView(popupText("Stay Focused!", 21, palette.text, Typeface.BOLD, Gravity.CENTER), matchWrap());
+        TextView appName = popupText(getStudyAppLabel(packageName), 13, palette.accent, Typeface.BOLD, Gravity.CENTER);
+        appName.setMaxLines(1);
+        appName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams appParams = matchWrap();
+        appParams.topMargin = dp(4);
+        panel.addView(appName, appParams);
+        TextView description = popupText(
+            "This app is not in your selected Study Apps. Take a short break and return to learning.",
+            12, palette.secondaryText, Typeface.NORMAL, Gravity.CENTER);
+        description.setLineSpacing(dp(2), 1.0f);
+        LinearLayout.LayoutParams descriptionParams = matchWrap();
+        descriptionParams.topMargin = dp(5);
+        panel.addView(description, descriptionParams);
+
+        List<String> studyPackages = StudyModeManager.getSelectedStudyAppPackages(this);
+        if (!studyPackages.isEmpty()) {
+            addGap(panel, 12);
+            String studyPackage = studyPackages.get(0);
+            TextView openStudyApp = popupText("Open " + getStudyAppLabel(studyPackage), 12,
+                palette.accent, Typeface.BOLD, Gravity.CENTER);
+            openStudyApp.setMinHeight(dp(44));
+            openStudyApp.setPadding(dp(10), dp(8), dp(10), dp(8));
+            openStudyApp.setBackground(rounded(palette.iconSurface, palette.accentBorder, dp(12)));
+            openStudyApp.setClickable(true);
+            openStudyApp.setFocusable(true);
+            openStudyApp.setOnClickListener(view -> {
+                if (StudyModeManager.launchStudyApp(StudyModeFocusService.this, studyPackage)) {
+                    dismissPeriodicReminder("study_app_opened", false);
+                } else {
+                    Toast.makeText(StudyModeFocusService.this, "This Study App is unavailable. Update your Study Apps list.",
+                        Toast.LENGTH_LONG).show();
+                    if (!StudyModeManager.getSelectedStudyAppPackages(StudyModeFocusService.this).contains(studyPackage)) {
+                        dismissPeriodicReminder("study_app_no_longer_selected", false);
+                    }
+                }
+            });
+            panel.addView(openStudyApp, matchWrap());
+        }
+
+        addGap(panel, 12);
+        TextView continueAnyway = popupText("Continue Anyway", 13, Color.WHITE, Typeface.BOLD, Gravity.CENTER);
+        continueAnyway.setMinHeight(dp(48));
+        continueAnyway.setBackground(rounded(palette.accent, palette.accentDark, dp(14)));
+        continueAnyway.setClickable(true);
+        continueAnyway.setFocusable(true);
+        continueAnyway.setOnClickListener(view -> dismissPeriodicReminder("continue_anyway", true));
+        panel.addView(continueAnyway, matchWrap());
+        return root;
+    }
+
+    private void dismissPeriodicReminder(String reason, boolean resetInterval) {
+        android.view.View existingView = periodicReminderView;
+        String removedPackage = periodicReminderPackage;
+        if (existingView != null) {
+            try {
+                if (windowManager == null) windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+                if (windowManager == null) throw new IllegalStateException("WindowManager unavailable during reminder teardown");
+                windowManager.removeViewImmediate(existingView);
+            } catch (IllegalArgumentException alreadyDetached) {
+                // An OEM lifecycle path may already have detached the reminder.
+            } catch (Exception error) {
+                logStage("PERIODIC_REMINDER_DISMISS_FAILED", removedPackage, "", "failed", error.getClass().getSimpleName());
+                return;
+            }
+        }
+        periodicReminderView = null;
+        periodicReminderPackage = "";
+        periodicReminderVisible.set(false);
+        Handler handler = monitorHandler;
+        if (handler != null) {
+            handler.post(() -> {
+                if (resetInterval) periodicReminderUsage.resetInterval();
+                else periodicReminderUsage.pause();
+            });
+        } else if (resetInterval) periodicReminderUsage.resetInterval();
+        else periodicReminderUsage.pause();
+        logStage("PERIODIC_REMINDER_DISMISSED", removedPackage, "", "dismissed", reason);
+        requestImmediateEvaluation();
     }
 
     private android.view.View buildShieldView() {
@@ -1442,6 +1668,8 @@ public final class StudyModeFocusService extends Service {
         if (monitorThread != null) monitorThread.quitSafely();
         mainHandler.removeCallbacksAndMessages(null);
         removeShield("service_destroyed");
+        dismissPeriodicReminder("service_destroyed", false);
+        periodicReminderUsage.clear();
         boolean overlayCleanupFailed = shieldView != null;
         overlayFailureForStatus = overlayCleanupFailed;
         foregroundLookupFailureForStatus = false;

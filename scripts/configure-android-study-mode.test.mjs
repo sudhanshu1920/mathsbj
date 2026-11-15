@@ -56,7 +56,7 @@ test('configures complete installed-app visibility, native services and Capacito
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 11);
+  assert.equal(result.javaFiles, 12);
   assert.equal(result.foregroundMonitoring, 'usage-access-plus-optional-accessibility');
   assert.deepEqual(result.variants, ['universal']);
   assert.equal(result.accessibility, 'optional-user-consent');
@@ -93,6 +93,9 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.match(buildGradle, /MATHMASTER_UNIVERSAL_STUDY_MODE/);
   assert.match(buildGradle, /versionCode 1/);
   assert.doesNotMatch(buildGradle, /applicationIdSuffix/);
+  const universalAccumulator = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeUsageAccumulator.java'), 'utf8');
+  assert.ok(universalAccumulator.includes('MAX_SAMPLE_GAP_MS = 4_000L'));
+  assert.ok(universalAccumulator.includes('void resetInterval()'));
   const universalService = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8');
   assert.ok(universalService.includes('getWindowsOnAllDisplays()'));
   const universalMetadata = await readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8');
