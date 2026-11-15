@@ -31,7 +31,7 @@ test("periodic reminder intervals persist, validate 1–10 and apply without res
   assert.ok(manager.includes("StudyModeFocusService.onReminderIntervalChanged(value)"));
   assert.ok(manager.includes('result.put("reminderIntervalMinutes", getReminderIntervalMinutes(context))'));
   assert.ok(page.includes("Array.from({ length: 10 }, (_, index) => index + 1)"));
-  assert.ok(page.includes("Number.isInteger(value) && value >= 1 && value <= 10"));
+  assert.ok(page.includes("!Number.isInteger(value) || value < 1 || value > 10"));
   assert.ok(page.includes("setStudyModeReminderInterval(value)"));
   assert.ok(usageAccumulator.includes("value >= 1 && value <= 10"));
 });
