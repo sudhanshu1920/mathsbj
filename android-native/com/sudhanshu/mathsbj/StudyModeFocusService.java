@@ -101,7 +101,7 @@ public final class StudyModeFocusService extends Service {
     private final StudyModeUsageAccumulator periodicReminderUsage = new StudyModeUsageAccumulator();
     private final AtomicBoolean periodicReminderVisible = new AtomicBoolean(false);
     private android.view.View periodicReminderView;
-    private String periodicReminderPackage = "";
+    private volatile String periodicReminderPackage = "";
     private enum PopupState { IDLE, LAUNCH_PENDING, VISIBLE, RECOVERY_REQUIRED }
 
     private String shieldedPackage = "";
@@ -295,12 +295,16 @@ public final class StudyModeFocusService extends Service {
         if (service == null || !running || !StudyModeUsageAccumulator.isValidInterval(intervalMinutes)) return;
         Handler handler = service.monitorHandler;
         if (handler == null) return;
-        handler.post(() -> {
+        Runnable applyInterval = () -> {
             if (!running || service != activeService) return;
             service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
             service.periodicReminderUsage.pause();
             service.monitorRunnable.run();
-        });
+        };
+        if (!handler.post(applyInterval)) {
+            service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
+            service.periodicReminderUsage.pause();
+        }
     }
 
     public static void requestImmediateEvaluation() {
@@ -674,8 +678,8 @@ public final class StudyModeFocusService extends Service {
             boolean reminderDue = periodicReminderUsage.sample(
                 activePackage, SystemClock.elapsedRealtime(), reminderEligible,
                 StudyModeManager.getReminderIntervalMinutes(StudyModeFocusService.this));
-            if (periodicReminderVisible.get() && activePackage != null
-                && !activePackage.equals(periodicReminderPackage)) {
+            if (periodicReminderVisible.get() && !periodicReminderPackage.isEmpty()
+                && activePackage != null && !activePackage.equals(periodicReminderPackage)) {
                 mainHandler.post(() -> dismissPeriodicReminder("focused_app_changed", false));
             }
 
@@ -1213,13 +1217,11 @@ public final class StudyModeFocusService extends Service {
         periodicReminderPackage = "";
         periodicReminderVisible.set(false);
         Handler handler = monitorHandler;
-        if (handler != null) {
-            handler.post(() -> {
-                if (resetInterval) periodicReminderUsage.resetInterval();
-                else periodicReminderUsage.pause();
-            });
-        } else if (resetInterval) periodicReminderUsage.resetInterval();
-        else periodicReminderUsage.pause();
+        Runnable updateUsage = () -> {
+            if (resetInterval) periodicReminderUsage.resetInterval();
+            else periodicReminderUsage.pause();
+        };
+        if (handler == null || !handler.post(updateUsage)) updateUsage.run();
         logStage("PERIODIC_REMINDER_DISMISSED", removedPackage, "", "dismissed", reason);
         requestImmediateEvaluation();
     }
