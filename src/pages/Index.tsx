@@ -24,7 +24,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TrigFunction } from '@/lib/trigData';
 import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
 import { getFloatingBarVisibility } from '@/lib/floatingBarVisibility';
-import { isStudyModeLearningDeepLink } from '@/lib/studyModeDeepLink';
+import { isStudyModeLearningDeepLink, isStudyModeStudyAppsDeepLink, STUDY_MODE_STUDY_APPS_SESSION_KEY } from '@/lib/studyModeDeepLink';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -767,13 +767,29 @@ const Index = () => {
     appFrameScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [clearPracticeState]);
 
+  const openStudyAppsFromReminder = useCallback((url: string): boolean => {
+    if (!isStudyModeStudyAppsDeepLink(url)) return false;
+    try {
+      sessionStorage.setItem(STUDY_MODE_STUDY_APPS_SESSION_KEY, "1");
+    } catch {
+      toast.error("Study Apps settings could not be opened because app session storage is unavailable.");
+      return true;
+    }
+    setTab("progress");
+    return true;
+  }, []);
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
     let disposed = false;
     let listenerHandle: { remove: () => Promise<void> } | null = null;
+    const handleNativeDeepLink = (url: string) => {
+      if (openStudyAppsFromReminder(url)) return;
+      openLearningFromStudyShield(url);
+    };
     const listenerPromise = App.addListener('appUrlOpen', ({ url }) => {
-      if (!disposed) openLearningFromStudyShield(url);
+      if (!disposed) handleNativeDeepLink(url);
     });
 
     void listenerPromise.then((handle) => {
@@ -784,17 +800,17 @@ const Index = () => {
       }
     }).catch(() => undefined);
 
-    // A fresh Activity can be created directly from the shield button, so
-    // read the initial URL as well as listening for later onNewIntent events.
+    // A fresh Activity can be created directly from a shield action, so
+    // handle initial URLs as well as later onNewIntent events.
     void App.getLaunchUrl().then((launch) => {
-      if (!disposed && launch?.url) openLearningFromStudyShield(launch.url);
+      if (!disposed && launch?.url) handleNativeDeepLink(launch.url);
     }).catch(() => undefined);
 
     return () => {
       disposed = true;
       if (listenerHandle) void listenerHandle.remove();
     };
-  }, [openLearningFromStudyShield]);
+  }, [openLearningFromStudyShield, openStudyAppsFromReminder]);
 
   const requestPracticeNavigation = useCallback((
     targetTab: Tab,
