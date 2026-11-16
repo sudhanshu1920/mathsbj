@@ -28,7 +28,9 @@ test("periodic reminder intervals persist, validate 1–10 and apply without res
   assert.ok(manager.includes('KEY_REMINDER_INTERVAL_MINUTES = "reminderIntervalMinutes"'));
   assert.ok(manager.includes('DEFAULT_REMINDER_INTERVAL_MINUTES = 2'));
   assert.ok(manager.includes("StudyModeUsageAccumulator.isValidInterval(value)"));
-  assert.ok(manager.includes("StudyModeFocusService.onReminderIntervalChanged(value)"));
+  assert.ok(manager.includes("StudyModeFocusService.onReminderIntervalChanged(context, value)"));
+  assert.ok(source.includes("clearUnshownPeriodicReminderState(service)"));
+  assert.ok(source.includes("if (service.periodicReminderVisible.get()) return;"));
   assert.ok(manager.includes('result.put("reminderIntervalMinutes", getReminderIntervalMinutes(context))'));
   assert.ok(page.includes("Array.from({ length: 10 }, (_, index) => index + 1)"));
   assert.ok(page.includes("!Number.isInteger(value) || value < 1 || value > 10"));
@@ -45,7 +47,15 @@ test("usage accounting is monotonic, shared globally and pauses on uncertain foc
   ]) assert.ok(usageAccumulator.includes(invariant), `Missing usage invariant: ${invariant}`);
   assert.ok(source.includes("SystemClock.elapsedRealtime()"));
   assert.ok(source.includes("StudyModeWindowRegistry.findFocusedPackage"));
-  assert.ok(source.includes("activePackage = foreground;"));
+  assert.ok(!source.includes("activePackage = foreground;"), "connected but incomplete Accessibility focus must not reuse cached UsageEvents package");
+  const focusedPackageLookup = between(
+    registry,
+    "public static String findFocusedPackage(",
+    "private static final class AccessibilityEventRecord",
+  );
+  assert.ok(focusedPackageLookup.includes("if (connected)"));
+  assert.ok(focusedPackageLookup.includes("if (!fresh || !complete) return null;"));
+  assert.ok(focusedPackageLookup.indexOf("if (connected)") < focusedPackageLookup.indexOf("usageForegroundPackage"));
   assert.ok(source.includes("!StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground)"));
   assert.ok(registry.includes("snapshotComplete"));
   assert.ok(registry.includes("window.focused"));
