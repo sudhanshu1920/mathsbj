@@ -1,9 +1,10 @@
-import { Sun, Moon, Check } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { m as motion, AnimatePresence } from 'framer-motion';
 import { MOTION } from '@/lib/motion';
-import { THEMES, useMode, useTheme, toggleMode, setTheme, type ThemeId } from '@/lib/theme';
+import { THEMES, useMode, useTheme, toggleMode } from '@/lib/theme';
+import ThemeOptionsGrid from '@/components/ThemeOptionsGrid';
 
 interface ThemeToggleProps {
   compact?: boolean;
@@ -104,11 +105,6 @@ const ThemeToggle = ({ compact = false }: ThemeToggleProps) => {
     toggleMode();
   };
 
-  const chooseTheme = (id: ThemeId) => {
-    setTheme(id);
-    setPaletteOpen(false);
-  };
-
   return (
     <div className="relative">
       <button
@@ -153,39 +149,7 @@ const ThemeToggle = ({ compact = false }: ThemeToggleProps) => {
                 </span>
               </div>
 
-              <div
-                className="mx-auto grid h-[156px] max-w-[200px] auto-cols-[60px] grid-flow-col grid-rows-3 gap-1.5 overflow-x-auto overscroll-contain pr-1 scrollbar-thin"
-                aria-label="Available themes"
-              >
-                {THEMES.map((item) => {
-                  const selected = item.id === theme;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => chooseTheme(item.id)}
-                      aria-label={'Use ' + item.name + ' theme'}
-                      aria-pressed={selected}
-                      title={item.tagline}
-                      className="group relative flex h-[48px] w-[60px] flex-col items-center justify-center gap-1 rounded-xl border border-border/70 bg-background/55 px-1 py-1 transition-all hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                    >
-                      <span aria-hidden="true" className="relative h-5 w-8 overflow-hidden rounded-full border border-border/60 shadow-sm">
-                        <span className="absolute inset-0" style={{ background: item.swatch[0] }} />
-                        <span className="absolute inset-y-0 left-0 w-1/2" style={{ background: item.swatch[1], clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0 100%)' }} />
-                        <span className="absolute inset-y-0 right-0 w-1/2" style={{ background: item.swatch[2], clipPath: 'polygon(30% 0, 100% 0, 100% 100%, 0 100%)' }} />
-                      </span>
-                      <span className="w-full truncate text-[8px] font-bold leading-none text-foreground">
-                        {item.name}
-                      </span>
-                      {selected && (
-                        <span className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                          <Check size={9} strokeWidth={3} />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <ThemeOptionsGrid variant="popup" onSelect={() => setPaletteOpen(false)} />
             </motion.div>
           )}
         </AnimatePresence>,

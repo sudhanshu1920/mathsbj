@@ -129,7 +129,7 @@ describe("SettingsPanel compact controls", () => {
     await waitFor(() => expect(mocks.setBackgroundNotificationsEnabled).toHaveBeenCalledWith(false));
   });
 
-  it("renders accessible color-only swatches for every theme and preserves theme/mode actions", () => {
+  it("renders compact named cards for every theme and preserves theme/mode actions", () => {
     const { container, rerender } = render(<SettingsPanel />);
 
     const themeButtons = screen.getAllByRole("button", { name: /^Select .* theme$/ });
@@ -139,18 +139,22 @@ describe("SettingsPanel compact controls", () => {
     for (const theme of THEMES) {
       const button = screen.getByRole("button", { name: `Select ${theme.name} theme` });
       expect(button).toHaveAttribute("aria-pressed");
-      expect(button.textContent).toBe("");
-      expect(button.querySelector("[data-theme-swatch]")).toHaveStyle({
-        backgroundImage: `linear-gradient(135deg, ${theme.swatch[1]} 0 50%, ${theme.swatch[2]} 50% 100%)`,
-      });
+      const swatchParts = button.querySelectorAll("[data-theme-swatch] > span");
+      expect(swatchParts).toHaveLength(3);
+      expect(swatchParts[0]).toHaveStyle({ background: theme.swatch[0] });
+      expect(swatchParts[1]).toHaveStyle({ background: theme.swatch[1] });
+      expect(swatchParts[2]).toHaveStyle({ background: theme.swatch[2] });
+      expect(button.textContent).toContain(theme.name);
     }
 
     const grid = container.querySelector("[data-theme-selector-grid]");
-    expect(grid).toHaveClass("grid", "grid-cols-8", "min-[420px]:grid-cols-10");
+    expect(grid).toHaveClass("grid", "grid-cols-2", "min-[360px]:grid-cols-3");
     expect(grid?.querySelectorAll("[data-theme-option]")).toHaveLength(THEMES.length);
     expect(grid?.querySelectorAll("[data-theme-swatch]")).toHaveLength(THEMES.length);
-    expect(screen.queryByText("Arctic Blue")).not.toBeInTheDocument();
-    expect(screen.queryByText("Soft Rose")).not.toBeInTheDocument();
+    expect(screen.getByText("Arctic Blue")).toBeInTheDocument();
+    expect(screen.getByText("Soft Rose")).toBeInTheDocument();
+    expect(container.querySelectorAll("[data-theme-selected-indicator]")).toHaveLength(1);
+    expect(container.querySelector("[data-theme-mode-selector]")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Select Mint theme" }));
     expect(mocks.setTheme).toHaveBeenCalledWith("mint");
