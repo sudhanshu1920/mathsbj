@@ -160,6 +160,7 @@ const Index = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [studyModePageVisible, setStudyModePageVisible] = useState(false);
   const [studyAppsPickerRequest, setStudyAppsPickerRequest] = useState(0);
+  const [studyAppsPickerPending, setStudyAppsPickerPending] = useState(false);
   const [sectionTransitionDirection, setSectionTransitionDirection] = useState<SectionTransitionDirection | null>(null);
   const prefersReducedMotion = useReducedMotion();
   const appFrameScrollRef = useRef<HTMLDivElement>(null);
@@ -201,9 +202,14 @@ const Index = () => {
       try {
         const requested = await consumeStudyAppsPickerRequest();
         if (requested && !disposed) {
-          setTab('learn');
-          setSettingsOpen(false);
-          setStudyAppsPickerRequest((current) => current + 1);
+          if (isPracticeSessionInProgress(practicePhase)) {
+            setStudyAppsPickerPending(true);
+            toast.info("Study Apps will open after the current quiz.");
+          } else {
+            setTab('learn');
+            setSettingsOpen(false);
+            setStudyAppsPickerRequest((current) => current + 1);
+          }
         }
       } finally {
         inFlight = false;
@@ -223,6 +229,14 @@ const Index = () => {
       void appStateListener.then((listener) => listener?.remove());
     };
   }, []);
+
+  useEffect(() => {
+    if (!studyAppsPickerPending || isPracticeSessionInProgress(practicePhase)) return;
+    setStudyAppsPickerPending(false);
+    setTab('learn');
+    setSettingsOpen(false);
+    setStudyAppsPickerRequest((current) => current + 1);
+  }, [studyAppsPickerPending, practicePhase]);
 
   const sectionTransition: SectionTransition = {
     direction: sectionTransitionDirection,
