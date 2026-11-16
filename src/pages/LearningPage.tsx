@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { m as motion } from 'framer-motion';
 import { Zap, ArrowLeft, Dumbbell, BookOpen, Flame, Heart, Crown } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
