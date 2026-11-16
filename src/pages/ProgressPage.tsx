@@ -10,6 +10,7 @@ import SettingsPanel from '@/components/SettingsPanel';
 import ThemeToggle from '@/components/ThemeToggle';
 import DesktopModeToggle from '@/components/DesktopModeToggle';
 import { TOPIC_ICON_MAP } from '@/lib/topicIcons';
+import { STUDY_MODE_STUDY_APPS_SESSION_KEY } from '@/lib/studyModeDeepLink';
 
 interface ProgressPageProps {
   onSettingsVisibilityChange?: (visible: boolean) => void;
@@ -19,6 +20,21 @@ const ProgressPage = ({ onSettingsVisibilityChange }: ProgressPageProps) => {
   const [data, setData] = useState<ProgressData>(getProgress());
   const [streak, setStreak] = useState<StreakState>(() => getStreak());
   const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    const openStudyAppsSettings = () => {
+      try {
+        if (sessionStorage.getItem(STUDY_MODE_STUDY_APPS_SESSION_KEY) === "1") {
+          setShowSettings(true);
+        }
+      } catch {
+        // Settings remains available through normal navigation when WebView storage is unavailable.
+      }
+    };
+    openStudyAppsSettings();
+    window.addEventListener("study-mode-open-app-picker", openStudyAppsSettings);
+    return () => window.removeEventListener("study-mode-open-app-picker", openStudyAppsSettings);
+  }, []);
 
   useEffect(() => {
     const refreshAll = () => {
