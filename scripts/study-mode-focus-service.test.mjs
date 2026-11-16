@@ -214,6 +214,11 @@ test("the reminder stays attached across focus changes and offers a real Study A
   assert.ok(page.includes("openStudyAppsPicker"));
   assert.ok(page.includes("setStudyPickerOpen(true)"));
   assert.ok(readFileSync(new URL("../src/pages/Index.tsx", import.meta.url), "utf8").includes("consumeStudyAppsPickerRequest"));
+  const index = readFileSync(new URL("../src/pages/Index.tsx", import.meta.url), "utf8");
+  assert.ok(index.includes("if (isPracticeSessionInProgress(practicePhase))"));
+  assert.ok(index.includes("setStudyAppsPickerPending(true)"));
+  assert.ok(index.includes("Study Apps will open after the current quiz."));
+  assert.ok(index.includes("!studyAppsPickerPending || isPracticeSessionInProgress(practicePhase)"));
 });
 
 test("rapid interval edits are serialized and last choice wins", () => {
