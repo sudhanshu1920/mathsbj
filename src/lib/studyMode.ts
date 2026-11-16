@@ -75,6 +75,7 @@ interface NativeStudyModePlugin {
   saveConfig(options: StudyModeConfig & { studyAppPackageNames: string[] }): Promise<StudyModeStatus>;
   setPopupAppearance(options: { theme: string; mode: "dark" | "light" }): Promise<void>;
   setReminderIntervalMinutes(options: { minutes: number }): Promise<StudyModeStatus>;
+  consumeOpenStudyAppsPickerRequest(): Promise<{ open: boolean }>;
   setEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
   startSession(options: StudyModeSessionOptions): Promise<StudyModeStatus>;
   endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
@@ -151,6 +152,16 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
     };
   }
   return NativeStudyMode.getStatus();
+}
+
+export async function consumeStudyAppsPickerRequest(): Promise<boolean> {
+  if (!isStudyModeNative()) return false;
+  try {
+    const result = await NativeStudyMode.consumeOpenStudyAppsPickerRequest();
+    return result.open === true;
+  } catch {
+    return false;
+  }
 }
 
 export async function refreshStudyMode(): Promise<StudyModeStatus> {
