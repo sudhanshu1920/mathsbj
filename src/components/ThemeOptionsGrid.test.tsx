@@ -1,10 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ThemeOptionsGrid from "./ThemeOptionsGrid";
-import { setTheme, type ThemeId } from "@/lib/theme";
+import { setTheme } from "@/lib/theme";
 
 describe("shared ThemeOptionsGrid", () => {
   beforeEach(() => {
+    setTheme("arctic-blue");
+  });
+
+  afterEach(() => {
     setTheme("arctic-blue");
   });
 
