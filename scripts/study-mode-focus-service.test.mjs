@@ -61,6 +61,8 @@ test("Blocked Apps and Study Apps precedence is retained for periodic reminders"
   assert.ok(monitor.includes("StudyModeManager.isPeriodicReminderExemptPackage"));
   assert.ok(monitor.includes("boolean reminderDue = periodicReminderUsage.sample("));
   assert.ok(source.includes('dismissPeriodicReminder("blocked_app"'));
+  assert.ok(source.includes("suspendPeriodicReminderForBlockedApp()"));
+  assert.ok(!monitor.includes('dismissPeriodicReminder("blocked_app"'));
   assert.ok(manager.includes("getEnforcedPackages(context).contains(packageName)"));
   assert.ok(manager.includes("Settings is intentionally not globally exempt."));
 });
