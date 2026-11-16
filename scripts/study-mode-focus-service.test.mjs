@@ -89,6 +89,8 @@ test("periodic reminder is a separate persistent overlay; Continue Anyway resets
   assert.ok(source.includes("TYPE_APPLICATION_OVERLAY"));
   assert.ok(source.includes("dispatchKeyEvent(KeyEvent event)"));
   assert.ok(source.includes("KeyEvent.KEYCODE_BACK"));
+  const restore = between(source, "private void restorePeriodicReminderOverlay()", "private android.view.View buildPeriodicReminderView(");
+  assert.ok(restore.includes("shieldView != null || popupState != PopupState.IDLE"));
 });
 
 test("interval changes, OFF/expiry and service recovery preserve the correct timer state", () => {
