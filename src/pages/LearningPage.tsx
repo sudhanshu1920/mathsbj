@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { m as motion } from 'framer-motion';
 import { Zap, ArrowLeft, Dumbbell, BookOpen, Flame, Heart, Crown } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -43,6 +43,7 @@ interface LearningPageProps {
   practiceSelectorOpen?: boolean;
   practiceReturn?: PracticeLaunchContext | null;
   onPracticeSelectorVisibilityChange?: (open: boolean) => void;
+  studyAppsPickerRequest?: number;
 }
 
 const topics: LearningTopicId[] = [
@@ -72,6 +73,7 @@ const LearningPage = ({
   practiceSelectorOpen = false,
   practiceReturn,
   onPracticeSelectorVisibilityChange,
+  studyAppsPickerRequest = 0,
 }: LearningPageProps) => {
   const activeTopic = (learningState?.activeTopic as Topic | null) ?? null;
   const selectedNumber = learningState?.selectedNumber ?? null;
@@ -90,6 +92,17 @@ const LearningPage = ({
   const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
   const [pendingPeriodicPractice, setPendingPeriodicPractice] = useState<PeriodicPracticeSelection | null>(null);
   const [studyModeTopicOpen, setStudyModeTopicOpen] = useState(false);
+  const [openStudyAppsPickerAfterMount, setOpenStudyAppsPickerAfterMount] = useState(false);
+
+  useEffect(() => {
+    if (studyAppsPickerRequest <= 0) return;
+    setStudyModeTopicOpen(true);
+    setOpenStudyAppsPickerAfterMount(true);
+  }, [studyAppsPickerRequest]);
+
+  const clearStudyAppsPickerRequest = useCallback(() => {
+    setOpenStudyAppsPickerAfterMount(false);
+  }, []);
 
   // Learning topics are part of the same daily study-minute target as quizzes.
   // Count only while a topic is open and the visible learning screen is not
@@ -289,7 +302,7 @@ const LearningPage = ({
   if (studyModeTopicOpen) {
     return (
       <Suspense fallback={<div className="py-16 text-center text-sm font-semibold text-muted-foreground">Loading Study Mode…</div>}>
-        <StudyModePage backLabel="Back to Learning Mode" onBack={() => setStudyModeTopicOpen(false)} />
+        <StudyModePage backLabel="Back to Learning Mode" onBack={() => setStudyModeTopicOpen(false)} openStudyAppsPicker={openStudyAppsPickerAfterMount} onStudyAppsPickerOpened={clearStudyAppsPickerRequest} />
       </Suspense>
     );
   }

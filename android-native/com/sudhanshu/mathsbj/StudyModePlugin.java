@@ -73,23 +73,31 @@ public final class StudyModePlugin extends Plugin {
     @PluginMethod
     public void setReminderIntervalMinutes(PluginCall call) {
         Object rawValue = call.getData().opt("minutes");
-        if (!(rawValue instanceof Integer) && !(rawValue instanceof Long)) {
+        if (!(rawValue instanceof Number)) {
             call.reject("Reminder interval must be a whole number from 1 to 10 minutes.");
             return;
         }
-        int value = ((Number) rawValue).intValue();
-        if (value < 1 || value > 10) {
+        double numericValue = ((Number) rawValue).doubleValue();
+        if (Double.isNaN(numericValue) || Double.isInfinite(numericValue) || numericValue != Math.rint(numericValue)
+            || numericValue < 1d || numericValue > 10d) {
             call.reject("Reminder interval must be an integer from 1 to 10 minutes.");
             return;
         }
         try {
-            StudyModeManager.setReminderIntervalMinutes(getContext(), value);
+            StudyModeManager.setReminderIntervalMinutes(getContext(), (int) numericValue);
             call.resolve(StudyModeManager.getStatus(getContext()));
         } catch (IllegalArgumentException error) {
             call.reject(error.getMessage(), error);
         } catch (Exception error) {
             call.reject("Could not save the reminder interval.", error);
         }
+    }
+
+    @PluginMethod
+    public void consumeOpenStudyAppsPickerRequest(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("open", StudyModeManager.consumeOpenStudyAppsPickerRequest(getContext()));
+        call.resolve(result);
     }
 
     @PluginMethod

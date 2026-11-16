@@ -28,7 +28,9 @@ test("periodic reminder intervals persist, validate 1–10 and apply without res
   assert.ok(manager.includes('KEY_REMINDER_INTERVAL_MINUTES = "reminderIntervalMinutes"'));
   assert.ok(manager.includes('DEFAULT_REMINDER_INTERVAL_MINUTES = 2'));
   assert.ok(manager.includes("StudyModeUsageAccumulator.isValidInterval(value)"));
-  assert.ok(manager.includes("StudyModeFocusService.onReminderIntervalChanged(value)"));
+  assert.ok(manager.includes("StudyModeFocusService.onReminderIntervalChanged(context, value)"));
+  assert.ok(source.includes("clearUnshownPeriodicReminderState(service)"));
+  assert.ok(source.includes("if (service.periodicReminderVisible.get()) return;"));
   assert.ok(manager.includes('result.put("reminderIntervalMinutes", getReminderIntervalMinutes(context))'));
   assert.ok(page.includes("Array.from({ length: 10 }, (_, index) => index + 1)"));
   assert.ok(page.includes("!Number.isInteger(value) || value < 1 || value > 10"));
@@ -36,20 +38,30 @@ test("periodic reminder intervals persist, validate 1–10 and apply without res
   assert.ok(usageAccumulator.includes("value >= 1 && value <= 10"));
 });
 
-test("usage accounting is monotonic, one shared accumulator and pauses on uncertain focus", () => {
+test("usage accounting is monotonic, shared globally and pauses on uncertain focus", () => {
   for (const invariant of [
     "MAX_SAMPLE_GAP_MS = 4_000L", "elapsedRealtimeMs >= lastSampleElapsedMs",
-    "Both endpoint samples were eligible", "void pause()", "void resetInterval()",
+    "synchronized void pause()", "synchronized void resetInterval()",
     "long thresholdMs = intervalMinutes * 60_000L",
+    "enum State { STOPPED, RUNNING, PAUSED, REMINDER_PENDING, REMINDER_VISIBLE }",
   ]) assert.ok(usageAccumulator.includes(invariant), `Missing usage invariant: ${invariant}`);
   assert.ok(source.includes("SystemClock.elapsedRealtime()"));
   assert.ok(source.includes("StudyModeWindowRegistry.findFocusedPackage"));
+  assert.ok(!source.includes("activePackage = foreground;"), "connected but incomplete Accessibility focus must not reuse cached UsageEvents package");
+  const focusedPackageLookup = between(
+    registry,
+    "public static String findFocusedPackage(",
+    "private static final class AccessibilityEventRecord",
+  );
+  assert.ok(focusedPackageLookup.includes("if (connected)"));
+  assert.ok(focusedPackageLookup.includes("if (!fresh || !complete) return null;"));
+  assert.ok(focusedPackageLookup.indexOf("if (connected)") < focusedPackageLookup.indexOf("if (usageForegroundPackage == null"));
+  assert.ok(source.includes("StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage)"));
   assert.ok(registry.includes("snapshotComplete"));
   assert.ok(registry.includes("window.focused"));
   assert.ok(source.includes("periodicReminderUsage.pause()"));
   assert.ok(source.includes("periodicReminderVisible.get()"));
   assert.ok(source.includes("!activePackage.equals(getPackageName())"));
-  assert.ok(source.includes("!reminderTargetPackage.equals(getPackageName())"));
 });
 
 test("Blocked Apps and Study Apps precedence is retained for periodic reminders", () => {
@@ -58,110 +70,167 @@ test("Blocked Apps and Study Apps precedence is retained for periodic reminders"
   assert.ok(monitor.includes("StudyModeManager.isSelectedStudyAppPackage"));
   assert.ok(monitor.includes("StudyModeManager.isPeriodicReminderExemptPackage"));
   assert.ok(monitor.includes("boolean reminderDue = periodicReminderUsage.sample("));
-  assert.ok(source.includes('dismissPeriodicReminder("blocked_app"'));
+  assert.ok(source.includes("suspendPeriodicReminderForBlockedApp()"));
+  assert.ok(!monitor.includes('dismissPeriodicReminder("blocked_app"'));
   assert.ok(manager.includes("getEnforcedPackages(context).contains(packageName)"));
   assert.ok(manager.includes("Settings is intentionally not globally exempt."));
 });
 
-test("a due interval remains latched across a rapid focus change until the reminder is actually attached", () => {
+test("a due interval remains latched across focus changes until the reminder is attached", () => {
   const sampling = between(usageAccumulator, "synchronized boolean sample(", "synchronized void setIntervalMinutes(");
   assert.ok(sampling.includes("if (accumulatedUsageMs < thresholdMs) return false;"));
-  assert.ok(sampling.includes("pause();\n        return true;"));
+  assert.ok(sampling.includes("if (state == State.REMINDER_PENDING) return true;"));
+  assert.ok(sampling.includes("state = State.REMINDER_PENDING;"));
   assert.ok(!sampling.includes("resetInterval();"));
-  const show = between(source, "private void showPeriodicReminder(", "private android.view.View buildPeriodicReminderView(");
-  assert.ok(show.indexOf("windowManager.addView(candidate, params)")
-    < show.indexOf("periodicReminderUsage.resetInterval()"));
+  const show = between(source, "private void showPeriodicReminder(", "private void restorePeriodicReminderOverlay(");
+  assert.ok(show.indexOf("StudyModeManager.savePendingPeriodicReminder")
+    < show.indexOf("windowManager.addView(candidate, periodicReminderWindowParams())"));
+  assert.ok(show.includes("periodicReminderUsage.markReminderVisible()"));
 });
 
-test("periodic reminder is a separate deduplicated overlay; Continue Anyway resets its interval", () => {
+test("periodic reminder is a separate persistent overlay; Continue Anyway resets the next interval", () => {
   assert.ok(source.includes("private final AtomicBoolean periodicReminderVisible = new AtomicBoolean(false)"));
   assert.ok(source.includes("private void showPeriodicReminder("));
   assert.ok(source.includes("private void dismissPeriodicReminder(String reason, boolean resetInterval)"));
   assert.ok(source.includes("periodicReminderVisible.compareAndSet(false, true)"));
   assert.ok(source.includes('dismissPeriodicReminder("continue_anyway", true)'));
-  assert.ok(source.includes("StudyModeManager.launchStudyApp(StudyModeFocusService.this, studyPackage)"));
-  assert.ok(source.includes("periodicReminderUsage.resetInterval()"));
+  assert.ok(source.includes("StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)"));
+  assert.ok(source.includes("periodicReminderUsage.dismissReminder(resetInterval)"));
   assert.ok(source.includes("TYPE_APPLICATION_OVERLAY"));
+  assert.ok(source.includes("dispatchKeyEvent(KeyEvent event)"));
+  assert.ok(source.includes("KeyEvent.KEYCODE_BACK"));
+  const restore = between(source, "private void restorePeriodicReminderOverlay()", "private android.view.View buildPeriodicReminderView(");
+  assert.ok(restore.includes("shieldView != null || popupState != PopupState.IDLE"));
 });
 
-test("interval changes, OFF/expiry and recovery reset or pause the accumulator safely", () => {
-  assert.ok(source.includes("void onReminderIntervalChanged(int intervalMinutes)"));
+test("interval changes, OFF/expiry and service recovery preserve the correct timer state", () => {
+  assert.ok(source.includes("void onReminderIntervalChanged(Context context, int intervalMinutes)"));
   assert.ok(source.includes("periodicReminderUsage.setIntervalMinutes(intervalMinutes)"));
   assert.ok(source.includes("periodicReminderUsage.clear()"));
   assert.ok(source.includes("periodicReminderUsage.pause()"));
   const destroy = between(source, "public void onDestroy()", "public IBinder onBind(");
   assert.ok(destroy.includes("periodicReminderUsage.clear()"));
   assert.ok(destroy.includes('dismissPeriodicReminder("service_destroyed", false)'));
+  assert.ok(destroy.includes("StudyModeManager.saveReminderUsageMs(this, periodicReminderUsage.getAccumulatedUsageMs())"));
 });
 
-test("usage model covers 1, 2, 5, 10-minute periods and cumulative time across apps", () => {
+test("fake-clock model fires at the configured 1, 2, 5 and 10-minute eligible-usage threshold", () => {
   class Model {
-    constructor(interval) { this.interval = interval; this.total = 0; this.anchor = null; this.pkg = ""; }
-    reset() { this.total = 0; this.anchor = null; this.pkg = ""; }
+    constructor(interval) { this.interval = interval; this.total = 0; this.last = null; this.state = "PAUSED"; }
     sample(pkg, at, eligible = true) {
-      if (!eligible || !pkg) { this.anchor = null; this.pkg = ""; return false; }
-      if (this.anchor !== null && this.pkg === pkg && at >= this.anchor) {
-        const delta = at - this.anchor;
+      if (this.state === "STOPPED" || this.state === "REMINDER_VISIBLE") return false;
+      if (this.state === "REMINDER_PENDING") return true;
+      if (!eligible || !pkg || at <= 0) { this.last = null; this.state = "PAUSED"; return false; }
+      if (this.last !== null && at >= this.last) {
+        const delta = at - this.last;
         if (delta > 0 && delta <= 4000) this.total += delta;
       }
-      this.anchor = at; this.pkg = pkg;
-      if (this.total >= this.interval * 60000) { this.reset(); return true; }
-      return false;
+      this.last = at;
+      this.state = "RUNNING";
+      if (this.total < this.interval * 60000) return false;
+      this.state = "REMINDER_PENDING";
+      this.last = null;
+      return true;
     }
+    changeInterval(value) { this.interval = value; this.total = 0; this.last = null; this.state = "PAUSED"; }
+    show() { this.total = 0; this.last = null; this.state = "REMINDER_VISIBLE"; }
+    dismiss(reset) { if (reset) this.total = 0; this.last = null; this.state = "PAUSED"; }
+    restore(total) { this.total = total; this.last = null; this.state = total >= this.interval * 60000 ? "REMINDER_PENDING" : "PAUSED"; }
   }
   for (const interval of [1, 2, 5, 10]) {
     const timer = new Model(interval);
-    let fired = false;
-    for (let at = 1000; at <= interval * 60000 + 1000; at += 1000) {
-      fired = timer.sample("com.example.app", at) || fired;
+    const threshold = interval * 60000;
+    let dueAt = null;
+    timer.sample("com.example.first", 1000);
+    for (let at = 2000; at <= threshold + 1000; at += 1000) {
+      const pkg = at < threshold / 2 ? "com.example.first" : "com.example.second";
+      if (timer.sample(pkg, at) && dueAt === null) dueAt = at;
     }
-    assert.equal(fired, true, `${interval}-minute interval should fire`);
+    assert.equal(dueAt, threshold + 1000, `${interval}-minute timer fires once exact eligible usage accrues`);
+    assert.equal(timer.state, "REMINDER_PENDING");
+    assert.equal(timer.sample("com.example.third", threshold + 2000), true, "due reminder remains latched until attached");
   }
-  class GlobalUsageModel extends Model {
-    sample(pkg, at, eligible = true) {
-      if (!eligible || !pkg) { this.anchor = null; this.pkg = ""; return false; }
-      if (this.anchor !== null && at >= this.anchor) {
-        const delta = at - this.anchor;
-        if (delta > 0 && delta <= 4000) this.total += delta;
-      }
-      this.anchor = at; this.pkg = pkg;
-      if (this.total >= this.interval * 60000) { this.reset(); return true; }
-      return false;
-    }
-  }
-  const shared = new GlobalUsageModel(2);
-  shared.sample("com.example.a", 1000);
-  for (let at = 2000; at <= 60000; at += 1000) shared.sample("com.example.a", at);
-  let fired = false;
-  for (let at = 61000; at <= 122000; at += 1000) {
-    fired = shared.sample("com.example.b", at) || fired;
-  }
-  assert.equal(fired, true, "App A + App B usage must share the two-minute accumulator");
 });
 
-test("Study App, screen-off and popup periods pause; dismissing starts the next interval at zero", () => {
-  class Model {
-    total = 0; anchor = null; pkg = "";
+test("Study Apps, Blocked Apps, screen-off and uncertain focus pause without losing prior eligible usage", () => {
+  const timer = new (class {
+    total = 0; last = null; state = "PAUSED";
     sample(pkg, at, eligible = true) {
-      if (!eligible || !pkg) { this.anchor = null; this.pkg = ""; return false; }
-      if (this.anchor !== null && this.pkg === pkg && at >= this.anchor) this.total += Math.min(at - this.anchor, 4000);
-      this.anchor = at; this.pkg = pkg; return this.total >= 120000;
+      if (this.state === "REMINDER_PENDING" || this.state === "REMINDER_VISIBLE") return this.state === "REMINDER_PENDING";
+      if (!eligible || !pkg) { this.last = null; this.state = "PAUSED"; return false; }
+      if (this.last !== null && at >= this.last) {
+        const delta = at - this.last;
+        if (delta > 0 && delta <= 4000) this.total += delta;
+      }
+      this.last = at; this.state = "RUNNING";
+      if (this.total >= 120000) { this.state = "REMINDER_PENDING"; this.last = null; return true; }
+      return false;
     }
-    reset() { this.total = 0; this.anchor = null; this.pkg = ""; }
-  }
-  const timer = new Model();
+  })();
   timer.sample("com.example.social", 1000);
   for (let at = 2000; at <= 31000; at += 1000) timer.sample("com.example.social", at);
   const beforePause = timer.total;
   timer.sample("com.example.notes", 32000, false);
   timer.sample("com.example.social", 90000);
-  assert.equal(timer.total, beforePause);
+  assert.equal(timer.total, beforePause, "Study Apps and long uncertain gaps are excluded");
   timer.sample("com.example.social", 91000, false);
-  assert.equal(timer.total, beforePause);
-  timer.reset();
+  assert.equal(timer.total, beforePause, "screen-off and blocked packages are excluded");
+});
+
+test("Continue Anyway resets the next interval while interval edits reset shared usage", () => {
+  const timer = {
+    interval: 2, total: 45000, last: null, state: "RUNNING",
+    change(value) { this.interval = value; this.total = 0; this.last = null; this.state = "PAUSED"; },
+    dismiss(reset) { if (reset) this.total = 0; this.state = "PAUSED"; this.last = null; },
+  };
+  timer.change(5);
   assert.equal(timer.total, 0);
-  timer.sample("com.example.social", 100000);
-  assert.equal(timer.sample("com.example.social", 101000), false);
+  timer.total = 30000;
+  timer.dismiss(true);
+  assert.equal(timer.total, 0);
+  assert.ok(usageAccumulator.includes("intervalMinutes = value;"));
+  assert.ok(manager.includes(".putLong(KEY_REMINDER_USAGE_MS, 0L)"));
+});
+
+test("accumulated usage survives service replacement without counting downtime; pending reminders restore", () => {
+  const timer = {
+    interval: 2, total: 119000, last: null, state: "PAUSED",
+    restore(value) { this.total = value; this.last = null; this.state = value >= this.interval * 60000 ? "REMINDER_PENDING" : "PAUSED"; },
+    sample(at) {
+      if (this.state === "REMINDER_PENDING") return true;
+      if (this.last !== null && at - this.last > 0 && at - this.last <= 4000) this.total += at - this.last;
+      this.last = at; this.state = "RUNNING";
+      if (this.total >= this.interval * 60000) { this.state = "REMINDER_PENDING"; return true; }
+      return false;
+    },
+  };
+  timer.restore(119000);
+  assert.equal(timer.sample(900000), false, "service downtime is not included");
+  assert.equal(timer.total, 119000);
+  assert.equal(timer.sample(901000), true);
+  assert.equal(timer.state, "REMINDER_PENDING");
+  assert.ok(manager.includes("getReminderUsageMs(Context context)"));
+  assert.ok(manager.includes("savePendingPeriodicReminder(Context context, String reminderId, String packageName)"));
+  assert.ok(source.includes("StudyModeManager.getPendingPeriodicReminderId(this)"));
+});
+
+test("the reminder stays attached across focus changes and offers a real Study Apps picker handoff", () => {
+  const dismiss = between(source, "private void dismissPeriodicReminder(", "private android.view.View buildShieldView()");
+  assert.ok(!source.includes('dismissPeriodicReminder("focused_app_changed"'));
+  assert.ok(dismiss.includes("StudyModeManager.clearPendingPeriodicReminder(this)"));
+  assert.ok(source.includes("refreshPeriodicReminderStudyApps()"));
+  assert.ok(source.includes("StudyModeManager.openStudyAppsSelection(StudyModeFocusService.this)"));
+  assert.ok(source.includes('dismissPeriodicReminder("study_apps_selection_opened", true)'));
+  assert.ok(source.includes("StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)"));
+  assert.ok(manager.includes("KEY_OPEN_STUDY_APPS_PICKER"));
+  assert.ok(page.includes("openStudyAppsPicker"));
+  assert.ok(page.includes("setStudyPickerOpen(true)"));
+  assert.ok(readFileSync(new URL("../src/pages/Index.tsx", import.meta.url), "utf8").includes("consumeStudyAppsPickerRequest"));
+  const index = readFileSync(new URL("../src/pages/Index.tsx", import.meta.url), "utf8");
+  assert.ok(index.includes("if (isPracticeSessionInProgress(practicePhase))"));
+  assert.ok(index.includes("setStudyAppsPickerPending(true)"));
+  assert.ok(index.includes("Study Apps will open after the current quiz."));
+  assert.ok(index.includes("!studyAppsPickerPending || isPracticeSessionInProgress(practicePhase)"));
 });
 
 test("rapid interval edits are serialized and last choice wins", () => {

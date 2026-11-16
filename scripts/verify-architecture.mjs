@@ -56,7 +56,7 @@ if (!icons.includes('Grid3x3') || !icons.includes('Radical') || !icons.includes(
 if (!icons.includes('LockKeyhole') ||
     !learning.includes("const StudyModePage = lazy(() => import('@/components/StudyModePage'));") ||
     !learning.includes('if (studyModeTopicOpen)') ||
-    !learning.includes('<StudyModePage backLabel="Back to Learning Mode" onBack={() => setStudyModeTopicOpen(false)} />') ||
+    !learning.includes('<StudyModePage backLabel="Back to Learning Mode" onBack={() => setStudyModeTopicOpen(false)} openStudyAppsPicker={openStudyAppsPickerAfterMount} onStudyAppsPickerOpened={clearStudyAppsPickerRequest} />') ||
     !learning.includes("if (topicId === 'study-mode')")) {
   fail('Learning Mode Study Mode entry must reuse the canonical StudyModePage and return to its topic list');
 }
@@ -1376,6 +1376,36 @@ if (!studyModeUsageAccumulator.includes('MAX_SAMPLE_GAP_MS = 4_000L') ||
     !studyModeBridge.includes('export async function setStudyModeReminderInterval(minutes: number)') ||
     !studyModeSetup.includes('StudyModeUsageAccumulator.java')) {
   fail('Periodic reminders must use monotonic focused-window usage, validated 1–10 minute persistence and generated Android packaging');
+}
+
+const studyModeReminderPersistence = read('android-native/com/sudhanshu/mathsbj/StudyModeUsageAccumulator.java');
+const studyModeReminderManager = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
+const studyModeReminderFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
+const studyModeReminderPlugin = read('android-native/com/sudhanshu/mathsbj/StudyModePlugin.java');
+const studyModeReminderIndex = read('src/pages/Index.tsx');
+const studyModeReminderLearning = read('src/pages/LearningPage.tsx');
+if (!studyModeReminderPersistence.includes('REMINDER_PENDING, REMINDER_VISIBLE')
+    || !studyModeReminderPersistence.includes('restoreAccumulatedUsageMs(long value)')
+    || !studyModeReminderPersistence.includes('state == State.REMINDER_PENDING')
+    || !studyModeReminderManager.includes('KEY_REMINDER_USAGE_MS')
+    || !studyModeReminderManager.includes('KEY_PENDING_REMINDER_ID')
+    || !studyModeReminderManager.includes('savePendingPeriodicReminder(Context context, String reminderId, String packageName)')
+    || !studyModeReminderFocus.includes('StudyModeManager.savePendingPeriodicReminder(this, reminderId, packageName)')
+    || !studyModeReminderFocus.includes('restorePeriodicReminderOverlay()')
+    || !studyModeReminderFocus.includes('shieldView != null || popupState != PopupState.IDLE')
+    || !studyModeReminderFocus.includes('periodicReminderUsage.dismissReminder(resetInterval)')
+    || !studyModeReminderFocus.includes('suspendPeriodicReminderForBlockedApp()')
+    || studyModeReminderFocus.includes('dismissPeriodicReminder("focused_app_changed"')
+    || !studyModeReminderFocus.includes('dispatchKeyEvent(KeyEvent event)')
+    || !studyModeReminderManager.includes('openStudyAppsSelection(Context context)')
+    || !studyModeReminderPlugin.includes('consumeOpenStudyAppsPickerRequest')
+    || !studyModeBridge.includes('consumeStudyAppsPickerRequest')
+    || !studyModeReminderIndex.includes('consumeStudyAppsPickerRequest')
+    || !studyModeReminderIndex.includes('if (isPracticeSessionInProgress(practicePhase))')
+    || !studyModeReminderIndex.includes('studyAppsPickerPending')
+    || !studyModeReminderLearning.includes('openStudyAppsPicker={openStudyAppsPickerAfterMount}')
+    || !studyModePage.includes('setStudyPickerOpen(true)')) {
+  fail('Periodic reminders must remain latched and recover across service restarts, stay open through focus changes, and route the empty Study Apps state to the real picker');
 }
 
 console.log('Architecture regression checks passed.');
