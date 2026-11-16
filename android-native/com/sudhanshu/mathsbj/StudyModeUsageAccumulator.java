@@ -75,7 +75,10 @@ final class StudyModeUsageAccumulator {
     }
 
     synchronized void markReminderVisible() {
-        if (state == State.REMINDER_PENDING) state = State.REMINDER_VISIBLE;
+        if (state != State.STOPPED) {
+            accumulatedUsageMs = 0L;
+            state = State.REMINDER_VISIBLE;
+        }
         clearSampleAnchor();
     }
 
