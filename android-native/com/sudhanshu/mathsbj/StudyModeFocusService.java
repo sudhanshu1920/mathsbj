@@ -299,27 +299,40 @@ public final class StudyModeFocusService extends Service {
     public static void onReminderIntervalChanged(int intervalMinutes) {
         StudyModeFocusService service = activeService;
         if (service == null || !running || !StudyModeUsageAccumulator.isValidInterval(intervalMinutes)) return;
-        Handler handler = service.monitorHandler;
-        if (handler == null) return;
         Runnable applyInterval = () -> {
             if (!running || service != activeService) return;
-            service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
-            if (service.periodicReminderVisible.get()) {
-                service.periodicReminderUsage.restoreVisible();
-            } else {
-                service.periodicReminderUsage.pause();
-            }
-            service.savePeriodicReminderUsageState(false);
+            service.applyReminderIntervalChange(intervalMinutes);
         };
-        if (!handler.post(applyInterval)) {
-            service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
-            if (service.periodicReminderVisible.get()) {
-                service.periodicReminderUsage.restoreVisible();
-            } else {
-                service.periodicReminderUsage.pause();
+        Handler handler = service.monitorHandler;
+        if (handler == null || !handler.post(applyInterval)) applyInterval.run();
+    }
+
+    private void applyReminderIntervalChange(int intervalMinutes) {
+        if (periodicReminderUsage.getIntervalMinutes() == intervalMinutes) return;
+        periodicReminderUsage.setIntervalMinutes(intervalMinutes);
+        if (hasVisibleOrPersistedPeriodicReminder()) {
+            periodicReminderUsage.restoreVisible();
+        } else {
+            // Cancel an in-flight (not yet WindowManager-attached) reminder so
+            // the previous interval cannot win a race against the new selection.
+            if (periodicReminderVisible.get()) {
+                periodicReminderVisible.set(false);
+                periodicReminderView = null;
+                periodicReminderPackage = "";
+                foregroundDecisionSequence.incrementAndGet();
             }
-            service.savePeriodicReminderUsageState(false);
+            periodicReminderUsage.pause();
         }
+        savePeriodicReminderUsageState(false);
+    }
+
+    private boolean hasVisibleOrPersistedPeriodicReminder() {
+        if (!periodicReminderVisible.get()) return false;
+        android.content.SharedPreferences preferences =
+            getSharedPreferences(REMINDER_PREFS, MODE_PRIVATE);
+        if (preferences.getBoolean(KEY_PERIODIC_REMINDER_PENDING, false)) return true;
+        android.view.View view = periodicReminderView;
+        return view != null && view.isAttachedToWindow();
     }
 
     public static void requestImmediateEvaluation() {
