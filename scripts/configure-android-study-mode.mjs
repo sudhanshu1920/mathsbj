@@ -227,18 +227,21 @@ function ensureStudyModeComponents(manifest) {
 }
 
 function ensureStudyAppsDeepLinkIntentFilter(manifest) {
-  if (manifest.includes('android:scheme="mathmaster"')
-      && manifest.includes('android:host="study-apps"')) return manifest;
+  const activityTags = [...manifest.matchAll(/<activity\\b[^>]*>/g)];
+  const mainActivity = activityTags.find((match) => {
+    const name = match[0].match(/android:name=["']([^"']+)["']/);
+    return name && (name[1] === "MainActivity" || name[1].endsWith(".MainActivity"));
+  });
+  if (!mainActivity) throw new Error('AndroidManifest.xml is missing the MainActivity declaration.');
 
-  const marker = 'android:name=".MainActivity"';
-  const markerIndex = manifest.indexOf(marker);
-  if (markerIndex < 0) throw new Error('AndroidManifest.xml is missing the MainActivity declaration.');
-  const activityStart = manifest.lastIndexOf('<activity', markerIndex);
-  const activityOpenEnd = manifest.indexOf('>', markerIndex);
+  const activityOpenEnd = mainActivity.index + mainActivity[0].length;
   const activityClose = manifest.indexOf('</activity>', activityOpenEnd);
-  if (activityStart < 0 || activityOpenEnd < 0 || activityClose < 0) {
+  if (activityClose < 0 || mainActivity[0].endsWith('/>')) {
     throw new Error('MainActivity manifest declaration is malformed.');
   }
+  const activityBody = manifest.slice(activityOpenEnd, activityClose);
+  if (activityBody.includes('android:scheme="mathmaster"')
+      && activityBody.includes('android:host="study-apps"')) return manifest;
 
   const intentFilter = `            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
