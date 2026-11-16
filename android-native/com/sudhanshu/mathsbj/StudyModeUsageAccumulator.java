@@ -93,6 +93,23 @@ final class StudyModeUsageAccumulator {
         state = State.VISIBLE;
     }
 
+    /** Restore completed-but-not-yet-visible state after Focus Service recovery. */
+    synchronized void restoreDue() {
+        if (state == State.STOPPED) return;
+        accumulatedUsageMs = intervalMinutes * 60_000L;
+        clearSampleAnchor();
+        state = State.DUE;
+    }
+
+    /** Restore prior eligible usage without charging time while the service was stopped. */
+    synchronized void restoreAccumulatedUsage(long usageMs) {
+        if (state == State.STOPPED || state == State.VISIBLE || state == State.DUE) return;
+        long thresholdMs = intervalMinutes * 60_000L;
+        accumulatedUsageMs = Math.max(0L, Math.min(usageMs, Math.max(0L, thresholdMs - 1L)));
+        clearSampleAnchor();
+        state = State.PAUSED;
+    }
+
     /** A user action acknowledges the reminder and starts a fresh interval. */
     synchronized void acknowledgeReminder() {
         accumulatedUsageMs = 0L;
