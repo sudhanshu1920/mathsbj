@@ -1234,7 +1234,7 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModePage.includes('getCachedInstalledStudyModeApps() !== null') ||
     !studyModePage.includes('Refreshing installed apps… selection is paused') ||
     !studyModeAppFilterTests.includes('pins only the current picker') ||
-    !studyModeAppPlugin.includes('listApps cacheHit=') {
+    !studyModeAppPlugin.includes('listApps cacheHit=')) {
   fail('Study Mode performance regression: app inventory must be cached/in-flight deduplicated, countdown isolated, app search deferred, and session history must not gate first interaction');
 }
 if (!studyModeManager.includes('public static synchronized void setEnabled') ||
