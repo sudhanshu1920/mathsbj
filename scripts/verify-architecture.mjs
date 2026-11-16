@@ -1170,7 +1170,7 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
   fail('Study Mode app discovery must include launchable user and system apps, report category metadata, and preserve fast All/User/System filtering');
 }
 
-const studyModeInitialLoadStart = studyModePage.indexOf('const load = useCallback((reconcile = true): Promise<void> => {');
+const studyModeInitialLoadStart = studyModePage.indexOf('const load = useCallback((reconcile = false): Promise<void> => {');
 const studyModeInitialLoadEnd = studyModePage.indexOf(
   '\n\n  useEffect(() => {\n    isMountedRef.current',
   studyModeInitialLoadStart,
@@ -1209,8 +1209,11 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModePage.includes('loading="lazy" decoding="async"') ||
     studyModeInitialLoad.length === 0 ||
     studyModeInitialLoad.includes('getInstalledStudyModeApps(') ||
-    studyModeInitialLoad.includes('refreshStudyMode()') ||
+    !studyModeInitialLoad.includes('(reconcile = false)') ||
+    !studyModeInitialLoad.includes('refreshStudyMode()') ||
     !studyModeInitialLoad.includes('getStudyModeStatus()') ||
+    !studyModePage.includes('void load(false);') ||
+    !studyModePage.includes('Promise.all([load(true), refreshApps])') ||
     !studyModeAppLoader.includes('getInstalledStudyModeApps(forceRefresh)') ||
     !studyModeAppLoader.includes('appCatalogLoadedRef.current') ||
     !studyModeAppLoader.includes('appCatalogLoadInFlightRef.current') ||

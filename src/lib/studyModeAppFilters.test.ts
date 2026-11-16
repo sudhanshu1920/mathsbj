@@ -44,12 +44,14 @@ describe("Study Mode installed-app filters", () => {
       "com.example.notes",
       "com.example.browser",
       "com.oem.launcher",
+      "com.android.settings",
     ]);
     expect(studyOrder.map((app) => app.packageName)).toEqual([
       "com.example.browser",
       "com.android.camera",
       "com.example.notes",
       "com.oem.launcher",
+      "com.android.settings",
     ]);
     expect(apps.map((app) => app.packageName)).toEqual([
       "com.example.browser",

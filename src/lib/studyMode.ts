@@ -96,7 +96,7 @@ interface NativeStudyModePlugin {
 const NativeStudyMode = registerPlugin<NativeStudyModePlugin>("StudyMode");
 
 // App discovery/icon decoding is expensive on Android. Keep the complete catalogue
-// for one minute across screen mounts and de-duplicate simultaneous refreshes.
+// for five minutes across screen mounts and de-duplicate simultaneous refreshes.
 const installedAppsCache = createAsyncCache<StudyModeApp[]>(async () => {
   const result = await NativeStudyMode.listApps();
   return Array.isArray(result.apps) ? result.apps : [];

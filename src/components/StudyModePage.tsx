@@ -215,7 +215,9 @@ const StudyModeAppTile = memo(({
   const selectedClass = blockedVariant
     ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-primary/35 bg-gradient-to-b from-primary/10 to-card/80 px-1.5 py-2 text-center shadow-sm ring-1 ring-primary/10 transition-[border-color,background-color,transform] duration-200 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
     : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-accent/35 bg-gradient-to-b from-accent/10 to-card/80 px-1.5 py-2 text-center shadow-sm ring-1 ring-accent/10 transition-[border-color,background-color,transform] duration-200 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100";
-  const unselectedClass = "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-border/55 bg-gradient-to-b from-card/75 to-background/45 px-1.5 py-2 text-center transition-[border-color,background-color,transform] duration-200 hover:border-primary/30 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100";
+  const unselectedClass = blockedVariant
+    ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-border/55 bg-gradient-to-b from-card/75 to-background/45 px-1.5 py-2 text-center transition-[border-color,background-color,transform] duration-200 hover:border-primary/30 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+    : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-border/55 bg-gradient-to-b from-card/75 to-background/45 px-1.5 py-2 text-center transition-[border-color,background-color,transform] duration-200 hover:border-accent/30 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100";
 
   return (
     <button
@@ -353,6 +355,10 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const appCatalogLoadInFlightRef = useRef<Promise<void> | null>(null);
   const statusRef = useRef<StudyModeStatus | null>(status);
   statusRef.current = status;
+  const pickerOpenRef = useRef(pickerOpen);
+  pickerOpenRef.current = pickerOpen;
+  const studyPickerOpenRef = useRef(studyPickerOpen);
+  studyPickerOpenRef.current = studyPickerOpen;
 
   // The app catalogue is not needed by the default collapsed screen. Fetch it
   // only when a picker is opened, and reuse the module-level cache on remount.
@@ -565,14 +571,14 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
       if (disposed || lifecycleRefreshInFlightRef.current) return;
       lifecycleRefreshInFlightRef.current = true;
 
-      const refreshApps = pickerOpen || studyPickerOpen
+      const refreshApps = pickerOpenRef.current || studyPickerOpenRef.current
         ? loadApps(true)
         : Promise.resolve().then(() => {
           invalidateStudyModeAppCatalogCache();
           appCatalogRef.current = null;
           appCatalogLoadedRef.current = false;
         });
-      void Promise.all([load(false), refreshApps]).finally(() => {
+      void Promise.all([load(true), refreshApps]).finally(() => {
         lifecycleRefreshInFlightRef.current = false;
       });
     };
@@ -591,7 +597,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [load, loadApps, pickerOpen, studyPickerOpen]);
+  }, [load, loadApps]);
 
   useLayoutEffect(() => {
     window.dispatchEvent(new CustomEvent("study-mode-page-state", { detail: { open: true } }));
@@ -1376,6 +1382,14 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                     className="h-10 w-full rounded-[1.05rem] border border-border/70 bg-background/65 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
                   />
                 </div>
+                {appsLoading && apps.length > 0 && (
+                  <p className="text-[9px] text-muted-foreground" role="status">Refreshing installed apps… selection is paused</p>
+                )}
+                {appsLoadError && apps.length > 0 && (
+                  <button type="button" onClick={() => { void loadApps(true); }} className="text-left text-[9px] text-warning" role="alert">
+                    {appsLoadError} · Tap to retry
+                  </button>
+                )}
                 <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Filter installed apps">
                   {([
                     { id: "all", label: "All", count: appCounts.all },
@@ -1454,6 +1468,14 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                     className="h-10 w-full rounded-[1.05rem] border border-border/70 bg-background/65 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
                   />
                 </div>
+                {appsLoading && apps.length > 0 && (
+                  <p className="text-[9px] text-muted-foreground" role="status">Refreshing installed apps… selection is paused</p>
+                )}
+                {appsLoadError && apps.length > 0 && (
+                  <button type="button" onClick={() => { void loadApps(true); }} className="text-left text-[9px] text-warning" role="alert">
+                    {appsLoadError} · Tap to retry
+                  </button>
+                )}
                 <div className="grid max-h-[340px] grid-cols-4 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-5 sm:grid-cols-6 lg:grid-cols-7" role="group" aria-label="Select Study Apps">
                   {appsLoading && apps.length === 0 ? (
                     <p className="col-span-full py-8 text-center text-xs text-muted-foreground">Loading apps…</p>
