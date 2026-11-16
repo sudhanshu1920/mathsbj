@@ -39,6 +39,10 @@ public final class StudyModeManager {
     private static final String KEY_PACKAGES = "selectedPackages";
     private static final String KEY_STUDY_PACKAGES = "studyAppPackages";
     private static final String KEY_REMINDER_INTERVAL_MINUTES = "reminderIntervalMinutes";
+    private static final String KEY_REMINDER_USAGE_MS = "reminderUsageMs";
+    private static final String KEY_PENDING_REMINDER_ID = "pendingReminderId";
+    private static final String KEY_PENDING_REMINDER_PACKAGE = "pendingReminderPackage";
+    private static final String KEY_OPEN_STUDY_APPS_PICKER = "openStudyAppsPicker";
     private static final int DEFAULT_REMINDER_INTERVAL_MINUTES = 2;
     private static volatile Set<String> periodicReminderSystemPackagesCache = Collections.emptySet();
     private static volatile long periodicReminderSystemPackagesCacheAtElapsedMs = 0L;
@@ -111,10 +115,71 @@ public final class StudyModeManager {
         if (!StudyModeUsageAccumulator.isValidInterval(value)) {
             throw new IllegalArgumentException("Reminder interval must be an integer from 1 to 10 minutes.");
         }
-        if (!prefs(context).edit().putInt(KEY_REMINDER_INTERVAL_MINUTES, value).commit()) {
+        if (!prefs(context).edit().putInt(KEY_REMINDER_INTERVAL_MINUTES, value)
+            .putLong(KEY_REMINDER_USAGE_MS, 0L).commit()) {
             throw new IllegalStateException("Reminder interval could not be saved.");
         }
         StudyModeFocusService.onReminderIntervalChanged(value);
+    }
+
+    public static long getReminderUsageMs(Context context) {
+        return Math.max(0L, prefs(context).getLong(KEY_REMINDER_USAGE_MS, 0L));
+    }
+
+    public static void saveReminderUsageMs(Context context, long value) {
+        prefs(context).edit().putLong(KEY_REMINDER_USAGE_MS, Math.max(0L, value)).apply();
+    }
+
+    public static void clearReminderUsageMs(Context context) {
+        prefs(context).edit().putLong(KEY_REMINDER_USAGE_MS, 0L).apply();
+    }
+
+    public static void savePendingPeriodicReminder(Context context, String reminderId, String packageName) {
+        if (reminderId == null || reminderId.isEmpty() || packageName == null || packageName.isEmpty()) return;
+        prefs(context).edit()
+            .putString(KEY_PENDING_REMINDER_ID, reminderId)
+            .putString(KEY_PENDING_REMINDER_PACKAGE, packageName)
+            .commit();
+    }
+
+    public static String getPendingPeriodicReminderId(Context context) {
+        return prefs(context).getString(KEY_PENDING_REMINDER_ID, "");
+    }
+
+    public static String getPendingPeriodicReminderPackage(Context context) {
+        return prefs(context).getString(KEY_PENDING_REMINDER_PACKAGE, "");
+    }
+
+    public static void clearPendingPeriodicReminder(Context context) {
+        prefs(context).edit()
+            .remove(KEY_PENDING_REMINDER_ID)
+            .remove(KEY_PENDING_REMINDER_PACKAGE)
+            .commit();
+    }
+
+    /** Launch the existing app shell and carry a one-shot request to its Study Apps picker. */
+    public static boolean openStudyAppsSelection(Context context) {
+        if (context == null) return false;
+        try {
+            Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            if (launch == null || launch.getComponent() == null
+                || !context.getPackageName().equals(launch.getComponent().getPackageName())) return false;
+            prefs(context).edit().putBoolean(KEY_OPEN_STUDY_APPS_PICKER, true).commit();
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            context.startActivity(launch);
+            return true;
+        } catch (Exception error) {
+            prefs(context).edit().putBoolean(KEY_OPEN_STUDY_APPS_PICKER, false).apply();
+            return false;
+        }
+    }
+
+    public static boolean consumeOpenStudyAppsPickerRequest(Context context) {
+        SharedPreferences preferences = prefs(context);
+        boolean requested = preferences.getBoolean(KEY_OPEN_STUDY_APPS_PICKER, false);
+        if (requested) preferences.edit().putBoolean(KEY_OPEN_STUDY_APPS_PICKER, false).commit();
+        return requested;
     }
 
     /** Study Apps are a separate allowlist; blocked/session packages always win. */
@@ -724,6 +789,7 @@ public final class StudyModeManager {
             .putInt("endMinute", endMinute)
             .commit();
         if (!committed) throw new IllegalStateException("Study Mode settings could not be saved locally.");
+        StudyModeFocusService.onStudyAppsChanged();
 
         StudyModeSessionStore.Session activeSession = sessionStore(context).getActiveSession(context);
         if (activeSession != null) {
