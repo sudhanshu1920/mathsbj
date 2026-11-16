@@ -714,7 +714,7 @@ public final class StudyModeFocusService extends Service {
 
             final String decisionPackage = foreground;
             final String reminderTargetPackage = activePackage;
-            final boolean requestPeriodicReminder = reminderDue;
+            final boolean requestPeriodicReminder = reminderDue && reminderEligible;
             final String requestId = shouldShield ? UUID.randomUUID().toString() : "";
             if (monitorGenerationAtStart != monitorGeneration) return;
             mainHandler.post(() -> {
@@ -1175,6 +1175,10 @@ public final class StudyModeFocusService extends Service {
                 periodicReminderPackage = "";
                 return;
             }
+            // Persist the completed reminder before asking WindowManager to attach it.
+            // A process/OEM interruption between these operations can therefore recover
+            // the same reminder rather than silently losing the completed interval.
+            savePendingPeriodicReminder(packageName);
             periodicReminderView = candidate;
             windowManager.addView(candidate, createPeriodicReminderLayoutParams());
             if (!periodicReminderUsage.markVisible()) {
@@ -1182,9 +1186,9 @@ public final class StudyModeFocusService extends Service {
                 periodicReminderView = null;
                 periodicReminderPackage = "";
                 periodicReminderVisible.set(false);
+                clearPendingPeriodicReminder();
                 return;
             }
-            savePendingPeriodicReminder(packageName);
             overlayFailureForStatus = false;
             logStage("PERIODIC_REMINDER_VISIBLE", packageName, "", "visible",
                 "selected_eligible_usage_interval_elapsed");
