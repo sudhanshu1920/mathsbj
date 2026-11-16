@@ -56,7 +56,7 @@ test("usage accounting is monotonic, shared globally and pauses on uncertain foc
   assert.ok(focusedPackageLookup.includes("if (connected)"));
   assert.ok(focusedPackageLookup.includes("if (!fresh || !complete) return null;"));
   assert.ok(focusedPackageLookup.indexOf("if (connected)") < focusedPackageLookup.indexOf("if (usageForegroundPackage == null"));
-  assert.ok(source.includes("!StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground)"));
+  assert.ok(source.includes("StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage)"));
   assert.ok(registry.includes("snapshotComplete"));
   assert.ok(registry.includes("window.focused"));
   assert.ok(source.includes("periodicReminderUsage.pause()"));
