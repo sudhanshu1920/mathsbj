@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
@@ -47,12 +46,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     };
     static final String[] CONTENT_OPTIONS = {
         "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
-    };
-    private static final int[] COMPLETION_ACCENTS = {
-        Color.parseColor("#50D9A0"), Color.parseColor("#58D6F2"),
-        Color.parseColor("#FFCA68"), Color.parseColor("#FF83B5"),
-        Color.parseColor("#B8A0FF"), Color.parseColor("#FF9A72"),
-        Color.parseColor("#A8E063")
     };
     private static MathMasterWidgetRenderer.Fonts widgetFonts;
 
@@ -201,25 +194,14 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
     }
 
-    /** Accent colour for one of the Settings colour themes, or 0 to keep each design's own reference colours. */
-    static int themeAccent(String theme) {
-        int index = getPaletteThemeIndex(normalizeWidgetTheme(theme));
-        return index >= 0 ? COMPLETION_ACCENTS[index] : 0;
-    }
-
-    private static int getPaletteThemeIndex(String theme) {
-        if ("emerald".equals(theme)) return 0;
-        if ("ocean".equals(theme)) return 1;
-        if ("graphite".equals(theme)) return 2;
-        if ("rose".equals(theme)) return 3;
-        if ("violet".equals(theme)) return 4;
-        if ("sapphire".equals(theme)) return 5;
-        if ("aurora".equals(theme)) return 6;
-        return -1;
-    }
-
-    private static String normalizeWidgetTheme(String theme) {
-        return "app".equals(theme) || getPaletteThemeIndex(theme) >= 0 ? theme : "app";
+    /**
+     * Background effect. "neon" is the reference neon-glass design; "blur" and "transparent" keep the
+     * wallpaper-first surfaces. The old Glass / Compact / Minimal values all mean neon.
+     */
+    static String normalizeWidgetStyle(String value) {
+        if ("transparent".equals(value)) return "transparent";
+        if ("blur".equals(value)) return "blur";
+        return "neon";
     }
 
     private static Set<String> getCompletedDays(SharedPreferences preferences) {
@@ -290,12 +272,11 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     }
 
     static MathMasterWidgetRenderer.Options buildOptions(
-        String composition, String style, int themeAccent, boolean enabled, Set<String> selected
+        String composition, String style, boolean enabled, Set<String> selected
     ) {
         MathMasterWidgetRenderer.Options options = new MathMasterWidgetRenderer.Options();
         options.composition = composition;
-        options.style = "compact".equals(style) || "minimal".equals(style) ? style : "glass";
-        options.themeAccent = themeAccent;
+        options.style = normalizeWidgetStyle(style);
         options.enabled = enabled;
         options.identity = selected.contains("appIdentity");
         options.progress = selected.contains("progress");
@@ -338,9 +319,12 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
                 }
                 if (storedVersion < 2 && !jsonArrayContains(migrated, "weekly") && migrated.length() < 32) migrated.put("weekly");
                 if (!jsonArrayContains(migrated, "quiz") && migrated.length() < 32) migrated.put("quiz");
+                // The redesign makes the neon-glass look the starting point; the two wallpaper-first
+                // effects stay available in the Customize screen.
                 preferences.edit()
                     .putString(contentKey, migrated.toString())
                     .putInt(prefix + "contentSchemaVersion", CONTENT_SCHEMA_VERSION)
+                    .putString(prefix + "style", "neon")
                     .apply();
                 json = migrated.toString();
             }
@@ -398,13 +382,13 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     /** Live preview for the configuration screen: same renderer, saved data, the user's unsaved choices. */
     public static Bitmap renderConfigurationPreview(
-        Context context, String composition, String style, String theme, Set<String> selected, int widthDp, int heightDp
+        Context context, String composition, String style, Set<String> selected, int widthDp, int heightDp
     ) {
         SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
         String resolved = normalizeComposition(composition);
         if ("auto".equals(resolved)) resolved = MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
         MathMasterWidgetRenderer.Options options = buildOptions(
-            resolved, style, themeAccent(theme), preferences.getBoolean("enabled", true), selected);
+            resolved, style, preferences.getBoolean("enabled", true), selected);
         return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
     }
 
@@ -464,11 +448,11 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         int sizeWidthDp = widthDp > 0 ? widthDp : 320;
         int sizeHeightDp = heightDp > 0 ? heightDp : 146;
         String composition = resolveComposition(preferences, appWidgetId, sizeWidthDp, sizeHeightDp);
-        String style = getInstanceString(preferences, appWidgetId, "style", "glass");
-        String theme = getInstanceString(preferences, appWidgetId, "theme", "app");
+        // Read the content first: it also runs the one-time schema migration, which may reset the style.
+        Set<String> selected = getSelectedContent(preferences, appWidgetId);
+        String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "neon"));
         boolean enabled = preferences.getBoolean("enabled", true);
-        MathMasterWidgetRenderer.Options options = buildOptions(
-            composition, style, themeAccent(theme), enabled, getSelectedContent(preferences, appWidgetId));
+        MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected);
         MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.math_master_home_widget);

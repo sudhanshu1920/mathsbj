@@ -66,7 +66,7 @@ public class BackupRestorePlugin extends Plugin {
     private static final Set<String> THEME_MODES = new TreeSet<>(Arrays.asList(
         "app", "random", "emerald", "ocean", "graphite", "rose", "violet", "sapphire", "aurora"
     ));
-    private static final Set<String> STYLES = new TreeSet<>(Arrays.asList("glass", "compact", "minimal"));
+    private static final Set<String> STYLES = new TreeSet<>(Arrays.asList("neon", "blur", "transparent", "glass", "compact", "minimal"));
 
     @PluginMethod
     public void saveBackup(PluginCall call) {

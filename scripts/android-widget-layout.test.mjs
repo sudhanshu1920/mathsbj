@@ -15,6 +15,8 @@ const PROVIDER = 'android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvi
 const RENDERER = 'android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java';
 const CONFIG = 'android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java';
 const BACKUP_PLUGIN = 'android-native/com/sudhanshu/mathsbj/BackupRestorePlugin.java';
+const BOOT_RECEIVER = 'android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java';
+const REMINDER_PLUGIN = 'android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java';
 
 const COMPOSITIONS = [
   'hero_wide', 'compact_green', 'square_math_bot', 'medium_study',
@@ -127,6 +129,10 @@ test('configuration screen previews the real renderer output', () => {
   assert.match(config, /MathMasterHomeWidgetProvider\.renderConfigurationPreview\(/);
   assert.match(config, /AppWidgetManager\.OPTION_APPWIDGET_MIN_WIDTH/);
   assert.doesNotMatch(config, /getConfigurationPreviewArtwork|previewShade|previewMetric/);
+  assert.doesNotMatch(config, /PREMIUM_THEMES|Random Premium Theme|themeGroup/);
+  assert.match(config, /"neon", "Neon Glass \(reference design\)"/);
+  assert.match(config, /"blur", "Transparent Blur"/);
+  assert.match(config, /"transparent", "Full Transparent"/);
   for (const composition of COMPOSITIONS) {
     assert.ok(config.includes(`{"${composition}",`), `configuration screen is missing ${composition}`);
   }
@@ -162,11 +168,15 @@ test('configure script ships the renderer, fonts and resources into a generated 
   await mkdir(javaDir, { recursive: true });
   await writeFile(
     path.join(root, 'app/src/main/AndroidManifest.xml'),
-    '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <application>\n    </application>\n</manifest>\n',
+    '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.sudhanshu.mathsbj">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <application android:label="Math Master">\n    </application>\n</manifest>\n',
+  );
+  await writeFile(
+    path.join(root, 'app/build.gradle'),
+    `plugins { id 'com.android.application' }\n\nandroid {\n    namespace "com.sudhanshu.mathsbj"\n    defaultConfig { applicationId "com.sudhanshu.mathsbj" versionCode 1 }\n    /* MATHMASTER_STUDY_MODE_FLAVORS */\n    flavorDimensions "studyMode"\n    productFlavors {\n        standard { dimension "studyMode" }\n        advanced {\n            dimension "studyMode"\n            versionCode defaultConfig.versionCode + 100000\n        }\n    }\n}\n`,
   );
   await writeFile(
     path.join(javaDir, 'MainActivity.java'),
-    'package com.sudhanshu.mathsbj;\npublic class MainActivity {\n    protected void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n    }\n}\n',
+    'package com.sudhanshu.mathsbj;\n\nimport android.os.Bundle;\nimport com.getcapacitor.BridgeActivity;\n\npublic class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n    }\n}\n',
   );
 
   const result = await configureAndroidWidgets(root);
@@ -188,4 +198,63 @@ test('configure script ships the renderer, fonts and resources into a generated 
   await configureAndroidWidgets(root);
   const again = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
   assert.equal(again.match(/MathMasterHomeWidgetProvider/g).length, manifest.match(/MathMasterHomeWidgetProvider/g).length);
+});
+
+test('background effects: neon is the default, blur and transparent stay available, legacy values mean neon', () => {
+  const provider = read(PROVIDER);
+  const renderer = read(RENDERER);
+  const backupTs = read('src/lib/backupRestore.ts');
+  const backupPlugin = read(BACKUP_PLUGIN);
+  assert.match(provider, /static String normalizeWidgetStyle\(String value\)/);
+  assert.match(provider, /"transparent"\.equals\(value\)/);
+  assert.match(provider, /"blur"\.equals\(value\)/);
+  assert.match(provider, /getInstanceString\(preferences, appWidgetId, "style", "neon"\)/);
+  assert.match(provider, /\.putString\(prefix \+ "style", "neon"\)/);
+  assert.match(renderer, /if \(clear\) return;/);
+  assert.match(renderer, /Color\.argb\(102, 57, 67, 77\)/);
+  assert.match(backupTs, /WIDGET_STYLES = new Set\(\['neon', 'blur', 'transparent'/);
+  assert.match(backupPlugin, /"neon", "blur", "transparent"/);
+  assert.doesNotMatch(provider, /themeAccent|COMPLETION_ACCENTS|normalizeWidgetTheme/);
+});
+
+test('weekly checkmarks keep using the existing daily streak data and validated native input', () => {
+  const bridge = read('src/lib/dailyTargetReminders.ts');
+  const nativePlugin = read(REMINDER_PLUGIN);
+  const provider = read(PROVIDER);
+  assert.match(bridge, /streak\.days\[dateKey\]\?\.completed === true/);
+  assert.match(bridge, /const completedDaysJson = JSON\.stringify\(/);
+  assert.match(nativePlugin, /sanitizeCompletedDaysJson\(completedDaysJson\)/);
+  assert.match(nativePlugin, /raw\.length\(\) > 512/);
+  assert.match(nativePlugin, /Math\.min\(incoming\.length\(\), 7\)/);
+  assert.match(nativePlugin, /formatter\.setLenient\(false\)/);
+  assert.match(nativePlugin, /MathMasterHomeWidgetProvider\.syncProgressSnapshot/);
+  assert.match(provider, /getCompletedDays\(SharedPreferences preferences\)/);
+  assert.match(provider, /fillWeek\(preferences, data\)/);
+});
+
+test('package updates refresh every pinned widget without replacing saved per-widget configuration', () => {
+  const bootReceiver = read(BOOT_RECEIVER);
+  const provider = read(PROVIDER);
+  assert.ok(bootReceiver.includes('Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)'));
+  assert.match(bootReceiver, /Intent\.ACTION_MY_PACKAGE_REPLACED\.equals\(action\)[\s\S]*?MathMasterHomeWidgetProvider\.updateWidgetPreferences\(context\)/);
+  assert.ok(provider.includes('AppWidgetManager.getInstance(context)'));
+  assert.ok(provider.includes('getAppWidgetIds(provider)'));
+  assert.ok(provider.includes('for (int widgetId : widgetIds)'));
+  assert.ok(provider.includes('getSelectedContent(preferences, appWidgetId)'));
+  assert.ok(provider.includes('getInstanceString(preferences, appWidgetId, "style"'));
+});
+
+test('every native widget provider is copied and registered by the Android setup script', () => {
+  const configureAndroid = read('scripts/configure-android-widgets.mjs');
+  const files = list('android-native/com/sudhanshu/mathsbj').filter((name) => name.endsWith('WidgetProvider.java'));
+  assert.ok(files.length > 0, 'native AppWidgetProvider inventory must not be empty');
+  for (const filename of files) {
+    const componentName = filename.replace('.java', '');
+    assert.ok(configureAndroid.includes(`'${filename}'`), `${filename} must be copied to the generated Android app`);
+    assert.ok(configureAndroid.includes(`name: '${componentName}'`), `${componentName} must be in the manifest component generator`);
+    assert.ok(configureAndroid.includes('@xml/math_master_home_widget_info'));
+  }
+  assert.match(configureAndroid, /const RESOURCE_DIRS = \['drawable', 'drawable-nodpi', 'layout', 'values', 'xml', 'xml-v31'\]/);
+  assert.match(configureAndroid, /normalizeRemoteViewsLayout\(xml\)/);
+  assert.match(configureAndroid, /await configureAndroidStudyMode\(root\)/);
 });

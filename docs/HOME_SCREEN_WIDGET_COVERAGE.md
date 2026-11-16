@@ -20,7 +20,7 @@ The repository contains **one native launcher widget provider**: `MathMasterHome
 - Weekly completion still comes from the saved daily completion history; the renderer never fabricates ticks.
 - Content schema is now 3 (adds the Upcoming Quiz tile). Older per-widget selections are migrated once; the backup/restore validators (TypeScript and Java) accept schema 3 and the `quiz` option.
 - `syncProgressSnapshot`, `updateWidgetPreferences`, `updateReleaseStatus` and `onDeleted` are unchanged, so reminder sync, update status, backup/restore and per-widget clean-up behave as before.
-- Saved composition, style, theme and theme-mode values keep their meaning. "Match App Theme" now means each design's own colours; the app's accent colour and light/dark mode no longer tint the widget.
+- Saved composition values keep their meaning. Style values are now `neon` (default, the reference design), `blur` and `transparent`; the old `glass` / `compact` / `minimal` values map to `neon`, and a widget saved before the redesign is switched to `neon` once. The backup/restore validators accept all of these. The widget does not follow the app's accent colour or light/dark mode.
 
 ## Verification policy
 

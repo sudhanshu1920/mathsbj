@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
-import java.security.SecureRandom;
 
 public class MathMasterWidgetConfigActivity extends Activity {
     private static final String PREFS = "math_master_home_widget";
@@ -40,7 +39,6 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private final Map<String, CheckBox> contentChecks = new LinkedHashMap<>();
     private RadioGroup styleGroup;
     private RadioGroup compositionGroup;
-    private RadioGroup themeGroup;
     private TextView previewSummary;
     private FrameLayout previewFrame;
     private ImageView previewArtwork;
@@ -67,16 +65,6 @@ public class MathMasterWidgetConfigActivity extends Activity {
         {"square_cosmic", "Square · Blue with Week"},
         {"extra_wide_weekly", "Extra Wide · This Week"},
         {"minimal_progress", "Mini · Green"}
-    };
-
-    private static final String[][] PREMIUM_THEMES = {
-        {"emerald", "Emerald Glass", "#50D9A0"},
-        {"ocean", "Ocean Blue Glass", "#58D6F2"},
-        {"graphite", "Graphite Glass", "#A9B7C9"},
-        {"rose", "Rose Quartz", "#FF83B5"},
-        {"violet", "Midnight Violet", "#B8A0FF"},
-        {"sapphire", "Sapphire Glass", "#698CFF"},
-        {"aurora", "Aurora Glass", "#A8E063"}
     };
 
     @Override
@@ -124,12 +112,19 @@ public class MathMasterWidgetConfigActivity extends Activity {
             content.addView(checkBox, matchWrap());
         }
 
-        addSectionLabel(content, "Widget Style");
+        addSectionLabel(content, "Background Effect");
+        TextView effectHint = new TextView(this);
+        effectHint.setText("Neon Glass is the reference design. The other two blend with your wallpaper.");
+        effectHint.setTextColor(Color.parseColor("#667085"));
+        effectHint.setTextSize(12);
+        content.addView(effectHint, matchWrap());
         styleGroup = new RadioGroup(this);
-        styleGroup.setOrientation(RadioGroup.HORIZONTAL);
-        addRadio(styleGroup, "glass", "Glass", preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "glass")));
-        addRadio(styleGroup, "compact", "Compact", preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "glass")));
-        addRadio(styleGroup, "minimal", "Minimal", preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "glass")));
+        styleGroup.setOrientation(RadioGroup.VERTICAL);
+        String savedStyle = preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "neon"));
+        String currentStyle = normalizeWidgetStyle(savedStyle);
+        addRadio(styleGroup, "neon", "Neon Glass (reference design)", currentStyle);
+        addRadio(styleGroup, "blur", "Transparent Blur", currentStyle);
+        addRadio(styleGroup, "transparent", "Full Transparent", currentStyle);
         styleGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
         content.addView(styleGroup, matchWrap());
 
@@ -145,28 +140,13 @@ public class MathMasterWidgetConfigActivity extends Activity {
         compositionGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
         content.addView(compositionGroup, matchWrap());
 
-        addSectionLabel(content, "Widget Theme");
-        themeGroup = new RadioGroup(this);
-        themeGroup.setOrientation(RadioGroup.VERTICAL);
-        String currentTheme = preferences.getString("instance_" + widgetId + "_theme", preferences.getString("theme", "app"));
-        String currentThemeMode = preferences.getString("instance_" + widgetId + "_themeMode", currentTheme);
-        addRadio(themeGroup, "app", "Match App Theme", currentThemeMode);
-        addRadio(themeGroup, "random", "Random Premium Theme", currentThemeMode);
-        for (String[] themeOption : PREMIUM_THEMES) {
-            addRadio(themeGroup, themeOption[0], themeOption[1], currentThemeMode);
-        }
-        themeGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
-        content.addView(themeGroup, matchWrap());
-
         addSectionLabel(content, "Preview");
         previewFrame = new FrameLayout(this);
         GradientDrawable previewSurface = new GradientDrawable();
-        previewSurface.setColor(Color.parseColor("#211F35"));
+        previewSurface.setColor(Color.parseColor("#2A3140"));
         previewSurface.setCornerRadius(dp(16));
-        previewSurface.setStroke(dp(1), Color.argb(75, 255, 255, 255));
         previewFrame.setBackground(previewSurface);
         previewFrame.setClipToOutline(true);
-        previewFrame.setElevation(dp(2));
 
         previewArtwork = new ImageView(this);
         previewArtwork.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -179,10 +159,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
         content.addView(previewFrame, matchWrap());
 
         previewSummary = new TextView(this);
-        previewSummary.setTextColor(Color.parseColor("#F5F3FF"));
+        previewSummary.setTextColor(Color.parseColor("#243149"));
         previewSummary.setTextSize(12);
         previewSummary.setPadding(dp(14), dp(12), dp(14), dp(12));
-        previewSummary.setBackgroundColor(Color.parseColor("#211F35"));
+        previewSummary.setBackgroundColor(Color.TRANSPARENT);
         content.addView(previewSummary, matchWrap());
         updatePreview();
 
@@ -254,21 +234,16 @@ public class MathMasterWidgetConfigActivity extends Activity {
                 selectedLabels.add(option[1]);
             }
         }
-        String style = selectedRadioValue(styleGroup, "glass");
+        String style = normalizeWidgetStyle(selectedRadioValue(styleGroup, "neon"));
         String composition = selectedRadioValue(compositionGroup, "auto");
-        String theme = selectedRadioValue(themeGroup, "app");
         boolean noFieldsSelected = selected.isEmpty();
-
-        SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        String resolvedTheme = "random".equals(theme)
-            ? preferences.getString("instance_" + widgetId + "_theme", "violet") : theme;
 
         android.graphics.Bitmap preview = null;
         if (!noFieldsSelected) {
             int[] size = previewSizeDp();
             try {
                 preview = MathMasterHomeWidgetProvider.renderConfigurationPreview(
-                    this, composition, style, resolvedTheme, selected, size[0], size[1]);
+                    this, composition, style, selected, size[0], size[1]);
             } catch (RuntimeException | OutOfMemoryError ignored) {
                 preview = null;
             }
@@ -276,16 +251,13 @@ public class MathMasterWidgetConfigActivity extends Activity {
         previewArtwork.setImageBitmap(preview);
         previewArtwork.setVisibility(preview == null ? View.GONE : View.VISIBLE);
 
-        String themeLabel = "random".equals(theme)
-            ? "Random Premium Theme" + (isPaletteTheme(resolvedTheme) ? " · " + themeLabel(resolvedTheme) : "")
-            : themeLabel(resolvedTheme);
-        previewSummary.setTextColor(Color.parseColor("#F5F3FF"));
-        previewSummary.setBackgroundColor(Color.parseColor("#211F35"));
+        String effectLabel = "transparent".equals(style) ? "Full Transparent"
+            : ("blur".equals(style) ? "Transparent Blur" : "Neon Glass");
         previewSummary.setText(noFieldsSelected
-            ? "Select at least one field\n" + capitalize(style) + "  ·  " + themeLabel
+            ? "Select at least one field\nBackground: " + effectLabel
             : "Design: " + compositionLabel(composition) + "\n"
                 + android.text.TextUtils.join("  ·  ", selectedLabels)
-                + "\n" + capitalize(style) + "  ·  " + themeLabel);
+                + "\nBackground: " + effectLabel);
     }
 
     private void saveConfiguration() {
@@ -299,27 +271,17 @@ public class MathMasterWidgetConfigActivity extends Activity {
             return;
         }
 
-        String style = selectedRadioValue(styleGroup, "glass");
+        String style = normalizeWidgetStyle(selectedRadioValue(styleGroup, "neon"));
         String composition = selectedRadioValue(compositionGroup, "auto");
         if (!isValidComposition(composition)) composition = "auto";
-        String themeMode = selectedRadioValue(themeGroup, "app");
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        String previousThemeMode = preferences.getString("instance_" + widgetId + "_themeMode", "");
-        String previousTheme = preferences.getString("instance_" + widgetId + "_theme", "");
-        String theme;
-        if ("random".equals(themeMode)) {
-            theme = "random".equals(previousThemeMode) && isPaletteTheme(previousTheme)
-                ? previousTheme : chooseRandomTheme(preferences, widgetId);
-        } else {
-            theme = isValidTheme(themeMode) ? themeMode : "app";
-        }
         preferences.edit()
             .putString("instance_" + widgetId + "_contentJson", selected.toString())
             .putInt("instance_" + widgetId + "_contentSchemaVersion", 3)
             .putString("instance_" + widgetId + "_style", style)
             .putString("instance_" + widgetId + "_composition", composition)
-            .putString("instance_" + widgetId + "_themeMode", themeMode)
-            .putString("instance_" + widgetId + "_theme", theme)
+            .remove("instance_" + widgetId + "_themeMode")
+            .remove("instance_" + widgetId + "_theme")
             .apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
@@ -328,6 +290,11 @@ public class MathMasterWidgetConfigActivity extends Activity {
         result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
         setResult(RESULT_OK, result);
         finish();
+    }
+
+    private static String normalizeWidgetStyle(String style) {
+        // Old Glass/Compact/Minimal values all mean the neon-glass design.
+        return MathMasterHomeWidgetProvider.normalizeWidgetStyle(style);
     }
 
     private static boolean isValidComposition(String composition) {
@@ -339,42 +306,6 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private static String compositionLabel(String composition) {
         for (String[] option : WIDGET_COMPOSITIONS) if (option[0].equals(composition)) return option[1];
         return "Auto (adapts to size)";
-    }
-
-    private static boolean isPaletteTheme(String theme) {
-        if (theme == null) return false;
-        for (String[] option : PREMIUM_THEMES) if (option[0].equals(theme)) return true;
-        return false;
-    }
-
-    private static boolean isValidTheme(String theme) {
-        return "app".equals(theme) || isPaletteTheme(theme);
-    }
-
-    private static String themeLabel(String theme) {
-        if ("app".equals(theme)) return "Match App Theme";
-        for (String[] option : PREMIUM_THEMES) if (option[0].equals(theme)) return option[1];
-        return "Match App Theme";
-    }
-
-    private static String chooseRandomTheme(SharedPreferences preferences, int widgetId) {
-        Set<String> used = new HashSet<>();
-        for (Map.Entry<String, ?> entry : preferences.getAll().entrySet()) {
-            String key = entry.getKey();
-            if (!key.startsWith("instance_") || !key.endsWith("_theme")) continue;
-            String idPart = key.substring("instance_".length(), key.length() - "_theme".length());
-            try {
-                if (Integer.parseInt(idPart) == widgetId) continue;
-            } catch (NumberFormatException ignored) {
-                continue;
-            }
-            Object value = entry.getValue();
-            if (value instanceof String && isPaletteTheme((String) value)) used.add((String) value);
-        }
-        List<String> available = new ArrayList<>();
-        for (String[] option : PREMIUM_THEMES) if (!used.contains(option[0])) available.add(option[0]);
-        if (available.isEmpty()) for (String[] option : PREMIUM_THEMES) available.add(option[0]);
-        return available.get(new SecureRandom().nextInt(available.size()));
     }
 
     private static List<String> parseContent(String json) {

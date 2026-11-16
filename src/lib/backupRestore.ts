@@ -33,7 +33,7 @@ const WIDGET_COMPOSITIONS = new Set([
 ]);
 const WIDGET_THEMES = new Set(['app', 'emerald', 'ocean', 'graphite', 'rose', 'violet', 'sapphire', 'aurora']);
 const WIDGET_THEME_MODES = new Set([...WIDGET_THEMES, 'random']);
-const WIDGET_STYLES = new Set(['glass', 'compact', 'minimal']);
+const WIDGET_STYLES = new Set(['neon', 'blur', 'transparent', 'glass', 'compact', 'minimal']);
 
 export type WidgetPreferenceSnapshot = {
   version: 1;

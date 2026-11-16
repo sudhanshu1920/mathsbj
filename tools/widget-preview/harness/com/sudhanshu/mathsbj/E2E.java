@@ -107,20 +107,23 @@ public class E2E {
         }
         // 3. variants on the hero: theme, style, content subsets, update badge, disabled
         sizes(mgr, 300, 312, 140); p.m.put("instance_300_composition", "hero_wide");
-        p.m.put("instance_300_theme", "rose"); p.m.put("instance_300_style", "compact");
+        p.m.put("instance_300_style", "blur");
         p.m.put("instance_300_contentJson", json("appIdentity", "target", "progress", "streak", "weekly", "quiz")); p.m.put("instance_300_contentSchemaVersion", 3);
-        save(render(ctx, 300), "e2e_var_rose_compact");
+        save(render(ctx, 300), "e2e_var_blur");
         sizes(mgr, 301, 312, 140); p.m.put("instance_301_composition", "hero_wide");
         p.m.put("instance_301_contentJson", json("progress", "streak")); p.m.put("instance_301_contentSchemaVersion", 3);
         save(render(ctx, 301), "e2e_var_ring_streak_only");
-        sizes(mgr, 302, 312, 140); p.m.put("instance_302_composition", "hero_wide"); p.m.put("instance_302_style", "minimal"); p.m.put("instance_302_theme", "ocean");
-        p.m.put("instance_302_contentJson", json("appIdentity", "studyTime", "remaining", "weekly")); p.m.put("instance_302_contentSchemaVersion", 3);
-        save(render(ctx, 302), "e2e_var_minimal_ocean_study");
+        sizes(mgr, 302, 312, 140); p.m.put("instance_302_composition", "hero_wide"); p.m.put("instance_302_style", "transparent");
+        p.m.put("instance_302_contentJson", json("appIdentity", "target", "progress", "remaining", "streak", "weekly", "quiz")); p.m.put("instance_302_contentSchemaVersion", 3);
+        save(render(ctx, 302), "e2e_var_transparent");
+        sizes(mgr, 304, 312, 140); p.m.put("instance_304_composition", "hero_wide");
+        p.m.put("instance_304_contentJson", json("appIdentity", "studyTime", "remaining", "weekly")); p.m.put("instance_304_contentSchemaVersion", 3);
+        save(render(ctx, 304), "e2e_var_study_remaining_only");
         // old-schema instance (no quiz key, schema 2) must gain the quiz tile through migration
-        sizes(mgr, 303, 312, 140); p.m.put("instance_303_composition", "hero_wide");
+        sizes(mgr, 303, 312, 140); p.m.put("instance_303_composition", "hero_wide"); p.m.put("instance_303_style", "blur");
         p.m.put("instance_303_contentJson", json("appIdentity", "target", "progress", "streak", "weekly")); p.m.put("instance_303_contentSchemaVersion", 2);
         save(render(ctx, 303), "e2e_var_migrated");
-        System.out.println("migrated schema -> " + p.m.get("instance_303_contentSchemaVersion") + " json " + p.m.get("instance_303_contentJson"));
+        System.out.println("migrated schema -> " + p.m.get("instance_303_contentSchemaVersion") + " json " + p.m.get("instance_303_contentJson") + " style " + p.m.get("instance_303_style"));
         p.m.put("updateAvailable", true); p.m.put("hasCheckedUpdates", true); p.m.put("installedVersionName", "1.0.0"); p.m.put("latestVersionName", "1.1.0"); p.m.put("latestVersionCode", 11L); p.m.put("installedVersionCode", 10L);
         save(render(ctx, 200), "e2e_var_update_badge");
         p.m.put("updateAvailable", false);
@@ -134,7 +137,7 @@ public class E2E {
         save(render(ctx, 200), "e2e_var_full");
         // 5. config preview helper
         Set<String> all = new HashSet<>(Arrays.asList(MathMasterHomeWidgetProvider.CONTENT_OPTIONS));
-        Bitmap prev = MathMasterHomeWidgetProvider.renderConfigurationPreview(ctx, "auto", "glass", "app", all, 312, 140);
+        Bitmap prev = MathMasterHomeWidgetProvider.renderConfigurationPreview(ctx, "auto", "neon", all, 312, 140);
         save(prev, "e2e_config_preview");
         System.out.println("E2E OK");
     }

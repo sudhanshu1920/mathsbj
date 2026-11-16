@@ -64,7 +64,7 @@ final class MathMasterWidgetRenderer {
     /** Which blocks to draw and how. */
     static final class Options {
         String composition = "hero_wide";
-        String style = "glass";    // glass | compact | minimal
+        String style = "neon";     // neon (reference look) | blur | transparent; anything else = neon
         int themeAccent = 0;       // 0 = use the composition's own reference palette
         boolean enabled = true;
         boolean identity = true;
@@ -228,7 +228,8 @@ final class MathMasterWidgetRenderer {
         final Data d;
         final Options o;
         final Palette pal;
-        final boolean minimalStyle, compactStyle;
+        final boolean minimalStyle, compactStyle;   // legacy glass/compact/minimal styles now all mean neon
+        final boolean translucent, clear;
         final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
         final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
         final Paint txt = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -241,8 +242,10 @@ final class MathMasterWidgetRenderer {
         Scene(Canvas c, int w, int h, Fonts f, Data d, Options o, float density) {
             this.c = c; this.W = w; this.H = h; this.f = f; this.d = d; this.o = o; this.density = density;
             this.pal = paletteFor(o.composition, o.themeAccent);
-            this.minimalStyle = "minimal".equals(o.style);
-            this.compactStyle = "compact".equals(o.style);
+            this.minimalStyle = false;
+            this.compactStyle = false;
+            this.translucent = "blur".equals(o.style);
+            this.clear = "transparent".equals(o.style);
             this.shortStreak = "square_math_bot".equals(o.composition) || "medium_study".equals(o.composition) || "minimal_progress".equals(o.composition);
             this.twoLineTarget = "square_math_bot".equals(o.composition) || "medium_study".equals(o.composition) || "extra_wide_weekly".equals(o.composition);
         }
@@ -312,6 +315,18 @@ final class MathMasterWidgetRenderer {
         }
 
         void drawCard() {
+            if (clear) return;   // "Full Transparent": the wallpaper is the only background
+            if (translucent) {   // "Transparent Blur": frosted slate card with a hairline edge
+                fill.setColor(Color.argb(102, 57, 67, 77));
+                c.drawRoundRect(card, cardRadius, cardRadius, fill);
+                RectF hairline = new RectF(card);
+                hairline.inset(0.5f * density, 0.5f * density);
+                line.setColor(Color.argb(40, 255, 255, 255));
+                line.setStrokeWidth(Math.max(1f, density));
+                c.drawRoundRect(hairline, cardRadius, cardRadius, line);
+                resetPaints();
+                return;
+            }
             Path clip = roundPath(card, cardRadius);
             fill.setShader(new LinearGradient(card.left, card.top, card.right, card.bottom,
                 new int[] { pal.bg0, pal.bg1, pal.bg2 }, new float[] { 0f, 0.5f, 1f }, Shader.TileMode.CLAMP));
