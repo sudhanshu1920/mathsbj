@@ -129,7 +129,7 @@ describe("SettingsPanel compact controls", () => {
     await waitFor(() => expect(mocks.setBackgroundNotificationsEnabled).toHaveBeenCalledWith(false));
   });
 
-  it("renders accessible color-only swatches for every theme and preserves theme/mode actions", () => {
+  it("renders compact named cards for every theme and preserves theme/mode actions", () => {
     const { container, rerender } = render(<SettingsPanel />);
 
     const themeButtons = screen.getAllByRole("button", { name: /^Select .* theme$/ });
@@ -139,7 +139,6 @@ describe("SettingsPanel compact controls", () => {
     for (const theme of THEMES) {
       const button = screen.getByRole("button", { name: `Select ${theme.name} theme` });
       expect(button).toHaveAttribute("aria-pressed");
-      expect(button.textContent).toBe("");
       const swatchParts = button.querySelectorAll("[data-theme-swatch] > span");
       expect(swatchParts).toHaveLength(3);
       expect(swatchParts[0]).toHaveStyle({ background: theme.swatch[0] });
