@@ -11,6 +11,7 @@ import { checkForAppUpdate } from '@/lib/appUpdateService';
 import { announceUpdateAvailable } from '@/lib/appUpdateEvents';
 import { MOTION } from '@/lib/motion';
 import { APP_VERSION_NAME } from '@/lib/appVersion';
+import { STUDY_MODE_STUDY_APPS_SESSION_KEY } from '@/lib/studyModeDeepLink';
 import {
   getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled,
@@ -40,6 +41,21 @@ const SettingsPanel = () => {
   const mode = useMode();
   const guest = !user && isGuest();
   const mountedRef = useRef(true);
+
+  useEffect(() => {
+    const openStudyAppsPage = () => {
+      try {
+        if (sessionStorage.getItem(STUDY_MODE_STUDY_APPS_SESSION_KEY) === "1") {
+          setStudyModeOpen(true);
+        }
+      } catch {
+        // Keep normal Settings navigation available when WebView storage is unavailable.
+      }
+    };
+    openStudyAppsPage();
+    window.addEventListener("study-mode-open-app-picker", openStudyAppsPage);
+    return () => window.removeEventListener("study-mode-open-app-picker", openStudyAppsPage);
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
