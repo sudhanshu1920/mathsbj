@@ -12,6 +12,12 @@ async function createAndroidFixture() {
   await writeFile(path.join(root, 'app/src/main/AndroidManifest.xml'), `<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.sudhanshu.mathsbj">
     <uses-permission android:name="android.permission.INTERNET" />
     <application android:label="Math Master">
+      <activity android:name=".MainActivity" android:exported="true">
+        <intent-filter>
+          <action android:name="android.intent.action.MAIN" />
+          <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+      </activity>
       <service android:name=".StudyModeNotificationListenerService"
           android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
         <intent-filter>
@@ -77,6 +83,8 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.match(manifest, /<queries>[\s\S]*android.intent.action.MAIN[\s\S]*android.intent.category.LAUNCHER[\s\S]*<\/queries>/);
   assert.ok(manifest.includes('android.intent.action.DIAL'));
   assert.ok(manifest.includes('android.intent.category.HOME'));
+  assert.match(manifest, /android:scheme="mathmaster" android:host="study-apps"/);
+  assert.match(manifest, /android:name=".MainActivity"[\s\S]*?android:host="study-apps"[\s\S]*?<\/activity>/);
   assert.doesNotMatch(manifest, /android.provider.Telephony.SMS_DELIVER/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
