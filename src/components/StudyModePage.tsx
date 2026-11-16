@@ -42,6 +42,7 @@ import {
   type StudyModeConfig,
 } from "@/lib/studyModeSchedule";
 import { MOTION } from "@/lib/motion";
+import { STUDY_MODE_STUDY_APPS_SESSION_KEY } from "@/lib/studyModeDeepLink";
 import {
   countStudyModeApps,
   filterStudyModeApps,
@@ -333,6 +334,24 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings" }: StudyModePage
     });
     return request;
   }, []);
+
+  useEffect(() => {
+    const openStudyAppsPickerFromReminder = () => {
+      let requested = false;
+      try {
+        requested = sessionStorage.getItem(STUDY_MODE_STUDY_APPS_SESSION_KEY) === "1";
+        if (requested) sessionStorage.removeItem(STUDY_MODE_STUDY_APPS_SESSION_KEY);
+      } catch {
+        return;
+      }
+      if (!requested) return;
+      setStudyPickerOpen(true);
+      void loadApps();
+    };
+    openStudyAppsPickerFromReminder();
+    window.addEventListener("study-mode-open-app-picker", openStudyAppsPickerFromReminder);
+    return () => window.removeEventListener("study-mode-open-app-picker", openStudyAppsPickerFromReminder);
+  }, [loadApps]);
 
   const toggleBlockedPicker = () => {
     const nextOpen = !pickerOpen;
