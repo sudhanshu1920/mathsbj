@@ -221,8 +221,13 @@ test("persistent reminder ignores focus/lifecycle changes and is deduplicated un
   assert.ok(show.includes("periodicReminderUsage.isDue()"));
   assert.ok(show.includes("periodicReminderUsage.markVisible()"));
   assert.ok(source.includes("KEY_PERIODIC_REMINDER_PENDING"));
-  assert.ok(source.includes("restorePendingPeriodicReminder()"));
+  assert.ok(source.includes("restorePeriodicReminderState()"));
   assert.ok(source.includes("ensurePeriodicReminderAttached()"));
+  assert.ok(source.includes("KEY_PERIODIC_REMINDER_USAGE_MS"));
+  assert.ok(source.includes("KEY_PERIODIC_REMINDER_DUE"));
+  assert.ok(source.includes("periodicReminderUsage.restoreAccumulatedUsage("));
+  assert.ok(source.includes("periodicReminderUsage.restoreDue()"));
+  assert.ok(source.includes("savePeriodicReminderUsageState(true)"));
   for (const automaticDismiss of [
     'dismissPeriodicReminder("focused_app_changed"',
     'dismissPeriodicReminder("foreground_unresolved"',
