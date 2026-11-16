@@ -111,7 +111,16 @@ public final class StudyModeManager {
         if (!StudyModeUsageAccumulator.isValidInterval(value)) {
             throw new IllegalArgumentException("Reminder interval must be an integer from 1 to 10 minutes.");
         }
-        if (!prefs(context).edit().putInt(KEY_REMINDER_INTERVAL_MINUTES, value).commit()) {
+        SharedPreferences preferences = prefs(context);
+        int previousValue = getReminderIntervalMinutes(context);
+        SharedPreferences.Editor editor = preferences.edit().putInt(KEY_REMINDER_INTERVAL_MINUTES, value);
+        if (previousValue != value) {
+            // A changed threshold starts a fresh interval, including after a service
+            // process was killed while no Focus Service instance was available.
+            editor.putLong("periodicReminderUsageMs", 0L)
+                .putBoolean("periodicReminderDue", false);
+        }
+        if (!editor.commit()) {
             throw new IllegalStateException("Reminder interval could not be saved.");
         }
         StudyModeFocusService.onReminderIntervalChanged(value);
