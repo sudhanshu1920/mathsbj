@@ -1065,8 +1065,91 @@ public final class StudyModeFocusService extends Service {
         removeShield("window_not_visible");
     }
 
+    private void restorePendingPeriodicReminder() {
+        android.content.SharedPreferences preferences =
+            getSharedPreferences(REMINDER_PREFS, MODE_PRIVATE);
+        if (!preferences.getBoolean(KEY_PERIODIC_REMINDER_PENDING, false)) return;
+        String savedPackage = preferences.getString(KEY_PERIODIC_REMINDER_PACKAGE, "");
+        if (savedPackage == null || !savedPackage.matches("[A-Za-z0-9_]+(\\\\.[A-Za-z0-9_]+)+")) {
+            clearPendingPeriodicReminder();
+            return;
+        }
+        periodicReminderPackage = savedPackage;
+        periodicReminderVisible.set(true);
+        periodicReminderUsage.restoreVisible();
+        logStage("PERIODIC_REMINDER_RESTORE_PENDING", savedPackage, "", "pending",
+            "service_recreated_restore_after_foreground_validation");
+    }
+
+    private void savePendingPeriodicReminder(String packageName) {
+        boolean saved = getSharedPreferences(REMINDER_PREFS, MODE_PRIVATE).edit()
+            .putBoolean(KEY_PERIODIC_REMINDER_PENDING, true)
+            .putString(KEY_PERIODIC_REMINDER_PACKAGE, packageName)
+            .commit();
+        if (!saved) {
+            logStage("PERIODIC_REMINDER_STATE_SAVE_FAILED", packageName, "", "failed",
+                "shared_preferences_commit_failed");
+        }
+    }
+
+    private void clearPendingPeriodicReminder() {
+        getSharedPreferences(REMINDER_PREFS, MODE_PRIVATE).edit()
+            .remove(KEY_PERIODIC_REMINDER_PENDING)
+            .remove(KEY_PERIODIC_REMINDER_PACKAGE)
+            .commit();
+    }
+
+    private WindowManager.LayoutParams createPeriodicReminderLayoutParams() {
+        int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            type,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        );
+        params.gravity = Gravity.CENTER;
+        params.setTitle("Math Master Periodic Study Reminder");
+        return params;
+    }
+
+    /** Reattaches the same pending reminder if Android/OEM detached its overlay window. */
+    private void ensurePeriodicReminderAttached() {
+        if (!running || !periodicReminderVisible.get() || periodicReminderPackage.isEmpty()) return;
+        android.view.View current = periodicReminderView;
+        if (current != null && current.isAttachedToWindow()) return;
+        if (!StudyModeManager.hasOverlayPermission(this)) {
+            overlayFailureForStatus = true;
+            StudyModeManager.setServiceState(this, "permission_required");
+            logStage("PERIODIC_REMINDER_WAITING_FOR_PERMISSION", periodicReminderPackage, "",
+                "pending", "display_over_other_apps_permission_unavailable");
+            updateOngoingNotification();
+            return;
+        }
+        try {
+            if (windowManager == null) windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+            if (windowManager == null) throw new IllegalStateException("WindowManager unavailable");
+            if (current == null) {
+                current = buildPeriodicReminderView(periodicReminderPackage);
+                periodicReminderView = current;
+            }
+            if (!current.isAttachedToWindow()) {
+                windowManager.addView(current, createPeriodicReminderLayoutParams());
+            }
+            overlayFailureForStatus = false;
+            logStage("PERIODIC_REMINDER_WINDOW_ATTACHED", periodicReminderPackage, "",
+                "visible", "persistent_reminder_window_attached");
+        } catch (Exception error) {
+            overlayFailureForStatus = true;
+            StudyModeManager.setServiceState(this, "overlay_failed");
+            logStage("PERIODIC_REMINDER_ATTACH_FAILED", periodicReminderPackage, "",
+                "pending", error.getClass().getSimpleName());
+        }
+    }
+
     private void showPeriodicReminder(String packageName, long decisionSequence) {
-        if (packageName == null || packageName.isEmpty()
+        if (packageName == null || packageName.isEmpty() || !periodicReminderUsage.isDue()
             || !periodicReminderVisible.compareAndSet(false, true)) return;
         if (!running || decisionSequence != foregroundDecisionSequence.get()
             || !StudyModeManager.shouldEnforceNow(this)
@@ -1085,6 +1168,7 @@ public final class StudyModeFocusService extends Service {
         try {
             if (windowManager == null) windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
             if (windowManager == null) throw new IllegalStateException("WindowManager unavailable");
+            periodicReminderPackage = packageName;
             android.view.View candidate = buildPeriodicReminderView(packageName);
             if (!running || decisionSequence != foregroundDecisionSequence.get()
                 || !StudyModeManager.shouldEnforceNow(this)
@@ -1093,33 +1177,28 @@ public final class StudyModeFocusService extends Service {
                 || StudyModeManager.isPeriodicReminderExemptPackage(this, packageName)
                 || !packageName.equals(StudyModeWindowRegistry.findFocusedPackage(this, lastForegroundPackage))) {
                 periodicReminderVisible.set(false);
+                periodicReminderPackage = "";
                 return;
             }
-            int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
-            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
-                type, WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT);
-            params.gravity = Gravity.CENTER;
-            params.setTitle("Math Master Periodic Study Reminder");
-            windowManager.addView(candidate, params);
             periodicReminderView = candidate;
-            periodicReminderPackage = packageName;
-            Handler usageHandler = monitorHandler;
-            Runnable resetUsageInterval = () -> {
-                if (periodicReminderVisible.get() && packageName.equals(periodicReminderPackage)) {
-                    periodicReminderUsage.resetInterval();
-                }
-            };
-            if (usageHandler == null || !usageHandler.post(resetUsageInterval)) {
-                periodicReminderUsage.resetInterval();
+            windowManager.addView(candidate, createPeriodicReminderLayoutParams());
+            if (!periodicReminderUsage.markVisible()) {
+                windowManager.removeViewImmediate(candidate);
+                periodicReminderView = null;
+                periodicReminderPackage = "";
+                periodicReminderVisible.set(false);
+                return;
             }
-            logStage("PERIODIC_REMINDER_VISIBLE", packageName, "", "visible", "eligible_usage_interval_elapsed");
+            savePendingPeriodicReminder(packageName);
+            overlayFailureForStatus = false;
+            logStage("PERIODIC_REMINDER_VISIBLE", packageName, "", "visible",
+                "selected_eligible_usage_interval_elapsed");
         } catch (Exception error) {
             periodicReminderVisible.set(false);
             periodicReminderView = null;
             periodicReminderPackage = "";
-            logStage("PERIODIC_REMINDER_LAUNCH_FAILED", packageName, "", "failed", error.getClass().getSimpleName());
+            logStage("PERIODIC_REMINDER_LAUNCH_FAILED", packageName, "", "failed",
+                error.getClass().getSimpleName());
         }
     }
 
