@@ -256,5 +256,6 @@ test('every native widget provider is copied and registered by the Android setup
   }
   assert.match(configureAndroid, /const RESOURCE_DIRS = \['drawable', 'drawable-nodpi', 'layout', 'values', 'xml', 'xml-v31'\]/);
   assert.match(configureAndroid, /normalizeRemoteViewsLayout\(xml\)/);
-  assert.match(configureAndroid, /await configureAndroidStudyMode\(root\)/);
+  const releaseWorkflow = read('.github/workflows/android-release.yml');
+  assert.match(releaseWorkflow, /- name: Configure native Study Mode services\s+run: node scripts\/configure-android-study-mode\.mjs[\s\S]*?- name: Configure Android home-screen widgets\s+run: node scripts\/configure-android-widgets\.mjs/);
 });
