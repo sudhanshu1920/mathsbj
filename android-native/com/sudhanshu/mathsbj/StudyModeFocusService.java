@@ -296,23 +296,37 @@ public final class StudyModeFocusService extends Service {
      * AccessibilityService calls this after a real app-window event. Rechecks
      * run on the monitor HandlerThread and are bounded/coalesced.
      */
-    public static void onReminderIntervalChanged(int intervalMinutes) {
+    public static void onReminderIntervalChanged(Context context, int intervalMinutes) {
+        if (context == null || !StudyModeUsageAccumulator.isValidInterval(intervalMinutes)) return;
         StudyModeFocusService service = activeService;
-        if (service == null || !running || !StudyModeUsageAccumulator.isValidInterval(intervalMinutes)) return;
+        if (service == null || !running) {
+            // A pending ID without a live overlay is an unshown reminder. A new
+            // interval invalidates it, including when the service is restarting.
+            StudyModeManager.clearPendingPeriodicReminder(context);
+            return;
+        }
         Handler handler = service.monitorHandler;
-        if (handler == null) return;
         Runnable applyInterval = () -> {
             if (!running || service != activeService) return;
+            clearUnshownPeriodicReminderState(service);
             service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
             if (service.periodicReminderVisible.get()) service.periodicReminderUsage.markReminderVisible();
             service.persistReminderUsage(true);
             service.monitorRunnable.run();
         };
-        if (!handler.post(applyInterval)) {
+        if (handler == null || !handler.post(applyInterval)) {
+            clearUnshownPeriodicReminderState(service);
             service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
             if (service.periodicReminderVisible.get()) service.periodicReminderUsage.markReminderVisible();
             service.persistReminderUsage(true);
         }
+    }
+
+    private static void clearUnshownPeriodicReminderState(StudyModeFocusService service) {
+        if (service.periodicReminderVisible.get()) return;
+        service.periodicReminderId = "";
+        service.periodicReminderPackage = "";
+        StudyModeManager.clearPendingPeriodicReminder(service);
     }
 
     public static void onStudyAppsChanged() {
@@ -695,15 +709,10 @@ public final class StudyModeFocusService extends Service {
             windowSnapshotUnavailableLogged = false;
 
             String activePackage = StudyModeWindowRegistry.findFocusedPackage(StudyModeFocusService.this, foreground);
-            // When Accessibility is connected but Android does not expose a
-            // complete focus snapshot, use the fresh UsageEvents foreground
-            // package for the reminder timer only. Blocked-package checks above
-            // remain authoritative and Advanced coverage still fails closed.
-            if (activePackage == null && foreground != null && !shouldShield
-                && !StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground)
-                && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, foreground)) {
-                activePackage = foreground;
-            }
+            // StudyModeWindowRegistry deliberately returns null when Accessibility
+            // is connected but its focused-window snapshot is incomplete. Do not
+            // resurrect a cached UsageEvents package here: timer accounting must
+            // pause until the current focused package is positively identified.
             boolean selectedStudyApp = activePackage != null
                 && StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage);
             boolean reminderEligible = !shouldShield && activePackage != null
