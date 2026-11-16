@@ -1074,7 +1074,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModePage.includes('startStudyModeSession') ||
     !studyModePage.includes('endStudyModeSession') ||
     !studyModePage.includes('checked={draft.enabled || Boolean(status.activeSession?.active)}') ||
-    !studyModePage.includes('void load(true)') ||
+    !studyModePage.includes('Promise.all([load(true), refreshApps])') ||
     !studyModeAppPlugin.includes('public void startSession(PluginCall call)') ||
     !studyModeAppPlugin.includes('public void endSession(PluginCall call)') ||
     !studyModeAppPlugin.includes('public void getSessionHistory(PluginCall call)') ||
