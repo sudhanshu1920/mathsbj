@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class StudyModeFocusService extends Service {
     private static final String CHANNEL_ID = "study_mode_focus";
     private static final int NOTIFICATION_ID = 9528;
-    private static final long POLL_INTERVAL_MS = 1600L;
+    private static final long POLL_INTERVAL_MS = 1000L;
     private static final long INITIAL_EVENT_LOOKBACK_MS = 24L * 60L * 60L * 1000L;
     private static final long EVENT_QUERY_OVERLAP_MS = 5000L;
     private static final long EMPTY_INITIAL_LOOKUP_RETRY_MS = 60_000L;
@@ -421,7 +421,6 @@ public final class StudyModeFocusService extends Service {
             periodicReminderPackage = savedReminderPackage;
             periodicReminderVisible.set(true);
             periodicReminderUsage.markReminderVisible();
-            mainHandler.post(this::restorePeriodicReminderOverlay);
         }
         overlayFailureForStatus = false;
         foregroundLookupFailureForStatus = false;
@@ -556,8 +555,8 @@ public final class StudyModeFocusService extends Service {
             if (!StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)) {
                 if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("session_inactive", false));
                 periodicReminderUsage.clear();
-                StudyModeManager.clearReminderUsageMs(this);
-                StudyModeManager.clearPendingPeriodicReminder(this);
+                StudyModeManager.clearReminderUsageMs(StudyModeFocusService.this);
+                StudyModeManager.clearPendingPeriodicReminder(StudyModeFocusService.this);
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 activeDiagnosticSessionId = "none";
                 StudyModeManager.setServiceState(StudyModeFocusService.this,
@@ -696,6 +695,15 @@ public final class StudyModeFocusService extends Service {
             windowSnapshotUnavailableLogged = false;
 
             String activePackage = StudyModeWindowRegistry.findFocusedPackage(StudyModeFocusService.this, foreground);
+            // When Accessibility is connected but Android does not expose a
+            // complete focus snapshot, use the fresh UsageEvents foreground
+            // package for the reminder timer only. Blocked-package checks above
+            // remain authoritative and Advanced coverage still fails closed.
+            if (activePackage == null && foreground != null && !shouldShield
+                && !StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground)
+                && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, foreground)) {
+                activePackage = foreground;
+            }
             boolean selectedStudyApp = activePackage != null
                 && StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage);
             boolean reminderEligible = !shouldShield && activePackage != null
@@ -750,8 +758,8 @@ public final class StudyModeFocusService extends Service {
                     removeShield("foreground_not_blocked");
                     if (requestPeriodicReminder || periodicReminderUsage.isReminderPending()) {
                         showPeriodicReminder(reminderTargetPackage, decisionSequence);
-                    } else if (periodicReminderVisible.get() && periodicReminderView != null
-                        && !periodicReminderView.isAttachedToWindow()) {
+                    } else if (periodicReminderVisible.get()
+                        && (periodicReminderView == null || !periodicReminderView.isAttachedToWindow())) {
                         restorePeriodicReminderOverlay();
                     }
                 }
