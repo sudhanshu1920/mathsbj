@@ -340,6 +340,21 @@ public final class StudyModeManager {
         }
     }
 
+    /** Opens the existing Study Mode > Study Apps picker through the app's supported deep link. */
+    public static boolean openStudyAppsSelection(Context context) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("mathmaster://study-apps"));
+            intent.setClass(context, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            context.startActivity(intent);
+            return true;
+        } catch (Exception error) {
+            return false;
+        }
+    }
+
     private static int valuesLength(String raw) {
         try { return new JSONArray(raw).length(); }
         catch (JSONException ignored) { return -1; }
