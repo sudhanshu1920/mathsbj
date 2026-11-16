@@ -816,6 +816,8 @@ public final class StudyModeManager {
                 sessionStore(context).finishSession(context, activeSession.id, "ended");
             }
             cancelSessionExpiry(context);
+            clearReminderUsageMs(context);
+            clearPendingPeriodicReminder(context);
         }
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).commit();
         reconcile(context);
