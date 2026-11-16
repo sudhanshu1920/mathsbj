@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class StudyModeFocusService extends Service {
     private static final String CHANNEL_ID = "study_mode_focus";
     private static final int NOTIFICATION_ID = 9528;
-    private static final long POLL_INTERVAL_MS = 1600L;
+    private static final long POLL_INTERVAL_MS = 1000L;
     private static final long INITIAL_EVENT_LOOKBACK_MS = 24L * 60L * 60L * 1000L;
     private static final long EVENT_QUERY_OVERLAP_MS = 5000L;
     private static final long EMPTY_INITIAL_LOOKUP_RETRY_MS = 60_000L;
@@ -58,6 +58,9 @@ public final class StudyModeFocusService extends Service {
     private static final long MONITOR_THREAD_RETRY_MS = 3_000L;
     private static final int MAX_POPUP_FAILURES_PER_FOREGROUND = 3;
     private static final String LOG_TAG = "MathMasterStudyMode";
+    private static final String REMINDER_PREFS = "math_master_study_mode";
+    private static final String KEY_PERIODIC_REMINDER_PENDING = "periodicReminderPending";
+    private static final String KEY_PERIODIC_REMINDER_PACKAGE = "periodicReminderPackage";
     private static volatile boolean running = false;
     private static volatile boolean starting = false;
     private static volatile boolean stopping = false;
@@ -298,12 +301,19 @@ public final class StudyModeFocusService extends Service {
         Runnable applyInterval = () -> {
             if (!running || service != activeService) return;
             service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
-            service.periodicReminderUsage.pause();
-            service.monitorRunnable.run();
+            if (service.periodicReminderVisible.get()) {
+                service.periodicReminderUsage.restoreVisible();
+            } else {
+                service.periodicReminderUsage.pause();
+            }
         };
         if (!handler.post(applyInterval)) {
             service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
-            service.periodicReminderUsage.pause();
+            if (service.periodicReminderVisible.get()) {
+                service.periodicReminderUsage.restoreVisible();
+            } else {
+                service.periodicReminderUsage.pause();
+            }
         }
     }
 
@@ -397,6 +407,7 @@ public final class StudyModeFocusService extends Service {
         running = true;
         activeService = this;
         periodicReminderUsage.setIntervalMinutes(StudyModeManager.getReminderIntervalMinutes(this));
+        restorePendingPeriodicReminder();
         overlayFailureForStatus = false;
         foregroundLookupFailureForStatus = false;
         if (!devicePolicyMode) StudyModeManager.setServiceState(this, "focus_shield_starting");
@@ -544,7 +555,7 @@ public final class StudyModeFocusService extends Service {
             }
             if (StudyModeManager.isPolicyOwner(StudyModeFocusService.this)) {
                 periodicReminderUsage.pause();
-                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("device_policy_enforces_packages", false));
+
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 mainHandler.post(() -> {
                     if (monitorGenerationAtStart == monitorGeneration
@@ -559,7 +570,7 @@ public final class StudyModeFocusService extends Service {
             if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
                 periodicReminderUsage.pause();
-                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("permission_missing", false));
+
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 if (!permissionUnavailableLogged) {
                     permissionUnavailableLogged = true;
@@ -590,7 +601,7 @@ public final class StudyModeFocusService extends Service {
             if (power == null || !power.isInteractive()
                 || (keyguard != null && keyguard.isKeyguardLocked())) {
                 periodicReminderUsage.pause();
-                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("screen_not_interactive", false));
+
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 resetForegroundResolution();
                 mainHandler.post(() -> {
@@ -629,7 +640,7 @@ public final class StudyModeFocusService extends Service {
             // user is outside a blocked app. Preserve an already-visible shield.
             if (foreground == null || foreground.trim().isEmpty()) {
                 periodicReminderUsage.pause();
-                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("foreground_unresolved", false));
+
                 if (!foregroundUnknownLogged) {
                     foregroundUnknownLogged = true;
                     logStage("FOREGROUND_PACKAGE_UNRESOLVED", "", "", "deferred", "no_usable_resume_event");
@@ -656,7 +667,7 @@ public final class StudyModeFocusService extends Service {
             if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()
                 && !shouldShield) {
                 periodicReminderUsage.pause();
-                if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("window_snapshot_unavailable", false));
+
                 if (!windowSnapshotUnavailableLogged) {
                     windowSnapshotUnavailableLogged = true;
                     logStage("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE", "", "", "deferred",
@@ -682,7 +693,7 @@ public final class StudyModeFocusService extends Service {
                 && activePackage != null
                 && !activePackage.equals(getPackageName())
                 && !activePackage.equals(periodicReminderPackage)) {
-                mainHandler.post(() -> dismissPeriodicReminder("focused_app_changed", false));
+
             }
 
             boolean decisionChanged = !foreground.equals(lastDecisionPackage)
@@ -721,16 +732,13 @@ public final class StudyModeFocusService extends Service {
                     return;
                 }
                 if (shouldShield) {
-                    if (periodicReminderVisible.get()) dismissPeriodicReminder("blocked_app", false);
                     showShield(decisionPackage, requestId, decisionSequence);
                 } else {
                     removeShield("foreground_not_blocked");
-                    if (requestPeriodicReminder) showPeriodicReminder(reminderTargetPackage, decisionSequence);
-                    else if (periodicReminderVisible.get() && reminderTargetPackage != null
-                        && !reminderTargetPackage.equals(getPackageName())
-                        && !periodicReminderPackage.isEmpty()
-                        && !reminderTargetPackage.equals(periodicReminderPackage)) {
-                        dismissPeriodicReminder("focused_app_changed", false);
+                    if (periodicReminderVisible.get()) {
+                        ensurePeriodicReminderAttached();
+                    } else if (requestPeriodicReminder) {
+                        showPeriodicReminder(reminderTargetPackage, decisionSequence);
                     }
                 }
             });
