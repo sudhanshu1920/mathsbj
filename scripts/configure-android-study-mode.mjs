@@ -226,6 +226,30 @@ function ensureStudyModeComponents(manifest) {
     + manifest.slice(applicationClose);
 }
 
+function ensureStudyAppsDeepLinkIntentFilter(manifest) {
+  if (manifest.includes('android:scheme="mathmaster"')
+      && manifest.includes('android:host="study-apps"')) return manifest;
+
+  const marker = 'android:name=".MainActivity"';
+  const markerIndex = manifest.indexOf(marker);
+  if (markerIndex < 0) throw new Error('AndroidManifest.xml is missing the MainActivity declaration.');
+  const activityStart = manifest.lastIndexOf('<activity', markerIndex);
+  const activityOpenEnd = manifest.indexOf('>', markerIndex);
+  const activityClose = manifest.indexOf('</activity>', activityOpenEnd);
+  if (activityStart < 0 || activityOpenEnd < 0 || activityClose < 0) {
+    throw new Error('MainActivity manifest declaration is malformed.');
+  }
+
+  const intentFilter = `            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="mathmaster" android:host="study-apps" />
+            </intent-filter>
+`;
+  return manifest.slice(0, activityClose) + intentFilter + manifest.slice(activityClose);
+}
+
 function registerStudyModePlugin(mainActivity) {
   const registration = 'registerPlugin(StudyModePlugin.class);';
   if (mainActivity.includes(registration)) return mainActivity;
@@ -362,6 +386,7 @@ export async function configureAndroidStudyMode(androidRoot) {
   manifest = ensureManifestQueries(manifest);
   manifest = ensurePermissions(manifest);
   manifest = ensureStudyModeComponents(manifest);
+  manifest = ensureStudyAppsDeepLinkIntentFilter(manifest);
   manifest = ensurePackageChangeReceiverActions(manifest);
   manifest = ensureBackupExclusions(manifest);
   await writeFile(manifestPath, manifest);
