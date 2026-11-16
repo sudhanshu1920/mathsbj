@@ -95,9 +95,9 @@ public final class StudyModePlugin extends Plugin {
 
     @PluginMethod
     public void consumeOpenStudyAppsPickerRequest(PluginCall call) {
-        call.resolve(new JSObject().put(
-            "open", StudyModeManager.consumeOpenStudyAppsPickerRequest(getContext())
-        ));
+        JSObject result = new JSObject();
+        result.put("open", StudyModeManager.consumeOpenStudyAppsPickerRequest(getContext()));
+        call.resolve(result);
     }
 
     @PluginMethod
