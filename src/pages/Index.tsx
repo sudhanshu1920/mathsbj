@@ -776,6 +776,7 @@ const Index = () => {
       return true;
     }
     setTab("progress");
+    window.dispatchEvent(new Event("study-mode-open-app-picker"));
     return true;
   }, []);
 
