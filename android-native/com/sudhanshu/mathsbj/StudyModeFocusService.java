@@ -1155,7 +1155,8 @@ public final class StudyModeFocusService extends Service {
 
     private void restorePeriodicReminderOverlay() {
         if (!running || !StudyModeManager.shouldEnforceNow(this)
-            || !StudyModeManager.hasOverlayPermission(this) || !periodicReminderVisible.get()) return;
+            || !StudyModeManager.hasOverlayPermission(this) || !periodicReminderVisible.get()
+            || shieldView != null || popupState != PopupState.IDLE) return;
         if (periodicReminderView != null && periodicReminderView.isAttachedToWindow()) return;
         if (windowManager == null) windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         if (windowManager == null) return;
