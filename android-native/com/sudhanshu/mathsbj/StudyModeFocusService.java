@@ -752,7 +752,7 @@ public final class StudyModeFocusService extends Service {
                     return;
                 }
                 if (shouldShield) {
-                    if (periodicReminderVisible.get()) dismissPeriodicReminder("blocked_app", false);
+                    if (periodicReminderVisible.get()) suspendPeriodicReminderForBlockedApp();
                     showShield(decisionPackage, requestId, decisionSequence);
                 } else {
                     removeShield("foreground_not_blocked");
@@ -1399,6 +1399,30 @@ public final class StudyModeFocusService extends Service {
         StudyModeManager.saveReminderUsageMs(this, usage);
         lastPersistedReminderUsageMs = usage;
         lastReminderUsagePersistElapsedMs = now;
+    }
+
+    private void suspendPeriodicReminderForBlockedApp() {
+        android.view.View existingView = periodicReminderView;
+        if (existingView == null) return;
+        try {
+            if (windowManager == null) windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+            if (windowManager == null) throw new IllegalStateException("WindowManager unavailable during reminder suspension");
+            windowManager.removeViewImmediate(existingView);
+            periodicReminderView = null;
+            periodicReminderStudyAppsSection = null;
+            periodicReminderAppsError = null;
+            logStage("PERIODIC_REMINDER_SUSPENDED", periodicReminderPackage, periodicReminderId,
+                "pending", "blocked_app_takes_priority");
+        } catch (IllegalArgumentException alreadyDetached) {
+            periodicReminderView = null;
+            periodicReminderStudyAppsSection = null;
+            periodicReminderAppsError = null;
+        } catch (Exception error) {
+            // Keep the attached reference and durable pending state. The hard
+            // block overlay is still requested and will cover this reminder.
+            logStage("PERIODIC_REMINDER_SUSPEND_FAILED", periodicReminderPackage, periodicReminderId,
+                "still_attached", error.getClass().getSimpleName());
+        }
     }
 
     private void dismissPeriodicReminder(String reason, boolean resetInterval) {
