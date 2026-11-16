@@ -25,6 +25,7 @@ import type { TrigFunction } from '@/lib/trigData';
 import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
 import { getFloatingBarVisibility } from '@/lib/floatingBarVisibility';
 import { isStudyModeLearningDeepLink } from '@/lib/studyModeDeepLink';
+import { consumeStudyAppsPickerRequest } from '@/lib/studyMode';
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -158,6 +159,7 @@ const Index = () => {
   const [practicePhase, setPracticePhase] = useState<PracticePhase>('setup');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [studyModePageVisible, setStudyModePageVisible] = useState(false);
+  const [studyAppsPickerRequest, setStudyAppsPickerRequest] = useState(0);
   const [sectionTransitionDirection, setSectionTransitionDirection] = useState<SectionTransitionDirection | null>(null);
   const prefersReducedMotion = useReducedMotion();
   const appFrameScrollRef = useRef<HTMLDivElement>(null);
@@ -188,6 +190,39 @@ const Index = () => {
     window.addEventListener('study-reminder-tapped', handleStudyReminderTap);
     return () => window.removeEventListener('study-reminder-tapped', handleStudyReminderTap);
   }, [practicePhase]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let disposed = false;
+    let inFlight = false;
+    const consumePickerRequest = async () => {
+      if (disposed || inFlight) return;
+      inFlight = true;
+      try {
+        const requested = await consumeStudyAppsPickerRequest();
+        if (requested && !disposed) {
+          setTab('learn');
+          setSettingsOpen(false);
+          setStudyAppsPickerRequest((current) => current + 1);
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+    const onForeground = () => { void consumePickerRequest(); };
+    void consumePickerRequest();
+    window.addEventListener('focus', onForeground);
+    document.addEventListener('visibilitychange', onForeground);
+    const appStateListener = App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) onForeground();
+    }).catch(() => null);
+    return () => {
+      disposed = true;
+      window.removeEventListener('focus', onForeground);
+      document.removeEventListener('visibilitychange', onForeground);
+      void appStateListener.then((listener) => listener?.remove());
+    };
+  }, []);
 
   const sectionTransition: SectionTransition = {
     direction: sectionTransitionDirection,
@@ -1204,6 +1239,7 @@ const Index = () => {
                     practiceSelectorOpen={learningPracticeSelectorOpen}
                     practiceReturn={learningPracticeReturn}
                     onPracticeSelectorVisibilityChange={handlePracticeSelectorVisibilityChange}
+                    studyAppsPickerRequest={studyAppsPickerRequest}
                   />
                 </motion.div>
               )}
