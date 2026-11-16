@@ -106,8 +106,8 @@ public final class StudyModeFocusService extends Service {
     private volatile String periodicReminderId = "";
     private LinearLayout periodicReminderStudyAppsSection;
     private TextView periodicReminderAppsError;
-    private long lastReminderUsagePersistElapsedMs = 0L;
-    private long lastPersistedReminderUsageMs = -1L;
+    private volatile long lastReminderUsagePersistElapsedMs = 0L;
+    private volatile long lastPersistedReminderUsageMs = -1L;
     private enum PopupState { IDLE, LAUNCH_PENDING, VISIBLE, RECOVERY_REQUIRED }
 
     private String shieldedPackage = "";
