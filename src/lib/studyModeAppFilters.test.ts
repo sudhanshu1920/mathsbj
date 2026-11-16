@@ -58,6 +58,7 @@ describe("Study Mode installed-app filters", () => {
       "com.android.camera",
       "com.example.notes",
       "com.oem.launcher",
+      "com.android.settings",
     ]);
   });
 

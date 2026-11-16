@@ -367,7 +367,13 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
       setAppsLoadError("Installed apps are available only in the Android app.");
       return Promise.resolve();
     }
-    if (!forceRefresh && appCatalogLoadedRef.current) return Promise.resolve();
+    if (!forceRefresh && appCatalogLoadedRef.current && getCachedInstalledStudyModeApps() !== null) {
+      return Promise.resolve();
+    }
+    if (getCachedInstalledStudyModeApps() === null) {
+      appCatalogLoadedRef.current = false;
+      appCatalogRef.current = null;
+    }
     if (appCatalogLoadInFlightRef.current) return appCatalogLoadInFlightRef.current;
 
     // Keep a valid warm list visible while an explicit lifecycle refresh runs.
@@ -624,6 +630,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
 
 
   const activeSession = status?.activeSession?.active ? status.activeSession : null;
+  const selectionReady = cachedSettings !== null || status !== null;
   const permissionReadiness = status ? getStudyModePermissionReadiness(status) : null;
   const corePermissionsReady = permissionReadiness?.coreReady === true;
 
@@ -1363,9 +1370,14 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
                 <Smartphone size={15} className="text-primary" />
                 <span className="flex-1 text-xs font-bold text-foreground">Blocked Apps</span>
+                {!selectionReady && (
+                  <span className="text-[9px] text-muted-foreground" role="status">
+                    {loading ? "Restoring saved selections…" : "Saved selections are unavailable; reopen Study Mode to retry."}
+                  </span>
+                )}
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-[9px] font-bold text-muted-foreground">{selectedCount} selected</span>
                 {selectedCount > 0 && (
-                  <button type="button" onClick={() => updateDraft({ selectedPackageNames: [] })} disabled={saving} className="motion-press rounded-lg px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">
+                  <button type="button" onClick={() => updateDraft({ selectedPackageNames: [] })} disabled={!selectionReady || saving} className="motion-press rounded-lg px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">
                     Clear
                   </button>
                 )}
@@ -1430,7 +1442,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                     app={app}
                     variant="blocked"
                     selected={selectedBlockedPackageSet.has(app.packageName)}
-                    disabled={saving || appsLoading || Boolean(appsLoadError)}
+                    disabled={!selectionReady || saving || appsLoading || Boolean(appsLoadError)}
                     showEnforcementLabel={Boolean(status) && status.enforcementMode !== "focus_shield"}
                     enforcementLabel={suspendedPackages.has(app.packageName)
                       ? "Frozen"
@@ -1449,9 +1461,14 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
                 <BookOpen size={15} className="text-accent" />
                 <span className="flex-1 text-xs font-bold text-foreground">Study Apps</span>
+                {!selectionReady && (
+                  <span className="text-[9px] text-muted-foreground" role="status">
+                    {loading ? "Restoring saved selections…" : "Saved selections are unavailable; reopen Study Mode to retry."}
+                  </span>
+                )}
                 <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[9px] font-bold text-accent">{studyAppPackages.length} selected</span>
                 {studyAppPackages.length > 0 && (
-                  <button type="button" onClick={() => setStudyAppPackages([])} disabled={saving} className="motion-press rounded-lg px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">
+                  <button type="button" onClick={() => setStudyAppPackages([])} disabled={!selectionReady || saving} className="motion-press rounded-lg px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">
                     Clear
                   </button>
                 )}
@@ -1494,7 +1511,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                     variant="study"
                     selected={selectedStudyPackageSet.has(app.packageName)}
                     blocked={selectedBlockedPackageSet.has(app.packageName) || enforcedPackageSet.has(app.packageName)}
-                    disabled={saving || appsLoading || Boolean(appsLoadError)}
+                    disabled={!selectionReady || saving || appsLoading || Boolean(appsLoadError)}
                     onToggle={handleStudyAppToggle}
                   />
                 ))}

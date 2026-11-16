@@ -1162,7 +1162,8 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     !studyModePage.includes('aria-label="Filter installed apps"') ||
     !studyModePage.includes('filterStudyModeApps(apps, appFilter, deferredSearch)') ||
     !studyModeAppFilters.includes('filter === "system" ? app.systemApp : !app.systemApp') ||
-    !studyModePage.includes('disabled={!app.selectable || saving}') ||
+    !studyModePage.includes('disabled={!app.selectable || disabled}') ||
+    !studyModePage.includes('selectionReady = cachedSettings !== null || status !== null') ||
     !studyModePage.includes('app.selectable ? (') ||
     !studyModeAppFilterTests.includes('selectable: false') ||
     !studyModeAppFilterTests.includes('shows user and pre-installed system apps together in All') ||
@@ -1220,7 +1221,7 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModeAppLoader.includes('setAppsLoadError(') ||
     !studyModePickerHandlers.includes('if (nextOpen) void loadApps()') ||
     !studyModePage.includes('appsLoading && apps.length === 0 ? (') ||
-    !studyModePage.includes('appsLoadError ? (') ||
+    !studyModePage.includes('appsLoadError && apps.length === 0 ? (') ||
     !studyModePage.includes('[apps, appFilter, deferredSearch]') ||
     !studyModePage.includes('[apps, deferredStudySearch]') ||
     !studyModePage.includes('History is non-critical') ||
@@ -1230,6 +1231,8 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModeBridge.includes('App.addListener("resume"') ||
     !studyModePage.includes('getCachedStudyModeSettings') ||
     !studyModePage.includes('sortStudyModeAppsSelectedFirst') ||
+    !studyModePage.includes('getCachedInstalledStudyModeApps() !== null') ||
+    !studyModePage.includes('Refreshing installed apps… selection is paused') ||
     !studyModeAppFilterTests.includes('pins only the current picker') ||
     !studyModeAppPlugin.includes('listApps cacheHit=') {
   fail('Study Mode performance regression: app inventory must be cached/in-flight deduplicated, countdown isolated, app search deferred, and session history must not gate first interaction');
