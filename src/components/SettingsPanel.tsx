@@ -300,7 +300,7 @@ const SettingsPanel = () => {
       <section
         aria-labelledby="settings-theme-heading"
         data-settings-theme-section
-        className="rounded-2xl border border-border/70 bg-card/25 p-2.5"
+        className="rounded-xl border border-border/70 bg-card/25 p-2"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p id="settings-theme-heading" className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -310,7 +310,7 @@ const SettingsPanel = () => {
             role="group"
             aria-label="Appearance mode"
             data-theme-mode-selector
-            className="inline-flex items-center gap-0.5 rounded-xl border border-border/70 bg-background/55 p-0.5"
+            className="inline-flex items-center gap-0.5 rounded-lg border border-border/70 bg-background/55 p-0.5"
           >
             {(['dark', 'light'] as const).map((m) => {
               const active = mode === m;
@@ -322,7 +322,7 @@ const SettingsPanel = () => {
                   whileTap={{ scale: MOTION.scale.press }}
                   onClick={() => setMode(m)}
                   aria-pressed={active}
-                  className={`inline-flex items-center justify-center gap-1.5 rounded-[9px] px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`inline-flex items-center justify-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                     active
                       ? 'bg-primary/10 text-primary shadow-sm'
                       : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
@@ -336,8 +336,8 @@ const SettingsPanel = () => {
           </div>
         </div>
 
-        <div className="mt-2.5">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="mt-2">
+          <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Color Themes
           </p>
           <ThemeOptionsGrid variant="settings" />

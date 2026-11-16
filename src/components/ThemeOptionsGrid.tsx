@@ -26,7 +26,7 @@ const ThemeOptionsGrid = ({ variant, onSelect }: ThemeOptionsGridProps) => {
       data-theme-selector-grid={variant}
       className={compact
         ? 'mx-auto grid h-[156px] max-w-[200px] auto-cols-[60px] grid-flow-col grid-rows-3 gap-1.5 overflow-x-auto overscroll-contain pr-1 scrollbar-thin'
-        : 'grid grid-cols-3 gap-1 min-[480px]:grid-cols-4 min-[768px]:grid-cols-5 sm:gap-1.5'}
+        : 'grid grid-cols-4 gap-1 min-[480px]:grid-cols-5 min-[768px]:grid-cols-6 min-[1024px]:grid-cols-7'}
     >
       {THEMES.map((item) => {
         const selected = item.id === selectedTheme;
@@ -43,7 +43,7 @@ const ThemeOptionsGrid = ({ variant, onSelect }: ThemeOptionsGridProps) => {
             title={item.tagline}
             className={compact
               ? 'group relative flex h-[48px] w-[60px] flex-col items-center justify-center gap-1 rounded-xl border border-border/70 bg-background/55 px-1 py-1 transition-all hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
-              : `group relative flex h-[46px] min-w-0 w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-1 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+              : `group relative flex h-10 min-w-0 w-full flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                   selected
                     ? 'border-primary/60 bg-primary/5 shadow-[0_0_0_1px_hsl(var(--primary)/0.10)]'
                     : 'border-border/70 bg-background/55 hover:border-primary/40 hover:bg-primary/[0.03]'
@@ -52,7 +52,7 @@ const ThemeOptionsGrid = ({ variant, onSelect }: ThemeOptionsGridProps) => {
             <span
               data-theme-swatch
               aria-hidden="true"
-              className={`relative shrink-0 overflow-hidden rounded-full border border-border/60 shadow-sm ${compact ? 'h-5 w-8' : 'h-4 w-7'}`}
+              className={`relative shrink-0 overflow-hidden rounded-full border border-border/60 shadow-sm ${compact ? 'h-5 w-8' : 'h-3.5 w-6'}`}
             >
               <span className="absolute inset-0" style={{ background: item.swatch[0] }} />
               <span
