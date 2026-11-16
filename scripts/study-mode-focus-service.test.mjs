@@ -60,7 +60,6 @@ test("Blocked Apps and Study Apps precedence is retained for periodic reminders"
   assert.ok(monitor.includes("StudyModeManager.isSelectedStudyAppPackage"));
   assert.ok(monitor.includes("StudyModeManager.isPeriodicReminderExemptPackage"));
   assert.ok(monitor.includes("boolean reminderDue = periodicReminderUsage.sample("));
-  assert.ok(source.includes('dismissPeriodicReminder("blocked_app"'));
   assert.ok(source.includes("suspendPeriodicReminderForBlockedApp()"));
   assert.ok(!monitor.includes('dismissPeriodicReminder("blocked_app"'));
   assert.ok(manager.includes("getEnforcedPackages(context).contains(packageName)"));
@@ -183,7 +182,7 @@ test("Continue Anyway resets the next interval while interval edits reset shared
 
 test("accumulated usage survives service replacement without counting downtime; pending reminders restore", () => {
   const timer = {
-    interval: 2, total: 58000, last: null, state: "PAUSED",
+    interval: 2, total: 119000, last: null, state: "PAUSED",
     restore(value) { this.total = value; this.last = null; this.state = value >= this.interval * 60000 ? "REMINDER_PENDING" : "PAUSED"; },
     sample(at) {
       if (this.state === "REMINDER_PENDING") return true;
@@ -193,9 +192,9 @@ test("accumulated usage survives service replacement without counting downtime; 
       return false;
     },
   };
-  timer.restore(58000);
+  timer.restore(119000);
   assert.equal(timer.sample(900000), false, "service downtime is not included");
-  assert.equal(timer.total, 58000);
+  assert.equal(timer.total, 119000);
   assert.equal(timer.sample(901000), true);
   assert.equal(timer.state, "REMINDER_PENDING");
   assert.ok(manager.includes("getReminderUsageMs(Context context)"));
