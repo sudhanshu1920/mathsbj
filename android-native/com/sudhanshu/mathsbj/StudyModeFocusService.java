@@ -62,6 +62,8 @@ public final class StudyModeFocusService extends Service {
     private static final String REMINDER_PREFS = "math_master_study_mode";
     private static final String KEY_PERIODIC_REMINDER_PENDING = "periodicReminderPending";
     private static final String KEY_PERIODIC_REMINDER_PACKAGE = "periodicReminderPackage";
+    private static final String KEY_PERIODIC_REMINDER_USAGE_MS = "periodicReminderUsageMs";
+    private static final String KEY_PERIODIC_REMINDER_DUE = "periodicReminderDue";
     private static volatile boolean running = false;
     private static volatile boolean starting = false;
     private static volatile boolean stopping = false;
@@ -221,7 +223,7 @@ public final class StudyModeFocusService extends Service {
         try {
             synchronized (monitorThreadLock) {
                 if (isMonitorThreadHealthy()) return true;
-                periodicReminderUsage.pause();
+                pauseAndPersistPeriodicReminderUsage();
                 long generation = ++monitorGeneration;
                 foregroundDecisionSequence.incrementAndGet();
 
@@ -307,6 +309,7 @@ public final class StudyModeFocusService extends Service {
             } else {
                 service.periodicReminderUsage.pause();
             }
+            service.savePeriodicReminderUsageState(false);
         };
         if (!handler.post(applyInterval)) {
             service.periodicReminderUsage.setIntervalMinutes(intervalMinutes);
@@ -315,6 +318,7 @@ public final class StudyModeFocusService extends Service {
             } else {
                 service.periodicReminderUsage.pause();
             }
+            service.savePeriodicReminderUsageState(false);
         }
     }
 
@@ -408,7 +412,7 @@ public final class StudyModeFocusService extends Service {
         running = true;
         activeService = this;
         periodicReminderUsage.setIntervalMinutes(StudyModeManager.getReminderIntervalMinutes(this));
-        restorePendingPeriodicReminder();
+        restorePeriodicReminderState();
         overlayFailureForStatus = false;
         foregroundLookupFailureForStatus = false;
         if (!devicePolicyMode) StudyModeManager.setServiceState(this, "focus_shield_starting");
@@ -555,7 +559,7 @@ public final class StudyModeFocusService extends Service {
                 return;
             }
             if (StudyModeManager.isPolicyOwner(StudyModeFocusService.this)) {
-                periodicReminderUsage.pause();
+                pauseAndPersistPeriodicReminderUsage();
 
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 mainHandler.post(() -> {
@@ -570,7 +574,7 @@ public final class StudyModeFocusService extends Service {
             }
             if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
-                periodicReminderUsage.pause();
+                pauseAndPersistPeriodicReminderUsage();
 
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 if (!permissionUnavailableLogged) {
@@ -601,7 +605,7 @@ public final class StudyModeFocusService extends Service {
             KeyguardManager keyguard = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
             if (power == null || !power.isInteractive()
                 || (keyguard != null && keyguard.isKeyguardLocked())) {
-                periodicReminderUsage.pause();
+                pauseAndPersistPeriodicReminderUsage();
 
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 resetForegroundResolution();
@@ -640,7 +644,7 @@ public final class StudyModeFocusService extends Service {
             // An unresolved foreground/window snapshot is not evidence that the
             // user is outside a blocked app. Preserve an already-visible shield.
             if (foreground == null || foreground.trim().isEmpty()) {
-                periodicReminderUsage.pause();
+                pauseAndPersistPeriodicReminderUsage();
 
                 if (!foregroundUnknownLogged) {
                     foregroundUnknownLogged = true;
@@ -667,7 +671,7 @@ public final class StudyModeFocusService extends Service {
                 StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);
             if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()
                 && !shouldShield) {
-                periodicReminderUsage.pause();
+                pauseAndPersistPeriodicReminderUsage();
 
                 if (!windowSnapshotUnavailableLogged) {
                     windowSnapshotUnavailableLogged = true;
@@ -690,6 +694,7 @@ public final class StudyModeFocusService extends Service {
             boolean reminderDue = periodicReminderUsage.sample(
                 activePackage, SystemClock.elapsedRealtime(), reminderEligible,
                 StudyModeManager.getReminderIntervalMinutes(StudyModeFocusService.this));
+            savePeriodicReminderUsageState(false);
             boolean decisionChanged = !foreground.equals(lastDecisionPackage)
                 || shouldShield != lastDecisionShouldShield;
             if (decisionChanged) {
@@ -752,7 +757,7 @@ public final class StudyModeFocusService extends Service {
     }
 
     private void resetForegroundResolution() {
-        periodicReminderUsage.pause();
+        pauseAndPersistPeriodicReminderUsage();
         lastForegroundPackage = null;
         lastDecisionPackage = null;
         lastDecisionShouldShield = false;
@@ -1060,26 +1065,59 @@ public final class StudyModeFocusService extends Service {
         removeShield("window_not_visible");
     }
 
-    private void restorePendingPeriodicReminder() {
+    private void restorePeriodicReminderState() {
         android.content.SharedPreferences preferences =
             getSharedPreferences(REMINDER_PREFS, MODE_PRIVATE);
-        if (!preferences.getBoolean(KEY_PERIODIC_REMINDER_PENDING, false)) return;
-        String savedPackage = preferences.getString(KEY_PERIODIC_REMINDER_PACKAGE, "");
-        if (savedPackage == null || !savedPackage.matches("[A-Za-z0-9_]+(\\\\.[A-Za-z0-9_]+)+")) {
-            clearPendingPeriodicReminder();
+        if (preferences.getBoolean(KEY_PERIODIC_REMINDER_PENDING, false)) {
+            String savedPackage = preferences.getString(KEY_PERIODIC_REMINDER_PACKAGE, "");
+            if (savedPackage == null || !savedPackage.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) {
+                clearPendingPeriodicReminder();
+                periodicReminderUsage.resetInterval();
+                savePeriodicReminderUsageState(true);
+                return;
+            }
+            periodicReminderPackage = savedPackage;
+            periodicReminderVisible.set(true);
+            periodicReminderUsage.restoreVisible();
+            logStage("PERIODIC_REMINDER_RESTORE_PENDING", savedPackage, "", "pending",
+                "service_recreated_restore_after_foreground_validation");
             return;
         }
-        periodicReminderPackage = savedPackage;
-        periodicReminderVisible.set(true);
-        periodicReminderUsage.restoreVisible();
-        logStage("PERIODIC_REMINDER_RESTORE_PENDING", savedPackage, "", "pending",
-            "service_recreated_restore_after_foreground_validation");
+        if (preferences.getBoolean(KEY_PERIODIC_REMINDER_DUE, false)) {
+            periodicReminderUsage.restoreDue();
+            logStage("PERIODIC_REMINDER_RESTORE_DUE", "", "", "pending",
+                "completed_usage_restored_after_service_recovery");
+            return;
+        }
+        periodicReminderUsage.restoreAccumulatedUsage(
+            preferences.getLong(KEY_PERIODIC_REMINDER_USAGE_MS, 0L));
+    }
+
+    private void pauseAndPersistPeriodicReminderUsage() {
+        periodicReminderUsage.pause();
+        savePeriodicReminderUsageState(false);
+    }
+
+    private void savePeriodicReminderUsageState(boolean commit) {
+        StudyModeUsageAccumulator.State state = periodicReminderUsage.getState();
+        long usageMs = state == StudyModeUsageAccumulator.State.VISIBLE
+            || state == StudyModeUsageAccumulator.State.STOPPED
+            ? 0L : periodicReminderUsage.getAccumulatedUsageMs();
+        boolean due = state == StudyModeUsageAccumulator.State.DUE;
+        android.content.SharedPreferences.Editor editor =
+            getSharedPreferences(REMINDER_PREFS, MODE_PRIVATE).edit()
+                .putLong(KEY_PERIODIC_REMINDER_USAGE_MS, usageMs)
+                .putBoolean(KEY_PERIODIC_REMINDER_DUE, due);
+        if (commit) editor.commit();
+        else editor.apply();
     }
 
     private void savePendingPeriodicReminder(String packageName) {
         boolean saved = getSharedPreferences(REMINDER_PREFS, MODE_PRIVATE).edit()
             .putBoolean(KEY_PERIODIC_REMINDER_PENDING, true)
             .putString(KEY_PERIODIC_REMINDER_PACKAGE, packageName)
+            .putLong(KEY_PERIODIC_REMINDER_USAGE_MS, 0L)
+            .putBoolean(KEY_PERIODIC_REMINDER_DUE, false)
             .commit();
         if (!saved) {
             logStage("PERIODIC_REMINDER_STATE_SAVE_FAILED", packageName, "", "failed",
@@ -1368,8 +1406,9 @@ public final class StudyModeFocusService extends Service {
     }
 
     private void detachPeriodicReminderForServiceTeardown() {
+        boolean sessionStillActive = StudyModeManager.shouldEnforceNow(this);
         if (periodicReminderVisible.get() && !periodicReminderPackage.isEmpty()
-            && StudyModeManager.shouldEnforceNow(this)) {
+            && sessionStillActive) {
             savePendingPeriodicReminder(periodicReminderPackage);
             android.view.View existingView = periodicReminderView;
             if (existingView != null) {
@@ -1387,7 +1426,8 @@ public final class StudyModeFocusService extends Service {
             periodicReminderUsage.clear();
             return;
         }
-        clearPendingPeriodicReminder();
+        if (sessionStillActive) savePeriodicReminderUsageState(true);
+        else clearPendingPeriodicReminder();
         android.view.View existingView = periodicReminderView;
         if (existingView != null) {
             try {
@@ -1404,6 +1444,7 @@ public final class StudyModeFocusService extends Service {
         periodicReminderPackage = "";
         periodicReminderVisible.set(false);
         periodicReminderUsage.clear();
+        savePeriodicReminderUsageState(true);
     }
 
     private void dismissPeriodicReminder(String reason, boolean resetInterval) {
@@ -1431,6 +1472,7 @@ public final class StudyModeFocusService extends Service {
         } else if ("session_inactive".equals(reason)) {
             periodicReminderUsage.clear();
         }
+        savePeriodicReminderUsageState(true);
         logStage("PERIODIC_REMINDER_DISMISSED", removedPackage, "", "dismissed", reason);
         if (resetInterval && running && StudyModeManager.shouldEnforceNow(this)) {
             requestImmediateEvaluation();
