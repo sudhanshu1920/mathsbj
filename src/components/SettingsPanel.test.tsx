@@ -148,7 +148,8 @@ describe("SettingsPanel compact controls", () => {
     }
 
     const grid = container.querySelector("[data-theme-selector-grid]");
-    expect(grid).toHaveClass("grid", "grid-cols-2", "min-[360px]:grid-cols-3");
+    expect(grid).toHaveClass("grid", "grid-cols-3", "min-[480px]:grid-cols-4", "min-[768px]:grid-cols-5");
+    expect(grid?.querySelector("[data-theme-option]")).toHaveClass("h-[46px]");
     expect(grid?.querySelectorAll("[data-theme-option]")).toHaveLength(THEMES.length);
     expect(grid?.querySelectorAll("[data-theme-swatch]")).toHaveLength(THEMES.length);
     expect(screen.getByText("Arctic Blue")).toBeInTheDocument();
