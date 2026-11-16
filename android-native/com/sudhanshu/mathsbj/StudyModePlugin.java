@@ -78,7 +78,7 @@ public final class StudyModePlugin extends Plugin {
             return;
         }
         double numericValue = ((Number) rawValue).doubleValue();
-        if (!Double.isFinite(numericValue) || numericValue != Math.rint(numericValue)
+        if (Double.isNaN(numericValue) || Double.isInfinite(numericValue) || numericValue != Math.rint(numericValue)
             || numericValue < 1d || numericValue > 10d) {
             call.reject("Reminder interval must be an integer from 1 to 10 minutes.");
             return;
