@@ -1359,23 +1359,34 @@ if (!studyModeQuoteAndApps.includes('KEY_STUDY_PACKAGES')
   fail('Study Mode shield must keep separate persisted app lists, conflict-safe real launcher actions, dynamic quotes, countdown, and theme synchronization');
 }
 
-if (!studyModeUsageAccumulator.includes('MAX_SAMPLE_GAP_MS = 4_000L') ||
+if (!studyModeUsageAccumulator.includes('MAX_SAMPLE_GAP_MS = 2_500L') ||
     !studyModeUsageAccumulator.includes('elapsedRealtimeMs >= lastSampleElapsedMs') ||
-    !studyModeUsageAccumulator.includes('void resetInterval()') ||
+    !studyModeUsageAccumulator.includes('State { RUNNING, PAUSED, DUE, VISIBLE, STOPPED }') ||
+    !studyModeUsageAccumulator.includes('synchronized boolean markVisible()') ||
+    !studyModeUsageAccumulator.includes('synchronized void acknowledgeReminder()') ||
     !studyModeWindowRegistry.includes('findFocusedPackage(Context context, String usageForegroundPackage)') ||
     !studyModeWindowRegistry.includes('if (!fresh || !complete) return null;') ||
     !studyModeManager.includes('setReminderIntervalMinutes(Context context, int value)') ||
     !studyModeManager.includes('KEY_REMINDER_INTERVAL_MINUTES') ||
     !studyModeManager.includes('periodicReminderSystemPackagesCacheAtElapsedMs') ||
     !studyModeManager.includes('5L * 60L * 1000L') ||
+    !studyModeManager.includes('openStudyAppsSelection(Context context)') ||
     !studyModeFocus.includes('findFocusedPackage(StudyModeFocusService.this, foreground)') ||
     !studyModeFocus.includes('periodicReminderUsage.sample(') ||
     !studyModeFocus.includes('dismissPeriodicReminder("continue_anyway", true)') ||
+    !studyModeFocus.includes('ensurePeriodicReminderAttached()') ||
+    !studyModeFocus.includes('KEY_PERIODIC_REMINDER_USAGE_MS') ||
+    !studyModeFocus.includes('KEY_PERIODIC_REMINDER_DUE') ||
+    !studyModeFocus.includes('hidePeriodicReminderBehindBlockedApp()') ||
+    !studyModeFocus.includes('dismissPeriodicReminder("study_app_opened", true)') ||
+    !studyModeFocus.includes('dismissPeriodicReminder("open_study_apps_settings", true)') ||
     !studyModePage.includes('Reminder Interval') ||
     !studyModePage.includes('Array.from({ length: 10 }, (_, index) => index + 1)') ||
+    !studyModePage.includes('STUDY_MODE_STUDY_APPS_SESSION_KEY') ||
     !studyModeBridge.includes('export async function setStudyModeReminderInterval(minutes: number)') ||
-    !studyModeSetup.includes('StudyModeUsageAccumulator.java')) {
-  fail('Periodic reminders must use monotonic focused-window usage, validated 1–10 minute persistence and generated Android packaging');
+    !studyModeSetup.includes('StudyModeUsageAccumulator.java') ||
+    !studyModeSetup.includes('ensureStudyAppsDeepLinkIntentFilter(manifest)')) {
+  fail('Periodic reminders must use a monotonic single-state timer, a persistent intentional-action popup, real Study Apps shortcuts, validated 1–10 minute persistence and generated Android packaging');
 }
 
 console.log('Architecture regression checks passed.');
