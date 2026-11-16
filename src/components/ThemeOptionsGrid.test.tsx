@@ -38,7 +38,7 @@ describe("shared ThemeOptionsGrid", () => {
     expect(container.querySelectorAll("[data-theme-selected-indicator]")).toHaveLength(2);
   });
 
-  it("uses the same three-colour preview in both compact and Settings variants", () => {
+  it("keeps the Dashboard popup sizing while making the Settings grid denser", () => {
     const { container } = render(
       <>
         <ThemeOptionsGrid variant="popup" />
@@ -46,12 +46,12 @@ describe("shared ThemeOptionsGrid", () => {
       </>,
     );
 
-    const previews = container.querySelectorAll('[data-theme-option="arctic-blue"] [data-theme-swatch]');
-    expect(previews).toHaveLength(2);
-
-    for (const preview of previews) {
-      expect(preview.querySelectorAll(":scope > span")).toHaveLength(3);
-      expect(preview).toHaveClass("h-5", "w-8");
-    }
+    const popupGrid = container.querySelector('[data-theme-selector-grid="popup"]');
+    const settingsGrid = container.querySelector('[data-theme-selector-grid="settings"]');
+    expect(popupGrid).toHaveClass("h-[156px]", "auto-cols-[60px]");
+    expect(settingsGrid).toHaveClass("grid-cols-3", "min-[480px]:grid-cols-4", "min-[768px]:grid-cols-5");
+    expect(settingsGrid?.querySelector('[data-theme-option="arctic-blue"]')).toHaveClass("h-[46px]");
+    expect(settingsGrid?.querySelector('[data-theme-option="arctic-blue"] [data-theme-swatch]')).toHaveClass("h-4", "w-7");
+    expect(popupGrid?.querySelector('[data-theme-option="arctic-blue"] [data-theme-swatch]')).toHaveClass("h-5", "w-8");
   });
 });
