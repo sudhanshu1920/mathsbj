@@ -49,9 +49,9 @@ describe("shared ThemeOptionsGrid", () => {
     const popupGrid = container.querySelector('[data-theme-selector-grid="popup"]');
     const settingsGrid = container.querySelector('[data-theme-selector-grid="settings"]');
     expect(popupGrid).toHaveClass("h-[156px]", "auto-cols-[60px]");
-    expect(settingsGrid).toHaveClass("grid-cols-3", "min-[480px]:grid-cols-4", "min-[768px]:grid-cols-5");
-    expect(settingsGrid?.querySelector('[data-theme-option="arctic-blue"]')).toHaveClass("h-[46px]");
-    expect(settingsGrid?.querySelector('[data-theme-option="arctic-blue"] [data-theme-swatch]')).toHaveClass("h-4", "w-7");
+    expect(settingsGrid).toHaveClass("grid-cols-4", "min-[480px]:grid-cols-5", "min-[768px]:grid-cols-6", "min-[1024px]:grid-cols-7");
+    expect(settingsGrid?.querySelector('[data-theme-option="arctic-blue"]')).toHaveClass("h-10");
+    expect(settingsGrid?.querySelector('[data-theme-option="arctic-blue"] [data-theme-swatch]')).toHaveClass("h-3.5", "w-6");
     expect(popupGrid?.querySelector('[data-theme-option="arctic-blue"] [data-theme-swatch]')).toHaveClass("h-5", "w-8");
   });
 });
