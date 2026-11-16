@@ -52,6 +52,8 @@ import { m as motion } from "framer-motion";
 interface StudyModePageProps {
   onBack: () => void;
   backLabel?: string;
+  openStudyAppsPicker?: boolean;
+  onStudyAppsPickerOpened?: () => void;
 }
 
 const DAY_LABELS = [
@@ -215,7 +217,7 @@ const statusText = (status: StudyModeStatus | null) => {
   return "Study Mode enabled";
 };
 
-const StudyModePage = ({ onBack, backLabel = "Back to Settings" }: StudyModePageProps) => {
+const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPicker = false, onStudyAppsPickerOpened }: StudyModePageProps) => {
   const [draft, setDraft] = useState<StudyModeConfig>(DEFAULT_STUDY_MODE_CONFIG);
   const [status, setStatus] = useState<StudyModeStatus | null>(null);
   const [apps, setApps] = useState<StudyModeApp[]>([]);
@@ -369,6 +371,14 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings" }: StudyModePage
       }).catch(() => undefined);
     });
   };
+
+  useEffect(() => {
+    if (!openStudyAppsPicker) return;
+    setStudyPickerOpen(true);
+    setStudySearch("");
+    void loadApps();
+    onStudyAppsPickerOpened?.();
+  }, [openStudyAppsPicker, loadApps, onStudyAppsPickerOpened]);
 
   const toggleStudyPicker = () => {
     const nextOpen = !studyPickerOpen;
