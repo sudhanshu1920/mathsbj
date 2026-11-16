@@ -30,6 +30,7 @@ import android.view.animation.AlphaAnimation;
 import android.view.animation.AnimationSet;
 import android.view.animation.TranslateAnimation;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.LinearLayout;
@@ -1208,7 +1209,11 @@ public final class StudyModeFocusService extends Service {
         root.setBackgroundColor(palette.scrim);
         root.setClickable(true);
         root.setFocusable(true);
+        root.setFocusableInTouchMode(true);
         root.setContentDescription("Math Master Study Mode periodic reminder");
+        // A system Back press is not an acknowledgement. The user must choose
+        // Continue Anyway or a real Study App action to close this reminder.
+        root.setOnKeyListener((view, keyCode, event) -> keyCode == android.view.KeyEvent.KEYCODE_BACK);
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -1254,28 +1259,48 @@ public final class StudyModeFocusService extends Service {
         panel.addView(description, descriptionParams);
 
         List<String> studyPackages = StudyModeManager.getSelectedStudyAppPackages(this);
-        if (!studyPackages.isEmpty()) {
-            addGap(panel, 12);
-            String studyPackage = studyPackages.get(0);
-            TextView openStudyApp = popupText("Open " + getStudyAppLabel(studyPackage), 12,
-                palette.accent, Typeface.BOLD, Gravity.CENTER);
-            openStudyApp.setMinHeight(dp(44));
-            openStudyApp.setPadding(dp(10), dp(8), dp(10), dp(8));
-            openStudyApp.setBackground(rounded(palette.iconSurface, palette.accentBorder, dp(12)));
-            openStudyApp.setClickable(true);
-            openStudyApp.setFocusable(true);
-            openStudyApp.setOnClickListener(view -> {
-                if (StudyModeManager.launchStudyApp(StudyModeFocusService.this, studyPackage)) {
-                    dismissPeriodicReminder("study_app_opened", false);
+        addGap(panel, 12);
+        TextView studyTitle = popupText("Your Study Apps", 13, palette.text, Typeface.BOLD, Gravity.CENTER);
+        panel.addView(studyTitle, matchWrap());
+        addGap(panel, 7);
+        if (studyPackages.isEmpty()) {
+            TextView empty = popupText("No Study Apps Selected", 11, palette.secondaryText,
+                Typeface.NORMAL, Gravity.CENTER);
+            panel.addView(empty, matchWrap());
+            addGap(panel, 7);
+            TextView chooseApps = popupText("Choose Study Apps", 12, palette.accent,
+                Typeface.BOLD, Gravity.CENTER);
+            chooseApps.setMinHeight(dp(42));
+            chooseApps.setPadding(dp(12), dp(7), dp(12), dp(7));
+            chooseApps.setBackground(rounded(palette.iconSurface, palette.accentBorder, dp(12)));
+            chooseApps.setClickable(true);
+            chooseApps.setFocusable(true);
+            chooseApps.setOnClickListener(view -> {
+                if (StudyModeManager.openStudyAppsSelection(StudyModeFocusService.this)) {
+                    dismissPeriodicReminder("open_study_apps_settings", true);
                 } else {
-                    Toast.makeText(StudyModeFocusService.this, "This Study App is unavailable. Update your Study Apps list.",
+                    Toast.makeText(StudyModeFocusService.this,
+                        "Study Apps settings could not be opened. The reminder is still active.",
                         Toast.LENGTH_LONG).show();
-                    if (!StudyModeManager.getSelectedStudyAppPackages(StudyModeFocusService.this).contains(studyPackage)) {
-                        dismissPeriodicReminder("study_app_no_longer_selected", false);
-                    }
                 }
             });
-            panel.addView(openStudyApp, matchWrap());
+            panel.addView(chooseApps, matchWrap());
+        } else {
+            HorizontalScrollView studyScroll = new HorizontalScrollView(this);
+            studyScroll.setHorizontalScrollBarEnabled(false);
+            studyScroll.setFillViewport(false);
+            LinearLayout studyRow = new LinearLayout(this);
+            studyRow.setOrientation(LinearLayout.HORIZONTAL);
+            studyRow.setGravity(Gravity.CENTER_VERTICAL);
+            studyRow.setPadding(dp(1), dp(1), dp(1), dp(2));
+            for (String studyPackage : studyPackages) {
+                studyRow.addView(buildPeriodicStudyAppShortcut(studyPackage, palette),
+                    new LinearLayout.LayoutParams(dp(104), dp(76)));
+                android.view.View gap = new android.view.View(this);
+                studyRow.addView(gap, new LinearLayout.LayoutParams(dp(7), 1));
+            }
+            studyScroll.addView(studyRow, new HorizontalScrollView.LayoutParams(-2, -2));
+            panel.addView(studyScroll, matchWrap());
         }
 
         addGap(panel, 12);
@@ -1286,7 +1311,44 @@ public final class StudyModeFocusService extends Service {
         continueAnyway.setFocusable(true);
         continueAnyway.setOnClickListener(view -> dismissPeriodicReminder("continue_anyway", true));
         panel.addView(continueAnyway, matchWrap());
+        root.requestFocus();
         return root;
+    }
+
+    private android.view.View buildPeriodicStudyAppShortcut(String packageName, PopupPalette palette) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER);
+        card.setPadding(dp(5), dp(5), dp(5), dp(5));
+        card.setBackground(rounded(palette.shortcutSurface, palette.border, dp(12)));
+        card.setClickable(true);
+        card.setFocusable(true);
+
+        ImageView appIcon = new ImageView(this);
+        android.graphics.drawable.Drawable drawable = getStudyAppIcon(packageName);
+        if (drawable != null) appIcon.setImageDrawable(drawable);
+        else appIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+        card.addView(appIcon, new LinearLayout.LayoutParams(dp(32), dp(32)));
+
+        TextView appLabel = popupText(getStudyAppLabel(packageName), 10, palette.text,
+            Typeface.BOLD, Gravity.CENTER);
+        appLabel.setMaxLines(2);
+        appLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams labelParams = matchWrap();
+        labelParams.topMargin = dp(3);
+        card.addView(appLabel, labelParams);
+        card.setContentDescription("Open " + getStudyAppLabel(packageName));
+        card.setOnClickListener(view -> {
+            if (StudyModeManager.launchStudyApp(StudyModeFocusService.this, packageName)) {
+                lastForegroundPackage = packageName;
+                dismissPeriodicReminder("study_app_opened", true);
+            } else {
+                Toast.makeText(StudyModeFocusService.this,
+                    "This Study App is unavailable or was removed. The reminder remains open.",
+                    Toast.LENGTH_LONG).show();
+            }
+        });
+        return card;
     }
 
     private void dismissPeriodicReminder(String reason, boolean resetInterval) {
