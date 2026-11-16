@@ -119,7 +119,7 @@ public final class StudyModeManager {
             .putLong(KEY_REMINDER_USAGE_MS, 0L).commit()) {
             throw new IllegalStateException("Reminder interval could not be saved.");
         }
-        StudyModeFocusService.onReminderIntervalChanged(value);
+        StudyModeFocusService.onReminderIntervalChanged(context, value);
     }
 
     public static long getReminderUsageMs(Context context) {
