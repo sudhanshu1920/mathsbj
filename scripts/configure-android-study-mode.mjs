@@ -18,6 +18,7 @@ const NATIVE_FILES = [
   'AppUsageAnalyticsPlugin.java',
   'StudyModeSessionStore.java',
   'StudyModeWindowRegistry.java',
+  'StudyModeUsageAccumulator.java',
 ];
 
 const REQUIRED_PERMISSIONS = [

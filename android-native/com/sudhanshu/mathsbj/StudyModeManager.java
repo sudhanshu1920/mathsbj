@@ -38,6 +38,10 @@ public final class StudyModeManager {
     private static final String KEY_ENABLED = "enabled";
     private static final String KEY_PACKAGES = "selectedPackages";
     private static final String KEY_STUDY_PACKAGES = "studyAppPackages";
+    private static final String KEY_REMINDER_INTERVAL_MINUTES = "reminderIntervalMinutes";
+    private static final int DEFAULT_REMINDER_INTERVAL_MINUTES = 2;
+    private static volatile Set<String> periodicReminderSystemPackagesCache = Collections.emptySet();
+    private static volatile long periodicReminderSystemPackagesCacheAtElapsedMs = 0L;
     private static final String KEY_QUOTE_DECK = "motivationalQuoteDeck";
     private static final String KEY_LAST_QUOTE = "lastMotivationalQuote";
     private static final String KEY_POPUP_THEME = "popupTheme";
@@ -97,6 +101,91 @@ public final class StudyModeManager {
     public static int getStartMinute(Context context) { return prefs(context).getInt("startMinute", 0); }
     public static int getEndHour(Context context) { return prefs(context).getInt("endHour", 18); }
     public static int getEndMinute(Context context) { return prefs(context).getInt("endMinute", 0); }
+
+    public static int getReminderIntervalMinutes(Context context) {
+        int value = prefs(context).getInt(KEY_REMINDER_INTERVAL_MINUTES, DEFAULT_REMINDER_INTERVAL_MINUTES);
+        return StudyModeUsageAccumulator.isValidInterval(value) ? value : DEFAULT_REMINDER_INTERVAL_MINUTES;
+    }
+
+    public static synchronized void setReminderIntervalMinutes(Context context, int value) {
+        if (!StudyModeUsageAccumulator.isValidInterval(value)) {
+            throw new IllegalArgumentException("Reminder interval must be an integer from 1 to 10 minutes.");
+        }
+        if (!prefs(context).edit().putInt(KEY_REMINDER_INTERVAL_MINUTES, value).commit()) {
+            throw new IllegalStateException("Reminder interval could not be saved.");
+        }
+        StudyModeFocusService.onReminderIntervalChanged(value);
+    }
+
+    /** Study Apps are a separate allowlist; blocked/session packages always win. */
+    public static boolean isSelectedStudyAppPackage(Context context, String packageName) {
+        if (!isVisibleApplication(context, packageName)
+            || getEnforcedPackages(context).contains(packageName)) return false;
+        try {
+            JSONArray values = new JSONArray(prefs(context).getString(KEY_STUDY_PACKAGES, "[]"));
+            for (int i = 0; i < values.length(); i++) {
+                if (packageName.equals(values.optString(i, ""))) return true;
+            }
+        } catch (JSONException ignored) {
+            // Corrupt Study Apps data fails closed: treat the app as non-study.
+        }
+        return false;
+    }
+
+    /**
+     * Exempt transient Android system surfaces, the current Home app and keyboard.
+     * Settings is intentionally not globally exempt.
+     */
+    public static boolean isPeriodicReminderExemptPackage(Context context, String packageName) {
+        if (context == null || packageName == null || packageName.isEmpty()
+            || context.getPackageName().equals(packageName)) return true;
+        if ("com.android.systemui".equals(packageName)
+            || "com.android.permissioncontroller".equals(packageName)
+            || "com.google.android.permissioncontroller".equals(packageName)
+            || "com.android.packageinstaller".equals(packageName)
+            || "com.google.android.packageinstaller".equals(packageName)
+            || "com.android.intentresolver".equals(packageName)
+            || "com.google.android.documentsui".equals(packageName)
+            || "com.android.documentsui".equals(packageName)) return true;
+        return getPeriodicReminderSystemPackages(context).contains(packageName);
+    }
+
+    private static Set<String> getPeriodicReminderSystemPackages(Context context) {
+        long now = SystemClock.elapsedRealtime();
+        Set<String> cached = periodicReminderSystemPackagesCache;
+        if (periodicReminderSystemPackagesCacheAtElapsedMs > 0L
+            && now - periodicReminderSystemPackagesCacheAtElapsedMs < 5L * 60L * 1000L) return cached;
+        synchronized (StudyModeManager.class) {
+            now = SystemClock.elapsedRealtime();
+            if (periodicReminderSystemPackagesCacheAtElapsedMs > 0L
+                && now - periodicReminderSystemPackagesCacheAtElapsedMs < 5L * 60L * 1000L) {
+                return periodicReminderSystemPackagesCache;
+            }
+            Set<String> resolvedPackages = new HashSet<>();
+            try {
+                Intent home = new Intent(Intent.ACTION_MAIN);
+                home.addCategory(Intent.CATEGORY_HOME);
+                android.content.pm.PackageManager pm = context.getPackageManager();
+                android.content.pm.ResolveInfo resolved = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    ? pm.resolveActivity(home, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
+                    : pm.resolveActivity(home, 0);
+                if (resolved != null && resolved.activityInfo != null) {
+                    resolvedPackages.add(resolved.activityInfo.packageName);
+                }
+            } catch (RuntimeException ignored) {}
+            try {
+                String inputMethod = Settings.Secure.getString(
+                    context.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD);
+                if (inputMethod != null) {
+                    int separator = inputMethod.indexOf('/');
+                    if (separator > 0) resolvedPackages.add(inputMethod.substring(0, separator));
+                }
+            } catch (RuntimeException ignored) {}
+            periodicReminderSystemPackagesCache = Collections.unmodifiableSet(resolvedPackages);
+            periodicReminderSystemPackagesCacheAtElapsedMs = now;
+            return periodicReminderSystemPackagesCache;
+        }
+    }
 
     public static Set<Integer> getSelectedDays(Context context) {
         Set<Integer> result = new HashSet<>();
@@ -1437,6 +1526,7 @@ public final class StudyModeManager {
         JSArray studyAppsArray = new JSArray();
         for (String packageName : getSelectedStudyAppPackages(context)) studyAppsArray.put(packageName);
         result.put("studyAppPackages", studyAppsArray);
+        result.put("reminderIntervalMinutes", getReminderIntervalMinutes(context));
         result.put("config", config);
         result.put("permissions", permissions);
         result.put("scheduleActive", isScheduleActive(context));

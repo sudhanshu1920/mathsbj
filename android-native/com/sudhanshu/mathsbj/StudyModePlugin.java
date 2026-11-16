@@ -71,6 +71,28 @@ public final class StudyModePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setReminderIntervalMinutes(PluginCall call) {
+        Object rawValue = call.getData().opt("minutes");
+        if (!(rawValue instanceof Integer) && !(rawValue instanceof Long)) {
+            call.reject("Reminder interval must be a whole number from 1 to 10 minutes.");
+            return;
+        }
+        int value = ((Number) rawValue).intValue();
+        if (value < 1 || value > 10) {
+            call.reject("Reminder interval must be an integer from 1 to 10 minutes.");
+            return;
+        }
+        try {
+            StudyModeManager.setReminderIntervalMinutes(getContext(), value);
+            call.resolve(StudyModeManager.getStatus(getContext()));
+        } catch (IllegalArgumentException error) {
+            call.reject(error.getMessage(), error);
+        } catch (Exception error) {
+            call.reject("Could not save the reminder interval.", error);
+        }
+    }
+
+    @PluginMethod
     public void refresh(PluginCall call) {
         StudyModeManager.reconcile(getContext());
         call.resolve(StudyModeManager.getStatus(getContext()));

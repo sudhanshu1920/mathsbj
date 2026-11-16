@@ -25,6 +25,7 @@ import {
   acceptStudyModeAccessibilityDisclosure,
   refreshStudyMode,
   saveStudyModeConfig,
+  setStudyModeReminderInterval,
   setStudyModeEnabled,
   startStudyModeSession,
   endStudyModeSession,
@@ -221,6 +222,9 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings" }: StudyModePage
   const [appsLoading, setAppsLoading] = useState(false);
   const [appsLoadError, setAppsLoadError] = useState("");
   const [studyAppPackages, setStudyAppPackages] = useState<string[]>([]);
+  const [reminderIntervalMinutes, setReminderIntervalMinutesState] = useState(2);
+  const [reminderIntervalOpen, setReminderIntervalOpen] = useState(false);
+  const [reminderIntervalSaving, setReminderIntervalSaving] = useState(false);
   const [studyPickerOpen, setStudyPickerOpen] = useState(false);
   const [studySearch, setStudySearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -243,6 +247,8 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings" }: StudyModePage
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
   const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
   const saveInFlightRef = useRef(false);
+  const reminderIntervalSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const reminderIntervalRequestRef = useRef(0);
   const savedStudyAppsSnapshot = useRef("[]");
   const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
@@ -334,6 +340,36 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings" }: StudyModePage
     if (nextOpen) void loadApps();
   };
 
+  const handleReminderIntervalChange = (value: number) => {
+    if (!Number.isInteger(value) || value < 1 || value > 10 || !isStudyModeNative()) return;
+    setReminderIntervalMinutesState(value);
+    setReminderIntervalOpen(false);
+    setReminderIntervalSaving(true);
+    const request = ++reminderIntervalRequestRef.current;
+    const save = reminderIntervalSaveQueueRef.current
+      .catch(() => undefined)
+      .then(() => setStudyModeReminderInterval(value));
+    reminderIntervalSaveQueueRef.current = save.then(() => undefined, () => undefined);
+    void save.then((nextStatus) => {
+      if (!isMountedRef.current || request !== reminderIntervalRequestRef.current) return;
+      setReminderIntervalMinutesState(nextStatus.reminderIntervalMinutes ?? value);
+      statusRef.current = nextStatus;
+      setStatus(nextStatus);
+      setReminderIntervalSaving(false);
+    }).catch((error) => {
+      if (!isMountedRef.current || request !== reminderIntervalRequestRef.current) return;
+      setReminderIntervalSaving(false);
+      setMessage(error instanceof Error ? error.message : "Could not save the reminder interval.");
+      void getStudyModeStatus().then((current) => {
+        if (isMountedRef.current && request === reminderIntervalRequestRef.current) {
+          setReminderIntervalMinutesState(current.reminderIntervalMinutes ?? 2);
+          statusRef.current = current;
+          setStatus(current);
+        }
+      }).catch(() => undefined);
+    });
+  };
+
   const toggleStudyPicker = () => {
     const nextOpen = !studyPickerOpen;
     setStudyPickerOpen(nextOpen);
@@ -370,6 +406,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings" }: StudyModePage
         if (!isMountedRef.current) return;
         statusRef.current = nextStatus;
         setStatus(nextStatus);
+        setReminderIntervalMinutesState(nextStatus.reminderIntervalMinutes ?? 2);
         if (!permissionSetupAutoOpenedRef.current) {
           permissionSetupAutoOpenedRef.current = true;
           if (!nextStatus.config.enabled && !nextStatus.activeSession?.active
@@ -1048,6 +1085,47 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings" }: StudyModePage
                 </span>
               )}
             </div>
+          </section>
+
+          <section aria-label="Periodic reminder interval" className="rounded-[1.25rem] border border-accent/15 bg-gradient-to-br from-card via-card to-accent/5 px-3 py-2.5 shadow-sm">
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                  <Clock3 size={15} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold text-foreground">Reminder Interval</p>
+                  <p className="text-[9px] text-muted-foreground">Repeat during non-study app use</p>
+                </div>
+              </div>
+              <button type="button"
+                onClick={() => setReminderIntervalOpen((open) => !open)}
+                aria-expanded={reminderIntervalOpen}
+                aria-label={`Reminder interval: ${reminderIntervalMinutes} minutes`}
+                disabled={loading || !isStudyModeNative()}
+                className="motion-press inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-accent/25 bg-background/75 px-3 text-[11px] font-bold tabular-nums text-foreground shadow-sm transition-colors hover:border-accent/45 hover:bg-accent/5 disabled:opacity-50">
+                {reminderIntervalMinutes} min
+                <ChevronDown size={13} className={`text-muted-foreground transition-transform duration-150 ${reminderIntervalOpen ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+            {reminderIntervalOpen && (
+              <div className="mt-2.5 grid grid-cols-5 gap-1.5 border-t border-border/55 pt-2.5" role="group" aria-label="Choose reminder interval">
+                {Array.from({ length: 10 }, (_, index) => index + 1).map((minutes) => {
+                  const selected = reminderIntervalMinutes === minutes;
+                  return (
+                    <button key={minutes} type="button" aria-pressed={selected}
+                      disabled={reminderIntervalSaving}
+                      onClick={() => handleReminderIntervalChange(minutes)}
+                      className={selected
+                        ? "motion-press flex min-h-10 min-w-0 items-center justify-center rounded-lg border border-accent/45 bg-accent/12 px-1 text-[10px] font-bold tabular-nums text-accent ring-1 ring-accent/15"
+                        : "motion-press flex min-h-10 min-w-0 items-center justify-center rounded-lg border border-border/65 bg-background/70 px-1 text-[10px] font-semibold tabular-nums text-muted-foreground transition-colors hover:border-accent/30 hover:bg-accent/5 hover:text-foreground disabled:opacity-50"}>
+                      {minutes} min
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {reminderIntervalSaving && <p className="mt-1.5 text-right text-[9px] text-muted-foreground" role="status">Saving…</p>}
           </section>
 
           {status && !corePermissionsReady && (

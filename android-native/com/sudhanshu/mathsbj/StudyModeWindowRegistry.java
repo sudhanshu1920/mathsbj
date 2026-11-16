@@ -252,6 +252,38 @@ public final class StudyModeWindowRegistry {
         return null;
     }
 
+    /**
+     * Resolves the currently focused application only. A connected Accessibility
+     * service with a stale/incomplete snapshot yields unknown, never stale usage.
+     * UsageStats is a best-effort fallback only when Accessibility is disconnected.
+     */
+    public static String findFocusedPackage(Context context, String usageForegroundPackage) {
+        if (context == null) return null;
+        final boolean connected;
+        final boolean fresh;
+        final boolean complete;
+        final List<WindowRecord> snapshot;
+        long now = SystemClock.elapsedRealtime();
+        synchronized (LOCK) {
+            connected = serviceConnected;
+            fresh = snapshotAtElapsedMs > 0L && now - snapshotAtElapsedMs <= MAX_SNAPSHOT_AGE_MS;
+            complete = snapshotComplete;
+            snapshot = fresh ? new ArrayList<>(windows) : Collections.emptyList();
+        }
+        if (connected) {
+            if (!fresh || !complete) return null;
+            for (WindowRecord window : snapshot) {
+                if (window != null && window.focused && isValidPackageName(window.packageName)) {
+                    return window.packageName;
+                }
+            }
+            return null;
+        }
+        if (usageForegroundPackage == null || usageForegroundPackage.trim().isEmpty()
+            || !isValidPackageName(usageForegroundPackage)) return null;
+        return usageForegroundPackage;
+    }
+
     private static final class AccessibilityEventRecord {
         final String packageName;
         final int eventType;

@@ -13,6 +13,7 @@ const permissionSetup = readFileSync(permissionSetupPath, "utf8");
 const registry = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeWindowRegistry.java", import.meta.url), "utf8");
 const accessibility = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java", import.meta.url), "utf8");
 const alarmReceiver = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAlarmReceiver.java", import.meta.url), "utf8");
+const usageAccumulator = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeUsageAccumulator.java", import.meta.url), "utf8");
 
 function between(text, startMarker, endMarker) {
   const start = text.indexOf(startMarker);
@@ -21,6 +22,153 @@ function between(text, startMarker, endMarker) {
   assert.notEqual(end, -1, `Missing end marker: ${endMarker}`);
   return text.slice(start, end);
 }
+
+
+test("periodic reminder intervals persist, validate 1–10 and apply without restarting Study Mode", () => {
+  assert.ok(manager.includes('KEY_REMINDER_INTERVAL_MINUTES = "reminderIntervalMinutes"'));
+  assert.ok(manager.includes('DEFAULT_REMINDER_INTERVAL_MINUTES = 2'));
+  assert.ok(manager.includes("StudyModeUsageAccumulator.isValidInterval(value)"));
+  assert.ok(manager.includes("StudyModeFocusService.onReminderIntervalChanged(value)"));
+  assert.ok(manager.includes('result.put("reminderIntervalMinutes", getReminderIntervalMinutes(context))'));
+  assert.ok(page.includes("Array.from({ length: 10 }, (_, index) => index + 1)"));
+  assert.ok(page.includes("!Number.isInteger(value) || value < 1 || value > 10"));
+  assert.ok(page.includes("setStudyModeReminderInterval(value)"));
+  assert.ok(usageAccumulator.includes("value >= 1 && value <= 10"));
+});
+
+test("usage accounting is monotonic, one shared accumulator and pauses on uncertain focus", () => {
+  for (const invariant of [
+    "MAX_SAMPLE_GAP_MS = 4_000L", "elapsedRealtimeMs >= lastSampleElapsedMs",
+    "Both endpoint samples were eligible", "void pause()", "void resetInterval()",
+    "long thresholdMs = intervalMinutes * 60_000L",
+  ]) assert.ok(usageAccumulator.includes(invariant), `Missing usage invariant: ${invariant}`);
+  assert.ok(source.includes("SystemClock.elapsedRealtime()"));
+  assert.ok(source.includes("StudyModeWindowRegistry.findFocusedPackage"));
+  assert.ok(registry.includes("snapshotComplete"));
+  assert.ok(registry.includes("window.focused"));
+  assert.ok(source.includes("periodicReminderUsage.pause()"));
+  assert.ok(source.includes("periodicReminderVisible.get()"));
+  assert.ok(source.includes("!activePackage.equals(getPackageName())"));
+  assert.ok(source.includes("!reminderTargetPackage.equals(getPackageName())"));
+});
+
+test("Blocked Apps and Study Apps precedence is retained for periodic reminders", () => {
+  const monitor = between(source, "private final Runnable monitorRunnable", "private void resetForegroundResolution()");
+  assert.ok(monitor.includes("if (shouldShield)"));
+  assert.ok(monitor.includes("StudyModeManager.isSelectedStudyAppPackage"));
+  assert.ok(monitor.includes("StudyModeManager.isPeriodicReminderExemptPackage"));
+  assert.ok(monitor.includes("boolean reminderDue = periodicReminderUsage.sample("));
+  assert.ok(source.includes('dismissPeriodicReminder("blocked_app"'));
+  assert.ok(manager.includes("getEnforcedPackages(context).contains(packageName)"));
+  assert.ok(manager.includes("Settings is intentionally not globally exempt."));
+});
+
+test("a due interval remains latched across a rapid focus change until the reminder is actually attached", () => {
+  const sampling = between(usageAccumulator, "synchronized boolean sample(", "synchronized void setIntervalMinutes(");
+  assert.ok(sampling.includes("if (accumulatedUsageMs < thresholdMs) return false;"));
+  assert.ok(sampling.includes("pause();\n        return true;"));
+  assert.ok(!sampling.includes("resetInterval();"));
+  const show = between(source, "private void showPeriodicReminder(", "private android.view.View buildPeriodicReminderView(");
+  assert.ok(show.indexOf("windowManager.addView(candidate, params)")
+    < show.indexOf("periodicReminderUsage.resetInterval()"));
+});
+
+test("periodic reminder is a separate deduplicated overlay; Continue Anyway resets its interval", () => {
+  assert.ok(source.includes("private final AtomicBoolean periodicReminderVisible = new AtomicBoolean(false)"));
+  assert.ok(source.includes("private void showPeriodicReminder("));
+  assert.ok(source.includes("private void dismissPeriodicReminder(String reason, boolean resetInterval)"));
+  assert.ok(source.includes("periodicReminderVisible.compareAndSet(false, true)"));
+  assert.ok(source.includes('dismissPeriodicReminder("continue_anyway", true)'));
+  assert.ok(source.includes("StudyModeManager.launchStudyApp(StudyModeFocusService.this, studyPackage)"));
+  assert.ok(source.includes("periodicReminderUsage.resetInterval()"));
+  assert.ok(source.includes("TYPE_APPLICATION_OVERLAY"));
+});
+
+test("interval changes, OFF/expiry and recovery reset or pause the accumulator safely", () => {
+  assert.ok(source.includes("void onReminderIntervalChanged(int intervalMinutes)"));
+  assert.ok(source.includes("periodicReminderUsage.setIntervalMinutes(intervalMinutes)"));
+  assert.ok(source.includes("periodicReminderUsage.clear()"));
+  assert.ok(source.includes("periodicReminderUsage.pause()"));
+  const destroy = between(source, "public void onDestroy()", "public IBinder onBind(");
+  assert.ok(destroy.includes("periodicReminderUsage.clear()"));
+  assert.ok(destroy.includes('dismissPeriodicReminder("service_destroyed", false)'));
+});
+
+test("usage model covers 1, 2, 5, 10-minute periods and cumulative time across apps", () => {
+  class Model {
+    constructor(interval) { this.interval = interval; this.total = 0; this.anchor = null; this.pkg = ""; }
+    reset() { this.total = 0; this.anchor = null; this.pkg = ""; }
+    sample(pkg, at, eligible = true) {
+      if (!eligible || !pkg) { this.anchor = null; this.pkg = ""; return false; }
+      if (this.anchor !== null && this.pkg === pkg && at >= this.anchor) {
+        const delta = at - this.anchor;
+        if (delta > 0 && delta <= 4000) this.total += delta;
+      }
+      this.anchor = at; this.pkg = pkg;
+      if (this.total >= this.interval * 60000) { this.reset(); return true; }
+      return false;
+    }
+  }
+  for (const interval of [1, 2, 5, 10]) {
+    const timer = new Model(interval);
+    let fired = false;
+    for (let at = 1000; at <= interval * 60000 + 1000; at += 1000) {
+      fired = timer.sample("com.example.app", at) || fired;
+    }
+    assert.equal(fired, true, `${interval}-minute interval should fire`);
+  }
+  class GlobalUsageModel extends Model {
+    sample(pkg, at, eligible = true) {
+      if (!eligible || !pkg) { this.anchor = null; this.pkg = ""; return false; }
+      if (this.anchor !== null && at >= this.anchor) {
+        const delta = at - this.anchor;
+        if (delta > 0 && delta <= 4000) this.total += delta;
+      }
+      this.anchor = at; this.pkg = pkg;
+      if (this.total >= this.interval * 60000) { this.reset(); return true; }
+      return false;
+    }
+  }
+  const shared = new GlobalUsageModel(2);
+  shared.sample("com.example.a", 1000);
+  for (let at = 2000; at <= 60000; at += 1000) shared.sample("com.example.a", at);
+  let fired = false;
+  for (let at = 61000; at <= 122000; at += 1000) {
+    fired = shared.sample("com.example.b", at) || fired;
+  }
+  assert.equal(fired, true, "App A + App B usage must share the two-minute accumulator");
+});
+
+test("Study App, screen-off and popup periods pause; dismissing starts the next interval at zero", () => {
+  class Model {
+    total = 0; anchor = null; pkg = "";
+    sample(pkg, at, eligible = true) {
+      if (!eligible || !pkg) { this.anchor = null; this.pkg = ""; return false; }
+      if (this.anchor !== null && this.pkg === pkg && at >= this.anchor) this.total += Math.min(at - this.anchor, 4000);
+      this.anchor = at; this.pkg = pkg; return this.total >= 120000;
+    }
+    reset() { this.total = 0; this.anchor = null; this.pkg = ""; }
+  }
+  const timer = new Model();
+  timer.sample("com.example.social", 1000);
+  for (let at = 2000; at <= 31000; at += 1000) timer.sample("com.example.social", at);
+  const beforePause = timer.total;
+  timer.sample("com.example.notes", 32000, false);
+  timer.sample("com.example.social", 90000);
+  assert.equal(timer.total, beforePause);
+  timer.sample("com.example.social", 91000, false);
+  assert.equal(timer.total, beforePause);
+  timer.reset();
+  assert.equal(timer.total, 0);
+  timer.sample("com.example.social", 100000);
+  assert.equal(timer.sample("com.example.social", 101000), false);
+});
+
+test("rapid interval edits are serialized and last choice wins", () => {
+  assert.ok(page.includes("reminderIntervalSaveQueueRef.current"));
+  assert.ok(page.includes("reminderIntervalRequestRef.current"));
+  assert.ok(page.includes("request !== reminderIntervalRequestRef.current"));
+});
 
 test("advanced accessibility monitoring enumerates interactive app windows without reading screen content", () => {
   assert.ok(accessibility.includes("FLAG_RETRIEVE_INTERACTIVE_WINDOWS"));
