@@ -1074,7 +1074,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModePage.includes('startStudyModeSession') ||
     !studyModePage.includes('endStudyModeSession') ||
     !studyModePage.includes('checked={draft.enabled || Boolean(status.activeSession?.active)}') ||
-    !studyModePage.includes('void load(true)') ||
+    !studyModePage.includes('Promise.all([load(true), refreshApps])') ||
     !studyModeAppPlugin.includes('public void startSession(PluginCall call)') ||
     !studyModeAppPlugin.includes('public void endSession(PluginCall call)') ||
     !studyModeAppPlugin.includes('public void getSessionHistory(PluginCall call)') ||
@@ -1162,7 +1162,8 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     !studyModePage.includes('aria-label="Filter installed apps"') ||
     !studyModePage.includes('filterStudyModeApps(apps, appFilter, deferredSearch)') ||
     !studyModeAppFilters.includes('filter === "system" ? app.systemApp : !app.systemApp') ||
-    !studyModePage.includes('disabled={!app.selectable || saving}') ||
+    !studyModePage.includes('disabled={!app.selectable || disabled}') ||
+    !studyModePage.includes('selectionReady = cachedSettings !== null || status !== null') ||
     !studyModePage.includes('app.selectable ? (') ||
     !studyModeAppFilterTests.includes('selectable: false') ||
     !studyModeAppFilterTests.includes('shows user and pre-installed system apps together in All') ||
@@ -1170,7 +1171,7 @@ if (!studyModeAppPlugin.includes('getInstalledApplications') ||
   fail('Study Mode app discovery must include launchable user and system apps, report category metadata, and preserve fast All/User/System filtering');
 }
 
-const studyModeInitialLoadStart = studyModePage.indexOf('const load = useCallback((reconcile = true): Promise<void> => {');
+const studyModeInitialLoadStart = studyModePage.indexOf('const load = useCallback((reconcile = false): Promise<void> => {');
 const studyModeInitialLoadEnd = studyModePage.indexOf(
   '\n\n  useEffect(() => {\n    isMountedRef.current',
   studyModeInitialLoadStart,
@@ -1209,18 +1210,31 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModePage.includes('loading="lazy" decoding="async"') ||
     studyModeInitialLoad.length === 0 ||
     studyModeInitialLoad.includes('getInstalledStudyModeApps(') ||
+    !studyModeInitialLoad.includes('(reconcile = false)') ||
     !studyModeInitialLoad.includes('refreshStudyMode()') ||
     !studyModeInitialLoad.includes('getStudyModeStatus()') ||
-    !studyModeAppLoader.includes('getInstalledStudyModeApps()') ||
+    !studyModePage.includes('void load(false);') ||
+    !studyModePage.includes('Promise.all([load(true), refreshApps])') ||
+    !studyModeAppLoader.includes('getInstalledStudyModeApps(forceRefresh)') ||
     !studyModeAppLoader.includes('appCatalogLoadedRef.current') ||
     !studyModeAppLoader.includes('appCatalogLoadInFlightRef.current') ||
     !studyModeAppLoader.includes('setAppsLoadError(') ||
     !studyModePickerHandlers.includes('if (nextOpen) void loadApps()') ||
-    !studyModePage.includes('appsLoading ? (') ||
-    !studyModePage.includes('appsLoadError ? (') ||
-    !studyModePage.includes('[apps, appFilter, deferredSearch]') ||
-    !studyModePage.includes('[apps, deferredStudySearch]') ||
-    !studyModePage.includes('History is non-critical')) {
+    !studyModePage.includes('appsLoading && apps.length === 0 ? (') ||
+    !studyModePage.includes('appsLoadError && apps.length === 0 ? (') ||
+    !studyModePage.includes('[apps, appFilter, deferredSearch, draft.selectedPackageNames]') ||
+    !studyModePage.includes('[apps, deferredStudySearch, studyAppPackages]') ||
+    !studyModePage.includes('History is non-critical') ||
+    !studyModeAppCatalogCache.includes('peek(): T | undefined') ||
+    !studyModeBridge.includes('getCachedInstalledStudyModeApps') ||
+    !studyModeBridge.includes('5 * 60_000') ||
+    !studyModeBridge.includes('App.addListener("resume"') ||
+    !studyModePage.includes('getCachedStudyModeSettings') ||
+    !studyModePage.includes('sortStudyModeAppsSelectedFirst') ||
+    !studyModePage.includes('getCachedInstalledStudyModeApps() !== null') ||
+    !studyModePage.includes('Refreshing installed apps… selection is paused') ||
+    !studyModeAppFilterTests.includes('pins only the current picker') ||
+    !studyModeAppPlugin.includes('listApps cacheHit=')) {
   fail('Study Mode performance regression: app inventory must be cached/in-flight deduplicated, countdown isolated, app search deferred, and session history must not gate first interaction');
 }
 if (!studyModeManager.includes('public static synchronized void setEnabled') ||

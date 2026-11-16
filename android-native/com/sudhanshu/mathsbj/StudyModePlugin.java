@@ -12,6 +12,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 
@@ -41,6 +42,7 @@ import java.util.Set;
     }
 )
 public final class StudyModePlugin extends Plugin {
+    private static final String TAG = "StudyModePlugin";
     private static final long APP_CATALOG_CACHE_TTL_MS = 5L * 60L * 1000L;
     private static final Object APP_CATALOG_LOCK = new Object();
     private static volatile List<AppEntry> appCatalogCache = Collections.emptyList();
@@ -223,10 +225,15 @@ public final class StudyModePlugin extends Plugin {
                 return;
             }
 
+            long requestStartedAtMs = SystemClock.elapsedRealtime();
+            boolean cacheHit = hasAppCatalogCache
+                && requestStartedAtMs - appCatalogCacheTimeMs < APP_CATALOG_CACHE_TTL_MS;
             List<AppEntry> entries = getOrBuildAppCatalog(pm);
+            long payloadCharacters = 0L;
             Set<String> protectedPackages = StudyModeManager.getProtectedPackages(getContext());
             JSArray apps = new JSArray();
             for (AppEntry entry : entries) {
+                payloadCharacters += entry.packageName.length() + entry.label.length() + entry.iconDataUrl.length();
                 JSObject item = new JSObject();
                 item.put("packageName", entry.packageName);
                 item.put("label", entry.label);
@@ -243,6 +250,11 @@ public final class StudyModePlugin extends Plugin {
             result.put("discoveryScope", "all-installed-packages-filtered-to-launchable");
             result.put("installedPackageCount", cachedInstalledPackageCount);
             result.put("appCount", entries.size());
+            Log.d(TAG, "listApps cacheHit=" + cacheHit
+                + " installedPackages=" + cachedInstalledPackageCount
+                + " appCount=" + entries.size()
+                + " payloadChars~=" + payloadCharacters
+                + " elapsedMs=" + (SystemClock.elapsedRealtime() - requestStartedAtMs));
             call.resolve(result);
         } catch (Exception error) {
             call.reject("Unable to read the installed application inventory. Check package visibility access.", error);
