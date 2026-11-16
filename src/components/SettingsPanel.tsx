@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, setKeyboardShortcuts, type AppSettings } from '@/lib/settings';
 import { getStreak, setTarget, type StreakState } from '@/lib/streak';
 import { isGuest, setGuest } from '@/lib/guest';
-import { THEMES, setTheme as setAppTheme, useTheme, useMode, setMode } from '@/lib/theme';
+import { useMode, setMode } from '@/lib/theme';
 import { checkForAppUpdate } from '@/lib/appUpdateService';
 import { announceUpdateAvailable } from '@/lib/appUpdateEvents';
 import { MOTION } from '@/lib/motion';
@@ -18,6 +18,7 @@ import {
 import BackupRestorePanel from '@/components/BackupRestorePanel';
 import StudyModePage from '@/components/StudyModePage';
 import AppUsageAnalyticsPage from '@/components/AppUsageAnalyticsPage';
+import ThemeOptionsGrid from '@/components/ThemeOptionsGrid';
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
 
@@ -36,7 +37,6 @@ const SettingsPanel = () => {
   const [online, setOnline] = useState(navigator.onLine);
   const updateResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateCheckInFlightRef = useRef(false);
-  const theme = useTheme();
   const mode = useMode();
   const guest = !user && isGuest();
   const mountedRef = useRef(true);
@@ -296,77 +296,53 @@ const SettingsPanel = () => {
         />
       </div>
 
-      {/* Appearance — keep theme identity separate from the Light/Dark mode. */}
-      <div>
-        <p className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-          <Palette size={16} className="text-muted-foreground" /> Theme
-        </p>
-        <div className="mb-2 flex gap-2">
-          {(['dark', 'light'] as const).map((m) => {
-            const active = mode === m;
-            const Icon = m === 'dark' ? Moon : Sun;
-            return (
-              <motion.button
-                key={m}
-                type="button"
-                whileTap={{ scale: MOTION.scale.press }}
-                onClick={() => setMode(m)}
-                aria-pressed={active}
-                className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors duration-100 ${
-                  active
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border/70 bg-transparent text-muted-foreground hover:border-primary/40'
-                }`}
-              >
-                <Icon size={14} />
-                {m === 'dark' ? 'Dark' : 'Light'}
-              </motion.button>
-            );
-          })}
+      {/* Appearance — share the exact theme cards used by the Dashboard popup. */}
+      <section
+        aria-labelledby="settings-theme-heading"
+        data-settings-theme-section
+        className="rounded-2xl border border-border/70 bg-card/25 p-2.5"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p id="settings-theme-heading" className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Palette size={16} className="text-muted-foreground" /> Theme
+          </p>
+          <div
+            role="group"
+            aria-label="Appearance mode"
+            data-theme-mode-selector
+            className="inline-flex items-center gap-0.5 rounded-xl border border-border/70 bg-background/55 p-0.5"
+          >
+            {(['dark', 'light'] as const).map((m) => {
+              const active = mode === m;
+              const Icon = m === 'dark' ? Moon : Sun;
+              return (
+                <motion.button
+                  key={m}
+                  type="button"
+                  whileTap={{ scale: MOTION.scale.press }}
+                  onClick={() => setMode(m)}
+                  aria-pressed={active}
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-[9px] px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    active
+                      ? 'bg-primary/10 text-primary shadow-sm'
+                      : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+                  }`}
+                >
+                  <Icon size={13} />
+                  {m === 'dark' ? 'Dark' : 'Light'}
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
-        <div
-          data-theme-selector-grid
-          className="grid grid-cols-8 gap-x-1 gap-y-1.5 min-[420px]:grid-cols-10"
-        >
-          {THEMES.map((t) => {
-            const selected = theme === t.id;
-            return (
-              <motion.button
-                key={t.id}
-                data-theme-option={t.id}
-                type="button"
-                whileTap={{ scale: MOTION.scale.press }}
-                onClick={() => setAppTheme(t.id)}
-                aria-label={`Select ${t.name} theme`}
-                aria-pressed={selected}
-                className={`relative mx-auto flex aspect-square w-full max-w-9 items-center justify-center rounded-full outline-none transition-transform duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                  selected
-                    ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
-                    : 'hover:scale-110 active:scale-95'
-                }`}
-              >
-                <span
-                  data-theme-swatch
-                  aria-hidden="true"
-                  className="h-5 w-5 rounded-full ring-1 ring-black/10"
-                  style={{
-                    backgroundImage: `linear-gradient(135deg, ${t.swatch[1]} 0 50%, ${t.swatch[2]} 50% 100%)`,
-                  }}
-                />
-                {selected && (
-                  <span
-                    data-theme-selected-indicator
-                    aria-hidden="true"
-                    className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground"
-                  >
-                    <Check size={8} strokeWidth={3} />
-                  </span>
-                )}
-              </motion.button>
-            );
-          })}
+
+        <div className="mt-2.5">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            Color Themes
+          </p>
+          <ThemeOptionsGrid variant="settings" />
         </div>
-      </div>
+      </section>
 
       <motion.button
         type="button"
