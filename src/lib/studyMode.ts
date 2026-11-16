@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { App } from "@capacitor/app";
 import { createAsyncCache } from "@/lib/studyModeAppCatalogCache";
 import { getTheme, getMode } from "@/lib/theme";
 import {
@@ -99,7 +100,45 @@ const NativeStudyMode = registerPlugin<NativeStudyModePlugin>("StudyMode");
 const installedAppsCache = createAsyncCache<StudyModeApp[]>(async () => {
   const result = await NativeStudyMode.listApps();
   return Array.isArray(result.apps) ? result.apps : [];
-}, 60_000);
+}, 5 * 60_000);
+
+export interface CachedStudyModeSettings {
+  config: StudyModeConfig;
+  studyAppPackages: string[];
+}
+
+let cachedStudyModeSettings: CachedStudyModeSettings | null = null;
+let appResumeListenerInstalled = false;
+
+function rememberStudyModeSettings(status: StudyModeStatus): StudyModeStatus {
+  cachedStudyModeSettings = {
+    config: {
+      ...status.config,
+      selectedPackageNames: [...status.config.selectedPackageNames],
+      selectedDays: [...status.config.selectedDays],
+    },
+    studyAppPackages: [...(status.studyAppPackages ?? [])],
+  };
+  return status;
+}
+
+/** Saved selections may seed the UI; permissions and enforcement always come from a live native read. */
+export function getCachedStudyModeSettings(): CachedStudyModeSettings | null {
+  if (!cachedStudyModeSettings) return null;
+  return {
+    config: {
+      ...cachedStudyModeSettings.config,
+      selectedPackageNames: [...cachedStudyModeSettings.config.selectedPackageNames],
+      selectedDays: [...cachedStudyModeSettings.config.selectedDays],
+    },
+    studyAppPackages: [...cachedStudyModeSettings.studyAppPackages],
+  };
+}
+
+/** Read a still-valid app catalogue without awaiting the native bridge. */
+export function getCachedInstalledStudyModeApps(): StudyModeApp[] | null {
+  return installedAppsCache.peek() ?? null;
+}
 
 export const isStudyModeNative = (): boolean => Capacitor.isNativePlatform();
 
@@ -122,7 +161,17 @@ export function initializeStudyMode(): void {
     popupAppearanceListenerInstalled = true;
     window.addEventListener("theme-updated", () => { void syncStudyModePopupAppearance(); });
   }
-  void NativeStudyMode.refresh().catch(() => {
+  if (!appResumeListenerInstalled) {
+    appResumeListenerInstalled = true;
+    void App.addListener("resume", () => {
+      // Package broadcasts invalidate Android's catalogue; clear the WebView copy
+      // on resume so the next picker open cannot keep an uninstalled app selectable.
+      invalidateStudyModeAppCatalogCache();
+    }).catch(() => {
+      appResumeListenerInstalled = false;
+    });
+  }
+  void NativeStudyMode.refresh().then(rememberStudyModeSettings).catch(() => {
     // The feature remains opt-in; permission or service failures are surfaced
     // on the Study Mode page from the next native status read.
   });
@@ -151,7 +200,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       reminderIntervalMinutes: 2,
     };
   }
-  return NativeStudyMode.getStatus();
+  return rememberStudyModeSettings(await NativeStudyMode.getStatus());
 }
 
 export async function consumeStudyAppsPickerRequest(): Promise<boolean> {
@@ -166,7 +215,7 @@ export async function consumeStudyAppsPickerRequest(): Promise<boolean> {
 
 export async function refreshStudyMode(): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) return getStudyModeStatus();
-  return NativeStudyMode.refresh();
+  return rememberStudyModeSettings(await NativeStudyMode.refresh());
 }
 
 export async function getInstalledStudyModeApps(forceRefresh = false): Promise<StudyModeApp[]> {
@@ -181,12 +230,12 @@ export function invalidateStudyModeAppCatalogCache(): void {
 
 export async function saveStudyModeConfig(config: StudyModeConfig, studyAppPackageNames: string[] = []): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) throw new Error("Study Mode requires the Android app.");
-  return NativeStudyMode.saveConfig({
+  return rememberStudyModeSettings(await NativeStudyMode.saveConfig({
     ...config,
     studyAppPackageNames: [...new Set(studyAppPackageNames)],
     selectedPackageNames: [...new Set(config.selectedPackageNames)],
     selectedDays: [...new Set(config.selectedDays)],
-  });
+  }));
 }
 
 export async function setStudyModeReminderInterval(minutes: number): Promise<StudyModeStatus> {
@@ -194,22 +243,22 @@ export async function setStudyModeReminderInterval(minutes: number): Promise<Stu
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10) {
     throw new Error("Reminder interval must be an integer from 1 to 10 minutes.");
   }
-  return NativeStudyMode.setReminderIntervalMinutes({ minutes });
+  return rememberStudyModeSettings(await NativeStudyMode.setReminderIntervalMinutes({ minutes }));
 }
 
 export async function setStudyModeEnabled(enabled: boolean): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) throw new Error("Study Mode requires the Android app.");
-  return NativeStudyMode.setEnabled({ enabled });
+  return rememberStudyModeSettings(await NativeStudyMode.setEnabled({ enabled }));
 }
 
 export async function startStudyModeSession(options: StudyModeSessionOptions): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) throw new Error("Focus sessions require the Android app.");
-  return NativeStudyMode.startSession(options);
+  return rememberStudyModeSettings(await NativeStudyMode.startSession(options));
 }
 
 export async function endStudyModeSession(sessionId?: string): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) throw new Error("Focus sessions require the Android app.");
-  return NativeStudyMode.endSession({ sessionId });
+  return rememberStudyModeSettings(await NativeStudyMode.endSession({ sessionId }));
 }
 
 export async function getStudyModeSessionHistory(): Promise<StudyModeSession[]> {

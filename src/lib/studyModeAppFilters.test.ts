@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countStudyModeApps, filterStudyModeApps } from "./studyModeAppFilters";
+import { countStudyModeApps, filterStudyModeApps, sortStudyModeAppsSelectedFirst } from "./studyModeAppFilters";
 import type { StudyModeApp } from "./studyMode";
 
 const apps: StudyModeApp[] = [
@@ -35,4 +35,28 @@ describe("Study Mode installed-app filters", () => {
   it("counts all categories from the same discovered dataset", () => {
     expect(countStudyModeApps(apps)).toEqual({ all: 5, user: 2, system: 3 });
   });
+  it("pins only the current picker's selected apps first and alphabetizes both groups", () => {
+    const blockedOrder = sortStudyModeAppsSelectedFirst(apps, ["com.example.notes", "com.android.camera"]);
+    const studyOrder = sortStudyModeAppsSelectedFirst(apps, ["com.example.browser"]);
+
+    expect(blockedOrder.map((app) => app.packageName)).toEqual([
+      "com.android.camera",
+      "com.example.notes",
+      "com.example.browser",
+      "com.oem.launcher",
+    ]);
+    expect(studyOrder.map((app) => app.packageName)).toEqual([
+      "com.example.browser",
+      "com.android.camera",
+      "com.example.notes",
+      "com.oem.launcher",
+    ]);
+    expect(apps.map((app) => app.packageName)).toEqual([
+      "com.example.browser",
+      "com.android.camera",
+      "com.example.notes",
+      "com.oem.launcher",
+    ]);
+  });
+
 });

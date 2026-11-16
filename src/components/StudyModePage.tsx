@@ -18,6 +18,9 @@ import {
 import {
   chooseStudyModeTime,
   getInstalledStudyModeApps,
+  getCachedInstalledStudyModeApps,
+  getCachedStudyModeSettings,
+  invalidateStudyModeAppCatalogCache,
   getStudyModeStatus,
   isStudyModeNative,
   openStudyModePermission,
@@ -45,6 +48,7 @@ import { MOTION } from "@/lib/motion";
 import {
   countStudyModeApps,
   filterStudyModeApps,
+  sortStudyModeAppsSelectedFirst,
   type StudyModeAppFilter,
 } from "@/lib/studyModeAppFilters";
 import { m as motion } from "framer-motion";
@@ -183,6 +187,74 @@ const StudyModeAppIcon = ({ app, size = 30 }: { app: StudyModeApp; size?: number
   )
 );
 
+
+type StudyModeAppTileProps = {
+  app: StudyModeApp;
+  variant: "blocked" | "study";
+  selected: boolean;
+  disabled: boolean;
+  blocked?: boolean;
+  showEnforcementLabel?: boolean;
+  enforcementLabel?: string;
+  enforcementTone?: "success" | "warning";
+  onToggle: (packageName: string, selectable: boolean) => void;
+};
+
+const StudyModeAppTile = memo(({
+  app,
+  variant,
+  selected,
+  disabled,
+  blocked = false,
+  showEnforcementLabel = false,
+  enforcementLabel,
+  enforcementTone = "warning",
+  onToggle,
+}: StudyModeAppTileProps) => {
+  const blockedVariant = variant === "blocked";
+  const selectedClass = blockedVariant
+    ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-primary/35 bg-gradient-to-b from-primary/10 to-card/80 px-1.5 py-2 text-center shadow-sm ring-1 ring-primary/10 transition-[border-color,background-color,transform] duration-200 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+    : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-accent/35 bg-gradient-to-b from-accent/10 to-card/80 px-1.5 py-2 text-center shadow-sm ring-1 ring-accent/10 transition-[border-color,background-color,transform] duration-200 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100";
+  const unselectedClass = "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-border/55 bg-gradient-to-b from-card/75 to-background/45 px-1.5 py-2 text-center transition-[border-color,background-color,transform] duration-200 hover:border-primary/30 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100";
+
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(app.packageName, app.selectable)}
+      disabled={!app.selectable || disabled}
+      aria-pressed={selected}
+      aria-disabled={!app.selectable}
+      className={selected ? selectedClass : unselectedClass}
+    >
+      <span className="grid h-11 w-11 place-items-center rounded-[1rem] border border-border/45 bg-card/85 shadow-inner">
+        <StudyModeAppIcon app={app} size={31} />
+      </span>
+      <span className="line-clamp-1 w-full text-[9px] font-semibold text-foreground">{app.label}</span>
+      {blocked && !selected && <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning">Move</span>}
+      {selected && showEnforcementLabel && enforcementLabel && (
+        <span className={enforcementTone === "success"
+          ? "rounded-full bg-success/10 px-1.5 py-0.5 text-[8px] font-semibold text-success"
+          : "rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning"}>
+          {enforcementLabel}
+        </span>
+      )}
+      {app.selectable ? (
+        selected && (
+          <span className={blockedVariant
+            ? "absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
+            : "absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-accent-foreground"}>
+            <Check size={10} strokeWidth={3} />
+          </span>
+        )
+      ) : (
+        <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-muted-foreground" aria-label="Protected app">
+          <LockKeyhole size={10} />
+        </span>
+      )}
+    </button>
+  );
+});
+
 const statusText = (status: StudyModeStatus | null) => {
   if (!isStudyModeNative()) return "Available in the Android app";
   if (!status) return "Reading saved Study Mode state…";
@@ -218,12 +290,16 @@ const statusText = (status: StudyModeStatus | null) => {
 };
 
 const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPicker = false, onStudyAppsPickerOpened }: StudyModePageProps) => {
-  const [draft, setDraft] = useState<StudyModeConfig>(DEFAULT_STUDY_MODE_CONFIG);
+  const [cachedSettings] = useState(() => getCachedStudyModeSettings());
+  const [cachedApps] = useState(() => getCachedInstalledStudyModeApps());
+  const initialConfig = cachedSettings?.config ?? DEFAULT_STUDY_MODE_CONFIG;
+  const initialStudyApps = cachedSettings?.studyAppPackages ?? [];
+  const [draft, setDraft] = useState<StudyModeConfig>(initialConfig);
   const [status, setStatus] = useState<StudyModeStatus | null>(null);
-  const [apps, setApps] = useState<StudyModeApp[]>([]);
+  const [apps, setApps] = useState<StudyModeApp[]>(cachedApps ?? []);
   const [appsLoading, setAppsLoading] = useState(false);
   const [appsLoadError, setAppsLoadError] = useState("");
-  const [studyAppPackages, setStudyAppPackages] = useState<string[]>([]);
+  const [studyAppPackages, setStudyAppPackages] = useState<string[]>(initialStudyApps);
   const [reminderIntervalMinutes, setReminderIntervalMinutesState] = useState(2);
   const [reminderIntervalOpen, setReminderIntervalOpen] = useState(false);
   const [reminderIntervalSaving, setReminderIntervalSaving] = useState(false);
@@ -247,11 +323,11 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const [sessionEnforced, setSessionEnforced] = useState(false);
   const [sessionDnd, setSessionDnd] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
-  const savedSnapshot = useRef(configSnapshot(DEFAULT_STUDY_MODE_CONFIG));
+  const savedSnapshot = useRef(configSnapshot(initialConfig));
   const saveInFlightRef = useRef(false);
   const reminderIntervalSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const reminderIntervalRequestRef = useRef(0);
-  const savedStudyAppsSnapshot = useRef("[]");
+  const savedStudyAppsSnapshot = useRef(JSON.stringify([...initialStudyApps].sort()));
   const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
   const studyAppsSnapshot = JSON.stringify([...studyAppPackages].sort());
@@ -271,27 +347,29 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const permissionSetupAutoOpenedRef = useRef(false);
   const loadInFlightRef = useRef<Promise<void> | null>(null);
   const historyInFlightRef = useRef<Promise<void> | null>(null);
-  const appCatalogRef = useRef<StudyModeApp[] | null>(null);
-  const appCatalogLoadedRef = useRef(false);
+  const appCatalogRef = useRef<StudyModeApp[] | null>(cachedApps);
+  const appCatalogLoadedRef = useRef(cachedApps !== null);
+  const lifecycleRefreshInFlightRef = useRef(false);
   const appCatalogLoadInFlightRef = useRef<Promise<void> | null>(null);
   const statusRef = useRef<StudyModeStatus | null>(status);
   statusRef.current = status;
 
   // The app catalogue is not needed by the default collapsed screen. Fetch it
   // only when a picker is opened, and reuse the module-level cache on remount.
-  const loadApps = useCallback((): Promise<void> => {
+  const loadApps = useCallback((forceRefresh = false): Promise<void> => {
     if (!isStudyModeNative()) {
       setAppsLoadError("Installed apps are available only in the Android app.");
       return Promise.resolve();
     }
-    if (appCatalogLoadedRef.current) return Promise.resolve();
+    if (!forceRefresh && appCatalogLoadedRef.current) return Promise.resolve();
     if (appCatalogLoadInFlightRef.current) return appCatalogLoadInFlightRef.current;
 
+    // Keep a valid warm list visible while an explicit lifecycle refresh runs.
     setAppsLoading(true);
     setAppsLoadError("");
     const request = (async () => {
       try {
-        const installedApps = await getInstalledStudyModeApps();
+        const installedApps = await getInstalledStudyModeApps(forceRefresh);
         if (!isMountedRef.current) return;
 
         appCatalogRef.current = installedApps;
@@ -386,7 +464,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
     if (nextOpen) void loadApps();
   };
 
-  const load = useCallback((reconcile = true): Promise<void> => {
+  const load = useCallback((reconcile = false): Promise<void> => {
     if (!isStudyModeNative()) {
       setLoading(false);
       setRefreshError("Study Mode controls require the installed Android app.");
@@ -480,10 +558,24 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   }, []);
 
   useEffect(() => {
-    void load(true);
+    void load(false);
     let disposed = false;
     let appResume: { remove: () => Promise<void> } | null = null;
-    const refresh = () => { if (!disposed) void load(true); };
+    const refresh = () => {
+      if (disposed || lifecycleRefreshInFlightRef.current) return;
+      lifecycleRefreshInFlightRef.current = true;
+
+      const refreshApps = pickerOpen || studyPickerOpen
+        ? loadApps(true)
+        : Promise.resolve().then(() => {
+          invalidateStudyModeAppCatalogCache();
+          appCatalogRef.current = null;
+          appCatalogLoadedRef.current = false;
+        });
+      void Promise.all([load(false), refreshApps]).finally(() => {
+        lifecycleRefreshInFlightRef.current = false;
+      });
+    };
     const onVisibility = () => {
       if (document.visibilityState === "visible") refresh();
     };
@@ -499,7 +591,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [load]);
+  }, [load, loadApps, pickerOpen, studyPickerOpen]);
 
   useLayoutEffect(() => {
     window.dispatchEvent(new CustomEvent("study-mode-page-state", { detail: { open: true } }));
@@ -546,21 +638,39 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const suspendedPackages = useMemo(() => new Set(status?.suspendedPackages ?? []), [status?.suspendedPackages]);
   const selectedCount = draft.selectedPackageNames.length;
   const appCounts = useMemo(() => countStudyModeApps(apps), [apps]);
+  const selectedBlockedPackageSet = useMemo(
+    () => new Set(draft.selectedPackageNames),
+    [draft.selectedPackageNames],
+  );
+  const selectedStudyPackageSet = useMemo(
+    () => new Set(studyAppPackages),
+    [studyAppPackages],
+  );
+  const enforcedPackageSet = useMemo(
+    () => new Set(status?.enforcedPackages ?? []),
+    [status?.enforcedPackages],
+  );
   const visibleApps = useMemo(
-    () => filterStudyModeApps(apps, appFilter, deferredSearch),
-    [apps, appFilter, deferredSearch],
+    () => sortStudyModeAppsSelectedFirst(
+      filterStudyModeApps(apps, appFilter, deferredSearch),
+      draft.selectedPackageNames,
+    ),
+    [apps, appFilter, deferredSearch, draft.selectedPackageNames],
   );
   const visibleStudyApps = useMemo(
-    () => filterStudyModeApps(apps, "all", deferredStudySearch),
-    [apps, deferredStudySearch],
+    () => sortStudyModeAppsSelectedFirst(
+      filterStudyModeApps(apps, "all", deferredStudySearch),
+      studyAppPackages,
+    ),
+    [apps, deferredStudySearch, studyAppPackages],
   );
   const selectedBlockedApps = useMemo(
-    () => apps.filter((app) => draft.selectedPackageNames.includes(app.packageName)),
-    [apps, draft.selectedPackageNames],
+    () => apps.filter((app) => selectedBlockedPackageSet.has(app.packageName)),
+    [apps, selectedBlockedPackageSet],
   );
   const selectedStudyApps = useMemo(
-    () => apps.filter((app) => studyAppPackages.includes(app.packageName)),
-    [apps, studyAppPackages],
+    () => apps.filter((app) => selectedStudyPackageSet.has(app.packageName)),
+    [apps, selectedStudyPackageSet],
   );
 
   const updateDraft = (patch: Partial<StudyModeConfig>) => {
@@ -603,6 +713,17 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
       : [...previous, packageName]);
     setMessage("");
   };
+
+  const toggleAppRef = useRef(toggleApp);
+  toggleAppRef.current = toggleApp;
+  const toggleStudyAppRef = useRef(toggleStudyApp);
+  toggleStudyAppRef.current = toggleStudyApp;
+  const handleBlockedAppToggle = useCallback((packageName: string, selectable: boolean) => {
+    toggleAppRef.current(packageName, selectable);
+  }, []);
+  const handleStudyAppToggle = useCallback((packageName: string, selectable: boolean) => {
+    toggleStudyAppRef.current(packageName, selectable);
+  }, []);
 
   const chooseTime = async (which: "start" | "end") => {
     const hour = which === "start" ? draft.startHour : draft.endHour;
@@ -1279,58 +1400,31 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                   })}
                 </div>
                 <div className="grid max-h-[340px] grid-cols-4 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-5 sm:grid-cols-6 lg:grid-cols-7" role="group" aria-label="Select blocked apps">
-                  {appsLoading ? (
+                  {appsLoading && apps.length === 0 ? (
                     <p className="col-span-full py-8 text-center text-xs text-muted-foreground">Loading apps…</p>
-                  ) : appsLoadError ? (
-                    <button type="button" onClick={() => { void loadApps(); }} className="col-span-full rounded-xl bg-secondary/60 p-4 text-center text-xs text-warning">
+                  ) : appsLoadError && apps.length === 0 ? (
+                    <button type="button" onClick={() => { void loadApps(true); }} className="col-span-full rounded-xl bg-secondary/60 p-4 text-center text-xs text-warning">
                       {appsLoadError} · Retry
                     </button>
                   ) : visibleApps.length === 0 ? (
                     <p className="col-span-full py-8 text-center text-xs text-muted-foreground">
                       {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
                     </p>
-                  ) : visibleApps.map((app) => {
-                    const selected = draft.selectedPackageNames.includes(app.packageName);
-                    return (
-                      <button
-                        key={app.packageName}
-                        type="button"
-                        onClick={() => toggleApp(app.packageName, app.selectable)}
-                        disabled={!app.selectable || saving}
-                        aria-pressed={selected}
-                        aria-disabled={!app.selectable}
-                        className={selected
-                          ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-primary/35 bg-gradient-to-b from-primary/10 to-card/80 px-1.5 py-2 text-center shadow-sm ring-1 ring-primary/10 transition-[border-color,background-color,transform] duration-200 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
-                          : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-border/55 bg-gradient-to-b from-card/75 to-background/45 px-1.5 py-2 text-center transition-[border-color,background-color,transform] duration-200 hover:border-primary/30 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"}
-                      >
-                        <span className="grid h-11 w-11 place-items-center rounded-[1rem] border border-border/45 bg-card/85 shadow-inner">
-                          <StudyModeAppIcon app={app} size={31} />
-                        </span>
-                        <span className="line-clamp-1 w-full text-[9px] font-semibold text-foreground">{app.label}</span>
-                        {selected && status?.enforcementMode !== "focus_shield" && (
-                          <span className={suspendedPackages.has(app.packageName)
-                            ? "rounded-full bg-success/10 px-1.5 py-0.5 text-[8px] font-semibold text-success"
-                            : "rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning"}>
-                            {suspendedPackages.has(app.packageName) ? "Frozen" : status?.scheduleActive ? "Not frozen" : "Scheduled"}
-                          </span>
-                        )}
-                        {selected && status?.enforcementMode === "focus_shield" && (
-                          <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning">Shield</span>
-                        )}
-                        {app.selectable ? (
-                          selected && (
-                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                              <Check size={10} strokeWidth={3} />
-                            </span>
-                          )
-                        ) : (
-                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-muted-foreground" aria-label="Protected app">
-                            <LockKeyhole size={10} />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                  ) : visibleApps.map((app) => (
+                  <StudyModeAppTile
+                    key={app.packageName}
+                    app={app}
+                    variant="blocked"
+                    selected={selectedBlockedPackageSet.has(app.packageName)}
+                    disabled={saving || appsLoading || Boolean(appsLoadError)}
+                    showEnforcementLabel={Boolean(status) && status.enforcementMode !== "focus_shield"}
+                    enforcementLabel={suspendedPackages.has(app.packageName)
+                      ? "Frozen"
+                      : status?.scheduleActive ? "Not frozen" : "Scheduled"}
+                    enforcementTone={suspendedPackages.has(app.packageName) ? "success" : "warning"}
+                    onToggle={handleBlockedAppToggle}
+                  />
+                ))}
                 </div>
               </div>
             </section>
@@ -1361,51 +1455,27 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                   />
                 </div>
                 <div className="grid max-h-[340px] grid-cols-4 gap-1.5 overflow-y-auto pr-0.5 min-[420px]:grid-cols-5 sm:grid-cols-6 lg:grid-cols-7" role="group" aria-label="Select Study Apps">
-                  {appsLoading ? (
+                  {appsLoading && apps.length === 0 ? (
                     <p className="col-span-full py-8 text-center text-xs text-muted-foreground">Loading apps…</p>
-                  ) : appsLoadError ? (
-                    <button type="button" onClick={() => { void loadApps(); }} className="col-span-full rounded-xl bg-secondary/60 p-4 text-center text-xs text-warning">
+                  ) : appsLoadError && apps.length === 0 ? (
+                    <button type="button" onClick={() => { void loadApps(true); }} className="col-span-full rounded-xl bg-secondary/60 p-4 text-center text-xs text-warning">
                       {appsLoadError} · Retry
                     </button>
                   ) : visibleStudyApps.length === 0 ? (
                     <p className="col-span-full py-8 text-center text-xs text-muted-foreground">
                       {apps.length === 0 ? "No launcher-visible apps." : "No matching apps."}
                     </p>
-                  ) : visibleStudyApps.map((app) => {
-                    const selected = studyAppPackages.includes(app.packageName);
-                    const blocked = draft.selectedPackageNames.includes(app.packageName)
-                      || (status?.enforcedPackages ?? []).includes(app.packageName);
-                    return (
-                      <button
-                        key={app.packageName}
-                        type="button"
-                        onClick={() => toggleStudyApp(app.packageName, app.selectable)}
-                        disabled={!app.selectable || saving}
-                        aria-pressed={selected}
-                        aria-disabled={!app.selectable}
-                        className={selected
-                          ? "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-accent/35 bg-gradient-to-b from-accent/10 to-card/80 px-1.5 py-2 text-center shadow-sm ring-1 ring-accent/10 transition-[border-color,background-color,transform] duration-200 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
-                          : "group relative flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[1.15rem] border border-border/55 bg-gradient-to-b from-card/75 to-background/45 px-1.5 py-2 text-center transition-[border-color,background-color,transform] duration-200 hover:border-accent/30 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"}
-                      >
-                        <span className="grid h-11 w-11 place-items-center rounded-[1rem] border border-border/45 bg-card/85 shadow-inner">
-                          <StudyModeAppIcon app={app} size={31} />
-                        </span>
-                        <span className="line-clamp-1 w-full text-[9px] font-semibold text-foreground">{app.label}</span>
-                        {blocked && !selected && <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold text-warning">Move</span>}
-                        {app.selectable ? (
-                          selected && (
-                            <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                              <Check size={10} strokeWidth={3} />
-                            </span>
-                          )
-                        ) : (
-                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-muted-foreground" aria-label="Protected app">
-                            <LockKeyhole size={10} />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                  ) : visibleStudyApps.map((app) => (
+                  <StudyModeAppTile
+                    key={app.packageName}
+                    app={app}
+                    variant="study"
+                    selected={selectedStudyPackageSet.has(app.packageName)}
+                    blocked={selectedBlockedPackageSet.has(app.packageName) || enforcedPackageSet.has(app.packageName)}
+                    disabled={saving || appsLoading || Boolean(appsLoadError)}
+                    onToggle={handleStudyAppToggle}
+                  />
+                ))}
                 </div>
               </div>
             </section>

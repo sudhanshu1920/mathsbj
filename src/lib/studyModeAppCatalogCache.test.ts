@@ -57,4 +57,29 @@ describe("createAsyncCache", () => {
     await expect(cache.get()).rejects.toThrow("temporary");
     await expect(cache.get()).resolves.toEqual(["recovered"]);
   });
+  it("exposes a valid warm value synchronously without starting another load", async () => {
+    const load = vi.fn(async () => ["apps"]);
+    const cache = createAsyncCache(load, 500);
+
+    expect(cache.peek()).toBeUndefined();
+    await cache.get();
+
+    expect(cache.peek()).toEqual(["apps"]);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not expose expired or explicitly invalidated values", async () => {
+    let now = 100;
+    const load = vi.fn(async () => ["apps"]);
+    const cache = createAsyncCache(load, 500, () => now);
+
+    await cache.get();
+    expect(cache.peek()).toEqual(["apps"]);
+
+    now = 600;
+    expect(cache.peek()).toBeUndefined();
+    cache.clear();
+    expect(cache.peek()).toBeUndefined();
+  });
+
 });

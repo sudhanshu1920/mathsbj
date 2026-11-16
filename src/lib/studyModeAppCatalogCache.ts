@@ -1,5 +1,6 @@
 export interface AsyncCache<T> {
   get(forceRefresh?: boolean): Promise<T>;
+  peek(): T | undefined;
   clear(): void;
 }
 
@@ -39,6 +40,10 @@ export function createAsyncCache<T>(
 
       pending = request;
       return request;
+    },
+
+    peek(): T | undefined {
+      return hasValue && now() < expiresAt ? value : undefined;
     },
 
     clear(): void {

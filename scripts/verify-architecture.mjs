@@ -1209,18 +1209,26 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModePage.includes('loading="lazy" decoding="async"') ||
     studyModeInitialLoad.length === 0 ||
     studyModeInitialLoad.includes('getInstalledStudyModeApps(') ||
-    !studyModeInitialLoad.includes('refreshStudyMode()') ||
+    studyModeInitialLoad.includes('refreshStudyMode()') ||
     !studyModeInitialLoad.includes('getStudyModeStatus()') ||
-    !studyModeAppLoader.includes('getInstalledStudyModeApps()') ||
+    !studyModeAppLoader.includes('getInstalledStudyModeApps(forceRefresh)') ||
     !studyModeAppLoader.includes('appCatalogLoadedRef.current') ||
     !studyModeAppLoader.includes('appCatalogLoadInFlightRef.current') ||
     !studyModeAppLoader.includes('setAppsLoadError(') ||
     !studyModePickerHandlers.includes('if (nextOpen) void loadApps()') ||
-    !studyModePage.includes('appsLoading ? (') ||
+    !studyModePage.includes('appsLoading && apps.length === 0 ? (') ||
     !studyModePage.includes('appsLoadError ? (') ||
     !studyModePage.includes('[apps, appFilter, deferredSearch]') ||
     !studyModePage.includes('[apps, deferredStudySearch]') ||
-    !studyModePage.includes('History is non-critical')) {
+    !studyModePage.includes('History is non-critical') ||
+    !studyModeAppCatalogCache.includes('peek(): T | undefined') ||
+    !studyModeBridge.includes('getCachedInstalledStudyModeApps') ||
+    !studyModeBridge.includes('5 * 60_000') ||
+    !studyModeBridge.includes('App.addListener("resume"') ||
+    !studyModePage.includes('getCachedStudyModeSettings') ||
+    !studyModePage.includes('sortStudyModeAppsSelectedFirst') ||
+    !studyModeAppFilterTests.includes('pins only the current picker') ||
+    !studyModeAppPlugin.includes('listApps cacheHit=') {
   fail('Study Mode performance regression: app inventory must be cached/in-flight deduplicated, countdown isolated, app search deferred, and session history must not gate first interaction');
 }
 if (!studyModeManager.includes('public static synchronized void setEnabled') ||
