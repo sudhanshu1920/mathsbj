@@ -557,6 +557,7 @@ public final class StudyModeFocusService extends Service {
                 if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("session_inactive", false));
                 periodicReminderUsage.clear();
                 StudyModeManager.clearReminderUsageMs(this);
+                StudyModeManager.clearPendingPeriodicReminder(this);
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 activeDiagnosticSessionId = "none";
                 StudyModeManager.setServiceState(StudyModeFocusService.this,
