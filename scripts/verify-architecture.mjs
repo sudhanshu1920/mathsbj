@@ -1222,8 +1222,8 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModePickerHandlers.includes('if (nextOpen) void loadApps()') ||
     !studyModePage.includes('appsLoading && apps.length === 0 ? (') ||
     !studyModePage.includes('appsLoadError && apps.length === 0 ? (') ||
-    !studyModePage.includes('[apps, appFilter, deferredSearch]') ||
-    !studyModePage.includes('[apps, deferredStudySearch]') ||
+    !studyModePage.includes('[apps, appFilter, deferredSearch, draft.selectedPackageNames]') ||
+    !studyModePage.includes('[apps, deferredStudySearch, studyAppPackages]') ||
     !studyModePage.includes('History is non-critical') ||
     !studyModeAppCatalogCache.includes('peek(): T | undefined') ||
     !studyModeBridge.includes('getCachedInstalledStudyModeApps') ||
