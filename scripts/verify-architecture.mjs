@@ -1400,6 +1400,8 @@ if (!studyModeReminderPersistence.includes('REMINDER_PENDING, REMINDER_VISIBLE')
     || !studyModeReminderPlugin.includes('consumeOpenStudyAppsPickerRequest')
     || !studyModeBridge.includes('consumeStudyAppsPickerRequest')
     || !studyModeReminderIndex.includes('consumeStudyAppsPickerRequest')
+    || !studyModeReminderIndex.includes('if (isPracticeSessionInProgress(practicePhase))')
+    || !studyModeReminderIndex.includes('studyAppsPickerPending')
     || !studyModeReminderLearning.includes('openStudyAppsPicker={openStudyAppsPickerAfterMount}')
     || !studyModePage.includes('setStudyPickerOpen(true)')) {
   fail('Periodic reminders must remain latched and recover across service restarts, stay open through focus changes, and route the empty Study Apps state to the real picker');
