@@ -164,7 +164,7 @@ public final class StudyModeManager {
             Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
             if (launch == null || launch.getComponent() == null
                 || !context.getPackageName().equals(launch.getComponent().getPackageName())) return false;
-            prefs(context).edit().putBoolean(KEY_OPEN_STUDY_APPS_PICKER, true).commit();
+            if (!prefs(context).edit().putBoolean(KEY_OPEN_STUDY_APPS_PICKER, true).commit()) return false;
             launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             context.startActivity(launch);
@@ -178,8 +178,8 @@ public final class StudyModeManager {
     public static boolean consumeOpenStudyAppsPickerRequest(Context context) {
         SharedPreferences preferences = prefs(context);
         boolean requested = preferences.getBoolean(KEY_OPEN_STUDY_APPS_PICKER, false);
-        if (requested) preferences.edit().putBoolean(KEY_OPEN_STUDY_APPS_PICKER, false).commit();
-        return requested;
+        if (!requested) return false;
+        return preferences.edit().putBoolean(KEY_OPEN_STUDY_APPS_PICKER, false).commit();
     }
 
     /** Study Apps are a separate allowlist; blocked/session packages always win. */
@@ -789,12 +789,11 @@ public final class StudyModeManager {
             .putInt("endMinute", endMinute)
             .commit();
         if (!committed) throw new IllegalStateException("Study Mode settings could not be saved locally.");
-        StudyModeFocusService.onStudyAppsChanged();
-
         StudyModeSessionStore.Session activeSession = sessionStore(context).getActiveSession(context);
         if (activeSession != null) {
             sessionStore(context).updateActivePackages(activeSession.id, acceptedBlocked);
         }
+        StudyModeFocusService.onStudyAppsChanged();
         reconcile(context);
     }
 
