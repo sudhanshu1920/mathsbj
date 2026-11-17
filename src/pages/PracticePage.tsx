@@ -1619,7 +1619,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       // Streak bonus: +1 every 5 in a row correct
       const newStreakCount = isCorrect ? score.correct + 1 : 0;
       const bonus = isCorrect && newStreakCount > 0 && newStreakCount % 5 === 0 ? 1 : 0;
-      recordAnswer(isCorrect, bonus);
+      try {
+        recordAnswer(isCorrect, bonus, { notify: false });
+      } finally {
+        // Refresh readers once both independent local records have been attempted.
+        window.dispatchEvent(new CustomEvent('analytics-updated'));
+      }
 
       // XP system
       if (isCorrect) {

@@ -95,26 +95,41 @@ const cloneAnalytics = (state: AnalyticsState): AnalyticsState => ({
 
 export const getAnalytics = (): AnalyticsState => cloneAnalytics(readAnalytics());
 
-const save = (state: AnalyticsState) => {
+const save = (state: AnalyticsState, notify = true) => {
   const raw = JSON.stringify(state);
   localStorage.setItem(KEY, raw);
   cachedRaw = raw;
   cachedAnalytics = state;
-  window.dispatchEvent(new CustomEvent('analytics-updated'));
+  if (notify) window.dispatchEvent(new CustomEvent('analytics-updated'));
 };
 
-export const recordAnswer = (isCorrect: boolean, streakBonus = 0) => {
-  const state = readAnalytics();
+export interface RecordAnswerOptions {
+  notify?: boolean;
+}
+
+export const recordAnswer = (
+  isCorrect: boolean,
+  streakBonus = 0,
+  options: RecordAnswerOptions = {},
+) => {
+  const current = readAnalytics();
+  // Use copy-on-write: a failed storage write must not mutate the cache while
+  // its cachedRaw still describes the older, successfully persisted value.
+  const state: AnalyticsState = { days: { ...current.days } };
   const now = new Date();
   const date = todayStr(now);
-  const day = state.days[date] || (state.days[date] = emptyDay(date));
+  const previousDay = current.days[date];
+  const day = previousDay
+    ? { ...previousDay, hours: [...previousDay.hours] }
+    : emptyDay(date);
+  state.days[date] = day;
   if (day.hours.length !== 24) day.hours = Array(24).fill(0);
   const points = isCorrect ? POINTS_CORRECT + streakBonus : POINTS_WRONG;
   day.hours[now.getHours()] += points;
   day.points += points;
   day.questions += 1;
   if (isCorrect) day.correct += 1;
-  save(state);
+  save(state, options.notify !== false);
 };
 
 export const getDay = (state: AnalyticsState, date: string): DayAnalytics =>

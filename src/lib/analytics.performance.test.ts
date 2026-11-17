@@ -60,4 +60,20 @@ describe('analytics persistence hot path', () => {
     expect(getAnalytics().days[date].hours[0]).not.toBe(999);
     expect(JSON.parse(localStorage.getItem('math-app-analytics-v1') || '{}').days[date].questions).toBe(1);
   });
+  it('does not poison the cache when a persistence write fails', () => {
+    const date = todayStr();
+    localStorage.setItem('math-app-analytics-v1', JSON.stringify({
+      days: { [date]: { date, hours: Array(24).fill(0), points: 0, questions: 0, correct: 0 } },
+    }));
+    getAnalytics();
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new DOMException('Storage is full', 'QuotaExceededError');
+    });
+
+    expect(() => recordAnswer(true)).toThrow('Storage is full');
+    setItem.mockRestore();
+    expect(getAnalytics().days[date].questions).toBe(0);
+    expect(getAnalytics().days[date].points).toBe(0);
+  });
+
 });
