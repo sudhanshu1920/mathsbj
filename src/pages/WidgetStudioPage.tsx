@@ -29,11 +29,18 @@ type NativeWidgetsPlugin = {
   requestAdd(): Promise<{ requested: boolean; supported: boolean }>;
   configureWidget(options: { appWidgetId: number }): Promise<{ opened: boolean }>;
   renderPreview(options: { appWidgetId: number }): Promise<{ dataUrl: string }>;
+  resetWidget(options: { appWidgetId: number }): Promise<{ reset: boolean }>;
 };
 
 const NativeWidgets = registerPlugin<NativeWidgetsPlugin>("MathMasterWidgets");
 
 type WidgetDesign = { id: string; name: string };
+
+const STYLE_NAMES: Record<NativeWidget["style"], string> = {
+  neon: "Neon Glass",
+  blur: "Transparent Blur",
+  transparent: "Full Transparent",
+};
 
 function widgetLabel(widget: NativeWidget, designs: WidgetDesign[]): string {
   return designs.find((design) => design.id === widget.composition)?.name || "Math Master Widget";
@@ -48,6 +55,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [openingEditor, setOpeningEditor] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -147,6 +155,26 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
       setError("Could not open this widget's Android customization screen. Refresh and try again.");
     } finally {
       setOpeningEditor(false);
+    }
+  };
+
+  const handleReset = async () => {
+    if (selectedId === null) return;
+    const confirmed = window.confirm(
+      "Reset only this widget to its default design, Neon Glass appearance and all available content?"
+    );
+    if (!confirmed) return;
+    setResetting(true);
+    setError("");
+    setNotice("");
+    try {
+      await NativeWidgets.resetWidget({ appWidgetId: selectedId });
+      setNotice("This widget has been restored to its default settings.");
+      await refresh(true);
+    } catch {
+      setError("Could not reset this widget. Its previous saved settings have been kept.");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -342,6 +370,14 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                   <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
                     The Android editor provides the supported design, background and content controls. Changes are saved for this widget instance only.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleReset()}
+                    disabled={resetting}
+                    className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                  >
+                    {resetting ? "Resetting…" : "Reset to default"}
+                  </button>
                 </div>
 
                 <div className="rounded-2xl border border-border/70 bg-card/45 p-4">

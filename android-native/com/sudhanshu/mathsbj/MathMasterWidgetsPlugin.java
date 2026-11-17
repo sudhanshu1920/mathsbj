@@ -128,6 +128,38 @@ public class MathMasterWidgetsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void resetWidget(PluginCall call) {
+        int id = call.getInt("appWidgetId", AppWidgetManager.INVALID_APPWIDGET_ID);
+        if (!isActiveWidgetId(id)) {
+            call.reject("That Math Master widget is no longer on the home screen. Refresh the list and try again.");
+            return;
+        }
+        JSONArray defaults = new JSONArray();
+        for (String option : MathMasterHomeWidgetProvider.CONTENT_OPTIONS) defaults.put(option);
+        String prefix = "instance_" + id + "_";
+        SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        boolean saved = preferences.edit()
+            .putString(prefix + "composition", "auto")
+            .putString(prefix + "style", "neon")
+            .putString(prefix + "contentJson", defaults.toString())
+            .putInt(prefix + "contentSchemaVersion", 3)
+            .commit();
+        if (!saved) {
+            call.reject("Android could not save the widget's default settings. The previous values were kept.");
+            return;
+        }
+        try {
+            AppWidgetManager.getInstance(getContext()).updateAppWidget(
+                id, MathMasterHomeWidgetProvider.createViews(getContext(), id));
+            JSObject result = new JSObject();
+            result.put("reset", true);
+            call.resolve(result);
+        } catch (RuntimeException error) {
+            call.reject("The default settings were saved, but Android could not refresh the widget.", error);
+        }
+    }
+
+    @PluginMethod
     public void renderPreview(PluginCall call) {
         int id = call.getInt("appWidgetId", AppWidgetManager.INVALID_APPWIDGET_ID);
         if (!isActiveWidgetId(id)) {

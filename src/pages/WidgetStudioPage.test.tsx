@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   requestAdd: vi.fn(),
   configureWidget: vi.fn(),
   renderPreview: vi.fn(),
+  resetWidget: vi.fn(),
   addListener: vi.fn(),
 }));
 
@@ -18,6 +19,7 @@ vi.mock("@capacitor/core", () => ({
     requestAdd: mocks.requestAdd,
     configureWidget: mocks.configureWidget,
     renderPreview: mocks.renderPreview,
+    resetWidget: mocks.resetWidget,
   }),
 }));
 
@@ -42,6 +44,7 @@ describe("WidgetStudioPage", () => {
     mocks.requestAdd.mockResolvedValue({ requested: true, supported: true });
     mocks.configureWidget.mockResolvedValue({ opened: true });
     mocks.renderPreview.mockResolvedValue({ dataUrl: "data:image/png;base64,d2lkZ2V0" });
+    mocks.resetWidget.mockResolvedValue({ reset: true });
     mocks.addListener.mockResolvedValue({ remove: vi.fn().mockResolvedValue(undefined) });
   });
 
@@ -66,6 +69,21 @@ describe("WidgetStudioPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Customize this widget" }));
     await waitFor(() => expect(mocks.configureWidget).toHaveBeenCalledWith({ appWidgetId: 42 }));
+  });
+
+  it("resets only the selected instance after an explicit confirmation", async () => {
+    mocks.getWidgets.mockResolvedValue({
+      widgets: [widget],
+      designs: [{ id: "hero_wide", name: "Hero Wide · Blue Neon" }],
+    });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Reset to default" }));
+    await waitFor(() => expect(mocks.resetWidget).toHaveBeenCalledWith({ appWidgetId: 42 }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("status")).toHaveTextContent("restored to its default settings");
+    confirm.mockRestore();
   });
 
   it("explains launcher-owned resize, ordering and removal instead of exposing fake controls", async () => {
