@@ -407,6 +407,26 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
     }
 
+    /** Render the saved configuration for one real, currently pinned launcher instance. */
+    public static Bitmap renderWidgetInstancePreview(Context context, int appWidgetId) {
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        Bundle launcherOptions = manager.getAppWidgetOptions(appWidgetId);
+        int widthDp = launcherOptions == null ? 0 : launcherOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+        int heightDp = launcherOptions == null ? 0 : launcherOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+        if (widthDp <= 0 && launcherOptions != null) widthDp = launcherOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0);
+        if (heightDp <= 0 && launcherOptions != null) heightDp = launcherOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
+        widthDp = widthDp > 0 ? Math.min(widthDp, 600) : 320;
+        heightDp = heightDp > 0 ? Math.min(heightDp, 400) : 146;
+
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        String composition = resolveComposition(preferences, appWidgetId, widthDp, heightDp);
+        Set<String> selected = getSelectedContent(preferences, appWidgetId);
+        String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "neon"));
+        boolean enabled = preferences.getBoolean("enabled", true);
+        MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected);
+        return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
+    }
+
     private static String describe(MathMasterWidgetRenderer.Options options, MathMasterWidgetRenderer.Data data) {
         if (!options.enabled) return "Math Master widgets are turned off in app settings.";
         StringBuilder text = new StringBuilder("Math Master.");

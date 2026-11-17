@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { App } from "@capacitor/app";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import {
@@ -60,6 +60,30 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const [error, setError] = useState("");
 
   const selectedWidget = widgets.find((widget) => widget.appWidgetId === selectedId) || null;
+
+  useLayoutEffect(() => {
+    window.dispatchEvent(new CustomEvent("widget-studio-page-state", { detail: { open: true } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent("widget-studio-page-state", { detail: { open: false } }));
+    };
+  }, []);
+
+  useEffect(() => {
+    const onBackRequest = () => onBack();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      onBack();
+    };
+    window.addEventListener("widget-studio-back", onBackRequest);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("widget-studio-back", onBackRequest);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [onBack]);
+
 
   const refresh = useCallback(async (quiet = false) => {
     if (!native) {
@@ -172,7 +196,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
       setNotice("This widget has been restored to its default settings.");
       await refresh(true);
     } catch {
-      setError("Could not reset this widget. Its previous saved settings have been kept.");
+      setError("Android could not confirm the reset. Refresh the widget list and check its saved settings.");
     } finally {
       setResetting(false);
     }

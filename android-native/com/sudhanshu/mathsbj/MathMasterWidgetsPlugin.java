@@ -166,8 +166,9 @@ public class MathMasterWidgetsPlugin extends Plugin {
             call.reject("That widget is no longer active. Refresh the list and try again.");
             return;
         }
+        Bitmap bitmap = null;
         try {
-            Bitmap bitmap = MathMasterHomeWidgetProvider.renderWidgetInstancePreview(getContext(), id);
+            bitmap = MathMasterHomeWidgetProvider.renderWidgetInstancePreview(getContext(), id);
             if (bitmap == null) {
                 call.reject("The widget preview is unavailable.");
                 return;
@@ -184,6 +185,8 @@ public class MathMasterWidgetsPlugin extends Plugin {
             call.reject("Unable to render this widget preview.", error);
         } catch (OutOfMemoryError error) {
             call.reject("There is not enough memory to render this widget preview.");
+        } finally {
+            if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
         }
     }
 

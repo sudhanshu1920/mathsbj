@@ -352,6 +352,7 @@ const Index = () => {
   const lastNavigationBack = useRef(0);
   const studyTrackerOverlayOpen = useRef(false);
   const studyModePageOpen = useRef(false);
+  const widgetStudioPageOpen = useRef(false);
   const replaceNextNavigationEntry = useRef(false);
   const practiceExitHandled = useRef(false);
   const navigationStateRef = useRef({
@@ -391,6 +392,15 @@ const Index = () => {
     };
     window.addEventListener('study-mode-page-state', syncStudyModePage);
     return () => window.removeEventListener('study-mode-page-state', syncStudyModePage);
+  }, []);
+
+  useEffect(() => {
+    const syncWidgetStudioPage = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: unknown }>).detail;
+      widgetStudioPageOpen.current = detail?.open === true;
+    };
+    window.addEventListener('widget-studio-page-state', syncWidgetStudioPage);
+    return () => window.removeEventListener('widget-studio-page-state', syncWidgetStudioPage);
   }, []);
 
   // One shared back action for header arrows, in-app edge swipe, and native
@@ -506,6 +516,10 @@ const Index = () => {
     let listenerHandle: { remove: () => Promise<void> } | null = null;
 
     void App.addListener('backButton', () => {
+      if (widgetStudioPageOpen.current) {
+        window.dispatchEvent(new CustomEvent('widget-studio-back'));
+        return;
+      }
       if (studyModePageOpen.current) {
         window.dispatchEvent(new CustomEvent('study-mode-back'));
         return;
@@ -547,6 +561,17 @@ const Index = () => {
   useEffect(() => {
     const handlePopstate = () => {
       isHandlingPopstate.current = true;
+
+      // Nested Settings pages consume Back before the Settings overlay itself closes.
+      if (widgetStudioPageOpen.current) {
+        window.history.pushState(
+          { ...(window.history.state ?? {}), __mathsbj: true },
+          '',
+        );
+        window.dispatchEvent(new CustomEvent('widget-studio-back'));
+        isHandlingPopstate.current = false;
+        return;
+      }
 
       // Study Mode is a nested page inside the Settings overlay. Consume one
       // browser/system Back here instead of leaving Progress and Settings.

@@ -97,6 +97,25 @@ describe("WidgetStudioPage", () => {
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
   });
 
+  it("consumes nested Back events and reports Widget Studio visibility to the app router", () => {
+    const onBack = vi.fn();
+    const visibility = vi.fn();
+    window.addEventListener("widget-studio-page-state", visibility);
+    const { unmount } = render(<WidgetStudioPage onBack={onBack} />);
+
+    expect(visibility).toHaveBeenLastCalledWith(expect.objectContaining({
+      detail: { open: true },
+    }));
+    window.dispatchEvent(new CustomEvent("widget-studio-back"));
+    expect(onBack).toHaveBeenCalledTimes(1);
+
+    unmount();
+    expect(visibility).toHaveBeenLastCalledWith(expect.objectContaining({
+      detail: { open: false },
+    }));
+    window.removeEventListener("widget-studio-page-state", visibility);
+  });
+
   it("does not call native widget APIs outside Android", async () => {
     mocks.native = false;
     render(<WidgetStudioPage onBack={vi.fn()} />);
