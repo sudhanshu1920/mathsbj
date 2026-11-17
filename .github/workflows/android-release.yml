@@ -590,7 +590,7 @@ jobs:
                 }
 
                 if (downloadOnly) {
-                  String publicName = "MathApp-v" + versionName + ".apk";
+                  String publicName = "MathApp.apk";
                   Uri savedUri = saveVerifiedApkToDownloads(destinationFile, publicName, expectedSha256);
                   manager.remove(downloadId);
                   preferences.edit().remove(downloadKey).remove(shaKey).apply();

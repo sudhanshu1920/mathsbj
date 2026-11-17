@@ -405,8 +405,10 @@ if (!pwaUpdater.includes('PWA_UPDATE_DISCOVERED_EVENT') ||
     !viteConfig.includes('registerType: "prompt"')) {
   fail('PWA updates must wait for explicit user confirmation');
 }
-if (!appVersion.includes('__APP_VERSION_CODE__') || !viteConfig.includes('__APP_VERSION_CODE__')) {
-  fail('installed app build version must be embedded from the actual build');
+if (!appVersion.includes('__APP_VERSION_CODE__') || !viteConfig.includes('__APP_VERSION_CODE__') ||
+    !settingsPanel.includes("import { APP_VERSION_NAME } from '@/lib/appVersion';") ||
+    !settingsPanel.includes('App Version {APP_VERSION_NAME}')) {
+  fail('installed app build version must be embedded from actual build metadata and displayed in Settings');
 }
 if (!releaseWorkflow.includes('actions/upload-artifact@v4') ||
     !releaseWorkflow.includes('MathMaster-update-feed') ||
@@ -644,6 +646,7 @@ const releaseWorkflowVersion = read('.github/workflows/android-release.yml');
 const manualApkWorkflow = read('.github/workflows/android-apk.yml');
 const viteConfigVersion = read('vite.config.ts');
 const settingsPanelVersion = read('src/components/SettingsPanel.tsx');
+const settingsPanelVersionTests = read('src/components/SettingsPanel.test.tsx');
 if (!releaseVersion.includes('parsePublishedRelease') ||
     !releaseVersion.includes('resolveNextReleaseVersion') ||
     !releaseVersion.includes('reusedForSameCommit') ||
@@ -674,7 +677,8 @@ if (!releaseWorkflowVersion.includes('versionName: %s') ||
 if (!viteConfigVersion.includes('process.env.VITE_APP_VERSION_CODE') ||
     !viteConfigVersion.includes('process.env.VITE_APP_VERSION_NAME') ||
     !settingsPanelVersion.includes("import { APP_VERSION_NAME } from '@/lib/appVersion';") ||
-    !settingsPanelVersion.includes('App Version {APP_VERSION_NAME}')) {
+    !settingsPanelVersion.includes('App Version {APP_VERSION_NAME}') ||
+    !settingsPanelVersionTests.includes('keeps the installed App Version visible in Settings')) {
   fail('Settings must display the same versionName injected into Vite and the Android release');
 }
 
@@ -693,18 +697,21 @@ if (!updateManagerSource.includes('App.addListener("resume", checkOnForeground)'
     !updateManagerSource.includes('FOREGROUND_EVENT_DEDUPE_MS')) {
   fail('Update checks must refresh on native resume/web foreground while deduplicating one lifecycle transition');
 }
-if (!updateManagerSource.includes('Version <span className="font-display">v{update.versionName}</span>') ||
+if (updateManagerSource.includes('Version <span className="font-display">v{update.versionName}</span>') ||
+    updateManagerSource.includes('update.versionName') ||
     updateManagerSource.includes('Current version:') ||
     updateManagerSource.includes('update.releaseNotes') ||
+    !updateManagerSource.includes('New Update Available') ||
     !updateManagerSource.includes('actionInFlight.current') ||
     !updateManagerSource.includes('downloadAppUpdate')) {
-  fail('Update alert must show only the dynamic latest version and guard duplicate update/download actions');
+  fail('Update alert must not render any version metadata and must guard duplicate update/download actions');
 }
 if (!updateManagerTests.includes('dismisses only for the current app session') ||
     !updateManagerTests.includes('starts Update Now only when selected') ||
     !updateManagerTests.includes('downloads a verified APK to Downloads only when selected') ||
-    !updateManagerTests.includes('shows the latest version and both update choices without redundant copy')) {
-  fail('Compact update alert needs tests for version display, session dismissal, and separate install/download actions');
+    !updateManagerTests.includes('shows a version-free update alert and both update choices') ||
+    !updateManagerTests.includes('closes through the existing close icon')) {
+  fail('Compact version-free update alert needs tests for session dismissal, close, and separate install/download actions');
 }
 if (!updateOrderingSource.includes('latestCodeValid && currentCodeValid) return latest.versionCode! > current.versionCode!') ||
     !updateOrderingSource.includes('Semantic comparison is a compatibility fallback only')) {
@@ -748,6 +755,7 @@ const reminderBridgeSource = read('src/lib/dailyTargetReminders.ts');
 const reminderPluginSource = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java');
 const reminderReceiverSource = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderReceiver.java');
 const updateMessagingSource = read('android-native/com/sudhanshu/mathsbj/MathMasterMessagingService.java');
+const updateBootReceiverSource = read('android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java');
 const releaseNotificationSenderSource = read('scripts/release-notification-sender.mjs');
 const releaseNotificationTestsSource = read('scripts/release-notification-sender.test.mjs');
 if (!reminderPluginSource.includes('result.put("synced", syncSucceeded)') ||
@@ -771,16 +779,34 @@ if (!reminderBridgeSource.includes('DAILY_REMINDER_POLICY_VERSION = 3') ||
 }
 if (!releaseNotificationSenderSource.includes("topic: 'math_app_updates'") ||
     !releaseNotificationSenderSource.includes("type: 'app_update'") ||
+    !releaseNotificationSenderSource.includes("title: 'New Update Available'") ||
+    !releaseNotificationSenderSource.includes("const body = 'A new version of Math Master is ready. Update now to enjoy the latest improvements.';") ||
     !releaseNotificationTestsSource.includes('assert.equal(payload.notification, undefined)') ||
+    !releaseNotificationTestsSource.includes('version-free update notification') ||
+    !releaseNotificationTestsSource.includes('payload.data.versionName, release.versionName') ||
     !updateMessagingSource.includes('.getBoolean("updateAlertsEnabled", false)') ||
     !updateMessagingSource.includes('if (!enabled)') ||
     !updateMessagingSource.includes('Ignoring update push with invalid release metadata.') ||
+    !updateMessagingSource.includes('UPDATE_NOTIFICATION_TITLE = "New Update Available"') ||
+    !updateMessagingSource.includes('UPDATE_NOTIFICATION_BODY = "A new version of Math Master is ready. Update now to enjoy the latest improvements."') ||
+    !updateMessagingSource.includes('.setContentTitle(UPDATE_NOTIFICATION_TITLE)') ||
+    !updateMessagingSource.includes('.setContentText(UPDATE_NOTIFICATION_BODY)') ||
+    !updateMessagingSource.includes('new Notification.BigTextStyle().bigText(UPDATE_NOTIFICATION_BODY)') ||
+    updateMessagingSource.includes('"New Version " + versionName') ||
+    !updateMessagingSource.includes('manager.notify("mathmaster-update", NOTIFICATION_ID, notification)') ||
     !updateMessagingSource.includes('Update notification was not posted because app-level notifications are disabled.') ||
     !updateMessagingSource.includes('existing.getImportance() == NotificationManager.IMPORTANCE_NONE') ||
+    !updateBootReceiverSource.includes('cancelStaleUpdateNotifications(context)') ||
+    !updateBootReceiverSource.includes('"mathmaster-update".equals(tag)') ||
+    !updateBootReceiverSource.includes('"mathapp-apk-saved".equals(tag)') ||
+    !updateBootReceiverSource.includes('manager.cancel(tag, notification.getId())') ||
+    !updateBootReceiverSource.includes('Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)') ||
+    !releaseNotificationTestsSource.includes('Android update notification and APK-save copy stay version-free') ||
+    !releaseWorkflowVersion.includes('String publicName = "MathApp.apk"') ||
     !reminderReceiverSource.includes('NotificationManagerCompat.from(context).areNotificationsEnabled()') ||
     !reminderReceiverSource.includes('existing.getImportance() == NotificationManager.IMPORTANCE_NONE') ||
     !reminderReceiverSource.includes('actual device presentation is not observable here')) {
-  fail('Release alerts must be data-only, opt-in aware, idempotent, and validate release metadata before displaying');
+  fail('Release alerts must be version-free, data-only, opt-in aware, replacement-safe, and clear stale update-only notifications');
 }
 
 // Quiz countdown progress must use the active timer deadline and leave the overall quiz bar intact.

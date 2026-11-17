@@ -50,16 +50,15 @@ export function shouldSendNotification(previous, release, sourceCommit) {
 }
 
 export function createFcmMessage(release) {
-  // Keep notifications visually title-only for older installed APKs, whose native
-  // handler substitutes verbose fallback text when the body is truly empty.
-  // Updated APKs ignore this compatibility character and render no body at all.
-  const body = '\u200B';
+  // User-facing update copy must not disclose installed or available build metadata.
+  // Numeric/name fields below remain internal for update validation and secure routing.
+  const body = 'A new version of Math Master is ready. Update now to enjoy the latest improvements.';
   // Use a data-only message so Android invokes MathMasterMessagingService
   // while backgrounded. A notification payload would bypass the opt-in check
   // and be auto-displayed by FCM even after the user disables notifications.
   const data = {
     type: 'app_update',
-    title: `New Version ${release.versionName} Available`,
+    title: 'New Update Available',
     body,
     mathmaster_notification_action: 'app-update',
     versionCode: String(release.versionCode),

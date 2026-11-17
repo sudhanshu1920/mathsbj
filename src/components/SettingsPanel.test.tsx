@@ -215,4 +215,8 @@ describe("SettingsPanel compact controls", () => {
     expect(screen.getByText("Sound")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Backup & Restore" })).toBeInTheDocument();
   });
+  it("keeps the installed App Version visible in Settings", () => {
+    render(<SettingsPanel />);
+    expect(screen.getByText("App Version 1.0.0")).toBeInTheDocument();
+  });
 });
