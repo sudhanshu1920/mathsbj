@@ -40,10 +40,25 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     private static final String WIDGET_PREFS = "math_master_home_widget";
     private static final int REQUEST_CODE = 8907;
     private static final int CONTENT_SCHEMA_VERSION = 3;
-    private static final String[] WIDGET_COMPOSITIONS = {
-        "auto", "hero_wide", "compact_green", "square_math_bot",
-        "medium_study", "square_cosmic", "extra_wide_weekly", "minimal_progress"
+    // Single source of truth for the native editor and the in-app Widget Studio catalogue.
+    static final String[][] WIDGET_COMPOSITIONS = {
+        {"auto", "Auto (adapts to size)"},
+        {"hero_wide", "Hero Wide · Blue Neon"},
+        {"compact_green", "Compact · Emerald"},
+        {"square_math_bot", "Square · Violet with Quiz"},
+        {"medium_study", "Compact · Magenta"},
+        {"square_cosmic", "Square · Blue with Week"},
+        {"extra_wide_weekly", "Extra Wide · This Week"},
+        {"minimal_progress", "Mini · Green"}
     };
+
+    static String[][] getWidgetCompositionOptions() {
+        String[][] copy = new String[WIDGET_COMPOSITIONS.length][];
+        for (int i = 0; i < WIDGET_COMPOSITIONS.length; i++) {
+            copy[i] = WIDGET_COMPOSITIONS[i].clone();
+        }
+        return copy;
+    }
     static final String[] CONTENT_OPTIONS = {
         "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
     };
@@ -182,7 +197,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
 
     private static String normalizeComposition(String value) {
         if (value == null) return "auto";
-        for (String allowed : WIDGET_COMPOSITIONS) if (allowed.equals(value)) return value;
+        for (String[] option : WIDGET_COMPOSITIONS) if (option[0].equals(value)) return value;
         return "auto";
     }
 
@@ -389,6 +404,26 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         if ("auto".equals(resolved)) resolved = MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
         MathMasterWidgetRenderer.Options options = buildOptions(
             resolved, style, preferences.getBoolean("enabled", true), selected);
+        return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
+    }
+
+    /** Render the saved configuration for one real, currently pinned launcher instance. */
+    public static Bitmap renderWidgetInstancePreview(Context context, int appWidgetId) {
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        Bundle launcherOptions = manager.getAppWidgetOptions(appWidgetId);
+        int widthDp = launcherOptions == null ? 0 : launcherOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+        int heightDp = launcherOptions == null ? 0 : launcherOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+        if (widthDp <= 0 && launcherOptions != null) widthDp = launcherOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0);
+        if (heightDp <= 0 && launcherOptions != null) heightDp = launcherOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
+        widthDp = widthDp > 0 ? Math.min(widthDp, 600) : 320;
+        heightDp = heightDp > 0 ? Math.min(heightDp, 400) : 146;
+
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        String composition = resolveComposition(preferences, appWidgetId, widthDp, heightDp);
+        Set<String> selected = getSelectedContent(preferences, appWidgetId);
+        String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "neon"));
+        boolean enabled = preferences.getBoolean("enabled", true);
+        MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected);
         return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
     }
 

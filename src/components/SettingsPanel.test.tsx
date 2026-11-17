@@ -84,6 +84,15 @@ vi.mock("@/lib/appUpdateEvents", () => ({
   announceUpdateAvailable: mocks.announceUpdateAvailable,
 }));
 
+vi.mock("@/pages/WidgetStudioPage", () => ({
+  default: ({ onBack }: { onBack: () => void }) => (
+    <div>
+      <p>Widget Studio Test Screen</p>
+      <button type="button" onClick={onBack}>Back from Widget Studio</button>
+    </div>
+  ),
+}));
+
 vi.mock("@/lib/dailyTargetReminders", () => ({
   getBackgroundNotificationsEnabled: mocks.getBackgroundNotificationsEnabled,
   setBackgroundNotificationsEnabled: mocks.setBackgroundNotificationsEnabled,
@@ -97,6 +106,16 @@ describe("SettingsPanel compact controls", () => {
     mocks.getBackgroundNotificationsEnabled.mockReturnValue(true);
     mocks.setBackgroundNotificationsEnabled.mockResolvedValue(true);
     mocks.checkForAppUpdate.mockResolvedValue({ status: "current" });
+  });
+
+  it("opens the dedicated Widget Studio page from the compact Settings entry", () => {
+    render(<SettingsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Widgets" }));
+    expect(screen.getByText("Widget Studio Test Screen")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back from Widget Studio" }));
+    expect(screen.getByText("Sound")).toBeInTheDocument();
   });
 
   it("does not expose home-screen widget controls", () => {

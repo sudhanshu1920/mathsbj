@@ -39,10 +39,13 @@ test('renderer draws every composition and the provider offers the same set', ()
     quotedList(renderer, /static final String\[\] COMPOSITIONS = \{([\s\S]*?)\};/),
     COMPOSITIONS,
   );
+  const providerOptions = provider.match(/WIDGET_COMPOSITIONS = \{([\s\S]*?)\};/);
+  assert.ok(providerOptions, "provider must expose its single composition registry");
   assert.deepEqual(
-    quotedList(provider, /WIDGET_COMPOSITIONS = \{([\s\S]*?)\};/),
+    [...providerOptions[1].matchAll(/\{"([a-z_]+)",/g)].map((entry) => entry[1]),
     ['auto', ...COMPOSITIONS],
   );
+  assert.match(provider, /static String\[\]\[\] getWidgetCompositionOptions\(\)/);
   for (const composition of COMPOSITIONS) {
     assert.ok(renderer.includes(`case "${composition}"`), `renderer is missing a case for ${composition}`);
   }
@@ -134,7 +137,7 @@ test('configuration screen previews the real renderer output', () => {
   assert.match(config, /"blur", "Transparent Blur"/);
   assert.match(config, /"transparent", "Full Transparent"/);
   for (const composition of COMPOSITIONS) {
-    assert.ok(config.includes(`{"${composition}",`), `configuration screen is missing ${composition}`);
+    assert.ok(config.includes('MathMasterHomeWidgetProvider.getWidgetCompositionOptions()'), `configuration screen must reuse the provider registry for ${composition}`);
   }
 });
 
@@ -215,6 +218,26 @@ test('background effects: neon is the default, blur and transparent stay availab
   assert.match(backupTs, /WIDGET_STYLES = new Set\(\['neon', 'blur', 'transparent'/);
   assert.match(backupPlugin, /"neon", "blur", "transparent"/);
   assert.doesNotMatch(provider, /themeAccent|COMPLETION_ACCENTS|normalizeWidgetTheme/);
+});
+
+test('Widget Studio lists only real pinned IDs and uses the system add flow plus the existing renderer', () => {
+  const plugin = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetsPlugin.java');
+  const provider = read(PROVIDER);
+  const config = read(CONFIG);
+  const setup = read('scripts/configure-android-notifications.mjs');
+
+  assert.match(plugin, /@CapacitorPlugin\(name = "MathMasterWidgets"\)/);
+  assert.match(plugin, /manager\.getAppWidgetIds\(new ComponentName\(context, MathMasterHomeWidgetProvider\.class\)\)/);
+  assert.match(plugin, /requestPinAppWidget/);
+  assert.match(plugin, /public void resetWidget\(PluginCall call\)/);
+  assert.match(plugin, /contentSchemaVersion", 3\)/);
+  assert.match(plugin, /isActiveWidgetId\(id\)/);
+  assert.match(plugin, /MathMasterHomeWidgetProvider\.renderWidgetInstancePreview\(getContext\(\), id\)/);
+  assert.match(plugin, /getWidgetCompositionOptions\(\)/);
+  assert.match(provider, /public static Bitmap renderWidgetInstancePreview\(Context context, int appWidgetId\)/);
+  assert.match(config, /getAppWidgetIds\(\s*new ComponentName\(this, MathMasterHomeWidgetProvider\.class\)\)/);
+  assert.ok(setup.includes("'MathMasterWidgetsPlugin.java'"));
+  assert.ok(setup.includes('registerPlugin(MathMasterWidgetsPlugin.class);'));
 });
 
 test('weekly checkmarks keep using the existing daily streak data and validated native input', () => {

@@ -2,6 +2,7 @@ package com.sudhanshu.mathsbj;
 
 import android.app.Activity;
 import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -56,16 +57,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         {"updateStatus", "Update Status"}
     };
 
-    private static final String[][] WIDGET_COMPOSITIONS = {
-        {"auto", "Auto (adapts to size)"},
-        {"hero_wide", "Hero Wide · Blue Neon"},
-        {"compact_green", "Compact · Emerald"},
-        {"square_math_bot", "Square · Violet with Quiz"},
-        {"medium_study", "Compact · Magenta"},
-        {"square_cosmic", "Square · Blue with Week"},
-        {"extra_wide_weekly", "Extra Wide · This Week"},
-        {"minimal_progress", "Mini · Green"}
-    };
+    private static final String[][] WIDGET_COMPOSITIONS = MathMasterHomeWidgetProvider.getWidgetCompositionOptions();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +65,22 @@ public class MathMasterWidgetConfigActivity extends Activity {
         setResult(RESULT_CANCELED);
         widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, INVALID_WIDGET_ID);
         if (widgetId == INVALID_WIDGET_ID) {
+            finish();
+            return;
+        }
+        // The configuration Activity is exported for Android's launcher flow.
+        // Validate IDs here as well as in the Capacitor bridge before reading or
+        // mutating preferences, so an external intent cannot target an arbitrary ID.
+        int[] activeWidgetIds = AppWidgetManager.getInstance(this).getAppWidgetIds(
+            new ComponentName(this, MathMasterHomeWidgetProvider.class));
+        boolean activeWidget = false;
+        for (int activeId : activeWidgetIds) {
+            if (activeId == widgetId) {
+                activeWidget = true;
+                break;
+            }
+        }
+        if (!activeWidget) {
             finish();
             return;
         }
