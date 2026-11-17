@@ -646,6 +646,7 @@ const releaseWorkflowVersion = read('.github/workflows/android-release.yml');
 const manualApkWorkflow = read('.github/workflows/android-apk.yml');
 const viteConfigVersion = read('vite.config.ts');
 const settingsPanelVersion = read('src/components/SettingsPanel.tsx');
+const settingsPanelVersionTests = read('src/components/SettingsPanel.test.tsx');
 if (!releaseVersion.includes('parsePublishedRelease') ||
     !releaseVersion.includes('resolveNextReleaseVersion') ||
     !releaseVersion.includes('reusedForSameCommit') ||
@@ -676,7 +677,8 @@ if (!releaseWorkflowVersion.includes('versionName: %s') ||
 if (!viteConfigVersion.includes('process.env.VITE_APP_VERSION_CODE') ||
     !viteConfigVersion.includes('process.env.VITE_APP_VERSION_NAME') ||
     !settingsPanelVersion.includes("import { APP_VERSION_NAME } from '@/lib/appVersion';") ||
-    !settingsPanelVersion.includes('App Version {APP_VERSION_NAME}')) {
+    !settingsPanelVersion.includes('App Version {APP_VERSION_NAME}') ||
+    !settingsPanelVersionTests.includes('keeps the installed App Version visible in Settings')) {
   fail('Settings must display the same versionName injected into Vite and the Android release');
 }
 
@@ -781,6 +783,7 @@ if (!releaseNotificationSenderSource.includes("topic: 'math_app_updates'") ||
     !releaseNotificationSenderSource.includes("const body = 'A new version of Math Master is ready. Update now to enjoy the latest improvements.';") ||
     !releaseNotificationTestsSource.includes('assert.equal(payload.notification, undefined)') ||
     !releaseNotificationTestsSource.includes('version-free update notification') ||
+    !releaseNotificationTestsSource.includes('payload.data.versionName, release.versionName') ||
     !updateMessagingSource.includes('.getBoolean("updateAlertsEnabled", false)') ||
     !updateMessagingSource.includes('if (!enabled)') ||
     !updateMessagingSource.includes('Ignoring update push with invalid release metadata.') ||
@@ -790,13 +793,16 @@ if (!releaseNotificationSenderSource.includes("topic: 'math_app_updates'") ||
     !updateMessagingSource.includes('.setContentText(UPDATE_NOTIFICATION_BODY)') ||
     !updateMessagingSource.includes('new Notification.BigTextStyle().bigText(UPDATE_NOTIFICATION_BODY)') ||
     updateMessagingSource.includes('"New Version " + versionName') ||
-    !updateMessagingSource.includes('Existing notification') && !updateMessagingSource.includes('manager.notify("mathmaster-update", NOTIFICATION_ID, notification)') ||
+    !updateMessagingSource.includes('manager.notify("mathmaster-update", NOTIFICATION_ID, notification)') ||
     !updateMessagingSource.includes('Update notification was not posted because app-level notifications are disabled.') ||
     !updateMessagingSource.includes('existing.getImportance() == NotificationManager.IMPORTANCE_NONE') ||
     !updateBootReceiverSource.includes('cancelStaleUpdateNotifications(context)') ||
     !updateBootReceiverSource.includes('"mathmaster-update".equals(tag)') ||
     !updateBootReceiverSource.includes('"mathapp-apk-saved".equals(tag)') ||
     !updateBootReceiverSource.includes('manager.cancel(tag, notification.getId())') ||
+    !updateBootReceiverSource.includes('Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)') ||
+    !releaseNotificationTestsSource.includes('Android update notification and APK-save copy stay version-free') ||
+    !releaseWorkflowVersion.includes('String publicName = "MathApp.apk"') ||
     !reminderReceiverSource.includes('NotificationManagerCompat.from(context).areNotificationsEnabled()') ||
     !reminderReceiverSource.includes('existing.getImportance() == NotificationManager.IMPORTANCE_NONE') ||
     !reminderReceiverSource.includes('actual device presentation is not observable here')) {
