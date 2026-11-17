@@ -86,11 +86,16 @@ describe("AppUpdateManager", () => {
     });
   });
 
-  it("shows the latest version and both update choices without redundant copy", async () => {
+  it("shows a version-free update alert and both update choices", async () => {
     render(<AppUpdateManager isQuizActive={false} />);
 
     expect(await screen.findByText("New Update Available")).toBeInTheDocument();
-    expect(screen.getByText("v1.0.2")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("New Update Available");
+    expect(dialog).not.toHaveTextContent(/1\\.0\\.2|1\\.0\\.1|1137|1136/);
+    expect(dialog).not.toHaveTextContent(/Version\\s*v?/i);
+    expect(dialog).toHaveClass("gap-3");
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     expect(screen.queryByText(/Current version:/)).not.toBeInTheDocument();
     expect(screen.queryByText("Fix update notifications.")).not.toBeInTheDocument();
     expect(screen.queryByText(/Choose how you want to update/)).not.toBeInTheDocument();
@@ -106,6 +111,16 @@ describe("AppUpdateManager", () => {
     expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(1);
   });
 
+  it("closes through the existing close icon without changing update checks", async () => {
+    render(<AppUpdateManager isQuizActive={false} />);
+    expect(await screen.findByText("New Update Available")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByText("New Update Available")).not.toBeInTheDocument();
+    expect(mocks.checkForAppUpdate).toHaveBeenCalledTimes(1);
+    expect(mocks.installAppUpdate).not.toHaveBeenCalled();
+    expect(mocks.downloadAppUpdate).not.toHaveBeenCalled();
+  });
   it("dismisses only for the current app session and rechecks on the next launch", async () => {
     localStorage.setItem("mathmaster.dismissed-update-version-code", "1137");
     const firstLaunch = render(<AppUpdateManager isQuizActive={false} />);
