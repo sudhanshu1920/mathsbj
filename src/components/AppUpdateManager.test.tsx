@@ -92,8 +92,11 @@ describe("AppUpdateManager", () => {
     expect(await screen.findByText("New Update Available")).toBeInTheDocument();
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("New Update Available");
-    expect(dialog).not.toHaveTextContent(/1\\.0\\.2|1\\.0\\.1|1137|1136/);
-    expect(dialog).not.toHaveTextContent(/Version\\s*v?/i);
+    expect(dialog.textContent).not.toContain("1.0.2");
+    expect(dialog.textContent).not.toContain("1.0.1");
+    expect(dialog.textContent).not.toContain("1137");
+    expect(dialog.textContent).not.toContain("1136");
+    expect(dialog).not.toHaveTextContent(/Version[ ]*v?/i);
     expect(dialog).toHaveClass("gap-3");
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     expect(screen.queryByText(/Current version:/)).not.toBeInTheDocument();
