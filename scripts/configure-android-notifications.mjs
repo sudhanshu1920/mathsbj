@@ -127,6 +127,11 @@ function registerNativePlugin(mainActivity) {
     if (!mainActivity.includes(registration)) throw new Error('MainActivity.java is missing daily notification plugin registration');
     mainActivity = mainActivity.replace(registration, registration + '\n        ' + backupRegistration);
   }
+  const widgetsRegistration = 'registerPlugin(MathMasterWidgetsPlugin.class);';
+  if (!mainActivity.includes(widgetsRegistration)) {
+    if (!mainActivity.includes(backupRegistration)) throw new Error('MainActivity.java is missing backup plugin registration');
+    mainActivity = mainActivity.replace(backupRegistration, backupRegistration + '\n        ' + widgetsRegistration);
+  }
   return mainActivity;
 }
 
@@ -230,6 +235,7 @@ export async function configureAndroidNotifications(androidRoot, { firebaseJsonB
     'DailyTargetReminderReceiver.java',
     'DailyTargetReminderBootReceiver.java',
     'BackupRestorePlugin.java',
+    'MathMasterWidgetsPlugin.java',
   ];
   const targetPackageDir = path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj');
   await mkdir(targetPackageDir, { recursive: true });

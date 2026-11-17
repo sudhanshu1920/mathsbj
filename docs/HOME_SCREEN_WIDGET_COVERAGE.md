@@ -2,7 +2,7 @@
 
 ## Confirmed inventory
 
-The repository contains **one native launcher widget provider**: `MathMasterHomeWidgetProvider`. Its selected fields are configured independently for each Android AppWidget ID. Since the neon-glass redesign it draws every composition itself (`MathMasterWidgetRenderer`) into one bitmap per launcher size, instead of choosing between per-composition RemoteViews layouts. No Quick Timer, Stopwatch, standalone Weekly Tracker or second provider exists; do not treat the seven compositions as extra providers. The web Settings screen has no widget controls (a React test asserts this); configuration happens only in the native Customize Your Widget screen.
+The repository contains **one native launcher widget provider**: `MathMasterHomeWidgetProvider`. Its selected fields are configured independently for each Android AppWidget ID. Since the neon-glass redesign it draws every composition itself (`MathMasterWidgetRenderer`) into one bitmap per launcher size, instead of choosing between per-composition RemoteViews layouts. No Quick Timer, Stopwatch, standalone Weekly Tracker or second provider exists; do not treat the seven compositions as extra providers. The web Settings screen provides a compact Widget Studio entry. The Studio lists actual native instances and launches the existing Android Customize Your Widget editor; instance-specific rendering and preferences remain native.
 
 | Component | Resource / implementation | Automated coverage | Real launcher visual status |
 |---|---|---|---|

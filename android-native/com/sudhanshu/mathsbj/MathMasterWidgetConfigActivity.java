@@ -56,16 +56,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         {"updateStatus", "Update Status"}
     };
 
-    private static final String[][] WIDGET_COMPOSITIONS = {
-        {"auto", "Auto (adapts to size)"},
-        {"hero_wide", "Hero Wide · Blue Neon"},
-        {"compact_green", "Compact · Emerald"},
-        {"square_math_bot", "Square · Violet with Quiz"},
-        {"medium_study", "Compact · Magenta"},
-        {"square_cosmic", "Square · Blue with Week"},
-        {"extra_wide_weekly", "Extra Wide · This Week"},
-        {"minimal_progress", "Mini · Green"}
-    };
+    private static final String[][] WIDGET_COMPOSITIONS = MathMasterHomeWidgetProvider.getWidgetCompositionOptions();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

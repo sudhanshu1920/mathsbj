@@ -59,6 +59,7 @@ test('configures local notification permissions, plugin and reboot/time-change r
   const activity = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MainActivity.java'), 'utf8');
   const plugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java'), 'utf8');
   const backupPlugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/BackupRestorePlugin.java'), 'utf8');
+  const widgetsPlugin = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/MathMasterWidgetsPlugin.java'), 'utf8');
   assert.deepEqual(result, { firebaseEnabled: false, projectId: null });
   assert.match(manifest, /android\.permission\.POST_NOTIFICATIONS/);
   assert.match(manifest, /android\.permission\.RECEIVE_BOOT_COMPLETED/);
@@ -69,6 +70,11 @@ test('configures local notification permissions, plugin and reboot/time-change r
   assert.match(plugin, /syncDailyTarget/);
   assert.match(plugin, /requestPermission/);
   assert.ok(activity.includes('registerPlugin(BackupRestorePlugin.class);'));
+  assert.ok(activity.includes('registerPlugin(MathMasterWidgetsPlugin.class);'));
+  assert.ok(widgetsPlugin.includes('@CapacitorPlugin(name = "MathMasterWidgets")'));
+  assert.ok(widgetsPlugin.includes('requestPinAppWidget'));
+  assert.ok(widgetsPlugin.includes('isActiveWidgetId'));
+  assert.ok(widgetsPlugin.includes('renderWidgetInstancePreview'));
   assert.ok(backupPlugin.includes('@CapacitorPlugin(name = "MathMasterBackup")'));
   assert.ok(backupPlugin.includes('Intent.ACTION_CREATE_DOCUMENT'));
   assert.ok(backupPlugin.includes('Intent.ACTION_OPEN_DOCUMENT'));

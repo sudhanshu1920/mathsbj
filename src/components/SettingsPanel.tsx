@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, ArchiveRestore, ChevronRight, LockKeyhole, BarChart3 } from 'lucide-react';
+import { User as UserIcon, LogOut, RefreshCw, Check, Cloud, CloudOff, Volume2, Vibrate, Target, Bell, LogIn, Palette, Sun, Moon, Crown, Keyboard, ArchiveRestore, ChevronRight, LockKeyhole, BarChart3, Grid2X2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSettings, setSound, setVibration, setKeyboardShortcuts, type AppSettings } from '@/lib/settings';
@@ -19,6 +19,7 @@ import BackupRestorePanel from '@/components/BackupRestorePanel';
 import StudyModePage from '@/components/StudyModePage';
 import AppUsageAnalyticsPage from '@/components/AppUsageAnalyticsPage';
 import ThemeOptionsGrid from '@/components/ThemeOptionsGrid';
+import WidgetStudioPage from '@/pages/WidgetStudioPage';
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'updating' | 'done' | 'offline' | 'error';
 
@@ -32,6 +33,7 @@ const SettingsPanel = () => {
   const [backupRestoreOpen, setBackupRestoreOpen] = useState(false);
   const [studyModeOpen, setStudyModeOpen] = useState(false);
   const [appUsageOpen, setAppUsageOpen] = useState(false);
+  const [widgetStudioOpen, setWidgetStudioOpen] = useState(false);
   const [notificationToggleBusy, setNotificationToggleBusy] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [online, setOnline] = useState(navigator.onLine);
@@ -152,6 +154,7 @@ const SettingsPanel = () => {
 
   if (studyModeOpen) return <StudyModePage onBack={() => setStudyModeOpen(false)} />;
   if (appUsageOpen) return <AppUsageAnalyticsPage onBack={() => setAppUsageOpen(false)} />;
+  if (widgetStudioOpen) return <WidgetStudioPage onBack={() => setWidgetStudioOpen(false)} />;
   if (backupRestoreOpen) return <BackupRestorePanel onBack={() => setBackupRestoreOpen(false)} />;
 
   return (
@@ -343,6 +346,25 @@ const SettingsPanel = () => {
           <ThemeOptionsGrid variant="settings" />
         </div>
       </section>
+
+      <motion.button
+        type="button"
+        whileTap={{ scale: MOTION.scale.press }}
+        onClick={() => setWidgetStudioOpen(true)}
+        aria-label="Widgets"
+        className="w-full flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/25 px-3 py-2.5 text-left transition-colors hover:border-primary/40"
+      >
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Grid2X2 size={16} />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-foreground">Widgets</span>
+            <span className="block text-[11px] text-muted-foreground">Customize your widgets</span>
+          </span>
+        </span>
+        <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+      </motion.button>
 
       <motion.button
         type="button"
