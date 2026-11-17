@@ -16,6 +16,8 @@ import java.util.Map;
 public class MathMasterMessagingService extends FirebaseMessagingService {
     private static final String CHANNEL_ID = "app_updates";
     private static final int NOTIFICATION_ID = 8703;
+    private static final String UPDATE_NOTIFICATION_TITLE = "New Update Available";
+    private static final String UPDATE_NOTIFICATION_BODY = "A new version of Math Master is ready. Update now to enjoy the latest improvements.";
 
     @Override
     public void onNewToken(String token) {
@@ -85,14 +87,12 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
             return;
         }
 
-        // Build the notification title from validated version metadata only. Ignore
-        // remote copy so release notes or stale payload fields cannot add extra text.
-        String title = "New Version " + versionName + " Available";
-        String body = "";
-        showUpdateNotification(title, body, data);
+        // Version metadata remains validated above for update detection and secure routing,
+        // but notification copy is deliberately version-free and never trusts remote text.
+        showUpdateNotification(data);
     }
 
-    private void showUpdateNotification(String title, String body, Map<String, String> data) {
+    private void showUpdateNotification(Map<String, String> data) {
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
 
@@ -139,16 +139,13 @@ public class MathMasterMessagingService extends FirebaseMessagingService {
             : new Notification.Builder(this);
         builder
             .setSmallIcon(getApplicationInfo().icon)
-            .setContentTitle(title)
+            .setContentTitle(UPDATE_NOTIFICATION_TITLE)
+            .setContentText(UPDATE_NOTIFICATION_BODY)
+            .setStyle(new Notification.BigTextStyle().bigText(UPDATE_NOTIFICATION_BODY))
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
             .setWhen(System.currentTimeMillis());
-        // Avoid an empty content line/expanded text when there is no notification body.
-        if (body != null && !body.trim().isEmpty()) {
-            builder.setContentText(body);
-            builder.setStyle(new Notification.BigTextStyle().bigText(body));
-        }
         Notification notification = builder.build();
         manager.notify("mathmaster-update", NOTIFICATION_ID, notification);
         android.util.Log.i("MathAppNotifications",
