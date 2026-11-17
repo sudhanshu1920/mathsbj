@@ -252,7 +252,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       enablePerQuestionTimer(5);
-      startSelectedGame(/Car Racing/i);
+      await startSelectedGame(/Car Racing/i);
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
 
       const initialTargets = view.container.querySelectorAll(".mcq-game-gate-label");
@@ -294,7 +294,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
     try {
       disablePerQuestionTimer();
       expect(screen.getByRole("switch", { name: "Per-question timer" })).not.toBeChecked();
-      startSelectedGame(/Car Racing/i);
+      await startSelectedGame(/Car Racing/i);
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
 
       // No target should reach the car before the earliest 52% approach window.
@@ -337,7 +337,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       enablePerQuestionTimer(5);
-      startSelectedGame(/Car Racing/i);
+      await startSelectedGame(/Car Racing/i);
 
       for (let question = 1; question <= 10; question += 1) {
         const targets = view.container.querySelectorAll(".mcq-game-gate-label");
@@ -382,7 +382,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
     const view = render(<PracticePage onQuizFinish={onQuizFinish} />);
 
     try {
-      startSelectedGame(/Jump Adventure/i);
+      await startSelectedGame(/Jump Adventure/i);
 
       for (let question = 1; question <= 10; question += 1) {
         const answer = screen.getByRole("group", { name: "Choose your answer" })
@@ -419,7 +419,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       fireEvent.click(screen.getByRole("button", { name: "∞" }));
-      startSelectedGame(/Jump Adventure/i);
+      await startSelectedGame(/Jump Adventure/i);
 
       const initialProgress = screen.getByLabelText(/^Question 1 \/ \d+$/).getAttribute("aria-label") || "";
       const totalQuestions = Number(initialProgress.split("/")[1]?.trim());
@@ -460,7 +460,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
     try {
       fireEvent.click(screen.getByRole("button", { name: "∞" }));
-      startSelectedGame(/Jump Adventure/i);
+      await startSelectedGame(/Jump Adventure/i);
 
       const submit = screen.getByRole("button", { name: "Submit complete test" });
       expect(submit).toBeEnabled();
@@ -485,7 +485,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
     const view = render(<PracticePage />);
 
     try {
-      startSelectedGame(/Car Racing/i);
+      await startSelectedGame(/Car Racing/i);
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
