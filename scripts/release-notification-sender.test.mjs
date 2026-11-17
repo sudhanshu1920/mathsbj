@@ -66,7 +66,10 @@ test('Android update notification and APK-save copy stay version-free and stale 
   assert.ok(messaging.includes(".setContentText(UPDATE_NOTIFICATION_BODY)"));
   assert.ok(messaging.includes("new Notification.BigTextStyle().bigText(UPDATE_NOTIFICATION_BODY)"));
   assert.ok(messaging.includes('manager.notify("mathmaster-update", NOTIFICATION_ID, notification)'));
-  assert.ok(!messaging.includes("setContentTitle(title)") && !messaging.includes("New Version " + "versionName"));
+  assert.ok(!messaging.includes("setContentTitle(title)"));
+  assert.ok(!messaging.includes('"New Version " + versionName'));
+  assert.ok(messaging.includes('openApp.putExtra("mathmaster_update_version_name", data.get("versionName"))'));
+  assert.ok(messaging.includes('openApp.putExtra("mathmaster_update_version_code", data.get("versionCode"))'));
 
   assert.ok(bootReceiver.includes("Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)") && bootReceiver.includes("cancelStaleUpdateNotifications(context)"));
   assert.ok(bootReceiver.includes('"mathmaster-update".equals(tag) || "mathapp-apk-saved".equals(tag)'));
