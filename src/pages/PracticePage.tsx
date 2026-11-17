@@ -40,8 +40,8 @@ import {
   LazyMCQJumpAdventure as MCQJumpAdventure,
   LazyMCQSpaceShooter as MCQSpaceShooter,
   LazyMCQSliceNinja as MCQSliceNinja,
-  preloadPracticeGame,
 } from '@/components/practiceGameLoaders';
+import { preloadPracticeGame } from '@/components/practiceGamePreload';
 import { selectSpaceShooterQuestions, type SpaceShooterDifficulty } from '@/lib/mcqSpaceShooterMission';
 import GameModeSelector, { type MCQGameVariant } from '@/components/GameModeSelector';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
