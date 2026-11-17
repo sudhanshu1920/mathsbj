@@ -203,7 +203,7 @@ describe("AppUpdateManager", () => {
     expect(screen.getByRole("button", { name: "Update Now" })).toBeDisabled();
 
     act(() => mocks.downloadStateListener?.({
-      downloadId: 43, state: "saved_to_downloads", progress: 100, fileName: "MathApp-v1.0.2.apk",
+      downloadId: 43, state: "saved_to_downloads", progress: 100, fileName: "MathApp.apk",
     }));
     await waitFor(() => expect(screen.queryByText("New Update Available")).not.toBeInTheDocument());
     expect(mocks.installAppUpdate).not.toHaveBeenCalled();
