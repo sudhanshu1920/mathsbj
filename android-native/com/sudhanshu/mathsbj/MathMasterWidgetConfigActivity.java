@@ -2,6 +2,7 @@ package com.sudhanshu.mathsbj;
 
 import android.app.Activity;
 import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -64,6 +65,22 @@ public class MathMasterWidgetConfigActivity extends Activity {
         setResult(RESULT_CANCELED);
         widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, INVALID_WIDGET_ID);
         if (widgetId == INVALID_WIDGET_ID) {
+            finish();
+            return;
+        }
+        // The configuration Activity is exported for Android's launcher flow.
+        // Validate IDs here as well as in the Capacitor bridge before reading or
+        // mutating preferences, so an external intent cannot target an arbitrary ID.
+        int[] activeWidgetIds = AppWidgetManager.getInstance(this).getAppWidgetIds(
+            new ComponentName(this, MathMasterHomeWidgetProvider.class));
+        boolean activeWidget = false;
+        for (int activeId : activeWidgetIds) {
+            if (activeId == widgetId) {
+                activeWidget = true;
+                break;
+            }
+        }
+        if (!activeWidget) {
             finish();
             return;
         }
