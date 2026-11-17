@@ -100,7 +100,6 @@ async function startSelectedGame(label: RegExp) {
   expect(screen.getByTestId("mcq-game-selector")).toBeInTheDocument();
   expect(screen.getByTestId("start-selected-game")).toBeEnabled();
   fireEvent.click(screen.getByTestId("start-selected-game"));
-  expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
   if (/jump/i.test(label.source)) {
     await screen.findByTestId("mcq-jump-fullscreen");
   } else if (/shooter/i.test(label.source)) {
@@ -110,6 +109,7 @@ async function startSelectedGame(label: RegExp) {
   } else {
     await screen.findByTestId("mcq-game-fullscreen");
   }
+  expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
 }
 
 function enablePerQuestionTimer(seconds = 5) {
@@ -155,8 +155,8 @@ describe("Quiz Arena MCQ with Game mode", () => {
       expect(screen.queryByTestId("mcq-game-fullscreen")).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByTestId("start-selected-game"));
-      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       await screen.findByTestId("mcq-game-fullscreen");
+      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       expect(screen.getByTestId("mcq-game-fullscreen")).toBeInTheDocument();
       expect(screen.queryByTestId("mcq-jump-fullscreen")).not.toBeInTheDocument();
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
@@ -195,8 +195,8 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
       fireEvent.click(screen.getByTestId("start-selected-game"));
 
-      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       await screen.findByTestId("mcq-jump-fullscreen");
+      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       expect(screen.getByTestId("mcq-jump-fullscreen")).toBeInTheDocument();
       expect(screen.getByRole("group", { name: "Choose your answer" })).toBeInTheDocument();
       expect(view.container.querySelectorAll(".mcq-jump-answer")).toHaveLength(4);
@@ -222,8 +222,8 @@ describe("Quiz Arena MCQ with Game mode", () => {
 
       fireEvent.click(screen.getByTestId("start-selected-game"));
 
-      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       await waitFor(() => expect(view.container.querySelector(".mcq-space-shell")).toBeInTheDocument());
+      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       expect(view.container.querySelector(".mcq-space-shell")).toBeInTheDocument();
       expect(view.container.querySelector(".mcq-game-fullscreen")).not.toBeInTheDocument();
     } finally {
@@ -323,6 +323,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
       expect(screen.queryByTestId("mcq-slice-fullscreen")).not.toBeInTheDocument();
       fireEvent.click(screen.getByTestId("start-selected-game"));
       await screen.findByTestId("mcq-slice-fullscreen");
+      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       expect(screen.getByTestId("mcq-slice-fullscreen")).toBeInTheDocument();
       expect(screen.getByRole("region", { name: "Math Slice Ninja" })).toBeInTheDocument();
     } finally { view.unmount(); }
@@ -494,8 +495,8 @@ describe("Quiz Arena MCQ with Game mode", () => {
       expect(view.container.querySelectorAll(".mcq-game-fullscreen, .mcq-jump-fullscreen")).toHaveLength(0);
 
       fireEvent.click(screen.getByRole("button", { name: /Jump Adventure/i }));
-      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       await screen.findByTestId("mcq-jump-fullscreen");
+      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       expect(screen.getByTestId("mcq-jump-fullscreen")).toBeInTheDocument();
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
       expect(view.container.querySelector(".mcq-jump-score--correct span")).toHaveTextContent("0");
@@ -503,6 +504,7 @@ describe("Quiz Arena MCQ with Game mode", () => {
       fireEvent.click(screen.getByRole("button", { name: "Choose another game" }));
       fireEvent.click(screen.getByRole("button", { name: /Car Racing/i }));
       await screen.findByTestId("mcq-game-fullscreen");
+      expect(screen.queryByTestId("mcq-game-selector")).not.toBeInTheDocument();
       expect(screen.getByTestId("mcq-game-fullscreen")).toBeInTheDocument();
       expect(screen.getByLabelText("Question 1 / 10")).toBeInTheDocument();
     } finally {

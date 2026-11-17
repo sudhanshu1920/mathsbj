@@ -19,6 +19,5 @@ const GAME_LOADERS: Record<MCQGameVariant, () => Promise<unknown>> = {
 };
 
 /** Warm only the game the user is choosing; do not download every game bundle. */
-export const preloadPracticeGame = (game: MCQGameVariant): void => {
-  void GAME_LOADERS[game]().catch(() => undefined);
-};
+export const preloadPracticeGame = (game: MCQGameVariant): Promise<unknown> =>
+  GAME_LOADERS[game]();

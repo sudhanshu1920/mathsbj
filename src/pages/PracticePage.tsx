@@ -1122,6 +1122,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const modeBeforeGameSelectionRef = useRef<PracticeMode>('mcq');
   const gameSelectionOpenedAtRef = useRef<number | null>(null);
   const gameSelectionOpenRef = useRef(false);
+  const gameLoadRequestIdRef = useRef(0);
   const [timerMode, setTimerMode] = useState<QuizTimerMode>('perQuestion');
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [challengeMinutes, setChallengeMinutes] = useState<ChallengeMinutes>(1);
@@ -1914,7 +1915,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setGameSelectionOpen(true);
   }, [config, finished, feedback]);
 
-  const closeGameSelector = useCallback((nextGame?: MCQGameVariant) => {
+  const closeGameSelector = useCallback(async (nextGame?: MCQGameVariant) => {
+    const requestId = ++gameLoadRequestIdRef.current;
+    // The active quiz stays paused while the next game bundle loads.
+    if (config && nextGame !== undefined && nextGame !== selectedGameVariant) {
+      await preloadPracticeGame(nextGame);
+      // Hardware Back may close the selector while the import is still pending.
+      if (requestId !== gameLoadRequestIdRef.current) return;
+    }
+
     const openedAt = gameSelectionOpenedAtRef.current;
     if (config && openedAt !== null) {
       const pausedDuration = Math.max(0, performance.now() - openedAt);
@@ -1935,7 +1944,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     } else {
       setMode(modeBeforeGameSelectionRef.current);
     }
-  }, [config]);
+  }, [config, selectedGameVariant]);
 
   const startQuizFromSetup = useCallback((modeOverride: PracticeMode = mode): boolean => {
     const topics = Array.from(selectedTopics).map((tid) => {
@@ -1977,14 +1986,28 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     startPractice,
   ]);
 
-  const startSelectedGame = useCallback((game: MCQGameVariant): boolean => {
+  const startSelectedGame = useCallback(async (game: MCQGameVariant): Promise<boolean> => {
     if (config) {
-      closeGameSelector(game);
+      await closeGameSelector(game);
       return true;
     }
+
+    // Do not start the quiz clock until the selected game module is available.
+    const requestId = ++gameLoadRequestIdRef.current;
+    setStartError(null);
+    try {
+      await preloadPracticeGame(game);
+    } catch {
+      if (requestId === gameLoadRequestIdRef.current) {
+        setStartError("The selected game could not be loaded. Check the connection and try again.");
+      }
+      return false;
+    }
+    if (requestId !== gameLoadRequestIdRef.current) return false;
+
     setSelectedGameVariant(game);
     const started = startQuizFromSetup("game");
-    if (started) closeGameSelector(game);
+    if (started) await closeGameSelector(game);
     return started;
   }, [config, closeGameSelector, startQuizFromSetup]);
 
