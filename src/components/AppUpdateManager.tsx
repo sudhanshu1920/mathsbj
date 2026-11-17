@@ -348,15 +348,10 @@ const AppUpdateManager = ({ isQuizActive }: AppUpdateManagerProps) => {
     <Dialog open={!!update} onOpenChange={(open) => {
       if (!open && update && !activeActionRef.current) dismissCurrentUpdate();
     }}>
-      <DialogContent className="z-[100] w-[calc(100%-1.5rem)] max-w-[320px] max-h-[90dvh] overflow-y-auto rounded-2xl border-border/70 p-4">
+      <DialogContent className="z-[100] w-[calc(100%-1.5rem)] max-w-[320px] max-h-[90dvh] overflow-y-auto gap-3 rounded-2xl border-border/70 p-4">
         <DialogHeader className="space-y-1 text-left">
           <DialogTitle className="font-display text-lg font-bold">New Update Available</DialogTitle>
         </DialogHeader>
-        {update && (
-          <p className="rounded-lg bg-secondary/50 px-3 py-2 text-center text-sm font-semibold text-foreground">
-            Version <span className="font-display">v{update.versionName}</span>
-          </p>
-        )}
         {activeAction && (
           <div className="space-y-2 rounded-xl border border-border/70 p-3" role="status" aria-live="polite">
             <p className="text-xs font-medium text-foreground">
