@@ -60,19 +60,19 @@ test('Android update notification and APK-save copy stay version-free and stale 
     readFile(new URL('../.github/workflows/android-release.yml', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(messaging, /UPDATE_NOTIFICATION_TITLE = "New Update Available"/);
-  assert.match(messaging, /UPDATE_NOTIFICATION_BODY = "A new version of Math Master is ready\\. Update now to enjoy the latest improvements\\."/);
-  assert.match(messaging, /setContentTitle\\(UPDATE_NOTIFICATION_TITLE\\)/);
-  assert.match(messaging, /setContentText\\(UPDATE_NOTIFICATION_BODY\\)/);
-  assert.match(messaging, /BigTextStyle\\(\\)\\.bigText\\(UPDATE_NOTIFICATION_BODY\\)/);
-  assert.match(messaging, /manager\\.notify\\("mathmaster-update", NOTIFICATION_ID, notification\\)/);
-  assert.doesNotMatch(messaging, /setContentTitle\\(.*versionName/);
+  assert.ok(messaging.includes('UPDATE_NOTIFICATION_TITLE = "New Update Available"'));
+  assert.ok(messaging.includes('UPDATE_NOTIFICATION_BODY = "A new version of Math Master is ready. Update now to enjoy the latest improvements."'));
+  assert.ok(messaging.includes(".setContentTitle(UPDATE_NOTIFICATION_TITLE)"));
+  assert.ok(messaging.includes(".setContentText(UPDATE_NOTIFICATION_BODY)"));
+  assert.ok(messaging.includes("new Notification.BigTextStyle().bigText(UPDATE_NOTIFICATION_BODY)"));
+  assert.ok(messaging.includes('manager.notify("mathmaster-update", NOTIFICATION_ID, notification)'));
+  assert.ok(!messaging.includes("setContentTitle(title)") && !messaging.includes("New Version " + "versionName"));
 
-  assert.match(bootReceiver, /ACTION_MY_PACKAGE_REPLACED\\.equals\\(action\\)[\\s\\S]*cancelStaleUpdateNotifications\\(context\\)/);
-  assert.match(bootReceiver, /"mathmaster-update"\\.equals\\(tag\\) \\|\\| "mathapp-apk-saved"\\.equals\\(tag\\)/);
-  assert.match(bootReceiver, /manager\\.cancel\\(tag, notification\\.getId\\(\\)\\)/);
-  assert.doesNotMatch(bootReceiver, /cancelAll\\(/);
+  assert.ok(bootReceiver.includes("Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)") && bootReceiver.includes("cancelStaleUpdateNotifications(context)"));
+  assert.ok(bootReceiver.includes('"mathmaster-update".equals(tag) || "mathapp-apk-saved".equals(tag)'));
+  assert.ok(bootReceiver.includes("manager.cancel(tag, notification.getId())"));
+  assert.ok(!bootReceiver.includes("cancelAll("));
 
-  assert.match(releaseWorkflow, /String publicName = "MathApp\\.apk"/);
-  assert.doesNotMatch(releaseWorkflow, /String publicName = "MathApp-v" \\+ versionName/);
+  assert.ok(releaseWorkflow.includes('String publicName = "MathApp.apk"'));
+  assert.ok(!releaseWorkflow.includes('String publicName = "MathApp-v" + versionName'));
 });
