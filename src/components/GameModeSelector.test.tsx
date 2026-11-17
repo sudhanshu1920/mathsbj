@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import GameModeSelector from "@/components/GameModeSelector";
 
@@ -176,4 +176,47 @@ describe("MCQ with Game selector", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back to Answer Mode" }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
+  it("recovers the selector when an asynchronous game load fails", async () => {
+    const onSelect = vi.fn(async () => {
+      throw new Error("chunk unavailable");
+    });
+    render(<GameModeSelector selectedGame="car" onBack={vi.fn()} onSelect={onSelect} />);
+
+    const jump = screen.getByRole("button", { name: /Jump Adventure/i });
+    fireEvent.click(jump);
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("could not be loaded");
+    });
+    expect(jump).toBeEnabled();
+
+    fireEvent.click(jump);
+    expect(onSelect).toHaveBeenCalledTimes(2);
+  });
+
+  it("restores Start Quiz after an asynchronous start failure", async () => {
+    const onStart = vi.fn(async () => {
+      throw new Error("chunk unavailable");
+    });
+    render(
+      <GameModeSelector
+        selectedGame="car"
+        variant="modal"
+        onBack={vi.fn()}
+        onSelect={vi.fn()}
+        onStart={onStart}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Jump Adventure" }));
+    const start = screen.getByTestId("start-selected-game");
+    fireEvent.click(start);
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("could not start");
+    });
+    expect(start).toBeEnabled();
+    expect(onStart).toHaveBeenCalledTimes(1);
+  });
+
 });

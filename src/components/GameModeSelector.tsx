@@ -8,11 +8,11 @@ type SelectorVariant = "screen" | "modal";
 interface GameModeSelectorProps {
   selectedGame: MCQGameVariant;
   onBack: () => void;
-  onSelect: (game: MCQGameVariant) => void;
+  onSelect: (game: MCQGameVariant) => void | Promise<void>;
   variant?: SelectorVariant;
   canStartQuiz?: boolean;
   errorMessage?: string | null;
-  onStart?: (game: MCQGameVariant) => boolean | void;
+  onStart?: (game: MCQGameVariant) => boolean | void | Promise<boolean | void>;
 }
 
 const GAME_OPTIONS: ReadonlyArray<{
@@ -89,12 +89,20 @@ const GameModeSelector = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isModal, onBack, starting]);
 
-  const chooseGame = (game: MCQGameVariant) => {
+  const chooseGame = async (game: MCQGameVariant) => {
     if (starting) return;
     if (!isModal) {
       if (selectionLockedRef.current) return;
       selectionLockedRef.current = true;
-      onSelect(game);
+      setStarting(true);
+      setLocalStartError(null);
+      try {
+        await onSelect(game);
+      } catch {
+        selectionLockedRef.current = false;
+        setStarting(false);
+        setLocalStartError("The selected game could not be loaded. Choose another game and try again.");
+      }
       return;
     }
     setSelectedChoice(game);
@@ -102,7 +110,7 @@ const GameModeSelector = ({
     onSelect(game);
   };
 
-  const startSelectedGame = () => {
+  const startSelectedGame = async () => {
     if (!isModal || !selectedChoice || !canStartQuiz || startLockedRef.current) return;
     startLockedRef.current = true;
     setStarting(true);
@@ -114,7 +122,7 @@ const GameModeSelector = ({
         setLocalStartError("Quiz start is unavailable. Close this dialog and try again.");
         return;
       }
-      const started = onStart(selectedChoice);
+      const started = await onStart(selectedChoice);
       if (started === false) {
         startLockedRef.current = false;
         setStarting(false);
@@ -158,6 +166,7 @@ const GameModeSelector = ({
                 className="mcq-game-select-back"
                 onClick={onBack}
                 aria-label="Back to Answer Mode"
+                disabled={starting}
               >
                 <ArrowLeft size={19} aria-hidden="true" />
                 <span>Back</span>
@@ -317,7 +326,10 @@ const GameModeSelector = ({
               Start a new game or continue the active quiz with another game mode.
             </p>
           )}
-          {isModal && (errorMessage || localStartError) && (
+          {starting && !isModal && (
+            <p className="mcq-game-select-footnote" role="status" aria-live="polite">Preparing game…</p>
+          )}
+          {(errorMessage || localStartError) && (
             <p className="mcq-game-select-error" role="alert">{errorMessage || localStartError}</p>
           )}
         </main>

@@ -63,36 +63,76 @@ const normalizeAnalytics = (value: unknown): AnalyticsState => {
   return { days };
 };
 
-export const getAnalytics = (): AnalyticsState => {
+// Parsed analytics can grow with study history. Keep one normalized copy in
+// memory and invalidate it whenever the underlying localStorage value changes.
+let cachedRaw: string | null | undefined;
+let cachedAnalytics: AnalyticsState | null = null;
+
+const readAnalytics = (): AnalyticsState => {
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(KEY);
-    return normalizeAnalytics(raw ? JSON.parse(raw) : null);
+    raw = localStorage.getItem(KEY);
   } catch {
     return empty();
   }
+
+  if (cachedAnalytics && cachedRaw === raw) return cachedAnalytics;
+
+  try {
+    cachedAnalytics = normalizeAnalytics(raw ? JSON.parse(raw) : null);
+  } catch {
+    cachedAnalytics = empty();
+  }
+  cachedRaw = raw;
+  return cachedAnalytics;
 };
 
-const save = (s: AnalyticsState) => {
-  localStorage.setItem(KEY, JSON.stringify(s));
-  window.dispatchEvent(new CustomEvent('analytics-updated'));
+const cloneAnalytics = (state: AnalyticsState): AnalyticsState => ({
+  days: Object.fromEntries(
+    Object.entries(state.days).map(([date, day]) => [date, { ...day, hours: [...day.hours] }]),
+  ),
+});
+
+export const getAnalytics = (): AnalyticsState => cloneAnalytics(readAnalytics());
+
+const save = (state: AnalyticsState, notify = true) => {
+  const raw = JSON.stringify(state);
+  localStorage.setItem(KEY, raw);
+  cachedRaw = raw;
+  cachedAnalytics = state;
+  if (notify) window.dispatchEvent(new CustomEvent('analytics-updated'));
 };
 
-export const recordAnswer = (isCorrect: boolean, streakBonus = 0) => {
-  const s = getAnalytics();
+export interface RecordAnswerOptions {
+  notify?: boolean;
+}
+
+export const recordAnswer = (
+  isCorrect: boolean,
+  streakBonus = 0,
+  options: RecordAnswerOptions = {},
+) => {
+  const current = readAnalytics();
+  // Use copy-on-write: a failed storage write must not mutate the cache while
+  // its cachedRaw still describes the older, successfully persisted value.
+  const state: AnalyticsState = { days: { ...current.days } };
   const now = new Date();
-  const ds = todayStr(now);
-  const day = s.days[ds] || emptyDay(ds);
+  const date = todayStr(now);
+  const previousDay = current.days[date];
+  const day = previousDay
+    ? { ...previousDay, hours: [...previousDay.hours] }
+    : emptyDay(date);
+  state.days[date] = day;
   if (day.hours.length !== 24) day.hours = Array(24).fill(0);
-  const pts = isCorrect ? POINTS_CORRECT + streakBonus : POINTS_WRONG;
-  day.hours[now.getHours()] += pts;
-  day.points += pts;
+  const points = isCorrect ? POINTS_CORRECT + streakBonus : POINTS_WRONG;
+  day.hours[now.getHours()] += points;
+  day.points += points;
   day.questions += 1;
   if (isCorrect) day.correct += 1;
-  s.days[ds] = day;
-  save(s);
+  save(state, options.notify !== false);
 };
 
-export const getDay = (s: AnalyticsState, date: string): DayAnalytics =>
-  s.days[date] || emptyDay(date);
+export const getDay = (state: AnalyticsState, date: string): DayAnalytics =>
+  state.days[date] || emptyDay(date);
 
 export const POINTS = { correct: POINTS_CORRECT, wrong: POINTS_WRONG };

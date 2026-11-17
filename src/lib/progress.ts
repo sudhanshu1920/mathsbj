@@ -9,6 +9,11 @@ export interface ProgressData {
   byTopic: Record<string, { attempts: number; correct: number }>;
 }
 
+export interface SaveResultOptions {
+  /** Suppress the refresh event when a caller batches another related update. */
+  notify?: boolean;
+}
+
 const defaultProgress: ProgressData = {
   totalAttempts: 0,
   correct: 0,
@@ -24,7 +29,7 @@ const asNonNegativeInt = (value: unknown, fallback = 0): number => {
 };
 
 const normalizeProgress = (value: unknown): ProgressData => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return { ...defaultProgress };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { ...defaultProgress, byTopic: {} };
 
   const raw = value as Record<string, unknown>;
   const correct = asNonNegativeInt(raw.correct);
@@ -47,17 +52,53 @@ const normalizeProgress = (value: unknown): ProgressData => {
   return { totalAttempts, correct, wrong, streak, bestStreak, byTopic };
 };
 
-export const getProgress = (): ProgressData => {
+// Cache the normalized snapshot, but validate it against the persisted raw value
+// on every read. This also observes writes from sync, restore and other modules.
+let cachedRaw: string | null | undefined;
+let cachedProgress: ProgressData | null = null;
+
+const readProgress = (): ProgressData => {
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return normalizeProgress(raw ? JSON.parse(raw) : null);
+    raw = localStorage.getItem(STORAGE_KEY);
   } catch {
-    return { ...defaultProgress };
+    return { ...defaultProgress, byTopic: {} };
   }
+
+  if (cachedProgress && cachedRaw === raw) return cachedProgress;
+
+  try {
+    cachedProgress = normalizeProgress(raw ? JSON.parse(raw) : null);
+  } catch {
+    cachedProgress = { ...defaultProgress, byTopic: {} };
+  }
+  cachedRaw = raw;
+  return cachedProgress;
 };
 
-export const saveResult = (topic: string, isCorrect: boolean) => {
-  const p = getProgress();
+const cloneProgress = (progress: ProgressData): ProgressData => ({
+  ...progress,
+  byTopic: Object.fromEntries(
+    Object.entries(progress.byTopic).map(([topic, value]) => [topic, { ...value }]),
+  ),
+});
+
+const persistProgress = (progress: ProgressData) => {
+  const raw = JSON.stringify(progress);
+  localStorage.setItem(STORAGE_KEY, raw);
+  cachedRaw = raw;
+  cachedProgress = progress;
+};
+
+export const getProgress = (): ProgressData => cloneProgress(readProgress());
+
+export const saveResult = (
+  topic: string,
+  isCorrect: boolean,
+  options: SaveResultOptions = {},
+) => {
+  const current = readProgress();
+  const p = cloneProgress(current);
   p.totalAttempts++;
   if (isCorrect) {
     p.correct++;
@@ -68,16 +109,19 @@ export const saveResult = (topic: string, isCorrect: boolean) => {
     p.streak = 0;
   }
 
-  if (!p.byTopic[topic]) p.byTopic[topic] = { attempts: 0, correct: 0 };
-  p.byTopic[topic].attempts++;
+  const previousTopic = p.byTopic[topic] || { attempts: 0, correct: 0 };
+  p.byTopic[topic] = { ...previousTopic, attempts: previousTopic.attempts + 1 };
   if (isCorrect) p.byTopic[topic].correct++;
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-  window.dispatchEvent(new CustomEvent('analytics-updated'));
-  return p;
+  persistProgress(p);
+  if (options.notify !== false) {
+    window.dispatchEvent(new CustomEvent('analytics-updated'));
+  }
+  return cloneProgress(p);
 };
 
 export const resetProgress = () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultProgress));
+  const reset = { ...defaultProgress, byTopic: {} };
+  persistProgress(reset);
   window.dispatchEvent(new CustomEvent('analytics-updated'));
 };

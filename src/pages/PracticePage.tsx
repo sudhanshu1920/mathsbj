@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, memo, Suspense } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Timer, ChevronDown, ChevronUp, Zap, Trophy, ThumbsUp, Dumbbell, Sparkles, Shuffle, ListOrdered, Play, Flame, Plus, Minus, ListChecks, Keyboard, CarFront } from 'lucide-react';
 import SwipeBack from '@/components/SwipeBack';
@@ -35,11 +35,14 @@ import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
 import { PERCENTAGE_PRESETS, type PercentagePresetId, resolvePercentagePresets, togglePercentagePresetIds } from '@/lib/percentagePresets';
 import { CHALLENGE_MINUTES, formatChallengeTime, getChallengeDurationSeconds, getRemainingSeconds, getTimerProgressPercent, getTimerModeFromToggle, isQuestionCountSelectionDisabled, shouldUseInfiniteQuestionPool, type ChallengeMinutes, type QuizTimerMode } from '@/lib/quizTimer';
-import MCQWithGame from '@/components/MCQWithGame';
-import MCQJumpAdventure from '@/components/MCQJumpAdventure';
-import MCQSpaceShooter from '@/components/MCQSpaceShooter';
+import {
+  LazyMCQWithGame as MCQWithGame,
+  LazyMCQJumpAdventure as MCQJumpAdventure,
+  LazyMCQSpaceShooter as MCQSpaceShooter,
+  LazyMCQSliceNinja as MCQSliceNinja,
+} from '@/components/practiceGameLoaders';
+import { preloadPracticeGame } from '@/components/practiceGamePreload';
 import { selectSpaceShooterQuestions, type SpaceShooterDifficulty } from '@/lib/mcqSpaceShooterMission';
-import MCQSliceNinja from '@/components/MCQSliceNinja';
 import GameModeSelector, { type MCQGameVariant } from '@/components/GameModeSelector';
 import { buildMCQGameOptions } from '@/lib/mcqGame';
 import { MCQ_GAME_COLLISION_DEADLINE_TOLERANCE_MS, MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS, isMCQGameCollisionWithinDeadline, createMCQGateMappings } from '@/lib/mcqGamePhysics';
@@ -1109,9 +1112,17 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
   const selectedGameVariantRef = useRef(selectedGameVariant);
   selectedGameVariantRef.current = selectedGameVariant;
   const [gameSelectionOpen, setGameSelectionOpen] = useState(false);
+  // Fetch only the selected game's bundle while the game picker is visible.
+  // The game itself remains behind Suspense until its module is ready.
+  useEffect(() => {
+    if (gameSelectionOpen && mode === 'game') {
+      preloadPracticeGame(selectedGameVariant);
+    }
+  }, [gameSelectionOpen, mode, selectedGameVariant]);
   const modeBeforeGameSelectionRef = useRef<PracticeMode>('mcq');
   const gameSelectionOpenedAtRef = useRef<number | null>(null);
   const gameSelectionOpenRef = useRef(false);
+  const gameLoadRequestIdRef = useRef(0);
   const [timerMode, setTimerMode] = useState<QuizTimerMode>('perQuestion');
   const [timerSeconds, setTimerSeconds] = useState(10);
   const [challengeMinutes, setChallengeMinutes] = useState<ChallengeMinutes>(1);
@@ -1605,11 +1616,16 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
       }
       // Save result for all topics
       const topicId = config.topics.length === 1 ? config.topics[0].id : 'mixed';
-      saveResult(topicId, isCorrect);
+      saveResult(topicId, isCorrect, { notify: false });
       // Streak bonus: +1 every 5 in a row correct
       const newStreakCount = isCorrect ? score.correct + 1 : 0;
       const bonus = isCorrect && newStreakCount > 0 && newStreakCount % 5 === 0 ? 1 : 0;
-      recordAnswer(isCorrect, bonus);
+      try {
+        recordAnswer(isCorrect, bonus, { notify: false });
+      } finally {
+        // Refresh readers once both independent local records have been attempted.
+        window.dispatchEvent(new CustomEvent('analytics-updated'));
+      }
 
       // XP system
       if (isCorrect) {
@@ -1899,7 +1915,15 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     setGameSelectionOpen(true);
   }, [config, finished, feedback]);
 
-  const closeGameSelector = useCallback((nextGame?: MCQGameVariant) => {
+  const closeGameSelector = useCallback(async (nextGame?: MCQGameVariant) => {
+    const requestId = ++gameLoadRequestIdRef.current;
+    // The active quiz stays paused while the next game bundle loads.
+    if (config && nextGame !== undefined && nextGame !== selectedGameVariant) {
+      await preloadPracticeGame(nextGame);
+      // Hardware Back may close the selector while the import is still pending.
+      if (requestId !== gameLoadRequestIdRef.current) return;
+    }
+
     const openedAt = gameSelectionOpenedAtRef.current;
     if (config && openedAt !== null) {
       const pausedDuration = Math.max(0, performance.now() - openedAt);
@@ -1920,7 +1944,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     } else {
       setMode(modeBeforeGameSelectionRef.current);
     }
-  }, [config]);
+  }, [config, selectedGameVariant]);
 
   const startQuizFromSetup = useCallback((modeOverride: PracticeMode = mode): boolean => {
     const topics = Array.from(selectedTopics).map((tid) => {
@@ -1962,14 +1986,28 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     startPractice,
   ]);
 
-  const startSelectedGame = useCallback((game: MCQGameVariant): boolean => {
+  const startSelectedGame = useCallback(async (game: MCQGameVariant): Promise<boolean> => {
     if (config) {
-      closeGameSelector(game);
+      await closeGameSelector(game);
       return true;
     }
+
+    // Do not start the quiz clock until the selected game module is available.
+    const requestId = ++gameLoadRequestIdRef.current;
+    setStartError(null);
+    try {
+      await preloadPracticeGame(game);
+    } catch {
+      if (requestId === gameLoadRequestIdRef.current) {
+        setStartError("The selected game could not be loaded. Check the connection and try again.");
+      }
+      return false;
+    }
+    if (requestId !== gameLoadRequestIdRef.current) return false;
+
     setSelectedGameVariant(game);
     const started = startQuizFromSetup("game");
-    if (started) closeGameSelector(game);
+    if (started) await closeGameSelector(game);
     return started;
   }, [config, closeGameSelector, startQuizFromSetup]);
 
@@ -2497,7 +2535,12 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         )}
 
         {config.mode === 'game' && (
-          selectedGameVariant === 'jump'
+          <Suspense fallback={(
+            <div className="mt-4 flex min-h-28 items-center justify-center rounded-2xl border border-border/60 bg-card/40 text-sm text-muted-foreground" role="status" aria-live="polite">
+              Preparing game…
+            </div>
+          )}>
+          {selectedGameVariant === 'jump'
             ? (
               <MCQJumpAdventure
                 {...sharedGameProps}
@@ -2538,7 +2581,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
                       : MCQ_GAME_DEFAULT_GATE_TRAVEL_DURATION_MS
                   }
                 />
-              )
+              )}
+          </Suspense>
         )}
 
         {config.mode === 'input' && (
