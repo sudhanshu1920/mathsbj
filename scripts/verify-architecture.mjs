@@ -1479,7 +1479,7 @@ const expandableStudySections = [
   ["studySchedule", "Expand Study Schedule", "Collapse Study Schedule", "study-mode-study-schedule-content"],
 ];
 if (!studyModePage.includes('STUDY_MODE_SECTION_UI_STORAGE_KEY = "math-master.study-mode-section-ui.v1"')
-    || !studyModePage.includes("const readStudyModeSectionExpansion = () =>")
+    || !studyModePage.includes("const readStudyModeSectionExpansion =")
     || !studyModePage.includes("setExpandedSections((current) => ({ ...current, [section]: !current[section] }))")
     || !studyModePage.includes("JSON.stringify(expandedSections)")
     || !studyModePage.includes("aria-hidden={!expandedSections.focusProtection}")
