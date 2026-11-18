@@ -124,7 +124,7 @@ const SessionCountdown = memo(({
     : 0;
 
   return (
-    <div className="relative grid h-[112px] w-[112px] shrink-0 place-items-center rounded-full border border-border/60 bg-background/30 shadow-inner sm:h-[136px] sm:w-[136px]" aria-live="off">
+    <div className="study-mode-session-timer relative grid h-[94px] w-[94px] shrink-0 place-items-center rounded-full border border-border/60 bg-background/30 shadow-inner sm:h-[104px] sm:w-[104px]" aria-live="off">
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
         <circle cx="50" cy="50" r="44" fill="none" stroke="hsl(var(--border))" strokeWidth="3.5" />
         <circle
@@ -152,13 +152,13 @@ const SessionDurationPreview = ({ durationSeconds }: { durationSeconds: number }
     : `${Math.floor(durationSeconds / 60)}:${String(durationSeconds % 60).padStart(2, "0")}`;
 
   return (
-    <div role="img" className="relative grid h-[112px] w-[112px] shrink-0 place-items-center rounded-full border border-border/60 bg-background/30 shadow-inner sm:h-[136px] sm:w-[136px]" aria-label={`Session duration ${durationSeconds} seconds`}>
+    <div role="img" className="study-mode-session-timer relative grid h-[94px] w-[94px] shrink-0 place-items-center rounded-full border border-border/60 bg-background/30 shadow-inner sm:h-[104px] sm:w-[104px]" aria-label={`Session duration ${durationSeconds} seconds`}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
         <circle cx="50" cy="50" r="44" fill="none" stroke="hsl(var(--border))" strokeWidth="3.5" />
         <circle cx="50" cy="50" r="44" fill="none" stroke="hsl(var(--primary))" strokeOpacity="0.28" strokeWidth="3.5" strokeDasharray="4 7" />
       </svg>
       <div className="relative flex flex-col items-center">
-        <span className="font-display text-[19px] font-bold tabular-nums tracking-tight text-foreground sm:text-[21px]">{label}</span>
+        <span className="font-display text-[18px] font-bold tabular-nums tracking-tight text-foreground sm:text-[19px]">{label}</span>
         <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Ready</span>
       </div>
     </div>
@@ -1197,7 +1197,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
         />
       ) : (
         <>
-          <header className="flex min-w-0 items-center gap-2">
+          <header className="study-mode-header flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={handleBack}
@@ -1214,9 +1214,10 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
             </span>
           </header>
 
-          <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 p-4 shadow-lg sm:p-5">
+<div className={`study-mode-primary-grid${activeSession ? " study-mode-primary-grid--active" : ""}`}>
+          <section className="study-mode-focus-card relative isolate overflow-hidden rounded-[1.4rem] border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-md sm:p-4">
             <div className="pointer-events-none absolute inset-x-8 top-0 -z-10 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-            <div className="flex items-center gap-3">
+            <div className="study-mode-focus-header flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.1rem] border border-primary/15 bg-primary/10 text-primary shadow-inner">
                 <ShieldCheck size={21} strokeWidth={1.8} />
               </div>
@@ -1229,11 +1230,11 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                     {loading ? "LOADING" : draft.enabled || status?.activeSession?.active ? "ACTIVE" : "OFF"}
                   </span>
                 </div>
-                <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground" role="status">
+                <p className="study-mode-status-copy mt-1 text-[10px] leading-snug text-muted-foreground" role="status">
                   {loading ? "Loading…" : statusText(status)}
                 </p>
               </div>
-              <div className="ml-auto flex shrink-0 items-center gap-2">
+              <div className="study-mode-focus-controls ml-auto flex shrink-0 items-center gap-1.5">
                 {status ? (
                   <Switch
                     checked={draft.enabled || Boolean(status.activeSession?.active)}
@@ -1274,7 +1275,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-[112px_minmax(0,1fr)] sm:grid-cols-[136px_minmax(0,1fr)] items-center gap-3 border-t border-border/55 pt-4 sm:gap-5 sm:pt-5">
+            <div className="study-mode-focus-summary mt-3 grid grid-cols-[94px_minmax(0,1fr)] sm:grid-cols-[104px_minmax(0,1fr)] items-center gap-3 border-t border-border/55 pt-3 sm:gap-4 sm:pt-4">
               {activeSession ? (
                 <>
                   <SessionCountdown session={activeSession} onExpired={handleSessionExpired} />
@@ -1289,7 +1290,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                       type="button"
                       onClick={() => { void handleEndSession(); }}
                       disabled={saving}
-                      className="motion-press inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[1.05rem] border border-destructive/25 bg-destructive/5 px-3 py-2 text-[10px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                      className="motion-press inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[1rem] border border-destructive/25 bg-destructive/5 px-3 py-2 text-[10px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
                     >
                       {saving ? "Ending…" : "End session"}
                     </button>
@@ -1312,7 +1313,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               )}
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/55 pt-3">
+            <div className="study-mode-focus-status mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/55 pt-3">
               {status?.enforcementMode === "device_owner" ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[9px] font-semibold text-success">
                   <ShieldCheck size={11} /> System enforcement
@@ -1343,7 +1344,86 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
             </div>
           </section>
 
-          <section aria-label="Periodic reminder interval" className="rounded-[1.25rem] border border-accent/15 bg-gradient-to-br from-card via-card to-accent/5 px-3 py-2.5 shadow-sm">
+
+          {!activeSession && (
+            <section className="study-mode-session-card study-mode-card overflow-hidden rounded-[1.25rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-3.5">
+              <div className="study-mode-section-header mb-2.5 flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><Clock3 size={15} /></span>
+                <h3 className="text-xs font-bold tracking-tight text-foreground">Focus session</h3>
+              </div>
+
+              <div className="study-mode-session-fields grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2">
+                <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Session
+                  <select
+                    value={sessionType}
+                    onChange={(event) => setSessionType(event.target.value as typeof sessionType)}
+                    disabled={saving || loading}
+                    className="mt-1.5 h-10 w-full rounded-[1.05rem] border border-border/70 bg-background/65 px-3 text-xs font-medium normal-case tracking-normal text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
+                  >
+                    <option value="study">Study</option>
+                    <option value="practice">Practice</option>
+                    <option value="work">Work</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+                <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Duration
+                  <select
+                    value={sessionDurationSeconds}
+                    onChange={(event) => setSessionDurationSeconds(Number(event.target.value))}
+                    disabled={saving || loading}
+                    className="mt-1.5 h-10 w-full rounded-[1.05rem] border border-border/70 bg-background/65 px-3 text-xs font-medium normal-case tracking-normal text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
+                  >
+                    <option value={15 * 60}>15 min</option>
+                    <option value={25 * 60}>25 min</option>
+                    <option value={45 * 60}>45 min</option>
+                    <option value={60 * 60}>60 min</option>
+                    <option value={90 * 60}>90 min</option>
+                    <option value={0}>Unlimited</option>
+                  </select>
+                </label>
+              </div>
+              <div className="study-mode-session-toggles mt-2 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2">
+                <div className="flex min-h-11 items-center justify-between gap-2 rounded-[1.05rem] border border-border/65 bg-background/45 px-3">
+                  <span className="text-[10px] font-medium text-foreground">Enforced</span>
+                  <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
+                </div>
+                <div className="flex min-h-11 items-center justify-between gap-2 rounded-[1.05rem] border border-border/65 bg-background/45 px-3">
+                  <span className="text-[10px] font-medium text-foreground">Do Not Disturb</span>
+                  <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { void handleStartSession(); }}
+                disabled={saving || loading || !isStudyModeNative()}
+                className="motion-press gradient-primary mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-[1.1rem] px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm disabled:opacity-50"
+              >
+                <Clock3 size={15} /> {saving ? "Starting…" : "Start focus session"}
+              </button>
+
+              {sessionHistory.length > 0 && (
+                <div className="mt-3 border-t border-border/55 pt-2.5">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recent sessions</p>
+                    <span className="text-[9px] text-muted-foreground">{sessionHistory.length} total</span>
+                  </div>
+                  <div className="space-y-1">
+                    {sessionHistory.slice(0, 3).map((session) => (
+                      <div key={session.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/35 px-2.5 py-2 text-[10px]">
+                        <span className="min-w-0 truncate capitalize text-foreground">{session.sessionType} · {new Date(session.startTimestamp).toLocaleDateString()}</span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">{formatSessionTime(session.elapsedSeconds)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+          </div>
+
+          <section aria-label="Periodic reminder interval" className="study-mode-reminder-card study-mode-card rounded-[1.15rem] border border-accent/15 bg-gradient-to-br from-card via-card to-accent/5 px-3 py-2 shadow-sm">
             <div className="flex min-w-0 items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -1365,7 +1445,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               </button>
             </div>
             {reminderIntervalOpen && (
-              <div className="mt-2.5 grid grid-cols-5 gap-1.5 border-t border-border/55 pt-2.5" role="group" aria-label="Choose reminder interval">
+              <div className="mt-2.5 grid grid-cols-[repeat(5,minmax(0,1fr))] gap-1.5 border-t border-border/55 pt-2.5" role="group" aria-label="Choose reminder interval">
                 {Array.from({ length: 10 }, (_, index) => index + 1).map((minutes) => {
                   const selected = reminderIntervalMinutes === minutes;
                   return (
@@ -1385,7 +1465,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
           </section>
 
           {status && !corePermissionsReady && (
-            <section role="alert" className="flex items-center gap-2 rounded-[1.15rem] border border-warning/25 bg-warning/5 px-3 py-2.5">
+            <section role="alert" className="study-mode-permission-alert flex items-center gap-2 rounded-[1.15rem] border border-warning/25 bg-warning/5 px-3 py-2.5">
               <ShieldAlert size={16} className="shrink-0 text-warning" />
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold text-foreground">Blocking needs attention</p>
@@ -1403,82 +1483,88 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
             </section>
           )}
 
-          <section aria-label="App collections" className="grid grid-cols-2 gap-2.5">
+          <section aria-label="App collections" className="study-mode-app-collections">
             <button
               type="button"
               onClick={toggleBlockedPicker}
               aria-expanded={pickerOpen}
-              className="motion-press group min-w-0 overflow-hidden rounded-[1.35rem] border border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 p-3 text-left shadow-sm transition-[border-color,transform,background-color] duration-200 hover:border-primary/30 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100"
+              aria-label={`Blocked Apps, ${selectedCount} selected`}
+              className="study-mode-app-card study-mode-app-card--blocked border border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 text-left shadow-sm transition-[border-color,transform,background-color] duration-200 hover:border-primary/30 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100"
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-[11px] font-bold tracking-tight text-foreground">Blocked Apps</p>
-                  <p className="mt-0.5 text-[9px] text-muted-foreground">{selectedCount} selected</p>
-                </div>
-                <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-primary/10 px-2 text-[10px] font-bold tabular-nums text-primary ring-1 ring-primary/10">
+              <span className="study-mode-app-card__header">
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-bold tracking-tight text-foreground">Blocked Apps</span>
+                  <span className="mt-0.5 block text-[9px] text-muted-foreground">{selectedCount} selected</span>
+                </span>
+                <span className="study-mode-app-card__count inline-flex min-w-8 items-center justify-center rounded-full bg-primary/10 px-2 text-[10px] font-bold tabular-nums text-primary ring-1 ring-primary/10">
                   {selectedCount}
                 </span>
-              </div>
-              <div className="mt-3 flex min-h-8 items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center -space-x-2">
-                  {selectedBlockedApps.slice(0, 4).map((app) => (
-                    <span key={app.packageName} className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-[0.85rem] border-2 border-card bg-secondary shadow-sm">
-                      <StudyModeAppIcon app={app} size={26} />
+              </span>
+              <span className="study-mode-app-card__summary">
+                <span className="study-mode-app-card__icons" aria-hidden="true">
+                  {selectedBlockedApps.slice(0, 3).map((app) => (
+                    <span key={app.packageName} className="study-mode-app-card__icon">
+                      <StudyModeAppIcon app={app} size={23} />
                     </span>
                   ))}
-                  {selectedCount > selectedBlockedApps.length && (
-                    <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border-2 border-card bg-secondary px-1 text-[9px] font-bold text-muted-foreground">
-                      +{selectedCount - selectedBlockedApps.length}
-                    </span>
-                  )}
-                  {selectedCount === 0 && <span className="text-[9px] text-muted-foreground">Select apps</span>}
-                  {selectedCount > 0 && selectedBlockedApps.length === 0 && <span className="text-[9px] text-muted-foreground">Saved apps</span>}
-                </div>
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-transform duration-200 group-hover:translate-x-0.5">
+                </span>
+                <span className="study-mode-app-card__saved-label">
+                  {selectedCount === 0
+                    ? "Select apps"
+                    : selectedBlockedApps.length === 0
+                      ? `${selectedCount} saved apps`
+                      : selectedCount > Math.min(3, selectedBlockedApps.length)
+                        ? `+${selectedCount - Math.min(3, selectedBlockedApps.length)} saved`
+                        : "Saved apps"}
+                </span>
+                <span className="study-mode-app-card__arrow bg-primary/10 text-primary" aria-hidden="true">
                   <ChevronRight size={15} />
                 </span>
-              </div>
+              </span>
             </button>
 
             <button
               type="button"
               onClick={toggleStudyPicker}
               aria-expanded={studyPickerOpen}
-              className="motion-press group min-w-0 overflow-hidden rounded-[1.35rem] border border-accent/15 bg-gradient-to-br from-card via-card to-accent/5 p-3 text-left shadow-sm transition-[border-color,transform,background-color] duration-200 hover:border-accent/30 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100"
+              aria-label={`Study Apps, ${studyAppPackages.length} selected`}
+              className="study-mode-app-card study-mode-app-card--study border border-accent/15 bg-gradient-to-br from-card via-card to-accent/5 text-left shadow-sm transition-[border-color,transform,background-color] duration-200 hover:border-accent/30 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100"
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-[11px] font-bold tracking-tight text-foreground">Study Apps</p>
-                  <p className="mt-0.5 text-[9px] text-muted-foreground">{studyAppPackages.length} selected</p>
-                </div>
-                <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-accent/10 px-2 text-[10px] font-bold tabular-nums text-accent ring-1 ring-accent/10">
+              <span className="study-mode-app-card__header">
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-bold tracking-tight text-foreground">Study Apps</span>
+                  <span className="mt-0.5 block text-[9px] text-muted-foreground">{studyAppPackages.length} selected</span>
+                </span>
+                <span className="study-mode-app-card__count inline-flex min-w-8 items-center justify-center rounded-full bg-accent/10 px-2 text-[10px] font-bold tabular-nums text-accent ring-1 ring-accent/10">
                   {studyAppPackages.length}
                 </span>
-              </div>
-              <div className="mt-3 flex min-h-8 items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center -space-x-2">
-                  {selectedStudyApps.slice(0, 4).map((app) => (
-                    <span key={app.packageName} className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-[0.85rem] border-2 border-card bg-secondary shadow-sm">
-                      <StudyModeAppIcon app={app} size={26} />
+              </span>
+              <span className="study-mode-app-card__summary">
+                <span className="study-mode-app-card__icons" aria-hidden="true">
+                  {selectedStudyApps.slice(0, 3).map((app) => (
+                    <span key={app.packageName} className="study-mode-app-card__icon">
+                      <StudyModeAppIcon app={app} size={23} />
                     </span>
                   ))}
-                  {studyAppPackages.length > selectedStudyApps.length && (
-                    <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border-2 border-card bg-secondary px-1 text-[9px] font-bold text-muted-foreground">
-                      +{studyAppPackages.length - selectedStudyApps.length}
-                    </span>
-                  )}
-                  {studyAppPackages.length === 0 && <span className="text-[9px] text-muted-foreground">Select apps</span>}
-                  {studyAppPackages.length > 0 && selectedStudyApps.length === 0 && <span className="text-[9px] text-muted-foreground">Saved apps</span>}
-                </div>
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent transition-transform duration-200 group-hover:translate-x-0.5">
+                </span>
+                <span className="study-mode-app-card__saved-label">
+                  {studyAppPackages.length === 0
+                    ? "Select apps"
+                    : selectedStudyApps.length === 0
+                      ? `${studyAppPackages.length} saved apps`
+                      : studyAppPackages.length > Math.min(3, selectedStudyApps.length)
+                        ? `+${studyAppPackages.length - Math.min(3, selectedStudyApps.length)} saved`
+                        : "Saved apps"}
+                </span>
+                <span className="study-mode-app-card__arrow bg-accent/10 text-accent" aria-hidden="true">
                   <ChevronRight size={15} />
                 </span>
-              </div>
+              </span>
             </button>
           </section>
 
           {pickerOpen && (
-            <section className="overflow-hidden rounded-[1.4rem] border border-primary/15 bg-card/70 shadow-sm">
+            <section className="study-mode-picker study-mode-card overflow-hidden rounded-[1.25rem] border border-primary/15 bg-card/70 shadow-sm">
               <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
                 <Smartphone size={15} className="text-primary" />
                 <span className="flex-1 text-xs font-bold text-foreground">Blocked Apps</span>
@@ -1569,7 +1655,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
           )}
 
           {studyPickerOpen && (
-            <section className="overflow-hidden rounded-[1.4rem] border border-accent/15 bg-card/70 shadow-sm">
+            <section className="study-mode-picker study-mode-card overflow-hidden rounded-[1.25rem] border border-accent/15 bg-card/70 shadow-sm">
               <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
                 <BookOpen size={15} className="text-accent" />
                 <span className="flex-1 text-xs font-bold text-foreground">Study Apps</span>
@@ -1632,85 +1718,10 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
             </section>
           )}
 
-          {!activeSession && (
-            <section className="overflow-hidden rounded-[1.4rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><Clock3 size={15} /></span>
-                <h3 className="text-xs font-bold tracking-tight text-foreground">Focus session</h3>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Session
-                  <select
-                    value={sessionType}
-                    onChange={(event) => setSessionType(event.target.value as typeof sessionType)}
-                    disabled={saving || loading}
-                    className="mt-1.5 h-11 w-full rounded-[1.05rem] border border-border/70 bg-background/65 px-3 text-xs font-medium normal-case tracking-normal text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
-                  >
-                    <option value="study">Study</option>
-                    <option value="practice">Practice</option>
-                    <option value="work">Work</option>
-                    <option value="custom">Custom</option>
-                  </select>
-                </label>
-                <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Duration
-                  <select
-                    value={sessionDurationSeconds}
-                    onChange={(event) => setSessionDurationSeconds(Number(event.target.value))}
-                    disabled={saving || loading}
-                    className="mt-1.5 h-11 w-full rounded-[1.05rem] border border-border/70 bg-background/65 px-3 text-xs font-medium normal-case tracking-normal text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
-                  >
-                    <option value={15 * 60}>15 min</option>
-                    <option value={25 * 60}>25 min</option>
-                    <option value={45 * 60}>45 min</option>
-                    <option value={60 * 60}>60 min</option>
-                    <option value={90 * 60}>90 min</option>
-                    <option value={0}>Unlimited</option>
-                  </select>
-                </label>
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <div className="flex min-h-11 items-center justify-between gap-2 rounded-[1.05rem] border border-border/65 bg-background/45 px-3">
-                  <span className="text-[10px] font-medium text-foreground">Enforced</span>
-                  <Switch checked={sessionEnforced} onCheckedChange={setSessionEnforced} disabled={saving || loading} aria-label="Enforced focus session" />
-                </div>
-                <div className="flex min-h-11 items-center justify-between gap-2 rounded-[1.05rem] border border-border/65 bg-background/45 px-3">
-                  <span className="text-[10px] font-medium text-foreground">Do Not Disturb</span>
-                  <Switch checked={sessionDnd} onCheckedChange={setSessionDnd} disabled={saving || loading} aria-label="Enable Do Not Disturb for session" />
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => { void handleStartSession(); }}
-                disabled={saving || loading || !isStudyModeNative()}
-                className="motion-press gradient-primary mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-[1.1rem] px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm disabled:opacity-50"
-              >
-                <Clock3 size={15} /> {saving ? "Starting…" : "Start focus session"}
-              </button>
-
-              {sessionHistory.length > 0 && (
-                <div className="mt-3 border-t border-border/55 pt-2.5">
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recent sessions</p>
-                    <span className="text-[9px] text-muted-foreground">{sessionHistory.length} total</span>
-                  </div>
-                  <div className="space-y-1">
-                    {sessionHistory.slice(0, 3).map((session) => (
-                      <div key={session.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/35 px-2.5 py-2 text-[10px]">
-                        <span className="min-w-0 truncate capitalize text-foreground">{session.sessionType} · {new Date(session.startTimestamp).toLocaleDateString()}</span>
-                        <span className="shrink-0 tabular-nums text-muted-foreground">{formatSessionTime(session.elapsedSeconds)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
 
           <section className="rounded-[1.4rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="study-mode-section-header mb-2.5 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><CalendarDays size={15} /></span>
                 <div>
@@ -1720,12 +1731,12 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               </div>
               {status?.scheduleActive && <span className="rounded-full bg-success/10 px-2.5 py-1 text-[9px] font-bold text-success">ACTIVE</span>}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="study-mode-schedule-times grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2">
               <button
                 type="button"
                 onClick={() => { void chooseTime("start"); }}
                 disabled={!isStudyModeNative() || loading}
-                className="motion-press flex min-h-[72px] min-w-0 flex-col justify-center gap-1 rounded-[1.15rem] border border-primary/15 bg-gradient-to-br from-background/75 to-primary/5 px-3 py-2.5 text-left transition-colors hover:border-primary/35 disabled:opacity-50"
+                className="motion-press flex min-h-[62px] min-w-0 flex-col justify-center gap-1 rounded-[1.05rem] border border-primary/15 bg-gradient-to-br from-background/75 to-primary/5 px-3 py-2.5 text-left transition-colors hover:border-primary/35 disabled:opacity-50"
               >
                 <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Start
@@ -1736,7 +1747,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                 type="button"
                 onClick={() => { void chooseTime("end"); }}
                 disabled={!isStudyModeNative() || loading}
-                className="motion-press flex min-h-[72px] min-w-0 flex-col justify-center gap-1 rounded-[1.15rem] border border-accent/15 bg-gradient-to-br from-background/75 to-accent/5 px-3 py-2.5 text-left transition-colors hover:border-accent/35 disabled:opacity-50"
+                className="motion-press flex min-h-[62px] min-w-0 flex-col justify-center gap-1 rounded-[1.05rem] border border-accent/15 bg-gradient-to-br from-background/75 to-accent/5 px-3 py-2.5 text-left transition-colors hover:border-accent/35 disabled:opacity-50"
               >
                 <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   <span className="h-1.5 w-1.5 rounded-full bg-accent" /> End
@@ -1745,9 +1756,9 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               </button>
             </div>
 
-            <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="study-mode-weekdays mt-3 flex items-center justify-between gap-2">
               <span className="sr-only">Repeat days</span>
-              <div className="grid w-full grid-cols-7 gap-1">
+              <div className="study-mode-weekday-grid grid w-full grid-cols-7 gap-1">
                 {DAY_LABELS.map((day) => {
                   const selected = draft.selectedDays.includes(day.value);
                   return (
@@ -1771,14 +1782,14 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                 })}
               </div>
             </div>
-            <div className="mt-2 flex justify-end gap-1.5">
+            <div className="study-mode-schedule-actions mt-2 flex flex-wrap justify-end gap-1.5">
               <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5] })} className="motion-press rounded-lg px-2 py-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">Weekdays</button>
               <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5, 6, 7] })} className="motion-press rounded-lg px-2 py-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">Every day</button>
               <button type="button" onClick={() => updateDraft({ selectedDays: [] })} className="motion-press rounded-lg px-2 py-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">Clear</button>
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-[1.4rem] border border-border/70 bg-card/65 shadow-sm">
+          <section className="study-mode-permissions-card study-mode-card overflow-hidden rounded-[1.25rem] border border-border/70 bg-card/65 shadow-sm">
             <button
               type="button"
               onClick={() => setPermissionsExpanded((value) => !value)}
@@ -1830,7 +1841,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
           </section>
 
           {(message || refreshError) && (
-            <p role="status" className="rounded-xl border border-border/70 bg-secondary/60 px-3 py-2.5 text-[10px] leading-relaxed text-muted-foreground">
+            <p role="status" className="study-mode-message rounded-xl border border-border/70 bg-secondary/60 px-3 py-2.5 text-[10px] leading-relaxed text-muted-foreground">
               {message || refreshError}
             </p>
           )}
