@@ -1626,8 +1626,8 @@ public final class StudyModeFocusService extends Service {
                 for (int column = 0; column < columns; column++) {
                     int index = i + column;
                     if (index < studyPackages.size()) {
-                        String packageName = studyPackages.get(index);
-                        row.addView(buildStudyAppShortcut(packageName, palette),
+                        String studyPackageName = studyPackages.get(index);
+                        row.addView(buildStudyAppShortcut(studyPackageName, palette),
                             new LinearLayout.LayoutParams(0, dp(56), 1f));
                     } else {
                         row.addView(new android.view.View(this),
