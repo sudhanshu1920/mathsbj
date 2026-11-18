@@ -43,7 +43,7 @@ All four games use the existing quiz question generation, answer validation, sco
 
 ## Personal-use signed Android APK
 
-For a signed APK artifact without publishing a public release or update-feed entry, use the artifact-only workflow at `.github/workflows/android-apk.yml`. It runs lint and unit tests, builds the Android release APK, verifies its application ID, version and production signing certificate, calculates the APK SHA-256 checksum, and uploads the APK as the `math-master-android-release` artifact.
+For a signed APK artifact without publishing a public release or update-feed entry, use the artifact-only workflow at `.github/workflows/android-apk.yml`. It runs lint and unit tests, generates the native Study Mode services required by the Android project, builds the Android release APK, verifies its application ID, version and production signing certificate, calculates the APK SHA-256 checksum, and uploads `app-release.apk` as the `math-master-android-universal-release` artifact.
 
 The artifact-only workflow can be triggered manually with `workflow_dispatch`, or by a commit to `main` whose message starts with `[BUILD_ANDROID_APK]`. Open that workflow run in GitHub Actions and download the `math-master-android-universal-release` artifact ZIP; extract it to get `app-release.apk`. Artifact retention is 14 days.
 
