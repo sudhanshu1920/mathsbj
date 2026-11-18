@@ -67,6 +67,12 @@ describe("WidgetStudioPage", () => {
     expect(preview).toHaveAttribute("src", "data:image/png;base64,d2lkZ2V0");
     expect(screen.getByText("320 × 146 dp")).toBeInTheDocument();
 
+    const expandPreview = screen.getByRole("button", { name: "Expand widget preview" });
+    fireEvent.click(expandPreview);
+    expect(screen.getByRole("button", { name: "Collapse widget preview" })).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Collapse widget preview" }));
+    expect(screen.getByRole("button", { name: "Expand widget preview" })).toHaveAttribute("aria-expanded", "false");
+
     fireEvent.click(screen.getByRole("button", { name: "Customize this widget" }));
     await waitFor(() => expect(mocks.configureWidget).toHaveBeenCalledWith({ appWidgetId: 42 }));
   });

@@ -115,7 +115,8 @@ test('content options and schema version agree in the provider, configuration sc
     assert.ok(config.includes(`{"${option}",`), `configuration screen is missing ${option}`);
   }
   assert.match(provider, /CONTENT_SCHEMA_VERSION = 3/);
-  assert.match(config, /_contentSchemaVersion", 3\)/);
+  assert.match(config, /String schemaKey = prefix \+ "contentSchemaVersion"/);
+  assert.match(config, /putInt\(schemaKey, 3\)/);
   assert.match(backupTs, /item < 1 \|\| item > 3/);
   assert.match(backupPlugin, /intValue\(\) <= 3/);
 });
@@ -133,7 +134,7 @@ test('configuration screen previews the real renderer output', () => {
   assert.match(config, /AppWidgetManager\.OPTION_APPWIDGET_MIN_WIDTH/);
   assert.doesNotMatch(config, /getConfigurationPreviewArtwork|previewShade|previewMetric/);
   assert.doesNotMatch(config, /PREMIUM_THEMES|Random Premium Theme|themeGroup/);
-  assert.match(config, /"neon", "Neon Glass \(reference design\)"/);
+  assert.match(config, /"neon", "Neon Glass"/);
   assert.match(config, /"blur", "Transparent Blur"/);
   assert.match(config, /"transparent", "Full Transparent"/);
   for (const composition of COMPOSITIONS) {
@@ -281,4 +282,23 @@ test('every native widget provider is copied and registered by the Android setup
   assert.match(configureAndroid, /normalizeRemoteViewsLayout\(xml\)/);
   const releaseWorkflow = read('.github/workflows/android-release.yml');
   assert.match(releaseWorkflow, /- name: Configure native Study Mode services\s+run: node scripts\/configure-android-study-mode\.mjs[\s\S]*?- name: Configure Android home-screen widgets\s+run: node scripts\/configure-android-widgets\.mjs/);
+});
+
+
+test('native widget editor uses compact responsive grids, real thumbnails and a persistent action bar', () => {
+  const config = read(CONFIG);
+  assert.match(config, /private int gridColumns\(\)/);
+  assert.match(config, /widthDp >= 840 \? 4 : \(widthDp >= 600 \? 3 : 2\)/);
+  assert.match(config, /private void addContentGrid\(/);
+  assert.match(config, /private void addStyleGrid\(/);
+  assert.match(config, /private void addCompositionGrid\(/);
+  assert.match(config, /renderConfigurationPreview\(/);
+  assert.match(config, /setMaxHeight\(dp\(176\)\)/);
+  assert.match(config, /root\.addView\(scroll, new LinearLayout\.LayoutParams\([\s\S]*?0, 1f\)/);
+  assert.match(config, /root\.addView\(actions, actionParams\)/);
+  assert.match(config, /\.commit\(\)/);
+  assert.match(config, /Previous settings are unchanged/);
+  assert.match(config, /Previous settings were restored/);
+  assert.match(config, /isActiveWidget\(widgetId\)/);
+  assert.match(config, /radio\.setOnClickListener\(view -> \{\s+List<RadioButton> choices = styleChoices\.contains\(radio\) \? styleChoices : compositionChoices;\s+selectChoice\(choices, radio\);/);
 });
