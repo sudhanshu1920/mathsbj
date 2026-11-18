@@ -115,7 +115,8 @@ test('content options and schema version agree in the provider, configuration sc
     assert.ok(config.includes(`{"${option}",`), `configuration screen is missing ${option}`);
   }
   assert.match(provider, /CONTENT_SCHEMA_VERSION = 3/);
-  assert.match(config, /String schemaKey = prefix \+ "contentSchemaVersion"/);\n  assert.match(config, /putInt\(schemaKey, 3\)/);
+  assert.match(config, /String schemaKey = prefix \+ "contentSchemaVersion"/);
+  assert.match(config, /putInt\(schemaKey, 3\)/);
   assert.match(backupTs, /item < 1 \|\| item > 3/);
   assert.match(backupPlugin, /intValue\(\) <= 3/);
 });
