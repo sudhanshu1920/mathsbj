@@ -133,7 +133,7 @@ test('configuration screen previews the real renderer output', () => {
   assert.match(config, /AppWidgetManager\.OPTION_APPWIDGET_MIN_WIDTH/);
   assert.doesNotMatch(config, /getConfigurationPreviewArtwork|previewShade|previewMetric/);
   assert.doesNotMatch(config, /PREMIUM_THEMES|Random Premium Theme|themeGroup/);
-  assert.match(config, /"neon", "Neon Glass \(reference design\)"/);
+  assert.match(config, /"neon", "Neon Glass"/);
   assert.match(config, /"blur", "Transparent Blur"/);
   assert.match(config, /"transparent", "Full Transparent"/);
   for (const composition of COMPOSITIONS) {
