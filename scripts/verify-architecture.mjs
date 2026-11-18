@@ -1501,4 +1501,26 @@ for (const [section, expandLabel, collapseLabel, contentId] of expandableStudySe
   }
 }
 
+
+const widgetScreenTime = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeData.java');
+const widgetRenderer = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java');
+const widgetProvider = read('android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java');
+const widgetSetup = read('scripts/configure-android-widgets.mjs');
+const widgetBackup = read('android-native/com/sudhanshu/mathsbj/BackupRestorePlugin.java');
+if (!widgetScreenTime.includes('UsageStatsManager.INTERVAL_DAILY') ||
+    !widgetScreenTime.includes('StudyModeManager.getSelectedStudyAppPackages(app)') ||
+    !widgetScreenTime.includes('ApplicationInfo.FLAG_SYSTEM') ||
+    !widgetScreenTime.includes('AppUsageAnalyticsStore.shared()') ||
+    !widgetProvider.includes('"studyAppsScreenTime", "deviceAppsScreenTime"') ||
+    !widgetProvider.includes('WidgetScreenTimeData.load(context, true') ||
+    !widgetProvider.includes('WidgetScreenTimeData.load(context, false') ||
+    !widgetRenderer.includes('layoutScreenTime()') ||
+    !widgetRenderer.includes('drawScreenTimeBlock(') ||
+    !widgetSetup.includes("'WidgetScreenTimeData.java'") ||
+    !widgetSetup.includes('android.permission.PACKAGE_USAGE_STATS') ||
+    !widgetSetup.includes('android.permission.QUERY_ALL_PACKAGES') ||
+    !widgetBackup.includes('studyAppFilterJson')) {
+  fail('Screen-time widgets must use local Android UsageStats, separate Study Apps and device inventory sources, existing native rendering, and validated persisted preferences');
+}
+
 console.log('Architecture regression checks passed.');

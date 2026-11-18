@@ -23,9 +23,27 @@ const widgetPreferences = {
   instances: [{
     widgetId: 18,
     preferences: {
-      contentJson: '["target","progress"]',
-      contentSchemaVersion: 2,
+      contentJson: '["target","progress","studyAppsScreenTime","deviceAppsScreenTime"]',
+      contentSchemaVersion: 4,
       style: 'glass',
+      studyPeriod: 'last_7_days',
+      studySort: 'most_used',
+      studyMaxApps: 5,
+      studyShowTotal: true,
+      studyShowUsage: true,
+      studyShowPercent: true,
+      studyCompact: false,
+      studyAppFilterEnabled: true,
+      studyAppFilterJson: '["com.example.reader"]',
+      devicePeriod: 'yesterday',
+      deviceSort: 'name_az',
+      deviceMaxApps: 8,
+      deviceShowTotal: true,
+      deviceShowUsage: false,
+      deviceShowPercent: true,
+      deviceCompact: true,
+      deviceAppFilterEnabled: false,
+      deviceAppFilterJson: '[]',
       composition: 'hero_wide',
       themeMode: 'random',
       theme: 'violet',
@@ -101,6 +119,9 @@ describe('portable Math Master backup', () => {
     expect(validated.dataSchemaVersion).toBe(1);
     expect(validated.payload.storage['math-app-streak-v1']).toContain('targetMinutes');
     expect(validated.payload.native.widgetPreferences?.instances[0].preferences.themeMode).toBe('random');
+    expect(validated.payload.native.widgetPreferences?.instances[0].preferences.studyPeriod).toBe('last_7_days');
+    expect(validated.payload.native.widgetPreferences?.instances[0].preferences.studyAppFilterJson).toBe('["com.example.reader"]');
+    expect(validated.payload.native.widgetPreferences?.instances[0].preferences.deviceSort).toBe('name_az');
     expect(validated.checksum.algorithm).toBe('SHA-256');
     expect(stableSerialize({ b: 2, a: 1 })).toBe('{"a":1,"b":2}');
   });
@@ -194,6 +215,23 @@ describe('portable Math Master backup', () => {
         }),
       },
     })).rejects.toThrow(/newer Study Tracker schema/i);
+  });
+
+
+  it('rejects unsafe screen-time filter packages and out-of-range widget screen-time settings', async () => {
+    const invalidFilter = structuredClone(widgetPreferences);
+    invalidFilter.instances[0].preferences.studyAppFilterJson = '["../../unsafe"]';
+    await expect(createBackupText({
+      storageEntries: { 'math-app-settings-v1': JSON.stringify({ sound: true }) },
+      widgetPreferences: invalidFilter,
+    })).rejects.toThrow(/invalid widget instance preference/i);
+
+    const invalidCount = structuredClone(widgetPreferences);
+    invalidCount.instances[0].preferences.deviceMaxApps = 99;
+    await expect(createBackupText({
+      storageEntries: { 'math-app-settings-v1': JSON.stringify({ sound: true }) },
+      widgetPreferences: invalidCount,
+    })).rejects.toThrow(/invalid widget instance preference/i);
   });
 
   it('rejects unsafe widget configurations rather than accepting arbitrary persisted fields', async () => {

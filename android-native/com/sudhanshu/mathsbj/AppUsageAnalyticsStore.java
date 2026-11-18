@@ -26,6 +26,9 @@ public final class AppUsageAnalyticsStore {
     private static final String KEY_PAYLOAD = "encrypted_daily_usage";
     private static final String KEY_ALIAS = "math_master_app_usage_aes_gcm_v1";
     private static final int DEFAULT_RETENTION_DAYS = 90;
+    private static final AppUsageAnalyticsStore SHARED = new AppUsageAnalyticsStore();
+
+    static AppUsageAnalyticsStore shared() { return SHARED; }
 
     public synchronized JSONObject read(Context context) throws Exception {
         SharedPreferences preferences = preferences(context);
@@ -43,6 +46,43 @@ public final class AppUsageAnalyticsStore {
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), new GCMParameterSpec(128, iv));
         byte[] plaintext = cipher.doFinal(ciphertext);
         return new JSONObject(new String(plaintext, StandardCharsets.UTF_8));
+    }
+
+    /** Separate widget-only UsageStats snapshot so analytics history keeps its existing semantics. */
+    public synchronized JSONObject readWidgetDays(Context context) throws Exception {
+        JSONObject widgetDays = read(context).optJSONObject("widgetDays");
+        return widgetDays == null ? new JSONObject() : widgetDays;
+    }
+
+    public synchronized void upsertWidgetDays(Context context, JSONObject replacements) throws Exception {
+        JSONObject data = read(context);
+        JSONObject widgetDays = data.optJSONObject("widgetDays");
+        if (widgetDays == null) widgetDays = new JSONObject();
+        Iterator<String> iterator = replacements.keys();
+        while (iterator.hasNext()) {
+            String date = iterator.next();
+            JSONObject day = replacements.optJSONObject(date);
+            if (day != null) widgetDays.put(date, day);
+        }
+        Calendar cutoff = Calendar.getInstance();
+        cutoff.set(Calendar.HOUR_OF_DAY, 0);
+        cutoff.set(Calendar.MINUTE, 0);
+        cutoff.set(Calendar.SECOND, 0);
+        cutoff.set(Calendar.MILLISECOND, 0);
+        cutoff.add(Calendar.DAY_OF_YEAR, -7);
+        java.text.SimpleDateFormat formatter = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+        formatter.setTimeZone(java.util.TimeZone.getDefault());
+        String cutoffDate = formatter.format(cutoff.getTime());
+        java.util.ArrayList<String> remove = new java.util.ArrayList<>();
+        Iterator<String> keys = widgetDays.keys();
+        while (keys.hasNext()) {
+            String date = keys.next();
+            if (date.compareTo(cutoffDate) < 0) remove.add(date);
+        }
+        for (String date : remove) widgetDays.remove(date);
+        data.put("widgetDays", widgetDays);
+        data.put("widgetLastUpdatedAt", System.currentTimeMillis());
+        write(context, data);
     }
 
     public synchronized void upsertDays(Context context, JSONObject replacements) throws Exception {

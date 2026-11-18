@@ -53,7 +53,7 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
         thread.setDaemon(true);
         return thread;
     });
-    private final AppUsageAnalyticsStore store = new AppUsageAnalyticsStore();
+    private final AppUsageAnalyticsStore store = AppUsageAnalyticsStore.shared();
 
     @PluginMethod
     public void getUsage(PluginCall call) {

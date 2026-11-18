@@ -864,6 +864,7 @@ public final class StudyModeManager {
             sessionStore(context).updateActivePackages(activeSession.id, acceptedBlocked);
         }
         StudyModeFocusService.onStudyAppsChanged();
+        WidgetScreenTimeData.onStudyAppsChanged(context);
         reconcile(context);
     }
 

@@ -13,6 +13,8 @@ const NATIVE_JAVA_FILES = [
   'MathMasterWidgetsPlugin.java',
   'MathMasterWidgetRenderer.java',
   'MathMasterWidgetConfigActivity.java',
+  'WidgetScreenTimeData.java',
+  'MathMasterWidgetActionReceiver.java',
   'DailyTargetReminderPlugin.java',
   'DailyTargetReminderReceiver.java',
   'DailyTargetReminderBootReceiver.java',
@@ -54,6 +56,8 @@ function ensurePermissions(manifest) {
     'android.permission.POST_NOTIFICATIONS',
     'android.permission.RECEIVE_BOOT_COMPLETED',
     'android.permission.VIBRATE',
+    'android.permission.PACKAGE_USAGE_STATS',
+    'android.permission.QUERY_ALL_PACKAGES',
   ];
   const missing = permissions
     .filter((permission) => !manifest.includes(`android:name="${permission}"`))
@@ -88,6 +92,10 @@ function ensureApplicationComponents(manifest) {
     {
       name: 'MathMasterWidgetPinReceiver',
       xml: `        <receiver android:name=".MathMasterWidgetPinReceiver" android:enabled="true" android:exported="false" />`,
+    },
+    {
+      name: 'MathMasterWidgetActionReceiver',
+      xml: '        <receiver android:name=".MathMasterWidgetActionReceiver" android:enabled="true" android:exported="false" />',
     },
     {
       name: 'DailyTargetReminderReceiver',
@@ -130,6 +138,22 @@ function ensureWidgetPluginRegistration(mainActivity) {
   return mainActivity;
 }
 
+function ensureWidgetResumeRefresh(mainActivity) {
+  if (mainActivity.includes('WidgetScreenTimeData.onAppResumed(this);')) return mainActivity;
+  const onResume = /@Override\s+(?:public|protected)\s+void onResume\(\)\s*\{([\s\S]*?)\n    \}/;
+  if (onResume.test(mainActivity)) {
+    return mainActivity.replace(onResume, (match, body) => {
+      if (body.includes('WidgetScreenTimeData.onAppResumed(this);')) return match;
+      return match.replace(body, body + '\n        WidgetScreenTimeData.onAppResumed(this);');
+    });
+  }
+  const classEnd = mainActivity.lastIndexOf('}');
+  if (classEnd < 0) throw new Error('MainActivity.java has no class closing brace.');
+  return mainActivity.slice(0, classEnd)
+    + '\n    @Override\n    protected void onResume() {\n        super.onResume();\n        WidgetScreenTimeData.onAppResumed(this);\n    }\n'
+    + mainActivity.slice(classEnd);
+}
+
 export async function configureAndroidWidgets(androidRoot) {
   const root = path.resolve(androidRoot);
   const javaTarget = path.join(root, 'app/src/main/java', PACKAGE_PATH.replaceAll('.', '/'));
@@ -158,7 +182,8 @@ export async function configureAndroidWidgets(androidRoot) {
 
   const activityPath = path.join(javaTarget, 'MainActivity.java');
   const mainActivity = await readFile(activityPath, 'utf8');
-  await writeFile(activityPath, ensureWidgetPluginRegistration(mainActivity));
+  const registeredActivity = ensureWidgetPluginRegistration(mainActivity);
+  await writeFile(activityPath, ensureWidgetResumeRefresh(registeredActivity));
 
   const manifestPath = path.join(root, 'app/src/main/AndroidManifest.xml');
   let manifest = await readFile(manifestPath, 'utf8');

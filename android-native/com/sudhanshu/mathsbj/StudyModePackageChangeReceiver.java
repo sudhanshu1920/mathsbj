@@ -21,11 +21,13 @@ public final class StudyModePackageChangeReceiver extends BroadcastReceiver {
         String changedPackage = intent.getData() == null ? null : intent.getData().getSchemeSpecificPart();
         StudyModeFocusService.invalidatePackageCache(changedPackage);
         StudyModeManager.invalidateStrictExemptPackageCache();
+        WidgetScreenTimeData.onPackageInventoryChanged(context);
 
         if (packageRemoved && !intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
             StudyModeManager.getSelectedPackages(context); // Purge removed packages from Blocked Apps.
             StudyModeManager.getSelectedStudyAppPackages(context); // Purge removed Study Apps.
             StudyModeManager.reconcile(context); // Also removes any stale Device Owner suspension.
+            WidgetScreenTimeData.onStudyAppsChanged(context);
             return;
         }
 
