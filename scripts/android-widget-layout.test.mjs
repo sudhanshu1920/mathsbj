@@ -134,8 +134,8 @@ test('configuration screen previews the real renderer output', () => {
   assert.doesNotMatch(config, /getConfigurationPreviewArtwork|previewShade|previewMetric/);
   assert.doesNotMatch(config, /PREMIUM_THEMES|Random Premium Theme|themeGroup/);
   assert.match(config, /"neon", "Neon Glass \(reference design\)"/);
-  assert.match(config, /"blur", "Transparent Blur"/);
-  assert.match(config, /"transparent", "Full Transparent"/);
+  assert.match(config, /\\{"blur", "Transparent Blur"\\}/);
+  assert.match(config, /\\{"transparent", "Full Transparent"\\}/);
   for (const composition of COMPOSITIONS) {
     assert.ok(config.includes('MathMasterHomeWidgetProvider.getWidgetCompositionOptions()'), `configuration screen must reuse the provider registry for ${composition}`);
   }
