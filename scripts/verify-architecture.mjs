@@ -1273,7 +1273,7 @@ if (!studyModeManager.includes('public static synchronized void setProEnabled') 
     !studyModeManager.includes('getPolicyEnforcedPackages(Context context)') ||
     !studyModeAppPlugin.includes('public void setProEnabled(PluginCall call)') ||
     !studyModeAppPlugin.includes('getAppCatalogRevision(PluginCall call)') ||
-    !studyModeFocus.includes('StudyModeManager.isPackageRestricted(StudyModeFocusService.this, foreground)') ||
+    !studyModeFocus.includes('StudyModeManager.isPackageRestricted(\n                StudyModeFocusService.this, foreground)') ||
     !studyModeWindowRegistry.includes('StudyModeManager.isPackageRestricted(context, window.packageName)') ||
     !studyModePage.includes('setStudyModeProEnabled(enabled)') ||
     !studyModePage.includes('persistProAllowlist')) {
