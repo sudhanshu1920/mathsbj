@@ -5,6 +5,7 @@ import WidgetStudioPage from "./WidgetStudioPage";
 const mocks = vi.hoisted(() => ({
   native: true,
   getWidgets: vi.fn(),
+  getDesigns: vi.fn(),
   requestAdd: vi.fn(),
   configureWidget: vi.fn(),
   renderPreview: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock("@capacitor/core", () => ({
   Capacitor: { isNativePlatform: () => mocks.native },
   registerPlugin: () => ({
     getWidgets: mocks.getWidgets,
+    getDesigns: mocks.getDesigns,
     requestAdd: mocks.requestAdd,
     configureWidget: mocks.configureWidget,
     renderPreview: mocks.renderPreview,
@@ -41,6 +43,10 @@ describe("WidgetStudioPage", () => {
     vi.clearAllMocks();
     mocks.native = true;
     mocks.getWidgets.mockResolvedValue({ widgets: [] });
+    mocks.getDesigns.mockResolvedValue({ designs: [
+      { id: "auto", name: "Auto (adapts to size)", previewDataUrl: "data:image/png;base64,YXV0bw==" },
+      { id: "hero_wide", name: "Hero Wide · Blue Neon", previewDataUrl: "data:image/png;base64,aGVybw==" },
+    ] });
     mocks.requestAdd.mockResolvedValue({ requested: true, supported: true });
     mocks.configureWidget.mockResolvedValue({ opened: true });
     mocks.renderPreview.mockResolvedValue({ dataUrl: "data:image/png;base64,d2lkZ2V0" });
@@ -65,6 +71,9 @@ describe("WidgetStudioPage", () => {
     expect((await screen.findAllByText(/Hero Wide/)).length).toBeGreaterThan(0);
     const preview = await screen.findByRole("img", { name: "Live preview of the selected Math Master widget" });
     expect(preview).toHaveAttribute("src", "data:image/png;base64,d2lkZ2V0");
+    expect(await screen.findByRole("img", {
+      name: "Hero Wide · Blue Neon preview from the Android widget renderer",
+    })).toHaveAttribute("src", "data:image/png;base64,aGVybw==");
     expect(screen.getByText("320 × 146 dp")).toBeInTheDocument();
 
     const expandPreview = screen.getByRole("button", { name: "Expand widget preview" });
@@ -75,6 +84,37 @@ describe("WidgetStudioPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Customize this widget" }));
     await waitFor(() => expect(mocks.configureWidget).toHaveBeenCalledWith({ appWidgetId: 42 }));
+  });
+
+  it("separates discovery failure from a confirmed empty state while keeping the supported design registry", async () => {
+    mocks.getWidgets.mockRejectedValueOnce(new Error("Native plugin is not implemented"));
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to load your widgets");
+    expect(screen.getByText("Pinned widget status unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("0 pinned instances on this device")).not.toBeInTheDocument();
+    expect(screen.queryByText("Your workspace is ready")).not.toBeInTheDocument();
+    expect(await screen.findByRole("img", {
+      name: "Hero Wide · Blue Neon preview from the Android widget renderer",
+    })).toBeInTheDocument();
+
+    mocks.getWidgets.mockResolvedValueOnce({ widgets: [], designs: [] });
+    fireEvent.click(screen.getByRole("button", { name: "Retry discovery" }));
+    expect(await screen.findByText("Your workspace is ready")).toBeInTheDocument();
+    expect(screen.getByText("0 pinned instances on this device")).toBeInTheDocument();
+  });
+
+  it("retains the last confirmed widget list after a later discovery failure", async () => {
+    mocks.getWidgets
+      .mockResolvedValueOnce({ widgets: [widget], designs: [] })
+      .mockRejectedValueOnce(new Error("Temporary Android manager failure"));
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    expect(await screen.findByText("1 pinned instance on this device")).toBeInTheDocument();
+    window.dispatchEvent(new Event("focus"));
+    expect(await screen.findByText(/last confirmed instance/)).toBeInTheDocument();
+    expect(screen.getByText(/previously confirmed widget list and saved settings are being kept/)).toBeInTheDocument();
+    expect(screen.getByText(/Widget #42/)).toBeInTheDocument();
   });
 
   it("resets only the selected instance after an explicit confirmation", async () => {
