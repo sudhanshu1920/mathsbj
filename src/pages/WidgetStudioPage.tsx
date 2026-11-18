@@ -4,6 +4,8 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import {
   ArrowLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Grid2X2,
   Info,
   Maximize2,
@@ -52,6 +54,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const [designs, setDesigns] = useState<WidgetDesign[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [openingEditor, setOpeningEditor] = useState(false);
@@ -203,7 +206,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   };
 
   return (
-    <main className="min-w-0 space-y-5 pb-6 text-foreground">
+    <main className="mx-auto min-w-0 w-full max-w-6xl space-y-3.5 pb-5 text-foreground">
       <header className="flex items-center gap-3">
         <button
           type="button"
@@ -254,7 +257,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
             </div>
           )}
 
-          <section className="rounded-2xl border border-border/70 bg-card/45 p-4 shadow-sm">
+          <section className="rounded-2xl border border-border/70 bg-card/45 p-3 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -333,25 +336,36 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
           </section>
 
           {selectedWidget && (
-            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
-              <section className="min-w-0 rounded-2xl border border-border/70 bg-card/45 p-4 shadow-sm">
+            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(250px,0.9fr)]">
+              <section className="min-w-0 rounded-2xl border border-border/70 bg-card/45 p-3 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-sm font-semibold">Live Preview</h2>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Rendered by the Android widget engine</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">Actual Android widget renderer</p>
                   </div>
-                  <span className="rounded-full border border-border bg-background/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
-                    {selectedWidget.widthDp > 0 && selectedWidget.heightDp > 0
-                      ? selectedWidget.widthDp + " × " + selectedWidget.heightDp + " dp"
-                      : "Launcher size"}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="rounded-full border border-border bg-background/70 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+                      {selectedWidget.widthDp > 0 && selectedWidget.heightDp > 0
+                        ? selectedWidget.widthDp + " × " + selectedWidget.heightDp + " dp"
+                        : "Launcher size"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewExpanded((value) => !value)}
+                      aria-expanded={previewExpanded}
+                      aria-label={previewExpanded ? "Collapse widget preview" : "Expand widget preview"}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-background/70 text-muted-foreground hover:text-foreground"
+                    >
+                      {previewExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                  </div>
                 </div>
-                <div className="mt-3 flex min-h-[150px] items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-background/75 p-3">
+                <div className={"mt-2.5 flex items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-background/75 p-2 " + (previewExpanded ? "min-h-[210px]" : "min-h-[112px]")}>
                   {previewUrl ? (
                     <img
                       src={previewUrl}
                       alt="Live preview of the selected Math Master widget"
-                      className="block h-auto max-h-64 w-full max-w-[520px] object-contain"
+                      className={"block h-auto w-full object-contain " + (previewExpanded ? "max-h-80 max-w-[620px]" : "max-h-40 max-w-[440px]")}
                     />
                   ) : (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -364,7 +378,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                   type="button"
                   onClick={() => void handleCustomize()}
                   disabled={openingEditor}
-                  className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-opacity disabled:opacity-60"
+                  className="mt-2.5 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-opacity disabled:opacity-60"
                 >
                   <Settings2 size={15} />
                   {openingEditor ? "Opening Android editor…" : "Customize this widget"}
@@ -377,7 +391,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                     <Sparkles size={15} className="text-primary" />
                     <h2 className="text-sm font-semibold">Personalization</h2>
                   </div>
-                  <div className="mt-3 space-y-2 text-xs">
+                  <div className="mt-2.5 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">Design</span>
                       <span className="font-medium">{widgetLabel(selectedWidget, designs)}</span>
@@ -398,7 +412,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                     type="button"
                     onClick={() => void handleReset()}
                     disabled={resetting}
-                    className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                    className="mt-2.5 inline-flex min-h-8 items-center gap-2 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
                   >
                     {resetting ? "Resetting…" : "Reset to default"}
                   </button>
@@ -431,7 +445,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
             </div>
           )}
 
-          <section className="rounded-2xl border border-border/70 bg-card/35 p-4">
+          <section className="rounded-2xl border border-border/70 bg-card/35 p-3">
             <div className="flex items-center gap-2">
               <Sparkles size={15} className="text-primary" />
               <h2 className="text-sm font-semibold">Available Designs</h2>
