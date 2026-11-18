@@ -426,7 +426,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                   );
                 })}
               </div>
-            )}
+            ) : null}
           </section>
 
           {selectedWidget && (
