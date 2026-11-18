@@ -337,10 +337,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
         radio.setButtonTintList(android.content.res.ColorStateList.valueOf(accentColor));
         radio.setChecked(value.equals(selectedValue));
         radio.setOnClickListener(view -> {
-            if (radio.isChecked()) {
-                List<RadioButton> choices = styleChoices.contains(radio) ? styleChoices : compositionChoices;
-                selectChoice(choices, radio);
-            }
+            List<RadioButton> choices = styleChoices.contains(radio) ? styleChoices : compositionChoices;
+            selectChoice(choices, radio);
         });
         return radio;
     }
