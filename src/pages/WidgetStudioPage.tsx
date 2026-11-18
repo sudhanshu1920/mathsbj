@@ -30,7 +30,7 @@ type NativeWidget = {
 type NativeWidgetsPlugin = {
   getWidgets(): Promise<{ widgets: NativeWidget[]; designs: WidgetDesign[] }>;
   getDesigns(): Promise<{ designs: WidgetDesign[] }>;
-  requestAdd(): Promise<{ requested: boolean; supported: boolean }>;
+  requestAdd(options?: { composition?: string }): Promise<{ requested: boolean; supported: boolean }>;
   configureWidget(options: { appWidgetId: number; composition?: string }): Promise<{ opened: boolean }>;
   renderPreview(options: { appWidgetId: number }): Promise<{ dataUrl: string }>;
   resetWidget(options: { appWidgetId: number }): Promise<{ reset: boolean }>;
@@ -68,6 +68,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const [widgets, setWidgets] = useState<NativeWidget[]>([]);
   const [designs, setDesigns] = useState<WidgetDesign[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [pendingDesignId, setPendingDesignId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewExpanded, setPreviewExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -216,13 +217,15 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
     };
   }, [native, selectedId, widgets]);
 
-  const handleAdd = async () => {
+  const handleAdd = async (composition = pendingDesignId ?? undefined) => {
     setError("");
     setNotice("");
     try {
-      const result = await NativeWidgets.requestAdd();
+      const result = await NativeWidgets.requestAdd(composition ? { composition } : undefined);
       if (result.requested) {
-        setNotice("Android has opened its Add Widget confirmation. Finish the system prompt, then return here to see the new widget.");
+        setNotice(composition
+          ? `Android has opened its Add Widget confirmation for ${designs.find((design) => design.id === composition)?.name ?? "the selected design"}. Finish the system prompt, then return here to see the new widget.`
+          : "Android has opened its Add Widget confirmation. Finish the system prompt, then return here to see the new widget.");
       } else {
         setError(result.supported
           ? "Android could not start the widget confirmation. Add Math Master from the home-screen widget picker."
@@ -562,10 +565,17 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                   <button
                     type="button"
                     key={design.id}
-                    onClick={() => void handleCustomize(design.id)}
-                    disabled={!selectedWidget || openingEditor}
-                    aria-label={`Customize ${design.name}`}
-                    className="min-w-0 overflow-hidden rounded-xl border border-border/60 bg-background/50 p-2 text-left transition-colors hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => {
+                      if (selectedWidget) {
+                        void handleCustomize(design.id);
+                      } else {
+                        setPendingDesignId(design.id);
+                      }
+                    }}
+                    disabled={openingEditor}
+                    aria-pressed={!selectedWidget && pendingDesignId === design.id}
+                    aria-label={selectedWidget ? `Customize ${design.name}` : `Select ${design.name} for the new widget`}
+                    className={`min-w-0 overflow-hidden rounded-xl border p-2 text-left transition-colors hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60 ${!selectedWidget && pendingDesignId === design.id ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/60 bg-background/50"}`}
                   >
                     {design.previewDataUrl ? (
                       <img
@@ -581,7 +591,11 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                     )}
                     <span className="block truncate text-[11px] font-semibold">{design.name}</span>
                     <span className="mt-1 block min-h-7 text-[10px] leading-4 text-muted-foreground">
-                      {design.id === "auto" ? "Adapts to the available size" : selectedWidget ? "Tap to customize this layout" : "Add a widget to use this design"}
+                      {design.id === "auto"
+                        ? selectedWidget ? "Adapts to the available size" : pendingDesignId === design.id ? "Selected for your new widget" : "Tap to use Auto"
+                        : selectedWidget
+                          ? "Tap to customize this layout"
+                          : pendingDesignId === design.id ? "Selected for your new widget" : "Tap to use this layout"}
                     </span>
                   </button>
                 ))}

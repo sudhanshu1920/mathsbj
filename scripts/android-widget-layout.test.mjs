@@ -233,6 +233,11 @@ test('Widget Studio lists only real pinned IDs and uses the system add flow plus
   assert.match(plugin, /public void getDesigns\(PluginCall call\)/);
   assert.match(plugin, /AppWidgetProviderInfo providerInfo = manager\.getAppWidgetInfo\(id\)/);
   assert.match(plugin, /requestPinAppWidget\([\s\S]*?successCallback\)/);
+  assert.match(plugin, /getString\("composition"\)/);
+  assert.match(plugin, /mathmaster-widget-pin:\/\//);
+  assert.match(pinReceiver, /EXTRA_COMPOSITION/);
+  assert.match(pinReceiver, /"instance_" \+ widgetId \+ "_composition"/);
+  assert.match(pinReceiver, /\.commit\(\)/);
   assert.match(plugin, /FLAG_IMMUTABLE/);
   assert.match(plugin, /WIDGET_DISCOVERY_FAILED/);
   assert.match(pinReceiver, /ACTION_PIN_CONFIRMED/);

@@ -7,6 +7,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.graphics.Bitmap;
 import android.util.Log;
 import android.os.Build;
@@ -147,6 +148,11 @@ public class MathMasterWidgetsPlugin extends Plugin {
 
     @PluginMethod
     public void requestAdd(PluginCall call) {
+        String requestedComposition = call.getString("composition");
+        if (requestedComposition != null && !isSupportedComposition(requestedComposition)) {
+            call.reject("INVALID_WIDGET_COMPOSITION: Choose a supported Math Master design.");
+            return;
+        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             JSObject result = new JSObject();
             result.put("requested", false);
@@ -163,11 +169,14 @@ public class MathMasterWidgetsPlugin extends Plugin {
                 call.resolve(result);
                 return;
             }
+            String composition = requestedComposition == null ? "auto" : requestedComposition;
             Intent callbackIntent = new Intent(getContext(), MathMasterWidgetPinReceiver.class);
             callbackIntent.setAction(MathMasterWidgetPinReceiver.ACTION_PIN_CONFIRMED);
+            callbackIntent.setData(Uri.parse("mathmaster-widget-pin://" + composition));
+            callbackIntent.putExtra(MathMasterWidgetPinReceiver.EXTRA_COMPOSITION, composition);
             PendingIntent successCallback = PendingIntent.getBroadcast(
-                getContext(), PIN_REQUEST_CODE, callbackIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                getContext(), PIN_REQUEST_CODE + (composition.hashCode() & 0x7fffffff) % 100000,
+                callbackIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             boolean requested = manager.requestPinAppWidget(
                 new ComponentName(getContext(), MathMasterHomeWidgetProvider.class), null, successCallback);
             if (!requested) successCallback.cancel();

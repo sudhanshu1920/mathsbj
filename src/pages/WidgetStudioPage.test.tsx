@@ -64,6 +64,20 @@ describe("WidgetStudioPage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Android has opened its Add Widget confirmation");
   });
 
+  it("lets a user choose an available design before pinning the first widget", async () => {
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    expect(await screen.findByText("Your workspace is ready")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Select Hero Wide · Blue Neon for the new widget" }));
+    expect(screen.getByRole("button", {
+      name: "Select Hero Wide · Blue Neon for the new widget",
+    })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Widgets" }));
+    await waitFor(() => expect(mocks.requestAdd).toHaveBeenCalledWith({ composition: "hero_wide" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("confirmation for Hero Wide");
+  });
+
   it("lists pinned instances, shows the native renderer preview and opens the existing editor", async () => {
     mocks.getWidgets.mockResolvedValue({ widgets: [widget], designs: [{ id: "hero_wide", name: "Hero Wide · Blue Neon" }] });
     render(<WidgetStudioPage onBack={vi.fn()} />);
