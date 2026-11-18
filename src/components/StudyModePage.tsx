@@ -70,6 +70,33 @@ const DAY_LABELS = [
   { label: "S", name: "Sunday", value: 7 },
 ] as const;
 
+type StudyModeSectionId = "focusProtection" | "focusSession" | "studySchedule";
+type StudyModeSectionExpansion = Record<StudyModeSectionId, boolean>;
+
+const STUDY_MODE_SECTION_UI_STORAGE_KEY = "math-master.study-mode-section-ui.v1";
+
+const readStudyModeSectionExpansion = (): StudyModeSectionExpansion => {
+  const collapsed: StudyModeSectionExpansion = {
+    focusProtection: false,
+    focusSession: false,
+    studySchedule: false,
+  };
+  try {
+    const raw = window.localStorage.getItem(STUDY_MODE_SECTION_UI_STORAGE_KEY);
+    if (!raw) return collapsed;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return collapsed;
+    const saved = parsed as Record<string, unknown>;
+    return {
+      focusProtection: saved.focusProtection === true,
+      focusSession: saved.focusSession === true,
+      studySchedule: saved.studySchedule === true,
+    };
+  } catch {
+    return collapsed;
+  }
+};
+
 const toTimeLabel = (hour: number, minute: number) => {
   const date = new Date();
   date.setHours(hour, minute, 0, 0);
@@ -325,6 +352,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const [sessionEnforced, setSessionEnforced] = useState(false);
   const [sessionDnd, setSessionDnd] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
+  const [expandedSections, setExpandedSections] = useState<StudyModeSectionExpansion>(readStudyModeSectionExpansion);
   const savedSnapshot = useRef(configSnapshot(initialConfig));
   const saveInFlightRef = useRef(false);
   const proAllowlistSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -336,6 +364,18 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
   const studyAppsSnapshot = JSON.stringify([...studyAppPackages].sort());
   const isStudyAppsDirty = studyAppsSnapshot !== savedStudyAppsSnapshot.current;
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STUDY_MODE_SECTION_UI_STORAGE_KEY, JSON.stringify(expandedSections));
+    } catch {
+      // Display preferences are optional; Study Mode controls remain usable without storage.
+    }
+  }, [expandedSections]);
+
+  const toggleSection = useCallback((section: StudyModeSectionId) => {
+    setExpandedSections((current) => ({ ...current, [section]: !current[section] }));
+  }, []);
   const hasUnsavedChanges = isDirty || isStudyAppsDirty;
   const dirtyRef = useRef(hasUnsavedChanges);
   dirtyRef.current = hasUnsavedChanges;
@@ -1215,24 +1255,22 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
           </header>
 
 <div className={`study-mode-primary-grid${activeSession ? " study-mode-primary-grid--active" : ""}`}>
-          <section className="study-mode-focus-card relative isolate overflow-hidden rounded-[1.4rem] border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-md sm:p-4">
+          <section className={`study-mode-focus-card relative isolate overflow-hidden rounded-[1.4rem] border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-md sm:p-4${expandedSections.focusProtection ? " is-expanded" : ""}`}>
             <div className="pointer-events-none absolute inset-x-8 top-0 -z-10 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-            <div className="study-mode-focus-header flex items-center gap-3">
+            <div className="study-mode-focus-header study-mode-expandable-header flex items-center gap-2">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.1rem] border border-primary/15 bg-primary/10 text-primary shadow-inner">
                 <ShieldCheck size={21} strokeWidth={1.8} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[13px] font-bold tracking-tight text-foreground">Focus protection</span>
+                  <span className="text-[12px] font-bold tracking-tight text-foreground">Focus Protection</span>
                   <span className={(draft.enabled || Boolean(status?.activeSession?.active))
                     ? "rounded-full bg-success/10 px-2 py-0.5 text-[8px] font-bold tracking-[0.12em] text-success"
                     : "rounded-full bg-secondary px-2 py-0.5 text-[8px] font-bold tracking-[0.12em] text-muted-foreground"}>
-                    {loading ? "LOADING" : draft.enabled || status?.activeSession?.active ? "ACTIVE" : "OFF"}
+                    {loading ? "…" : draft.enabled || status?.activeSession?.active ? "ON" : "OFF"}
                   </span>
                 </div>
-                <p className="study-mode-status-copy mt-1 text-[10px] leading-snug text-muted-foreground" role="status">
-                  {loading ? "Loading…" : statusText(status)}
-                </p>
+
               </div>
               <div className="study-mode-focus-controls ml-auto flex shrink-0 items-center gap-1.5">
                 {status ? (
@@ -1245,7 +1283,45 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                 ) : (
                   <span className="shrink-0 text-[10px] text-muted-foreground">{loading ? "…" : "—"}</span>
                 )}
-                <motion.button
+
+                {!permissionSetupOpen && (
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: MOTION.scale.press }}
+                    disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
+                    onClick={() => { void handleSave(); }}
+                    aria-label={saving ? "Saving Study Mode settings" : hasUnsavedChanges ? "Save Study Mode settings" : "Study Mode settings saved"}
+                    className="motion-press inline-flex min-h-9 min-w-[76px] shrink-0 items-center justify-center gap-1.5 rounded-lg gradient-primary px-2.5 text-[10px] font-bold text-primary-foreground shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-45 sm:px-3"
+                  >
+                    <Check size={13} /> {saving ? "Saving…" : hasUnsavedChanges ? "Save" : "Saved"}
+                  </motion.button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggleSection("focusProtection")}
+                  aria-controls="study-mode-focus-protection-content"
+                  aria-expanded={expandedSections.focusProtection}
+                  aria-label={expandedSections.focusProtection ? "Collapse Focus Protection" : "Expand Focus Protection"}
+                  title={expandedSections.focusProtection ? "Collapse Focus Protection" : "Expand Focus Protection"}
+                  className="study-mode-expand-toggle motion-press"
+                >
+                  <ChevronDown size={15} className={expandedSections.focusProtection ? "rotate-180 transition-transform duration-200" : "transition-transform duration-200"} />
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="study-mode-focus-protection-content"
+              className={`study-mode-expandable${expandedSections.focusProtection ? " is-expanded" : ""}`}
+              aria-hidden={!expandedSections.focusProtection}
+            >
+              <div className="study-mode-expandable__inner">
+                                <p className="study-mode-status-copy mb-3 text-[10px] leading-snug text-muted-foreground" role="status">
+                  {loading ? "Loading…" : statusText(status)}
+                </p>
+                <div className="study-mode-focus-pro-control mb-3 flex items-center justify-between gap-2">
+                  <span className="text-[9px] font-semibold text-muted-foreground">Strict app protection</span>
+                  <motion.button
                   type="button"
                   whileTap={{ scale: MOTION.scale.press }}
                   disabled={loading || saving || !isStudyModeNative() || status?.config.enabled !== true}
@@ -1260,22 +1336,8 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                   <span>PRO</span>
                   <span>{status?.proEnabled ? "ON" : "OFF"}</span>
                 </motion.button>
-                {!permissionSetupOpen && (
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: MOTION.scale.press }}
-                    disabled={saving || loading || !isStudyModeNative() || !hasUnsavedChanges}
-                    onClick={() => { void handleSave(); }}
-                    aria-label={saving ? "Saving Study Mode settings" : hasUnsavedChanges ? "Save Study Mode settings" : "Study Mode settings saved"}
-                    className="motion-press inline-flex min-h-9 min-w-[76px] shrink-0 items-center justify-center gap-1.5 rounded-lg gradient-primary px-2.5 text-[10px] font-bold text-primary-foreground shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-45 sm:px-3"
-                  >
-                    <Check size={13} /> {saving ? "Saving…" : hasUnsavedChanges ? "Save" : "Saved"}
-                  </motion.button>
-                )}
-              </div>
-            </div>
-
-            <div className="study-mode-focus-summary mt-3 grid grid-cols-[94px_minmax(0,1fr)] sm:grid-cols-[104px_minmax(0,1fr)] items-center gap-3 border-t border-border/55 pt-3 sm:gap-4 sm:pt-4">
+                </div>
+                <div className="study-mode-focus-summary mt-3 grid grid-cols-[94px_minmax(0,1fr)] sm:grid-cols-[104px_minmax(0,1fr)] items-center gap-3 border-t border-border/55 pt-3 sm:gap-4 sm:pt-4">
               {activeSession ? (
                 <>
                   <SessionCountdown session={activeSession} onExpired={handleSessionExpired} />
@@ -1342,16 +1404,42 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                 </span>
               )}
             </div>
+              </div>
+            </div>
           </section>
 
 
           {!activeSession && (
-            <section className="study-mode-session-card study-mode-card overflow-hidden rounded-[1.25rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-3.5">
-              <div className="study-mode-section-header mb-2.5 flex items-center gap-2">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><Clock3 size={15} /></span>
-                <h3 className="text-xs font-bold tracking-tight text-foreground">Focus session</h3>
+            <section className={`study-mode-session-card study-mode-card overflow-hidden rounded-[1.25rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-3.5${expandedSections.focusSession ? " is-expanded" : ""}`}>
+              <div className="study-mode-section-header study-mode-expandable-header mb-0">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Clock3 size={15} /></span>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold tracking-tight text-foreground">Focus Session</h3>
+                    <p className="study-mode-compact-summary text-[9px] text-muted-foreground">
+                      {sessionType.charAt(0).toUpperCase() + sessionType.slice(1)} · {sessionDurationSeconds > 0 ? `${Math.round(sessionDurationSeconds / 60)} min` : "Unlimited"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleSection("focusSession")}
+                  aria-controls="study-mode-focus-session-content"
+                  aria-expanded={expandedSections.focusSession}
+                  aria-label={expandedSections.focusSession ? "Collapse Focus Session" : "Expand Focus Session"}
+                  title={expandedSections.focusSession ? "Collapse Focus Session" : "Expand Focus Session"}
+                  className="study-mode-expand-toggle motion-press"
+                >
+                  <ChevronDown size={15} className={expandedSections.focusSession ? "rotate-180 transition-transform duration-200" : "transition-transform duration-200"} />
+                </button>
               </div>
 
+              <div
+                id="study-mode-focus-session-content"
+                className={`study-mode-expandable${expandedSections.focusSession ? " is-expanded" : ""}`}
+                aria-hidden={!expandedSections.focusSession}
+              >
+                <div className="study-mode-expandable__inner pt-3">
               <div className="study-mode-session-fields grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2">
                 <label className="min-w-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Session
@@ -1419,6 +1507,8 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                   </div>
                 </div>
               )}
+                </div>
+              </div>
             </section>
           )}
           </div>
@@ -1720,17 +1810,37 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
 
 
 
-          <section className="study-mode-schedule-card study-mode-card rounded-[1.25rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-3.5">
-            <div className="study-mode-section-header mb-2.5 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><CalendarDays size={15} /></span>
-                <div>
-                  <h3 className="text-xs font-bold text-foreground">Study schedule</h3>
-                  <p className="text-[9px] text-muted-foreground">{draft.selectedDays.length === 0 ? "No repeat days" : draft.selectedDays.length === 7 ? "Every day" : draft.selectedDays.length === 5 && [1,2,3,4,5].every((day) => draft.selectedDays.includes(day)) ? "Weekdays" : "Custom days"}</p>
+          <section className={`study-mode-schedule-card study-mode-card rounded-[1.25rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-3.5${expandedSections.studySchedule ? " is-expanded" : ""}`}>
+            <div className="study-mode-section-header study-mode-expandable-header mb-0">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><CalendarDays size={15} /></span>
+                <div className="min-w-0">
+                  <h3 className="text-xs font-bold text-foreground">Study Schedule</h3>
+                  <p className="study-mode-compact-summary text-[9px] text-muted-foreground">
+                    {draft.selectedDays.length === 0 ? "No repeat days" : draft.selectedDays.length === 7 ? "Every day" : draft.selectedDays.length === 5 && [1,2,3,4,5].every((day) => draft.selectedDays.includes(day)) ? "Weekdays" : "Custom days"}
+                    {" · "}{toTimeLabel(draft.startHour, draft.startMinute)}–{toTimeLabel(draft.endHour, draft.endMinute)}
+                  </p>
                 </div>
+                {status?.scheduleActive && <span className="shrink-0 rounded-full bg-success/10 px-2 py-1 text-[8px] font-bold text-success">ACTIVE</span>}
               </div>
-              {status?.scheduleActive && <span className="rounded-full bg-success/10 px-2.5 py-1 text-[9px] font-bold text-success">ACTIVE</span>}
+              <button
+                type="button"
+                onClick={() => toggleSection("studySchedule")}
+                aria-controls="study-mode-study-schedule-content"
+                aria-expanded={expandedSections.studySchedule}
+                aria-label={expandedSections.studySchedule ? "Collapse Study Schedule" : "Expand Study Schedule"}
+                title={expandedSections.studySchedule ? "Collapse Study Schedule" : "Expand Study Schedule"}
+                className="study-mode-expand-toggle motion-press"
+              >
+                <ChevronDown size={15} className={expandedSections.studySchedule ? "rotate-180 transition-transform duration-200" : "transition-transform duration-200"} />
+              </button>
             </div>
+            <div
+              id="study-mode-study-schedule-content"
+              className={`study-mode-expandable${expandedSections.studySchedule ? " is-expanded" : ""}`}
+              aria-hidden={!expandedSections.studySchedule}
+            >
+              <div className="study-mode-expandable__inner pt-3">
             <div className="study-mode-schedule-times grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2">
               <button
                 type="button"
@@ -1786,6 +1896,8 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5] })} className="motion-press rounded-lg px-2 py-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">Weekdays</button>
               <button type="button" onClick={() => updateDraft({ selectedDays: [1, 2, 3, 4, 5, 6, 7] })} className="motion-press rounded-lg px-2 py-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">Every day</button>
               <button type="button" onClick={() => updateDraft({ selectedDays: [] })} className="motion-press rounded-lg px-2 py-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">Clear</button>
+            </div>
+              </div>
             </div>
           </section>
 
