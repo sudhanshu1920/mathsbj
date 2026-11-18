@@ -272,6 +272,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             params.setMargins(dp(2), dp(2), dp(2), dp(2));
             row.addView(tile, params);
         }
+        syncChoiceCards(styleChoices);
     }
 
     private void addCompositionGrid(LinearLayout parent, String selectedComposition) {
@@ -308,6 +309,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             for (int i = remainder; i < columns; i++) row.addView(new View(this),
                 new LinearLayout.LayoutParams(0, dp(102), 1f));
         }
+        syncChoiceCards(compositionChoices);
     }
 
     private Bitmap renderDesignThumbnail(String composition) {
@@ -342,7 +344,19 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
     private void selectChoice(List<RadioButton> choices, RadioButton selected) {
         for (RadioButton choice : choices) choice.setChecked(choice == selected);
+        syncChoiceCards(choices);
         updatePreview();
+    }
+
+    private void syncChoiceCards(List<RadioButton> choices) {
+        for (RadioButton choice : choices) {
+            if (choice.getParent() instanceof LinearLayout) {
+                LinearLayout tile = (LinearLayout) choice.getParent();
+                boolean selected = choice.isChecked();
+                tile.setBackground(rounded(selected ? selectedSurface() : cardColor,
+                    dp(12), selected ? ACCENT : borderColor));
+            }
+        }
     }
 
     private void addSectionLabel(LinearLayout parent, String label, String helper) {
