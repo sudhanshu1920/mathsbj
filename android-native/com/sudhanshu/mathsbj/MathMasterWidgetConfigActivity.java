@@ -487,6 +487,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
         boolean hadSchema = preferences.contains(schemaKey);
         boolean hadStyle = preferences.contains(styleKey);
         boolean hadComposition = preferences.contains(compositionKey);
+        boolean hadThemeMode = preferences.contains(prefix + "themeMode");
+        boolean hadTheme = preferences.contains(prefix + "theme");
+        String oldThemeMode = preferences.getString(prefix + "themeMode", null);
+        String oldTheme = preferences.getString(prefix + "theme", null);
         String oldContent = preferences.getString(contentKey, null);
         int oldSchema = preferences.getInt(schemaKey, 0);
         String oldStyle = preferences.getString(styleKey, null);
@@ -514,6 +518,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
             if (hadSchema) rollback.putInt(schemaKey, oldSchema); else rollback.remove(schemaKey);
             restoreValue(rollback, styleKey, hadStyle, oldStyle);
             restoreValue(rollback, compositionKey, hadComposition, oldComposition);
+            restoreValue(rollback, prefix + "themeMode", hadThemeMode, oldThemeMode);
+            restoreValue(rollback, prefix + "theme", hadTheme, oldTheme);
             rollback.commit();
             Toast.makeText(this, "Widget update failed. Previous settings were restored.", Toast.LENGTH_LONG).show();
             return;
