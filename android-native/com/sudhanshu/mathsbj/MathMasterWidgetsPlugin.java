@@ -1,11 +1,14 @@
 package com.sudhanshu.mathsbj;
 
+import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProviderInfo;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.util.Log;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Base64;
@@ -27,6 +30,8 @@ import java.util.Set;
 
 @CapacitorPlugin(name = "MathMasterWidgets")
 public class MathMasterWidgetsPlugin extends Plugin {
+    private static final String TAG = "MathMasterWidgets";
+    private static final int PIN_REQUEST_CODE = 8908;
     private static final String PREFS = "math_master_home_widget";
     private static final Set<String> CONTENT_OPTIONS = new HashSet<>(Arrays.asList(
         "appIdentity", "target", "progress", "remaining", "studyTime",
@@ -38,7 +43,8 @@ public class MathMasterWidgetsPlugin extends Plugin {
         try {
             Context context = getContext();
             AppWidgetManager manager = AppWidgetManager.getInstance(context);
-            int[] ids = manager.getAppWidgetIds(new ComponentName(context, MathMasterHomeWidgetProvider.class));
+            ComponentName provider = new ComponentName(context, MathMasterHomeWidgetProvider.class);
+            int[] ids = manager.getAppWidgetIds(provider);
             Arrays.sort(ids);
             SharedPreferences preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
             JSArray widgets = new JSArray();
@@ -50,6 +56,10 @@ public class MathMasterWidgetsPlugin extends Plugin {
                 designs.put(design);
             }
             for (int id : ids) {
+                AppWidgetProviderInfo providerInfo = manager.getAppWidgetInfo(id);
+                if (providerInfo == null || providerInfo.provider == null || !provider.equals(providerInfo.provider)) {
+                    throw new IllegalStateException("Active Math Master widget provider metadata is unavailable.");
+                }
                 Bundle options = manager.getAppWidgetOptions(id);
                 int width = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
                 int height = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
@@ -74,7 +84,64 @@ public class MathMasterWidgetsPlugin extends Plugin {
             result.put("designs", designs);
             call.resolve(result);
         } catch (Exception error) {
-            call.reject("Unable to read Android home-screen widgets.", error);
+            Log.e(TAG, "getWidgets [WIDGET_DISCOVERY_FAILED]", error);
+            call.reject("WIDGET_DISCOVERY_FAILED: Unable to read Math Master home-screen widgets.", error);
+        }
+    }
+
+    @PluginMethod
+    public void getDesigns(PluginCall call) {
+        JSArray designs = new JSArray();
+        Set<String> selected = new HashSet<>(Arrays.asList(MathMasterHomeWidgetProvider.CONTENT_OPTIONS));
+        try {
+            for (String[] option : MathMasterHomeWidgetProvider.getWidgetCompositionOptions()) {
+                JSObject design = new JSObject();
+                design.put("id", option[0]);
+                design.put("name", option[1]);
+                int widthDp = 320;
+                int heightDp = 146;
+                if (option[0].startsWith("square")) {
+                    widthDp = 180;
+                    heightDp = 180;
+                } else if ("compact_green".equals(option[0]) || "medium_study".equals(option[0])) {
+                    widthDp = 240;
+                    heightDp = 150;
+                } else if ("extra_wide_weekly".equals(option[0])) {
+                    widthDp = 320;
+                    heightDp = 112;
+                } else if ("minimal_progress".equals(option[0])) {
+                    widthDp = 180;
+                    heightDp = 96;
+                }
+                Bitmap preview = null;
+                try {
+                    preview = MathMasterHomeWidgetProvider.renderConfigurationPreview(
+                        getContext(), option[0], "neon", selected, widthDp, heightDp);
+                    ByteArrayOutputStream output = new ByteArrayOutputStream();
+                    if (preview == null || !preview.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                        throw new IllegalStateException("The native renderer returned no design preview.");
+                    }
+                    design.put("previewDataUrl",
+                        "data:image/png;base64," + Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP));
+                    design.put("previewWidthDp", widthDp);
+                    design.put("previewHeightDp", heightDp);
+                } catch (Exception previewError) {
+                    Log.w(TAG, "getDesigns [WIDGET_DESIGN_PREVIEW_FAILED] " + option[0], previewError);
+                    design.put("previewDataUrl", "");
+                } catch (OutOfMemoryError previewError) {
+                    Log.w(TAG, "getDesigns [WIDGET_DESIGN_PREVIEW_OOM] " + option[0], previewError);
+                    design.put("previewDataUrl", "");
+                } finally {
+                    if (preview != null && !preview.isRecycled()) preview.recycle();
+                }
+                designs.put(design);
+            }
+            JSObject result = new JSObject();
+            result.put("designs", designs);
+            call.resolve(result);
+        } catch (Exception error) {
+            Log.e(TAG, "getDesigns [WIDGET_DESIGN_REGISTRY_FAILED]", error);
+            call.reject("WIDGET_DESIGN_REGISTRY_FAILED: Unable to read supported widget designs.", error);
         }
     }
 
@@ -96,14 +163,21 @@ public class MathMasterWidgetsPlugin extends Plugin {
                 call.resolve(result);
                 return;
             }
+            Intent callbackIntent = new Intent(getContext(), MathMasterWidgetPinReceiver.class);
+            callbackIntent.setAction(MathMasterWidgetPinReceiver.ACTION_PIN_CONFIRMED);
+            PendingIntent successCallback = PendingIntent.getBroadcast(
+                getContext(), PIN_REQUEST_CODE, callbackIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             boolean requested = manager.requestPinAppWidget(
-                new ComponentName(getContext(), MathMasterHomeWidgetProvider.class), null, null);
+                new ComponentName(getContext(), MathMasterHomeWidgetProvider.class), null, successCallback);
+            if (!requested) successCallback.cancel();
             JSObject result = new JSObject();
             result.put("requested", requested);
             result.put("supported", true);
             call.resolve(result);
         } catch (RuntimeException error) {
-            call.reject("Android could not start the widget pin confirmation.", error);
+            Log.e(TAG, "requestAdd [WIDGET_PIN_REQUEST_FAILED]", error);
+            call.reject("WIDGET_PIN_REQUEST_FAILED: Android could not start the widget pin confirmation.", error);
         }
     }
 
@@ -114,9 +188,15 @@ public class MathMasterWidgetsPlugin extends Plugin {
             call.reject("That Math Master widget is no longer on the home screen. Refresh the list and try again.");
             return;
         }
+        String requestedComposition = call.getString("composition");
+        if (requestedComposition != null && !isSupportedComposition(requestedComposition)) {
+            call.reject("INVALID_WIDGET_COMPOSITION: Choose a supported Math Master design.");
+            return;
+        }
         try {
             Intent intent = new Intent(getContext(), MathMasterWidgetConfigActivity.class);
             intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
+            if (requestedComposition != null) intent.putExtra("initialComposition", requestedComposition);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
             JSObject result = new JSObject();
@@ -195,6 +275,13 @@ public class MathMasterWidgetsPlugin extends Plugin {
         AppWidgetManager manager = AppWidgetManager.getInstance(getContext());
         int[] ids = manager.getAppWidgetIds(new ComponentName(getContext(), MathMasterHomeWidgetProvider.class));
         for (int activeId : ids) if (activeId == id) return true;
+        return false;
+    }
+
+    private static boolean isSupportedComposition(String value) {
+        for (String[] option : MathMasterHomeWidgetProvider.getWidgetCompositionOptions()) {
+            if (option[0].equals(value)) return true;
+        }
         return false;
     }
 

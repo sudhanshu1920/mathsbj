@@ -226,8 +226,21 @@ test('Widget Studio lists only real pinned IDs and uses the system add flow plus
   const provider = read(PROVIDER);
   const config = read(CONFIG);
   const setup = read('scripts/configure-android-notifications.mjs');
+  const widgetSetup = read('scripts/configure-android-widgets.mjs');
+  const pinReceiver = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetPinReceiver.java');
 
   assert.match(plugin, /@CapacitorPlugin\(name = "MathMasterWidgets"\)/);
+  assert.match(plugin, /public void getDesigns\(PluginCall call\)/);
+  assert.match(plugin, /AppWidgetProviderInfo providerInfo = manager\.getAppWidgetInfo\(id\)/);
+  assert.match(plugin, /requestPinAppWidget\([\s\S]*?successCallback\)/);
+  assert.match(plugin, /FLAG_IMMUTABLE/);
+  assert.match(plugin, /WIDGET_DISCOVERY_FAILED/);
+  assert.match(pinReceiver, /ACTION_PIN_CONFIRMED/);
+  assert.match(pinReceiver, /WIDGET_PIN_CONFIRMED/);
+  assert.ok(widgetSetup.includes("'MathMasterWidgetsPlugin.java'"));
+  assert.ok(widgetSetup.includes("'MathMasterWidgetPinReceiver.java'"));
+  assert.ok(widgetSetup.includes('registerPlugin(MathMasterWidgetsPlugin.class);'));
+  assert.ok(widgetSetup.includes("name: 'MathMasterWidgetPinReceiver'"));
   assert.match(plugin, /manager\.getAppWidgetIds\(new ComponentName\(context, MathMasterHomeWidgetProvider\.class\)\)/);
   assert.match(plugin, /requestPinAppWidget/);
   assert.match(plugin, /public void resetWidget\(PluginCall call\)/);
@@ -237,6 +250,7 @@ test('Widget Studio lists only real pinned IDs and uses the system add flow plus
   assert.match(plugin, /getWidgetCompositionOptions\(\)/);
   assert.match(provider, /public static Bitmap renderWidgetInstancePreview\(Context context, int appWidgetId\)/);
   assert.match(config, /getAppWidgetIds\(\s*new ComponentName\(this, MathMasterHomeWidgetProvider\.class\)\)/);
+  assert.match(config, /initialComposition/);
   assert.ok(setup.includes("'MathMasterWidgetsPlugin.java'"));
   assert.ok(setup.includes('registerPlugin(MathMasterWidgetsPlugin.class);'));
 });
