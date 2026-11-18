@@ -1505,7 +1505,7 @@ for (const [section, expandLabel, collapseLabel, contentId] of expandableStudySe
 const widgetScreenTime = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeData.java');
 const widgetRenderer = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java');
 const widgetProvider = read('android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java');
-const widgetSetup = read('scripts/configure-android-widgets.mjs');
+const widgetScreenTimeSetup = read('scripts/configure-android-widgets.mjs');
 if (!widgetScreenTime.includes('UsageStatsManager.INTERVAL_DAILY') ||
     !widgetScreenTime.includes('StudyModeManager.getSelectedStudyAppPackages(context)') ||
     !widgetScreenTime.includes('ApplicationInfo.FLAG_SYSTEM') ||
@@ -1516,9 +1516,9 @@ if (!widgetScreenTime.includes('UsageStatsManager.INTERVAL_DAILY') ||
     !widgetProvider.includes('WidgetScreenTimeData.populate') ||
     !widgetRenderer.includes('layoutScreenTime()') ||
     !widgetRenderer.includes('drawScreenTimeBlock(') ||
-    !widgetSetup.includes("'WidgetScreenTimeData.java'") ||
-    !widgetSetup.includes('android.permission.PACKAGE_USAGE_STATS') ||
-    !widgetSetup.includes('android.permission.QUERY_ALL_PACKAGES')) {
+    !widgetScreenTimeSetup.includes("'WidgetScreenTimeData.java'") ||
+    !widgetScreenTimeSetup.includes('android.permission.PACKAGE_USAGE_STATS') ||
+    !widgetScreenTimeSetup.includes('android.permission.QUERY_ALL_PACKAGES')) {
   fail('Screen-time widgets must use Android UsageStats, the independent Study Apps allowlist, per-widget renderer content, and explicit permission-aware setup');
 }
 
