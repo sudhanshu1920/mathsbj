@@ -299,4 +299,5 @@ test('native widget editor uses compact responsive grids, real thumbnails and a 
   assert.match(config, /Previous settings are unchanged/);
   assert.match(config, /Previous settings were restored/);
   assert.match(config, /isActiveWidget\(widgetId\)/);
+  assert.match(config, /radio\.setOnClickListener\(view -> \{\s+List<RadioButton> choices = styleChoices\.contains\(radio\) \? styleChoices : compositionChoices;\s+selectChoice\(choices, radio\);/);
 });
