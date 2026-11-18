@@ -504,10 +504,11 @@ public class MathMasterWidgetConfigActivity extends Activity {
         boolean hadSchema = preferences.contains(schemaKey);
         boolean hadStyle = preferences.contains(styleKey);
         boolean hadComposition = preferences.contains(compositionKey);
-        boolean hadThemeMode = preferences.contains(prefix + "themeMode");
-        boolean hadTheme = preferences.contains(prefix + "theme");
-        String oldThemeMode = preferences.getString(prefix + "themeMode", null);
-        String oldTheme = preferences.getString(prefix + "theme", null);
+        Map<String, ?> previousValues = preferences.getAll();
+        boolean hadThemeMode = previousValues.containsKey(prefix + "themeMode");
+        boolean hadTheme = previousValues.containsKey(prefix + "theme");
+        Object oldThemeMode = previousValues.get(prefix + "themeMode");
+        Object oldTheme = previousValues.get(prefix + "theme");
         String oldContent = preferences.getString(contentKey, null);
         int oldSchema = preferences.getInt(schemaKey, 0);
         String oldStyle = preferences.getString(styleKey, null);
@@ -549,9 +550,26 @@ public class MathMasterWidgetConfigActivity extends Activity {
         finish();
     }
 
-    private static void restoreValue(SharedPreferences.Editor editor, String key, boolean existed, String value) {
-        if (existed && value != null) editor.putString(key, value);
-        else editor.remove(key);
+    private static void restoreValue(SharedPreferences.Editor editor, String key, boolean existed, Object value) {
+        if (!existed || value == null) {
+            editor.remove(key);
+        } else if (value instanceof String) {
+            editor.putString(key, (String) value);
+        } else if (value instanceof Boolean) {
+            editor.putBoolean(key, (Boolean) value);
+        } else if (value instanceof Integer) {
+            editor.putInt(key, (Integer) value);
+        } else if (value instanceof Long) {
+            editor.putLong(key, (Long) value);
+        } else if (value instanceof Float) {
+            editor.putFloat(key, (Float) value);
+        } else if (value instanceof Set<?>) {
+            Set<String> strings = new HashSet<>();
+            for (Object item : (Set<?>) value) if (item instanceof String) strings.add((String) item);
+            editor.putStringSet(key, strings);
+        } else {
+            editor.remove(key);
+        }
     }
 
     private static String normalizeWidgetStyle(String style) {
