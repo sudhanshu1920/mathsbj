@@ -24,6 +24,13 @@ public class Canvas {
     public boolean clipPath(Path p) { g.clip(p.shape()); return true; }
     public boolean clipRect(RectF r) { g.clip(new Rectangle2D.Float(r.left, r.top, r.width(), r.height())); return true; }
     public void drawColor(int c) { AffineTransform t = g.getTransform(); g.setTransform(new AffineTransform()); g.setPaint(new java.awt.Color(c, true)); g.fillRect(0, 0, getWidth(), getHeight()); g.setTransform(t); }
+    public void drawBitmap(Bitmap bitmap, Rect src, RectF dst, Paint p) {
+        if (bitmap == null || bitmap.image == null || dst == null) return;
+        int sx1 = src == null ? 0 : src.left, sy1 = src == null ? 0 : src.top;
+        int sx2 = src == null ? bitmap.getWidth() : src.right, sy2 = src == null ? bitmap.getHeight() : src.bottom;
+        g.drawImage(bitmap.image, Math.round(dst.left), Math.round(dst.top), Math.round(dst.right), Math.round(dst.bottom),
+            sx1, sy1, sx2, sy2, null);
+    }
     public void drawRect(RectF r, Paint p) { paint(new Rectangle2D.Float(r.left, r.top, r.width(), r.height()), p); }
     public void drawRoundRect(RectF r, float rx, float ry, Paint p) { paint(new RoundRectangle2D.Float(r.left, r.top, r.width(), r.height(), rx * 2, ry * 2), p); }
     public void drawCircle(float cx, float cy, float r, Paint p) { paint(new Ellipse2D.Float(cx - r, cy - r, r * 2, r * 2), p); }

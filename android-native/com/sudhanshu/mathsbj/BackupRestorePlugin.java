@@ -48,13 +48,17 @@ public class BackupRestorePlugin extends Plugin {
     ));
     private static final Set<String> GLOBAL_BOOLEAN_KEYS = new TreeSet<>(Collections.singletonList("enabled"));
     private static final Set<String> INSTANCE_STRING_FIELDS = new TreeSet<>(Arrays.asList(
-        "contentJson", "style", "composition", "themeMode", "theme"
+        "contentJson", "style", "composition", "themeMode", "theme",
+        "screenTimePeriod", "screenTimeSort", "screenTimeMaxApps", "screenTimeLayout",
+        "screenTimeShowTotal", "screenTimeShowAppUsage", "screenTimeShowPercent",
+        "studyScreenTimeFilterPackages", "deviceScreenTimeFilterPackages"
     ));
     private static final Pattern INSTANCE_KEY = Pattern.compile(
-        "^instance_([0-9]+)_(contentJson|style|composition|themeMode|theme|contentSchemaVersion)$"
+        "^instance_([0-9]+)_(contentJson|style|composition|themeMode|theme|screenTimePeriod|screenTimeSort|screenTimeMaxApps|screenTimeLayout|screenTimeShowTotal|screenTimeShowAppUsage|screenTimeShowPercent|studyScreenTimeFilterPackages|deviceScreenTimeFilterPackages|contentSchemaVersion)$"
     );
     private static final Set<String> CONTENT_OPTIONS = new TreeSet<>(Arrays.asList(
-        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
+        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus",
+        "studyAppsScreenTime", "deviceAppsScreenTime"
     ));
     private static final Set<String> COMPOSITIONS = new TreeSet<>(Arrays.asList(
         "auto", "hero_wide", "compact_green", "square_math_bot", "medium_study",
@@ -374,7 +378,7 @@ public class BackupRestorePlugin extends Plugin {
 
     private static boolean isValidInstancePreference(String field, Object value) {
         if ("contentSchemaVersion".equals(field)) {
-            return value instanceof Number && ((Number) value).intValue() >= 1 && ((Number) value).intValue() <= 3;
+            return value instanceof Number && ((Number) value).intValue() >= 1 && ((Number) value).intValue() <= 4;
         }
         return INSTANCE_STRING_FIELDS.contains(field) && value instanceof String && validateWidgetString(field, (String) value);
     }
@@ -398,6 +402,25 @@ public class BackupRestorePlugin extends Plugin {
         if ("theme".equals(field)) return THEMES.contains(value);
         if ("themeMode".equals(field)) return THEME_MODES.contains(value);
         if ("mode".equals(field)) return "dark".equals(value) || "light".equals(value);
+        if ("screenTimePeriod".equals(field)) return "today".equals(value) || "yesterday".equals(value) || "7d".equals(value);
+        if ("screenTimeSort".equals(field)) return Arrays.asList("most_used", "least_used", "name_asc", "name_desc").contains(value);
+        if ("screenTimeMaxApps".equals(field)) return Arrays.asList("3", "5", "8").contains(value);
+        if ("screenTimeLayout".equals(field)) return "compact".equals(value) || "detailed".equals(value);
+        if ("screenTimeShowTotal".equals(field) || "screenTimeShowAppUsage".equals(field)
+            || "screenTimeShowPercent".equals(field)) return "true".equals(value) || "false".equals(value);
+        if ("studyScreenTimeFilterPackages".equals(field) || "deviceScreenTimeFilterPackages".equals(field)) {
+            try {
+                JSONArray packages = new JSONArray(value);
+                if (packages.length() > 200) return false;
+                Set<String> unique = new TreeSet<>();
+                for (int i = 0; i < packages.length(); i++) {
+                    String packageName = packages.optString(i, "");
+                    if (!packageName.matches("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+")
+                        || !unique.add(packageName)) return false;
+                }
+                return true;
+            } catch (JSONException ignored) { return false; }
+        }
         if ("appAccentColor".equals(field) || "accentColor".equals(field)) return value.matches("^#[0-9a-fA-F]{6}$");
         return false;
     }

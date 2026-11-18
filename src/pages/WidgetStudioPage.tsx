@@ -57,6 +57,11 @@ const STYLE_NAMES: Record<NativeWidget["style"], string> = {
   transparent: "Full Transparent",
 };
 
+const SCREEN_TIME_CONTENT_NAMES: Record<string, string> = {
+  studyAppsScreenTime: "Study Apps Screen Time",
+  deviceAppsScreenTime: "Device Apps Screen Time",
+};
+
 function widgetLabel(widget: NativeWidget, designs: WidgetDesign[]): string {
   return designs.find((design) => design.id === widget.composition)?.name || "Math Master Widget";
 }
@@ -498,6 +503,14 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                       <span className="text-muted-foreground">Visible content</span>
                       <span className="font-medium">{selectedWidget.content.length} fields</span>
                     </div>
+                    {selectedWidget.content
+                      .filter((content) => content in SCREEN_TIME_CONTENT_NAMES)
+                      .map((content) => (
+                        <div key={content} className="flex items-center justify-between gap-3 rounded-lg bg-primary/5 px-2 py-1.5">
+                          <span className="text-muted-foreground">Screen Time</span>
+                          <span className="font-medium text-primary">{SCREEN_TIME_CONTENT_NAMES[content]}</span>
+                        </div>
+                      ))}
                   </div>
                   <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
                     The Android editor provides the supported design, background and content controls. Changes are saved for this widget instance only.

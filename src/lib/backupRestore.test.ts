@@ -196,6 +196,49 @@ describe('portable Math Master backup', () => {
     })).rejects.toThrow(/newer Study Tracker schema/i);
   });
 
+  it('round-trips per-widget screen-time choices and independent app filters', async () => {
+    const widgetPreferences = {
+      version: 1,
+      global: { enabled: true, composition: 'auto' },
+      instances: [{
+        widgetId: 27,
+        preferences: {
+          contentJson: '["studyAppsScreenTime","deviceAppsScreenTime"]',
+          contentSchemaVersion: 4,
+          style: 'blur',
+          composition: 'hero_wide',
+          themeMode: 'random',
+          theme: 'violet',
+          screenTimePeriod: '7d',
+          screenTimeSort: 'name_asc',
+          screenTimeMaxApps: '8',
+          screenTimeLayout: 'compact',
+          screenTimeShowTotal: 'false',
+          screenTimeShowAppUsage: 'true',
+          screenTimeShowPercent: 'true',
+          studyScreenTimeFilterPackages: '["com.example.study"]',
+          deviceScreenTimeFilterPackages: '["com.example.device"]',
+        },
+      }],
+    };
+
+    const backup = await createBackupText({
+      storageEntries: { 'math-app-settings-v1': JSON.stringify({ sound: true }) },
+      widgetPreferences,
+    });
+    const restored = await validateBackupText(backup);
+    const preferences = restored.payload.native.widgetPreferences?.instances[0].preferences;
+    expect(preferences?.screenTimePeriod).toBe('7d');
+    expect(preferences?.screenTimeSort).toBe('name_asc');
+    expect(preferences?.screenTimeMaxApps).toBe('8');
+    expect(preferences?.screenTimeLayout).toBe('compact');
+    expect(preferences?.screenTimeShowTotal).toBe('false');
+    expect(preferences?.studyScreenTimeFilterPackages).toBe('["com.example.study"]');
+    expect(preferences?.deviceScreenTimeFilterPackages).toBe('["com.example.device"]');
+    expect(preferences?.contentJson).toContain('studyAppsScreenTime');
+    expect(preferences?.contentJson).toContain('deviceAppsScreenTime');
+  });
+
   it('rejects unsafe widget configurations rather than accepting arbitrary persisted fields', async () => {
     const badWidgets = { version: 1, global: { arbitraryExecutable: 'run' }, instances: [] };
     await expect(createBackupText({

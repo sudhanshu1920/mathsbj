@@ -8,6 +8,8 @@ public class Bitmap {
         if (w <= 0 || h <= 0) throw new IllegalArgumentException("width and height must be > 0");
         return new Bitmap(new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB));
     }
+    public boolean isRecycled() { return false; }
+    public int getByteCount() { return getWidth() * getHeight() * 4; }
     public int getWidth() { return image.getWidth(); }
     public int getHeight() { return image.getHeight(); }
     public void setDensity(int d) { density = d; }

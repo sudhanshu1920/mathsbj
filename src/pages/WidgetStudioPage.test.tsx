@@ -100,6 +100,19 @@ describe("WidgetStudioPage", () => {
     await waitFor(() => expect(mocks.configureWidget).toHaveBeenCalledWith({ appWidgetId: 42 }));
   });
 
+
+  it("shows the selected Study Apps and Device Apps screen-time sections in widget personalization", async () => {
+    mocks.getWidgets.mockResolvedValue({
+      widgets: [{ ...widget, content: ["target", "studyAppsScreenTime", "deviceAppsScreenTime"] }],
+      designs: [{ id: "hero_wide", name: "Hero Wide · Blue Neon" }],
+    });
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    expect(await screen.findByText("Study Apps Screen Time")).toBeInTheDocument();
+    expect(screen.getByText("Device Apps Screen Time")).toBeInTheDocument();
+    expect(screen.getAllByText("Screen Time")).toHaveLength(2);
+  });
+
   it("separates discovery failure from a confirmed empty state while keeping the supported design registry", async () => {
     mocks.getWidgets.mockRejectedValueOnce(new Error("Native plugin is not implemented"));
     render(<WidgetStudioPage onBack={vi.fn()} />);

@@ -26,8 +26,10 @@ public final class AppUsageAnalyticsStore {
     private static final String KEY_PAYLOAD = "encrypted_daily_usage";
     private static final String KEY_ALIAS = "math_master_app_usage_aes_gcm_v1";
     private static final int DEFAULT_RETENTION_DAYS = 90;
+    private static final Object STORE_LOCK = new Object();
 
-    public synchronized JSONObject read(Context context) throws Exception {
+    public JSONObject read(Context context) throws Exception{
+        synchronized (STORE_LOCK) {
         SharedPreferences preferences = preferences(context);
         String encoded = preferences.getString(KEY_PAYLOAD, null);
         if (encoded == null || encoded.isEmpty()) return emptyData();
@@ -43,9 +45,12 @@ public final class AppUsageAnalyticsStore {
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), new GCMParameterSpec(128, iv));
         byte[] plaintext = cipher.doFinal(ciphertext);
         return new JSONObject(new String(plaintext, StandardCharsets.UTF_8));
-    }
+    
+        }
+}
 
-    public synchronized void upsertDays(Context context, JSONObject replacements) throws Exception {
+    public void upsertDays(Context context, JSONObject replacements) throws Exception{
+        synchronized (STORE_LOCK) {
         JSONObject data = read(context);
         JSONObject days = data.optJSONObject("days");
         if (days == null) days = new JSONObject();
@@ -60,13 +65,19 @@ public final class AppUsageAnalyticsStore {
         data.put("lastUpdatedAt", System.currentTimeMillis());
         prune(data);
         write(context, data);
-    }
+    
+        }
+}
 
-    public synchronized int getRetentionDays(Context context) throws Exception {
+    public int getRetentionDays(Context context) throws Exception{
+        synchronized (STORE_LOCK) {
         return read(context).optInt("retentionDays", DEFAULT_RETENTION_DAYS);
-    }
+    
+        }
+}
 
-    public synchronized int setRetentionDays(Context context, int retentionDays) throws Exception {
+    public int setRetentionDays(Context context, int retentionDays) throws Exception{
+        synchronized (STORE_LOCK) {
         int safe = retentionDays == 30 || retentionDays == 90 || retentionDays == 180
             ? retentionDays : DEFAULT_RETENTION_DAYS;
         JSONObject data = read(context);
@@ -74,10 +85,47 @@ public final class AppUsageAnalyticsStore {
         prune(data);
         write(context, data);
         return safe;
+    
+        }
+}
+
+    public void clear(Context context){
+        synchronized (STORE_LOCK) {
+        preferences(context).edit().remove(KEY_PAYLOAD).commit();
+    
+        }
+}
+
+    /** Screen-time widget cache stored inside the same encrypted local-only payload. */
+    public JSONObject readWidgetSnapshot(Context context) throws Exception {
+        synchronized (STORE_LOCK) {
+            JSONObject data = read(context);
+            JSONObject snapshot = data.optJSONObject("widgetScreenTime");
+            return snapshot == null ? null : new JSONObject(snapshot.toString());
+        }
     }
 
-    public synchronized void clear(Context context) {
-        preferences(context).edit().remove(KEY_PAYLOAD).commit();
+    public void saveWidgetSnapshot(Context context, JSONObject snapshot) throws Exception {
+        if (snapshot == null || snapshot.toString().length() > 2_000_000) {
+            throw new IOException("Widget screen-time snapshot is invalid or too large.");
+        }
+        synchronized (STORE_LOCK) {
+            JSONObject data = read(context);
+            data.put("widgetScreenTime", snapshot);
+            write(context, data);
+        }
+    }
+
+    public void clearWidgetSnapshot(Context context) {
+        synchronized (STORE_LOCK) {
+            try {
+                JSONObject data = read(context);
+                data.remove("widgetScreenTime");
+                write(context, data);
+            } catch (Exception error) {
+                // Preserve analytics history if only this optional cache entry is unreadable.
+            }
+        }
     }
 
     private void write(Context context, JSONObject data) throws Exception {

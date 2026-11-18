@@ -865,6 +865,7 @@ public final class StudyModeManager {
         }
         StudyModeFocusService.onStudyAppsChanged();
         reconcile(context);
+        WidgetScreenTimeData.onStudyAppsChanged(context);
     }
 
     private static String toJson(List<String> values) {

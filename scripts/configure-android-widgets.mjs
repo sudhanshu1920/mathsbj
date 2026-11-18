@@ -13,6 +13,8 @@ const NATIVE_JAVA_FILES = [
   'MathMasterWidgetsPlugin.java',
   'MathMasterWidgetRenderer.java',
   'MathMasterWidgetConfigActivity.java',
+  'WidgetScreenTimeData.java',
+  'MathMasterWidgetActionReceiver.java',
   'DailyTargetReminderPlugin.java',
   'DailyTargetReminderReceiver.java',
   'DailyTargetReminderBootReceiver.java',
@@ -54,6 +56,8 @@ function ensurePermissions(manifest) {
     'android.permission.POST_NOTIFICATIONS',
     'android.permission.RECEIVE_BOOT_COMPLETED',
     'android.permission.VIBRATE',
+    'android.permission.PACKAGE_USAGE_STATS',
+    'android.permission.QUERY_ALL_PACKAGES',
   ];
   const missing = permissions
     .filter((permission) => !manifest.includes(`android:name="${permission}"`))
@@ -88,6 +92,10 @@ function ensureApplicationComponents(manifest) {
     {
       name: 'MathMasterWidgetPinReceiver',
       xml: `        <receiver android:name=".MathMasterWidgetPinReceiver" android:enabled="true" android:exported="false" />`,
+    },
+    {
+      name: 'MathMasterWidgetActionReceiver',
+      xml: `        <receiver android:name=".MathMasterWidgetActionReceiver" android:enabled="true" android:exported="false" />`,
     },
     {
       name: 'DailyTargetReminderReceiver',
@@ -130,6 +138,43 @@ function ensureWidgetPluginRegistration(mainActivity) {
   return mainActivity;
 }
 
+
+export function ensureWidgetResumeRefresh(mainActivity) {
+  const call = 'WidgetScreenTimeData.onAppResumed(this);';
+  if (mainActivity.includes(call)) return mainActivity;
+
+  const signature = /(?:@Override\s*)?(?:public|protected)\s+void\s+onResume\s*\(\s*\)\s*\{/;
+  const match = signature.exec(mainActivity);
+  if (match) {
+    const open = mainActivity.indexOf('{', match.index);
+    let depth = 0;
+    let close = -1;
+    for (let index = open; index < mainActivity.length; index += 1) {
+      if (mainActivity[index] === '{') depth += 1;
+      else if (mainActivity[index] === '}' && --depth === 0) { close = index; break; }
+    }
+    if (close < 0) throw new Error('MainActivity.java has an invalid onResume method.');
+    const body = mainActivity.slice(open + 1, close);
+    if (body.includes('super.onResume();')) {
+      return mainActivity.slice(0, close)
+        + '        ' + call + '\n'
+        + mainActivity.slice(close);
+    }
+    throw new Error('MainActivity.onResume() must call super.onResume() before screen-time refresh.');
+  }
+
+  const finalBrace = mainActivity.lastIndexOf('}');
+  if (finalBrace < 0) throw new Error('MainActivity.java has no closing class brace.');
+  return mainActivity.slice(0, finalBrace) + `
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ${call}
+    }
+
+` + mainActivity.slice(finalBrace);
+}
+
 export async function configureAndroidWidgets(androidRoot) {
   const root = path.resolve(androidRoot);
   const javaTarget = path.join(root, 'app/src/main/java', PACKAGE_PATH.replaceAll('.', '/'));
@@ -158,7 +203,7 @@ export async function configureAndroidWidgets(androidRoot) {
 
   const activityPath = path.join(javaTarget, 'MainActivity.java');
   const mainActivity = await readFile(activityPath, 'utf8');
-  await writeFile(activityPath, ensureWidgetPluginRegistration(mainActivity));
+  await writeFile(activityPath, ensureWidgetResumeRefresh(ensureWidgetPluginRegistration(mainActivity)));
 
   const manifestPath = path.join(root, 'app/src/main/AndroidManifest.xml');
   let manifest = await readFile(manifestPath, 'utf8');
