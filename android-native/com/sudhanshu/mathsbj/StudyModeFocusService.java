@@ -331,8 +331,25 @@ public final class StudyModeFocusService extends Service {
 
     public static void onStudyAppsChanged() {
         StudyModeFocusService service = activeService;
-        if (service == null || !service.periodicReminderVisible.get()) return;
-        service.mainHandler.post(service::refreshPeriodicReminderStudyApps);
+        if (service == null || !running) return;
+        service.enqueueImmediateEvaluation();
+        if (service.periodicReminderVisible.get()) {
+            service.mainHandler.post(service::refreshPeriodicReminderStudyApps);
+        }
+    }
+
+    /** Re-evaluate the current foreground app as soon as the strict policy changes. */
+    public static void onProModeChanged() {
+        StudyModeFocusService service = activeService;
+        if (service == null || !running) return;
+        service.mainHandler.post(() -> {
+            if (!running || service != activeService) return;
+            if (StudyModeManager.isProStrictModeActive(service)
+                && service.periodicReminderVisible.get()) {
+                service.dismissPeriodicReminder("pro_strict_mode_activated", false);
+            }
+            service.enqueueImmediateEvaluation();
+        });
     }
 
     public static void requestImmediateEvaluation() {
@@ -686,8 +703,8 @@ public final class StudyModeFocusService extends Service {
                 logStage("FOREGROUND_PACKAGE_RESOLVED", foreground, "", "success", foregroundSource);
             }
 
-            boolean shouldShield = !foreground.equals(getPackageName())
-                && StudyModeManager.isPackageSelected(StudyModeFocusService.this, foreground);
+            boolean shouldShield = StudyModeManager.isPackageRestricted(
+                StudyModeFocusService.this, foreground);
 
             // If the user enabled Advanced detection, an incomplete window list
             // cannot prove that no blocked split-screen pane exists. Keep any
@@ -715,7 +732,8 @@ public final class StudyModeFocusService extends Service {
             // pause until the current focused package is positively identified.
             boolean selectedStudyApp = activePackage != null
                 && StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage);
-            boolean reminderEligible = !shouldShield && activePackage != null
+            boolean reminderEligible = !StudyModeManager.isProStrictModeActive(StudyModeFocusService.this)
+                && !shouldShield && activePackage != null
                 && !activePackage.equals(getPackageName())
                 && !selectedStudyApp
                 && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)
@@ -996,7 +1014,7 @@ public final class StudyModeFocusService extends Service {
             }
             if (windowManager == null) throw new IllegalStateException("WindowManager unavailable");
 
-            android.view.View candidate = buildShieldView();
+            android.view.View candidate = buildShieldView(packageName);
             if (!running || decisionSequence != foregroundDecisionSequence.get()) {
                 logStage("BLOCKING_REEVALUATED", packageName, activeShieldRequestId,
                     "superseded", "decision_changed_during_popup_build");
@@ -1112,9 +1130,11 @@ public final class StudyModeFocusService extends Service {
 
     private void showPeriodicReminder(String packageName, long decisionSequence) {
         if (packageName == null || packageName.isEmpty()
+            || StudyModeManager.isProStrictModeActive(this)
             || !periodicReminderVisible.compareAndSet(false, true)) return;
         if (!running || decisionSequence != foregroundDecisionSequence.get()
             || !StudyModeManager.shouldEnforceNow(this)
+            || StudyModeManager.isProStrictModeActive(this)
             || StudyModeManager.isPackageSelected(this, packageName)
             || StudyModeManager.isSelectedStudyAppPackage(this, packageName)
             || StudyModeManager.isPeriodicReminderExemptPackage(this, packageName)
@@ -1283,7 +1303,9 @@ public final class StudyModeFocusService extends Service {
         continueAnyway.setClickable(true);
         continueAnyway.setFocusable(true);
         continueAnyway.setOnClickListener(view -> dismissPeriodicReminder("continue_anyway", true));
-        panel.addView(continueAnyway, matchWrap());
+        if (!StudyModeManager.isProStrictModeActive(this)) {
+            panel.addView(continueAnyway, matchWrap());
+        }
         root.requestFocus();
         return root;
     }
@@ -1468,7 +1490,7 @@ public final class StudyModeFocusService extends Service {
         logStage("PERIODIC_REMINDER_DISMISSED", removedPackage, removedId, "dismissed", reason);
     }
 
-    private android.view.View buildShieldView() {
+    private android.view.View buildShieldView(String packageName) {
         PopupPalette palette = getPopupPalette();
 
         ScrollView scroll = new ScrollView(this);
@@ -1539,6 +1561,27 @@ public final class StudyModeFocusService extends Service {
         LinearLayout.LayoutParams descriptionParams = matchWrap();
         descriptionParams.topMargin = dp(3);
         panel.addView(description, descriptionParams);
+
+        LinearLayout restrictedAppRow = new LinearLayout(this);
+        restrictedAppRow.setOrientation(LinearLayout.HORIZONTAL);
+        restrictedAppRow.setGravity(Gravity.CENTER_VERTICAL);
+        restrictedAppRow.setPadding(dp(9), dp(7), dp(9), dp(7));
+        restrictedAppRow.setBackground(rounded(palette.shortcutSurface, palette.border, dp(13)));
+        LinearLayout.LayoutParams restrictedAppParams = matchWrap();
+        restrictedAppParams.topMargin = dp(10);
+        panel.addView(restrictedAppRow, restrictedAppParams);
+        ImageView restrictedAppIcon = new ImageView(this);
+        android.graphics.drawable.Drawable restrictedDrawable = getStudyAppIcon(packageName);
+        if (restrictedDrawable != null) restrictedAppIcon.setImageDrawable(restrictedDrawable);
+        else restrictedAppIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+        restrictedAppRow.addView(restrictedAppIcon, new LinearLayout.LayoutParams(dp(34), dp(34)));
+        TextView restrictedAppName = popupText(getStudyAppLabel(packageName), 12,
+            palette.text, Typeface.BOLD, Gravity.CENTER_VERTICAL);
+        restrictedAppName.setMaxLines(1);
+        restrictedAppName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams restrictedNameParams = new LinearLayout.LayoutParams(0, -2, 1f);
+        restrictedNameParams.leftMargin = dp(9);
+        restrictedAppRow.addView(restrictedAppName, restrictedNameParams);
         addGap(panel, 10);
 
         LinearLayout countdownCard = new LinearLayout(this);
@@ -1583,8 +1626,8 @@ public final class StudyModeFocusService extends Service {
                 for (int column = 0; column < columns; column++) {
                     int index = i + column;
                     if (index < studyPackages.size()) {
-                        String packageName = studyPackages.get(index);
-                        row.addView(buildStudyAppShortcut(packageName, palette),
+                        String studyPackageName = studyPackages.get(index);
+                        row.addView(buildStudyAppShortcut(studyPackageName, palette),
                             new LinearLayout.LayoutParams(0, dp(56), 1f));
                     } else {
                         row.addView(new android.view.View(this),

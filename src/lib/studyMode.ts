@@ -1,5 +1,4 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import { App } from "@capacitor/app";
 import { createAsyncCache } from "@/lib/studyModeAppCatalogCache";
 import { getTheme, getMode } from "@/lib/theme";
 import {
@@ -66,18 +65,21 @@ export interface StudyModeStatus {
   suspendedPackages: string[];
   exactAlarmFallback: boolean;
   studyAppPackages?: string[];
+  proEnabled?: boolean;
   reminderIntervalMinutes?: number;
 }
 
 interface NativeStudyModePlugin {
   getStatus(): Promise<StudyModeStatus>;
   refresh(): Promise<StudyModeStatus>;
-  listApps(): Promise<{ apps: StudyModeApp[] }>;
+  listApps(): Promise<{ apps: StudyModeApp[]; catalogRevision?: number }>;
+  getAppCatalogRevision(): Promise<{ revision: number }>;
   saveConfig(options: StudyModeConfig & { studyAppPackageNames: string[] }): Promise<StudyModeStatus>;
   setPopupAppearance(options: { theme: string; mode: "dark" | "light" }): Promise<void>;
   setReminderIntervalMinutes(options: { minutes: number }): Promise<StudyModeStatus>;
   consumeOpenStudyAppsPickerRequest(): Promise<{ open: boolean }>;
   setEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
+  setProEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
   startSession(options: StudyModeSessionOptions): Promise<StudyModeStatus>;
   endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
   getSessionHistory(): Promise<{ sessions: StudyModeSession[] }>;
@@ -97,8 +99,13 @@ const NativeStudyMode = registerPlugin<NativeStudyModePlugin>("StudyMode");
 
 // App discovery/icon decoding is expensive on Android. Keep the complete catalogue
 // for five minutes across screen mounts and de-duplicate simultaneous refreshes.
+let installedAppsCacheRevision: number | null = null;
+
 const installedAppsCache = createAsyncCache<StudyModeApp[]>(async () => {
   const result = await NativeStudyMode.listApps();
+  installedAppsCacheRevision = Number.isSafeInteger(result.catalogRevision)
+    ? result.catalogRevision ?? null
+    : null;
   return Array.isArray(result.apps) ? result.apps : [];
 }, 5 * 60_000);
 
@@ -108,7 +115,6 @@ export interface CachedStudyModeSettings {
 }
 
 let cachedStudyModeSettings: CachedStudyModeSettings | null = null;
-let appResumeListenerInstalled = false;
 
 function rememberStudyModeSettings(status: StudyModeStatus): StudyModeStatus {
   cachedStudyModeSettings = {
@@ -161,16 +167,6 @@ export function initializeStudyMode(): void {
     popupAppearanceListenerInstalled = true;
     window.addEventListener("theme-updated", () => { void syncStudyModePopupAppearance(); });
   }
-  if (!appResumeListenerInstalled) {
-    appResumeListenerInstalled = true;
-    void App.addListener("resume", () => {
-      // Package broadcasts invalidate Android's catalogue; clear the WebView copy
-      // on resume so the next picker open cannot keep an uninstalled app selectable.
-      invalidateStudyModeAppCatalogCache();
-    }).catch(() => {
-      appResumeListenerInstalled = false;
-    });
-  }
   void NativeStudyMode.refresh().then(rememberStudyModeSettings).catch(() => {
     // The feature remains opt-in; permission or service failures are surfaced
     // on the Study Mode page from the next native status read.
@@ -197,6 +193,7 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       suspendedPackages: [],
       exactAlarmFallback: false,
       studyAppPackages: [],
+      proEnabled: false,
       reminderIntervalMinutes: 2,
     };
   }
@@ -220,11 +217,25 @@ export async function refreshStudyMode(): Promise<StudyModeStatus> {
 
 export async function getInstalledStudyModeApps(forceRefresh = false): Promise<StudyModeApp[]> {
   if (!isStudyModeNative()) return [];
-  return installedAppsCache.get(forceRefresh);
+  if (forceRefresh) {
+    const cached = installedAppsCache.peek();
+    try {
+      const { revision } = await NativeStudyMode.getAppCatalogRevision();
+      if (cached && Number.isSafeInteger(revision) && revision === installedAppsCacheRevision) {
+        return cached;
+      }
+      if (revision !== installedAppsCacheRevision) installedAppsCache.clear();
+    } catch {
+      // Older native builds may not expose revisions; fall back to a real refresh.
+      return installedAppsCache.get(true);
+    }
+  }
+  return installedAppsCache.get();
 }
 
 /** Explicit invalidation hook for package-catalogue lifecycle changes. */
 export function invalidateStudyModeAppCatalogCache(): void {
+  installedAppsCacheRevision = null;
   installedAppsCache.clear();
 }
 
@@ -249,6 +260,11 @@ export async function setStudyModeReminderInterval(minutes: number): Promise<Stu
 export async function setStudyModeEnabled(enabled: boolean): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) throw new Error("Study Mode requires the Android app.");
   return rememberStudyModeSettings(await NativeStudyMode.setEnabled({ enabled }));
+}
+
+export async function setStudyModeProEnabled(enabled: boolean): Promise<StudyModeStatus> {
+  if (!isStudyModeNative()) throw new Error("PRO strict Study Mode requires the Android app.");
+  return rememberStudyModeSettings(await NativeStudyMode.setProEnabled({ enabled }));
 }
 
 export async function startStudyModeSession(options: StudyModeSessionOptions): Promise<StudyModeStatus> {

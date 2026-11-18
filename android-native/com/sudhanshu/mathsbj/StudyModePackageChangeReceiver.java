@@ -12,17 +12,28 @@ public final class StudyModePackageChangeReceiver extends BroadcastReceiver {
         boolean packageRemoved = Intent.ACTION_PACKAGE_REMOVED.equals(action);
         boolean packageCatalogChanged = packageRemoved
             || Intent.ACTION_PACKAGE_ADDED.equals(action)
-            || Intent.ACTION_PACKAGE_CHANGED.equals(action);
+            || Intent.ACTION_PACKAGE_CHANGED.equals(action)
+            || Intent.ACTION_PACKAGE_REPLACED.equals(action);
         if (!packageCatalogChanged) return;
 
-        // Package labels/icons may change on install, update, enable/disable or removal.
+        // Package broadcasts are the native source of truth for catalogue revisions.
         StudyModePlugin.invalidateAppCatalogCache();
-        if (!packageRemoved || intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return;
+        String changedPackage = intent.getData() == null ? null : intent.getData().getSchemeSpecificPart();
+        StudyModeFocusService.invalidatePackageCache(changedPackage);
+        StudyModeManager.invalidateStrictExemptPackageCache();
 
-        String removedPackage = intent.getData() == null ? null : intent.getData().getSchemeSpecificPart();
-        StudyModeFocusService.invalidatePackageCache(removedPackage);
-        StudyModeManager.getSelectedPackages(context); // Purge removed packages from restriction selection.
-        StudyModeManager.getSelectedStudyAppPackages(context); // Purge stale quick-launch shortcuts too.
-        StudyModeManager.reconcile(context);
+        if (packageRemoved && !intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
+            StudyModeManager.getSelectedPackages(context); // Purge removed packages from Blocked Apps.
+            StudyModeManager.getSelectedStudyAppPackages(context); // Purge removed Study Apps.
+            StudyModeManager.reconcile(context); // Also removes any stale Device Owner suspension.
+            return;
+        }
+
+        // A newly installed app remains outside the strict allowlist by default.
+        // Refresh package-level enforcement immediately when Android reports it.
+        if (StudyModeManager.isProStrictModeActive(context)) {
+            if (StudyModeManager.isPolicyOwner(context)) StudyModeManager.reconcile(context);
+            else StudyModeFocusService.requestImmediateEvaluation();
+        }
     }
 }
