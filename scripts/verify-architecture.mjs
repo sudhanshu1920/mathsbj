@@ -1051,7 +1051,7 @@ if (!studyModePage.includes('useLayoutEffect(() => {') ||
     !studyModePage.includes('study-mode-session-card') ||
     !studyModePage.includes('study-mode-app-card__saved-label') ||
     !studyModePage.includes('study-mode-schedule-times') ||
-    /(?:^|\\s)grid-cols-(?:2|5)(?:\\s|")/.test(studyModePage) ||
+    /(?:^|\s)grid-cols-(?:2|5)(?:\s|")/.test(studyModePage) ||
     !css.includes('.study-mode-app-card__summary') ||
     !css.includes('html.desktop-mode .study-mode-primary-grid') ||
     !css.includes('@media (min-width: 768px) and (orientation: landscape)') ||
