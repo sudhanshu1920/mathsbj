@@ -11,6 +11,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -37,7 +38,6 @@ import java.util.Set;
 public class MathMasterWidgetConfigActivity extends Activity {
     private static final String PREFS = "math_master_home_widget";
     private static final int INVALID_WIDGET_ID = AppWidgetManager.INVALID_APPWIDGET_ID;
-    private static final int ACCENT = Color.rgb(101, 88, 217);
 
     private final Map<String, CheckBox> contentChecks = new LinkedHashMap<>();
     private final List<RadioButton> styleChoices = new ArrayList<>();
@@ -50,7 +50,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private int textColor;
     private int mutedColor;
     private int borderColor;
-    private boolean buildingUi;
+    private int accentColor = Color.rgb(101, 88, 217);
 
     private static final String[][] CONTENT_OPTIONS = {
         {"appIdentity", "App Identity"},
@@ -182,6 +182,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
         textColor = dark ? Color.rgb(239, 242, 250) : Color.rgb(28, 36, 54);
         mutedColor = dark ? Color.rgb(164, 173, 192) : Color.rgb(101, 112, 133);
         borderColor = dark ? Color.rgb(57, 65, 83) : Color.rgb(224, 229, 239);
+        TypedValue accent = new TypedValue();
+        if (getTheme().resolveAttribute(android.R.attr.colorAccent, accent, true)) {
+            accentColor = accent.data;
+        }
     }
 
     private void addHeader(LinearLayout parent) {
@@ -189,7 +193,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         header.setOrientation(LinearLayout.VERTICAL);
         TextView eyebrow = new TextView(this);
         eyebrow.setText("MATH MASTER  /  WIDGET STUDIO");
-        eyebrow.setTextColor(ACCENT);
+        eyebrow.setTextColor(accentColor);
         eyebrow.setTextSize(10);
         eyebrow.setLetterSpacing(0.08f);
         TextView title = new TextView(this);
@@ -226,18 +230,18 @@ public class MathMasterWidgetConfigActivity extends Activity {
             check.setTextColor(textColor);
             check.setTextSize(11);
             check.setMinHeight(dp(44));
-            check.setButtonTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+            check.setButtonTintList(android.content.res.ColorStateList.valueOf(accentColor));
             check.setPadding(dp(5), dp(2), dp(5), dp(2));
             check.setBackground(rounded(cardColor, dp(11), borderColor));
             check.setChecked(selected.contains(option[0]));
             contentChecks.put(option[0], check);
             check.setOnCheckedChangeListener((button, checked) -> {
-                if (!buildingUi) updatePreview();
+                updatePreview();
                 check.setBackground(rounded(checked ? selectedSurface() : cardColor, dp(11),
-                    checked ? ACCENT : borderColor));
+                    checked ? accentColor : borderColor));
             });
             check.setBackground(rounded(selected.contains(option[0]) ? selectedSurface() : cardColor,
-                dp(11), selected.contains(option[0]) ? ACCENT : borderColor));
+                dp(11), selected.contains(option[0]) ? accentColor : borderColor));
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1f);
             params.setMargins(dp(2), dp(2), dp(2), dp(2));
             row.addView(check, params);
@@ -250,7 +254,6 @@ public class MathMasterWidgetConfigActivity extends Activity {
     }
 
     private void addStyleGrid(LinearLayout parent, String selectedStyle) {
-        int columns = 3;
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         parent.addView(row, sectionParams());
@@ -261,7 +264,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             View swatch = new View(this);
             int swatchColor = "neon".equals(option[0]) ? Color.rgb(83, 75, 170)
                 : ("blur".equals(option[0]) ? Color.rgb(102, 119, 142) : Color.TRANSPARENT);
-            swatch.setBackground(rounded(swatchColor, dp(8), ACCENT));
+            swatch.setBackground(rounded(swatchColor, dp(8), accentColor));
             tile.addView(swatch, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(25)));
             RadioButton choice = compactRadio(option[1], option[0], selectedStyle);
@@ -331,7 +334,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         radio.setTextSize(10);
         radio.setMinHeight(dp(34));
         radio.setPadding(dp(1), 0, dp(1), 0);
-        radio.setButtonTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+        radio.setButtonTintList(android.content.res.ColorStateList.valueOf(accentColor));
         radio.setChecked(value.equals(selectedValue));
         radio.setOnClickListener(view -> {
             if (radio.isChecked()) {
@@ -354,7 +357,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
                 LinearLayout tile = (LinearLayout) choice.getParent();
                 boolean selected = choice.isChecked();
                 tile.setBackground(rounded(selected ? selectedSurface() : cardColor,
-                    dp(12), selected ? ACCENT : borderColor));
+                    dp(12), selected ? accentColor : borderColor));
             }
         }
     }
@@ -393,7 +396,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         button.setTextSize(12);
         button.setTypeface(null, 1);
         button.setTextColor(primary ? Color.WHITE : textColor);
-        button.setBackground(rounded(primary ? ACCENT : cardColor, dp(12), primary ? ACCENT : borderColor));
+        button.setBackground(rounded(primary ? accentColor : cardColor, dp(12), primary ? accentColor : borderColor));
         button.setMinHeight(dp(44));
         button.setPadding(dp(8), 0, dp(8), 0);
         return button;
