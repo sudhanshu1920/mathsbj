@@ -3,6 +3,7 @@ package com.sudhanshu.mathsbj;
 import android.graphics.Bitmap;
 import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
@@ -59,6 +60,8 @@ final class MathMasterWidgetRenderer {
         int todayIndex = 0;                    // 0 = Sunday .. 6 = Saturday
         String updateLabel = null;             // e.g. "UPDATE v1.2.3", null when none
         String[] dayLetters = { "S", "M", "T", "W", "T", "F", "S" };
+        WidgetScreenTimeData.Block studyScreenTime;
+        WidgetScreenTimeData.Block deviceScreenTime;
     }
 
     /** Which blocks to draw and how. */
@@ -76,6 +79,8 @@ final class MathMasterWidgetRenderer {
         boolean weekly = true;
         boolean quiz = true;
         boolean update = true;
+        boolean studyScreenTime = false;
+        boolean deviceScreenTime = false;
     }
 
     // ---------------------------------------------------------------- palettes
@@ -293,6 +298,11 @@ final class MathMasterWidgetRenderer {
             cardRadius = Math.min(cardRadius, card.height() * 0.5f);
             drawCard();
             if (!o.enabled) { drawDisabled(); return; }
+            if (o.studyScreenTime || o.deviceScreenTime) {
+                layoutScreenTime();
+                drawUpdatePill();
+                return;
+            }
             switch (o.composition) {
                 case "compact_green": layoutGreen(); break;
                 case "square_math_bot": layoutMathBot(); break;
@@ -920,6 +930,172 @@ final class MathMasterWidgetRenderer {
             if (a[1] != null) streakPanel(a[1]);
             if (b[0] != null) weekStrip(b[0], 22.5f, 16f, 0.36f, 0.69f);
             if (b[1] != null) quizTile(b[1], 19f);
+        }
+
+        void layoutScreenTime() {
+            float pad = Math.max(6f * density, card.width() * 0.035f);
+            float left = card.left + pad;
+            float right = card.right - pad;
+            float top = card.top + pad;
+            float bottom = card.bottom - pad;
+            boolean two = o.studyScreenTime && o.deviceScreenTime;
+            if (o.identity) {
+                text("MATH MASTER", left, top + Math.max(10f * density, card.height() * 0.105f),
+                    Math.max(8f * density, Math.min(13f * density, card.height() * 0.09f)),
+                    f.bold, Color.WHITE, Paint.Align.LEFT, right - left);
+            }
+            float contentTop = o.identity ? top + Math.max(16f * density, card.height() * 0.17f) : top;
+            String legacy = legacyMetricSummary();
+            if (!legacy.isEmpty() && contentTop + 10f * density < bottom) {
+                float metricSize = Math.max(6f * density, Math.min(8.5f * density, card.height() * 0.026f));
+                text(legacy, (left + right) * 0.5f, contentTop + metricSize,
+                    metricSize, f.medium, withAlpha(Color.WHITE, 0.78f), Paint.Align.CENTER, right - left);
+                contentTop += Math.max(12f * density, card.height() * 0.075f);
+            }
+            if (two) {
+                float gap = Math.max(4f * density, card.height() * 0.025f);
+                float half = (bottom - contentTop - gap) * 0.5f;
+                drawScreenTimeBlock(d.studyScreenTime, new RectF(left, contentTop, right, contentTop + half));
+                drawScreenTimeBlock(d.deviceScreenTime, new RectF(left, contentTop + half + gap, right, bottom));
+            } else {
+                drawScreenTimeBlock(o.studyScreenTime ? d.studyScreenTime : d.deviceScreenTime,
+                    new RectF(left, contentTop, right, bottom));
+            }
+        }
+
+        String legacyMetricSummary() {
+            StringBuilder result = new StringBuilder();
+            if (o.target || o.studyTime) {
+                result.append(o.target ? ("Target " + Math.min(d.elapsedMinutes, d.targetMinutes) + "/" + d.targetMinutes + "m")
+                    : ("Study " + d.elapsedMinutes + "m"));
+            }
+            if (o.progress) appendMetric(result, d.progress + "% progress");
+            if (o.remaining) appendMetric(result, d.remainingMinutes + "m left");
+            if (o.streak) appendMetric(result, d.streak + " day streak");
+            if (o.weekly) {
+                int done = 0;
+                for (boolean day : d.weekDone) if (day) done++;
+                appendMetric(result, "Week " + done + "/7");
+            }
+            if (o.quiz) appendMetric(result, "Quiz");
+            if (o.update && d.updateLabel != null) appendMetric(result, d.updateLabel);
+            return result.toString();
+        }
+
+        void appendMetric(StringBuilder result, String value) {
+            if (result.length() > 0) result.append("  ·  ");
+            result.append(value);
+        }
+
+        void drawScreenTimeBlock(WidgetScreenTimeData.Block block, RectF area) {
+            if (block == null || area.height() <= 1f) return;
+            float radius = Math.min(13f * density, area.height() * 0.16f);
+            glass(area, radius);
+            float inset = Math.max(5f * density, area.height() * 0.07f);
+            float x = area.left + inset;
+            float right = area.right - inset;
+            float width = Math.max(1f, right - x);
+            float h = area.height();
+            float titleSize = clamp(h * 0.115f, 7f * density, 12f * density);
+            String heading = block.title + " · " + block.periodLabel;
+            if (h < 28f * density) {
+                float compactSize = Math.max(6f * density, Math.min(9f * density, h * 0.22f));
+                float middle = area.centerY();
+                text(heading, x, middle - compactSize * 0.18f, compactSize, f.medium,
+                    Color.WHITE, Paint.Align.LEFT, width);
+                String summary = "ready".equals(block.state)
+                    ? (block.showTotal ? "Total " + formatUsage(block.totalUsageMillis) : "Usage available")
+                    : screenTimeState(block.state);
+                text(summary, right, middle + compactSize * 1.05f, compactSize, f.bold,
+                    pal.soft, Paint.Align.RIGHT, width);
+                return;
+            }
+            text(heading, x, area.top + Math.max(titleSize, h * 0.19f), titleSize, f.medium,
+                Color.WHITE, Paint.Align.LEFT, width);
+            if (!"ready".equals(block.state)) {
+                String message = screenTimeState(block.state);
+                text(message, x, area.centerY() + titleSize * 0.15f,
+                    Math.max(6f * density, Math.min(10f * density, h * 0.14f)),
+                    f.medium, pal.soft, Paint.Align.LEFT, width);
+                if ("no_study_apps".equals(block.state) && h > 78f * density) {
+                    text("Select apps in Study Mode to see their screen time.", x,
+                        area.centerY() + titleSize * 1.55f, Math.max(6f * density, titleSize * 0.72f),
+                        f.regular, withAlpha(Color.WHITE, 0.72f), Paint.Align.LEFT, width);
+                }
+                if (!block.updatedLabel.isEmpty() && h > 64f * density) {
+                    text(block.updatedLabel, x, area.bottom - inset * 0.45f, 6.5f * density,
+                        f.regular, withAlpha(Color.WHITE, 0.58f), Paint.Align.LEFT, width);
+                }
+                return;
+            }
+            float totalSize = clamp(h * 0.15f, 8f * density, 15f * density);
+            float rowTop = area.top + h * 0.30f;
+            if (block.showTotal) {
+                text("Total " + formatUsage(block.totalUsageMillis), right, rowTop + totalSize * 0.15f,
+                    totalSize, f.bold, Color.WHITE, Paint.Align.RIGHT, width * 0.48f);
+            }
+            float listTop = rowTop + totalSize * (block.showTotal ? 0.75f : 0.25f);
+            float footer = h > 86f * density ? 12f * density : 3f * density;
+            float rowArea = Math.max(1f, area.bottom - inset - footer - listTop);
+            int visible = Math.min(block.apps.size(), Math.max(1, Math.min(6, (int) (rowArea / Math.max(17f * density, h * 0.19f)))));
+            if (block.compact) visible = Math.min(visible, 3);
+            float rowHeight = rowArea / Math.max(1, visible);
+            float nameSize = clamp(rowHeight * 0.36f, 6f * density, 10f * density);
+            for (int i = 0; i < visible; i++) {
+                WidgetScreenTimeData.App app = block.apps.get(i);
+                float cy = listTop + rowHeight * (i + 0.5f);
+                float iconSize = Math.min(rowHeight * 0.68f, 15f * density);
+                float nameX = x;
+                if (app.icon != null && !app.icon.isRecycled()) {
+                    RectF iconRect = new RectF(x, cy - iconSize * 0.5f, x + iconSize, cy + iconSize * 0.5f);
+                    Path clip = new Path();
+                    clip.addRoundRect(iconRect, iconSize * 0.22f, iconSize * 0.22f, Path.Direction.CW);
+                    int save = c.save();
+                    c.clipPath(clip);
+                    c.drawBitmap(app.icon, null, iconRect, fill);
+                    c.restoreToCount(save);
+                    nameX += iconSize + Math.max(3f * density, 4f);
+                }
+                float timeWidth = block.showUsage ? width * (block.showPercent ? 0.40f : 0.29f)
+                    : (block.showPercent ? width * 0.16f : 0f);
+                float nameWidth = Math.max(1f, right - nameX - timeWidth);
+                text(app.label, nameX, cy + nameSize * 0.34f, nameSize, f.medium,
+                    Color.WHITE, Paint.Align.LEFT, nameWidth);
+                if (block.showUsage || block.showPercent) {
+                    String detail = block.showUsage ? formatUsage(app.usageMillis) : "";
+                    if (block.showPercent) detail += (detail.isEmpty() ? "" : " · ") + app.percentage + "%";
+                    text(detail, right, cy + nameSize * 0.34f,
+                        nameSize, f.medium, withAlpha(Color.WHITE, 0.92f), Paint.Align.RIGHT, timeWidth);
+                }
+                if (block.showPercent && app.percentage > 0 && rowHeight > 22f * density) {
+                    float barY = cy + rowHeight * 0.30f;
+                    fill.setColor(withAlpha(pal.ring0, 0.18f));
+                    c.drawRoundRect(nameX, barY, right, barY + Math.max(1f, density), 2f, 2f, fill);
+                    fill.setColor(pal.ring0);
+                    c.drawRoundRect(nameX, barY, nameX + Math.max(1f, (right - nameX) * app.percentage / 100f),
+                        barY + Math.max(1f, density), 2f, 2f, fill);
+                    resetPaints();
+                }
+            }
+            if (!block.updatedLabel.isEmpty() && h > 90f * density) {
+                text(block.updatedLabel, x, area.bottom - inset * 0.35f, 6f * density,
+                    f.regular, withAlpha(Color.WHITE, 0.52f), Paint.Align.LEFT, width);
+            }
+        }
+
+        String screenTimeState(String state) {
+            if ("permission_required".equals(state)) return "Usage Access Required · tap to enable";
+            if ("no_study_apps".equals(state)) return "No Study Apps Selected";
+            if ("loading".equals(state)) return "Updating usage…";
+            if ("unavailable".equals(state)) return "Usage data unavailable · retry";
+            return "No screen time recorded yet";
+        }
+
+        String formatUsage(long millis) {
+            long minutes = Math.max(0L, millis / 60000L);
+            long hours = minutes / 60L;
+            long rest = minutes % 60L;
+            return hours > 0L ? hours + "h " + rest + "m" : minutes + "m";
         }
 
         /** compact_green: header, ring and two stacked panels. */

@@ -48,13 +48,23 @@ public class BackupRestorePlugin extends Plugin {
     ));
     private static final Set<String> GLOBAL_BOOLEAN_KEYS = new TreeSet<>(Collections.singletonList("enabled"));
     private static final Set<String> INSTANCE_STRING_FIELDS = new TreeSet<>(Arrays.asList(
-        "contentJson", "style", "composition", "themeMode", "theme"
+        "contentJson", "style", "composition", "themeMode", "theme",
+        "studyPeriod", "studySort", "devicePeriod", "deviceSort", "studyAppFilterJson", "deviceAppFilterJson"
+    ));
+    private static final Set<String> INSTANCE_NUMBER_FIELDS = new TreeSet<>(Arrays.asList(
+        "studyMaxApps", "deviceMaxApps"
+    ));
+    private static final Set<String> INSTANCE_BOOLEAN_FIELDS = new TreeSet<>(Arrays.asList(
+        "studyShowTotal", "studyShowUsage", "studyShowPercent", "studyCompact",
+        "deviceShowTotal", "deviceShowUsage", "deviceShowPercent", "deviceCompact",
+        "studyAppFilterEnabled", "deviceAppFilterEnabled"
     ));
     private static final Pattern INSTANCE_KEY = Pattern.compile(
-        "^instance_([0-9]+)_(contentJson|style|composition|themeMode|theme|contentSchemaVersion)$"
+        "^instance_([0-9]+)_(contentJson|style|composition|themeMode|theme|contentSchemaVersion|studyPeriod|studySort|devicePeriod|deviceSort|studyMaxApps|deviceMaxApps|studyShowTotal|studyShowUsage|studyShowPercent|studyCompact|deviceShowTotal|deviceShowUsage|deviceShowPercent|deviceCompact|studyAppFilterEnabled|studyAppFilterJson|deviceAppFilterEnabled|deviceAppFilterJson)$"
     );
     private static final Set<String> CONTENT_OPTIONS = new TreeSet<>(Arrays.asList(
-        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
+        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus",
+        "studyAppsScreenTime", "deviceAppsScreenTime"
     ));
     private static final Set<String> COMPOSITIONS = new TreeSet<>(Arrays.asList(
         "auto", "hero_wide", "compact_green", "square_math_bot", "medium_study",
@@ -264,7 +274,7 @@ public class BackupRestorePlugin extends Plugin {
                     throw new JSONException("Invalid or duplicate widget instance.");
                 }
                 JSONObject source = item.getJSONObject("preferences");
-                if (source.length() > 16) throw new JSONException("Too many fields on a widget instance.");
+                if (source.length() > 32) throw new JSONException("Too many fields on a widget instance.");
                 JSONObject fields = new JSONObject();
                 for (String field : keys(source)) {
                     Object value = source.get(field);
@@ -374,13 +384,20 @@ public class BackupRestorePlugin extends Plugin {
 
     private static boolean isValidInstancePreference(String field, Object value) {
         if ("contentSchemaVersion".equals(field)) {
-            return value instanceof Number && ((Number) value).intValue() >= 1 && ((Number) value).intValue() <= 3;
+            return value instanceof Number && ((Number) value).doubleValue() == ((Number) value).intValue()
+                && ((Number) value).intValue() >= 1 && ((Number) value).intValue() <= 4;
         }
+        if (INSTANCE_NUMBER_FIELDS.contains(field)) {
+            return value instanceof Number && ((Number) value).doubleValue() == ((Number) value).intValue()
+                && ((Number) value).intValue() >= 1 && ((Number) value).intValue() <= 8;
+        }
+        if (INSTANCE_BOOLEAN_FIELDS.contains(field)) return value instanceof Boolean;
         return INSTANCE_STRING_FIELDS.contains(field) && value instanceof String && validateWidgetString(field, (String) value);
     }
 
     private static boolean validateWidgetString(String field, String value) {
-        if (value == null || value.length() > 8192) return false;
+        if (value == null || value.length() > (
+            "studyAppFilterJson".equals(field) || "deviceAppFilterJson".equals(field) ? 65536 : 8192)) return false;
         if ("contentJson".equals(field)) {
             try {
                 JSONArray content = new JSONArray(value);
@@ -397,6 +414,24 @@ public class BackupRestorePlugin extends Plugin {
         if ("composition".equals(field)) return COMPOSITIONS.contains(value);
         if ("theme".equals(field)) return THEMES.contains(value);
         if ("themeMode".equals(field)) return THEME_MODES.contains(value);
+        if ("studyPeriod".equals(field) || "devicePeriod".equals(field)) {
+            return "today".equals(value) || "yesterday".equals(value) || "last_7_days".equals(value);
+        }
+        if ("studySort".equals(field) || "deviceSort".equals(field)) {
+            return "most_used".equals(value) || "least_used".equals(value) || "name_az".equals(value) || "name_za".equals(value);
+        }
+        if ("studyAppFilterJson".equals(field) || "deviceAppFilterJson".equals(field)) {
+            try {
+                JSONArray packages = new JSONArray(value);
+                if (packages.length() > 1000) return false;
+                Set<String> seen = new TreeSet<>();
+                for (int i = 0; i < packages.length(); i++) {
+                    String pkg = packages.getString(i);
+                    if (!pkg.matches("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+") || !seen.add(pkg)) return false;
+                }
+                return true;
+            } catch (JSONException ignored) { return false; }
+        }
         if ("mode".equals(field)) return "dark".equals(value) || "light".equals(value);
         if ("appAccentColor".equals(field) || "accentColor".equals(field)) return value.matches("^#[0-9a-fA-F]{6}$");
         return false;

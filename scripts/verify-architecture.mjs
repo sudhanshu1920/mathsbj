@@ -1001,7 +1001,7 @@ const studyModeAlarmReceiver = read('android-native/com/sudhanshu/mathsbj/StudyM
 const studyModeAppFilters = read('src/lib/studyModeAppFilters.ts');
 const studyModeAppFilterTests = read('src/lib/studyModeAppFilters.test.ts');
 const studyModeSetup = read('scripts/configure-android-study-mode.mjs');
-const widgetSetup = read('scripts/configure-android-widgets.mjs');
+const screenTimeSetup = read('scripts/configure-android-widgets.mjs');
 const validationWorkflow = read('.github/workflows/validation.yml');
 const studyModeSettings = read('src/components/SettingsPanel.tsx');
 const studyModeIndex = read('src/pages/Index.tsx');
@@ -1499,6 +1499,28 @@ for (const [section, expandLabel, collapseLabel, contentId] of expandableStudySe
       || !studyModePage.includes(`aria-controls="${contentId}"`)) {
     fail(`Study Mode expandable section wiring is incomplete: ${section}`);
   }
+}
+
+
+const widgetScreenTime = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeData.java');
+const widgetRenderer = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java');
+const widgetProvider = read('android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java');
+const widgetSetup = read('scripts/configure-android-widgets.mjs');
+const widgetBackup = read('android-native/com/sudhanshu/mathsbj/BackupRestorePlugin.java');
+if (!widgetScreenTime.includes('UsageStatsManager.INTERVAL_DAILY') ||
+    !widgetScreenTime.includes('StudyModeManager.getSelectedStudyAppPackages(app)') ||
+    !widgetScreenTime.includes('ApplicationInfo.FLAG_SYSTEM') ||
+    !widgetScreenTime.includes('AppUsageAnalyticsStore.shared()') ||
+    !widgetProvider.includes('"studyAppsScreenTime", "deviceAppsScreenTime"') ||
+    !widgetProvider.includes('WidgetScreenTimeData.load(context, true') ||
+    !widgetProvider.includes('WidgetScreenTimeData.load(context, false') ||
+    !widgetRenderer.includes('layoutScreenTime()') ||
+    !widgetRenderer.includes('drawScreenTimeBlock(') ||
+    !widgetSetup.includes("'WidgetScreenTimeData.java'") ||
+    !screenTimeSetup.includes('android.permission.PACKAGE_USAGE_STATS') ||
+    !screenTimeSetup.includes('android.permission.QUERY_ALL_PACKAGES') ||
+    !widgetBackup.includes('studyAppFilterJson')) {
+  fail('Screen-time widgets must use local Android UsageStats, separate Study Apps and device inventory sources, existing native rendering, and validated persisted preferences');
 }
 
 console.log('Architecture regression checks passed.');

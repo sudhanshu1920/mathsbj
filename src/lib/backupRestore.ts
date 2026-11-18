@@ -22,10 +22,17 @@ const WIDGET_GLOBAL_STRING_KEYS = new Set([
 const WIDGET_GLOBAL_BOOLEAN_KEYS = new Set(['enabled']);
 const WIDGET_INSTANCE_STRING_KEYS = new Set([
   'contentJson', 'style', 'composition', 'themeMode', 'theme',
+  'studyPeriod', 'studySort', 'devicePeriod', 'deviceSort', 'studyAppFilterJson', 'deviceAppFilterJson',
 ]);
-const WIDGET_INSTANCE_NUMBER_KEYS = new Set(['contentSchemaVersion']);
+const WIDGET_INSTANCE_NUMBER_KEYS = new Set(['contentSchemaVersion', 'studyMaxApps', 'deviceMaxApps']);
+const WIDGET_INSTANCE_BOOLEAN_KEYS = new Set([
+  'studyShowTotal', 'studyShowUsage', 'studyShowPercent', 'studyCompact',
+  'deviceShowTotal', 'deviceShowUsage', 'deviceShowPercent', 'deviceCompact',
+  'studyAppFilterEnabled', 'deviceAppFilterEnabled',
+]);
 const WIDGET_CONTENT_OPTIONS = new Set([
   'appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'quiz', 'updateStatus',
+  'studyAppsScreenTime', 'deviceAppsScreenTime',
 ]);
 const WIDGET_COMPOSITIONS = new Set([
   'auto', 'hero_wide', 'compact_green', 'square_math_bot', 'medium_study',
@@ -123,7 +130,9 @@ async function sha256Hex(value: string): Promise<string> {
 }
 
 function validateWidgetString(field: string, value: unknown): value is string {
-  if (typeof value !== 'string' || value.length > 8192) return false;
+  if (typeof value !== 'string' || value.length > (
+    field === 'studyAppFilterJson' || field === 'deviceAppFilterJson' ? 65536 : 8192
+  )) return false;
   if (field === 'contentJson') {
     try {
       const parsed: unknown = JSON.parse(value);
@@ -139,6 +148,16 @@ function validateWidgetString(field: string, value: unknown): value is string {
   if (field === 'theme') return WIDGET_THEMES.has(value);
   if (field === 'themeMode') return WIDGET_THEME_MODES.has(value);
   if (field === 'mode') return value === 'dark' || value === 'light';
+  if (field === 'studyPeriod' || field === 'devicePeriod') return ['today', 'yesterday', 'last_7_days'].includes(value);
+  if (field === 'studySort' || field === 'deviceSort') return ['most_used', 'least_used', 'name_az', 'name_za'].includes(value);
+  if (field === 'studyAppFilterJson' || field === 'deviceAppFilterJson') {
+    try {
+      const packages: unknown = JSON.parse(value);
+      return Array.isArray(packages) && packages.length <= 1000
+        && packages.every((pkg) => typeof pkg === 'string' && /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$/.test(pkg))
+        && new Set(packages).size === packages.length;
+    } catch { return false; }
+  }
   if (field === 'appAccentColor' || field === 'accentColor') return /^#[0-9a-f]{6}$/i.test(value);
   return false;
 }
@@ -174,7 +193,7 @@ function validateWidgetPreferences(value: unknown): WidgetPreferenceSnapshot | n
       throw new Error('The backup contains an invalid widget instance.');
     }
     const widgetId = entry.widgetId as number;
-    if (seenIds.has(widgetId) || Object.keys(entry.preferences).length > 16) {
+    if (seenIds.has(widgetId) || Object.keys(entry.preferences).length > 32) {
       throw new Error('The backup contains duplicate or excessive widget instances.');
     }
     seenIds.add(widgetId);
@@ -183,9 +202,12 @@ function validateWidgetPreferences(value: unknown): WidgetPreferenceSnapshot | n
       if (WIDGET_INSTANCE_STRING_KEYS.has(field)) {
         if (!validateWidgetString(field, item)) throw new Error('Invalid widget instance preference: ' + field);
       } else if (WIDGET_INSTANCE_NUMBER_KEYS.has(field)) {
-        if (typeof item !== 'number' || !Number.isInteger(item) || item < 1 || item > 3) {
+        const maximum = field === 'contentSchemaVersion' ? 4 : 8;
+        if (typeof item !== 'number' || !Number.isInteger(item) || item < 1 || item > maximum) {
           throw new Error('Invalid widget instance preference: ' + field);
         }
+      } else if (WIDGET_INSTANCE_BOOLEAN_KEYS.has(field)) {
+        if (typeof item !== 'boolean') throw new Error('Invalid widget instance preference: ' + field);
       } else {
         throw new Error('Unsupported widget instance preference: ' + field);
       }

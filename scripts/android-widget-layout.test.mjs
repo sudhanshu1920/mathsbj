@@ -24,6 +24,7 @@ const COMPOSITIONS = [
 ];
 const CONTENT_OPTIONS = [
   'appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'quiz', 'updateStatus',
+  'studyAppsScreenTime', 'deviceAppsScreenTime',
 ];
 
 function quotedList(source, pattern) {
@@ -114,10 +115,10 @@ test('content options and schema version agree in the provider, configuration sc
   for (const option of CONTENT_OPTIONS) {
     assert.ok(config.includes(`{"${option}",`), `configuration screen is missing ${option}`);
   }
-  assert.match(provider, /CONTENT_SCHEMA_VERSION = 3/);
+  assert.match(provider, /CONTENT_SCHEMA_VERSION = 4/);
   assert.match(config, /String schemaKey = prefix \+ "contentSchemaVersion"/);
-  assert.match(config, /putInt\(schemaKey, 3\)/);
-  assert.match(backupTs, /item < 1 \|\| item > 3/);
+  assert.match(config, /putInt\(schemaKey, 4\)/);
+  assert.match(backupTs, /item < 1 \|\| item > 4/);
   assert.match(backupPlugin, /intValue\(\) <= 3/);
 });
 
@@ -125,6 +126,7 @@ test('older saved selections gain the quiz tile exactly once', () => {
   const provider = read(PROVIDER);
   assert.match(provider, /storedVersion < CONTENT_SCHEMA_VERSION/);
   assert.match(provider, /!jsonArrayContains\(migrated, "quiz"\)/);
+  assert.match(provider, /for \(String option : defaultContent\(\)\) migrated\.put\(option\)/);
   assert.match(provider, /storedVersion < 2 && !jsonArrayContains\(migrated, "weekly"\)/);
 });
 
@@ -187,6 +189,7 @@ test('configure script ships the renderer, fonts and resources into a generated 
   assert.equal(result.assetDirectories, 1);
   for (const file of [
     'MathMasterHomeWidgetProvider.java', 'MathMasterWidgetRenderer.java', 'MathMasterWidgetConfigActivity.java',
+    'WidgetScreenTimeData.java', 'MathMasterWidgetActionReceiver.java',
     'DailyTargetReminderPlugin.java', 'DailyTargetReminderReceiver.java', 'DailyTargetReminderBootReceiver.java',
   ]) {
     assert.ok(existsSync(path.join(javaDir, file)), `${file} was not copied`);
@@ -198,6 +201,11 @@ test('configure script ships the renderer, fonts and resources into a generated 
   const manifest = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
   assert.match(manifest, /MathMasterHomeWidgetProvider/);
   assert.match(manifest, /@xml\/math_master_home_widget_info/);
+  assert.match(manifest, /android\.permission\.PACKAGE_USAGE_STATS/);
+  assert.match(manifest, /android\.permission\.QUERY_ALL_PACKAGES/);
+  const generatedActivity = await readFile(path.join(javaDir, 'MainActivity.java'), 'utf8');
+  assert.match(generatedActivity, /protected void onResume\(\)/);
+  assert.match(generatedActivity, /WidgetScreenTimeData\.onAppResumed\(this\);/);
   // Running it twice must not duplicate anything.
   await configureAndroidWidgets(root);
   const again = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
@@ -304,6 +312,46 @@ test('every native widget provider is copied and registered by the Android setup
   assert.match(releaseWorkflow, /- name: Configure native Study Mode services\s+run: node scripts\/configure-android-study-mode\.mjs[\s\S]*?- name: Configure Android home-screen widgets\s+run: node scripts\/configure-android-widgets\.mjs/);
 });
 
+
+
+test('screen-time widgets use real local UsageStats, separate Study Apps selection and the existing renderer', () => {
+  const helper = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeData.java');
+  const provider = read(PROVIDER);
+  const renderer = read(RENDERER);
+  const config = read(CONFIG);
+  const usagePlugin = read('android-native/com/sudhanshu/mathsbj/AppUsageAnalyticsPlugin.java');
+  const usageStore = read('android-native/com/sudhanshu/mathsbj/AppUsageAnalyticsStore.java');
+  const studyMode = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
+  const packageReceiver = read('android-native/com/sudhanshu/mathsbj/StudyModePackageChangeReceiver.java');
+  assert.match(helper, /UsageStatsManager\.INTERVAL_DAILY/);
+  assert.match(helper, /StudyModeManager\.getSelectedStudyAppPackages\(app\)/);
+  assert.match(helper, /getInstalledApplications/);
+  assert.match(helper, /ApplicationInfo\.FLAG_SYSTEM/);
+  assert.match(helper, /Settings\.ACTION_USAGE_ACCESS_SETTINGS/);
+  assert.match(helper, /AppUsageAnalyticsStore\.shared\(\)/);
+  assert.match(usagePlugin, /AppUsageAnalyticsStore\.shared\(\)/);
+  assert.match(usageStore, /AES\/GCM\/NoPadding/);
+  assert.match(usageStore, /readWidgetDays/);
+  assert.match(usageStore, /upsertWidgetDays/);
+  assert.match(helper, /CACHE_TTL_MS/);
+  assert.match(helper, /Calendar\.DAY_OF_YEAR/);
+  assert.match(helper, /onStudyAppsChanged/);
+  assert.match(studyMode, /WidgetScreenTimeData\.onStudyAppsChanged\(context\)/);
+  assert.match(packageReceiver, /WidgetScreenTimeData\.onPackageInventoryChanged\(context\)/);
+  assert.match(provider, /"studyAppsScreenTime", "deviceAppsScreenTime"/);
+  assert.match(provider, /WidgetScreenTimeData\.load\(context, true/);
+  assert.match(provider, /WidgetScreenTimeData\.load\(context, false/);
+  assert.match(provider, /MathMasterWidgetActionReceiver\.ACTION_OPEN_STUDY_APPS/);
+  assert.match(configureAndroid, /name: 'MathMasterWidgetActionReceiver'/);
+  assert.match(renderer, /layoutScreenTime\(\)/);
+  assert.match(renderer, /drawScreenTimeBlock\(/);
+  assert.match(renderer, /app\.icon/);
+  assert.match(config, /addScreenTimeControls\(/);
+  assert.match(config, /showScreenTimeAppPicker\(/);
+  assert.match(config, /screenTimePreviewConfig\(\)/);
+  assert.match(config, /ACTION_DATA_UPDATED/);
+  assert.match(config, /registerReceiver\(screenTimeReceiver/);
+});
 
 test('native widget editor uses compact responsive grids, real thumbnails and a persistent action bar', () => {
   const config = read(CONFIG);
