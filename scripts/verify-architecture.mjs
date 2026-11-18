@@ -1245,7 +1245,7 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModeAppLoader.includes('appCatalogLoadedRef.current') ||
     !studyModeAppLoader.includes('appCatalogLoadInFlightRef.current') ||
     !studyModeAppLoader.includes('setAppsLoadError(') ||
-    !studyModePickerHandlers.includes('if (nextOpen) void loadApps()') ||
+    !studyModePickerHandlers.includes('if (nextOpen) void loadApps(true)') ||
     !studyModePage.includes('appsLoading && apps.length === 0 ? (') ||
     !studyModePage.includes('appsLoadError && apps.length === 0 ? (') ||
     !studyModePage.includes('[apps, appFilter, deferredSearch, draft.selectedPackageNames]') ||
