@@ -83,7 +83,7 @@ test("PRO uses the Study Apps allowlist in foreground and window enforcement, an
   assert.ok(manager.includes("enabledEditor.putBoolean(KEY_PRO_ENABLED, false)"));
   assert.ok(manager.includes("getPolicyEnforcedPackages(Context context)"));
   assert.ok(manager.includes("PRO_ALLOWLIST_INVENTORY_FAILED"));
-  assert.ok(source.includes("StudyModeManager.isPackageRestricted(StudyModeFocusService.this, foreground)"));
+  assert.ok(source.includes("StudyModeManager.isPackageRestricted(\n                StudyModeFocusService.this, foreground)"));
   assert.ok(source.includes("void onProModeChanged()"));
   assert.ok(source.includes("StudyModeManager.isProStrictModeActive(this)"));
   assert.ok(registry.includes("StudyModeManager.isPackageRestricted(context, window.packageName)"));
@@ -463,7 +463,7 @@ test("Accessibility events are retained as bounded positive package evidence", (
   assert.ok(registry.includes("recordAccessibilityEvent("));
   assert.ok(registry.includes("recentAccessibilityEvents"));
   assert.ok(registry.includes("pruneRecentAccessibilityEventsLocked"));
-  assert.ok(registry.includes("StudyModeManager.isPackageSelected(context, packageName)"));
+  assert.ok(registry.includes("StudyModeManager.isPackageRestricted(context, packageName)"));
   assert.ok(registry.includes("wasRecentlyObservedAccessibilityEvent"));
   const lookup = between(
     registry,
