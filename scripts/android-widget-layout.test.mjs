@@ -282,3 +282,21 @@ test('every native widget provider is copied and registered by the Android setup
   const releaseWorkflow = read('.github/workflows/android-release.yml');
   assert.match(releaseWorkflow, /- name: Configure native Study Mode services\s+run: node scripts\/configure-android-study-mode\.mjs[\s\S]*?- name: Configure Android home-screen widgets\s+run: node scripts\/configure-android-widgets\.mjs/);
 });
+
+
+test('native widget editor uses compact responsive grids, real thumbnails and a persistent action bar', () => {
+  const config = read(CONFIG);
+  assert.match(config, /private int gridColumns\(\)/);
+  assert.match(config, /widthDp >= 840 \? 4 : \(widthDp >= 600 \? 3 : 2\)/);
+  assert.match(config, /private void addContentGrid\(/);
+  assert.match(config, /private void addStyleGrid\(/);
+  assert.match(config, /private void addCompositionGrid\(/);
+  assert.match(config, /renderConfigurationPreview\(/);
+  assert.match(config, /setMaxHeight\(dp\(176\)\)/);
+  assert.match(config, /root\.addView\(scroll, new LinearLayout\.LayoutParams\([\s\S]*?0, 1f\)/);
+  assert.match(config, /root\.addView\(actions, actionParams\)/);
+  assert.match(config, /\.commit\(\)/);
+  assert.match(config, /Previous settings are unchanged/);
+  assert.match(config, /Previous settings were restored/);
+  assert.match(config, /isActiveWidget\(widgetId\)/);
+});
