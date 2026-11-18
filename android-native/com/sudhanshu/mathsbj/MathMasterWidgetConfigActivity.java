@@ -523,7 +523,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             .remove(prefix + "theme")
             .commit();
         if (!saved) {
-            Toast.makeText(this, "Could not save widget settings. Your previous settings are unchanged.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Could not save widget settings. Previous settings are unchanged.", Toast.LENGTH_LONG).show();
             return;
         }
 
