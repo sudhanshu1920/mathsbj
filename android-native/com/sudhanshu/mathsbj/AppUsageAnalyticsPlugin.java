@@ -116,6 +116,7 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
     @PluginMethod
     public void openUsageAccessSettings(PluginCall call) {
         try {
+            WidgetScreenTimeData.markUsageAccessSettingsOpened(getContext());
             Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
@@ -130,6 +131,7 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
         WORKER.execute(() -> {
             try {
                 store.clear(getContext());
+                WidgetScreenTimeData.onUsageHistoryCleared(getContext());
                 JSObject result = new JSObject();
                 result.put("cleared", true);
                 call.resolve(result);

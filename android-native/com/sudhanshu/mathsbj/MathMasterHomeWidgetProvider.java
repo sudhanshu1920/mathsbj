@@ -39,7 +39,7 @@ import java.util.Set;
 public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     private static final String WIDGET_PREFS = "math_master_home_widget";
     private static final int REQUEST_CODE = 8907;
-    private static final int CONTENT_SCHEMA_VERSION = 3;
+    private static final int CONTENT_SCHEMA_VERSION = 4;
     // Single source of truth for the native editor and the in-app Widget Studio catalogue.
     static final String[][] WIDGET_COMPOSITIONS = {
         {"auto", "Auto (adapts to size)"},
@@ -60,8 +60,17 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return copy;
     }
     static final String[] CONTENT_OPTIONS = {
+        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus",
+        "studyAppsScreenTime", "deviceAppsScreenTime"
+    };
+
+    static final String[] DEFAULT_CONTENT_OPTIONS = {
         "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
     };
+
+    static String[] getDefaultContentOptions() {
+        return DEFAULT_CONTENT_OPTIONS.clone();
+    }
     private static MathMasterWidgetRenderer.Fonts widgetFonts;
 
     @Override
@@ -121,7 +130,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         updateWidgetPreferences(context);
     }
 
-    private static void refreshWidgetInstances(Context context) {
+    static void refreshWidgetInstances(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         ComponentName provider = new ComponentName(context, MathMasterHomeWidgetProvider.class);
         int[] widgetIds = manager.getAppWidgetIds(provider);
@@ -286,6 +295,31 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return data;
     }
 
+
+    static WidgetScreenTimeData.Config readScreenTimeConfig(SharedPreferences preferences, int appWidgetId) {
+        WidgetScreenTimeData.Config config = new WidgetScreenTimeData.Config();
+        config.period = getInstanceString(preferences, appWidgetId, "screenTimePeriod", "today");
+        config.sortOrder = getInstanceString(preferences, appWidgetId, "screenTimeSort", "most_used");
+        try { config.maxApps = Integer.parseInt(getInstanceString(preferences, appWidgetId, "screenTimeMaxApps", "5")); }
+        catch (NumberFormatException ignored) { config.maxApps = 5; }
+        config.showTotal = Boolean.parseBoolean(getInstanceString(preferences, appWidgetId, "screenTimeShowTotal", "true"));
+        config.showAppUsage = Boolean.parseBoolean(getInstanceString(preferences, appWidgetId, "screenTimeShowAppUsage", "true"));
+        config.showPercent = Boolean.parseBoolean(getInstanceString(preferences, appWidgetId, "screenTimeShowPercent", "false"));
+        config.compact = "compact".equals(getInstanceString(preferences, appWidgetId, "screenTimeLayout", "detailed"));
+        config.studyFilterJson = getInstanceString(preferences, appWidgetId, "studyScreenTimeFilterPackages", null);
+        config.deviceFilterJson = getInstanceString(preferences, appWidgetId, "deviceScreenTimeFilterPackages", null);
+        return config;
+    }
+
+    static MathMasterWidgetRenderer.Data readWidgetData(
+        Context context, SharedPreferences preferences, int appWidgetId,
+        Set<String> selected, WidgetScreenTimeData.Config config
+    ) {
+        MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
+        WidgetScreenTimeData.populate(context, data, appWidgetId, selected, config);
+        return data;
+    }
+
     static MathMasterWidgetRenderer.Options buildOptions(
         String composition, String style, boolean enabled, Set<String> selected
     ) {
@@ -302,11 +336,13 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         options.weekly = selected.contains("weekly");
         options.quiz = selected.contains("quiz");
         options.update = selected.contains("updateStatus");
+        options.studyAppsScreenTime = selected.contains("studyAppsScreenTime");
+        options.deviceAppsScreenTime = selected.contains("deviceAppsScreenTime");
         return options;
     }
 
     private static Set<String> defaultContent() {
-        return new HashSet<>(Arrays.asList(CONTENT_OPTIONS));
+        return new HashSet<>(Arrays.asList(DEFAULT_CONTENT_OPTIONS));
     }
 
     private static boolean jsonArrayContains(JSONArray array, String value) {
@@ -330,7 +366,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
                     migrated = new JSONArray(preferences.getString(contentKey, "[]"));
                 } catch (JSONException ignored) {
                     migrated = new JSONArray();
-                    for (String option : CONTENT_OPTIONS) migrated.put(option);
+                    for (String option : DEFAULT_CONTENT_OPTIONS) migrated.put(option);
                 }
                 if (storedVersion < 2 && !jsonArrayContains(migrated, "weekly") && migrated.length() < 32) migrated.put("weekly");
                 if (!jsonArrayContains(migrated, "quiz") && migrated.length() < 32) migrated.put("quiz");
@@ -402,9 +438,22 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
         String resolved = normalizeComposition(composition);
         if ("auto".equals(resolved)) resolved = MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
+        return renderConfigurationPreview(context, composition, style, selected, widthDp, heightDp,
+            new WidgetScreenTimeData.Config());
+    }
+
+    public static Bitmap renderConfigurationPreview(
+        Context context, String composition, String style, Set<String> selected,
+        int widthDp, int heightDp, WidgetScreenTimeData.Config screenTimeConfig
+    ) {
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        String resolved = normalizeComposition(composition);
+        if ("auto".equals(resolved)) resolved = MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
         MathMasterWidgetRenderer.Options options = buildOptions(
             resolved, style, preferences.getBoolean("enabled", true), selected);
-        return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
+        MathMasterWidgetRenderer.Data data = readWidgetData(
+            context, preferences, AppWidgetManager.INVALID_APPWIDGET_ID, selected, screenTimeConfig);
+        return renderWidgetBitmap(context, options, data, widthDp, heightDp, 1);
     }
 
     /** Render the saved configuration for one real, currently pinned launcher instance. */
@@ -424,7 +473,9 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "neon"));
         boolean enabled = preferences.getBoolean("enabled", true);
         MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected);
-        return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
+        MathMasterWidgetRenderer.Data data = readWidgetData(
+            context, preferences, appWidgetId, selected, readScreenTimeConfig(preferences, appWidgetId));
+        return renderWidgetBitmap(context, options, data, widthDp, heightDp, 1);
     }
 
     private static String describe(MathMasterWidgetRenderer.Options options, MathMasterWidgetRenderer.Data data) {
@@ -447,6 +498,12 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             text.append(' ').append(done).append(" of 7 days completed this week.");
         }
         if (options.update && data.updateLabel != null) text.append(" An app update is available.");
+        if (options.studyAppsScreenTime && data.studyAppsScreenTime != null) {
+            text.append(" Study Apps screen time: ").append(data.studyAppsScreenTime.state);
+        }
+        if (options.deviceAppsScreenTime && data.deviceAppsScreenTime != null) {
+            text.append(" Device Apps screen time: ").append(data.deviceAppsScreenTime.state);
+        }
         return text.toString();
     }
 
@@ -488,7 +545,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "neon"));
         boolean enabled = preferences.getBoolean("enabled", true);
         MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected);
-        MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
+        MathMasterWidgetRenderer.Data data = readWidgetData(
+            context, preferences, appWidgetId, selected, readScreenTimeConfig(preferences, appWidgetId));
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.math_master_home_widget);
         try {
@@ -502,23 +560,31 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
         boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
         String latestVersion = preferences.getString("latestVersionName", "");
-        Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
-        if (launchIntent != null) {
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            if (updateAvailable && hasChecked) {
-                launchIntent.setAction("com.sudhanshu.mathsbj.OPEN_HOME_WIDGET_UPDATE");
-                launchIntent.putExtra("mathmaster_notification_action", "app-update");
-                launchIntent.putExtra("mathmaster_update_version_name", latestVersion);
-                launchIntent.putExtra("mathmaster_update_version_code",
-                    String.valueOf(preferences.getLong("latestVersionCode", 0L)));
-            }
-            PendingIntent pendingIntent = PendingIntent.getActivity(
-                context,
-                REQUEST_CODE,
-                launchIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
+        String screenTimeAction = data.screenTimeAction;
+        if (screenTimeAction != null
+            && !MathMasterWidgetActionReceiver.ACTION_OPEN_APP.equals(screenTimeAction)) {
+            Intent actionIntent = new Intent(context, MathMasterWidgetActionReceiver.class);
+            actionIntent.setAction(screenTimeAction);
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                context, REQUEST_CODE + appWidgetId, actionIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             views.setOnClickPendingIntent(R.id.widget_root, pendingIntent);
+        } else {
+            Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                if (updateAvailable && hasChecked) {
+                    launchIntent.setAction("com.sudhanshu.mathsbj.OPEN_HOME_WIDGET_UPDATE");
+                    launchIntent.putExtra("mathmaster_notification_action", "app-update");
+                    launchIntent.putExtra("mathmaster_update_version_name", latestVersion);
+                    launchIntent.putExtra("mathmaster_update_version_code",
+                        String.valueOf(preferences.getLong("latestVersionCode", 0L)));
+                }
+                PendingIntent pendingIntent = PendingIntent.getActivity(
+                    context, REQUEST_CODE + appWidgetId, launchIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                views.setOnClickPendingIntent(R.id.widget_root, pendingIntent);
+            }
         }
         return views;
     }

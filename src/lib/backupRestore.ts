@@ -22,10 +22,14 @@ const WIDGET_GLOBAL_STRING_KEYS = new Set([
 const WIDGET_GLOBAL_BOOLEAN_KEYS = new Set(['enabled']);
 const WIDGET_INSTANCE_STRING_KEYS = new Set([
   'contentJson', 'style', 'composition', 'themeMode', 'theme',
+  'screenTimePeriod', 'screenTimeSort', 'screenTimeMaxApps', 'screenTimeLayout',
+  'screenTimeShowTotal', 'screenTimeShowAppUsage', 'screenTimeShowPercent',
+  'studyScreenTimeFilterPackages', 'deviceScreenTimeFilterPackages',
 ]);
 const WIDGET_INSTANCE_NUMBER_KEYS = new Set(['contentSchemaVersion']);
 const WIDGET_CONTENT_OPTIONS = new Set([
   'appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'quiz', 'updateStatus',
+  'studyAppsScreenTime', 'deviceAppsScreenTime',
 ]);
 const WIDGET_COMPOSITIONS = new Set([
   'auto', 'hero_wide', 'compact_green', 'square_math_bot', 'medium_study',
@@ -138,6 +142,23 @@ function validateWidgetString(field: string, value: unknown): value is string {
   if (field === 'composition') return WIDGET_COMPOSITIONS.has(value);
   if (field === 'theme') return WIDGET_THEMES.has(value);
   if (field === 'themeMode') return WIDGET_THEME_MODES.has(value);
+  if (field === 'screenTimePeriod') return ['today', 'yesterday', '7d'].includes(value);
+  if (field === 'screenTimeSort') return ['most_used', 'least_used', 'name_asc', 'name_desc'].includes(value);
+  if (field === 'screenTimeMaxApps') return ['3', '5', '8'].includes(value);
+  if (field === 'screenTimeLayout') return ['compact', 'detailed'].includes(value);
+  if (field === 'screenTimeShowTotal' || field === 'screenTimeShowAppUsage' || field === 'screenTimeShowPercent') {
+    return value === 'true' || value === 'false';
+  }
+  if (field === 'studyScreenTimeFilterPackages' || field === 'deviceScreenTimeFilterPackages') {
+    try {
+      const packages: unknown = JSON.parse(value);
+      return Array.isArray(packages) && packages.length <= 200
+        && packages.every((item) => typeof item === 'string' && /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$/.test(item))
+        && new Set(packages).size === packages.length;
+    } catch {
+      return false;
+    }
+  }
   if (field === 'mode') return value === 'dark' || value === 'light';
   if (field === 'appAccentColor' || field === 'accentColor') return /^#[0-9a-f]{6}$/i.test(value);
   return false;
@@ -183,7 +204,7 @@ function validateWidgetPreferences(value: unknown): WidgetPreferenceSnapshot | n
       if (WIDGET_INSTANCE_STRING_KEYS.has(field)) {
         if (!validateWidgetString(field, item)) throw new Error('Invalid widget instance preference: ' + field);
       } else if (WIDGET_INSTANCE_NUMBER_KEYS.has(field)) {
-        if (typeof item !== 'number' || !Number.isInteger(item) || item < 1 || item > 3) {
+        if (typeof item !== 'number' || !Number.isInteger(item) || item < 1 || item > 4) {
           throw new Error('Invalid widget instance preference: ' + field);
         }
       } else {

@@ -17,6 +17,12 @@ public class DailyTargetReminderBootReceiver extends BroadcastReceiver {
             // Refresh every already-pinned widget after APK replacement while keeping per-ID preferences.
             MathMasterHomeWidgetProvider.updateWidgetPreferences(context);
         }
+        if (Intent.ACTION_TIME_CHANGED.equals(action) || Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
+            WidgetScreenTimeData.onTimeZoneOrClockChanged(context);
+        } else if (Intent.ACTION_BOOT_COMPLETED.equals(action)
+            || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
+            WidgetScreenTimeData.maybeRefresh(context);
+        }
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)
             || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)
             || Intent.ACTION_TIME_CHANGED.equals(action)

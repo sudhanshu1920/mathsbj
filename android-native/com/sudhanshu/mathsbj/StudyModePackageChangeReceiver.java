@@ -15,6 +15,7 @@ public final class StudyModePackageChangeReceiver extends BroadcastReceiver {
             || Intent.ACTION_PACKAGE_CHANGED.equals(action)
             || Intent.ACTION_PACKAGE_REPLACED.equals(action);
         if (!packageCatalogChanged) return;
+        WidgetScreenTimeData.onPackageInventoryChanged(context);
 
         // Package broadcasts are the native source of truth for catalogue revisions.
         StudyModePlugin.invalidateAppCatalogCache();

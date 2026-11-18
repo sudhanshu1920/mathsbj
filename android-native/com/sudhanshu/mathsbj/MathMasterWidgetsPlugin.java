@@ -36,7 +36,7 @@ public class MathMasterWidgetsPlugin extends Plugin {
     private static final String PREFS = "math_master_home_widget";
     private static final Set<String> CONTENT_OPTIONS = new HashSet<>(Arrays.asList(
         "appIdentity", "target", "progress", "remaining", "studyTime",
-        "streak", "weekly", "quiz", "updateStatus"
+        "streak", "weekly", "quiz", "updateStatus", "studyAppsScreenTime", "deviceAppsScreenTime"
     ));
 
     @PluginMethod
@@ -224,14 +224,23 @@ public class MathMasterWidgetsPlugin extends Plugin {
             return;
         }
         JSONArray defaults = new JSONArray();
-        for (String option : MathMasterHomeWidgetProvider.CONTENT_OPTIONS) defaults.put(option);
+        for (String option : MathMasterHomeWidgetProvider.getDefaultContentOptions()) defaults.put(option);
         String prefix = "instance_" + id + "_";
         SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         boolean saved = preferences.edit()
             .putString(prefix + "composition", "auto")
             .putString(prefix + "style", "neon")
             .putString(prefix + "contentJson", defaults.toString())
-            .putInt(prefix + "contentSchemaVersion", 3)
+            .putInt(prefix + "contentSchemaVersion", 4)
+            .remove(prefix + "screenTimePeriod")
+            .remove(prefix + "screenTimeSort")
+            .remove(prefix + "screenTimeMaxApps")
+            .remove(prefix + "screenTimeLayout")
+            .remove(prefix + "screenTimeShowTotal")
+            .remove(prefix + "screenTimeShowAppUsage")
+            .remove(prefix + "screenTimeShowPercent")
+            .remove(prefix + "studyScreenTimeFilterPackages")
+            .remove(prefix + "deviceScreenTimeFilterPackages")
             .commit();
         if (!saved) {
             call.reject("Android could not save the widget's default settings. The previous values were kept.");
@@ -304,7 +313,7 @@ public class MathMasterWidgetsPlugin extends Plugin {
     private static JSONArray readContent(String raw) {
         JSONArray result = new JSONArray();
         if (raw == null) {
-            for (String option : MathMasterHomeWidgetProvider.CONTENT_OPTIONS) result.put(option);
+            for (String option : MathMasterHomeWidgetProvider.getDefaultContentOptions()) result.put(option);
             return result;
         }
         if (raw.length() > 4096) {
