@@ -386,7 +386,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
               </section>
 
               <section className="min-w-0 space-y-3">
-                <div className="rounded-2xl border border-border/70 bg-card/45 p-4">
+                <div className="rounded-2xl border border-border/70 bg-card/45 p-3">
                   <div className="flex items-center gap-2">
                     <Sparkles size={15} className="text-primary" />
                     <h2 className="text-sm font-semibold">Personalization</h2>
@@ -418,9 +418,9 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                   </button>
                 </div>
 
-                <div className="rounded-2xl border border-border/70 bg-card/45 p-4">
+                <div className="rounded-2xl border border-border/70 bg-card/45 p-3">
                   <h2 className="text-sm font-semibold">Launcher controls</h2>
-                  <div className="mt-3 space-y-3">
+                  <div className="mt-2.5 space-y-2.5">
                     <div className="flex items-start gap-2.5">
                       <Maximize2 size={15} className="mt-0.5 shrink-0 text-primary" />
                       <p className="text-xs leading-5 text-muted-foreground">
