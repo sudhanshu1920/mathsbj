@@ -157,7 +157,7 @@ test('production signed APK workflow generates native Study Mode sources before 
   const workflow = await readFile(new URL('../.github/workflows/android-apk.yml', import.meta.url), 'utf8');
   assert.match(
     workflow,
-    /- name: Configure native Study Mode services\\s+run: node scripts\\/configure-android-study-mode\\.mjs/,
+    /- name: Configure native Study Mode services\s+run: node scripts\/configure-android-study-mode\.mjs/,
   );
   assert.ok(
     workflow.indexOf('run: node scripts/configure-android-study-mode.mjs')
