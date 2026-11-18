@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { App } from "@capacitor/app";
+import { useDesktopMode } from "@/hooks/use-desktop-mode";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import {
   ArrowLeft,
@@ -28,15 +29,27 @@ type NativeWidget = {
 
 type NativeWidgetsPlugin = {
   getWidgets(): Promise<{ widgets: NativeWidget[]; designs: WidgetDesign[] }>;
-  requestAdd(): Promise<{ requested: boolean; supported: boolean }>;
-  configureWidget(options: { appWidgetId: number }): Promise<{ opened: boolean }>;
+  getDesigns(): Promise<{ designs: WidgetDesign[] }>;
+  requestAdd(options?: { composition?: string }): Promise<{ requested: boolean; supported: boolean }>;
+  configureWidget(options: { appWidgetId: number; composition?: string }): Promise<{ opened: boolean }>;
   renderPreview(options: { appWidgetId: number }): Promise<{ dataUrl: string }>;
   resetWidget(options: { appWidgetId: number }): Promise<{ reset: boolean }>;
 };
 
 const NativeWidgets = registerPlugin<NativeWidgetsPlugin>("MathMasterWidgets");
 
-type WidgetDesign = { id: string; name: string };
+const getWidgetErrorCode = (error: unknown, fallback: string): string => {
+  const message = error instanceof Error ? error.message : "";
+  return message.match(/^[A-Z][A-Z0-9_]{2,}(?=:)/)?.[0] ?? fallback;
+};
+
+type WidgetDesign = {
+  id: string;
+  name: string;
+  previewDataUrl?: string;
+  previewWidthDp?: number;
+  previewHeightDp?: number;
+};
 
 const STYLE_NAMES: Record<NativeWidget["style"], string> = {
   neon: "Neon Glass",
@@ -50,13 +63,21 @@ function widgetLabel(widget: NativeWidget, designs: WidgetDesign[]): string {
 
 const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const native = Capacitor.isNativePlatform();
+  const desktopMode = useDesktopMode();
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const [widgets, setWidgets] = useState<NativeWidget[]>([]);
   const [designs, setDesigns] = useState<WidgetDesign[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [pendingDesignId, setPendingDesignId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewExpanded, setPreviewExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [discoveryStatus, setDiscoveryStatus] = useState<"loading" | "success" | "error">("loading");
+  const [discoveryError, setDiscoveryError] = useState("");
+  const [hasConfirmedDiscovery, setHasConfirmedDiscovery] = useState(false);
+  const [designRegistryLoading, setDesignRegistryLoading] = useState(true);
+  const [designRegistryError, setDesignRegistryError] = useState("");
   const [openingEditor, setOpeningEditor] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [notice, setNotice] = useState("");
@@ -91,24 +112,65 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const refresh = useCallback(async (quiet = false) => {
     if (!native) {
       setLoading(false);
+      setDiscoveryStatus("success");
       return;
     }
+    if (refreshInFlightRef.current) {
+      await refreshInFlightRef.current;
+      return;
+    }
+
     if (quiet) setRefreshing(true);
     else setLoading(true);
+    setDiscoveryStatus("loading");
+    setDiscoveryError("");
+    setDesignRegistryLoading(true);
+    setDesignRegistryError("");
     setError("");
+
+    const request = (async () => {
+      const [widgetResult, designResult] = await Promise.allSettled([
+        NativeWidgets.getWidgets(),
+        NativeWidgets.getDesigns(),
+      ]);
+
+      if (designResult.status === "fulfilled" && Array.isArray(designResult.value.designs)) {
+        setDesigns(designResult.value.designs);
+      } else {
+        const reason = designResult.status === "rejected" ? designResult.reason : null;
+        setDesignRegistryError(getWidgetErrorCode(reason, "WIDGET_DESIGN_REGISTRY_FAILED"));
+      }
+      setDesignRegistryLoading(false);
+
+      if (widgetResult.status === "fulfilled" && Array.isArray(widgetResult.value?.widgets)) {
+        const available = widgetResult.value.widgets;
+        setWidgets(available);
+        if (designResult.status !== "fulfilled" && Array.isArray(widgetResult.value.designs)) {
+          setDesigns(widgetResult.value.designs);
+        }
+        setSelectedId((current) =>
+          current !== null && available.some((widget) => widget.appWidgetId === current)
+            ? current
+            : (available[0]?.appWidgetId ?? null),
+        );
+        setHasConfirmedDiscovery(true);
+        setDiscoveryStatus("success");
+      } else {
+        const reason = widgetResult.status === "rejected"
+          ? widgetResult.reason
+          : new Error("INVALID_WIDGET_DISCOVERY_RESPONSE: Native response is missing the widgets array.");
+        const code = getWidgetErrorCode(reason, "WIDGET_DISCOVERY_FAILED");
+        console.warn("[WidgetStudio] getWidgets failed", { operation: "getWidgets", code });
+        setDiscoveryError(code);
+        setDiscoveryStatus("error");
+      }
+    })();
+
+    refreshInFlightRef.current = request;
     try {
-      const result = await NativeWidgets.getWidgets();
-      const available = Array.isArray(result.widgets) ? result.widgets : [];
-      setWidgets(available);
-      setDesigns(Array.isArray(result.designs) ? result.designs : []);
-      setSelectedId((current) =>
-        current !== null && available.some((widget) => widget.appWidgetId === current)
-          ? current
-          : (available[0]?.appWidgetId ?? null),
-      );
-    } catch {
-      setError("Could not read your Android home-screen widgets. Reopen the page and try again.");
+      await request;
     } finally {
+      if (refreshInFlightRef.current === request) refreshInFlightRef.current = null;
       setLoading(false);
       setRefreshing(false);
     }
@@ -155,13 +217,15 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
     };
   }, [native, selectedId, widgets]);
 
-  const handleAdd = async () => {
+  const handleAdd = async (composition = pendingDesignId ?? undefined) => {
     setError("");
     setNotice("");
     try {
-      const result = await NativeWidgets.requestAdd();
+      const result = await NativeWidgets.requestAdd(composition ? { composition } : undefined);
       if (result.requested) {
-        setNotice("Android has opened its Add Widget confirmation. Finish the system prompt, then return here to see the new widget.");
+        setNotice(composition
+          ? `Android has opened its Add Widget confirmation for ${designs.find((design) => design.id === composition)?.name ?? "the selected design"}. Finish the system prompt, then return here to see the new widget.`
+          : "Android has opened its Add Widget confirmation. Finish the system prompt, then return here to see the new widget.");
       } else {
         setError(result.supported
           ? "Android could not start the widget confirmation. Add Math Master from the home-screen widget picker."
@@ -172,12 +236,15 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
     }
   };
 
-  const handleCustomize = async () => {
+  const handleCustomize = async (composition?: string) => {
     if (selectedId === null) return;
     setOpeningEditor(true);
     setError("");
     try {
-      await NativeWidgets.configureWidget({ appWidgetId: selectedId });
+      await NativeWidgets.configureWidget({
+        appWidgetId: selectedId,
+        ...(composition ? { composition } : {}),
+      });
     } catch {
       setError("Could not open this widget's Android customization screen. Refresh and try again.");
     } finally {
@@ -206,7 +273,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   };
 
   return (
-    <main className="mx-auto min-w-0 w-full max-w-6xl space-y-3.5 pb-5 text-foreground">
+    <main className={`mx-auto min-w-0 w-full ${desktopMode ? "max-w-6xl" : "max-w-3xl"} space-y-3.5 pb-5 text-foreground`}>
       <header className="flex items-center gap-3">
         <button
           type="button"
@@ -265,7 +332,13 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                   <h2 className="text-sm font-semibold">My Widgets</h2>
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {widgets.length} pinned {widgets.length === 1 ? "instance" : "instances"} on this device
+                  {discoveryStatus === "loading"
+                    ? "Checking Android widget status…"
+                    : discoveryStatus === "success"
+                      ? `${widgets.length} pinned ${widgets.length === 1 ? "instance" : "instances"} on this device`
+                      : hasConfirmedDiscovery
+                        ? `${widgets.length} last confirmed ${widgets.length === 1 ? "instance" : "instances"} · current status unavailable`
+                        : "Pinned widget status unavailable"}
                 </p>
               </div>
               <button
@@ -278,12 +351,33 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
               </button>
             </div>
 
-            {loading ? (
+            {loading && !hasConfirmedDiscovery && (
               <div className="mt-4 flex items-center gap-2 rounded-xl bg-background/60 p-4 text-xs text-muted-foreground">
                 <RefreshCw size={14} className="animate-spin" />
                 Reading widgets from Android…
               </div>
-            ) : widgets.length === 0 ? (
+            )}
+            {discoveryStatus === "error" && (
+              <div role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+                <p className="font-semibold">Unable to load your widgets</p>
+                <p className="mt-1 leading-5">
+                  {hasConfirmedDiscovery
+                    ? "Android discovery failed. The previously confirmed widget list and saved settings are being kept; displayed instances may be out of date."
+                    : "Android did not confirm whether any Math Master widgets are pinned. No empty state or zero count will be assumed."}
+                </p>
+                <p className="mt-1 font-mono text-[10px] opacity-80">Diagnostic: {discoveryError}</p>
+                <button
+                  type="button"
+                  onClick={() => void refresh(true)}
+                  disabled={refreshing}
+                  className="mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-destructive/25 px-2.5 font-semibold disabled:opacity-50"
+                >
+                  <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
+                  Retry discovery
+                </button>
+              </div>
+            )}
+            {discoveryStatus === "success" && widgets.length === 0 ? (
               <div className="mt-4 rounded-xl border border-dashed border-border bg-background/45 px-4 py-7 text-center">
                 <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Grid2X2 size={20} />
@@ -301,8 +395,8 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                   Add Widgets
                 </button>
               </div>
-            ) : (
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            ) : hasConfirmedDiscovery && widgets.length > 0 ? (
+              <div className={`mt-4 grid gap-2 ${desktopMode ? "sm:grid-cols-2" : "grid-cols-1"}`} data-widget-layout="instances">
                 {widgets.map((widget) => {
                   const active = selectedId === widget.appWidgetId;
                   return (
@@ -332,11 +426,11 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                   );
                 })}
               </div>
-            )}
+            ) : null}
           </section>
 
           {selectedWidget && (
-            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(250px,0.9fr)]">
+            <div className={`grid min-w-0 gap-3 ${desktopMode ? "md:grid-cols-[minmax(0,1.1fr)_minmax(250px,0.9fr)]" : "grid-cols-1"}`}>
               <section className="min-w-0 rounded-2xl border border-border/70 bg-card/45 p-3 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
@@ -450,22 +544,65 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
               <Sparkles size={15} className="text-primary" />
               <h2 className="text-sm font-semibold">Available Designs</h2>
               <span className="ml-auto text-[10px] text-muted-foreground">
-                {Math.max(0, designs.length - 1)} layouts + Auto
+                {designRegistryLoading
+                  ? "Loading native designs…"
+                  : designRegistryError && designs.length === 0
+                    ? "Design registry unavailable"
+                    : `${designs.filter((design) => design.id !== "auto").length} layouts${designs.some((design) => design.id === "auto") ? " + Auto" : ""}`}
               </span>
             </div>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               These are layouts of the existing Math Master widget, not separate providers. Choose a layout in Customize.
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {designs.map((design) => (
-                <div key={design.id} className="min-w-0 rounded-xl border border-border/60 bg-background/50 p-2.5">
-                  <p className="truncate text-[11px] font-semibold">{design.name}</p>
-                  <p className="mt-1 min-h-8 text-[10px] leading-4 text-muted-foreground">
-                    {design.id === "auto" ? "Adapts to the available size" : "Available in Customize"}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {designRegistryError && designs.length === 0 && (
+              <p role="status" className="mt-2 text-[11px] text-warning">
+                Native design metadata could not be loaded ({designRegistryError}). Retry to restore the supported catalogue.
+              </p>
+            )}
+            {designs.length > 0 ? (
+              <div className={`mt-3 grid gap-2 ${desktopMode ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`} data-widget-layout="designs">
+                {designs.map((design) => (
+                  <button
+                    type="button"
+                    key={design.id}
+                    onClick={() => {
+                      if (selectedWidget) {
+                        void handleCustomize(design.id);
+                      } else {
+                        setPendingDesignId(design.id);
+                      }
+                    }}
+                    disabled={openingEditor}
+                    aria-pressed={!selectedWidget && pendingDesignId === design.id}
+                    aria-label={selectedWidget ? `Customize ${design.name}` : `Select ${design.name} for the new widget`}
+                    className={`min-w-0 overflow-hidden rounded-xl border p-2 text-left transition-colors hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60 ${!selectedWidget && pendingDesignId === design.id ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/60 bg-background/50"}`}
+                  >
+                    {design.previewDataUrl ? (
+                      <img
+                        src={design.previewDataUrl}
+                        alt={`${design.name} preview from the Android widget renderer`}
+                        loading="lazy"
+                        className="mb-1.5 aspect-[2/1] w-full rounded-lg bg-background/70 object-contain"
+                      />
+                    ) : (
+                      <span className="mb-1.5 flex aspect-[2/1] w-full items-center justify-center rounded-lg bg-background/70 text-[10px] text-muted-foreground">
+                        Native preview unavailable
+                      </span>
+                    )}
+                    <span className="block truncate text-[11px] font-semibold">{design.name}</span>
+                    <span className="mt-1 block min-h-7 text-[10px] leading-4 text-muted-foreground">
+                      {design.id === "auto"
+                        ? selectedWidget ? "Adapts to the available size" : pendingDesignId === design.id ? "Selected for your new widget" : "Tap to use Auto"
+                        : selectedWidget
+                          ? "Tap to customize this layout"
+                          : pendingDesignId === design.id ? "Selected for your new widget" : "Tap to use this layout"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : !designRegistryLoading && !designRegistryError ? (
+              <p className="mt-3 text-xs text-muted-foreground">The native provider reports no supported designs.</p>
+            ) : null}
             {widgets.length > 0 && (
               <button
                 type="button"

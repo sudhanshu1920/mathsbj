@@ -3507,7 +3507,7 @@ html.desktop-mode .study-mode-page {
 }
 
 @media (min-width: 560px) {
-  .study-mode-app-collections {
+  html.desktop-mode .study-mode-app-collections {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

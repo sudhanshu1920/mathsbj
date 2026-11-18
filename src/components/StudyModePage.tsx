@@ -70,7 +70,7 @@ const DAY_LABELS = [
   { label: "S", name: "Sunday", value: 7 },
 ] as const;
 
-type StudyModeSectionId = "focusProtection" | "focusSession" | "studySchedule";
+type StudyModeSectionId = "focusProtection" | "focusSession" | "studySchedule" | "permissions";
 type StudyModeSectionExpansion = Record<StudyModeSectionId, boolean>;
 
 const STUDY_MODE_SECTION_UI_STORAGE_KEY = "math-master.study-mode-section-ui.v1";
@@ -80,6 +80,7 @@ const readStudyModeSectionExpansion = (): StudyModeSectionExpansion => {
     focusProtection: false,
     focusSession: false,
     studySchedule: false,
+    permissions: false,
   };
   try {
     const raw = window.localStorage.getItem(STUDY_MODE_SECTION_UI_STORAGE_KEY);
@@ -91,6 +92,7 @@ const readStudyModeSectionExpansion = (): StudyModeSectionExpansion => {
       focusProtection: saved.focusProtection === true,
       focusSession: saved.focusSession === true,
       studySchedule: saved.studySchedule === true,
+      permissions: saved.permissions === true,
     };
   } catch {
     return collapsed;
@@ -336,7 +338,6 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const [studySearch, setStudySearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [permissionSetupOpen, setPermissionSetupOpen] = useState(false);
-  const [permissionsExpanded, setPermissionsExpanded] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [appFilter, setAppFilter] = useState<StudyModeAppFilter>("all");
@@ -353,6 +354,13 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const [sessionDnd, setSessionDnd] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
   const [expandedSections, setExpandedSections] = useState<StudyModeSectionExpansion>(readStudyModeSectionExpansion);
+  const permissionsExpanded = expandedSections.permissions;
+  const setPermissionsExpanded = useCallback((next: boolean | ((current: boolean) => boolean)) => {
+    setExpandedSections((current) => ({
+      ...current,
+      permissions: typeof next === "function" ? next(current.permissions) : next,
+    }));
+  }, []);
   const savedSnapshot = useRef(configSnapshot(initialConfig));
   const saveInFlightRef = useRef(false);
   const proAllowlistSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -1906,6 +1914,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               type="button"
               onClick={() => setPermissionsExpanded((value) => !value)}
               aria-expanded={permissionsExpanded}
+              aria-label={permissionsExpanded ? "Collapse Android permissions" : "Expand Android permissions"}
               className="motion-press flex min-h-12 w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-secondary/35"
             >
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><ShieldCheck size={15} /></span>

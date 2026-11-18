@@ -9,6 +9,8 @@ const PACKAGE_DIR = path.join(NATIVE_ROOT, 'com/sudhanshu/mathsbj');
 const PACKAGE_PATH = 'com.sudhanshu.mathsbj';
 const NATIVE_JAVA_FILES = [
   'MathMasterHomeWidgetProvider.java',
+  'MathMasterWidgetPinReceiver.java',
+  'MathMasterWidgetsPlugin.java',
   'MathMasterWidgetRenderer.java',
   'MathMasterWidgetConfigActivity.java',
   'DailyTargetReminderPlugin.java',
@@ -84,6 +86,10 @@ function ensureApplicationComponents(manifest) {
       xml: `        <activity android:name=".${'MathMasterWidgetConfigActivity'}" android:enabled="true" android:exported="true" android:label="@string/math_master_home_widget_label" android:excludeFromRecents="true" />`,
     },
     {
+      name: 'MathMasterWidgetPinReceiver',
+      xml: `        <receiver android:name=".MathMasterWidgetPinReceiver" android:enabled="true" android:exported="false" />`,
+    },
+    {
       name: 'DailyTargetReminderReceiver',
       xml: '        <receiver android:name=".DailyTargetReminderReceiver" android:enabled="true" android:exported="false" />',
     },
@@ -109,11 +115,19 @@ function ensureApplicationComponents(manifest) {
 }
 
 function ensureWidgetPluginRegistration(mainActivity) {
-  const registration = 'registerPlugin(DailyTargetReminderPlugin.class);';
-  if (mainActivity.includes(registration)) return mainActivity;
-  const anchor = 'super.onCreate(savedInstanceState);';
-  if (!mainActivity.includes(anchor)) throw new Error('MainActivity.java is missing its onCreate setup point.');
-  return mainActivity.replace(anchor, `registerPlugin(DailyTargetReminderPlugin.class);\n        ${anchor}`);
+  const registrations = [
+    'registerPlugin(DailyTargetReminderPlugin.class);',
+    'registerPlugin(MathMasterWidgetsPlugin.class);',
+  ];
+  for (const registration of registrations) {
+    if (mainActivity.includes(registration)) continue;
+    const anchor = 'super.onCreate(savedInstanceState);';
+    if (!mainActivity.includes(anchor)) {
+      throw new Error('MainActivity.java is missing its onCreate setup point.');
+    }
+    mainActivity = mainActivity.replace(anchor, `${registration}\n        ${anchor}`);
+  }
+  return mainActivity;
 }
 
 export async function configureAndroidWidgets(androidRoot) {

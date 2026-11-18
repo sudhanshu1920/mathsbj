@@ -118,8 +118,11 @@ public class MathMasterWidgetConfigActivity extends Activity {
         addStyleGrid(content, currentStyle);
 
         addSectionLabel(content, "DESIGN COMPOSITION", "Eight layouts · previews use the real widget renderer");
-        String currentComposition = preferences.getString(
-            "instance_" + widgetId + "_composition", preferences.getString("composition", "auto"));
+        String requestedComposition = getIntent().getStringExtra("initialComposition");
+        String currentComposition = isValidComposition(requestedComposition)
+            ? requestedComposition
+            : preferences.getString(
+                "instance_" + widgetId + "_composition", preferences.getString("composition", "auto"));
         if (!isValidComposition(currentComposition)) currentComposition = "auto";
         addCompositionGrid(content, currentComposition);
 
