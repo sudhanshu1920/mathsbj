@@ -1720,7 +1720,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
 
 
 
-          <section className="rounded-[1.4rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-4">
+          <section className="study-mode-schedule-card study-mode-card rounded-[1.25rem] border border-border/70 bg-gradient-to-br from-card via-card to-primary/5 p-3 shadow-sm sm:p-3.5">
             <div className="study-mode-section-header mb-2.5 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><CalendarDays size={15} /></span>
