@@ -276,6 +276,9 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Configure native Study Mode services
+        run: node scripts/configure-android-study-mode.mjs
+
       - name: Configure Android home-screen widgets
         run: node scripts/configure-android-widgets.mjs
 
