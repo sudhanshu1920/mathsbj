@@ -1472,4 +1472,30 @@ if (!studyModeReminderPersistence.includes('REMINDER_PENDING, REMINDER_VISIBLE')
   fail('Periodic reminders must remain latched and recover across service restarts, stay open through focus changes, and route the empty Study Apps state to the real picker');
 }
 
+
+const expandableStudySections = [
+  ["focusProtection", "Expand Focus Protection", "Collapse Focus Protection", "study-mode-focus-protection-content"],
+  ["focusSession", "Expand Focus Session", "Collapse Focus Session", "study-mode-focus-session-content"],
+  ["studySchedule", "Expand Study Schedule", "Collapse Study Schedule", "study-mode-study-schedule-content"],
+];
+if (!studyModePage.includes('STUDY_MODE_SECTION_UI_STORAGE_KEY = "math-master.study-mode-section-ui.v1"')
+    || !studyModePage.includes("const readStudyModeSectionExpansion = () =>")
+    || !studyModePage.includes("setExpandedSections((current) => ({ ...current, [section]: !current[section] }))")
+    || !studyModePage.includes("JSON.stringify(expandedSections)")
+    || !studyModePage.includes("aria-hidden={!expandedSections.focusProtection}")
+    || !studyModePage.includes("aria-hidden={!expandedSections.focusSession}")
+    || !studyModePage.includes("aria-hidden={!expandedSections.studySchedule}")
+    || !css.includes(".study-mode-expandable.is-expanded")
+    || !css.includes("grid-template-rows: 0fr")
+    || !css.includes("@media (prefers-reduced-motion: reduce)")) {
+  fail("Study Mode sections must independently persist UI-only preferences, remain mounted, animate accessibly, and respect reduced motion");
+}
+for (const [section, expandLabel, collapseLabel, contentId] of expandableStudySections) {
+  if (!studyModePage.includes(`toggleSection("${section}")`)
+      || !studyModePage.includes(`aria-label={expandedSections.${section} ? "${collapseLabel}" : "${expandLabel}"}`)
+      || !studyModePage.includes(`aria-controls="${contentId}"`)) {
+    fail(`Study Mode expandable section wiring is incomplete: ${section}`);
+  }
+}
+
 console.log('Architecture regression checks passed.');

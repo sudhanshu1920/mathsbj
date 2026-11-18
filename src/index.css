@@ -3586,3 +3586,164 @@ html.desktop-mode .study-mode-page {
   }
 }
 
+
+
+/* Independent Study Mode detail panels. Children remain mounted while closed so
+   selectors and unsaved values survive every collapse/expand interaction. */
+.study-mode-focus-card,
+.study-mode-session-card,
+.study-mode-schedule-card {
+  transition: padding 180ms var(--motion-ease-standard), border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+.study-mode-focus-card:not(.is-expanded),
+.study-mode-session-card:not(.is-expanded),
+.study-mode-schedule-card:not(.is-expanded) {
+  padding: 0.65rem 0.8rem;
+}
+.study-mode-expandable-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  gap: 0.55rem;
+}
+.study-mode-compact-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.study-mode-expand-toggle {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  flex: 0 0 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 0.8rem;
+  background: hsl(var(--background) / 0.62);
+  color: hsl(var(--muted-foreground));
+  transition: color 160ms ease, border-color 160ms ease,
+    background-color 160ms ease, transform 160ms ease;
+  touch-action: manipulation;
+}
+.study-mode-expand-toggle:hover,
+.study-mode-expand-toggle:focus-visible {
+  border-color: hsl(var(--primary) / 0.48);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+}
+.study-mode-expand-toggle:active {
+  transform: scale(0.94);
+}
+.study-mode-expand-toggle:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.8);
+  outline-offset: 2px;
+}
+.study-mode-expandable {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows 200ms var(--motion-ease-standard),
+    opacity 160ms ease, visibility 200ms;
+}
+.study-mode-expandable.is-expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+}
+.study-mode-expandable__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.study-mode-focus-header .study-mode-focus-controls {
+  min-width: 0;
+  gap: 0.3rem;
+}
+.study-mode-focus-controls button[aria-label^="Save Study Mode settings"] {
+  min-width: 3.5rem;
+  padding-inline: 0.45rem;
+}
+.study-mode-focus-pro-control {
+  min-width: 0;
+}
+.study-mode-focus-summary {
+  border-top-color: hsl(var(--border) / 0.65);
+}
+.study-mode-session-card.is-expanded .study-mode-section-header,
+.study-mode-schedule-card.is-expanded .study-mode-section-header {
+  padding-bottom: 0.15rem;
+}
+.study-mode-session-fields,
+.study-mode-session-toggles,
+.study-mode-schedule-times {
+  min-width: 0;
+}
+@media (max-width: 420px) {
+  .study-mode-focus-header {
+    gap: 0.35rem;
+  }
+  .study-mode-focus-header > div:first-child {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.7rem;
+  }
+  .study-mode-focus-header > div:first-child svg {
+    width: 1rem;
+    height: 1rem;
+  }
+  .study-mode-focus-header > div:nth-child(2) {
+    min-width: 4.5rem;
+  }
+  .study-mode-focus-controls {
+    gap: 0.2rem;
+  }
+  .study-mode-focus-controls button[aria-label^="Save Study Mode settings"] {
+    min-width: 3.1rem;
+    min-height: 2rem;
+    font-size: 0.58rem;
+  }
+  .study-mode-expand-toggle {
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
+    flex-basis: 2rem;
+  }
+}
+@media (max-width: 380px) {
+  .study-mode-session-fields,
+  .study-mode-session-toggles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .study-mode-schedule-times {
+    gap: 0.45rem;
+  }
+  .study-mode-schedule-times > button {
+    min-height: 3.5rem;
+    padding-inline: 0.6rem;
+  }
+}
+@media (min-width: 768px) {
+  .study-mode-session-fields,
+  .study-mode-session-toggles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .study-mode-schedule-times {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .study-mode-focus-card,
+  .study-mode-session-card,
+  .study-mode-schedule-card,
+  .study-mode-expand-toggle,
+  .study-mode-expandable {
+    transition: none !important;
+  }
+}
