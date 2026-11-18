@@ -1308,6 +1308,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                   <ChevronDown size={15} className={expandedSections.focusProtection ? "rotate-180 transition-transform duration-200" : "transition-transform duration-200"} />
                 </button>
               </div>
+            </div>
 
             <div
               id="study-mode-focus-protection-content"
