@@ -93,7 +93,8 @@ public class MathMasterWidgetsPlugin extends Plugin {
     @PluginMethod
     public void getDesigns(PluginCall call) {
         JSArray designs = new JSArray();
-        Set<String> selected = new HashSet<>(CONTENT_OPTIONS);
+        Set<String> selected = new HashSet<>();
+        for (String option : MathMasterHomeWidgetProvider.getDefaultContentOptions()) selected.add(option);
         try {
             for (String[] option : MathMasterHomeWidgetProvider.getWidgetCompositionOptions()) {
                 JSObject design = new JSObject();
