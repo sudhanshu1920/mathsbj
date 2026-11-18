@@ -152,3 +152,16 @@ test('configures complete installed-app visibility, native services and Capacito
     assert.equal((secondManifest.match(new RegExp('android.intent.action.' + action, 'g')) || []).length, 1);
   }
 });
+
+test('production signed APK workflow generates native Study Mode sources before compilation', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/android-apk.yml', import.meta.url), 'utf8');
+  assert.match(
+    workflow,
+    /- name: Configure native Study Mode services\\s+run: node scripts\\/configure-android-study-mode\\.mjs/,
+  );
+  assert.ok(
+    workflow.indexOf('run: node scripts/configure-android-study-mode.mjs')
+      < workflow.indexOf('run: ./gradlew --no-daemon --stacktrace :app:assembleRelease'),
+    'Study Mode native sources must be generated before the release APK compilation step',
+  );
+});
