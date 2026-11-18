@@ -36,6 +36,11 @@ import java.util.Set;
 public final class StudyModeManager {
     private static final String PREFS = "math_master_study_mode";
     private static final String KEY_ENABLED = "enabled";
+    private static final String KEY_PRO_ENABLED = "proStrictModeEnabled";
+    private static volatile Set<String> strictExemptPackagesCache = Collections.emptySet();
+    private static volatile long strictExemptPackagesCacheAtElapsedMs = 0L;
+    private static volatile String strictStudyAllowlistRaw;
+    private static volatile Set<String> strictStudyAllowlistCache = Collections.emptySet();
     private static final String KEY_PACKAGES = "selectedPackages";
     private static final String KEY_STUDY_PACKAGES = "studyAppPackages";
     private static final String KEY_REMINDER_INTERVAL_MINUTES = "reminderIntervalMinutes";
@@ -99,6 +104,29 @@ public final class StudyModeManager {
 
     public static boolean isEnabled(Context context) {
         return prefs(context).getBoolean(KEY_ENABLED, false);
+    }
+
+    /** Persisted Pro selection is never effective while the Study Mode master switch is off. */
+    public static boolean isProEnabled(Context context) {
+        return context != null && isEnabled(context)
+            && prefs(context).getBoolean(KEY_PRO_ENABLED, false);
+    }
+
+    /** The strict allowlist is enforced only during an active Study Mode schedule/session. */
+    public static boolean isProStrictModeActive(Context context) {
+        return context != null && isProEnabled(context) && shouldEnforceNow(context);
+    }
+
+    public static synchronized void setProEnabled(Context context, boolean enabled) {
+        if (context == null) throw new IllegalArgumentException("Study Mode context is unavailable.");
+        if (enabled && !isEnabled(context)) {
+            throw new IllegalArgumentException("Turn Study Mode on before enabling PRO.");
+        }
+        if (!prefs(context).edit().putBoolean(KEY_PRO_ENABLED, enabled).commit()) {
+            throw new IllegalStateException("PRO setting could not be saved locally.");
+        }
+        StudyModeFocusService.onProModeChanged();
+        reconcile(context);
     }
 
     public static int getStartHour(Context context) { return prefs(context).getInt("startHour", 9); }
@@ -183,6 +211,48 @@ public final class StudyModeManager {
     }
 
     /** Study Apps are a separate allowlist; blocked/session packages always win. */
+    private static Set<String> getStrictExemptPackages(Context context) {
+        long now = SystemClock.elapsedRealtime();
+        Set<String> cached = strictExemptPackagesCache;
+        if (strictExemptPackagesCacheAtElapsedMs > 0L
+            && now - strictExemptPackagesCacheAtElapsedMs < 60_000L) return cached;
+        synchronized (StudyModeManager.class) {
+            now = SystemClock.elapsedRealtime();
+            if (strictExemptPackagesCacheAtElapsedMs > 0L
+                && now - strictExemptPackagesCacheAtElapsedMs < 60_000L) {
+                return strictExemptPackagesCache;
+            }
+            Set<String> exempt = getProtectedPackages(context);
+            Collections.addAll(exempt,
+                "com.android.intentresolver",
+                "com.google.android.documentsui",
+                "com.android.documentsui");
+            strictExemptPackagesCache = Collections.unmodifiableSet(exempt);
+            strictExemptPackagesCacheAtElapsedMs = now;
+            return strictExemptPackagesCache;
+        }
+    }
+
+    public static void invalidateStrictExemptPackageCache() {
+        synchronized (StudyModeManager.class) {
+            strictExemptPackagesCache = Collections.emptySet();
+            strictExemptPackagesCacheAtElapsedMs = 0L;
+        }
+    }
+
+    private static Set<String> getStrictStudyAllowlist(Context context) {
+        String raw = prefs(context).getString(KEY_STUDY_PACKAGES, "[]");
+        if (raw.equals(strictStudyAllowlistRaw)) return strictStudyAllowlistCache;
+        synchronized (StudyModeManager.class) {
+            raw = prefs(context).getString(KEY_STUDY_PACKAGES, "[]");
+            if (raw.equals(strictStudyAllowlistRaw)) return strictStudyAllowlistCache;
+            Set<String> allowed = new HashSet<>(getSelectedStudyAppPackages(context));
+            strictStudyAllowlistCache = Collections.unmodifiableSet(allowed);
+            strictStudyAllowlistRaw = prefs(context).getString(KEY_STUDY_PACKAGES, "[]");
+            return strictStudyAllowlistCache;
+        }
+    }
+
     public static boolean isSelectedStudyAppPackage(Context context, String packageName) {
         if (!isVisibleApplication(context, packageName)
             || getEnforcedPackages(context).contains(packageName)) return false;
@@ -818,7 +888,12 @@ public final class StudyModeManager {
             clearReminderUsageMs(context);
             clearPendingPeriodicReminder(context);
         }
-        prefs(context).edit().putBoolean(KEY_ENABLED, enabled).commit();
+        SharedPreferences.Editor enabledEditor = prefs(context).edit().putBoolean(KEY_ENABLED, enabled);
+        if (!enabled) enabledEditor.putBoolean(KEY_PRO_ENABLED, false);
+        if (!enabledEditor.commit()) {
+            throw new IllegalStateException("Study Mode enabled state could not be saved.");
+        }
+        if (!enabled) StudyModeFocusService.onProModeChanged();
         reconcile(context);
     }
 
@@ -836,6 +911,58 @@ public final class StudyModeManager {
         return result;
     }
 
+    /** Device Owner mode suspends the full installed launchable complement of Study Apps. */
+    public static List<String> getPolicyEnforcedPackages(Context context) {
+        if (!isProStrictModeActive(context)) return getEnforcedPackages(context);
+        try {
+            android.content.pm.PackageManager pm = context.getPackageManager();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && pm.checkPermission("android.permission.QUERY_ALL_PACKAGES", context.getPackageName())
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                throw new IllegalStateException("QUERY_ALL_PACKAGES is required to build the strict allowlist inventory.");
+            }
+            List<ApplicationInfo> installed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? pm.getInstalledApplications(android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
+                : pm.getInstalledApplications(0);
+            Set<String> launchable = new HashSet<>();
+            String[] categories = {
+                Intent.CATEGORY_LAUNCHER,
+                Intent.CATEGORY_LEANBACK_LAUNCHER,
+                Intent.CATEGORY_INFO
+            };
+            for (String category : categories) {
+                Intent query = new Intent(Intent.ACTION_MAIN);
+                query.addCategory(category);
+                List<android.content.pm.ResolveInfo> matches = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    ? pm.queryIntentActivities(query, android.content.pm.PackageManager.ResolveInfoFlags.of(0L))
+                    : pm.queryIntentActivities(query, 0);
+                for (android.content.pm.ResolveInfo match : matches) {
+                    if (match != null && match.activityInfo != null && match.activityInfo.enabled
+                        && match.activityInfo.applicationInfo != null
+                        && match.activityInfo.applicationInfo.enabled) {
+                        launchable.add(match.activityInfo.packageName);
+                    }
+                }
+            }
+            Set<String> allowed = getStrictStudyAllowlist(context);
+            Set<String> exempt = getStrictExemptPackages(context);
+            List<String> restricted = new ArrayList<>();
+            for (ApplicationInfo info : installed) {
+                if (info == null || !info.enabled || info.packageName == null
+                    || !launchable.contains(info.packageName)
+                    || !isVisibleApplication(context, info.packageName)
+                    || exempt.contains(info.packageName)
+                    || allowed.contains(info.packageName)) continue;
+                restricted.add(info.packageName);
+            }
+            Collections.sort(restricted);
+            return restricted;
+        } catch (RuntimeException inventoryFailure) {
+            throw new IllegalStateException(
+                "Strict Study Apps inventory could not be verified; keeping existing restrictions.", inventoryFailure);
+        }
+    }
+
     public static boolean isSessionActive(Context context) {
         return sessionStore(context).getActiveSession(context) != null;
     }
@@ -846,6 +973,18 @@ public final class StudyModeManager {
 
     public static boolean isPackageSelected(Context context, String packageName) {
         return packageName != null && getEnforcedPackages(context).contains(packageName);
+    }
+
+    /** Single policy predicate shared by foreground and Accessibility window detection. */
+    public static boolean isPackageRestricted(Context context, String packageName) {
+        if (context == null || !isVisibleApplication(context, packageName)
+            || !shouldEnforceNow(context)) return false;
+        if (isProStrictModeActive(context)) {
+            if (getStrictExemptPackages(context).contains(packageName)) return false;
+            return !getStrictStudyAllowlist(context).contains(packageName);
+        }
+        // Keep normal Study Mode behavior identical when PRO is disabled.
+        return getEnforcedPackages(context).contains(packageName);
     }
 
     /** Stable diagnostic context for a foreground blocking request. */
@@ -1171,8 +1310,17 @@ public final class StudyModeManager {
         if (activeSession != null) scheduleSessionExpiry(app);
         else cancelSessionExpiry(app);
 
-        List<String> packages = getEnforcedPackages(app);
-        boolean active = !packages.isEmpty() && (scheduleActive || activeSession != null);
+        List<String> packages;
+        try {
+            packages = isPolicyOwner(app) ? getPolicyEnforcedPackages(app) : getEnforcedPackages(app);
+        } catch (RuntimeException strictInventoryFailure) {
+            setLastState(app, "policy_failed");
+            logStudyModeDiagnostic(app, "PRO_ALLOWLIST_INVENTORY_FAILED",
+                strictInventoryFailure.getClass().getSimpleName());
+            return;
+        }
+        boolean active = shouldEnforceNow(app)
+            && (isProStrictModeActive(app) || !packages.isEmpty());
 
         if (!active || StudyModeFocusService.isRunning() || StudyModeFocusService.isStarting()) {
             cancelFocusServiceRecoveryAlarm(app);
@@ -1344,7 +1492,7 @@ public final class StudyModeManager {
         Collections.sort(applied);
         saveStringArray(prefs(context), KEY_APPLIED, applied);
 
-        if (!selected.isEmpty() && verifiedSelected.containsAll(selected)) {
+        if (selected.isEmpty() || verifiedSelected.containsAll(selected)) {
             setLastState(context, "system_suspension");
             return true;
         }
@@ -1531,8 +1679,18 @@ public final class StudyModeManager {
         for (String name : applied) appliedArray.put(name);
         DevicePolicyManager policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         List<String> enforcedPackages = getEnforcedPackages(context);
+        List<String> policyPackages = enforcedPackages;
+        boolean strictInventoryAvailable = true;
+        if (isPolicyOwner(context) && isProStrictModeActive(context)) {
+            try {
+                policyPackages = getPolicyEnforcedPackages(context);
+            } catch (RuntimeException inventoryFailure) {
+                strictInventoryAvailable = false;
+                policyPackages = Collections.emptyList();
+            }
+        }
         List<String> suspended = isPolicyOwner(context)
-            ? getActuallySuspendedPackages(policy, context, enforcedPackages)
+            ? getActuallySuspendedPackages(policy, context, policyPackages)
             : new ArrayList<>();
         JSArray enforcedArray = new JSArray();
         for (String name : enforcedPackages) enforcedArray.put(name);
@@ -1544,7 +1702,9 @@ public final class StudyModeManager {
         String state = prefs(context).getString(KEY_LAST_STATE, isEnabled(context) ? "waiting_for_schedule" : "disabled");
         boolean enabled = isEnabled(context);
         boolean sessionActive = activeSession != null;
-        boolean active = !enforcedPackages.isEmpty() && (isScheduleActive(context) || sessionActive);
+        boolean proEnabled = isProEnabled(context);
+        boolean proActive = isProStrictModeActive(context);
+        boolean active = shouldEnforceNow(context) && (proActive || !enforcedPackages.isEmpty());
         boolean policyOwner = isPolicyOwner(context);
         boolean usageGranted = hasUsageAccess(context);
         boolean overlayGranted = hasOverlayPermission(context);
@@ -1558,7 +1718,8 @@ public final class StudyModeManager {
         } else if (policyOwner && !hasExactAlarmPermission(context)) {
             state = "exact_alarm_required";
         } else if (policyOwner) {
-            if (!enforcedPackages.isEmpty() && suspended.containsAll(enforcedPackages)) state = "system_suspension";
+            if (!strictInventoryAvailable) state = "policy_failed";
+            else if ((policyPackages.isEmpty() && proActive) || (!policyPackages.isEmpty() && suspended.containsAll(policyPackages))) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
         } else if ((!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted) {
@@ -1593,6 +1754,7 @@ public final class StudyModeManager {
         JSArray studyAppsArray = new JSArray();
         for (String packageName : getSelectedStudyAppPackages(context)) studyAppsArray.put(packageName);
         result.put("studyAppPackages", studyAppsArray);
+        result.put("proEnabled", proEnabled);
         result.put("reminderIntervalMinutes", getReminderIntervalMinutes(context));
         result.put("config", config);
         result.put("permissions", permissions);

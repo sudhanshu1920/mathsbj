@@ -76,6 +76,30 @@ test("Blocked Apps and Study Apps precedence is retained for periodic reminders"
   assert.ok(manager.includes("Settings is intentionally not globally exempt."));
 });
 
+test("PRO uses the Study Apps allowlist in foreground and window enforcement, and clears on master OFF", () => {
+  assert.ok(manager.includes('KEY_PRO_ENABLED = "proStrictModeEnabled"'));
+  assert.ok(manager.includes("isProStrictModeActive(Context context)"));
+  assert.ok(manager.includes("return !getStrictStudyAllowlist(context).contains(packageName);"));
+  assert.ok(manager.includes("enabledEditor.putBoolean(KEY_PRO_ENABLED, false)"));
+  assert.ok(manager.includes("getPolicyEnforcedPackages(Context context)"));
+  assert.ok(manager.includes("PRO_ALLOWLIST_INVENTORY_FAILED"));
+  assert.ok(source.includes("StudyModeManager.isPackageRestricted(StudyModeFocusService.this, foreground)"));
+  assert.ok(source.includes("void onProModeChanged()"));
+  assert.ok(source.includes("StudyModeManager.isProStrictModeActive(this)"));
+  assert.ok(registry.includes("StudyModeManager.isPackageRestricted(context, window.packageName)"));
+  assert.ok(page.includes("setStudyModeProEnabled(enabled)"));
+  assert.ok(page.includes("persistProAllowlist"));
+  assert.ok(page.includes('aria-pressed={status?.proEnabled === true}'));
+  const shield = between(
+    source,
+    "private android.view.View buildShieldView(String packageName)",
+    "private android.view.View buildStudyAppShortcut(",
+  );
+  assert.ok(shield.includes("getStudyAppLabel(packageName)"));
+  assert.ok(shield.includes("getStudyAppIcon(packageName)"));
+  assert.ok(!shield.includes("Continue Anyway"));
+});
+
 test("a due interval remains latched across focus changes until the reminder is attached", () => {
   const sampling = between(usageAccumulator, "synchronized boolean sample(", "synchronized void setIntervalMinutes(");
   assert.ok(sampling.includes("if (accumulatedUsageMs < thresholdMs) return false;"));
@@ -215,7 +239,7 @@ test("accumulated usage survives service replacement without counting downtime; 
 });
 
 test("the reminder stays attached across focus changes and offers a real Study Apps picker handoff", () => {
-  const dismiss = between(source, "private void dismissPeriodicReminder(", "private android.view.View buildShieldView()");
+  const dismiss = between(source, "private void dismissPeriodicReminder(", "private android.view.View buildShieldView(String packageName)");
   assert.ok(!source.includes('dismissPeriodicReminder("focused_app_changed"'));
   assert.ok(dismiss.includes("StudyModeManager.clearPendingPeriodicReminder(this)"));
   assert.ok(source.includes("refreshPeriodicReminderStudyApps()"));
@@ -256,7 +280,7 @@ test("advanced accessibility monitoring enumerates interactive app windows witho
   );
   assert.ok(!blockedWindowLookup.includes("!snapshotComplete"));
   assert.ok(blockedWindowLookup.includes("snapshotAtElapsedMs"));
-  assert.ok(blockedWindowLookup.includes("StudyModeManager.isPackageSelected(context, window.packageName)"));
+  assert.ok(blockedWindowLookup.includes("StudyModeManager.isPackageRestricted(context, window.packageName)"));
   assert.ok(accessibility.includes("snapshot.complete"));
   assert.ok(accessibility.includes("hasApplicationWindow"));
   assert.ok(accessibility.includes("IDLE_RESCAN_INTERVAL_MS"));
@@ -274,7 +298,7 @@ test("advanced accessibility monitoring enumerates interactive app windows witho
   assert.ok(manager.includes("accessibilityEnabled && accessibilityConsent && !accessibilityMonitoringReady"));
   assert.ok(manager.includes("(!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady"));
   assert.ok(manager.includes("accessibilityConsent"));
-  assert.ok(registry.includes("StudyModeManager.isPackageSelected(context, window.packageName)"));
+  assert.ok(registry.includes("StudyModeManager.isPackageRestricted(context, window.packageName)"));
   assert.ok(accessibility.includes("hasAccessibilityDisclosureConsent(this)"));
   const interrupt = accessibility.slice(accessibility.indexOf("public void onInterrupt()"), accessibility.indexOf("@Override", accessibility.indexOf("public void onInterrupt()") + 1));
   assert.ok(interrupt.includes("invalidateSnapshot()"));
@@ -320,7 +344,7 @@ test("new foreground decisions invalidate stale queued main-thread requests", ()
 });
 
 test("popup visibility requires an attached and shown overlay window", () => {
-  const visibility = between(source, "private boolean isShieldViewVisible", "private android.view.View buildShieldView()");
+  const visibility = between(source, "private boolean isShieldViewVisible", "private android.view.View buildShieldView(String packageName)");
   for (const invariant of [
     "view.isAttachedToWindow()",
     "view.getWindowToken() != null",
@@ -427,7 +451,7 @@ test("decision generation changes only when the foreground restriction decision 
   assert.ok(monitor.includes("? foregroundDecisionSequence.incrementAndGet()"));
   assert.ok(monitor.includes(": foregroundDecisionSequence.get()"));
   assert.ok(source.includes("verifiedRequestId, decisionSequence"));
-  const verify = between(source, "private void verifyShieldVisibility(", "private android.view.View buildShieldView()");
+  const verify = between(source, "private void verifyShieldVisibility(", "private android.view.View buildShieldView(String packageName)");
   assert.ok(verify.includes("decisionSequence != foregroundDecisionSequence.get()"));
   assert.ok(verify.includes("decision_changed_before_visibility_check"));
 });
@@ -546,7 +570,7 @@ test("popup first-frame verification waits for WindowManager traversal", () => {
 
 
 test("focus popup removes navigation and uses a compact, theme-aware layout", () => {
-  const popup = between(source, "private android.view.View buildShieldView()", "private android.view.View buildStudyAppShortcut(");
+  const popup = between(source, "private android.view.View buildShieldView(String packageName)", "private android.view.View buildStudyAppShortcut(");
   assert.ok(!popup.includes("Back to Math Master"));
   assert.ok(!popup.includes("mathmaster://learn"));
   assert.ok(!popup.includes("TextView back"));
@@ -569,7 +593,7 @@ test("popup timer remains bound to the persisted native session and configured e
 });
 
 test("Study Apps only render real selected launch targets and keep native launch behavior", () => {
-  const popup = between(source, "private android.view.View buildShieldView()", "private android.view.View buildStudyAppShortcut(");
+  const popup = between(source, "private android.view.View buildShieldView(String packageName)", "private android.view.View buildStudyAppShortcut(");
   const shortcut = between(source, "private android.view.View buildStudyAppShortcut(", "private String getStudyAppLabel(");
   assert.ok(popup.includes("List<String> studyPackages = StudyModeManager.getSelectedStudyAppPackages(this)"));
   assert.ok(popup.includes("if (!studyPackages.isEmpty())"));
@@ -584,7 +608,7 @@ test("Study Apps only render real selected launch targets and keep native launch
 });
 
 test("popup and Study App interactions cannot end the Study Mode session", () => {
-  const popup = between(source, "private android.view.View buildShieldView()", "private android.view.View buildStudyAppShortcut(");
+  const popup = between(source, "private android.view.View buildShieldView(String packageName)", "private android.view.View buildStudyAppShortcut(");
   const shortcut = between(source, "private android.view.View buildStudyAppShortcut(", "private String getStudyAppLabel(");
   for (const forbidden of ["finishSession(", "setEnabled(", "stopSelf(", "mathmaster://learn"]) {
     assert.ok(!popup.includes(forbidden), "Popup must not end or navigate away from the active session");
@@ -621,7 +645,7 @@ test("Focus Service health is based on a live monitor heartbeat, not the process
 });
 
 test("blocking_active is only reported after actual overlay attachment and visibility", () => {
-  const verify = between(source, "private void verifyShieldVisibility(", "private android.view.View buildShieldView()");
+  const verify = between(source, "private void verifyShieldVisibility(", "private android.view.View buildShieldView(String packageName)");
   assert.ok(verify.indexOf("isShieldViewVisible(candidate)")
     < verify.indexOf('StudyModeManager.setServiceState(this, "blocking_active")'));
   assert.ok(source.includes("public static boolean isBlockingActive()"));

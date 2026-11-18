@@ -223,21 +223,21 @@ public final class StudyModeWindowRegistry {
         for (int index = eventSnapshot.size() - 1; index >= 0; index--) {
             String packageName = eventSnapshot.get(index).packageName;
             if (!ownPackage.equals(packageName)
-                && StudyModeManager.isPackageSelected(context, packageName)) {
+                && StudyModeManager.isPackageRestricted(context, packageName)) {
                 return packageName;
             }
         }
 
         for (WindowRecord window : visibleSnapshot) {
             if (window.focused && !ownPackage.equals(window.packageName)
-                && StudyModeManager.isPackageSelected(context, window.packageName)) {
+                && StudyModeManager.isPackageRestricted(context, window.packageName)) {
                 return window.packageName;
             }
         }
 
         if (usageForegroundPackage != null && !usageForegroundPackage.isEmpty()
             && !ownPackage.equals(usageForegroundPackage)
-            && StudyModeManager.isPackageSelected(context, usageForegroundPackage)) {
+            && StudyModeManager.isPackageRestricted(context, usageForegroundPackage)) {
             for (WindowRecord window : visibleSnapshot) {
                 if (usageForegroundPackage.equals(window.packageName)) return usageForegroundPackage;
             }
@@ -245,7 +245,7 @@ public final class StudyModeWindowRegistry {
 
         for (WindowRecord window : visibleSnapshot) {
             if (!ownPackage.equals(window.packageName)
-                && StudyModeManager.isPackageSelected(context, window.packageName)) {
+                && StudyModeManager.isPackageRestricted(context, window.packageName)) {
                 return window.packageName;
             }
         }

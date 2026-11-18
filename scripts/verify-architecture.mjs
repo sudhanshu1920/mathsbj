@@ -1254,7 +1254,9 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModeAppCatalogCache.includes('peek(): T | undefined') ||
     !studyModeBridge.includes('getCachedInstalledStudyModeApps') ||
     !studyModeBridge.includes('5 * 60_000') ||
-    !studyModeBridge.includes('App.addListener("resume"') ||
+    !studyModeBridge.includes('NativeStudyMode.getAppCatalogRevision()') ||
+    !studyModeBridge.includes('catalogRevision') ||
+    studyModePage.includes('invalidateStudyModeAppCatalogCache') ||
     !studyModePage.includes('getCachedStudyModeSettings') ||
     !studyModePage.includes('sortStudyModeAppsSelectedFirst') ||
     !studyModePage.includes('getCachedInstalledStudyModeApps() !== null') ||
@@ -1262,6 +1264,18 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModeAppFilterTests.includes('pins only the current picker') ||
     !studyModeAppPlugin.includes('listApps cacheHit=')) {
   fail('Study Mode performance regression: app inventory must be cached/in-flight deduplicated, countdown isolated, app search deferred, and session history must not gate first interaction');
+}
+if (!studyModeManager.includes('public static synchronized void setProEnabled') ||
+    !studyModeManager.includes('isProStrictModeActive(Context context)') ||
+    !studyModeManager.includes('isPackageRestricted(Context context, String packageName)') ||
+    !studyModeManager.includes('getPolicyEnforcedPackages(Context context)') ||
+    !studyModeAppPlugin.includes('public void setProEnabled(PluginCall call)') ||
+    !studyModeAppPlugin.includes('getAppCatalogRevision(PluginCall call)') ||
+    !studyModeFocus.includes('StudyModeManager.isPackageRestricted(StudyModeFocusService.this, foreground)') ||
+    !studyModeWindowRegistry.includes('StudyModeManager.isPackageRestricted(context, window.packageName)') ||
+    !studyModePage.includes('setStudyModeProEnabled(enabled)') ||
+    !studyModePage.includes('persistProAllowlist')) {
+  fail('PRO must persist a strict Study Apps allowlist, share one enforcement predicate, and update it without a service restart');
 }
 if (!studyModeManager.includes('public static synchronized void setEnabled') ||
     !studyModeManager.includes('public static synchronized void reconcile') ||

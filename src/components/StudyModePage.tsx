@@ -20,7 +20,6 @@ import {
   getInstalledStudyModeApps,
   getCachedInstalledStudyModeApps,
   getCachedStudyModeSettings,
-  invalidateStudyModeAppCatalogCache,
   getStudyModeStatus,
   isStudyModeNative,
   openStudyModePermission,
@@ -30,6 +29,7 @@ import {
   saveStudyModeConfig,
   setStudyModeReminderInterval,
   setStudyModeEnabled,
+  setStudyModeProEnabled,
   startStudyModeSession,
   endStudyModeSession,
   getStudyModeSessionHistory,
@@ -327,6 +327,8 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const [sessionHistory, setSessionHistory] = useState<StudyModeSession[]>([]);
   const savedSnapshot = useRef(configSnapshot(initialConfig));
   const saveInFlightRef = useRef(false);
+  const proAllowlistSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const proAllowlistSaveRevisionRef = useRef(0);
   const reminderIntervalSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const reminderIntervalRequestRef = useRef(0);
   const savedStudyAppsSnapshot = useRef(JSON.stringify([...initialStudyApps].sort()));
@@ -376,8 +378,10 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
     }
     if (appCatalogLoadInFlightRef.current) return appCatalogLoadInFlightRef.current;
 
-    // Keep a valid warm list visible while an explicit lifecycle refresh runs.
-    setAppsLoading(true);
+    // A warm catalogue stays interactive while the native revision is checked.
+    // Cold discovery still shows a loading state until the complete list is ready.
+    const hasWarmCatalog = getCachedInstalledStudyModeApps() !== null;
+    if (!hasWarmCatalog) setAppsLoading(true);
     setAppsLoadError("");
     const request = (async () => {
       try {
@@ -415,7 +419,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
             : "Could not load installed apps. Tap to retry.");
         }
       } finally {
-        if (isMountedRef.current) setAppsLoading(false);
+        if (isMountedRef.current && !hasWarmCatalog) setAppsLoading(false);
       }
     })();
 
@@ -429,7 +433,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const toggleBlockedPicker = () => {
     const nextOpen = !pickerOpen;
     setPickerOpen(nextOpen);
-    if (nextOpen) void loadApps();
+    if (nextOpen) void loadApps(true);
   };
 
   const handleReminderIntervalChange = (value: number) => {
@@ -466,14 +470,14 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
     if (!openStudyAppsPicker) return;
     setStudyPickerOpen(true);
     setStudySearch("");
-    void loadApps();
+    void loadApps(true);
     onStudyAppsPickerOpened?.();
   }, [openStudyAppsPicker, loadApps, onStudyAppsPickerOpened]);
 
   const toggleStudyPicker = () => {
     const nextOpen = !studyPickerOpen;
     setStudyPickerOpen(nextOpen);
-    if (nextOpen) void loadApps();
+    if (nextOpen) void loadApps(true);
   };
 
   const load = useCallback((reconcile = false): Promise<void> => {
@@ -579,11 +583,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
 
       const refreshApps = pickerOpenRef.current || studyPickerOpenRef.current
         ? loadApps(true)
-        : Promise.resolve().then(() => {
-          invalidateStudyModeAppCatalogCache();
-          appCatalogRef.current = null;
-          appCatalogLoadedRef.current = false;
-        });
+        : Promise.resolve();
       void Promise.all([load(true), refreshApps]).finally(() => {
         lifecycleRefreshInFlightRef.current = false;
       });
@@ -691,40 +691,92 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
     setMessage("");
   };
 
+  const persistProAllowlist = (nextDraft: StudyModeConfig, nextStudyApps: string[]) => {
+    const request = ++proAllowlistSaveRevisionRef.current;
+    const save = proAllowlistSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const nextStatus = await saveStudyModeConfig(nextDraft, nextStudyApps);
+        if (!isMountedRef.current || request !== proAllowlistSaveRevisionRef.current) return;
+        const savedConfig = { ...nextStatus.config, selectedDays: [...nextStatus.config.selectedDays] };
+        statusRef.current = nextStatus;
+        setStatus(nextStatus);
+        savedSnapshot.current = configSnapshot(savedConfig);
+        savedStudyAppsSnapshot.current = JSON.stringify([...(nextStatus.studyAppPackages ?? nextStudyApps)].sort());
+        setMessage("");
+      })
+      .catch(async (error: unknown) => {
+        if (!isMountedRef.current || request !== proAllowlistSaveRevisionRef.current) return;
+        setMessage(error instanceof Error && error.message
+          ? error.message
+          : "PRO allowlist could not be updated. The previous saved allowlist remains active.");
+        try {
+          const actualStatus = await getStudyModeStatus();
+          if (!isMountedRef.current || request !== proAllowlistSaveRevisionRef.current) return;
+          const actualConfig = { ...actualStatus.config, selectedDays: [...actualStatus.config.selectedDays] };
+          statusRef.current = actualStatus;
+          setStatus(actualStatus);
+          setDraft(actualConfig);
+          setStudyAppPackages(actualStatus.studyAppPackages ?? []);
+          savedSnapshot.current = configSnapshot(actualConfig);
+          savedStudyAppsSnapshot.current = JSON.stringify([...(actualStatus.studyAppPackages ?? [])].sort());
+        } catch {
+          // Preserve the visible error; native enforcement keeps the last committed lists.
+        }
+      });
+    proAllowlistSaveQueueRef.current = save.then(() => undefined, () => undefined);
+    return save;
+  };
+
   const toggleApp = (packageName: string, selectable: boolean) => {
     if (!selectable || saving) return;
     const selected = draft.selectedPackageNames.includes(packageName);
+    let nextStudyApps = studyAppPackages;
     if (!selected && studyAppPackages.includes(packageName)) {
       const appName = apps.find((app) => app.packageName === packageName)?.label ?? packageName;
       if (!window.confirm(
         appName + " is currently selected in Study Apps. Move it to Blocked Apps? It will be removed from Study Apps."
       )) return;
-      setStudyAppPackages((previous) => previous.filter((name) => name !== packageName));
+      nextStudyApps = studyAppPackages.filter((name) => name !== packageName);
+      setStudyAppPackages(nextStudyApps);
     }
-    updateDraft({
+    const nextDraft = {
+      ...draft,
       selectedPackageNames: selected
         ? draft.selectedPackageNames.filter((name) => name !== packageName)
         : [...draft.selectedPackageNames, packageName],
-    });
+    };
+    setDraft(nextDraft);
+    setMessage("");
+    if (statusRef.current?.proEnabled && statusRef.current.config.enabled) {
+      void persistProAllowlist(nextDraft, nextStudyApps);
+    }
   };
 
   const toggleStudyApp = (packageName: string, selectable: boolean) => {
     if (!selectable || saving) return;
     const selected = studyAppPackages.includes(packageName);
+    let nextDraft = draft;
     if (!selected && (draft.selectedPackageNames.includes(packageName)
       || (status?.enforcedPackages ?? []).includes(packageName))) {
       const appName = apps.find((app) => app.packageName === packageName)?.label ?? packageName;
       if (!window.confirm(
         appName + " is currently blocked. Move it to Study Apps? It will be removed from Blocked Apps and the current session's blocked selection."
       )) return;
-      updateDraft({
+      nextDraft = {
+        ...draft,
         selectedPackageNames: draft.selectedPackageNames.filter((name) => name !== packageName),
-      });
+      };
+      setDraft(nextDraft);
     }
-    setStudyAppPackages((previous) => selected
-      ? previous.filter((name) => name !== packageName)
-      : [...previous, packageName]);
+    const nextStudyApps = selected
+      ? studyAppPackages.filter((name) => name !== packageName)
+      : [...studyAppPackages, packageName];
+    setStudyAppPackages(nextStudyApps);
     setMessage("");
+    if (statusRef.current?.proEnabled && statusRef.current.config.enabled) {
+      void persistProAllowlist(nextDraft, nextStudyApps);
+    }
   };
 
   const toggleAppRef = useRef(toggleApp);
@@ -767,10 +819,12 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
     setSaving(true);
     setMessage("");
     try {
+      await proAllowlistSaveQueueRef.current;
       const nextStatus = await saveStudyModeConfig(draft, studyAppPackages);
       const savedConfig = { ...nextStatus.config, selectedDays: [...nextStatus.config.selectedDays] };
       const savedStudyApps = nextStatus.studyAppPackages ?? studyAppPackages.filter(
         (name) => !savedConfig.selectedPackageNames.includes(name));
+      statusRef.current = nextStatus;
       setStatus(nextStatus);
       setDraft(savedConfig);
       setStudyAppPackages(savedStudyApps);
@@ -904,6 +958,47 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
     }
   };
 
+  const handleProToggle = async () => {
+    const currentStatus = statusRef.current;
+    if (saving || !currentStatus || !currentStatus.config.enabled) return;
+    const enabled = currentStatus.proEnabled !== true;
+    setSaving(true);
+    setMessage("");
+    try {
+      await proAllowlistSaveQueueRef.current;
+      if (enabled && hasUnsavedChanges) {
+        const savedStatus = await saveStudyModeConfig(draft, studyAppPackages);
+        const savedConfig = { ...savedStatus.config, selectedDays: [...savedStatus.config.selectedDays] };
+        const savedStudyApps = savedStatus.studyAppPackages ?? studyAppPackages;
+        statusRef.current = savedStatus;
+        setStatus(savedStatus);
+        setDraft(savedConfig);
+        setStudyAppPackages(savedStudyApps);
+        savedSnapshot.current = configSnapshot(savedConfig);
+        savedStudyAppsSnapshot.current = JSON.stringify([...savedStudyApps].sort());
+      }
+      const nextStatus = await setStudyModeProEnabled(enabled);
+      statusRef.current = nextStatus;
+      setStatus(nextStatus);
+      setMessage(enabled
+        ? "PRO enabled. Only apps in Study Apps are allowed during an active Study Mode session."
+        : "PRO disabled. Your existing Blocked Apps rules are active again.");
+    } catch (error) {
+      setMessage(error instanceof Error && error.message
+        ? error.message
+        : "PRO could not be updated. Check the current Study Mode status.");
+      try {
+        const nextStatus = await getStudyModeStatus();
+        statusRef.current = nextStatus;
+        setStatus(nextStatus);
+      } catch {
+        // Keep the current native state visible as the last confirmed status.
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleMasterToggle = async (enabled: boolean) => {
     if (saving) return;
     if (!enabled) {
@@ -911,6 +1006,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
       setSaving(true);
       try {
         const nextStatus = await setStudyModeEnabled(false);
+        statusRef.current = nextStatus;
         setStatus(nextStatus);
         setDraft((previous) => ({ ...previous, enabled: false }));
         savedSnapshot.current = configSnapshot({ ...nextStatus.config, enabled: false });
@@ -944,6 +1040,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
     setMessage("");
     try {
       const nextStatus = await setStudyModeEnabled(true);
+      statusRef.current = nextStatus;
       setStatus(nextStatus);
       setDraft({ ...nextStatus.config, selectedDays: [...nextStatus.config.selectedDays] });
       savedSnapshot.current = configSnapshot(nextStatus.config);
@@ -1147,6 +1244,21 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
                 ) : (
                   <span className="shrink-0 text-[10px] text-muted-foreground">{loading ? "…" : "—"}</span>
                 )}
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: MOTION.scale.press }}
+                  disabled={loading || saving || !isStudyModeNative() || status?.config.enabled !== true}
+                  onClick={() => { void handleProToggle(); }}
+                  aria-pressed={status?.proEnabled === true}
+                  aria-label={status?.proEnabled ? "Turn PRO strict Study Mode off" : "Turn PRO strict Study Mode on"}
+                  className={status?.proEnabled
+                    ? "motion-press inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full border border-primary/45 bg-primary/12 px-2.5 text-[9px] font-bold tracking-wide text-primary shadow-sm transition-colors disabled:opacity-45"
+                    : "motion-press inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full border border-border/65 bg-background/60 px-2.5 text-[9px] font-bold tracking-wide text-muted-foreground transition-colors hover:border-primary/35 hover:text-foreground disabled:opacity-45"}
+                >
+                  <LockKeyhole size={11} strokeWidth={2.2} />
+                  <span>PRO</span>
+                  <span>{status?.proEnabled ? "ON" : "OFF"}</span>
+                </motion.button>
                 {!permissionSetupOpen && (
                   <motion.button
                     type="button"

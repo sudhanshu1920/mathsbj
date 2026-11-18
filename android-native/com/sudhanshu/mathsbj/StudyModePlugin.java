@@ -49,6 +49,8 @@ public final class StudyModePlugin extends Plugin {
     private static volatile long appCatalogCacheTimeMs = 0L;
     private static volatile int cachedInstalledPackageCount = 0;
     private static volatile boolean hasAppCatalogCache = false;
+    private static volatile long appCatalogRevision = 1L;
+    private static volatile long appCatalogCacheRevision = 0L;
 
     public static void invalidateAppCatalogCache() {
         synchronized (APP_CATALOG_LOCK) {
@@ -56,8 +58,18 @@ public final class StudyModePlugin extends Plugin {
             appCatalogCacheTimeMs = 0L;
             cachedInstalledPackageCount = 0;
             hasAppCatalogCache = false;
+            appCatalogRevision = appCatalogRevision == Long.MAX_VALUE ? 1L : appCatalogRevision + 1L;
         }
     }
+    @PluginMethod
+    public void getAppCatalogRevision(PluginCall call) {
+        JSObject result = new JSObject();
+        // A WebView cache from a previous Android process is not valid when the
+        // native catalogue has not yet been rebuilt in the current process.
+        result.put("revision", hasAppCatalogCache ? appCatalogCacheRevision : 0L);
+        call.resolve(result);
+    }
+
     @PluginMethod
     public void getStatus(PluginCall call) {
         call.resolve(StudyModeManager.getStatus(getContext()));
@@ -122,6 +134,23 @@ public final class StudyModePlugin extends Plugin {
             call.reject(error.getMessage(), error);
         } catch (Exception error) {
             call.reject("Android could not update Study Mode.", error);
+        }
+    }
+
+    @PluginMethod
+    public void setProEnabled(PluginCall call) {
+        try {
+            Boolean enabled = call.getBoolean("enabled");
+            if (enabled == null) {
+                call.reject("PRO enabled state is required.");
+                return;
+            }
+            StudyModeManager.setProEnabled(getContext(), enabled);
+            call.resolve(StudyModeManager.getStatus(getContext()));
+        } catch (IllegalArgumentException error) {
+            call.reject(error.getMessage(), error);
+        } catch (Exception error) {
+            call.reject("Android could not update PRO strict Study Mode.", error);
         }
     }
 
@@ -248,6 +277,7 @@ public final class StudyModePlugin extends Plugin {
             JSObject result = new JSObject();
             result.put("apps", apps);
             result.put("discoveryScope", "all-installed-packages-filtered-to-launchable");
+            result.put("catalogRevision", appCatalogCacheRevision);
             result.put("installedPackageCount", cachedInstalledPackageCount);
             result.put("appCount", entries.size());
             Log.d(TAG, "listApps cacheHit=" + cacheHit
@@ -316,6 +346,7 @@ public final class StudyModePlugin extends Plugin {
             appCatalogCache = Collections.unmodifiableList(entries);
             cachedInstalledPackageCount = installedApplications.size();
             appCatalogCacheTimeMs = SystemClock.elapsedRealtime();
+            appCatalogCacheRevision = appCatalogRevision;
             hasAppCatalogCache = true;
             return appCatalogCache;
         }
