@@ -1256,6 +1256,7 @@ if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
     !studyModeBridge.includes('5 * 60_000') ||
     !studyModeBridge.includes('NativeStudyMode.getAppCatalogRevision()') ||
     !studyModeBridge.includes('catalogRevision') ||
+    !studyModeAppPlugin.includes('getChangedPackages(appCatalogPackageChangeSequence)') ||
     studyModePage.includes('invalidateStudyModeAppCatalogCache') ||
     !studyModePage.includes('getCachedStudyModeSettings') ||
     !studyModePage.includes('sortStudyModeAppsSelectedFirst') ||

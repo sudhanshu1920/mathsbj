@@ -167,7 +167,7 @@ export function initializeStudyMode(): void {
     popupAppearanceListenerInstalled = true;
     window.addEventListener("theme-updated", () => { void syncStudyModePopupAppearance(); });
   }
-remove resume invalidation block  void NativeStudyMode.refresh().then(rememberStudyModeSettings).catch(() => {
+  void NativeStudyMode.refresh().then(rememberStudyModeSettings).catch(() => {
     // The feature remains opt-in; permission or service failures are surfaced
     // on the Study Mode page from the next native status read.
   });

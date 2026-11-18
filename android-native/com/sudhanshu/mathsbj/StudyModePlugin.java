@@ -51,6 +51,7 @@ public final class StudyModePlugin extends Plugin {
     private static volatile boolean hasAppCatalogCache = false;
     private static volatile long appCatalogRevision = 1L;
     private static volatile long appCatalogCacheRevision = 0L;
+    private static volatile int appCatalogPackageChangeSequence = -1;
 
     public static void invalidateAppCatalogCache() {
         synchronized (APP_CATALOG_LOCK) {
@@ -59,6 +60,7 @@ public final class StudyModePlugin extends Plugin {
             cachedInstalledPackageCount = 0;
             hasAppCatalogCache = false;
             appCatalogRevision = appCatalogRevision == Long.MAX_VALUE ? 1L : appCatalogRevision + 1L;
+            appCatalogPackageChangeSequence = -1;
         }
     }
     @PluginMethod
@@ -66,6 +68,25 @@ public final class StudyModePlugin extends Plugin {
         JSObject result = new JSObject();
         // A WebView cache from a previous Android process is not valid when the
         // native catalogue has not yet been rebuilt in the current process.
+        if (hasAppCatalogCache && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                if (appCatalogPackageChangeSequence < 0) {
+                    invalidateAppCatalogCache();
+                } else {
+                    android.content.pm.ChangedPackages changes = getContext().getPackageManager()
+                        .getChangedPackages(appCatalogPackageChangeSequence);
+                    if (changes != null && !changes.getPackageNames().isEmpty()) {
+                        // Includes additions, removals, updates and enabled-state changes.
+                        invalidateAppCatalogCache();
+                    } else if (changes != null) {
+                        appCatalogPackageChangeSequence = changes.getSequenceNumber();
+                    }
+                }
+            } catch (RuntimeException cannotVerifyPackageChanges) {
+                // Never trust stale app metadata when the package change feed is unavailable.
+                invalidateAppCatalogCache();
+            }
+        }
         result.put("revision", hasAppCatalogCache ? appCatalogCacheRevision : 0L);
         call.resolve(result);
     }
@@ -347,6 +368,16 @@ public final class StudyModePlugin extends Plugin {
             cachedInstalledPackageCount = installedApplications.size();
             appCatalogCacheTimeMs = SystemClock.elapsedRealtime();
             appCatalogCacheRevision = appCatalogRevision;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    android.content.pm.ChangedPackages changes = pm.getChangedPackages(0);
+                    appCatalogPackageChangeSequence = changes == null ? 0 : changes.getSequenceNumber();
+                } catch (RuntimeException unavailable) {
+                    appCatalogPackageChangeSequence = -1;
+                }
+            } else {
+                appCatalogPackageChangeSequence = -1;
+            }
             hasAppCatalogCache = true;
             return appCatalogCache;
         }
