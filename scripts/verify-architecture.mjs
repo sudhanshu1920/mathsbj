@@ -1216,7 +1216,8 @@ const studyModePickerHandlers = studyModePickerHandlersStart >= 0 && studyModePi
   ? studyModePage.slice(studyModePickerHandlersStart, studyModePickerHandlersEnd)
   : '';
 
-if (!studyModeBridge.includes('installedAppsCache.get(forceRefresh)') ||
+if (!studyModeBridge.includes('installedAppsCache.get()') ||
+    !studyModeBridge.includes('installedAppsCache.get(true)') ||
     !studyModeBridge.includes('invalidateStudyModeAppCatalogCache') ||
     !studyModeAppCatalogCache.includes('if (pending) return pending') ||
     !studyModeAppCatalogCache.includes('generation += 1') ||
