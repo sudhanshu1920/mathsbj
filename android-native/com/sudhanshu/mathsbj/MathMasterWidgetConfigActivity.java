@@ -6,6 +6,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -17,7 +19,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,23 +28,29 @@ import org.json.JSONException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashSet;
 import java.util.Set;
 
 public class MathMasterWidgetConfigActivity extends Activity {
     private static final String PREFS = "math_master_home_widget";
     private static final int INVALID_WIDGET_ID = AppWidgetManager.INVALID_APPWIDGET_ID;
+    private static final int ACCENT = Color.rgb(101, 88, 217);
 
     private final Map<String, CheckBox> contentChecks = new LinkedHashMap<>();
-    private RadioGroup styleGroup;
-    private RadioGroup compositionGroup;
+    private final List<RadioButton> styleChoices = new ArrayList<>();
+    private final List<RadioButton> compositionChoices = new ArrayList<>();
     private TextView previewSummary;
-    private FrameLayout previewFrame;
     private ImageView previewArtwork;
     private int widgetId = INVALID_WIDGET_ID;
+    private int surfaceColor;
+    private int cardColor;
+    private int textColor;
+    private int mutedColor;
+    private int borderColor;
+    private boolean buildingUi;
 
     private static final String[][] CONTENT_OPTIONS = {
         {"appIdentity", "App Identity"},
@@ -57,6 +64,12 @@ public class MathMasterWidgetConfigActivity extends Activity {
         {"updateStatus", "Update Status"}
     };
 
+    private static final String[][] STYLE_OPTIONS = {
+        {"neon", "Neon Glass"},
+        {"blur", "Transparent Blur"},
+        {"transparent", "Full Transparent"}
+    };
+
     private static final String[][] WIDGET_COMPOSITIONS = MathMasterHomeWidgetProvider.getWidgetCompositionOptions();
 
     @Override
@@ -64,41 +77,31 @@ public class MathMasterWidgetConfigActivity extends Activity {
         super.onCreate(savedInstanceState);
         setResult(RESULT_CANCELED);
         widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, INVALID_WIDGET_ID);
-        if (widgetId == INVALID_WIDGET_ID) {
-            finish();
-            return;
-        }
-        // The configuration Activity is exported for Android's launcher flow.
-        // Validate IDs here as well as in the Capacitor bridge before reading or
-        // mutating preferences, so an external intent cannot target an arbitrary ID.
-        int[] activeWidgetIds = AppWidgetManager.getInstance(this).getAppWidgetIds(
-            new ComponentName(this, MathMasterHomeWidgetProvider.class));
-        boolean activeWidget = false;
-        for (int activeId : activeWidgetIds) {
-            if (activeId == widgetId) {
-                activeWidget = true;
-                break;
-            }
-        }
-        if (!activeWidget) {
+        if (widgetId == INVALID_WIDGET_ID || !isActiveWidget(widgetId)) {
             finish();
             return;
         }
 
+        resolvePalette();
         SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(surfaceColor);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.setClipToPadding(false);
+        scroll.setPadding(0, 0, 0, dp(8));
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(20), dp(18), dp(20), dp(16));
-        content.setBackgroundColor(Color.parseColor("#F4F6FB"));
+        content.setPadding(dp(16), dp(12), dp(16), dp(8));
+        scroll.addView(content, new ScrollView.LayoutParams(
+            ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
+        root.addView(scroll, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        TextView title = new TextView(this);
-        title.setText("Customize Your Widget");
-        title.setTextColor(Color.parseColor("#192235"));
-        title.setTextSize(21);
-        title.setTypeface(null, 1);
-        content.addView(title, matchWrap());
-
-        addSectionLabel(content, "Widget Content");
+        addHeader(content);
+        addSectionLabel(content, "WIDGET CONTENT", "Choose what appears on your home screen");
         String existingJson = preferences.getString(
             "instance_" + widgetId + "_contentJson",
             preferences.getString("contentJson", "[\"appIdentity\",\"target\",\"progress\",\"remaining\",\"studyTime\",\"streak\",\"weekly\",\"quiz\",\"updateStatus\"]")
@@ -106,120 +109,307 @@ public class MathMasterWidgetConfigActivity extends Activity {
         List<String> selected = parseContent(existingJson);
         boolean savedForThisWidget = preferences.contains("instance_" + widgetId + "_contentJson");
         int savedSchema = preferences.getInt("instance_" + widgetId + "_contentSchemaVersion", 0);
-        // Lists saved before the quiz tile existed keep it on, exactly like the widget itself does.
         if ((!savedForThisWidget || savedSchema < 3) && !selected.contains("quiz")) selected.add("quiz");
-        for (String[] option : CONTENT_OPTIONS) {
-            CheckBox checkBox = new CheckBox(this);
-            checkBox.setText(option[1]);
-            checkBox.setTextColor(Color.parseColor("#243149"));
-            checkBox.setTextSize(14);
-            checkBox.setButtonTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#6558D9")));
-            checkBox.setChecked(selected.contains(option[0]));
-            contentChecks.put(option[0], checkBox);
-            checkBox.setOnCheckedChangeListener((button, checked) -> updatePreview());
-            content.addView(checkBox, matchWrap());
-        }
+        addContentGrid(content, selected);
 
-        addSectionLabel(content, "Background Effect");
-        TextView effectHint = new TextView(this);
-        effectHint.setText("Neon Glass is the reference design. The other two blend with your wallpaper.");
-        effectHint.setTextColor(Color.parseColor("#667085"));
-        effectHint.setTextSize(12);
-        content.addView(effectHint, matchWrap());
-        styleGroup = new RadioGroup(this);
-        styleGroup.setOrientation(RadioGroup.VERTICAL);
-        String savedStyle = preferences.getString("instance_" + widgetId + "_style", preferences.getString("style", "neon"));
-        String currentStyle = normalizeWidgetStyle(savedStyle);
-        addRadio(styleGroup, "neon", "Neon Glass (reference design)", currentStyle);
-        addRadio(styleGroup, "blur", "Transparent Blur", currentStyle);
-        addRadio(styleGroup, "transparent", "Full Transparent", currentStyle);
-        styleGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
-        content.addView(styleGroup, matchWrap());
+        addSectionLabel(content, "BACKGROUND EFFECT", "Select the surface that blends with your wallpaper");
+        String currentStyle = normalizeWidgetStyle(preferences.getString(
+            "instance_" + widgetId + "_style", preferences.getString("style", "neon")));
+        addStyleGrid(content, currentStyle);
 
-        addSectionLabel(content, "Design Composition");
-        compositionGroup = new RadioGroup(this);
-        compositionGroup.setOrientation(RadioGroup.VERTICAL);
+        addSectionLabel(content, "DESIGN COMPOSITION", "Eight layouts · previews use the real widget renderer");
         String currentComposition = preferences.getString(
             "instance_" + widgetId + "_composition", preferences.getString("composition", "auto"));
         if (!isValidComposition(currentComposition)) currentComposition = "auto";
-        for (String[] compositionOption : WIDGET_COMPOSITIONS) {
-            addRadio(compositionGroup, compositionOption[0], compositionOption[1], currentComposition);
-        }
-        compositionGroup.setOnCheckedChangeListener((group, checkedId) -> updatePreview());
-        content.addView(compositionGroup, matchWrap());
+        addCompositionGrid(content, currentComposition);
 
-        addSectionLabel(content, "Preview");
-        previewFrame = new FrameLayout(this);
-        GradientDrawable previewSurface = new GradientDrawable();
-        previewSurface.setColor(Color.parseColor("#2A3140"));
-        previewSurface.setCornerRadius(dp(16));
-        previewFrame.setBackground(previewSurface);
+        addSectionLabel(content, "LIVE PREVIEW", "Updates as you change any option");
+        LinearLayout previewCard = cardContainer();
+        previewCard.setPadding(dp(8), dp(8), dp(8), dp(8));
+        FrameLayout previewFrame = new FrameLayout(this);
+        previewFrame.setBackground(rounded(Color.rgb(35, 43, 58), dp(14), borderColor));
         previewFrame.setClipToOutline(true);
-
         previewArtwork = new ImageView(this);
         previewArtwork.setScaleType(ImageView.ScaleType.FIT_CENTER);
         previewArtwork.setAdjustViewBounds(true);
-        previewArtwork.setMaxHeight(dp(300));
-        previewArtwork.setPadding(dp(10), dp(10), dp(10), dp(10));
-        previewArtwork.setContentDescription("Preview of the selected widget design");
+        previewArtwork.setMaxHeight(dp(176));
+        previewArtwork.setPadding(dp(6), dp(4), dp(6), dp(4));
+        previewArtwork.setContentDescription("Live preview of the selected widget design");
         previewFrame.addView(previewArtwork, new FrameLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        content.addView(previewFrame, matchWrap());
-
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+        previewCard.addView(previewFrame, matchWrap());
         previewSummary = new TextView(this);
-        previewSummary.setTextColor(Color.parseColor("#243149"));
-        previewSummary.setTextSize(12);
-        previewSummary.setPadding(dp(14), dp(12), dp(14), dp(12));
-        previewSummary.setBackgroundColor(Color.TRANSPARENT);
-        content.addView(previewSummary, matchWrap());
+        previewSummary.setTextColor(mutedColor);
+        previewSummary.setTextSize(11);
+        previewSummary.setPadding(dp(4), dp(7), dp(4), dp(2));
+        previewCard.addView(previewSummary, matchWrap());
+        content.addView(previewCard, sectionParams());
         updatePreview();
 
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setGravity(Gravity.END);
-        actions.setPadding(0, dp(16), 0, 0);
-        Button cancel = new Button(this);
-        cancel.setText("Cancel");
+        actions.setGravity(Gravity.CENTER_VERTICAL);
+        actions.setPadding(dp(16), dp(9), dp(16), dp(9));
+        actions.setBackground(rounded(cardColor, dp(16), borderColor));
+        Button cancel = actionButton("Cancel", false);
         cancel.setOnClickListener(view -> finish());
-        Button save = new Button(this);
-        save.setText("Save");
+        Button save = actionButton("Save changes", true);
         save.setOnClickListener(view -> saveConfiguration());
-        actions.addView(cancel);
-        actions.addView(save);
-        content.addView(actions, matchWrap());
-
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.addView(content);
-        setContentView(scroll);
+        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        cancelParams.setMarginEnd(dp(8));
+        actions.addView(cancel, cancelParams);
+        actions.addView(save, new LinearLayout.LayoutParams(0, dp(44), 1.25f));
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        actionParams.setMargins(dp(12), dp(6), dp(12), dp(10));
+        root.addView(actions, actionParams);
+        setContentView(root);
     }
 
-    private void addRadio(RadioGroup group, String value, String label, String selectedValue) {
+    private boolean isActiveWidget(int id) {
+        int[] activeIds = AppWidgetManager.getInstance(this).getAppWidgetIds(
+            new ComponentName(this, MathMasterHomeWidgetProvider.class));
+        if (activeIds == null) return false;
+        for (int activeId : activeIds) if (activeId == id) return true;
+        return false;
+    }
+
+    private void resolvePalette() {
+        boolean dark = (getResources().getConfiguration().uiMode
+            & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        surfaceColor = dark ? Color.rgb(17, 20, 29) : Color.rgb(245, 247, 252);
+        cardColor = dark ? Color.rgb(28, 33, 46) : Color.WHITE;
+        textColor = dark ? Color.rgb(239, 242, 250) : Color.rgb(28, 36, 54);
+        mutedColor = dark ? Color.rgb(164, 173, 192) : Color.rgb(101, 112, 133);
+        borderColor = dark ? Color.rgb(57, 65, 83) : Color.rgb(224, 229, 239);
+    }
+
+    private void addHeader(LinearLayout parent) {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        TextView eyebrow = new TextView(this);
+        eyebrow.setText("MATH MASTER  /  WIDGET STUDIO");
+        eyebrow.setTextColor(ACCENT);
+        eyebrow.setTextSize(10);
+        eyebrow.setLetterSpacing(0.08f);
+        TextView title = new TextView(this);
+        title.setText("Customize Your Widget");
+        title.setTextColor(textColor);
+        title.setTextSize(21);
+        title.setTypeface(null, 1);
+        TextView subtitle = new TextView(this);
+        subtitle.setText("Personalize widget #" + widgetId);
+        subtitle.setTextColor(mutedColor);
+        subtitle.setTextSize(11);
+        header.addView(eyebrow, matchWrap());
+        LinearLayout.LayoutParams titleParams = matchWrap();
+        titleParams.topMargin = dp(3);
+        header.addView(title, titleParams);
+        LinearLayout.LayoutParams subtitleParams = matchWrap();
+        subtitleParams.topMargin = dp(2);
+        header.addView(subtitle, subtitleParams);
+        parent.addView(header, sectionParams());
+    }
+
+    private void addContentGrid(LinearLayout parent, List<String> selected) {
+        int columns = gridColumns();
+        LinearLayout row = null;
+        for (int i = 0; i < CONTENT_OPTIONS.length; i++) {
+            if (i % columns == 0) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                parent.addView(row, sectionParams());
+            }
+            String[] option = CONTENT_OPTIONS[i];
+            CheckBox check = new CheckBox(this);
+            check.setText(option[1]);
+            check.setTextColor(textColor);
+            check.setTextSize(11);
+            check.setMinHeight(dp(44));
+            check.setButtonTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+            check.setPadding(dp(5), dp(2), dp(5), dp(2));
+            check.setBackground(rounded(cardColor, dp(11), borderColor));
+            check.setChecked(selected.contains(option[0]));
+            contentChecks.put(option[0], check);
+            check.setOnCheckedChangeListener((button, checked) -> {
+                if (!buildingUi) updatePreview();
+                check.setBackground(rounded(checked ? selectedSurface() : cardColor, dp(11),
+                    checked ? ACCENT : borderColor));
+            });
+            check.setBackground(rounded(selected.contains(option[0]) ? selectedSurface() : cardColor,
+                dp(11), selected.contains(option[0]) ? ACCENT : borderColor));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1f);
+            params.setMargins(dp(2), dp(2), dp(2), dp(2));
+            row.addView(check, params);
+        }
+        int remainder = CONTENT_OPTIONS.length % columns;
+        if (remainder != 0 && row != null) {
+            for (int i = remainder; i < columns; i++) row.addView(new View(this),
+                new LinearLayout.LayoutParams(0, dp(48), 1f));
+        }
+    }
+
+    private void addStyleGrid(LinearLayout parent, String selectedStyle) {
+        int columns = 3;
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        parent.addView(row, sectionParams());
+        for (String[] option : STYLE_OPTIONS) {
+            LinearLayout tile = cardContainer();
+            tile.setGravity(Gravity.CENTER);
+            tile.setPadding(dp(4), dp(8), dp(4), dp(7));
+            View swatch = new View(this);
+            int swatchColor = "neon".equals(option[0]) ? Color.rgb(83, 75, 170)
+                : ("blur".equals(option[0]) ? Color.rgb(102, 119, 142) : Color.TRANSPARENT);
+            swatch.setBackground(rounded(swatchColor, dp(8), ACCENT));
+            tile.addView(swatch, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(25)));
+            RadioButton choice = compactRadio(option[1], option[0], selectedStyle);
+            styleChoices.add(choice);
+            tile.addView(choice, matchWrap());
+            tile.setOnClickListener(view -> selectChoice(styleChoices, choice));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(76), 1f);
+            params.setMargins(dp(2), dp(2), dp(2), dp(2));
+            row.addView(tile, params);
+        }
+    }
+
+    private void addCompositionGrid(LinearLayout parent, String selectedComposition) {
+        int columns = gridColumns();
+        LinearLayout row = null;
+        for (int i = 0; i < WIDGET_COMPOSITIONS.length; i++) {
+            if (i % columns == 0) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                parent.addView(row, sectionParams());
+            }
+            String[] option = WIDGET_COMPOSITIONS[i];
+            LinearLayout tile = cardContainer();
+            tile.setPadding(dp(5), dp(5), dp(5), dp(4));
+            ImageView thumbnail = new ImageView(this);
+            thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            thumbnail.setAdjustViewBounds(true);
+            thumbnail.setMaxHeight(dp(54));
+            thumbnail.setContentDescription(option[1] + " actual widget preview");
+            Bitmap bitmap = renderDesignThumbnail(option[0]);
+            if (bitmap != null) thumbnail.setImageBitmap(bitmap);
+            tile.addView(thumbnail, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(54)));
+            RadioButton choice = compactRadio(option[1], option[0], selectedComposition);
+            compositionChoices.add(choice);
+            tile.addView(choice, matchWrap());
+            tile.setOnClickListener(view -> selectChoice(compositionChoices, choice));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(102), 1f);
+            params.setMargins(dp(2), dp(2), dp(2), dp(2));
+            row.addView(tile, params);
+        }
+        int remainder = WIDGET_COMPOSITIONS.length % columns;
+        if (remainder != 0 && row != null) {
+            for (int i = remainder; i < columns; i++) row.addView(new View(this),
+                new LinearLayout.LayoutParams(0, dp(102), 1f));
+        }
+    }
+
+    private Bitmap renderDesignThumbnail(String composition) {
+        try {
+            Set<String> sample = new HashSet<>(Arrays.asList("appIdentity", "target", "progress", "streak", "weekly"));
+            return MathMasterHomeWidgetProvider.renderConfigurationPreview(
+                this, composition, "neon", sample, 190, 92);
+        } catch (RuntimeException | OutOfMemoryError ignored) {
+            return null;
+        }
+    }
+
+    private RadioButton compactRadio(String label, String value, String selectedValue) {
         RadioButton radio = new RadioButton(this);
         radio.setId(View.generateViewId());
         radio.setTag(value);
         radio.setText(label);
-        radio.setTextSize(12);
-        radio.setTextColor(Color.parseColor("#243149"));
-        radio.setButtonTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#6558D9")));
-        RadioGroup.LayoutParams params = group.getOrientation() == RadioGroup.HORIZONTAL
-            ? new RadioGroup.LayoutParams(0, dp(48), 1f)
-            : new RadioGroup.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42));
-        group.addView(radio, params);
-        if (value.equals(selectedValue)) group.check(radio.getId());
+        radio.setTextColor(textColor);
+        radio.setTextSize(10);
+        radio.setMinHeight(dp(34));
+        radio.setPadding(dp(1), 0, dp(1), 0);
+        radio.setButtonTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+        radio.setChecked(value.equals(selectedValue));
+        radio.setOnClickListener(view -> {
+            if (radio.isChecked()) {
+                List<RadioButton> choices = styleChoices.contains(radio) ? styleChoices : compositionChoices;
+                selectChoice(choices, radio);
+            }
+        });
+        return radio;
     }
 
-    private void addSectionLabel(LinearLayout parent, String label) {
-        TextView view = new TextView(this);
-        view.setText(label);
-        view.setTextColor(Color.parseColor("#526078"));
-        view.setTextSize(12);
-        view.setTypeface(null, 1);
-        view.setPadding(0, dp(14), 0, dp(4));
-        parent.addView(view, matchWrap());
+    private void selectChoice(List<RadioButton> choices, RadioButton selected) {
+        for (RadioButton choice : choices) choice.setChecked(choice == selected);
+        updatePreview();
     }
 
-    /** Size the preview is drawn at: this widget's real launcher size, so it matches what lands on the home screen. */
+    private void addSectionLabel(LinearLayout parent, String label, String helper) {
+        LinearLayout heading = new LinearLayout(this);
+        heading.setOrientation(LinearLayout.VERTICAL);
+        TextView title = new TextView(this);
+        title.setText(label);
+        title.setTextColor(textColor);
+        title.setTextSize(11);
+        title.setTypeface(null, 1);
+        title.setLetterSpacing(0.06f);
+        TextView hint = new TextView(this);
+        hint.setText(helper);
+        hint.setTextColor(mutedColor);
+        hint.setTextSize(10);
+        heading.addView(title, matchWrap());
+        LinearLayout.LayoutParams hintParams = matchWrap();
+        hintParams.topMargin = dp(1);
+        heading.addView(hint, hintParams);
+        parent.addView(heading, sectionParams());
+    }
+
+    private LinearLayout cardContainer() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(rounded(cardColor, dp(12), borderColor));
+        return card;
+    }
+
+    private Button actionButton(String label, boolean primary) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setAllCaps(false);
+        button.setTextSize(12);
+        button.setTypeface(null, 1);
+        button.setTextColor(primary ? Color.WHITE : textColor);
+        button.setBackground(rounded(primary ? ACCENT : cardColor, dp(12), primary ? ACCENT : borderColor));
+        button.setMinHeight(dp(44));
+        button.setPadding(dp(8), 0, dp(8), 0);
+        return button;
+    }
+
+    private int selectedSurface() {
+        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+            == Configuration.UI_MODE_NIGHT_YES ? Color.rgb(49, 43, 83) : Color.rgb(239, 237, 255);
+    }
+
+    private int gridColumns() {
+        float widthDp = getResources().getDisplayMetrics().widthPixels
+            / getResources().getDisplayMetrics().density;
+        return widthDp >= 840 ? 4 : (widthDp >= 600 ? 3 : 2);
+    }
+
+    private GradientDrawable rounded(int color, int radius, int stroke) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(radius);
+        drawable.setStroke(dp(1), stroke);
+        return drawable;
+    }
+
+    private LinearLayout.LayoutParams sectionParams() {
+        LinearLayout.LayoutParams params = matchWrap();
+        params.topMargin = dp(8);
+        return params;
+    }
+
     private int[] previewSizeDp() {
         Bundle options = AppWidgetManager.getInstance(this).getAppWidgetOptions(widgetId);
         int width = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
@@ -236,72 +426,112 @@ public class MathMasterWidgetConfigActivity extends Activity {
         Set<String> selected = new HashSet<>();
         List<String> selectedLabels = new ArrayList<>();
         for (String[] option : CONTENT_OPTIONS) {
-            CheckBox checkBox = contentChecks.get(option[0]);
-            if (checkBox != null && checkBox.isChecked()) {
+            CheckBox check = contentChecks.get(option[0]);
+            if (check != null && check.isChecked()) {
                 selected.add(option[0]);
                 selectedLabels.add(option[1]);
             }
         }
-        String style = normalizeWidgetStyle(selectedRadioValue(styleGroup, "neon"));
-        String composition = selectedRadioValue(compositionGroup, "auto");
-        boolean noFieldsSelected = selected.isEmpty();
-
-        android.graphics.Bitmap preview = null;
-        if (!noFieldsSelected) {
-            int[] size = previewSizeDp();
-            try {
-                preview = MathMasterHomeWidgetProvider.renderConfigurationPreview(
-                    this, composition, style, selected, size[0], size[1]);
-            } catch (RuntimeException | OutOfMemoryError ignored) {
-                preview = null;
-            }
+        String style = selectedRadioValue(styleChoices, "neon");
+        String composition = selectedRadioValue(compositionChoices, "auto");
+        if (selected.isEmpty()) {
+            previewArtwork.setImageDrawable(null);
+            previewArtwork.setVisibility(View.GONE);
+            previewSummary.setText("Select at least one content item to preview this widget.");
+            return;
         }
-        previewArtwork.setImageBitmap(preview);
-        previewArtwork.setVisibility(preview == null ? View.GONE : View.VISIBLE);
-
-        String effectLabel = "transparent".equals(style) ? "Full Transparent"
-            : ("blur".equals(style) ? "Transparent Blur" : "Neon Glass");
-        previewSummary.setText(noFieldsSelected
-            ? "Select at least one field\nBackground: " + effectLabel
-            : "Design: " + compositionLabel(composition) + "\n"
-                + android.text.TextUtils.join("  ·  ", selectedLabels)
-                + "\nBackground: " + effectLabel);
+        int[] size = previewSizeDp();
+        try {
+            Bitmap preview = MathMasterHomeWidgetProvider.renderConfigurationPreview(
+                this, composition, style, selected, size[0], size[1]);
+            previewArtwork.setImageBitmap(preview);
+            previewArtwork.setVisibility(preview == null ? View.GONE : View.VISIBLE);
+        } catch (RuntimeException | OutOfMemoryError ignored) {
+            previewArtwork.setImageDrawable(null);
+            previewArtwork.setVisibility(View.GONE);
+        }
+        previewSummary.setText(compositionLabel(composition) + "  ·  "
+            + styleLabel(style) + "  ·  " + selected.size() + " fields");
     }
 
     private void saveConfiguration() {
         JSONArray selected = new JSONArray();
         for (String[] option : CONTENT_OPTIONS) {
-            CheckBox checkBox = contentChecks.get(option[0]);
-            if (checkBox != null && checkBox.isChecked()) selected.put(option[0]);
+            CheckBox check = contentChecks.get(option[0]);
+            if (check != null && check.isChecked()) selected.put(option[0]);
         }
         if (selected.length() == 0) {
             Toast.makeText(this, "Select at least one widget field.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String style = normalizeWidgetStyle(selectedRadioValue(styleGroup, "neon"));
-        String composition = selectedRadioValue(compositionGroup, "auto");
-        if (!isValidComposition(composition)) composition = "auto";
-        SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        preferences.edit()
-            .putString("instance_" + widgetId + "_contentJson", selected.toString())
-            .putInt("instance_" + widgetId + "_contentSchemaVersion", 3)
-            .putString("instance_" + widgetId + "_style", style)
-            .putString("instance_" + widgetId + "_composition", composition)
-            .remove("instance_" + widgetId + "_themeMode")
-            .remove("instance_" + widgetId + "_theme")
-            .apply();
+        String style = normalizeWidgetStyle(selectedRadioValue(styleChoices, "neon"));
+        String composition = selectedRadioValue(compositionChoices, "auto");
+        if (!isValidComposition(composition)) {
+            Toast.makeText(this, "Choose a valid widget design.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!isActiveWidget(widgetId)) {
+            Toast.makeText(this, "This widget is no longer active. Reopen Widget Studio.", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
 
-        AppWidgetManager manager = AppWidgetManager.getInstance(this);
-        manager.updateAppWidget(widgetId, MathMasterHomeWidgetProvider.createViews(this, widgetId));
+        SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String prefix = "instance_" + widgetId + "_";
+        String contentKey = prefix + "contentJson";
+        String schemaKey = prefix + "contentSchemaVersion";
+        String styleKey = prefix + "style";
+        String compositionKey = prefix + "composition";
+        boolean hadContent = preferences.contains(contentKey);
+        boolean hadSchema = preferences.contains(schemaKey);
+        boolean hadStyle = preferences.contains(styleKey);
+        boolean hadComposition = preferences.contains(compositionKey);
+        String oldContent = preferences.getString(contentKey, null);
+        int oldSchema = preferences.getInt(schemaKey, 0);
+        String oldStyle = preferences.getString(styleKey, null);
+        String oldComposition = preferences.getString(compositionKey, null);
+
+        boolean saved = preferences.edit()
+            .putString(contentKey, selected.toString())
+            .putInt(schemaKey, 3)
+            .putString(styleKey, style)
+            .putString(compositionKey, composition)
+            .remove(prefix + "themeMode")
+            .remove(prefix + "theme")
+            .commit();
+        if (!saved) {
+            Toast.makeText(this, "Could not save widget settings. Your previous settings are unchanged.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        try {
+            AppWidgetManager manager = AppWidgetManager.getInstance(this);
+            manager.updateAppWidget(widgetId, MathMasterHomeWidgetProvider.createViews(this, widgetId));
+        } catch (RuntimeException updateError) {
+            SharedPreferences.Editor rollback = preferences.edit();
+            restoreValue(rollback, contentKey, hadContent, oldContent);
+            if (hadSchema) rollback.putInt(schemaKey, oldSchema); else rollback.remove(schemaKey);
+            restoreValue(rollback, styleKey, hadStyle, oldStyle);
+            restoreValue(rollback, compositionKey, hadComposition, oldComposition);
+            rollback.commit();
+            Toast.makeText(this, "Widget update failed. Previous settings were restored.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         Intent result = new Intent();
         result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
         setResult(RESULT_OK, result);
+        Toast.makeText(this, "Widget updated successfully.", Toast.LENGTH_SHORT).show();
         finish();
     }
 
+    private static void restoreValue(SharedPreferences.Editor editor, String key, boolean existed, String value) {
+        if (existed && value != null) editor.putString(key, value);
+        else editor.remove(key);
+    }
+
     private static String normalizeWidgetStyle(String style) {
-        // Old Glass/Compact/Minimal values all mean the neon-glass design.
         return MathMasterHomeWidgetProvider.normalizeWidgetStyle(style);
     }
 
@@ -314,6 +544,11 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private static String compositionLabel(String composition) {
         for (String[] option : WIDGET_COMPOSITIONS) if (option[0].equals(composition)) return option[1];
         return "Auto (adapts to size)";
+    }
+
+    private static String styleLabel(String style) {
+        for (String[] option : STYLE_OPTIONS) if (option[0].equals(style)) return option[1];
+        return "Neon Glass";
     }
 
     private static List<String> parseContent(String json) {
@@ -333,23 +568,19 @@ public class MathMasterWidgetConfigActivity extends Activity {
         return values;
     }
 
-    private static String selectedRadioValue(RadioGroup group, String fallback) {
-        if (group == null || group.getCheckedRadioButtonId() == -1) return fallback;
-        RadioButton selected = group.findViewById(group.getCheckedRadioButtonId());
-        Object value = selected == null ? null : selected.getTag();
-        return value instanceof String ? (String) value : fallback;
+    private static String selectedRadioValue(List<RadioButton> choices, String fallback) {
+        for (RadioButton choice : choices) {
+            if (choice.isChecked() && choice.getTag() instanceof String) return (String) choice.getTag();
+        }
+        return fallback;
     }
 
     private static LinearLayout.LayoutParams matchWrap() {
-        return new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        return new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
     }
 
     private int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
-    }
-
-    private static String capitalize(String value) {
-        if (value == null || value.isEmpty()) return value;
-        return Character.toUpperCase(value.charAt(0)) + value.substring(1);
     }
 }
