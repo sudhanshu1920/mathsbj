@@ -3747,3 +3747,332 @@ html.desktop-mode .study-mode-page {
     transition: none !important;
   }
 }
+
+/* Compact premium refinement for the three Study Mode detail cards. */
+.study-mode-focus-card,
+.study-mode-session-card,
+.study-mode-schedule-card {
+  border-radius: 1rem;
+  transition: padding 180ms var(--motion-ease-standard),
+    border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.study-mode-focus-card:not(.is-expanded),
+.study-mode-session-card:not(.is-expanded),
+.study-mode-schedule-card:not(.is-expanded) {
+  padding: 0.55rem 0.7rem;
+  border-color: hsl(var(--border) / 0.68);
+  box-shadow: 0 2px 9px hsl(var(--foreground) / 0.035);
+}
+
+.study-mode-focus-card.is-expanded,
+.study-mode-session-card.is-expanded,
+.study-mode-schedule-card.is-expanded {
+  padding: 0.75rem 0.85rem;
+  box-shadow: 0 5px 16px hsl(var(--foreground) / 0.055);
+}
+
+.study-mode-focus-header,
+.study-mode-session-card .study-mode-section-header,
+.study-mode-schedule-card .study-mode-section-header {
+  gap: 0.45rem;
+  min-height: 2rem;
+}
+
+.study-mode-focus-header > div:first-child {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.7rem;
+  box-shadow: none;
+}
+
+.study-mode-focus-header > div:first-child svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.study-mode-focus-header > div:nth-child(2) > div:first-child {
+  gap: 0.4rem;
+}
+
+.study-mode-focus-header > div:nth-child(2) > div:first-child > span:first-child {
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.study-mode-focus-header > div:nth-child(2) > div:first-child > span:last-child {
+  padding: 0.13rem 0.38rem;
+  font-size: 0.48rem;
+  line-height: 1.2;
+}
+
+.study-mode-session-card .study-mode-section-header > div:first-child > span:first-child,
+.study-mode-schedule-card .study-mode-section-header > div:first-child > span:first-child {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 0.68rem;
+}
+
+.study-mode-session-card .study-mode-section-header > div:first-child > span:first-child svg,
+.study-mode-schedule-card .study-mode-section-header > div:first-child > span:first-child svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.study-mode-session-card .study-mode-section-header h3,
+.study-mode-schedule-card .study-mode-section-header h3 {
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.study-mode-compact-summary {
+  margin-top: 0.12rem;
+  font-size: 0.53rem;
+  line-height: 1.25;
+}
+
+.study-mode-schedule-card .study-mode-section-header > div:first-child > span:last-child {
+  padding: 0.13rem 0.38rem;
+  font-size: 0.48rem;
+}
+
+.study-mode-expand-toggle {
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  flex-basis: 2rem;
+  border-radius: 0.68rem;
+  background: hsl(var(--background) / 0.72);
+}
+
+.study-mode-expand-toggle svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.study-mode-focus-controls {
+  gap: 0.25rem;
+}
+
+.study-mode-focus-controls button.gradient-primary {
+  min-width: 3.55rem;
+  min-height: 2rem;
+  padding-inline: 0.48rem;
+  border-radius: 0.65rem;
+  font-size: 0.58rem;
+  gap: 0.28rem;
+  box-shadow: 0 1px 5px hsl(var(--primary) / 0.16);
+}
+
+.study-mode-focus-controls button.gradient-primary svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.study-mode-focus-controls [role="switch"] {
+  width: 2.1rem;
+  height: 1.2rem;
+  min-height: 1.2rem;
+  padding: 2px;
+}
+
+.study-mode-focus-controls [role="switch"] > span {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.study-mode-focus-controls [role="switch"][data-state="checked"] > span {
+  transform: translateX(0.88rem);
+}
+
+.study-mode-expandable__inner {
+  padding-top: 0.58rem;
+}
+
+.study-mode-focus-card .study-mode-status-copy {
+  margin-bottom: 0.5rem;
+  font-size: 0.58rem;
+  line-height: 1.35;
+}
+
+.study-mode-focus-card .study-mode-focus-pro-control {
+  margin-bottom: 0.5rem;
+}
+
+.study-mode-focus-card .study-mode-focus-summary {
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+}
+
+.study-mode-focus-card .study-mode-session-timer {
+  width: 80px;
+  height: 80px;
+}
+
+.study-mode-focus-card .study-mode-session-timer > div > span:first-child {
+  font-size: 1rem;
+}
+
+.study-mode-focus-card .study-mode-focus-status {
+  margin-top: 0.65rem;
+  padding-top: 0.6rem;
+  gap: 0.35rem;
+}
+
+.study-mode-focus-card .study-mode-focus-status > span {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.52rem;
+}
+
+.study-mode-session-card .study-mode-expandable__inner,
+.study-mode-schedule-card .study-mode-expandable__inner {
+  padding-top: 0.58rem;
+}
+
+.study-mode-session-card .study-mode-session-fields {
+  gap: 0.55rem;
+}
+
+.study-mode-session-card .study-mode-session-fields label {
+  font-size: 0.55rem;
+}
+
+.study-mode-session-card select {
+  height: 2.25rem;
+  margin-top: 0.35rem;
+  padding-inline: 0.65rem;
+  border-radius: 0.7rem;
+  font-size: 0.68rem;
+}
+
+.study-mode-session-card .study-mode-session-toggles {
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.study-mode-session-card .study-mode-session-toggles > div {
+  min-height: 2.35rem;
+  padding-inline: 0.65rem;
+  border-radius: 0.72rem;
+}
+
+.study-mode-session-card .study-mode-session-toggles > div > span {
+  font-size: 0.6rem;
+}
+
+.study-mode-session-card .study-mode-expandable__inner > button:not(.study-mode-expand-toggle) {
+  min-height: 2.35rem;
+  margin-top: 0.65rem;
+  border-radius: 0.75rem;
+  font-size: 0.62rem;
+}
+
+.study-mode-schedule-card .study-mode-schedule-times {
+  gap: 0.55rem;
+}
+
+.study-mode-schedule-card .study-mode-schedule-times > button {
+  min-height: 3.2rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.78rem;
+}
+
+.study-mode-schedule-card .study-mode-schedule-times > button > span:first-child {
+  font-size: 0.52rem;
+}
+
+.study-mode-schedule-card .study-mode-schedule-times > button > span:last-child {
+  font-size: 0.92rem;
+}
+
+.study-mode-schedule-card .study-mode-weekdays {
+  margin-top: 0.65rem;
+}
+
+.study-mode-schedule-card .study-mode-weekday-grid {
+  gap: 0.28rem;
+}
+
+.study-mode-schedule-card .study-mode-weekday-grid button {
+  min-height: 1.9rem;
+  border-radius: 0.62rem;
+  font-size: 0.58rem;
+}
+
+.study-mode-schedule-card .study-mode-schedule-actions {
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.study-mode-schedule-card .study-mode-schedule-actions button {
+  min-height: 1.85rem;
+  padding-inline: 0.55rem;
+  border-radius: 0.62rem;
+  font-size: 0.55rem;
+}
+
+@media (max-width: 420px) {
+  .study-mode-focus-header {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .study-mode-focus-header > div:nth-child(2) {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .study-mode-focus-controls {
+    flex: 0 0 auto;
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
+    gap: 0.2rem;
+  }
+
+  .study-mode-focus-controls button.gradient-primary {
+    min-width: 3.2rem;
+    min-height: 1.9rem;
+    font-size: 0.54rem;
+  }
+
+  .study-mode-focus-card .study-mode-focus-summary {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 0.55rem;
+  }
+
+  .study-mode-focus-card .study-mode-session-timer {
+    width: 76px;
+    height: 76px;
+  }
+}
+
+@media (max-width: 360px) {
+  .study-mode-focus-header > div:first-child {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+
+  .study-mode-focus-controls button.gradient-primary {
+    min-width: 2.9rem;
+    padding-inline: 0.35rem;
+  }
+
+  .study-mode-expand-toggle {
+    width: 1.85rem;
+    height: 1.85rem;
+    min-width: 1.85rem;
+    flex-basis: 1.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-mode-focus-card,
+  .study-mode-session-card,
+  .study-mode-schedule-card {
+    transition: none;
+  }
+}
+
