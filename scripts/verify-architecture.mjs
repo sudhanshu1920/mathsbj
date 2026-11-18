@@ -1040,13 +1040,21 @@ if (!studyModeSettings.includes('<StudyModePage onBack={() => setStudyModeOpen(f
 
 const studyModeSwitchIndex = studyModePage.indexOf('aria-label="Study Mode master switch"');
 const studyModeSaveIndex = studyModePage.indexOf('min-h-9 min-w-[76px]', studyModeSwitchIndex);
-const studyModeHeroGridIndex = studyModePage.indexOf('className="mt-4 grid grid-cols-[112px_minmax(0,1fr)]', studyModeSwitchIndex);
+const studyModeHeroGridIndex = studyModePage.indexOf('className="study-mode-focus-summary', studyModeSwitchIndex);
 if (!studyModePage.includes('useLayoutEffect(() => {') ||
     !studyModePage.includes('study-mode-page-state", { detail: { open: true }') ||
     !studyModePage.includes('aria-label={backLabel}') ||
     studyModeSwitchIndex < 0 ||
     studyModeSaveIndex <= studyModeSwitchIndex ||
     studyModeHeroGridIndex <= studyModeSaveIndex ||
+    !studyModePage.includes('study-mode-primary-grid--active') ||
+    !studyModePage.includes('study-mode-session-card') ||
+    !studyModePage.includes('study-mode-app-card__saved-label') ||
+    !studyModePage.includes('study-mode-schedule-times') ||
+    /(?:^|\\s)grid-cols-(?:2|5)(?:\\s|")/.test(studyModePage) ||
+    !css.includes('.study-mode-app-card__summary') ||
+    !css.includes('html.desktop-mode .study-mode-primary-grid') ||
+    !css.includes('@media (min-width: 768px) and (orientation: landscape)') ||
     !studyModePage.includes('Save Study Mode settings') ||
     studyModePage.includes('sticky bottom-0 z-20 -mx-1') ||
     !studyModePage.includes('if (saving || saveInFlightRef.current) return;') ||
