@@ -3285,4 +3285,304 @@ html.low-power .quiz-question-panel {
   vertical-align: middle;
 }
 
+/* ===== Study Mode: scoped responsive dashboard =====
+   Desktop layout reads the same html.desktop-mode class managed by
+   DesktopModeToggle. Study Mode intentionally avoids the global .grid-cols-2 /
+   .grid-cols-5 density overrides so these controls retain stable columns. */
+.study-mode-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+html.desktop-mode .study-mode-page {
+  max-width: min(100%, 76rem);
+}
+
+.study-mode-primary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(0.625rem, 1.2vw, 0.875rem);
+}
+
+.study-mode-primary-grid > * {
+  min-width: 0;
+}
+
+.study-mode-focus-card,
+.study-mode-session-card,
+.study-mode-card,
+.study-mode-app-card {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.study-mode-focus-card {
+  border-radius: 1.35rem;
+  padding: clamp(0.75rem, 1.2vw, 1rem);
+}
+
+.study-mode-focus-header {
+  min-width: 0;
+  gap: 0.625rem;
+}
+
+.study-mode-focus-controls {
+  gap: 0.375rem;
+}
+
+.study-mode-focus-controls > * {
+  flex-shrink: 0;
+}
+
+.study-mode-status-copy {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.study-mode-focus-summary {
+  grid-template-columns: 94px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.study-mode-session-timer {
+  width: 94px;
+  height: 94px;
+}
+
+.study-mode-focus-status {
+  row-gap: 0.4rem;
+}
+
+.study-mode-reminder-card {
+  border-radius: 1.1rem;
+}
+
+.study-mode-primary-grid--active .study-mode-focus-card {
+  width: 100%;
+}
+
+.study-mode-app-collections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.study-mode-app-card {
+  display: grid;
+  grid-template-rows: auto minmax(2.25rem, auto);
+  align-content: space-between;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: 6.25rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 1.1rem;
+  cursor: pointer;
+}
+
+.study-mode-app-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.study-mode-app-card__count {
+  min-width: 2rem;
+  padding-inline: 0.55rem;
+  min-height: 2rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.study-mode-app-card__summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 2.375rem;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.study-mode-app-card__icons {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.study-mode-app-card__icon {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 1.75rem;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 0.55rem;
+  background: hsl(var(--background) / 0.7);
+}
+
+.study-mode-app-card__saved-label {
+  min-width: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.study-mode-app-card__arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 9999px;
+  transition: transform 180ms ease;
+}
+
+.study-mode-app-card:hover .study-mode-app-card__arrow {
+  transform: translateX(2px);
+}
+
+.study-mode-app-card:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.study-mode-picker,
+.study-mode-session-card,
+.study-mode-schedule-card,
+.study-mode-permissions-card {
+  border-radius: 1.2rem;
+}
+
+.study-mode-section-header {
+  min-width: 0;
+}
+
+.study-mode-session-fields,
+.study-mode-session-toggles,
+.study-mode-schedule-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.study-mode-session-card select {
+  min-width: 0;
+}
+
+.study-mode-schedule-times {
+  max-width: 36rem;
+}
+
+.study-mode-schedule-card {
+  padding: clamp(0.75rem, 1.2vw, 1rem);
+}
+
+.study-mode-weekdays {
+  max-width: 48rem;
+}
+
+.study-mode-weekday-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: clamp(0.25rem, 0.7vw, 0.45rem);
+}
+
+.study-mode-weekday-grid button {
+  min-width: 0;
+  min-height: 2.25rem;
+}
+
+.study-mode-schedule-actions button {
+  min-height: 2rem;
+  padding-inline: 0.65rem;
+}
+
+@media (min-width: 560px) {
+  .study-mode-app-collections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .study-mode-focus-header {
+    flex-wrap: wrap;
+  }
+
+  .study-mode-focus-header > .min-w-0 {
+    flex: 1 1 calc(100% - 3.5rem);
+  }
+
+  .study-mode-focus-controls {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+
+  .study-mode-focus-summary {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .study-mode-session-timer {
+    width: 88px;
+    height: 88px;
+  }
+
+  .study-mode-session-fields,
+  .study-mode-session-toggles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .study-mode-app-card {
+    min-height: 6rem;
+  }
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  html.desktop-mode .study-mode-page {
+    max-width: min(100%, 76rem);
+  }
+
+  html.desktop-mode .study-mode-primary-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  }
+
+  html.desktop-mode .study-mode-primary-grid--active {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html.desktop-mode .study-mode-primary-grid--active .study-mode-focus-card {
+    grid-column: 1 / -1;
+  }
+
+  html.desktop-mode .study-mode-focus-summary {
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 0.875rem;
+  }
+
+  html.desktop-mode .study-mode-session-timer {
+    width: 100px;
+    height: 100px;
+  }
+}
+
+@media (min-width: 1440px) and (orientation: landscape) {
+  html.desktop-mode .study-mode-page {
+    max-width: min(100%, 76rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-mode-app-card__arrow {
+    transition: none;
+  }
+}
 
