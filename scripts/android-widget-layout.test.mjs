@@ -246,7 +246,8 @@ test('Widget Studio lists only real pinned IDs and uses the system add flow plus
   assert.ok(widgetSetup.includes("'MathMasterWidgetPinReceiver.java'"));
   assert.ok(widgetSetup.includes('registerPlugin(MathMasterWidgetsPlugin.class);'));
   assert.ok(widgetSetup.includes("name: 'MathMasterWidgetPinReceiver'"));
-  assert.match(plugin, /manager\.getAppWidgetIds\(new ComponentName\(context, MathMasterHomeWidgetProvider\.class\)\)/);
+  assert.match(plugin, /ComponentName provider = new ComponentName\(context, MathMasterHomeWidgetProvider\.class\);/);
+  assert.match(plugin, /manager\.getAppWidgetIds\(provider\)/);
   assert.match(plugin, /requestPinAppWidget/);
   assert.match(plugin, /public void resetWidget\(PluginCall call\)/);
   assert.match(plugin, /contentSchemaVersion", 3\)/);
