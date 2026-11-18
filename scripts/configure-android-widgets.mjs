@@ -139,11 +139,11 @@ function ensureWidgetPluginRegistration(mainActivity) {
 }
 
 
-function ensureWidgetResumeRefresh(mainActivity) {
+export function ensureWidgetResumeRefresh(mainActivity) {
   const call = 'WidgetScreenTimeData.onAppResumed(this);';
   if (mainActivity.includes(call)) return mainActivity;
 
-  const signature = /(?:@Override\s*)?protected\s+void\s+onResume\s*\(\s*\)\s*\{/;
+  const signature = /(?:@Override\s*)?(?:public|protected)\s+void\s+onResume\s*\(\s*\)\s*\{/;
   const match = signature.exec(mainActivity);
   if (match) {
     const open = mainActivity.indexOf('{', match.index);

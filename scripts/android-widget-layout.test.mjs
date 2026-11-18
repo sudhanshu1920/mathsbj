@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile, readdir } from 'node:fs/promis
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { configureAndroidWidgets } from './configure-android-widgets.mjs';
+import { configureAndroidWidgets, ensureWidgetResumeRefresh } from './configure-android-widgets.mjs';
 
 const ROOT = new URL('../', import.meta.url);
 const read = (relative) => readFileSync(new URL(relative, ROOT), 'utf8');
@@ -124,6 +124,33 @@ test('content options and schema version agree in the provider, configuration sc
   assert.match(config, /putInt\(schemaKey, 4\)/);
   assert.match(backupTs, /item < 1 \|\| item > 4/);
   assert.match(backupPlugin, /intValue\(\) <= 4/);
+});
+
+test('screen-time resume hook extends an existing public or protected MainActivity.onResume exactly once', () => {
+  const publicActivity = `package com.sudhanshu.mathsbj;
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onResume() {
+        super.onResume();
+        restoreGameSystemUiPolicy();
+    }
+}`;
+  const protectedActivity = `package com.sudhanshu.mathsbj;
+public class MainActivity extends BridgeActivity {
+    @Override
+    protected void onResume() {
+        super.onResume();
+        restoreGameSystemUiPolicy();
+    }
+}`;
+
+  for (const source of [publicActivity, protectedActivity]) {
+    const configured = ensureWidgetResumeRefresh(source);
+    assert.equal((configured.match(/void onResume\\s*\\(/g) || []).length, 1);
+    assert.equal((configured.match(/WidgetScreenTimeData\\.onAppResumed\\(this\\);/g) || []).length, 1);
+    assert.ok(configured.indexOf('super.onResume();') < configured.indexOf('WidgetScreenTimeData.onAppResumed(this);'));
+    assert.equal(ensureWidgetResumeRefresh(configured), configured, 'setup must remain idempotent');
+  }
 });
 
 test('screen-time content uses actual local UsageStats and the independent Study Apps selection', () => {
