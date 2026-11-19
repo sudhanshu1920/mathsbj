@@ -24,6 +24,7 @@ const COMPOSITIONS = [
 ];
 const CONTENT_OPTIONS = [
   'appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'quiz', 'updateStatus',
+  'studyAppsScreenTime', 'deviceAppsScreenTime',
 ];
 
 function quotedList(source, pattern) {
@@ -49,7 +50,7 @@ test('renderer draws every composition and the provider offers the same set', ()
   for (const composition of COMPOSITIONS) {
     assert.ok(renderer.includes(`case "${composition}"`), `renderer is missing a case for ${composition}`);
   }
-  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal']) {
+  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal', 'layoutScreenTime']) {
     assert.ok(renderer.includes(`void ${method}()`), `renderer is missing ${method}`);
   }
   assert.match(renderer, /static Bitmap render\(/);
@@ -114,11 +115,78 @@ test('content options and schema version agree in the provider, configuration sc
   for (const option of CONTENT_OPTIONS) {
     assert.ok(config.includes(`{"${option}",`), `configuration screen is missing ${option}`);
   }
-  assert.match(provider, /CONTENT_SCHEMA_VERSION = 3/);
+  assert.match(provider, /CONTENT_SCHEMA_VERSION = 4/);
   assert.match(config, /String schemaKey = prefix \+ "contentSchemaVersion"/);
-  assert.match(config, /putInt\(schemaKey, 3\)/);
-  assert.match(backupTs, /item < 1 \|\| item > 3/);
-  assert.match(backupPlugin, /intValue\(\) <= 3/);
+  assert.match(config, /putInt\(schemaKey, 4\)/);
+  assert.match(backupTs, /item < 1 \|\| item > max/);
+  assert.match(backupTs, /WIDGET_INSTANCE_BOOLEAN_KEYS/);
+  assert.match(backupPlugin, /isIntegerInRange\(value, 1, 4\)/);
+  assert.match(backupPlugin, /screenTimeMaxEntries/);
+});
+
+
+
+test('screen-time content is backed by local UsageStats and keeps Study Apps separate from device inventory', () => {
+  const usage = read('android-native/com/sudhanshu/mathsbj/AppUsageAnalyticsPlugin.java');
+  const repository = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeRepository.java');
+  const provider = read(PROVIDER);
+  const renderer = read(RENDERER);
+  const config = read(CONFIG);
+  const plugin = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetsPlugin.java');
+  const index = read('src/pages/Index.tsx');
+  const studyMode = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
+  const packageReceiver = read('android-native/com/sudhanshu/mathsbj/StudyModePackageChangeReceiver.java');
+  const setup = read('scripts/configure-android-widgets.mjs');
+
+  assert.match(usage, /public static boolean hasUsageAccess\(Context context\)/);
+  assert.match(repository, /UsageStatsManager\.INTERVAL_DAILY/);
+  assert.match(repository, /queryUsageStats\(/);
+  assert.match(repository, /getTotalTimeInForeground\(\)/);
+  assert.match(repository, /Executors\.newSingleThreadExecutor/);
+  assert.match(repository, /CACHE_TTL_MS = 2L \* 60L \* 1000L/);
+  assert.match(repository, /MAX_SNAPSHOTS = 9/);
+  assert.match(repository, /ICON_SIZE_DP = 24/);
+  assert.match(repository, /AppUsageAnalyticsPlugin\.hasUsageAccess\(/);
+  assert.match(repository, /StudyModeManager\.getSelectedStudyAppPackages\(context\)/);
+  assert.match(repository, /installedApplications\(pm\)/);
+  assert.match(repository, /isEligibleDeviceApp\(pm, info\)/);
+  assert.match(repository, /getLaunchIntentForPackage\(info\.packageName\)/);
+  assert.match(repository, /"last_7_days"/);
+  assert.match(repository, /Calendar\.DAY_OF_YEAR, -6/);
+  assert.match(repository, /cacheGeneration != requestGeneration/);
+  assert.match(repository, /REFRESH_CALLBACKS/);
+  assert.match(repository, /loadIcon\(pm, packageName, info, iconSize\)/);
+  assert.doesNotMatch(repository, /https?:\/\//);
+  assert.match(provider, /studyAppsScreenTime/);
+  assert.match(provider, /deviceAppsScreenTime/);
+  assert.match(provider, /openUsageAccessOnly/);
+  assert.match(provider, /openStudyAppsPickerOnly/);
+  assert.match(config, /Settings\.ACTION_USAGE_ACCESS_SETTINGS/);
+  assert.match(config, /StudyModeManager\.openStudyAppsSelection\(this\)/);
+  assert.match(provider, /applyScreenTimeAppearance\(options, preferences\)/);
+  assert.match(provider, /updateScreenTimeAppearance\(Context context\)/);
+  assert.match(plugin, /public void syncAppearance\(PluginCall call\)/);
+  assert.match(renderer, /paletteFor\(String composition, int themeAccent, boolean lightMode\)/);
+  assert.match(renderer, /screenTimePrimaryText\(\)/);
+  assert.match(index, /window\.addEventListener\('theme-updated', syncWidgetAppearance\)/);
+  assert.match(provider, /refreshScreenTimeInstances\(Context context, String refreshedPeriod\)/);
+  assert.match(provider, /screenTimeHiddenStudyPackages/);
+  assert.match(provider, /screenTimeHiddenDevicePackages/);
+  assert.match(renderer, /void layoutScreenTime\(\)/);
+  assert.match(renderer, /void layoutScreenTimeCombined\(\)/);
+  assert.match(renderer, /void drawLegacyContentSummary\(/);
+  assert.match(renderer, /"permission_required"/);
+  assert.match(renderer, /"no_study_apps"/);
+  assert.match(renderer, /"no_usage"/);
+  assert.match(config, /"Today", "Yesterday", "Last 7 Days"/);
+  assert.match(config, /"Most Used First", "Least Used First", "App Name A–Z", "App Name Z–A"/);
+  assert.match(config, /screenTimeShowTotalCheck/);
+  assert.match(config, /screenTimeShowUsageCheck/);
+  assert.match(config, /screenTimeShowPercentCheck/);
+  assert.match(config, /screenTimeDetailedCheck/);
+  assert.match(studyMode, /MathMasterHomeWidgetProvider\.refreshScreenTimeWidgets\(context\)/);
+  assert.match(packageReceiver, /MathMasterHomeWidgetProvider\.refreshScreenTimeWidgets\(context\)/);
+  assert.ok(setup.includes("'WidgetScreenTimeRepository.java'"));
 });
 
 test('older saved selections gain the quiz tile exactly once', () => {
@@ -186,8 +254,9 @@ test('configure script ships the renderer, fonts and resources into a generated 
   const result = await configureAndroidWidgets(root);
   assert.equal(result.assetDirectories, 1);
   for (const file of [
-    'MathMasterHomeWidgetProvider.java', 'MathMasterWidgetRenderer.java', 'MathMasterWidgetConfigActivity.java',
-    'DailyTargetReminderPlugin.java', 'DailyTargetReminderReceiver.java', 'DailyTargetReminderBootReceiver.java',
+    'MathMasterHomeWidgetProvider.java', 'MathMasterWidgetRenderer.java', 'WidgetScreenTimeRepository.java',
+    'MathMasterWidgetConfigActivity.java', 'DailyTargetReminderPlugin.java', 'DailyTargetReminderReceiver.java',
+    'DailyTargetReminderBootReceiver.java',
   ]) {
     assert.ok(existsSync(path.join(javaDir, file)), `${file} was not copied`);
   }
@@ -209,16 +278,20 @@ test('background effects: neon is the default, blur and transparent stay availab
   const renderer = read(RENDERER);
   const backupTs = read('src/lib/backupRestore.ts');
   const backupPlugin = read(BACKUP_PLUGIN);
+  const widgetsPlugin = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetsPlugin.java');
   assert.match(provider, /static String normalizeWidgetStyle\(String value\)/);
   assert.match(provider, /"transparent"\.equals\(value\)/);
   assert.match(provider, /"blur"\.equals\(value\)/);
   assert.match(provider, /getInstanceString\(preferences, appWidgetId, "style", "neon"\)/);
-  assert.match(provider, /\.putString\(prefix \+ "style", "neon"\)/);
+  // Schema migration must preserve an existing widget's chosen appearance; only explicit Reset selects Neon.
+  assert.doesNotMatch(provider, /\.putString\(prefix \+ "style", "neon"\)/);
+  assert.match(widgetsPlugin, /\.putString\(prefix \+ "style", "neon"\)/);
+  assert.match(provider, /applyScreenTimeAppearance\(options, preferences\)/);
   assert.match(renderer, /if \(clear\) return;/);
   assert.match(renderer, /Color\.argb\(102, 57, 67, 77\)/);
   assert.match(backupTs, /WIDGET_STYLES = new Set\(\['neon', 'blur', 'transparent'/);
   assert.match(backupPlugin, /"neon", "blur", "transparent"/);
-  assert.doesNotMatch(provider, /themeAccent|COMPLETION_ACCENTS|normalizeWidgetTheme/);
+  assert.doesNotMatch(provider, /COMPLETION_ACCENTS|normalizeWidgetTheme/);
 });
 
 test('Widget Studio lists only real pinned IDs and uses the system add flow plus the existing renderer', () => {
@@ -250,7 +323,7 @@ test('Widget Studio lists only real pinned IDs and uses the system add flow plus
   assert.match(plugin, /manager\.getAppWidgetIds\(provider\)/);
   assert.match(plugin, /requestPinAppWidget/);
   assert.match(plugin, /public void resetWidget\(PluginCall call\)/);
-  assert.match(plugin, /contentSchemaVersion", 3\)/);
+  assert.match(plugin, /contentSchemaVersion", 4\)/);
   assert.match(plugin, /isActiveWidgetId\(id\)/);
   assert.match(plugin, /MathMasterHomeWidgetProvider\.renderWidgetInstancePreview\(getContext\(\), id\)/);
   assert.match(plugin, /getWidgetCompositionOptions\(\)/);

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, Suspense, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, useReducedMotion, m as motion } from 'framer-motion';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { toast } from 'sonner';
@@ -26,6 +26,13 @@ import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable
 import { getFloatingBarVisibility } from '@/lib/floatingBarVisibility';
 import { isStudyModeLearningDeepLink } from '@/lib/studyModeDeepLink';
 import { consumeStudyAppsPickerRequest } from '@/lib/studyMode';
+import { getMode, getTheme, THEMES } from '@/lib/theme';
+
+type NativeWidgetRefreshPlugin = {
+  refreshScreenTime(): Promise<{ scheduled: boolean }>;
+  syncAppearance(options: { mode: 'light' | 'dark'; accentColor: string }): Promise<{ updated: boolean }>;
+};
+const NativeWidgetRefresh = registerPlugin<NativeWidgetRefreshPlugin>('MathMasterWidgets');
 
 type Tab = 'learn' | 'practice' | 'progress';
 
@@ -194,8 +201,26 @@ const Index = () => {
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+    const syncWidgetAppearance = () => {
+      const theme = THEMES.find((item) => item.id === getTheme());
+      const accentColor = theme?.swatch[2] ?? '#22d3ee';
+      void NativeWidgetRefresh.syncAppearance({
+        mode: getMode(),
+        accentColor,
+      }).catch(() => null);
+    };
+    syncWidgetAppearance();
+    window.addEventListener('theme-updated', syncWidgetAppearance);
+    return () => {
+      window.removeEventListener('theme-updated', syncWidgetAppearance);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
     let disposed = false;
     let inFlight = false;
+    let lastWidgetRefreshAt = 0;
     const consumePickerRequest = async () => {
       if (disposed || inFlight) return;
       inFlight = true;
@@ -215,8 +240,17 @@ const Index = () => {
         inFlight = false;
       }
     };
-    const onForeground = () => { void consumePickerRequest(); };
-    void consumePickerRequest();
+    const onForeground = () => {
+      const now = Date.now();
+      // Window focus, visibility and Capacitor app-state events can arrive together.
+      // Keep a single native refresh inside the same two-minute freshness window.
+      if (now - lastWidgetRefreshAt >= 2 * 60 * 1000) {
+        lastWidgetRefreshAt = now;
+        void NativeWidgetRefresh.refreshScreenTime().catch(() => null);
+      }
+      void consumePickerRequest();
+    };
+    onForeground();
     window.addEventListener('focus', onForeground);
     document.addEventListener('visibilitychange', onForeground);
     const appStateListener = App.addListener('appStateChange', ({ isActive }) => {

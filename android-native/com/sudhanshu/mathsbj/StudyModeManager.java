@@ -865,6 +865,9 @@ public final class StudyModeManager {
         }
         StudyModeFocusService.onStudyAppsChanged();
         reconcile(context);
+        // The native widget reads the same persisted Study Apps allowlist; refresh only its
+        // screen-time instances after the canonical selection has been committed.
+        MathMasterHomeWidgetProvider.refreshScreenTimeWidgets(context);
     }
 
     private static String toJson(List<String> values) {

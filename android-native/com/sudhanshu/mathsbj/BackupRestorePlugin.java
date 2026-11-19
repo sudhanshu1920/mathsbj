@@ -48,13 +48,21 @@ public class BackupRestorePlugin extends Plugin {
     ));
     private static final Set<String> GLOBAL_BOOLEAN_KEYS = new TreeSet<>(Collections.singletonList("enabled"));
     private static final Set<String> INSTANCE_STRING_FIELDS = new TreeSet<>(Arrays.asList(
-        "contentJson", "style", "composition", "themeMode", "theme"
+        "contentJson", "style", "composition", "themeMode", "theme",
+        "screenTimePeriod", "screenTimeSort", "screenTimeHiddenStudyPackages", "screenTimeHiddenDevicePackages"
+    ));
+    private static final Set<String> INSTANCE_BOOLEAN_FIELDS = new TreeSet<>(Arrays.asList(
+        "screenTimeShowTotal", "screenTimeShowUsage", "screenTimeShowPercent", "screenTimeDetailed"
+    ));
+    private static final Set<String> INSTANCE_NUMBER_FIELDS = new TreeSet<>(Arrays.asList(
+        "contentSchemaVersion", "screenTimeMaxEntries"
     ));
     private static final Pattern INSTANCE_KEY = Pattern.compile(
-        "^instance_([0-9]+)_(contentJson|style|composition|themeMode|theme|contentSchemaVersion)$"
+        "^instance_([0-9]+)_(contentJson|style|composition|themeMode|theme|contentSchemaVersion|screenTimePeriod|screenTimeSort|screenTimeMaxEntries|screenTimeShowTotal|screenTimeShowUsage|screenTimeShowPercent|screenTimeDetailed|screenTimeHiddenStudyPackages|screenTimeHiddenDevicePackages)$"
     );
     private static final Set<String> CONTENT_OPTIONS = new TreeSet<>(Arrays.asList(
-        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
+        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus",
+        "studyAppsScreenTime", "deviceAppsScreenTime"
     ));
     private static final Set<String> COMPOSITIONS = new TreeSet<>(Arrays.asList(
         "auto", "hero_wide", "compact_green", "square_math_bot", "medium_study",
@@ -367,6 +375,13 @@ public class BackupRestorePlugin extends Plugin {
         }
     }
 
+    private static boolean isIntegerInRange(Object value, int min, int max) {
+        if (!(value instanceof Number)) return false;
+        double numeric = ((Number) value).doubleValue();
+        return !Double.isNaN(numeric) && !Double.isInfinite(numeric)
+            && numeric == Math.rint(numeric) && numeric >= min && numeric <= max;
+    }
+
     private static boolean isValidGlobalPreference(String key, Object value) {
         if (GLOBAL_BOOLEAN_KEYS.contains(key)) return value instanceof Boolean;
         return GLOBAL_STRING_KEYS.contains(key) && value instanceof String && validateWidgetString(key, (String) value);
@@ -374,13 +389,19 @@ public class BackupRestorePlugin extends Plugin {
 
     private static boolean isValidInstancePreference(String field, Object value) {
         if ("contentSchemaVersion".equals(field)) {
-            return value instanceof Number && ((Number) value).intValue() >= 1 && ((Number) value).intValue() <= 3;
+            return isIntegerInRange(value, 1, 4);
         }
+        if ("screenTimeMaxEntries".equals(field)) {
+            return isIntegerInRange(value, 1, 12);
+        }
+        if (INSTANCE_BOOLEAN_FIELDS.contains(field)) return value instanceof Boolean;
         return INSTANCE_STRING_FIELDS.contains(field) && value instanceof String && validateWidgetString(field, (String) value);
     }
 
     private static boolean validateWidgetString(String field, String value) {
-        if (value == null || value.length() > 8192) return false;
+        int maxLength = "screenTimeHiddenStudyPackages".equals(field)
+            || "screenTimeHiddenDevicePackages".equals(field) ? 64 * 1024 : 8192;
+        if (value == null || value.length() > maxLength) return false;
         if ("contentJson".equals(field)) {
             try {
                 JSONArray content = new JSONArray(value);
@@ -389,6 +410,25 @@ public class BackupRestorePlugin extends Plugin {
                 for (int i = 0; i < content.length(); i++) {
                     String option = content.getString(i);
                     if (!CONTENT_OPTIONS.contains(option) || !seen.add(option)) return false;
+                }
+                return true;
+            } catch (JSONException ignored) { return false; }
+        }
+        if ("screenTimePeriod".equals(field)) {
+            return "today".equals(value) || "yesterday".equals(value) || "last_7_days".equals(value);
+        }
+        if ("screenTimeSort".equals(field)) {
+            return "most_used".equals(value) || "least_used".equals(value)
+                || "name_asc".equals(value) || "name_desc".equals(value);
+        }
+        if ("screenTimeHiddenStudyPackages".equals(field) || "screenTimeHiddenDevicePackages".equals(field)) {
+            try {
+                JSONArray packages = new JSONArray(value);
+                if (packages.length() > 1000) return false;
+                Set<String> seen = new TreeSet<>();
+                for (int i = 0; i < packages.length(); i++) {
+                    String packageName = packages.getString(i);
+                    if (!packageName.matches("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+") || !seen.add(packageName)) return false;
                 }
                 return true;
             } catch (JSONException ignored) { return false; }
