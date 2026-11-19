@@ -301,11 +301,18 @@ test('Widget Studio lists only real pinned IDs and uses the system add flow plus
   const setup = read('scripts/configure-android-notifications.mjs');
   const widgetSetup = read('scripts/configure-android-widgets.mjs');
   const pinReceiver = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetPinReceiver.java');
+  const configActivity = read(CONFIG);
 
   assert.match(plugin, /@CapacitorPlugin\(name = "MathMasterWidgets"\)/);
   assert.match(plugin, /public void getDesigns\(PluginCall call\)/);
   assert.match(plugin, /AppWidgetProviderInfo providerInfo = manager\.getAppWidgetInfo\(id\)/);
   assert.match(plugin, /requestPinAppWidget\([\s\S]*?successCallback\)/);
+  assert.match(plugin, /PendingIntent\.getActivity\([\s\S]*?callbackIntent[\s\S]*?FLAG_IMMUTABLE\)/);
+  assert.match(plugin, /new Intent\(context, MathMasterWidgetConfigActivity\.class\)/);
+  assert.match(plugin, /putExtra\("initialComposition", composition\)/);
+  assert.match(configActivity, /getIntExtra\(AppWidgetManager\.EXTRA_APPWIDGET_ID, INVALID_WIDGET_ID\)/);
+  assert.match(configActivity, /widgetId == INVALID_WIDGET_ID \|\| !isActiveWidget\(widgetId\)/);
+  assert.match(configActivity, /putString\(contentKey, selected\.toString\(\)\)/);
   assert.match(plugin, /getString\("composition"\)/);
   assert.match(plugin, /mathmaster-widget-pin:\/\//);
   assert.match(pinReceiver, /EXTRA_COMPOSITION/);
