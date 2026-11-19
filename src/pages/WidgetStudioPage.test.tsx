@@ -85,7 +85,8 @@ describe("WidgetStudioPage", () => {
     mocks.appStateListener?.({ isActive: false });
     mocks.appStateListener?.({ isActive: true });
 
-    expect(await screen.findByRole("status")).toHaveTextContent("widget #42 is now pinned and verified by Android");
+    await waitFor(() => expect(screen.getByRole("status"))
+      .toHaveTextContent("widget #42 is now pinned and verified by Android"));
     expect(await screen.findByText(/Widget #42 · Neon Glass/)).toBeInTheDocument();
   });
 
@@ -101,7 +102,7 @@ describe("WidgetStudioPage", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Android did not add a new widget");
     expect(screen.getByRole("alert")).toHaveTextContent("long-press an empty Home screen area");
-    expect(screen.queryByRole("status")).not.toHaveTextContent("pinned and verified");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("lets a user choose an available design before pinning the first widget", async () => {
@@ -116,6 +117,18 @@ describe("WidgetStudioPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Widgets" }));
     await waitFor(() => expect(mocks.requestAdd).toHaveBeenCalledWith({ composition: "hero_wide" }));
     expect(await screen.findByRole("status")).toHaveTextContent("pin request for Hero Wide");
+  });
+
+  it("offers the manual widget picker path when the launcher does not support pin requests", async () => {
+    mocks.requestAdd.mockResolvedValueOnce({ requested: false, supported: false });
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    expect(await screen.findByText("Your workspace is ready")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add Widgets" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("does not support in-app widget pinning");
+    expect(screen.getByRole("alert")).toHaveTextContent("long-press an empty Home screen area");
+    expect(mocks.requestAdd).toHaveBeenCalledTimes(1);
   });
 
   it("lists pinned instances, shows the native renderer preview and opens the existing editor", async () => {
