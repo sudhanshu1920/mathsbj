@@ -140,13 +140,18 @@ final class WidgetScreenTimeRepository {
         final long requestGeneration;
         synchronized (LOCK) {
             Snapshot cached = SNAPSHOTS.get(key);
-            long cacheAt = SNAPSHOT_CACHED_AT.getOrDefault(key, 0L);
+            long cacheAt = (SNAPSHOT_CACHED_AT.get(key) == null ? 0L : SNAPSHOT_CACHED_AT.get(key));
             if (cached != null && cacheAt > 0L && now - cacheAt < CACHE_TTL_MS) {
                 if (afterRefresh != null) MAIN.post(afterRefresh);
                 return;
             }
             if (afterRefresh != null) {
-                REFRESH_CALLBACKS.computeIfAbsent(key, ignored -> new ArrayList<>()).add(afterRefresh);
+                List<Runnable> pendingCallbacks = REFRESH_CALLBACKS.get(key);
+                if (pendingCallbacks == null) {
+                    pendingCallbacks = new ArrayList<>();
+                    REFRESH_CALLBACKS.put(key, pendingCallbacks);
+                }
+                pendingCallbacks.add(afterRefresh);
             }
             requestGeneration = cacheGeneration;
             Long runningGeneration = IN_FLIGHT.get(key);
@@ -184,7 +189,7 @@ final class WidgetScreenTimeRepository {
                     long oldestTime = Long.MAX_VALUE;
                     for (String candidate : SNAPSHOTS.keySet()) {
                         if (candidate.equals(key) || IN_FLIGHT.containsKey(candidate)) continue;
-                        long cachedAt = SNAPSHOT_CACHED_AT.getOrDefault(candidate, 0L);
+                        long cachedAt = (SNAPSHOT_CACHED_AT.get(candidate) == null ? 0L : SNAPSHOT_CACHED_AT.get(candidate));
                         if (cachedAt < oldestTime) {
                             oldestTime = cachedAt;
                             oldestKey = candidate;
@@ -299,7 +304,7 @@ final class WidgetScreenTimeRepository {
             return section;
         }
         Comparator<AppRecord> comparator = appComparator(sort);
-        all.sort(comparator);
+        Collections.sort(all, comparator);
 
         // Study Apps total includes every currently selected app, even hidden rows and rows beyond
         // the visible limit. Device total is the sum of entries selected for display.
@@ -358,7 +363,8 @@ final class WidgetScreenTimeRepository {
             String identity = packageName + "|" + stat.getFirstTimeStamp() + "|"
                 + stat.getLastTimeUsed() + "|" + duration;
             if (!seenRecords.add(identity)) continue;
-            usage.put(packageName, usage.getOrDefault(packageName, 0L) + duration);
+            Long previousDuration = usage.get(packageName);
+            usage.put(packageName, (previousDuration == null ? 0L : previousDuration) + duration);
         }
 
         PackageManager pm = context.getPackageManager();
@@ -373,7 +379,8 @@ final class WidgetScreenTimeRepository {
         for (Map.Entry<String, ApplicationInfo> item : installed.entrySet()) {
             String packageName = item.getKey();
             ApplicationInfo info = item.getValue();
-            long duration = Math.min(Math.max(0L, usage.getOrDefault(packageName, 0L)),
+            Long usageValue = usage.get(packageName);
+            long duration = Math.min(Math.max(0L, usageValue == null ? 0L : usageValue),
                 Math.max(0L, bounds.end - bounds.start));
             boolean deviceEligible = isEligibleDeviceApp(pm, info);
             if (duration <= 0L && !selectedStudy.contains(packageName)) continue;
@@ -461,22 +468,26 @@ final class WidgetScreenTimeRepository {
     }
 
     private static void sortChoices(List<AppChoice> choices) {
-        choices.sort(Comparator.comparing(choice -> choice.label.toLowerCase(Locale.ROOT)));
+        Collections.sort(choices, new Comparator<AppChoice>() {
+            @Override public int compare(AppChoice left, AppChoice right) {
+                return left.label.toLowerCase(Locale.ROOT).compareTo(right.label.toLowerCase(Locale.ROOT));
+            }
+        });
     }
 
     private static Comparator<AppRecord> appComparator(String sort) {
-        if ("least_used".equals(sort)) {
-            return Comparator.comparingLong((AppRecord item) -> item.usageMillis)
-                .thenComparing(item -> item.label.toLowerCase(Locale.ROOT));
-        }
-        if ("name_asc".equals(sort)) {
-            return Comparator.comparing(item -> item.label.toLowerCase(Locale.ROOT));
-        }
-        if ("name_desc".equals(sort)) {
-            return Comparator.comparing((AppRecord item) -> item.label.toLowerCase(Locale.ROOT)).reversed();
-        }
-        return Comparator.comparingLong((AppRecord item) -> item.usageMillis).reversed()
-            .thenComparing(item -> item.label.toLowerCase(Locale.ROOT));
+        return new Comparator<AppRecord>() {
+            @Override public int compare(AppRecord left, AppRecord right) {
+                String leftName = left.label.toLowerCase(Locale.ROOT);
+                String rightName = right.label.toLowerCase(Locale.ROOT);
+                if ("name_asc".equals(sort)) return leftName.compareTo(rightName);
+                if ("name_desc".equals(sort)) return rightName.compareTo(leftName);
+                int usageOrder = "least_used".equals(sort)
+                    ? Long.compare(left.usageMillis, right.usageMillis)
+                    : Long.compare(right.usageMillis, left.usageMillis);
+                return usageOrder != 0 ? usageOrder : leftName.compareTo(rightName);
+            }
+        };
     }
 
     private static Bounds bounds(String period) {
