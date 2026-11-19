@@ -395,7 +395,7 @@ final class WidgetScreenTimeRepository {
     }
 
     private static Bitmap loadIcon(PackageManager pm, String packageName, ApplicationInfo info, int size) {
-        String cacheKey = packageName + "|" + info.lastUpdateTime;
+        String cacheKey = packageName;
         synchronized (ICONS) {
             Bitmap cached = ICONS.get(cacheKey);
             if (cached != null && !cached.isRecycled()) return cached;
