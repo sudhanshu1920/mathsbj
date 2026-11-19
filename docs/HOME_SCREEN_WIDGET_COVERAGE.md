@@ -35,7 +35,7 @@ A passing source test or APK build means the code compiles and the tested paths 
 - Device Apps currently includes eligible user-installed applications and updated system apps; core system packages are excluded. The Android package visibility policy and work-profile boundary still apply.
 - Usage Access is checked through AppOps, not inferred from an empty result. Without access, a permission-required state is rendered. The widget tap opens Android Usage Access settings via a small app-owned proxy that refreshes on return.
 - Android's usage APIs provide aggregate foreground duration, not foreground-window or per-session certainty. Multi-window attribution and OEM reporting behavior can make totals differ from wall-clock time.
-- Data remains local; no usage history is sent to a remote endpoint. The two-minute snapshot cache is process-local; Android's existing widget update cadence remains the periodic fallback.
+- Data remains local; no usage history is sent to a remote endpoint. The two-minute cache is process-local and retains at most nine period snapshots; app icons are compact and cached by package/update version. Android's existing widget update cadence remains the periodic fallback.
 
 ## Composition coverage
 

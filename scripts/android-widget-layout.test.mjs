@@ -144,6 +144,8 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(repository, /getTotalTimeInForeground\(\)/);
   assert.match(repository, /Executors\.newSingleThreadExecutor/);
   assert.match(repository, /CACHE_TTL_MS = 2L \* 60L \* 1000L/);
+  assert.match(repository, /MAX_SNAPSHOTS = 9/);
+  assert.match(repository, /ICON_SIZE_DP = 24/);
   assert.match(repository, /AppUsageAnalyticsPlugin\.hasUsageAccess\(/);
   assert.match(repository, /StudyModeManager\.getSelectedStudyAppPackages\(context\)/);
   assert.match(repository, /installedApplications\(pm\)/);
@@ -276,16 +278,20 @@ test('background effects: neon is the default, blur and transparent stay availab
   const renderer = read(RENDERER);
   const backupTs = read('src/lib/backupRestore.ts');
   const backupPlugin = read(BACKUP_PLUGIN);
+  const widgetsPlugin = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetsPlugin.java');
   assert.match(provider, /static String normalizeWidgetStyle\(String value\)/);
   assert.match(provider, /"transparent"\.equals\(value\)/);
   assert.match(provider, /"blur"\.equals\(value\)/);
   assert.match(provider, /getInstanceString\(preferences, appWidgetId, "style", "neon"\)/);
-  assert.match(provider, /\.putString\(prefix \+ "style", "neon"\)/);
+  // Schema migration must preserve an existing widget's chosen appearance; only explicit Reset selects Neon.
+  assert.doesNotMatch(provider, /\.putString\(prefix \+ "style", "neon"\)/);
+  assert.match(widgetsPlugin, /\.putString\(prefix \+ "style", "neon"\)/);
+  assert.match(provider, /applyScreenTimeAppearance\(options, preferences\)/);
   assert.match(renderer, /if \(clear\) return;/);
   assert.match(renderer, /Color\.argb\(102, 57, 67, 77\)/);
   assert.match(backupTs, /WIDGET_STYLES = new Set\(\['neon', 'blur', 'transparent'/);
   assert.match(backupPlugin, /"neon", "blur", "transparent"/);
-  assert.doesNotMatch(provider, /themeAccent|COMPLETION_ACCENTS|normalizeWidgetTheme/);
+  assert.doesNotMatch(provider, /COMPLETION_ACCENTS|normalizeWidgetTheme/);
 });
 
 test('Widget Studio lists only real pinned IDs and uses the system add flow plus the existing renderer', () => {

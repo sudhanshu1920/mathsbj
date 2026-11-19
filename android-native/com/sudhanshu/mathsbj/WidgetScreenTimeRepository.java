@@ -33,7 +33,8 @@ import java.util.concurrent.Executors;
  */
 final class WidgetScreenTimeRepository {
     private static final long CACHE_TTL_MS = 2L * 60L * 1000L;
-    private static final int ICON_SIZE_DP = 40;
+    private static final int MAX_SNAPSHOTS = 9;
+    private static final int ICON_SIZE_DP = 24;
     private static final Object LOCK = new Object();
     private static final Map<String, Snapshot> SNAPSHOTS = new HashMap<>();
     private static final Map<String, Long> SNAPSHOT_CACHED_AT = new HashMap<>();
@@ -178,6 +179,21 @@ final class WidgetScreenTimeRepository {
                 SNAPSHOTS.put(key, result);
                 SNAPSHOT_CACHED_AT.put(key, System.currentTimeMillis());
                 IN_FLIGHT.remove(key);
+                while (SNAPSHOTS.size() > MAX_SNAPSHOTS) {
+                    String oldestKey = null;
+                    long oldestTime = Long.MAX_VALUE;
+                    for (String candidate : SNAPSHOTS.keySet()) {
+                        if (candidate.equals(key) || IN_FLIGHT.containsKey(candidate)) continue;
+                        long cachedAt = SNAPSHOT_CACHED_AT.getOrDefault(candidate, 0L);
+                        if (cachedAt < oldestTime) {
+                            oldestTime = cachedAt;
+                            oldestKey = candidate;
+                        }
+                    }
+                    if (oldestKey == null) break;
+                    SNAPSHOTS.remove(oldestKey);
+                    SNAPSHOT_CACHED_AT.remove(oldestKey);
+                }
                 callbacks = REFRESH_CALLBACKS.remove(key);
             }
             MAIN.post(() -> {
@@ -361,6 +377,7 @@ final class WidgetScreenTimeRepository {
                 Math.max(0L, bounds.end - bounds.start));
             boolean deviceEligible = isEligibleDeviceApp(pm, info);
             if (duration <= 0L && !selectedStudy.contains(packageName)) continue;
+            if (!deviceEligible && !selectedStudy.contains(packageName)) continue;
             String label = applicationLabel(pm, info);
             // PackageManager icon decoding is performed by this worker-thread query, never by
             // RemoteViews / Canvas rendering on the main thread.
