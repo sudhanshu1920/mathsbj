@@ -171,6 +171,8 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(provider, /screenTimeHiddenStudyPackages/);
   assert.match(provider, /screenTimeHiddenDevicePackages/);
   assert.match(renderer, /void layoutScreenTime\(\)/);
+  assert.match(renderer, /void layoutScreenTimeCombined\(\)/);
+  assert.match(renderer, /void drawLegacyContentSummary\(/);
   assert.match(renderer, /"permission_required"/);
   assert.match(renderer, /"no_study_apps"/);
   assert.match(renderer, /"no_usage"/);

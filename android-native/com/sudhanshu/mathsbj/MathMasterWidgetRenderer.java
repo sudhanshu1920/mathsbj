@@ -344,7 +344,8 @@ final class MathMasterWidgetRenderer {
             drawCard();
             if (!o.enabled) { drawDisabled(); return; }
             if (o.studyAppsScreenTime || o.deviceAppsScreenTime) {
-                layoutScreenTime();
+                if (hasLegacyWidgetContent()) layoutScreenTimeCombined();
+                else layoutScreenTime();
                 drawUpdatePill();
                 return;
             }
@@ -472,6 +473,101 @@ final class MathMasterWidgetRenderer {
 
         int screenTimeSecondaryText() {
             return withAlpha(screenTimePrimaryText(), o.lightMode ? 0.68f : 0.70f);
+        }
+
+        boolean hasLegacyWidgetContent() {
+            return o.identity || o.progress || hasTarget() || o.streak || o.weekly || o.quiz;
+        }
+
+        String appendSummaryItem(String current, String item) {
+            if (item == null || item.length() == 0) return current;
+            return current == null || current.length() == 0 ? item : current + "  ·  " + item;
+        }
+
+        void layoutScreenTimeCombined() {
+            float pad = clamp(Math.min(W, H) * 0.045f, 5f * density, 13f * density);
+            float gap = Math.max(4f * density, pad * 0.65f);
+            float headerHeight = Math.min(H * 0.32f, clamp(H * 0.22f, 22f * density, 46f * density));
+            float sectionTop = card.top + pad + headerHeight + gap;
+            drawLegacyContentSummary(card.left + pad, card.top + pad, card.right - pad, card.top + pad + headerHeight);
+
+            boolean study = o.studyAppsScreenTime && d.studyAppsScreenTime != null;
+            boolean device = o.deviceAppsScreenTime && d.deviceAppsScreenTime != null;
+            float sectionBottom = card.bottom - pad;
+            float sectionLeft = card.left + pad;
+            float sectionRight = card.right - pad;
+            float availableHeight = Math.max(8f * density, sectionBottom - sectionTop);
+            if (study && device) {
+                if (W >= H * 1.32f && availableHeight >= 88f * density) {
+                    float mid = (sectionLeft + sectionRight) * 0.5f;
+                    int each = Math.max(1, o.screenTimeMaxEntries / 2);
+                    drawScreenTimeSection(d.studyAppsScreenTime, sectionLeft, sectionTop, mid - gap * 0.5f,
+                        sectionBottom, each);
+                    drawScreenTimeSection(d.deviceAppsScreenTime, mid + gap * 0.5f, sectionTop, sectionRight,
+                        sectionBottom, each);
+                    line.setColor(withAlpha(screenTimePrimaryText(), 0.13f));
+                    line.setStrokeWidth(Math.max(1f, density));
+                    c.drawLine(mid, sectionTop + gap, mid, sectionBottom - gap, line);
+                    resetPaints();
+                } else {
+                    float mid = sectionTop + availableHeight * 0.5f;
+                    drawScreenTimeSection(d.studyAppsScreenTime, sectionLeft, sectionTop, sectionRight,
+                        mid - gap * 0.5f, 1);
+                    drawScreenTimeSection(d.deviceAppsScreenTime, sectionLeft, mid + gap * 0.5f,
+                        sectionRight, sectionBottom, 1);
+                    line.setColor(withAlpha(screenTimePrimaryText(), 0.13f));
+                    line.setStrokeWidth(Math.max(1f, density));
+                    c.drawLine(sectionLeft + gap, mid, sectionRight - gap, mid, line);
+                    resetPaints();
+                }
+            } else {
+                ScreenTimeSection section = study ? d.studyAppsScreenTime : d.deviceAppsScreenTime;
+                drawScreenTimeSection(section, sectionLeft, sectionTop, sectionRight, sectionBottom,
+                    o.screenTimeMaxEntries);
+            }
+        }
+
+        void drawLegacyContentSummary(float left, float top, float right, float bottom) {
+            if (right <= left || bottom <= top) return;
+            RectF panel = new RectF(left, top, right, bottom);
+            glass(panel, Math.min(cardRadius * 0.38f, Math.max(5f * density, panel.height() * 0.22f)));
+            float pad = clamp(panel.height() * 0.12f, 3f * density, 8f * density);
+            float titleSize = clamp(panel.height() * 0.27f, 8.5f * density, 13f * density);
+            float detailSize = clamp(panel.height() * 0.22f, 7f * density, 10f * density);
+            float x = left + pad;
+            float maxWidth = panel.width() - pad * 2f;
+            float y = top + pad;
+            if (o.identity) {
+                text("Math Master", x, y + titleSize, titleSize, f.bold,
+                    screenTimePrimaryText(), Paint.Align.LEFT, maxWidth);
+                y += titleSize + pad * 0.55f;
+            }
+
+            String firstLine = "";
+            if (o.progress) firstLine = appendSummaryItem(firstLine, "Progress " + d.progress + "%");
+            if (o.target) firstLine = appendSummaryItem(firstLine,
+                d.elapsedMinutes + " / " + d.targetMinutes + " min");
+            else if (o.studyTime) firstLine = appendSummaryItem(firstLine, d.elapsedMinutes + " min studied");
+            if (o.remaining) firstLine = appendSummaryItem(firstLine, d.remainingMinutes + " min left");
+
+            String secondLine = "";
+            if (o.streak) secondLine = appendSummaryItem(secondLine, "Streak " + d.streak);
+            if (o.weekly) {
+                int completed = 0;
+                if (d.weekDone != null) for (boolean dayDone : d.weekDone) if (dayDone) completed++;
+                secondLine = appendSummaryItem(secondLine, "Week " + completed + "/7");
+            }
+            if (o.quiz) secondLine = appendSummaryItem(secondLine, "Upcoming Quiz");
+
+            if (firstLine.length() > 0 && y + detailSize <= bottom - pad * 0.45f) {
+                text(firstLine, x, y + detailSize, detailSize, f.medium,
+                    screenTimeSecondaryText(), Paint.Align.LEFT, maxWidth);
+                y += detailSize + pad * 0.40f;
+            }
+            if (secondLine.length() > 0 && y + detailSize <= bottom - pad * 0.25f) {
+                text(secondLine, x, y + detailSize, detailSize, f.medium,
+                    screenTimeSecondaryText(), Paint.Align.LEFT, maxWidth);
+            }
         }
 
         void drawScreenTimeSection(ScreenTimeSection section, float left, float top, float right, float bottom, int requestedRows) {
