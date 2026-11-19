@@ -65,6 +65,9 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const native = Capacitor.isNativePlatform();
   const desktopMode = useDesktopMode();
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const pendingAddRef = useRef<{ existingWidgetIds: Set<number> } | null>(null);
+  const pinRequestBackgroundedRef = useRef(false);
+  const pinReturnCheckInFlightRef = useRef(false);
   const [widgets, setWidgets] = useState<NativeWidget[]>([]);
   const [designs, setDesigns] = useState<WidgetDesign[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -79,6 +82,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const [designRegistryLoading, setDesignRegistryLoading] = useState(true);
   const [designRegistryError, setDesignRegistryError] = useState("");
   const [openingEditor, setOpeningEditor] = useState(false);
+  const [addingWidget, setAddingWidget] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -184,21 +188,75 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
     if (!native) return;
     let disposed = false;
     let appListener: { remove: () => Promise<void> } | null = null;
-    const onFocus = () => {
-      if (document.visibilityState === "visible") void refresh(true);
+
+    const finishPinRequest = async () => {
+      const pending = pendingAddRef.current;
+      if (!pending || !pinRequestBackgroundedRef.current || pinReturnCheckInFlightRef.current) return;
+      pinReturnCheckInFlightRef.current = true;
+      pendingAddRef.current = null;
+      pinRequestBackgroundedRef.current = false;
+      setAddingWidget(false);
+      setNotice("");
+      try {
+        const snapshot = await NativeWidgets.getWidgets();
+        const added = snapshot.widgets
+          .filter((widget) => !pending.existingWidgetIds.has(widget.appWidgetId))
+          .sort((left, right) => right.appWidgetId - left.appWidgetId);
+        await refresh(true);
+        if (added.length > 0) {
+          setError("");
+          setNotice(
+            `Math Master widget #${added[0].appWidgetId} is now pinned and verified by Android. Its native settings are saved for this widget ID.`,
+          );
+        } else {
+          setError(
+            "Android did not add a new widget. The pin prompt may have been cancelled or declined. " +
+            "To add manually: long-press an empty Home screen area, open Widgets, find Math Master, then drag it onto the Home screen.",
+          );
+        }
+      } catch {
+        await refresh(true);
+        setError(
+          "Returned from Android, but the new widget could not be verified. Refresh the widget list or add Math Master manually from Home screen → Widgets.",
+        );
+      } finally {
+        pinReturnCheckInFlightRef.current = false;
+      }
     };
+
+    const onFocus = () => {
+      if (document.visibilityState !== "visible") return;
+      if (pendingAddRef.current && pinRequestBackgroundedRef.current) void finishPinRequest();
+      else void refresh(true);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        if (pendingAddRef.current) pinRequestBackgroundedRef.current = true;
+      } else if (pendingAddRef.current && pinRequestBackgroundedRef.current) {
+        void finishPinRequest();
+      }
+    };
+    const onAppStateChange = (state: { isActive: boolean }) => {
+      if (!state.isActive) {
+        if (pendingAddRef.current) pinRequestBackgroundedRef.current = true;
+        return;
+      }
+      if (pendingAddRef.current && pinRequestBackgroundedRef.current) void finishPinRequest();
+      else void refresh(true);
+    };
+
     window.addEventListener("focus", onFocus);
-    void App.addListener("appStateChange", (state) => {
-      if (state.isActive) void refresh(true);
-    }).then((listener) => {
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    void App.addListener("appStateChange", onAppStateChange).then((listener) => {
       if (disposed) void listener.remove();
       else appListener = listener;
     }).catch(() => {
-      // Window focus remains as a fallback when the native app listener is unavailable.
+      // Browser focus and visibility remain as fallbacks when the native app listener is unavailable.
     });
     return () => {
       disposed = true;
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (appListener) void appListener.remove();
     };
   }, [native, refresh]);
@@ -218,21 +276,37 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   }, [native, selectedId, widgets]);
 
   const handleAdd = async (composition = pendingDesignId ?? undefined) => {
+    // The ref prevents two rapid taps before React commits the disabled button state.
+    if (pendingAddRef.current || addingWidget) return;
     setError("");
     setNotice("");
+    setAddingWidget(true);
+    pinRequestBackgroundedRef.current = false;
+    pendingAddRef.current = {
+      existingWidgetIds: new Set(widgets.map((widget) => widget.appWidgetId)),
+    };
     try {
       const result = await NativeWidgets.requestAdd(composition ? { composition } : undefined);
       if (result.requested) {
         setNotice(composition
-          ? `Android has opened its Add Widget confirmation for ${designs.find((design) => design.id === composition)?.name ?? "the selected design"}. Finish the system prompt, then return here to see the new widget.`
-          : "Android has opened its Add Widget confirmation. Finish the system prompt, then return here to see the new widget.");
+          ? `Android sent the pin request for ${designs.find((design) => design.id === composition)?.name ?? "the selected design"}. Confirm it in the Android launcher; the native customization screen will open with the new widget ID.`
+          : "Android sent the widget pin request. Confirm it in the launcher; the native customization screen will open with the new widget ID.");
       } else {
+        pendingAddRef.current = null;
+        setAddingWidget(false);
         setError(result.supported
-          ? "Android could not start the widget confirmation. Add Math Master from the home-screen widget picker."
-          : "This Android version does not support in-app pin requests. Add Math Master from the home-screen widget picker.");
+          ? "Android could not start the widget pin confirmation. " +
+            "To add manually: long-press an empty Home screen area, open Widgets, find Math Master, then drag it onto the Home screen."
+          : "This launcher or Android version does not support in-app widget pinning. " +
+            "To add manually: long-press an empty Home screen area, open Widgets, find Math Master, then drag it onto the Home screen.");
       }
     } catch {
-      setError("Android could not open the widget confirmation. Add Math Master from the home-screen widget picker.");
+      pendingAddRef.current = null;
+      setAddingWidget(false);
+      setError(
+        "Android could not open the widget pin confirmation. " +
+        "To add manually: long-press an empty Home screen area, open Widgets, find Math Master, then drag it onto the Home screen.",
+      );
     }
   };
 
@@ -344,10 +418,11 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
               <button
                 type="button"
                 onClick={() => void handleAdd()}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-sm transition-transform active:scale-[0.98]"
+                disabled={addingWidget}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-sm transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus size={15} />
-                Add Widget
+                {addingWidget ? "Waiting for Android…" : "Add Widget"}
               </button>
             </div>
 
@@ -389,10 +464,11 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                 <button
                   type="button"
                   onClick={() => void handleAdd()}
-                  className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground"
+                  disabled={addingWidget}
+                  className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Plus size={15} />
-                  Add Widgets
+                  {addingWidget ? "Waiting for Android…" : "Add Widgets"}
                 </button>
               </div>
             ) : hasConfirmedDiscovery && widgets.length > 0 ? (

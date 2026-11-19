@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   renderPreview: vi.fn(),
   resetWidget: vi.fn(),
   addListener: vi.fn(),
+  appStateListener: null as null | ((state: { isActive: boolean }) => void),
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -51,7 +52,14 @@ describe("WidgetStudioPage", () => {
     mocks.configureWidget.mockResolvedValue({ opened: true });
     mocks.renderPreview.mockResolvedValue({ dataUrl: "data:image/png;base64,d2lkZ2V0" });
     mocks.resetWidget.mockResolvedValue({ reset: true });
-    mocks.addListener.mockResolvedValue({ remove: vi.fn().mockResolvedValue(undefined) });
+    mocks.appStateListener = null;
+    mocks.addListener.mockImplementation(async (
+      _event: string,
+      listener: (state: { isActive: boolean }) => void,
+    ) => {
+      mocks.appStateListener = listener;
+      return { remove: vi.fn().mockResolvedValue(undefined) };
+    });
   });
 
   it("shows the useful empty state and opens Android's real add confirmation", async () => {
@@ -61,7 +69,40 @@ describe("WidgetStudioPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Widgets" }));
 
     await waitFor(() => expect(mocks.requestAdd).toHaveBeenCalledTimes(1));
-    expect(await screen.findByRole("status")).toHaveTextContent("Android has opened its Add Widget confirmation");
+    expect(await screen.findByRole("status")).toHaveTextContent("Android sent the widget pin request");
+    expect(screen.getAllByRole("button", { name: "Waiting for Android…" })
+      .every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
+  });
+
+  it("verifies a real Android widget ID after the user confirms the pin request", async () => {
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+    expect(await screen.findByText("Your workspace is ready")).toBeInTheDocument();
+    await waitFor(() => expect(mocks.appStateListener).not.toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Widgets" }));
+    await waitFor(() => expect(mocks.requestAdd).toHaveBeenCalledTimes(1));
+    mocks.getWidgets.mockResolvedValue({ widgets: [widget] });
+    mocks.appStateListener?.({ isActive: false });
+    mocks.appStateListener?.({ isActive: true });
+
+    await waitFor(() => expect(screen.getByRole("status"))
+      .toHaveTextContent("widget #42 is now pinned and verified by Android"));
+    expect(await screen.findByText(/Widget #42 · Neon Glass/)).toBeInTheDocument();
+  });
+
+  it("reports pin cancellation without claiming success and shows the manual picker steps", async () => {
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+    expect(await screen.findByText("Your workspace is ready")).toBeInTheDocument();
+    await waitFor(() => expect(mocks.appStateListener).not.toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Widgets" }));
+    await waitFor(() => expect(mocks.requestAdd).toHaveBeenCalledTimes(1));
+    mocks.appStateListener?.({ isActive: false });
+    mocks.appStateListener?.({ isActive: true });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Android did not add a new widget");
+    expect(screen.getByRole("alert")).toHaveTextContent("long-press an empty Home screen area");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("lets a user choose an available design before pinning the first widget", async () => {
@@ -75,7 +116,19 @@ describe("WidgetStudioPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add Widgets" }));
     await waitFor(() => expect(mocks.requestAdd).toHaveBeenCalledWith({ composition: "hero_wide" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("confirmation for Hero Wide");
+    expect(await screen.findByRole("status")).toHaveTextContent("pin request for Hero Wide");
+  });
+
+  it("offers the manual widget picker path when the launcher does not support pin requests", async () => {
+    mocks.requestAdd.mockResolvedValueOnce({ requested: false, supported: false });
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    expect(await screen.findByText("Your workspace is ready")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add Widgets" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("does not support in-app widget pinning");
+    expect(screen.getByRole("alert")).toHaveTextContent("long-press an empty Home screen area");
+    expect(mocks.requestAdd).toHaveBeenCalledTimes(1);
   });
 
   it("lists pinned instances, shows the native renderer preview and opens the existing editor", async () => {

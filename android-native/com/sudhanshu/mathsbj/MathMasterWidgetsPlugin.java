@@ -28,6 +28,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @CapacitorPlugin(name = "MathMasterWidgets")
 public class MathMasterWidgetsPlugin extends Plugin {
@@ -210,15 +211,18 @@ public class MathMasterWidgetsPlugin extends Plugin {
                 return;
             }
             String composition = requestedComposition == null ? "auto" : requestedComposition;
-            Intent callbackIntent = new Intent(getContext(), MathMasterWidgetPinReceiver.class);
-            callbackIntent.setAction(MathMasterWidgetPinReceiver.ACTION_PIN_CONFIRMED);
-            callbackIntent.setData(Uri.parse("mathmaster-widget-pin://" + composition));
-            callbackIntent.putExtra(MathMasterWidgetPinReceiver.EXTRA_COMPOSITION, composition);
-            PendingIntent successCallback = PendingIntent.getBroadcast(
-                getContext(), PIN_REQUEST_CODE + (composition.hashCode() & 0x7fffffff) % 100000,
-                callbackIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            Context context = getContext();
+            Intent callbackIntent = new Intent(context, MathMasterWidgetConfigActivity.class);
+            callbackIntent.setAction("com.sudhanshu.mathsbj.action.CONFIGURE_PINNED_WIDGET");
+            callbackIntent.setData(Uri.parse(
+                "mathmaster-widget-pin://" + composition + "/" + UUID.randomUUID().toString()));
+            callbackIntent.putExtra("initialComposition", composition);
+            callbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            PendingIntent successCallback = PendingIntent.getActivity(
+                context, PIN_REQUEST_CODE, callbackIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             boolean requested = manager.requestPinAppWidget(
-                new ComponentName(getContext(), MathMasterHomeWidgetProvider.class), null, successCallback);
+                new ComponentName(context, MathMasterHomeWidgetProvider.class), null, successCallback);
             if (!requested) successCallback.cancel();
             JSObject result = new JSObject();
             result.put("requested", requested);
