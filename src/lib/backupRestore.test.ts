@@ -196,6 +196,73 @@ describe('portable Math Master backup', () => {
     })).rejects.toThrow(/newer Study Tracker schema/i);
   });
 
+
+  it('round-trips the two independent Screen Time widget sources and their per-instance settings', async () => {
+    const screenTimePreferences = {
+      version: 1,
+      global: { enabled: true },
+      instances: [{
+        widgetId: 27,
+        preferences: {
+          contentJson: '["studyAppsScreenTime","deviceAppsScreenTime"]',
+          contentSchemaVersion: 4,
+          screenTimePeriod: 'last_7_days',
+          screenTimeSort: 'name_desc',
+          screenTimeMaxEntries: 8,
+          screenTimeShowTotal: true,
+          screenTimeShowUsage: false,
+          screenTimeShowPercent: true,
+          screenTimeDetailed: false,
+          screenTimeHiddenStudyPackages: '["com.example.notes"]',
+          screenTimeHiddenDevicePackages: '["com.example.browser","com.example.video"]',
+        },
+      }],
+    };
+    const text = await createBackupText({
+      storageEntries: { 'math-app-settings-v1': JSON.stringify({ sound: true }) },
+      widgetPreferences: screenTimePreferences,
+    });
+    const restored = await validateBackupText(text);
+    expect(restored.payload.native.widgetPreferences?.instances[0].preferences).toMatchObject({
+      contentSchemaVersion: 4,
+      screenTimePeriod: 'last_7_days',
+      screenTimeSort: 'name_desc',
+      screenTimeMaxEntries: 8,
+      screenTimeShowUsage: false,
+      screenTimeShowPercent: true,
+      screenTimeHiddenStudyPackages: '["com.example.notes"]',
+      screenTimeHiddenDevicePackages: '["com.example.browser","com.example.video"]',
+    });
+  });
+
+  it('rejects invalid Screen Time periods, package filters and count values', async () => {
+    const createInvalid = (field: string, value: string | number | boolean) => ({
+      version: 1,
+      global: {},
+      instances: [{
+        widgetId: 27,
+        preferences: {
+          contentJson: '["deviceAppsScreenTime"]',
+          contentSchemaVersion: 4,
+          [field]: value,
+        },
+      }],
+    });
+    const storageEntries = { 'math-app-settings-v1': JSON.stringify({ sound: true }) };
+    await expect(createBackupText({
+      storageEntries,
+      widgetPreferences: createInvalid('screenTimePeriod', 'forever'),
+    })).rejects.toThrow(/invalid widget instance preference/i);
+    await expect(createBackupText({
+      storageEntries,
+      widgetPreferences: createInvalid('screenTimeMaxEntries', 99),
+    })).rejects.toThrow(/invalid widget instance preference/i);
+    await expect(createBackupText({
+      storageEntries,
+      widgetPreferences: createInvalid('screenTimeHiddenDevicePackages', '["not a package"]'),
+    })).rejects.toThrow(/invalid widget instance preference/i);
+  });
+
   it('rejects unsafe widget configurations rather than accepting arbitrary persisted fields', async () => {
     const badWidgets = { version: 1, global: { arbitraryExecutable: 'run' }, instances: [] };
     await expect(createBackupText({

@@ -14,6 +14,10 @@ import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.provider.Settings;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.FrameLayout;
@@ -42,9 +46,25 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private final Map<String, CheckBox> contentChecks = new LinkedHashMap<>();
     private final List<RadioButton> styleChoices = new ArrayList<>();
     private final List<RadioButton> compositionChoices = new ArrayList<>();
+    private final Map<String, CheckBox> studyAppFilterChecks = new LinkedHashMap<>();
+    private final Map<String, CheckBox> deviceAppFilterChecks = new LinkedHashMap<>();
+    private Spinner screenTimePeriodSpinner;
+    private Spinner screenTimeSortSpinner;
+    private Spinner screenTimeCountSpinner;
+    private CheckBox screenTimeShowTotalCheck;
+    private CheckBox screenTimeShowUsageCheck;
+    private CheckBox screenTimeShowPercentCheck;
+    private CheckBox screenTimeDetailedCheck;
+    private LinearLayout screenTimeControlRoot;
+    private LinearLayout studyAppFilterContainer;
+    private LinearLayout deviceAppFilterContainer;
+    private TextView usageAccessStatus;
     private TextView previewSummary;
     private ImageView previewArtwork;
     private int widgetId = INVALID_WIDGET_ID;
+    private boolean usageAccessProxy;
+    private boolean usageAccessSettingsLaunched;
+    private static final int USAGE_ACCESS_REQUEST_CODE = 7813;
     private int surfaceColor;
     private int cardColor;
     private int textColor;
@@ -61,7 +81,9 @@ public class MathMasterWidgetConfigActivity extends Activity {
         {"streak", "Streak"},
         {"weekly", "Weekly Target Tracker"},
         {"quiz", "Upcoming Quiz"},
-        {"updateStatus", "Update Status"}
+        {"updateStatus", "Update Status"},
+        {"studyAppsScreenTime", "Study Apps Screen Time"},
+        {"deviceAppsScreenTime", "Device Apps Screen Time"}
     };
 
     private static final String[][] STYLE_OPTIONS = {
@@ -73,9 +95,91 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private static final String[][] WIDGET_COMPOSITIONS = MathMasterHomeWidgetProvider.getWidgetCompositionOptions();
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (usageAccessProxy) {
+            if (WidgetScreenTimeRepository.hasUsageAccess(this)) {
+                MathMasterHomeWidgetProvider.refreshScreenTimeWidgets(this);
+                finish();
+            } else if (usageAccessSettingsLaunched) {
+                showUsageAccessProxyState();
+            }
+            return;
+        }
+        if (screenTimeControlRoot != null) {
+            WidgetScreenTimeRepository.invalidateCaches();
+            populateAppFilters(getSharedPreferences(PREFS, Context.MODE_PRIVATE));
+            updatePreview();
+            requestScreenTimePreviewRefresh();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (usageAccessProxy && requestCode == USAGE_ACCESS_REQUEST_CODE) {
+            if (WidgetScreenTimeRepository.hasUsageAccess(this)) {
+                MathMasterHomeWidgetProvider.refreshScreenTimeWidgets(this);
+                finish();
+            } else {
+                showUsageAccessProxyState();
+            }
+        }
+    }
+
+    private void showUsageAccessProxyState() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER);
+        root.setPadding(dp(24), dp(24), dp(24), dp(24));
+        root.setBackgroundColor(surfaceColor);
+        TextView message = new TextView(this);
+        message.setText("Usage Access is still disabled. Enable it to show real app screen time.");
+        message.setTextColor(textColor);
+        message.setTextSize(14);
+        message.setGravity(Gravity.CENTER);
+        root.addView(message, matchWrap());
+        Button retry = actionButton("Open Usage Access Settings", true);
+        retry.setOnClickListener(view -> launchUsageAccessSettings());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
+        params.topMargin = dp(16);
+        root.addView(retry, params);
+        Button close = actionButton("Close", false);
+        close.setOnClickListener(view -> finish());
+        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(42));
+        closeParams.topMargin = dp(8);
+        root.addView(close, closeParams);
+        setContentView(root);
+    }
+
+    private void launchUsageAccessSettings() {
+        try {
+            usageAccessSettingsLaunched = true;
+            startActivityForResult(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS), USAGE_ACCESS_REQUEST_CODE);
+        } catch (RuntimeException error) {
+            Toast.makeText(this, "Android Usage Access settings could not be opened.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setResult(RESULT_CANCELED);
+        if (getIntent().getBooleanExtra("openUsageAccessOnly", false)) {
+            usageAccessProxy = true;
+            resolvePalette();
+            launchUsageAccessSettings();
+            return;
+        }
+        if (getIntent().getBooleanExtra("openStudyAppsPickerOnly", false)) {
+            if (!StudyModeManager.openStudyAppsSelection(this)) {
+                Toast.makeText(this, "Math Master could not open Study Apps settings.", Toast.LENGTH_LONG).show();
+            }
+            finish();
+            return;
+        }
         widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, INVALID_WIDGET_ID);
         if (widgetId == INVALID_WIDGET_ID || !isActiveWidget(widgetId)) {
             finish();
@@ -109,8 +213,11 @@ public class MathMasterWidgetConfigActivity extends Activity {
         List<String> selected = parseContent(existingJson);
         boolean savedForThisWidget = preferences.contains("instance_" + widgetId + "_contentJson");
         int savedSchema = preferences.getInt("instance_" + widgetId + "_contentSchemaVersion", 0);
-        if ((!savedForThisWidget || savedSchema < 3) && !selected.contains("quiz")) selected.add("quiz");
+        if ((!savedForThisWidget || savedSchema < 4) && !selected.contains("quiz")) selected.add("quiz");
         addContentGrid(content, selected);
+        addSectionLabel(content, "SCREEN TIME CONTENT", "Actual Android app usage · data stays on this device");
+        addScreenTimeContentGrid(content, selected);
+        addScreenTimeControls(content, preferences);
 
         addSectionLabel(content, "BACKGROUND EFFECT", "Select the surface that blends with your wallpaper");
         String currentStyle = normalizeWidgetStyle(preferences.getString(
@@ -221,7 +328,8 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private void addContentGrid(LinearLayout parent, List<String> selected) {
         int columns = gridColumns();
         LinearLayout row = null;
-        for (int i = 0; i < CONTENT_OPTIONS.length; i++) {
+        int contentOptionCount = CONTENT_OPTIONS.length - 2;
+        for (int i = 0; i < contentOptionCount; i++) {
             if (i % columns == 0) {
                 row = new LinearLayout(this);
                 row.setOrientation(LinearLayout.HORIZONTAL);
@@ -249,11 +357,253 @@ public class MathMasterWidgetConfigActivity extends Activity {
             params.setMargins(dp(2), dp(2), dp(2), dp(2));
             row.addView(check, params);
         }
-        int remainder = CONTENT_OPTIONS.length % columns;
+        int remainder = contentOptionCount % columns;
         if (remainder != 0 && row != null) {
             for (int i = remainder; i < columns; i++) row.addView(new View(this),
                 new LinearLayout.LayoutParams(0, dp(48), 1f));
         }
+    }
+
+
+    private void addScreenTimeContentGrid(LinearLayout parent, List<String> selected) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        parent.addView(row, sectionParams());
+        for (int i = CONTENT_OPTIONS.length - 2; i < CONTENT_OPTIONS.length; i++) {
+            String[] option = CONTENT_OPTIONS[i];
+            CheckBox check = new CheckBox(this);
+            check.setText(option[1]);
+            check.setTextColor(textColor);
+            check.setTextSize(11);
+            check.setMinHeight(dp(46));
+            check.setButtonTintList(android.content.res.ColorStateList.valueOf(accentColor));
+            check.setPadding(dp(5), dp(2), dp(5), dp(2));
+            check.setBackground(rounded(selected.contains(option[0]) ? selectedSurface() : cardColor,
+                dp(11), selected.contains(option[0]) ? accentColor : borderColor));
+            check.setChecked(selected.contains(option[0]));
+            contentChecks.put(option[0], check);
+            check.setOnCheckedChangeListener((button, checked) -> {
+                check.setBackground(rounded(checked ? selectedSurface() : cardColor, dp(11),
+                    checked ? accentColor : borderColor));
+                updatePreview();
+                requestScreenTimePreviewRefresh();
+            });
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1f);
+            params.setMargins(dp(2), dp(2), dp(2), dp(2));
+            row.addView(check, params);
+        }
+    }
+
+    private void addScreenTimeControls(LinearLayout parent, SharedPreferences preferences) {
+        screenTimeControlRoot = cardContainer();
+        screenTimeControlRoot.setPadding(dp(10), dp(9), dp(10), dp(9));
+        screenTimeControlRoot.setVisibility(View.GONE);
+
+        MathMasterHomeWidgetProvider.ScreenTimeConfig saved =
+            MathMasterHomeWidgetProvider.readScreenTimeConfig(preferences, widgetId);
+        screenTimePeriodSpinner = addSpinnerRow(screenTimeControlRoot, "Usage period",
+            new String[] {"Today", "Yesterday", "Last 7 Days"},
+            "yesterday".equals(saved.period) ? 1 : ("last_7_days".equals(saved.period) ? 2 : 0));
+        screenTimeSortSpinner = addSpinnerRow(screenTimeControlRoot, "App sorting",
+            new String[] {"Most Used First", "Least Used First", "App Name A–Z", "App Name Z–A"},
+            "least_used".equals(saved.sort) ? 1 : ("name_asc".equals(saved.sort) ? 2 : ("name_desc".equals(saved.sort) ? 3 : 0)));
+        screenTimeCountSpinner = addSpinnerRow(screenTimeControlRoot, "Visible app entries",
+            new String[] {"3 apps", "5 apps", "8 apps", "12 apps"},
+            saved.maxEntries <= 3 ? 0 : (saved.maxEntries <= 5 ? 1 : (saved.maxEntries <= 8 ? 2 : 3)));
+
+        LinearLayout flags = new LinearLayout(this);
+        flags.setOrientation(LinearLayout.HORIZONTAL);
+        screenTimeShowTotalCheck = compactCheck("Show total", saved.showTotal);
+        screenTimeShowUsageCheck = compactCheck("Show app time", saved.showUsage);
+        screenTimeShowPercentCheck = compactCheck("Usage bars", saved.showPercent);
+        screenTimeDetailedCheck = compactCheck("Detailed rows", saved.detailed);
+        flags.addView(screenTimeShowTotalCheck, new LinearLayout.LayoutParams(0, dp(40), 1f));
+        flags.addView(screenTimeShowUsageCheck, new LinearLayout.LayoutParams(0, dp(40), 1f));
+        flags.addView(screenTimeShowPercentCheck, new LinearLayout.LayoutParams(0, dp(40), 1f));
+        screenTimeControlRoot.addView(flags, matchWrap());
+        screenTimeControlRoot.addView(screenTimeDetailedCheck, matchWrap());
+
+        usageAccessStatus = new TextView(this);
+        usageAccessStatus.setTextColor(mutedColor);
+        usageAccessStatus.setTextSize(10);
+        usageAccessStatus.setPadding(dp(2), dp(5), dp(2), dp(3));
+        screenTimeControlRoot.addView(usageAccessStatus, matchWrap());
+        Button usageAccess = actionButton("Open Usage Access Settings", false);
+        usageAccess.setOnClickListener(view -> {
+            try {
+                Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+                startActivity(intent);
+            } catch (RuntimeException error) {
+                Toast.makeText(this, "Android Usage Access settings could not be opened.", Toast.LENGTH_LONG).show();
+            }
+        });
+        screenTimeControlRoot.addView(usageAccess, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(42)));
+
+        studyAppFilterContainer = new LinearLayout(this);
+        studyAppFilterContainer.setOrientation(LinearLayout.VERTICAL);
+        deviceAppFilterContainer = new LinearLayout(this);
+        deviceAppFilterContainer.setOrientation(LinearLayout.VERTICAL);
+        screenTimeControlRoot.addView(studyAppFilterContainer, matchWrap());
+        screenTimeControlRoot.addView(deviceAppFilterContainer, matchWrap());
+        parent.addView(screenTimeControlRoot, sectionParams());
+        populateAppFilters(preferences);
+        updateUsageAccessLabel();
+
+        screenTimePeriodSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                updatePreview();
+                requestScreenTimePreviewRefresh();
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        });
+        screenTimeSortSpinner.setOnItemSelectedListener(simpleSelectionListener());
+        screenTimeCountSpinner.setOnItemSelectedListener(simpleSelectionListener());
+        screenTimeShowTotalCheck.setOnCheckedChangeListener((button, checked) -> updatePreview());
+        screenTimeShowUsageCheck.setOnCheckedChangeListener((button, checked) -> updatePreview());
+        screenTimeShowPercentCheck.setOnCheckedChangeListener((button, checked) -> updatePreview());
+        screenTimeDetailedCheck.setOnCheckedChangeListener((button, checked) -> updatePreview());
+    }
+
+    private AdapterView.OnItemSelectedListener simpleSelectionListener() {
+        return new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                updatePreview();
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        };
+    }
+
+    private Spinner addSpinnerRow(LinearLayout parent, String label, String[] options, int selected) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = new TextView(this);
+        title.setText(label);
+        title.setTextColor(textColor);
+        title.setTextSize(11);
+        row.addView(title, new LinearLayout.LayoutParams(0, dp(42), 0.9f));
+        Spinner spinner = new Spinner(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, options);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        spinner.setSelection(Math.max(0, Math.min(options.length - 1, selected)));
+        row.addView(spinner, new LinearLayout.LayoutParams(0, dp(42), 1.1f));
+        parent.addView(row, matchWrap());
+        return spinner;
+    }
+
+    private CheckBox compactCheck(String label, boolean checked) {
+        CheckBox check = new CheckBox(this);
+        check.setText(label);
+        check.setTextColor(textColor);
+        check.setTextSize(10);
+        check.setButtonTintList(android.content.res.ColorStateList.valueOf(accentColor));
+        check.setMinHeight(dp(36));
+        check.setChecked(checked);
+        return check;
+    }
+
+    private void populateAppFilters(SharedPreferences preferences) {
+        if (studyAppFilterContainer == null || deviceAppFilterContainer == null) return;
+        MathMasterHomeWidgetProvider.ScreenTimeConfig saved =
+            MathMasterHomeWidgetProvider.readScreenTimeConfig(preferences, widgetId);
+        for (Map.Entry<String, CheckBox> entry : studyAppFilterChecks.entrySet()) {
+            if (entry.getValue().isChecked()) saved.hiddenStudyPackages.remove(entry.getKey());
+            else saved.hiddenStudyPackages.add(entry.getKey());
+        }
+        for (Map.Entry<String, CheckBox> entry : deviceAppFilterChecks.entrySet()) {
+            if (entry.getValue().isChecked()) saved.hiddenDevicePackages.remove(entry.getKey());
+            else saved.hiddenDevicePackages.add(entry.getKey());
+        }
+        studyAppFilterChecks.clear();
+        deviceAppFilterChecks.clear();
+        studyAppFilterContainer.removeAllViews();
+        deviceAppFilterContainer.removeAllViews();
+        addAppFilterGroup(studyAppFilterContainer, "Study Apps shown", "study",
+            WidgetScreenTimeRepository.getStudyAppChoices(this), saved.hiddenStudyPackages, studyAppFilterChecks);
+        addAppFilterGroup(deviceAppFilterContainer, "Device Apps shown", "device",
+            WidgetScreenTimeRepository.getDeviceAppChoices(this), saved.hiddenDevicePackages, deviceAppFilterChecks);
+    }
+
+    private void addAppFilterGroup(LinearLayout parent, String title, String source,
+        List<WidgetScreenTimeRepository.AppChoice> choices, Set<String> hidden, Map<String, CheckBox> checks) {
+        TextView heading = new TextView(this);
+        heading.setText(title);
+        heading.setTextColor(textColor);
+        heading.setTextSize(11);
+        heading.setTypeface(null, 1);
+        heading.setPadding(dp(2), dp(7), dp(2), dp(3));
+        parent.addView(heading, matchWrap());
+        if (choices.isEmpty()) {
+            TextView empty = new TextView(this);
+            empty.setText("No apps are currently available in this list.");
+            empty.setTextColor(mutedColor);
+            empty.setTextSize(10);
+            parent.addView(empty, matchWrap());
+        }
+        for (WidgetScreenTimeRepository.AppChoice choice : choices) {
+            CheckBox check = compactCheck(choice.label, !hidden.contains(choice.packageName));
+            check.setTag(choice.packageName);
+            checks.put(choice.packageName, check);
+            check.setOnCheckedChangeListener((button, checked) -> updatePreview());
+            parent.addView(check, matchWrap());
+        }
+        if ("study".equals(source)) {
+            Button manage = actionButton("Manage Study Apps", false);
+            manage.setOnClickListener(view -> {
+                if (!StudyModeManager.openStudyAppsSelection(this)) {
+                    Toast.makeText(this, "Study Apps settings could not be opened.", Toast.LENGTH_LONG).show();
+                }
+            });
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(40));
+            params.topMargin = dp(4);
+            parent.addView(manage, params);
+        }
+    }
+
+    private MathMasterHomeWidgetProvider.ScreenTimeConfig buildScreenTimeConfig() {
+        MathMasterHomeWidgetProvider.ScreenTimeConfig config =
+            MathMasterHomeWidgetProvider.readScreenTimeConfig(
+                getSharedPreferences(PREFS, Context.MODE_PRIVATE), widgetId);
+        int period = screenTimePeriodSpinner == null ? 0 : screenTimePeriodSpinner.getSelectedItemPosition();
+        config.period = period == 1 ? "yesterday" : (period == 2 ? "last_7_days" : "today");
+        int sort = screenTimeSortSpinner == null ? 0 : screenTimeSortSpinner.getSelectedItemPosition();
+        config.sort = sort == 1 ? "least_used" : (sort == 2 ? "name_asc" : (sort == 3 ? "name_desc" : "most_used"));
+        int count = screenTimeCountSpinner == null ? 1 : screenTimeCountSpinner.getSelectedItemPosition();
+        config.maxEntries = count == 0 ? 3 : (count == 2 ? 8 : (count == 3 ? 12 : 5));
+        config.showTotal = screenTimeShowTotalCheck == null || screenTimeShowTotalCheck.isChecked();
+        config.showUsage = screenTimeShowUsageCheck == null || screenTimeShowUsageCheck.isChecked();
+        config.showPercent = screenTimeShowPercentCheck != null && screenTimeShowPercentCheck.isChecked();
+        config.detailed = screenTimeDetailedCheck == null || screenTimeDetailedCheck.isChecked();
+        for (Map.Entry<String, CheckBox> entry : studyAppFilterChecks.entrySet()) {
+            if (entry.getValue().isChecked()) config.hiddenStudyPackages.remove(entry.getKey());
+            else config.hiddenStudyPackages.add(entry.getKey());
+        }
+        for (Map.Entry<String, CheckBox> entry : deviceAppFilterChecks.entrySet()) {
+            if (entry.getValue().isChecked()) config.hiddenDevicePackages.remove(entry.getKey());
+            else config.hiddenDevicePackages.add(entry.getKey());
+        }
+        return config;
+    }
+
+    private void requestScreenTimePreviewRefresh() {
+        if (screenTimeControlRoot == null || screenTimeControlRoot.getVisibility() != View.VISIBLE) return;
+        MathMasterHomeWidgetProvider.ScreenTimeConfig config = buildScreenTimeConfig();
+        WidgetScreenTimeRepository.requestRefresh(this, config.period, () -> {
+            if (!isFinishing()) {
+                updateUsageAccessLabel();
+                updatePreview();
+            }
+        });
+    }
+
+    private void updateUsageAccessLabel() {
+        if (usageAccessStatus == null) return;
+        usageAccessStatus.setText(WidgetScreenTimeRepository.hasUsageAccess(this)
+            ? "Usage Access is enabled · Android-reported app foreground time"
+            : "Usage Access is required · no usage values will be shown until enabled");
     }
 
     private void addStyleGrid(LinearLayout parent, String selectedStyle) {
@@ -450,6 +800,14 @@ public class MathMasterWidgetConfigActivity extends Activity {
                 selectedLabels.add(option[1]);
             }
         }
+        boolean studyTimeSelected = selected.contains("studyAppsScreenTime");
+        boolean deviceTimeSelected = selected.contains("deviceAppsScreenTime");
+        if (screenTimeControlRoot != null) {
+            screenTimeControlRoot.setVisibility(studyTimeSelected || deviceTimeSelected ? View.VISIBLE : View.GONE);
+            if (studyAppFilterContainer != null) studyAppFilterContainer.setVisibility(studyTimeSelected ? View.VISIBLE : View.GONE);
+            if (deviceAppFilterContainer != null) deviceAppFilterContainer.setVisibility(deviceTimeSelected ? View.VISIBLE : View.GONE);
+        }
+        updateUsageAccessLabel();
         String style = selectedRadioValue(styleChoices, "neon");
         String composition = selectedRadioValue(compositionChoices, "auto");
         if (selected.isEmpty()) {
@@ -461,15 +819,17 @@ public class MathMasterWidgetConfigActivity extends Activity {
         int[] size = previewSizeDp();
         try {
             Bitmap preview = MathMasterHomeWidgetProvider.renderConfigurationPreview(
-                this, composition, style, selected, size[0], size[1]);
+                this, composition, style, selected, size[0], size[1], buildScreenTimeConfig());
             previewArtwork.setImageBitmap(preview);
             previewArtwork.setVisibility(preview == null ? View.GONE : View.VISIBLE);
         } catch (RuntimeException | OutOfMemoryError ignored) {
             previewArtwork.setImageDrawable(null);
             previewArtwork.setVisibility(View.GONE);
         }
-        previewSummary.setText(compositionLabel(composition) + "  ·  "
-            + styleLabel(style) + "  ·  " + selected.size() + " fields");
+        String summary = compositionLabel(composition) + "  ·  " + styleLabel(style)
+            + "  ·  " + selected.size() + " fields";
+        if (studyTimeSelected || deviceTimeSelected) summary += "  ·  real Android UsageStats";
+        previewSummary.setText(summary);
     }
 
     private void saveConfiguration() {
@@ -515,11 +875,26 @@ public class MathMasterWidgetConfigActivity extends Activity {
         String oldStyle = preferences.getString(styleKey, null);
         String oldComposition = preferences.getString(compositionKey, null);
 
+        MathMasterHomeWidgetProvider.ScreenTimeConfig screenTime = buildScreenTimeConfig();
+        String[] screenTimeKeys = {
+            "screenTimePeriod", "screenTimeSort", "screenTimeMaxEntries", "screenTimeShowTotal",
+            "screenTimeShowUsage", "screenTimeShowPercent", "screenTimeDetailed",
+            "screenTimeHiddenStudyPackages", "screenTimeHiddenDevicePackages"
+        };
         boolean saved = preferences.edit()
             .putString(contentKey, selected.toString())
-            .putInt(schemaKey, 3)
+            .putInt(schemaKey, 4)
             .putString(styleKey, style)
             .putString(compositionKey, composition)
+            .putString(prefix + "screenTimePeriod", screenTime.period)
+            .putString(prefix + "screenTimeSort", screenTime.sort)
+            .putInt(prefix + "screenTimeMaxEntries", screenTime.maxEntries)
+            .putBoolean(prefix + "screenTimeShowTotal", screenTime.showTotal)
+            .putBoolean(prefix + "screenTimeShowUsage", screenTime.showUsage)
+            .putBoolean(prefix + "screenTimeShowPercent", screenTime.showPercent)
+            .putBoolean(prefix + "screenTimeDetailed", screenTime.detailed)
+            .putString(prefix + "screenTimeHiddenStudyPackages", toJson(screenTime.hiddenStudyPackages))
+            .putString(prefix + "screenTimeHiddenDevicePackages", toJson(screenTime.hiddenDevicePackages))
             .remove(prefix + "themeMode")
             .remove(prefix + "theme")
             .commit();
@@ -539,6 +914,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
             restoreValue(rollback, compositionKey, hadComposition, oldComposition);
             restoreValue(rollback, prefix + "themeMode", hadThemeMode, oldThemeMode);
             restoreValue(rollback, prefix + "theme", hadTheme, oldTheme);
+            for (String key : screenTimeKeys) {
+                String fullKey = prefix + key;
+                restoreValue(rollback, fullKey, previousValues.containsKey(fullKey), previousValues.get(fullKey));
+            }
             rollback.commit();
             Toast.makeText(this, "Widget update failed. Previous settings were restored.", Toast.LENGTH_LONG).show();
             return;
@@ -549,6 +928,12 @@ public class MathMasterWidgetConfigActivity extends Activity {
         setResult(RESULT_OK, result);
         Toast.makeText(this, "Widget updated successfully.", Toast.LENGTH_SHORT).show();
         finish();
+    }
+
+    private static String toJson(Set<String> values) {
+        JSONArray array = new JSONArray();
+        for (String value : values) if (value != null && value.matches("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+")) array.put(value);
+        return array.toString();
     }
 
     private static void restoreValue(SharedPreferences.Editor editor, String key, boolean existed, Object value) {

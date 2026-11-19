@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
@@ -39,7 +40,7 @@ import java.util.Set;
 public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     private static final String WIDGET_PREFS = "math_master_home_widget";
     private static final int REQUEST_CODE = 8907;
-    private static final int CONTENT_SCHEMA_VERSION = 3;
+    private static final int CONTENT_SCHEMA_VERSION = 4;
     // Single source of truth for the native editor and the in-app Widget Studio catalogue.
     static final String[][] WIDGET_COMPOSITIONS = {
         {"auto", "Auto (adapts to size)"},
@@ -60,9 +61,22 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return copy;
     }
     static final String[] CONTENT_OPTIONS = {
-        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
+        "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus",
+        "studyAppsScreenTime", "deviceAppsScreenTime"
     };
     private static MathMasterWidgetRenderer.Fonts widgetFonts;
+
+    static final class ScreenTimeConfig {
+        String period = "today";
+        String sort = "most_used";
+        int maxEntries = 5;
+        boolean showTotal = true;
+        boolean showUsage = true;
+        boolean showPercent = false;
+        boolean detailed = true;
+        Set<String> hiddenStudyPackages = new HashSet<>();
+        Set<String> hiddenDevicePackages = new HashSet<>();
+    }
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] appWidgetIds) {
@@ -88,6 +102,41 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     @Override
     public void onAppWidgetOptionsChanged(Context context, AppWidgetManager manager, int appWidgetId, Bundle options) {
         manager.updateAppWidget(appWidgetId, createViews(context, appWidgetId));
+    }
+
+    /** Refresh all saved widgets after the app resumes, the Study Apps list changes, or packages change. */
+    public static void refreshScreenTimeWidgets(Context context) {
+        if (context == null) return;
+        WidgetScreenTimeRepository.invalidateCaches();
+        refreshScreenTimeInstances(context);
+    }
+
+    /** Re-render Screen Time instances only after the app theme or light/dark mode changes. */
+    public static void updateScreenTimeAppearance(Context context) {
+        refreshScreenTimeInstances(context, null);
+    }
+
+    /** Update active widget instances after a background UsageStats query has completed. */
+    public static void refreshScreenTimeInstances(Context context) {
+        refreshScreenTimeInstances(context, null);
+    }
+
+    public static void refreshScreenTimeInstances(Context context, String refreshedPeriod) {
+        if (context == null) return;
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        ComponentName provider = new ComponentName(context, MathMasterHomeWidgetProvider.class);
+        int[] widgetIds = manager.getAppWidgetIds(provider);
+        if (widgetIds == null || widgetIds.length == 0) return;
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        for (int widgetId : widgetIds) {
+            try {
+                Set<String> content = getSelectedContent(preferences, widgetId);
+                if (!content.contains("studyAppsScreenTime") && !content.contains("deviceAppsScreenTime")) continue;
+                ScreenTimeConfig config = readScreenTimeConfig(preferences, widgetId);
+                if (refreshedPeriod != null && !refreshedPeriod.equals(config.period)) continue;
+                manager.updateAppWidget(widgetId, createViews(context, widgetId));
+            } catch (RuntimeException ignored) { /* Keep other pinned widgets updating. */ }
+        }
     }
 
     public static void updateWidgets(Context context) {
@@ -287,7 +336,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     }
 
     static MathMasterWidgetRenderer.Options buildOptions(
-        String composition, String style, boolean enabled, Set<String> selected
+        String composition, String style, boolean enabled, Set<String> selected, ScreenTimeConfig screenTime
     ) {
         MathMasterWidgetRenderer.Options options = new MathMasterWidgetRenderer.Options();
         options.composition = composition;
@@ -302,11 +351,97 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         options.weekly = selected.contains("weekly");
         options.quiz = selected.contains("quiz");
         options.update = selected.contains("updateStatus");
+        options.studyAppsScreenTime = selected.contains("studyAppsScreenTime");
+        options.deviceAppsScreenTime = selected.contains("deviceAppsScreenTime");
+        ScreenTimeConfig config = screenTime == null ? new ScreenTimeConfig() : screenTime;
+        options.screenTimePeriod = config.period;
+        options.screenTimeMaxEntries = config.maxEntries;
+        options.screenTimeShowTotal = config.showTotal;
+        options.screenTimeShowUsage = config.showUsage;
+        options.screenTimeShowPercent = config.showPercent;
+        options.screenTimeDetailed = config.detailed;
         return options;
     }
 
+    private static void applyScreenTimeAppearance(
+        MathMasterWidgetRenderer.Options options, SharedPreferences preferences
+    ) {
+        if (!options.studyAppsScreenTime && !options.deviceAppsScreenTime) return;
+        String accent = preferences.getString("appAccentColor", "");
+        if (accent != null && accent.matches("^#[0-9a-fA-F]{6}$")) {
+            try { options.themeAccent = Color.parseColor(accent); }
+            catch (IllegalArgumentException ignored) { options.themeAccent = 0; }
+        }
+        options.lightMode = "light".equals(preferences.getString("mode", "dark"));
+    }
+
     private static Set<String> defaultContent() {
-        return new HashSet<>(Arrays.asList(CONTENT_OPTIONS));
+        return new HashSet<>(Arrays.asList(
+            "appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"
+        ));
+    }
+
+    static ScreenTimeConfig readScreenTimeConfig(SharedPreferences preferences, int appWidgetId) {
+        ScreenTimeConfig config = new ScreenTimeConfig();
+        config.period = normalizeScreenTimePeriod(getInstanceString(preferences, appWidgetId, "screenTimePeriod", "today"));
+        config.sort = normalizeScreenTimeSort(getInstanceString(preferences, appWidgetId, "screenTimeSort", "most_used"));
+        config.maxEntries = Math.max(1, Math.min(12, getInstanceInt(preferences, appWidgetId, "screenTimeMaxEntries", 5)));
+        config.showTotal = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowTotal", true);
+        config.showUsage = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowUsage", true);
+        config.showPercent = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowPercent", false);
+        config.detailed = getInstanceBoolean(preferences, appWidgetId, "screenTimeDetailed", true);
+        config.hiddenStudyPackages = parsePackageSet(getInstanceString(preferences, appWidgetId, "screenTimeHiddenStudyPackages", "[]"));
+        config.hiddenDevicePackages = parsePackageSet(getInstanceString(preferences, appWidgetId, "screenTimeHiddenDevicePackages", "[]"));
+        return config;
+    }
+
+    private static int getInstanceInt(SharedPreferences preferences, int appWidgetId, String field, int fallback) {
+        String key = appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID ? field : "instance_" + appWidgetId + "_" + field;
+        if (!preferences.contains(key)) return fallback;
+        try { return preferences.getInt(key, fallback); } catch (ClassCastException ignored) { return fallback; }
+    }
+
+    private static boolean getInstanceBoolean(SharedPreferences preferences, int appWidgetId, String field, boolean fallback) {
+        String key = appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID ? field : "instance_" + appWidgetId + "_" + field;
+        if (!preferences.contains(key)) return fallback;
+        try { return preferences.getBoolean(key, fallback); } catch (ClassCastException ignored) { return fallback; }
+    }
+
+    private static Set<String> parsePackageSet(String json) {
+        Set<String> result = new HashSet<>();
+        if (json == null || json.length() > 64 * 1024) return result;
+        try {
+            JSONArray values = new JSONArray(json);
+            for (int index = 0; index < Math.min(values.length(), 1000); index++) {
+                String value = values.optString(index, "");
+                if (value.matches("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+")) result.add(value);
+            }
+        } catch (JSONException ignored) {}
+        return result;
+    }
+
+    private static String normalizeScreenTimePeriod(String value) {
+        return "yesterday".equals(value) || "last_7_days".equals(value) ? value : "today";
+    }
+
+    private static String normalizeScreenTimeSort(String value) {
+        if ("least_used".equals(value) || "name_asc".equals(value) || "name_desc".equals(value)) return value;
+        return "most_used";
+    }
+
+    private static void applyScreenTimeData(Context context, MathMasterWidgetRenderer.Data data,
+        MathMasterWidgetRenderer.Options options, ScreenTimeConfig config) {
+        if (!options.studyAppsScreenTime && !options.deviceAppsScreenTime) return;
+        WidgetScreenTimeRepository.Snapshot snapshot =
+            WidgetScreenTimeRepository.getCachedSnapshot(context, config.period);
+        if (options.studyAppsScreenTime) {
+            data.studyAppsScreenTime = WidgetScreenTimeRepository.buildSection(
+                context, snapshot, true, config.hiddenStudyPackages, config.sort, config.maxEntries);
+        }
+        if (options.deviceAppsScreenTime) {
+            data.deviceAppsScreenTime = WidgetScreenTimeRepository.buildSection(
+                context, snapshot, false, config.hiddenDevicePackages, config.sort, config.maxEntries);
+        }
     }
 
     private static boolean jsonArrayContains(JSONArray array, String value) {
@@ -330,16 +465,15 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
                     migrated = new JSONArray(preferences.getString(contentKey, "[]"));
                 } catch (JSONException ignored) {
                     migrated = new JSONArray();
-                    for (String option : CONTENT_OPTIONS) migrated.put(option);
+                    for (String option : defaultContent()) migrated.put(option);
                 }
                 if (storedVersion < 2 && !jsonArrayContains(migrated, "weekly") && migrated.length() < 32) migrated.put("weekly");
                 if (!jsonArrayContains(migrated, "quiz") && migrated.length() < 32) migrated.put("quiz");
-                // The redesign makes the neon-glass look the starting point; the two wallpaper-first
-                // effects stay available in the Customize screen.
+                // Additive migration: never opt existing widgets into the new screen-time content
+                // or overwrite their saved appearance/customization.
                 preferences.edit()
                     .putString(contentKey, migrated.toString())
                     .putInt(prefix + "contentSchemaVersion", CONTENT_SCHEMA_VERSION)
-                    .putString(prefix + "style", "neon")
                     .apply();
                 json = migrated.toString();
             }
@@ -395,16 +529,28 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return MathMasterWidgetRenderer.render(getWidgetFonts(context), data, options, width, height, density * scale);
     }
 
-    /** Live preview for the configuration screen: same renderer, saved data, the user's unsaved choices. */
+    /** Live preview for the configuration screen: same renderer and the user's unsaved choices. */
     public static Bitmap renderConfigurationPreview(
         Context context, String composition, String style, Set<String> selected, int widthDp, int heightDp
+    ) {
+        SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
+        return renderConfigurationPreview(context, composition, style, selected, widthDp, heightDp,
+            readScreenTimeConfig(preferences, AppWidgetManager.INVALID_APPWIDGET_ID));
+    }
+
+    public static Bitmap renderConfigurationPreview(
+        Context context, String composition, String style, Set<String> selected, int widthDp, int heightDp,
+        ScreenTimeConfig screenTime
     ) {
         SharedPreferences preferences = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE);
         String resolved = normalizeComposition(composition);
         if ("auto".equals(resolved)) resolved = MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
         MathMasterWidgetRenderer.Options options = buildOptions(
-            resolved, style, preferences.getBoolean("enabled", true), selected);
-        return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
+            resolved, style, preferences.getBoolean("enabled", true), selected, screenTime);
+        applyScreenTimeAppearance(options, preferences);
+        MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
+        applyScreenTimeData(context, data, options, screenTime == null ? new ScreenTimeConfig() : screenTime);
+        return renderWidgetBitmap(context, options, data, widthDp, heightDp, 1);
     }
 
     /** Render the saved configuration for one real, currently pinned launcher instance. */
@@ -423,8 +569,15 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         Set<String> selected = getSelectedContent(preferences, appWidgetId);
         String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "neon"));
         boolean enabled = preferences.getBoolean("enabled", true);
-        MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected);
-        return renderWidgetBitmap(context, options, readWidgetData(preferences), widthDp, heightDp, 1);
+        ScreenTimeConfig screenTime = readScreenTimeConfig(preferences, appWidgetId);
+        MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected, screenTime);
+        applyScreenTimeAppearance(options, preferences);
+        MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
+        applyScreenTimeData(context, data, options, screenTime);
+        if (options.studyAppsScreenTime || options.deviceAppsScreenTime) {
+            WidgetScreenTimeRepository.requestRefresh(context, screenTime.period, null);
+        }
+        return renderWidgetBitmap(context, options, data, widthDp, heightDp, 1);
     }
 
     private static String describe(MathMasterWidgetRenderer.Options options, MathMasterWidgetRenderer.Data data) {
@@ -445,6 +598,12 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             int done = 0;
             for (boolean day : data.weekDone) if (day) done++;
             text.append(' ').append(done).append(" of 7 days completed this week.");
+        }
+        if (options.studyAppsScreenTime && data.studyAppsScreenTime != null) {
+            text.append(" Study Apps screen time: ").append(data.studyAppsScreenTime.status).append(".");
+        }
+        if (options.deviceAppsScreenTime && data.deviceAppsScreenTime != null) {
+            text.append(" Device Apps screen time: ").append(data.deviceAppsScreenTime.status).append(".");
         }
         if (options.update && data.updateLabel != null) text.append(" An app update is available.");
         return text.toString();
@@ -487,8 +646,14 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         Set<String> selected = getSelectedContent(preferences, appWidgetId);
         String style = normalizeWidgetStyle(getInstanceString(preferences, appWidgetId, "style", "neon"));
         boolean enabled = preferences.getBoolean("enabled", true);
-        MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected);
+        ScreenTimeConfig screenTime = readScreenTimeConfig(preferences, appWidgetId);
+        MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected, screenTime);
+        applyScreenTimeAppearance(options, preferences);
         MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
+        applyScreenTimeData(context, data, options, screenTime);
+        if (options.studyAppsScreenTime || options.deviceAppsScreenTime) {
+            WidgetScreenTimeRepository.requestRefresh(context, screenTime.period, null);
+        }
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.math_master_home_widget);
         try {
@@ -502,22 +667,35 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean hasChecked = preferences.getBoolean("hasCheckedUpdates", false);
         boolean updateAvailable = preferences.getBoolean("updateAvailable", false);
         String latestVersion = preferences.getString("latestVersionName", "");
-        Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
-        if (launchIntent != null) {
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            if (updateAvailable && hasChecked) {
-                launchIntent.setAction("com.sudhanshu.mathsbj.OPEN_HOME_WIDGET_UPDATE");
-                launchIntent.putExtra("mathmaster_notification_action", "app-update");
-                launchIntent.putExtra("mathmaster_update_version_name", latestVersion);
-                launchIntent.putExtra("mathmaster_update_version_code",
-                    String.valueOf(preferences.getLong("latestVersionCode", 0L)));
+        Intent launchIntent = null;
+        if ((options.studyAppsScreenTime || options.deviceAppsScreenTime)
+            && !WidgetScreenTimeRepository.hasUsageAccess(context)) {
+            launchIntent = new Intent(context, MathMasterWidgetConfigActivity.class);
+            launchIntent.putExtra("openUsageAccessOnly", true);
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        } else if (options.studyAppsScreenTime && !options.deviceAppsScreenTime
+            && data.studyAppsScreenTime != null && "no_study_apps".equals(data.studyAppsScreenTime.status)) {
+            // The empty Study Apps state takes the user directly to the canonical Study Mode picker.
+            launchIntent = new Intent(context, MathMasterWidgetConfigActivity.class);
+            launchIntent.putExtra("openStudyAppsPickerOnly", true);
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        } else {
+            launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                if (updateAvailable && hasChecked) {
+                    launchIntent.setAction("com.sudhanshu.mathsbj.OPEN_HOME_WIDGET_UPDATE");
+                    launchIntent.putExtra("mathmaster_notification_action", "app-update");
+                    launchIntent.putExtra("mathmaster_update_version_name", latestVersion);
+                    launchIntent.putExtra("mathmaster_update_version_code",
+                        String.valueOf(preferences.getLong("latestVersionCode", 0L)));
+                }
             }
+        }
+        if (launchIntent != null) {
             PendingIntent pendingIntent = PendingIntent.getActivity(
-                context,
-                REQUEST_CODE,
-                launchIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
+                context, REQUEST_CODE + Math.max(0, appWidgetId), launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             views.setOnClickPendingIntent(R.id.widget_root, pendingIntent);
         }
         return views;

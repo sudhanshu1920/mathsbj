@@ -255,7 +255,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const handleReset = async () => {
     if (selectedId === null) return;
     const confirmed = window.confirm(
-      "Reset only this widget to its default design, Neon Glass appearance and all available content?"
+      "Reset only this widget to its original default design, Neon Glass appearance and standard content? Screen Time stays opt-in."
     );
     if (!confirmed) return;
     setResetting(true);

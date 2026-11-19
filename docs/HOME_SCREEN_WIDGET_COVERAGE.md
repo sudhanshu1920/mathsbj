@@ -12,19 +12,30 @@ The repository contains **one native launcher widget provider**: `MathMasterHome
 | Android 12+ picker preview and reconfigure | `res/xml-v31/math_master_home_widget_info.xml` | Metadata checks | **Unverified on a launcher** |
 | Legacy metadata / preview image | `res/xml/math_master_home_widget_info.xml`, `drawable-nodpi/math_master_widget_preview.webp` | Metadata checks | **Unverified on a launcher** |
 | Fonts | `android-native/assets/fonts/*` | Presence + licence + copy test | **Unverified** |
-| Configure script | `scripts/configure-android-widgets.mjs` | Runs against a temporary Android project in the test | Covered by CI |
+| Screen Time data | `WidgetScreenTimeRepository.java`, `AppUsageAnalyticsPlugin.java` | UsageStats source, local cache, period, package filtering and permission source checks | **Requires device Usage Access test** |
+| Screen Time renderer/config | `MathMasterWidgetRenderer.java`, `MathMasterWidgetConfigActivity.java` | Real renderer preview, native option and persistence checks | **Unverified on a launcher** |
+| Configure script | `scripts/configure-android-widgets.mjs` | Copies the repository and renderer into a temporary Android project in the test | Covered by CI |
 
 ## Data and configuration preservation
 
 - No new provider, progress tracker, timer engine or data store was introduced.
 - Weekly completion still comes from the saved daily completion history; the renderer never fabricates ticks.
-- Content schema is now 3 (adds the Upcoming Quiz tile). Older per-widget selections are migrated once; the backup/restore validators (TypeScript and Java) accept schema 3 and the `quiz` option.
+- Content schema is now 4. The migration remains additive: it preserves existing widget content and appearance and does not opt existing widgets into Screen Time. The TypeScript and Java backup/restore validators accept both Screen Time keys and their per-instance preferences.
 - `syncProgressSnapshot`, `updateWidgetPreferences`, `updateReleaseStatus` and `onDeleted` are unchanged, so reminder sync, update status, backup/restore and per-widget clean-up behave as before.
-- Saved composition values keep their meaning. Style values are now `neon` (default, the reference design), `blur` and `transparent`; the old `glass` / `compact` / `minimal` values map to `neon`, and a widget saved before the redesign is switched to `neon` once. The backup/restore validators accept all of these. The widget does not follow the app's accent colour or light/dark mode.
+- Saved composition values keep their meaning. Style values are `neon`, `blur` and `transparent`; the old `glass` / `compact` / `minimal` values map to `neon`. Screen Time follows the active app accent and Light/Dark mode through the existing native plugin; its palette and frosted/transparent surfaces switch without changing the seven legacy widget compositions.
 
 ## Verification policy
 
 A passing source test or APK build means the code compiles and the tested paths are present. It does not prove every launcher size renders without clipping. The desktop preview shows what the drawing code produces, but wallpaper transparency, launcher cell sizes, OEM fonts and tap behaviour still need screenshots from real devices.
+
+## Screen Time data boundaries
+
+- Study Apps comes from `StudyModeManager.getSelectedStudyAppPackages()`; Device Apps comes from the installed-app inventory. Neither list is used as the other's source.
+- Both are joined to `UsageStatsManager.queryUsageStats(INTERVAL_DAILY, start, end)`. Duplicate identical package/day aggregate rows are discarded; package foreground duration is aggregated over the requested local-calendar range. The per-package duration is bounded by the query window.
+- Device Apps currently includes eligible user-installed applications and updated system apps; core system packages are excluded. The Android package visibility policy and work-profile boundary still apply.
+- Usage Access is checked through AppOps, not inferred from an empty result. Without access, a permission-required state is rendered. The widget tap opens Android Usage Access settings via a small app-owned proxy that refreshes on return.
+- Android's usage APIs provide aggregate foreground duration, not foreground-window or per-session certainty. Multi-window attribution and OEM reporting behavior can make totals differ from wall-clock time.
+- Data remains local; no usage history is sent to a remote endpoint. The two-minute snapshot cache is process-local; Android's existing widget update cadence remains the periodic fallback.
 
 ## Composition coverage
 

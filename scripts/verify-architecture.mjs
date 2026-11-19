@@ -24,6 +24,32 @@ const offlineReady = read('src/lib/offlineReady.ts');
 const streak = read('src/lib/streak.ts');
 const personalApkWorkflow = read('.github/workflows/android-apk.yml');
 const publicReleaseWorkflow = read('.github/workflows/android-release.yml');
+const widgetScreenTimeRepository = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeRepository.java');
+const widgetScreenTimeProvider = read('android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java');
+const widgetScreenTimeRenderer = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java');
+const widgetScreenTimeSetup = read('scripts/configure-android-widgets.mjs');
+const widgetScreenTimeBackup = read('src/lib/backupRestore.ts');
+const widgetScreenTimeBridge = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetsPlugin.java');
+const widgetScreenTimeEntry = read('src/pages/Index.tsx');
+if (!widgetScreenTimeRepository.includes('UsageStatsManager.INTERVAL_DAILY')
+    || !widgetScreenTimeRepository.includes('StudyModeManager.getSelectedStudyAppPackages(context)')
+    || !widgetScreenTimeRepository.includes('installedApplications(pm)')
+    || !widgetScreenTimeRepository.includes('AppUsageAnalyticsPlugin.hasUsageAccess')
+    || !widgetScreenTimeRepository.includes('cacheGeneration != requestGeneration')
+    || !widgetScreenTimeProvider.includes('studyAppsScreenTime')
+    || !widgetScreenTimeProvider.includes('deviceAppsScreenTime')
+    || !widgetScreenTimeRenderer.includes('void layoutScreenTime()')
+    || !widgetScreenTimeBridge.includes('public void refreshScreenTime(PluginCall call)')
+    || !widgetScreenTimeBridge.includes('public void syncAppearance(PluginCall call)')
+    || !widgetScreenTimeProvider.includes('applyScreenTimeAppearance(options, preferences)')
+    || !widgetScreenTimeRenderer.includes('paletteFor(String composition, int themeAccent, boolean lightMode)')
+    || !widgetScreenTimeBackup.includes("'studyAppsScreenTime', 'deviceAppsScreenTime'")
+    || !widgetScreenTimeEntry.includes('NativeWidgetRefresh.refreshScreenTime()')
+    || !widgetScreenTimeEntry.includes("window.addEventListener('theme-updated', syncWidgetAppearance)")
+    || !widgetScreenTimeSetup.includes("'WidgetScreenTimeRepository.java'")) {
+  fail('Screen Time widgets must use local UsageStats, keep Study Apps and Device Apps independent, and refresh through the existing native widget setup');
+}
+
 
 if (!personalApkWorkflow.includes("startsWith(github.event.head_commit.message, '[BUILD_ANDROID_APK]')") ||
     publicReleaseWorkflow.includes("startsWith(github.event.head_commit.message, '[BUILD_ANDROID_APK]')")) {

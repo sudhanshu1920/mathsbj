@@ -59,6 +59,27 @@ final class MathMasterWidgetRenderer {
         int todayIndex = 0;                    // 0 = Sunday .. 6 = Saturday
         String updateLabel = null;             // e.g. "UPDATE v1.2.3", null when none
         String[] dayLetters = { "S", "M", "T", "W", "T", "F", "S" };
+        ScreenTimeSection studyAppsScreenTime;
+        ScreenTimeSection deviceAppsScreenTime;
+    }
+
+    /** A real app usage row; package metadata and icon are resolved on a worker thread. */
+    static final class ScreenTimeEntry {
+        String packageName;
+        String label;
+        long usageMillis;
+        float percent;
+        Bitmap icon;
+    }
+
+    /** Status-aware data for one independent screen-time source. */
+    static final class ScreenTimeSection {
+        String title = "";
+        String status = "loading";
+        String periodLabel = "Today";
+        long totalUsageMillis;
+        long lastUpdatedAt;
+        java.util.List<ScreenTimeEntry> entries = new java.util.ArrayList<>();
     }
 
     /** Which blocks to draw and how. */
@@ -66,6 +87,7 @@ final class MathMasterWidgetRenderer {
         String composition = "hero_wide";
         String style = "neon";     // neon (reference look) | blur | transparent; anything else = neon
         int themeAccent = 0;       // 0 = use the composition's own reference palette
+        boolean lightMode = false; // Screen Time follows the active app mode
         boolean enabled = true;
         boolean identity = true;
         boolean progress = true;
@@ -76,6 +98,14 @@ final class MathMasterWidgetRenderer {
         boolean weekly = true;
         boolean quiz = true;
         boolean update = true;
+        boolean studyAppsScreenTime = false;
+        boolean deviceAppsScreenTime = false;
+        String screenTimePeriod = "today";
+        int screenTimeMaxEntries = 5;
+        boolean screenTimeShowTotal = true;
+        boolean screenTimeShowUsage = true;
+        boolean screenTimeShowPercent = false;
+        boolean screenTimeDetailed = true;
     }
 
     // ---------------------------------------------------------------- palettes
@@ -109,7 +139,7 @@ final class MathMasterWidgetRenderer {
 
     private static int hex(String s) { return Color.parseColor(s); }
 
-    private static Palette paletteFor(String composition, int themeAccent) {
+    private static Palette paletteFor(String composition, int themeAccent, boolean lightMode) {
         Palette p = new Palette();
         // Shared arc / bar colours: bright green start, cyan middle, bright blue-cyan end.
         p.ring0 = hex("#4FF27C");
@@ -170,12 +200,32 @@ final class MathMasterWidgetRenderer {
                 p.borderA = hex("#1A9CF0"); p.borderB = hex("#C58EFB");
                 break;
         }
-        if (themeAccent != 0) applyAccent(p, themeAccent);
+        if (themeAccent != 0) applyAccent(p, themeAccent, lightMode);
         return p;
     }
 
     /** Re-tints a palette from one accent colour (the Settings colour themes). */
-    private static void applyAccent(Palette p, int accent) {
+    private static void applyAccent(Palette p, int accent, boolean lightMode) {
+        if (lightMode) {
+            p.bg0 = mix(Color.WHITE, accent, 0.075f);
+            p.bg1 = mix(Color.WHITE, accent, 0.025f);
+            p.bg2 = mix(Color.WHITE, accent, 0.12f);
+            p.blobA = withAlpha(accent, 0.10f);
+            p.blobB = withAlpha(mix(accent, Color.WHITE, 0.35f), 0.14f);
+            p.blobC = withAlpha(mix(accent, hex("#64748B"), 0.35f), 0.09f);
+            p.borderA = mix(accent, Color.WHITE, 0.18f);
+            p.borderB = mix(accent, Color.BLACK, 0.15f);
+            p.master = mix(accent, Color.BLACK, 0.12f);
+            p.soft = mix(accent, Color.BLACK, 0.28f);
+            p.ring0 = mix(accent, Color.WHITE, 0.24f);
+            p.ring1 = accent;
+            p.ring2 = mix(accent, hex("#2563EB"), 0.36f);
+            p.track = withAlpha(accent, 0.15f);
+            p.bar0 = p.ring0;
+            p.bar1 = accent;
+            p.glow = withAlpha(accent, 0.46f);
+            return;
+        }
         int ink = hex("#05070F");
         p.bg0 = mix(ink, accent, 0.13f);
         p.bg1 = mix(ink, accent, 0.24f);
@@ -241,7 +291,7 @@ final class MathMasterWidgetRenderer {
 
         Scene(Canvas c, int w, int h, Fonts f, Data d, Options o, float density) {
             this.c = c; this.W = w; this.H = h; this.f = f; this.d = d; this.o = o; this.density = density;
-            this.pal = paletteFor(o.composition, o.themeAccent);
+            this.pal = paletteFor(o.composition, o.themeAccent, o.lightMode);
             this.minimalStyle = false;
             this.compactStyle = false;
             this.translucent = "blur".equals(o.style);
@@ -293,6 +343,11 @@ final class MathMasterWidgetRenderer {
             cardRadius = Math.min(cardRadius, card.height() * 0.5f);
             drawCard();
             if (!o.enabled) { drawDisabled(); return; }
+            if (o.studyAppsScreenTime || o.deviceAppsScreenTime) {
+                layoutScreenTime();
+                drawUpdatePill();
+                return;
+            }
             switch (o.composition) {
                 case "compact_green": layoutGreen(); break;
                 case "square_math_bot": layoutMathBot(); break;
@@ -317,11 +372,11 @@ final class MathMasterWidgetRenderer {
         void drawCard() {
             if (clear) return;   // "Full Transparent": the wallpaper is the only background
             if (translucent) {   // "Transparent Blur": frosted slate card with a hairline edge
-                fill.setColor(Color.argb(102, 57, 67, 77));
+                fill.setColor(o.lightMode ? Color.argb(164, 246, 249, 255) : Color.argb(102, 57, 67, 77));
                 c.drawRoundRect(card, cardRadius, cardRadius, fill);
                 RectF hairline = new RectF(card);
                 hairline.inset(0.5f * density, 0.5f * density);
-                line.setColor(Color.argb(40, 255, 255, 255));
+                line.setColor(o.lightMode ? Color.argb(150, 255, 255, 255) : Color.argb(40, 255, 255, 255));
                 line.setStrokeWidth(Math.max(1f, density));
                 c.drawRoundRect(hairline, cardRadius, cardRadius, line);
                 resetPaints();
@@ -375,6 +430,188 @@ final class MathMasterWidgetRenderer {
             text("Turn them on in app Settings", cx, card.centerY() + size * 1.25f, size * 0.78f, f.regular, withAlpha(Color.WHITE, 0.75f), Paint.Align.CENTER, card.width() * 0.9f);
         }
 
+
+        // ---- native UsageStats widget content ---------------------------------
+        // This uses the same card, palette, typefaces, glass panel and accent logic as
+        // the seven existing compositions. Screen-time content is a dedicated layout
+        // because the launcher supplies a single bitmap rather than independent slots.
+        void layoutScreenTime() {
+            float pad = clamp(Math.min(W, H) * 0.055f, 7f * density, 22f * density);
+            float gap = Math.max(5f * density, pad * 0.65f);
+            boolean study = o.studyAppsScreenTime && d.studyAppsScreenTime != null;
+            boolean device = o.deviceAppsScreenTime && d.deviceAppsScreenTime != null;
+            if (study && device) {
+                if (W >= H * 1.32f && H >= 118f * density) {
+                    float mid = W * 0.5f;
+                    drawScreenTimeSection(d.studyAppsScreenTime, pad, pad, mid - gap * 0.5f, H - pad,
+                        Math.max(1, o.screenTimeMaxEntries / 2));
+                    drawScreenTimeSection(d.deviceAppsScreenTime, mid + gap * 0.5f, pad, W - pad, H - pad,
+                        Math.max(1, o.screenTimeMaxEntries / 2));
+                    line.setColor(withAlpha(Color.WHITE, 0.13f));
+                    line.setStrokeWidth(Math.max(1f, density));
+                    c.drawLine(mid, pad * 1.2f, mid, H - pad * 1.2f, line);
+                    resetPaints();
+                } else {
+                    float mid = H * 0.5f;
+                    drawScreenTimeSection(d.studyAppsScreenTime, pad, pad, W - pad, mid - gap * 0.5f, 1);
+                    drawScreenTimeSection(d.deviceAppsScreenTime, pad, mid + gap * 0.5f, W - pad, H - pad, 1);
+                    line.setColor(withAlpha(Color.WHITE, 0.13f));
+                    line.setStrokeWidth(Math.max(1f, density));
+                    c.drawLine(pad, mid, W - pad, mid, line);
+                    resetPaints();
+                }
+            } else {
+                ScreenTimeSection section = study ? d.studyAppsScreenTime : d.deviceAppsScreenTime;
+                drawScreenTimeSection(section, pad, pad, W - pad, H - pad, o.screenTimeMaxEntries);
+            }
+        }
+
+        int screenTimePrimaryText() {
+            return o.lightMode ? hex("#172033") : Color.WHITE;
+        }
+
+        int screenTimeSecondaryText() {
+            return withAlpha(screenTimePrimaryText(), o.lightMode ? 0.68f : 0.70f);
+        }
+
+        void drawScreenTimeSection(ScreenTimeSection section, float left, float top, float right, float bottom, int requestedRows) {
+            if (section == null || right <= left || bottom <= top) return;
+            float w = right - left;
+            float h = bottom - top;
+            float pad = clamp(Math.min(w, h) * 0.045f, 3f * density, 10f * density);
+            RectF panel = new RectF(left, top, right, bottom);
+            glass(panel, Math.min(cardRadius * 0.50f, Math.max(6f * density, h * 0.10f)));
+
+            float titleSize = clamp(h * 0.105f, 9.5f * density, 17f * density);
+            float metaSize = clamp(titleSize * 0.66f, 7f * density, 10f * density);
+            float x = left + pad;
+            float y = top + pad + titleSize;
+            text(section.title, x, y, titleSize, f.bold, screenTimePrimaryText(), Paint.Align.LEFT, w - pad * 2f);
+            text(section.periodLabel, right - pad, y, metaSize, f.medium, withAlpha(screenTimePrimaryText(), 0.72f), Paint.Align.RIGHT, w * 0.40f);
+
+            y += metaSize + pad * 0.65f;
+            if (!"ok".equals(section.status)) {
+                String headline;
+                String detail;
+                if ("permission_required".equals(section.status)) {
+                    headline = "Usage Access Required";
+                    detail = "Tap widget to open Android settings";
+                } else if ("no_study_apps".equals(section.status)) {
+                    headline = "No Study Apps Selected";
+                    detail = "Select apps in Study Mode";
+                } else if ("no_visible_apps".equals(section.status)) {
+                    headline = "No apps selected for display";
+                    detail = "Edit app entries in Widget Studio";
+                } else if ("no_usage".equals(section.status)) {
+                    headline = "No screen time recorded yet.";
+                    detail = "No usage was reported for this period";
+                } else if ("error".equals(section.status)) {
+                    headline = "Screen time unavailable";
+                    detail = "Open Math Master and retry";
+                } else {
+                    headline = "Loading real screen time…";
+                    detail = "Usage data stays on this device";
+                }
+                float statusSize = clamp(titleSize * 0.82f, 8f * density, 13f * density);
+                text(headline, x, y + statusSize, statusSize, f.medium, screenTimePrimaryText(), Paint.Align.LEFT, w - pad * 2f);
+                text(detail, x, y + statusSize * 2.15f, metaSize, f.regular, screenTimeSecondaryText(),
+                    Paint.Align.LEFT, w - pad * 2f);
+                drawScreenTimeUpdated(section, right - pad, bottom - pad * 0.45f, metaSize);
+                return;
+            }
+
+            if (o.screenTimeShowTotal) {
+                String total = formatUsageDuration(section.totalUsageMillis);
+                float valueSize = clamp(h * 0.13f, 12f * density, 21f * density);
+                text(total, x, y + valueSize, valueSize, f.bold, pal.master, Paint.Align.LEFT, w - pad * 2f);
+                y += valueSize + pad * 0.60f;
+            }
+
+            float footerHeight = metaSize * 1.55f;
+            float available = bottom - pad - footerHeight - y;
+            float minRow = o.screenTimeDetailed ? 27f * density : 19f * density;
+            int fitRows = Math.max(0, (int) Math.floor(available / minRow));
+            int rows = Math.min(Math.min(requestedRows, section.entries.size()), fitRows);
+            if (rows == 0 && available > 10f * density && !section.entries.isEmpty()) rows = 1;
+            for (int i = 0; i < rows; i++) {
+                ScreenTimeEntry entry = section.entries.get(i);
+                float rowHeight = available / Math.max(1, rows);
+                if (rowHeight > 48f * density) rowHeight = 48f * density;
+                float iconSize = Math.min(21f * density, rowHeight * (o.screenTimeDetailed ? 0.62f : 0.78f));
+                float iconLeft = x;
+                float iconTop = y + Math.max(0f, (rowHeight - iconSize) * 0.34f);
+                if (entry.icon != null && !entry.icon.isRecycled()) {
+                    RectF iconBounds = new RectF(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize);
+                    fill.setColor(screenTimePrimaryText());
+                    c.drawBitmap(entry.icon, null, iconBounds, fill);
+                    resetPaints();
+                } else {
+                    fill.setColor(withAlpha(pal.master, 0.30f));
+                    c.drawRoundRect(new RectF(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize),
+                        iconSize * 0.22f, iconSize * 0.22f, fill);
+                    resetPaints();
+                }
+                float labelLeft = iconLeft + iconSize + pad * 0.60f;
+                float valueRight = right - pad;
+                float valueWidth = o.screenTimeShowUsage ? Math.min(w * 0.37f, 86f * density) : 0f;
+                float labelMax = Math.max(8f * density, valueRight - labelLeft - valueWidth - pad * 0.4f);
+                float labelBaseline = y + rowHeight * (o.screenTimeDetailed ? 0.42f : 0.68f);
+                text(entry.label, labelLeft, labelBaseline, metaSize * 1.04f, f.medium,
+                    screenTimePrimaryText(), Paint.Align.LEFT, labelMax);
+                if (o.screenTimeShowUsage) {
+                    String usageLabel = formatUsageDuration(entry.usageMillis);
+                    if (o.screenTimeDetailed && o.screenTimeShowPercent) {
+                        usageLabel += "  " + Math.round(entry.percent) + "%";
+                    }
+                    text(usageLabel, valueRight, labelBaseline,
+                        metaSize * 1.02f, f.bold, screenTimePrimaryText(), Paint.Align.RIGHT, valueWidth);
+                }
+                if (o.screenTimeShowPercent) {
+                    float barY = y + rowHeight * 0.77f;
+                    float barH = Math.max(2f * density, rowHeight * 0.075f);
+                    float barRight = right - pad;
+                    float barLeft = labelLeft;
+                    RectF track = new RectF(barLeft, barY, barRight, barY + barH);
+                    float fraction = Math.max(0f, Math.min(1f, entry.percent / 100f));
+                    fill.setColor(withAlpha(pal.track, 0.95f));
+                    c.drawRoundRect(track, barH, barH, fill);
+                    if (fraction > 0f) {
+                        RectF progress = new RectF(barLeft, barY, barLeft + track.width() * fraction, barY + barH);
+                        fill.setShader(new LinearGradient(progress.left, progress.top, progress.right, progress.top,
+                            pal.bar0, pal.bar1, Shader.TileMode.CLAMP));
+                        c.drawRoundRect(progress, barH, barH, fill);
+                        fill.setShader(null);
+                    }
+                    resetPaints();
+                }
+                y += rowHeight;
+                if (i < rows - 1) {
+                    line.setColor(withAlpha(screenTimePrimaryText(), 0.10f));
+                    line.setStrokeWidth(Math.max(1f, density * 0.65f));
+                    c.drawLine(labelLeft, y, right - pad, y, line);
+                    resetPaints();
+                }
+            }
+            drawScreenTimeUpdated(section, right - pad, bottom - pad * 0.45f, metaSize);
+        }
+
+        void drawScreenTimeUpdated(ScreenTimeSection section, float right, float baseline, float size) {
+            if (section == null || section.lastUpdatedAt <= 0L) return;
+            java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault());
+            String label = "Updated " + format.format(new java.util.Date(section.lastUpdatedAt));
+            text(label, right, baseline, size * 0.82f, f.regular,
+                withAlpha(screenTimePrimaryText(), o.lightMode ? 0.56f : 0.58f), Paint.Align.RIGHT,
+                Math.max(42f * density, W * 0.55f));
+        }
+
+        String formatUsageDuration(long millis) {
+            long minutes = Math.max(0L, millis) / 60000L;
+            long hours = minutes / 60L;
+            long remainder = minutes % 60L;
+            if (hours > 0L) return hours + " hr " + remainder + " min";
+            return minutes + " min";
+        }
+
         void drawUpdatePill() {
             if (!o.update || d.updateLabel == null || d.updateLabel.length() == 0) return;
             float h = clamp(card.height() * 0.13f, 12f * density, 20f * density);
@@ -386,22 +623,25 @@ final class MathMasterWidgetRenderer {
             line.setColor(withAlpha(pal.master, 0.85f)); line.setStrokeWidth(Math.max(1f, density * 0.9f));
             c.drawRoundRect(r, h * 0.5f, h * 0.5f, line);
             resetPaints();
-            text(d.updateLabel, r.centerX(), r.centerY() + size * 0.36f, size, f.bold, Color.WHITE, Paint.Align.CENTER, r.width() - h * 0.4f);
+            text(d.updateLabel, r.centerX(), r.centerY() + size * 0.36f, size, f.bold,
+                o.lightMode ? hex("#172033") : Color.WHITE, Paint.Align.CENTER, r.width() - h * 0.4f);
         }
 
         // ---- glass surfaces
         void glass(RectF r, float radius) {
-            fill.setColor(withAlpha(Color.BLACK, 0.12f));
+            fill.setColor(withAlpha(Color.BLACK, o.lightMode ? 0.035f : 0.12f));
             c.drawRoundRect(r, radius, radius, fill);
             fill.setShader(new LinearGradient(r.left, r.top, r.left, r.bottom,
-                withAlpha(Color.WHITE, 0.12f), withAlpha(Color.WHITE, 0.035f), Shader.TileMode.CLAMP));
+                withAlpha(Color.WHITE, o.lightMode ? 0.82f : 0.12f),
+                withAlpha(Color.WHITE, o.lightMode ? 0.42f : 0.035f), Shader.TileMode.CLAMP));
             c.drawRoundRect(r, radius, radius, fill);
             fill.setShader(null);
             RectF in = new RectF(r);
             float sw = Math.max(1f, 1.05f * density);
             in.inset(sw * 0.5f, sw * 0.5f);
+            int edge = o.lightMode ? withAlpha(pal.master, 0.42f) : Color.WHITE;
             line.setShader(new LinearGradient(r.left, r.top, r.right, r.bottom,
-                new int[] { withAlpha(Color.WHITE, 0.46f), withAlpha(Color.WHITE, 0.12f), withAlpha(Color.WHITE, 0.26f) },
+                new int[] { withAlpha(edge, 0.80f), withAlpha(edge, 0.25f), withAlpha(edge, 0.48f) },
                 new float[] { 0f, 0.55f, 1f }, Shader.TileMode.CLAMP));
             line.setStrokeWidth(sw);
             c.drawRoundRect(in, radius, radius, line);

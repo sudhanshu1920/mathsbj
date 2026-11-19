@@ -22,10 +22,15 @@ const WIDGET_GLOBAL_STRING_KEYS = new Set([
 const WIDGET_GLOBAL_BOOLEAN_KEYS = new Set(['enabled']);
 const WIDGET_INSTANCE_STRING_KEYS = new Set([
   'contentJson', 'style', 'composition', 'themeMode', 'theme',
+  'screenTimePeriod', 'screenTimeSort', 'screenTimeHiddenStudyPackages', 'screenTimeHiddenDevicePackages',
 ]);
-const WIDGET_INSTANCE_NUMBER_KEYS = new Set(['contentSchemaVersion']);
+const WIDGET_INSTANCE_BOOLEAN_KEYS = new Set([
+  'screenTimeShowTotal', 'screenTimeShowUsage', 'screenTimeShowPercent', 'screenTimeDetailed',
+]);
+const WIDGET_INSTANCE_NUMBER_KEYS = new Set(['contentSchemaVersion', 'screenTimeMaxEntries']);
 const WIDGET_CONTENT_OPTIONS = new Set([
   'appIdentity', 'target', 'progress', 'remaining', 'studyTime', 'streak', 'weekly', 'quiz', 'updateStatus',
+  'studyAppsScreenTime', 'deviceAppsScreenTime',
 ]);
 const WIDGET_COMPOSITIONS = new Set([
   'auto', 'hero_wide', 'compact_green', 'square_math_bot', 'medium_study',
@@ -123,13 +128,27 @@ async function sha256Hex(value: string): Promise<string> {
 }
 
 function validateWidgetString(field: string, value: unknown): value is string {
-  if (typeof value !== 'string' || value.length > 8192) return false;
+  const maxLength = field === 'screenTimeHiddenStudyPackages' || field === 'screenTimeHiddenDevicePackages'
+    ? 64 * 1024 : 8192;
+  if (typeof value !== 'string' || value.length > maxLength) return false;
   if (field === 'contentJson') {
     try {
       const parsed: unknown = JSON.parse(value);
       return Array.isArray(parsed) && parsed.length <= WIDGET_CONTENT_OPTIONS.size
         && parsed.every((entry) => typeof entry === 'string' && WIDGET_CONTENT_OPTIONS.has(entry))
         && new Set(parsed).size === parsed.length;
+    } catch {
+      return false;
+    }
+  }
+  if (field === 'screenTimePeriod') return ['today', 'yesterday', 'last_7_days'].includes(value);
+  if (field === 'screenTimeSort') return ['most_used', 'least_used', 'name_asc', 'name_desc'].includes(value);
+  if (field === 'screenTimeHiddenStudyPackages' || field === 'screenTimeHiddenDevicePackages') {
+    try {
+      const packages: unknown = JSON.parse(value);
+      return Array.isArray(packages) && packages.length <= 1000
+        && packages.every((item) => typeof item === 'string' && /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$/.test(item))
+        && new Set(packages).size === packages.length;
     } catch {
       return false;
     }
@@ -182,8 +201,11 @@ function validateWidgetPreferences(value: unknown): WidgetPreferenceSnapshot | n
     for (const [field, item] of Object.entries(entry.preferences)) {
       if (WIDGET_INSTANCE_STRING_KEYS.has(field)) {
         if (!validateWidgetString(field, item)) throw new Error('Invalid widget instance preference: ' + field);
+      } else if (WIDGET_INSTANCE_BOOLEAN_KEYS.has(field)) {
+        if (typeof item !== 'boolean') throw new Error('Invalid widget instance preference: ' + field);
       } else if (WIDGET_INSTANCE_NUMBER_KEYS.has(field)) {
-        if (typeof item !== 'number' || !Number.isInteger(item) || item < 1 || item > 3) {
+        const max = field === 'screenTimeMaxEntries' ? 12 : 4;
+        if (typeof item !== 'number' || !Number.isInteger(item) || item < 1 || item > max) {
           throw new Error('Invalid widget instance preference: ' + field);
         }
       } else {

@@ -26,6 +26,7 @@ public final class StudyModePackageChangeReceiver extends BroadcastReceiver {
             StudyModeManager.getSelectedPackages(context); // Purge removed packages from Blocked Apps.
             StudyModeManager.getSelectedStudyAppPackages(context); // Purge removed Study Apps.
             StudyModeManager.reconcile(context); // Also removes any stale Device Owner suspension.
+            MathMasterHomeWidgetProvider.refreshScreenTimeWidgets(context);
             return;
         }
 
@@ -35,5 +36,7 @@ public final class StudyModePackageChangeReceiver extends BroadcastReceiver {
             if (StudyModeManager.isPolicyOwner(context)) StudyModeManager.reconcile(context);
             else StudyModeFocusService.requestImmediateEvaluation();
         }
+        // App installs, updates and replacements can change both visible names and icons.
+        MathMasterHomeWidgetProvider.refreshScreenTimeWidgets(context);
     }
 }

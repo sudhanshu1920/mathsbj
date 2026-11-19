@@ -12,6 +12,7 @@ const NATIVE_JAVA_FILES = [
   'MathMasterWidgetPinReceiver.java',
   'MathMasterWidgetsPlugin.java',
   'MathMasterWidgetRenderer.java',
+  'WidgetScreenTimeRepository.java',
   'MathMasterWidgetConfigActivity.java',
   'DailyTargetReminderPlugin.java',
   'DailyTargetReminderReceiver.java',

@@ -158,7 +158,7 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
         });
     }
 
-    private boolean hasUsageAccess(Context context) {
+    public static boolean hasUsageAccess(Context context) {
         try {
             AppOpsManager appOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
             if (appOps == null) return false;
