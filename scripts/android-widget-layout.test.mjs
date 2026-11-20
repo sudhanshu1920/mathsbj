@@ -50,7 +50,7 @@ test('renderer draws every composition and the provider offers the same set', ()
   for (const composition of COMPOSITIONS) {
     assert.ok(renderer.includes(`case "${composition}"`), `renderer is missing a case for ${composition}`);
   }
-  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal', 'layoutScreenTime']) {
+  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal', 'layoutScreenTimeReflow', 'studyAppsPanel', 'deviceAppsPanel']) {
     assert.ok(renderer.includes(`void ${method}()`), `renderer is missing ${method}`);
   }
   assert.match(renderer, /static Bitmap render\(/);
@@ -150,7 +150,9 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(repository, /StudyModeManager\.getSelectedStudyAppPackages\(context\)/);
   assert.match(repository, /new HashSet<>\(usage\.keySet\(\)\)/);
   assert.match(repository, /candidatePackages\.addAll\(selectedStudy\)/);
-  assert.doesNotMatch(repository, /getInstalledApplications|installedApplications|AppChoice|getStudyAppChoices|getDeviceAppChoices/);
+  assert.match(repository, /getInstalledApplications\(PackageManager\.ApplicationInfoFlags\.of\(0L\)\)/);
+  assert.match(repository, /installedApplications = pm\.getInstalledApplications\(0\)/);
+  assert.doesNotMatch(repository, /AppChoice|getStudyAppChoices|getDeviceAppChoices/);
   assert.match(repository, /pm\.getApplicationInfo\(packageName/);
   assert.match(repository, /record\.usageMillis > 0L/);
   assert.match(repository, /The total represents the full eligible source/);
@@ -168,17 +170,21 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(provider, /openStudyAppsPickerOnly/);
   assert.match(config, /Settings\.ACTION_USAGE_ACCESS_SETTINGS/);
   assert.match(config, /StudyModeManager\.openStudyAppsSelection\(this\)/);
-  assert.match(provider, /applyScreenTimeAppearance\(options, preferences\)/);
+  assert.doesNotMatch(provider, /applyScreenTimeAppearance/);
   assert.match(provider, /updateScreenTimeAppearance\(Context context\)/);
+  assert.match(provider, /screenTimeHiddenStudyPackages/);
+  assert.match(provider, /screenTimeHiddenDevicePackages/);
   assert.match(plugin, /public void syncAppearance\(PluginCall call\)/);
-  assert.match(renderer, /paletteFor\(String composition, int themeAccent, boolean lightMode\)/);
-  assert.match(renderer, /screenTimePrimaryText\(\)/);
+  assert.match(renderer, /this\.pal = paletteFor\(o\.composition, 0, false\)/);
+  assert.match(renderer, /void layoutScreenTimeReflow\(float rw, float rh\)/);
+  assert.match(renderer, /void drawAppsPanel\(/);
+  assert.doesNotMatch(renderer, /screenTimePrimaryText|drawLegacyContentSummary|layoutScreenTimeCombined|void layoutScreenTime\(\)/);
   assert.match(index, /window\.addEventListener\('theme-updated', syncWidgetAppearance\)/);
   assert.match(provider, /refreshScreenTimeInstances\(Context context, String refreshedPeriod\)/);
   assert.doesNotMatch(provider, /screenTimeHiddenStudyPackages|screenTimeHiddenDevicePackages|parsePackageSet/);
-  assert.match(renderer, /void layoutScreenTime\(\)/);
-  assert.match(renderer, /void layoutScreenTimeCombined\(\)/);
-  assert.match(renderer, /void drawLegacyContentSummary\(/);
+  assert.match(renderer, /void studyAppsPanel\(/);
+  assert.match(renderer, /void deviceAppsPanel\(/);
+  assert.match(renderer, /void drawLegacyMiniBlocks\(/);
   assert.match(renderer, /"permission_required"/);
   assert.match(renderer, /"no_study_apps"/);
   assert.match(renderer, /"no_usage"/);
@@ -188,6 +194,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(config, /Source: Device App Usage/);
   assert.match(config, /No Study Apps Selected/);
   assert.doesNotMatch(config, /studyAppFilterChecks|deviceAppFilterChecks|populateAppFilters|getStudyAppChoices|getDeviceAppChoices|Manage Study Apps|getInstalledApplications/);
+  assert.doesNotMatch(config, /remove\(prefix \+ legacyScreenTimeKeys\[0\]\)|remove\(prefix \+ legacyScreenTimeKeys\[1\]\)/);
   assert.match(config, /int contentOptionCount = CONTENT_OPTIONS\.length/);
   assert.match(config, /openStudyAppsButton\.setVisibility\(selectedStudyCount == 0 \? View\.VISIBLE : View\.GONE\)/);
   assert.match(config, /screenTimeShowTotalCheck/);
