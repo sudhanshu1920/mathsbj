@@ -189,7 +189,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(config, /No Study Apps Selected/);
   assert.doesNotMatch(config, /studyAppFilterChecks|deviceAppFilterChecks|populateAppFilters|getStudyAppChoices|getDeviceAppChoices|Manage Study Apps|getInstalledApplications/);
   assert.match(config, /int contentOptionCount = CONTENT_OPTIONS\.length/);
-  assert.match(config, /openStudyAppsButton\.setVisibility\(selectedStudyApps\.isEmpty\(\) \? View\.VISIBLE : View\.GONE\)/);
+  assert.match(config, /openStudyAppsButton\.setVisibility\(selectedStudyCount == 0 \? View\.VISIBLE : View\.GONE\)/);
   assert.match(config, /screenTimeShowTotalCheck/);
   assert.match(config, /screenTimeShowUsageCheck/);
   assert.match(config, /screenTimeShowPercentCheck/);
@@ -403,7 +403,7 @@ test('native widget editor uses compact responsive grids, real thumbnails and a 
   assert.match(config, /private void addStyleGrid\(/);
   assert.match(config, /private void addCompositionGrid\(/);
   assert.match(config, /renderConfigurationPreview\(/);
-  assert.match(config, /setMaxHeight\(dp\(176\)\)/);
+  assert.match(config, /setMaxHeight\(dp\(148\)\)/);
   assert.match(config, /root\.addView\(scroll, new LinearLayout\.LayoutParams\([\s\S]*?0, 1f\)/);
   assert.match(config, /root\.addView\(actions, actionParams\)/);
   assert.match(config, /\.commit\(\)/);
