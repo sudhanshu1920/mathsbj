@@ -21,6 +21,8 @@ public class E2E {
         public String getString(String k, String d) { return m.containsKey(k) ? (String) m.get(k) : d; }
         public int getInt(String k, int d) { return m.containsKey(k) ? (Integer) m.get(k) : d; }
         public long getLong(String k, long d) { return m.containsKey(k) ? ((Number) m.get(k)).longValue() : d; }
+        public float getFloat(String k, float d) { return m.containsKey(k) ? ((Number) m.get(k)).floatValue() : d; }
+        @SuppressWarnings("unchecked") public Set<String> getStringSet(String k, Set<String> d) { return m.containsKey(k) ? (Set<String>) m.get(k) : d; }
         public boolean getBoolean(String k, boolean d) { return m.containsKey(k) ? (Boolean) m.get(k) : d; }
         public boolean contains(String k) { return m.containsKey(k); }
         public Map<String, ?> getAll() { return m; }
@@ -29,6 +31,8 @@ public class E2E {
                 public Editor putString(String k, String v) { m.put(k, v); return this; }
                 public Editor putInt(String k, int v) { m.put(k, v); return this; }
                 public Editor putLong(String k, long v) { m.put(k, v); return this; }
+                public Editor putFloat(String k, float v) { m.put(k, v); return this; }
+                public Editor putStringSet(String k, Set<String> v) { m.put(k, v); return this; }
                 public Editor putBoolean(String k, boolean v) { m.put(k, v); return this; }
                 public Editor remove(String k) { m.remove(k); return this; }
                 public void apply() {}
