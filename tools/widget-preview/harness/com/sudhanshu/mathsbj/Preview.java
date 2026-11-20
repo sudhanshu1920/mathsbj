@@ -47,6 +47,7 @@ public class Preview {
             Bitmap b = MathMasterWidgetRenderer.render(fonts, data, o, w, h, density);
             long ms = (System.nanoTime() - t0) / 1_000_000;
             save(b, out + "/" + s[0] + ".png");
+            save(b, out + "/before_baseline_" + s[0] + ".png");
             System.out.println(s[0] + " " + w + "x" + h + " rendered in " + ms + " ms");
         }
     }
