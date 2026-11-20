@@ -746,14 +746,6 @@ final class MathMasterWidgetRenderer {
             }
         }
 
-        String formatUsageDuration(long millis) {
-            long minutes = Math.max(0L, millis) / 60000L;
-            long hours = minutes / 60L;
-            long remainder = minutes % 60L;
-            if (hours > 0L) return hours + " hr " + remainder + " min";
-            return minutes + " min";
-        }
-
         void studyBookIcon(float cx, float cy, float size) {
             float w = size * 0.88f, h = size * 0.72f, sw = Math.max(1f, size * 0.075f);
             int tint = pal.master;
