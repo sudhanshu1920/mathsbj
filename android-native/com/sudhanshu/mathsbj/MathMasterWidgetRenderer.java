@@ -434,39 +434,33 @@ final class MathMasterWidgetRenderer {
 
         /** Reflow Screen Time inside each composition's original reference frame. */
         void layoutScreenTimeReflow(float rw, float rh) {
+            // Resize behavior is driven by the launcher's actual cell geometry, not the
+            // selected composition's nominal reference size. The composition still owns
+            // its palette, but a resized 4x1/2x1 instance gets the correct compact reflow.
+            float aspect = W / Math.max(1f, H);
+            boolean wideStrip = aspect >= 3.2f;
+            boolean compactStrip = !wideStrip && H / density < 100f;
+            boolean hero = !wideStrip && !compactStrip && aspect >= 1.8f;
+            if (wideStrip) { rw = 1073f; rh = 156f; }
+            else if (compactStrip) { rw = 341f; rh = 158f; }
+            else if (hero) { rw = 858f; rh = 384f; }
+            else if (aspect >= 1.3f) { rw = 548f; rh = 371f; }
+            else { rw = 428f; rh = 371f; }
             frame(rw, rh);
             body(0f, rh, 0f, 0f);
-            boolean wideStrip = rw / rh >= 3.2f;
-            boolean compactStrip = rh <= 180f;
-            boolean hero = rw >= 800f && rh >= 300f;
             float pad = wideStrip ? 18f : (compactStrip ? 10f : 16f);
             float gap = wideStrip ? 12f : 8f;
             capH = Math.max(34f * su, Math.min(110f * su, rh * 0.24f * su));
 
             if (o.identity) {
-                switch (o.composition) {
-                    case "compact_green":
-                        header(RU(38f, 22f, 83f, 76f), XU(137f), YU(60f), 32f * su, YU(90f), 21f * su, X(478f));
-                        break;
-                    case "square_math_bot":
-                        header(RU(42f, 22f, 71f, 66f), XU(132f), YU(53f), 28.5f * su, YU(80f), 16.5f * su, X(412f));
-                        break;
-                    case "medium_study":
-                        header(RU(36f, 24f, 72f, 68f), XU(124f), YU(56f), 26.5f * su, YU(82f), 14.5f * su, X(354f));
-                        break;
-                    case "square_cosmic":
-                        header(RU(39f, 20f, 75f, 68f), XU(139f), YU(50f), 31f * su, YU(79f), 17f * su, X(530f));
-                        break;
-                    case "extra_wide_weekly":
-                        header(RU(40f, 20f, 54f, 54f), XU(115f), YU(46f), 25f * su, YU(70f), 12f * su, X(272f));
-                        break;
-                    case "minimal_progress":
-                        header(RU(29f, 19f, 65f, 58f), XU(111f), YU(44f), 22f * su, YU(0f), 0f, X(332f));
-                        break;
-                    case "hero_wide":
-                    default:
-                        header(RU(38f, 25f, 97f, 87f), XU(157f), YU(72f), 42.5f * su, YU(105f), 23f * su, X(836f));
-                        break;
+                if (wideStrip) {
+                    header(RU(40f, 20f, 54f, 54f), XU(115f), YU(46f), 25f * su, YU(70f), 12f * su, X(272f));
+                } else if (compactStrip) {
+                    header(RU(29f, 19f, 65f, 58f), XU(111f), YU(44f), 22f * su, YU(0f), 0f, X(332f));
+                } else if (hero) {
+                    header(RU(38f, 25f, 97f, 87f), XU(157f), YU(72f), 42.5f * su, YU(105f), 23f * su, X(836f));
+                } else {
+                    header(RU(28f, 14f, 54f, 50f), XU(94f), YU(46f), 25f * su, YU(69f), 11f * su, X(rw - 16f));
                 }
             }
 
@@ -659,7 +653,8 @@ final class MathMasterWidgetRenderer {
             }
 
             if (inline) {
-                if (section.entries != null && !section.entries.isEmpty()) {
+                // 4x1 gets one top app beside its total; 2x1 is intentionally total-only.
+                if (requestedRows > 0 && section.entries != null && !section.entries.isEmpty()) {
                     drawInlineUsageEntry(section.entries.get(0), panel, rowStart, titleSize, metaSize, pad);
                 }
                 return;
