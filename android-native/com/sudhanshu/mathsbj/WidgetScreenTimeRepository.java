@@ -314,6 +314,7 @@ final class WidgetScreenTimeRepository {
             long duration = Math.max(0L, stat.getTotalTimeInForeground());
             if (duration <= 0L) continue;
             String packageName = stat.getPackageName();
+            if (packageName.equals(context.getPackageName())) continue;
             Long previousDuration = usage.get(packageName);
             usage.put(packageName, (previousDuration == null ? 0L : previousDuration) + duration);
         }
@@ -349,8 +350,9 @@ final class WidgetScreenTimeRepository {
             if (info == null && selectedStudy.contains(packageName)) info = applicationInfo(pm, packageName);
             if (info == null) continue;
             Long usageValue = usage.get(packageName);
-            long duration = Math.min(Math.max(0L, usageValue == null ? 0L : usageValue),
-                Math.max(0L, bounds.end - bounds.start));
+            // Match AppUsageAnalyticsPlugin exactly: preserve Android's complete
+            // daily foreground aggregate, including multi-window attribution.
+            long duration = Math.max(0L, usageValue == null ? 0L : usageValue);
             boolean deviceEligible = isEligibleDeviceApp(pm, info);
             if (duration <= 0L && !selectedStudy.contains(packageName)) continue;
             if (!deviceEligible && !selectedStudy.contains(packageName)) continue;
