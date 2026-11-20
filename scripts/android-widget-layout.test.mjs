@@ -50,10 +50,12 @@ test('renderer draws every composition and the provider offers the same set', ()
   for (const composition of COMPOSITIONS) {
     assert.ok(renderer.includes(`case "${composition}"`), `renderer is missing a case for ${composition}`);
   }
-  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal', 'studyAppsPanel', 'deviceAppsPanel']) {
+  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal']) {
     assert.ok(renderer.includes(`void ${method}()`), `renderer is missing ${method}`);
   }
   assert.match(renderer, /void layoutScreenTimeReflow\(float rw, float rh\)/);
+  assert.match(renderer, /void studyAppsPanel\(RectF panel, int requestedRows, boolean inline\)/);
+  assert.match(renderer, /void deviceAppsPanel\(RectF panel, int requestedRows, boolean inline\)/);
   assert.match(renderer, /static Bitmap render\(/);
   assert.match(renderer, /static String autoComposition\(/);
 });
