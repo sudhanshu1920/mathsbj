@@ -456,7 +456,35 @@ final class MathMasterWidgetRenderer {
             // short 2x1 cell is data-first, so its two Screen Time panels never collide
             // with the normal-height composition header.
             if (o.identity && !compactStrip) {
-                switch (o.composition) {
+                if (wideStrip) {
+                    // The 4x1 header keeps each composition's logo mark but constrains
+                    // the wordmark to the reserved left strip before the usage panels.
+                    switch (o.composition) {
+                        case "compact_green":
+                            header(RU(38f, 22f, 83f, 76f), XU(137f), YU(60f), 22f * su, YU(90f), 0f, X(272f));
+                            break;
+                        case "square_math_bot":
+                            header(RU(42f, 22f, 71f, 66f), XU(132f), YU(53f), 22f * su, YU(80f), 0f, X(272f));
+                            break;
+                        case "medium_study":
+                            header(RU(36f, 24f, 72f, 68f), XU(124f), YU(56f), 22f * su, YU(82f), 0f, X(272f));
+                            break;
+                        case "square_cosmic":
+                            header(RU(39f, 20f, 75f, 68f), XU(139f), YU(50f), 22f * su, YU(79f), 0f, X(272f));
+                            break;
+                        case "extra_wide_weekly":
+                            header(RU(40f, 20f, 54f, 54f), XU(115f), YU(46f), 22f * su, YU(70f), 0f, X(272f));
+                            break;
+                        case "minimal_progress":
+                            header(RU(29f, 19f, 65f, 58f), XU(111f), YU(44f), 22f * su, YU(0f), 0f, X(272f));
+                            break;
+                        case "hero_wide":
+                        default:
+                            header(RU(38f, 25f, 97f, 87f), XU(157f), YU(72f), 22f * su, YU(105f), 0f, X(272f));
+                            break;
+                    }
+                } else {
+                    switch (o.composition) {
                     case "compact_green":
                         header(RU(38f, 22f, 83f, 76f), XU(137f), YU(60f), 32f * su, YU(90f), 21f * su, X(478f));
                         break;
@@ -480,6 +508,9 @@ final class MathMasterWidgetRenderer {
                         header(RU(38f, 25f, 97f, 87f), XU(157f), YU(72f), 42.5f * su, YU(105f), 23f * su, X(836f));
                         break;
                 }
+                    }
+                }
+            }
             }
 
             ScreenTimeSection study = o.studyAppsScreenTime ? d.studyAppsScreenTime : null;
