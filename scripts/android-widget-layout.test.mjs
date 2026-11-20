@@ -50,9 +50,10 @@ test('renderer draws every composition and the provider offers the same set', ()
   for (const composition of COMPOSITIONS) {
     assert.ok(renderer.includes(`case "${composition}"`), `renderer is missing a case for ${composition}`);
   }
-  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal', 'layoutScreenTimeReflow', 'studyAppsPanel', 'deviceAppsPanel']) {
+  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal', 'studyAppsPanel', 'deviceAppsPanel']) {
     assert.ok(renderer.includes(`void ${method}()`), `renderer is missing ${method}`);
   }
+  assert.match(renderer, /void layoutScreenTimeReflow\(float rw, float rh\)/);
   assert.match(renderer, /static Bitmap render\(/);
   assert.match(renderer, /static String autoComposition\(/);
 });
@@ -329,7 +330,9 @@ test('background effects: neon is the default, blur and transparent stay availab
   // Schema migration must preserve an existing widget's chosen appearance; only explicit Reset selects Neon.
   assert.doesNotMatch(provider, /\.putString\(prefix \+ "style", "neon"\)/);
   assert.match(widgetsPlugin, /\.putString\(prefix \+ "style", "neon"\)/);
-  assert.match(provider, /applyScreenTimeAppearance\(options, preferences\)/);
+  assert.doesNotMatch(provider, /applyScreenTimeAppearance/);
+  assert.match(renderer, /this\.pal = paletteFor\(o\.composition, 0, false\)/);
+  assert.match(renderer, /Color\.argb\(102, 57, 67, 77\)/);
   assert.match(renderer, /if \(clear\) return;/);
   assert.match(renderer, /Color\.argb\(102, 57, 67, 77\)/);
   assert.match(backupTs, /WIDGET_STYLES = new Set\(\['neon', 'blur', 'transparent'/);
