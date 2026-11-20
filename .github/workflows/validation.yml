@@ -57,6 +57,17 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Compile and render desktop widget preview
+        run: sh tools/widget-preview/run.sh
+
+      - name: Upload desktop widget preview PNGs
+        uses: actions/upload-artifact@v4
+        with:
+          name: math-master-widget-preview
+          path: tools/widget-preview/out/*.png
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
