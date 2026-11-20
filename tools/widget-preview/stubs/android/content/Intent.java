@@ -6,6 +6,7 @@ public class Intent {
     private int intExtra;
     private boolean booleanExtra;
     public Intent() {}
+    public Intent(String action) { this.action=action; }
     public Intent(Context context, Class<?> target) {}
     public Intent addFlags(int flags) { return this; }
     public Intent setAction(String value) { action=value; return this; }
