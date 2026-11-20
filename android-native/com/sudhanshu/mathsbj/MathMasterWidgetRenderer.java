@@ -508,9 +508,7 @@ final class MathMasterWidgetRenderer {
                         header(RU(38f, 25f, 97f, 87f), XU(157f), YU(72f), 42.5f * su, YU(105f), 23f * su, X(836f));
                         break;
                 }
-                    }
                 }
-            }
             }
 
             ScreenTimeSection study = o.studyAppsScreenTime ? d.studyAppsScreenTime : null;
