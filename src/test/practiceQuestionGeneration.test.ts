@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { generateQuestions, isValidPracticeRange } from '@/pages/PracticePage';
 import { getSquareRoots, getCubeRoots } from '@/lib/mathData';
 import { isRootAnswerCorrect } from '@/lib/rootMath';
@@ -659,6 +659,46 @@ describe('PracticePage question generation', () => {
     expect(isRootAnswerCorrect(2, Math.sqrt(4), 0)).toBe(true);
     expect(isRootAnswerCorrect(2.004, Math.sqrt(4), 0)).toBe(false);
   });
+
+  it('keeps Learning table questions in natural multiplier order for Sequence', () => {
+    const questions = generateQuestions({
+      ...baseConfig,
+      count: 10,
+      mode: 'input',
+      sequential: true,
+      topics: [{ id: 'tables', label: 'Tables', range: { from: 2, to: 2 } }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+
+    expect(questions.map((question) => question.text)).toEqual(
+      Array.from({ length: 10 }, (_, index) => `2 × ${index + 1} = ?`),
+    );
+  });
+
+  it('shuffles a unique Learning question pool once for Mix without duplicating questions', () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const questions = generateQuestions({
+        ...baseConfig,
+        count: 10,
+        mode: 'input',
+        sequential: false,
+        topics: [{ id: 'tables', label: 'Tables', range: { from: 2, to: 2 } }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+
+      expect(questions).toHaveLength(10);
+      expect(new Set(questions.map((question) => question.text)).size).toBe(10);
+      expect(questions.map((question) => question.text)).not.toEqual(
+        Array.from({ length: 10 }, (_, index) => `2 × ${index + 1} = ?`),
+      );
+    } finally {
+      random.mockRestore();
+    }
+  });
+
 });
 
 // Production APK build requested by user after independent operand digit selection and logo fix.

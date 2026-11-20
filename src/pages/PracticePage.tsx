@@ -30,6 +30,7 @@ import {
 import { getTrigQuestions, getTrigAngles, buildTrigOptions, isTrigAnswerCorrect, TRIG_FUNCTIONS, type TrigFunction, type TrigAngle } from '@/lib/trigData';
 import { ELEMENTS, formatMass, type PeriodicMassMode, type PeriodicQuestionType } from '@/lib/periodicTable';
 import { buildQuestionPool, MAX_REPETITION, sanitizeRepetition } from '@/lib/quizRepetition';
+import type { LearningQuestionOrder } from '@/lib/practiceNavigation';
 import { enqueueQuestionRetry, ensureOutstandingQuestionRetries, getQuizCompletionPercent, identifyQuizQuestions, shouldFinishQuestionQueue } from '@/lib/quizRetryQueue';
 import { TOPIC_ICON_MAP, type AppTopicId } from '@/lib/topicIcons';
 import { getSquareRootAnswer, getCubeRootAnswer, isRootAnswerCorrect } from '@/lib/rootMath';
@@ -871,7 +872,7 @@ interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
   initialMode?: 'mcq' | 'input' | 'game';
-  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode };
+  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder };
   onExit?: () => void;
   onExitCancelled?: () => void;
   externalBackRequest?: number;
@@ -1287,7 +1288,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         mode: initialMode,
         timerMode: timerOn ? 'perQuestion' : 'off',
         timerSeconds: initialExtras?.timerSeconds ?? 10,
-        sequential: false,
+        sequential: initialExtras?.questionOrder === 'sequence',
         repetitionEnabled: false,
         repetitionByTopic: {},
       };
@@ -1307,6 +1308,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     initialExtras?.count,
     initialExtras?.periodicQuestionTypes,
     initialExtras?.periodicMassMode,
+    initialExtras?.questionOrder,
     startPractice,
   ]);
 

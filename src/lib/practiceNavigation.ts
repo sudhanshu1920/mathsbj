@@ -3,6 +3,51 @@ import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable
 
 export type PracticePhase = 'setup' | 'starting' | 'active' | 'finished';
 
+export type LearningQuestionOrder = 'sequence' | 'mix';
+
+const LEARNING_QUESTION_ORDER_STORAGE_KEY = 'math-master.learning-question-order.v1';
+const isValidLearningOrderTopic = (topic: string): boolean => /^[a-z0-9-]{1,64}$/.test(topic);
+
+export const getLearningQuestionOrderPreference = (topic: string): LearningQuestionOrder => {
+  if (typeof window === 'undefined' || !isValidLearningOrderTopic(topic)) return 'mix';
+
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(LEARNING_QUESTION_ORDER_STORAGE_KEY) ?? '{}');
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return 'mix';
+    const value = (saved as Record<string, unknown>)[topic];
+    return value === 'sequence' || value === 'mix' ? value : 'mix';
+  } catch {
+    return 'mix';
+  }
+};
+
+export const setLearningQuestionOrderPreference = (
+  topic: string,
+  order: LearningQuestionOrder,
+): void => {
+  if (
+    typeof window === 'undefined' ||
+    !isValidLearningOrderTopic(topic) ||
+    (order !== 'sequence' && order !== 'mix')
+  ) return;
+
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(LEARNING_QUESTION_ORDER_STORAGE_KEY) ?? '{}');
+    const preferences: Record<string, LearningQuestionOrder> = {};
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+      for (const [key, value] of Object.entries(saved as Record<string, unknown>)) {
+        if (isValidLearningOrderTopic(key) && (value === 'sequence' || value === 'mix')) {
+          preferences[key] = value;
+        }
+      }
+    }
+    preferences[topic] = order;
+    window.localStorage.setItem(LEARNING_QUESTION_ORDER_STORAGE_KEY, JSON.stringify(preferences));
+  } catch {
+    // A blocked or unavailable storage area must not prevent practice from starting.
+  }
+};
+
 export interface PracticeLaunchContext {
   topic: string;
   context?: { from?: number; to?: number; number?: number };
@@ -16,6 +61,7 @@ export interface PracticeLaunchContext {
     count?: number;
     periodicQuestionTypes?: PeriodicQuestionType[];
     periodicMassMode?: PeriodicMassMode;
+    questionOrder?: LearningQuestionOrder;
   };
 }
 
