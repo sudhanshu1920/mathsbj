@@ -50,9 +50,18 @@ test('renderer draws every composition and the provider offers the same set', ()
   for (const composition of COMPOSITIONS) {
     assert.ok(renderer.includes(`case "${composition}"`), `renderer is missing a case for ${composition}`);
   }
-  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal', 'layoutScreenTime']) {
+  for (const method of ['layoutHero', 'layoutGreen', 'layoutMathBot', 'layoutStudy', 'layoutCosmic', 'layoutWeekly', 'layoutMinimal']) {
     assert.ok(renderer.includes(`void ${method}()`), `renderer is missing ${method}`);
   }
+  assert.match(renderer, /void layoutScreenTimeReflow\(float rw, float rh\)/);
+  assert.match(renderer, /if \(o\.identity && !compactStrip\)/);
+  assert.match(renderer, /if \(wideStrip\) \{[\s\S]*?header\(RU\(38f, 25f, 97f, 87f\), XU\(157f\), YU\(72f\), 22f \* su, YU\(105f\), 0f, X\(272f\)\)/);
+  assert.match(renderer, /float panelLeft = o\.identity \? 286f : pad/);
+  assert.match(renderer, /case "compact_green":[\s\S]*?case "hero_wide"/);
+  assert.match(renderer, /float panelTop = 14f;[\s\S]*?studyAppsPanel\(panels\[0\], 1, true\)/);
+  assert.doesNotMatch(renderer, /drawScreenTimeUpdated\(section/);
+  assert.match(renderer, /void studyAppsPanel\(RectF panel, int requestedRows, boolean inline\)/);
+  assert.match(renderer, /void deviceAppsPanel\(RectF panel, int requestedRows, boolean inline\)/);
   assert.match(renderer, /static Bitmap render\(/);
   assert.match(renderer, /static String autoComposition\(/);
 });
@@ -150,9 +159,12 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(repository, /StudyModeManager\.getSelectedStudyAppPackages\(context\)/);
   assert.match(repository, /new HashSet<>\(usage\.keySet\(\)\)/);
   assert.match(repository, /candidatePackages\.addAll\(selectedStudy\)/);
-  assert.doesNotMatch(repository, /getInstalledApplications|installedApplications|AppChoice|getStudyAppChoices|getDeviceAppChoices/);
+  assert.match(repository, /getInstalledApplications\(PackageManager\.ApplicationInfoFlags\.of\(0L\)\)/);
+  assert.match(repository, /installedApplications = pm\.getInstalledApplications\(0\)/);
+  assert.doesNotMatch(repository, /AppChoice|getStudyAppChoices|getDeviceAppChoices/);
   assert.match(repository, /pm\.getApplicationInfo\(packageName/);
-  assert.match(repository, /record\.usageMillis > 0L/);
+  assert.match(repository, /record != null && !hidden\.contains\(packageName\)/);
+  assert.match(repository, /record\.eligibleDeviceApp && record\.usageMillis > 0L/);
   assert.match(repository, /The total represents the full eligible source/);
   assert.match(repository, /isEligibleDeviceApp\(pm, info\)/);
   assert.match(repository, /getLaunchIntentForPackage\(info\.packageName\)/);
@@ -166,19 +178,26 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(provider, /deviceAppsScreenTime/);
   assert.match(provider, /openUsageAccessOnly/);
   assert.match(provider, /openStudyAppsPickerOnly/);
+  assert.match(provider, /else if \(options\.studyAppsScreenTime\s*&& data\.studyAppsScreenTime != null && "no_study_apps"\.equals\(data\.studyAppsScreenTime\.status\)\)/);
   assert.match(config, /Settings\.ACTION_USAGE_ACCESS_SETTINGS/);
   assert.match(config, /StudyModeManager\.openStudyAppsSelection\(this\)/);
-  assert.match(provider, /applyScreenTimeAppearance\(options, preferences\)/);
+  assert.doesNotMatch(provider, /applyScreenTimeAppearance/);
   assert.match(provider, /updateScreenTimeAppearance\(Context context\)/);
+  assert.match(provider, /screenTimeHiddenStudyPackages/);
+  assert.match(provider, /screenTimeHiddenDevicePackages/);
   assert.match(plugin, /public void syncAppearance\(PluginCall call\)/);
-  assert.match(renderer, /paletteFor\(String composition, int themeAccent, boolean lightMode\)/);
-  assert.match(renderer, /screenTimePrimaryText\(\)/);
+  assert.match(renderer, /this\.pal = paletteFor\(o\.composition, 0, false\)/);
+  assert.match(renderer, /void layoutScreenTimeReflow\(float rw, float rh\)/);
+  assert.match(renderer, /void drawAppsPanel\(/);
+  assert.doesNotMatch(renderer, /screenTimePrimaryText|drawLegacyContentSummary|layoutScreenTimeCombined|void layoutScreenTime\(\)/);
   assert.match(index, /window\.addEventListener\('theme-updated', syncWidgetAppearance\)/);
   assert.match(provider, /refreshScreenTimeInstances\(Context context, String refreshedPeriod\)/);
-  assert.doesNotMatch(provider, /screenTimeHiddenStudyPackages|screenTimeHiddenDevicePackages|parsePackageSet/);
-  assert.match(renderer, /void layoutScreenTime\(\)/);
-  assert.match(renderer, /void layoutScreenTimeCombined\(\)/);
-  assert.match(renderer, /void drawLegacyContentSummary\(/);
+  assert.match(provider, /screenTimeHiddenStudyPackages/);
+  assert.match(provider, /screenTimeHiddenDevicePackages/);
+  assert.match(provider, /readPackageSet\(/);
+  assert.match(renderer, /void studyAppsPanel\(/);
+  assert.match(renderer, /void deviceAppsPanel\(/);
+  assert.match(renderer, /void drawLegacyMiniBlocks\(/);
   assert.match(renderer, /"permission_required"/);
   assert.match(renderer, /"no_study_apps"/);
   assert.match(renderer, /"no_usage"/);
@@ -188,6 +207,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(config, /Source: Device App Usage/);
   assert.match(config, /No Study Apps Selected/);
   assert.doesNotMatch(config, /studyAppFilterChecks|deviceAppFilterChecks|populateAppFilters|getStudyAppChoices|getDeviceAppChoices|Manage Study Apps|getInstalledApplications/);
+  assert.doesNotMatch(config, /remove\(prefix \+ legacyScreenTimeKeys\[0\]\)|remove\(prefix \+ legacyScreenTimeKeys\[1\]\)/);
   assert.match(config, /int contentOptionCount = CONTENT_OPTIONS\.length/);
   assert.match(config, /openStudyAppsButton\.setVisibility\(selectedStudyCount == 0 \? View\.VISIBLE : View\.GONE\)/);
   assert.match(config, /screenTimeShowTotalCheck/);
@@ -204,6 +224,33 @@ test('older saved selections gain the quiz tile exactly once', () => {
   assert.match(provider, /storedVersion < CONTENT_SCHEMA_VERSION/);
   assert.match(provider, /!jsonArrayContains\(migrated, "quiz"\)/);
   assert.match(provider, /storedVersion < 2 && !jsonArrayContains\(migrated, "weekly"\)/);
+});
+
+test('desktop widget preview compiles provider/config with fatal errors and renders Screen Time matrix', () => {
+  const runner = read('tools/widget-preview/run.sh');
+  const bitmap = read('tools/widget-preview/shim/android/graphics/Bitmap.java');
+  const canvas = read('tools/widget-preview/shim/android/graphics/Canvas.java');
+  const path = read('tools/widget-preview/shim/android/graphics/Path.java');
+  const fixture = read('tools/widget-preview/stubs/com/sudhanshu/mathsbj/WidgetScreenTimeRepository.java');
+  const harness = read('tools/widget-preview/harness/com/sudhanshu/mathsbj/E2E.java');
+  assert.match(runner, /MathMasterHomeWidgetProvider\.java/);
+  assert.match(runner, /MathMasterWidgetConfigActivity\.java/);
+  assert.doesNotMatch(runner, /\|\| true/);
+  assert.match(bitmap, /isRecycled\(\)/);
+  assert.match(bitmap, /getByteCount\(\)/);
+  assert.match(canvas, /drawBitmap\(Bitmap bitmap, Rect src, RectF dst, Paint paint\)/);
+  assert.match(path, /cubicTo\(/);
+  assert.match(fixture, /setFixtureStatus\(/);
+  assert.match(fixture, /Math Notes/);
+  assert.match(harness, /renderScreenTimeMatrix\(ctx, p, mgr, outDir\)/);
+  assert.match(harness, /String\[\] states = \{"ok", "permission_required", "no_study_apps", "no_usage", "loading", "error"\}/);
+  assert.match(harness, /String\[\] styles = \{"neon", "blur", "transparent"\}/);
+  assert.match(harness, /before_baseline_/);
+  assert.match(harness, /Screen Time pairwise preview matrix rendered/);
+  assert.match(harness, /int expected = compositions\.length \* sizeNames\.length \* states\.length \* styles\.length/);
+  assert.match(harness, /expected != 630/);
+  assert.match(harness, /combinations\[\(compositionIndex \+ sizeIndex \+ stateIndex \+ styleIndex\)/);
+  assert.match(harness, /legacy\[\(compositionIndex \* 2 \+ sizeIndex \+ stateIndex \+ styleIndex\)/);
 });
 
 test('configuration screen previews the real renderer output', () => {
@@ -296,7 +343,9 @@ test('background effects: neon is the default, blur and transparent stay availab
   // Schema migration must preserve an existing widget's chosen appearance; only explicit Reset selects Neon.
   assert.doesNotMatch(provider, /\.putString\(prefix \+ "style", "neon"\)/);
   assert.match(widgetsPlugin, /\.putString\(prefix \+ "style", "neon"\)/);
-  assert.match(provider, /applyScreenTimeAppearance\(options, preferences\)/);
+  assert.doesNotMatch(provider, /applyScreenTimeAppearance/);
+  assert.match(renderer, /this\.pal = paletteFor\(o\.composition, 0, false\)/);
+  assert.match(renderer, /Color\.argb\(102, 57, 67, 77\)/);
   assert.match(renderer, /if \(clear\) return;/);
   assert.match(renderer, /Color\.argb\(102, 57, 67, 77\)/);
   assert.match(backupTs, /WIDGET_STYLES = new Set\(\['neon', 'blur', 'transparent'/);

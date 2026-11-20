@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-20 — Screen Time widgets preserve neon-glass compositions
+
+- Reflow Study Apps and Device Apps Screen Time inside the selected one of seven reference compositions instead of replacing legacy widget artwork with a text band.
+- Add source-specific vector icons, period chips, full-source totals, compact launcher-icon rows and reserved duration columns; keep each composition's palette and white Inter typography independent of app theme/mode.
+- Keep selected Study Mode apps visible at 0 min, derive Device Apps from installed inventory, exclude hidden packages from ranking and totals, and align widget aggregation with the App Usage Analytics UsageStats source.
+- Repair the desktop preview compiler so Java failures are fatal, add the Android API stubs needed by the provider/configuration preview, and validate Screen Time states/styles in CI.
+- Keep Screen Time opt-in under content schema 4, per-instance preferences, the single widget provider/bitmap renderer, and local-only usage data.
+
 ## 2026-11-15 — Neon-glass home-screen widgets matching the reference designs
 
 - Redraw all seven widget compositions (Hero Wide, Compact Green, Square Math Bot, Medium Study, Square Cosmic, Extra-Wide Weekly, Minimal Progress) to follow the supplied Math Master reference images: dark glass cards with neon edge light, glowing gradient progress ring, target panel with progress bar, streak with flame, weekly Sunday-Saturday strip, and the Upcoming Quiz tile.

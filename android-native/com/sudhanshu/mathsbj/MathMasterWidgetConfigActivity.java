@@ -864,8 +864,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             .putBoolean(prefix + "screenTimeShowUsage", screenTime.showUsage)
             .putBoolean(prefix + "screenTimeShowPercent", screenTime.showPercent)
             .putBoolean(prefix + "screenTimeDetailed", screenTime.detailed)
-            .remove(prefix + legacyScreenTimeKeys[0])
-            .remove(prefix + legacyScreenTimeKeys[1])
+            // Preserve per-instance hidden-package JSON for backward-compatible restores.
             .remove(prefix + "themeMode")
             .remove(prefix + "theme")
             .commit();

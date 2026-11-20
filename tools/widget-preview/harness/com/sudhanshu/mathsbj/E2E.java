@@ -21,6 +21,8 @@ public class E2E {
         public String getString(String k, String d) { return m.containsKey(k) ? (String) m.get(k) : d; }
         public int getInt(String k, int d) { return m.containsKey(k) ? (Integer) m.get(k) : d; }
         public long getLong(String k, long d) { return m.containsKey(k) ? ((Number) m.get(k)).longValue() : d; }
+        public float getFloat(String k, float d) { return m.containsKey(k) ? ((Number) m.get(k)).floatValue() : d; }
+        @SuppressWarnings("unchecked") public Set<String> getStringSet(String k, Set<String> d) { return m.containsKey(k) ? (Set<String>) m.get(k) : d; }
         public boolean getBoolean(String k, boolean d) { return m.containsKey(k) ? (Boolean) m.get(k) : d; }
         public boolean contains(String k) { return m.containsKey(k); }
         public Map<String, ?> getAll() { return m; }
@@ -29,6 +31,8 @@ public class E2E {
                 public Editor putString(String k, String v) { m.put(k, v); return this; }
                 public Editor putInt(String k, int v) { m.put(k, v); return this; }
                 public Editor putLong(String k, long v) { m.put(k, v); return this; }
+                public Editor putFloat(String k, float v) { m.put(k, v); return this; }
+                public Editor putStringSet(String k, Set<String> v) { m.put(k, v); return this; }
                 public Editor putBoolean(String k, boolean v) { m.put(k, v); return this; }
                 public Editor remove(String k) { m.remove(k); return this; }
                 public void apply() {}
@@ -103,7 +107,9 @@ public class E2E {
             p.m.put("instance_" + id + "_composition", comps[i]);
             p.m.put("instance_" + id + "_contentJson", json("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"));
             p.m.put("instance_" + id + "_contentSchemaVersion", 3);
-            save(render(ctx, id), "e2e_comp_" + comps[i]);
+            Bitmap baseline = render(ctx, id);
+            save(baseline, "e2e_comp_" + comps[i]);
+            save(baseline, "before_baseline_" + comps[i]);
         }
         // 3. variants on the hero: theme, style, content subsets, update badge, disabled
         sizes(mgr, 300, 312, 140); p.m.put("instance_300_composition", "hero_wide");
@@ -139,6 +145,76 @@ public class E2E {
         Set<String> all = new HashSet<>(Arrays.asList(MathMasterHomeWidgetProvider.CONTENT_OPTIONS));
         Bitmap prev = MathMasterHomeWidgetProvider.renderConfigurationPreview(ctx, "auto", "neon", all, 312, 140);
         save(prev, "e2e_config_preview");
+        renderScreenTimeMatrix(ctx, p, mgr, outDir);
         System.out.println("E2E OK");
+    }
+
+    /** Render the full Screen Time × composition × size × content × state × style matrix. */
+    static void renderScreenTimeMatrix(FakeContext ctx, MemPrefs prefs, AppWidgetManager manager, String output)
+        throws Exception {
+        String[] compositions = MathMasterWidgetRenderer.COMPOSITIONS;
+        String[] sizeNames = {"4x2", "3x2", "2x2", "4x1", "2x1"};
+        float[][] sizeDp = {{312,140},{220,140},{156,135},{390,57},{124,57}};
+        String[] combinations = {"study", "device", "both"};
+        String[] legacy = {"all", "partial", "none"};
+        String[] states = {"ok", "permission_required", "no_study_apps", "no_usage", "loading", "error"};
+        String[] styles = {"neon", "blur", "transparent"};
+        int id = 10000;
+        int rendered = 0;
+        for (int compositionIndex = 0; compositionIndex < compositions.length; compositionIndex++) {
+            String composition = compositions[compositionIndex];
+            for (int sizeIndex = 0; sizeIndex < sizeNames.length; sizeIndex++) {
+                for (int stateIndex = 0; stateIndex < states.length; stateIndex++) {
+                    String state = states[stateIndex];
+                    WidgetScreenTimeRepository.setFixtureStatus(state);
+                    for (int styleIndex = 0; styleIndex < styles.length; styleIndex++) {
+                        String style = styles[styleIndex];
+                        // Balanced pairwise coverage: each composition × size covers all source
+                        // combinations and legacy selections across the six states and three styles.
+                        String combination = combinations[(compositionIndex + sizeIndex + stateIndex + styleIndex)
+                            % combinations.length];
+                        String legacyContent = legacy[(compositionIndex * 2 + sizeIndex + stateIndex + styleIndex)
+                            % legacy.length];
+                        sizes(manager, id, sizeDp[sizeIndex][0], sizeDp[sizeIndex][1]);
+                        String prefix = "instance_" + id + "_";
+                        prefs.m.put(prefix + "composition", composition);
+                        prefs.m.put(prefix + "style", style);
+                        prefs.m.put(prefix + "contentSchemaVersion", 4);
+                        prefs.m.put(prefix + "screenTimePeriod", "today");
+                        prefs.m.put(prefix + "screenTimeSort", "most_used");
+                        prefs.m.put(prefix + "screenTimeMaxEntries", 6);
+                        prefs.m.put(prefix + "screenTimeShowTotal", true);
+                        prefs.m.put(prefix + "screenTimeShowUsage", true);
+                        prefs.m.put(prefix + "screenTimeShowPercent", true);
+                        prefs.m.put(prefix + "screenTimeDetailed", true);
+                        java.util.List<String> content = new java.util.ArrayList<>();
+                        if ("all".equals(legacyContent)) {
+                            content.addAll(java.util.Arrays.asList("appIdentity","target","progress","remaining",
+                                "studyTime","streak","weekly","quiz","updateStatus"));
+                        } else if ("partial".equals(legacyContent)) {
+                            content.addAll(java.util.Arrays.asList("appIdentity","progress","target","streak","weekly"));
+                        }
+                        if ("study".equals(combination) || "both".equals(combination)) content.add("studyAppsScreenTime");
+                        if ("device".equals(combination) || "both".equals(combination)) content.add("deviceAppsScreenTime");
+                        prefs.m.put(prefix + "contentJson", json(content.toArray(new String[0])));
+                        String name = "after_" + composition + "_" + sizeNames[sizeIndex] + "_"
+                            + combination + "_" + legacyContent + "_" + state + "_" + style;
+                        Bitmap bitmap = render(ctx, id);
+                        if (bitmap.getWidth() <= 0 || bitmap.getHeight() <= 0) {
+                            throw new IllegalStateException("invalid Screen Time preview bitmap: " + name);
+                        }
+                        save(bitmap, name);
+                        rendered++;
+                        id++;
+                    }
+                }
+            }
+        }
+        int expected = compositions.length * sizeNames.length * states.length * styles.length;
+        if (rendered != expected || expected != 630) {
+            throw new IllegalStateException("Screen Time pairwise matrix incomplete: " + rendered + "/" + expected);
+        }
+        WidgetScreenTimeRepository.setFixtureStatus("ok");
+        System.out.println("Screen Time pairwise preview matrix rendered: " + rendered + " images");
     }
 }

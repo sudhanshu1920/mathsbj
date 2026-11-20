@@ -15,6 +15,18 @@ public class Canvas {
     }
     public int getWidth() { return bmp.getWidth(); }
     public int getHeight() { return bmp.getHeight(); }
+    public void drawBitmap(Bitmap bitmap, Rect src, RectF dst, Paint paint) {
+        if (bitmap == null || bitmap.isRecycled() || dst == null) return;
+        int sx0 = src == null ? 0 : src.left, sy0 = src == null ? 0 : src.top;
+        int sx1 = src == null ? bitmap.getWidth() : src.right, sy1 = src == null ? bitmap.getHeight() : src.bottom;
+        int alpha = paint == null ? 255 : Math.max(0, Math.min(255, paint.getAlpha()));
+        Composite previous = g.getComposite();
+        if (alpha < 255) g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha / 255f));
+        g.drawImage(bitmap.image,
+            Math.round(dst.left), Math.round(dst.top), Math.round(dst.right), Math.round(dst.bottom),
+            sx0, sy0, sx1, sy1, null);
+        g.setComposite(previous);
+    }
     public int save() { stack.push(new Object[] { g.getTransform(), g.getClip() }); return stack.size(); }
     public void restore() { Object[] s = stack.pop(); g.setTransform((AffineTransform) s[0]); g.setClip((Shape) s[1]); }
     public void translate(float dx, float dy) { g.translate(dx, dy); }

@@ -12,7 +12,10 @@ Needs JDK 17+ with `java.desktop` (any normal JDK). The script compiles three th
 |---|---|
 | `shim/android/graphics` | A small Java2D-backed stand-in for `android.graphics` (Canvas, Paint, Path, gradients, blur, Typeface...). It lets the real `MathMasterWidgetRenderer.java` run unchanged. |
 | `stubs/` | Compile-only stand-ins for the other Android classes the provider and configuration screen use (Context, RemoteViews, AppWidgetManager, widgets...). They also let the provider be run against a fake Context. |
-| `harness/` | `Preview` (each design at its own size), `MakePreview` (the picker preview), `E2E` (the real `createViews` path: several launcher sizes, every composition, themes, styles, content subsets, the old-schema migration, update pill, disabled, 0 % / 100 %). |
+| `harness/` | `Preview` (each design at its own size plus Screen-Time-OFF baselines), `MakePreview` (the picker preview), `E2E` (the real `createViews` path: several launcher sizes, every composition, themes, styles, content subsets, old-schema migration, update pill, disabled, 0 % / 100 %, and the 630-image Screen Time pairwise matrix). |
+
+
+The Screen Time pairwise matrix writes `after_<composition>_<size>_<study|device|both>_<all|partial|none>_<state>_<style>.png` files across seven compositions, five launcher sizes, six data states and three background styles; source combinations and legacy-content selections are balanced across each composition/size slice. It also writes `before_baseline_<composition>.png` from the unchanged Screen-Time-OFF layouts. All generated PNGs live in `tools/widget-preview/out/` and must not be committed.
 
 ## What it proves, and what it does not
 
