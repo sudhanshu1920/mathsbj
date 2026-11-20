@@ -103,7 +103,9 @@ public class E2E {
             p.m.put("instance_" + id + "_composition", comps[i]);
             p.m.put("instance_" + id + "_contentJson", json("appIdentity", "target", "progress", "remaining", "studyTime", "streak", "weekly", "quiz", "updateStatus"));
             p.m.put("instance_" + id + "_contentSchemaVersion", 3);
-            save(render(ctx, id), "e2e_comp_" + comps[i]);
+            Bitmap baseline = render(ctx, id);
+            save(baseline, "e2e_comp_" + comps[i]);
+            save(baseline, "before_baseline_" + comps[i]);
         }
         // 3. variants on the hero: theme, style, content subsets, update badge, disabled
         sizes(mgr, 300, 312, 140); p.m.put("instance_300_composition", "hero_wide");
@@ -139,6 +141,63 @@ public class E2E {
         Set<String> all = new HashSet<>(Arrays.asList(MathMasterHomeWidgetProvider.CONTENT_OPTIONS));
         Bitmap prev = MathMasterHomeWidgetProvider.renderConfigurationPreview(ctx, "auto", "neon", all, 312, 140);
         save(prev, "e2e_config_preview");
+        renderScreenTimeMatrix(ctx, p, mgr, outDir);
         System.out.println("E2E OK");
+    }
+
+    /** Render the full Screen Time × composition × size × content × state × style matrix. */
+    static void renderScreenTimeMatrix(FakeContext ctx, MemPrefs prefs, AppWidgetManager manager, String output)
+        throws Exception {
+        String[] compositions = MathMasterWidgetRenderer.COMPOSITIONS;
+        String[] sizeNames = {"4x2", "3x2", "2x2", "4x1", "2x1"};
+        float[][] sizeDp = {{312,140},{220,140},{156,135},{390,57},{124,57}};
+        String[] combinations = {"study", "device", "both"};
+        String[] legacy = {"all", "partial", "none"};
+        String[] states = {"ok", "permission_required", "no_study_apps", "no_usage", "loading", "error"};
+        String[] styles = {"neon", "blur", "transparent"};
+        int id = 10000;
+        int rendered = 0;
+        for (String composition : compositions) {
+            for (int sizeIndex = 0; sizeIndex < sizeNames.length; sizeIndex++) {
+                for (String combination : combinations) {
+                    for (String legacyContent : legacy) {
+                        for (String state : states) {
+                            WidgetScreenTimeRepository.setFixtureStatus(state);
+                            for (String style : styles) {
+                                sizes(manager, id, sizeDp[sizeIndex][0], sizeDp[sizeIndex][1]);
+                                String prefix = "instance_" + id + "_";
+                                prefs.m.put(prefix + "composition", composition);
+                                prefs.m.put(prefix + "style", style);
+                                prefs.m.put(prefix + "contentSchemaVersion", 4);
+                                prefs.m.put(prefix + "screenTimePeriod", "today");
+                                prefs.m.put(prefix + "screenTimeSort", "most_used");
+                                prefs.m.put(prefix + "screenTimeMaxEntries", 6);
+                                prefs.m.put(prefix + "screenTimeShowTotal", true);
+                                prefs.m.put(prefix + "screenTimeShowUsage", true);
+                                prefs.m.put(prefix + "screenTimeShowPercent", true);
+                                prefs.m.put(prefix + "screenTimeDetailed", true);
+                                java.util.List<String> content = new java.util.ArrayList<>();
+                                if ("all".equals(legacyContent)) {
+                                    content.addAll(java.util.Arrays.asList("appIdentity","target","progress","remaining",
+                                        "studyTime","streak","weekly","quiz","updateStatus"));
+                                } else if ("partial".equals(legacyContent)) {
+                                    content.addAll(java.util.Arrays.asList("appIdentity","progress","target","streak","weekly"));
+                                }
+                                if ("study".equals(combination) || "both".equals(combination)) content.add("studyAppsScreenTime");
+                                if ("device".equals(combination) || "both".equals(combination)) content.add("deviceAppsScreenTime");
+                                prefs.m.put(prefix + "contentJson", json(content.toArray(new String[0])));
+                                String name = "after_" + composition + "_" + sizeNames[sizeIndex] + "_"
+                                    + combination + "_" + legacyContent + "_" + state + "_" + style;
+                                save(render(ctx, id), name);
+                                rendered++;
+                                id++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        WidgetScreenTimeRepository.setFixtureStatus("ok");
+        System.out.println("Screen Time preview matrix rendered: " + rendered + " images");
     }
 }
