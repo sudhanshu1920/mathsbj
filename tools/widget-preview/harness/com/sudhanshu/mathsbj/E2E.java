@@ -216,4 +216,5 @@ public class E2E {
         }
         WidgetScreenTimeRepository.setFixtureStatus("ok");
         System.out.println("Screen Time pairwise preview matrix rendered: " + rendered + " images");
-    }}
+    }
+}
