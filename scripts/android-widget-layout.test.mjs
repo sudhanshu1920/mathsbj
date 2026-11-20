@@ -54,6 +54,10 @@ test('renderer draws every composition and the provider offers the same set', ()
     assert.ok(renderer.includes(`void ${method}()`), `renderer is missing ${method}`);
   }
   assert.match(renderer, /void layoutScreenTimeReflow\(float rw, float rh\)/);
+  assert.match(renderer, /if \(o\.identity && !compactStrip\)/);
+  assert.match(renderer, /case "compact_green":[\s\S]*?case "hero_wide"/);
+  assert.match(renderer, /float panelTop = 14f;[\s\S]*?studyAppsPanel\(panels\[0\], 1, true\)/);
+  assert.doesNotMatch(renderer, /drawScreenTimeUpdated\(section/);
   assert.match(renderer, /void studyAppsPanel\(RectF panel, int requestedRows, boolean inline\)/);
   assert.match(renderer, /void deviceAppsPanel\(RectF panel, int requestedRows, boolean inline\)/);
   assert.match(renderer, /static Bitmap render\(/);
