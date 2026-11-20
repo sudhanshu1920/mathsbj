@@ -662,7 +662,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             launchIntent = new Intent(context, MathMasterWidgetConfigActivity.class);
             launchIntent.putExtra("openUsageAccessOnly", true);
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        } else if (options.studyAppsScreenTime && !options.deviceAppsScreenTime
+        } else if (options.studyAppsScreenTime
             && data.studyAppsScreenTime != null && "no_study_apps".equals(data.studyAppsScreenTime.status)) {
             // The empty Study Apps state takes the user directly to the canonical Study Mode picker.
             launchIntent = new Intent(context, MathMasterWidgetConfigActivity.class);
