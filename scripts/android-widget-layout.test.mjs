@@ -170,6 +170,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(provider, /deviceAppsScreenTime/);
   assert.match(provider, /openUsageAccessOnly/);
   assert.match(provider, /openStudyAppsPickerOnly/);
+  assert.match(provider, /else if \(options\.studyAppsScreenTime\s*&& data\.studyAppsScreenTime != null && "no_study_apps"\.equals\(data\.studyAppsScreenTime\.status\)\)/);
   assert.match(config, /Settings\.ACTION_USAGE_ACCESS_SETTINGS/);
   assert.match(config, /StudyModeManager\.openStudyAppsSelection\(this\)/);
   assert.doesNotMatch(provider, /applyScreenTimeAppearance/);
