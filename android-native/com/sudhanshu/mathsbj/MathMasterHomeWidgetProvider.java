@@ -74,6 +74,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showUsage = true;
         boolean showPercent = false;
         boolean detailed = true;
+        Set<String> hiddenStudyPackages = new HashSet<>();
+        Set<String> hiddenDevicePackages = new HashSet<>();
     }
 
     @Override
@@ -361,17 +363,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return options;
     }
 
-    private static void applyScreenTimeAppearance(
-        MathMasterWidgetRenderer.Options options, SharedPreferences preferences
-    ) {
-        if (!options.studyAppsScreenTime && !options.deviceAppsScreenTime) return;
-        String accent = preferences.getString("appAccentColor", "");
-        if (accent != null && accent.matches("^#[0-9a-fA-F]{6}$")) {
-            try { options.themeAccent = Color.parseColor(accent); }
-            catch (IllegalArgumentException ignored) { options.themeAccent = 0; }
-        }
-        options.lightMode = "light".equals(preferences.getString("mode", "dark"));
-    }
 
     private static Set<String> defaultContent() {
         return new HashSet<>(Arrays.asList(
@@ -388,6 +379,10 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         config.showUsage = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowUsage", true);
         config.showPercent = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowPercent", false);
         config.detailed = getInstanceBoolean(preferences, appWidgetId, "screenTimeDetailed", true);
+        config.hiddenStudyPackages = readPackageSet(getInstanceString(
+            preferences, appWidgetId, "screenTimeHiddenStudyPackages", "[]"));
+        config.hiddenDevicePackages = readPackageSet(getInstanceString(
+            preferences, appWidgetId, "screenTimeHiddenDevicePackages", "[]"));
         return config;
     }
 
@@ -401,6 +396,20 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         String key = appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID ? field : "instance_" + appWidgetId + "_" + field;
         if (!preferences.contains(key)) return fallback;
         try { return preferences.getBoolean(key, fallback); } catch (ClassCastException ignored) { return fallback; }
+    }
+
+    private static Set<String> readPackageSet(String value) {
+        Set<String> packages = new HashSet<>();
+        try {
+            JSONArray array = new JSONArray(value == null ? "[]" : value);
+            for (int index = 0; index < array.length(); index++) {
+                String packageName = array.optString(index, "");
+                if (packageName.matches("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+")) packages.add(packageName);
+            }
+        } catch (JSONException ignored) {
+            // Ignore invalid legacy values; backup validators reject malformed package lists.
+        }
+        return packages;
     }
 
     private static String normalizeScreenTimePeriod(String value) {
@@ -419,11 +428,11 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             WidgetScreenTimeRepository.getCachedSnapshot(context, config.period);
         if (options.studyAppsScreenTime) {
             data.studyAppsScreenTime = WidgetScreenTimeRepository.buildSection(
-                context, snapshot, true, config.sort, config.maxEntries);
+                context, snapshot, true, config.sort, config.maxEntries, config.hiddenStudyPackages);
         }
         if (options.deviceAppsScreenTime) {
             data.deviceAppsScreenTime = WidgetScreenTimeRepository.buildSection(
-                context, snapshot, false, config.sort, config.maxEntries);
+                context, snapshot, false, config.sort, config.maxEntries, config.hiddenDevicePackages);
         }
     }
 
@@ -530,7 +539,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         if ("auto".equals(resolved)) resolved = MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
         MathMasterWidgetRenderer.Options options = buildOptions(
             resolved, style, preferences.getBoolean("enabled", true), selected, screenTime);
-        applyScreenTimeAppearance(options, preferences);
         MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
         applyScreenTimeData(context, data, options, screenTime == null ? new ScreenTimeConfig() : screenTime);
         return renderWidgetBitmap(context, options, data, widthDp, heightDp, 1);
@@ -554,7 +562,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean enabled = preferences.getBoolean("enabled", true);
         ScreenTimeConfig screenTime = readScreenTimeConfig(preferences, appWidgetId);
         MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected, screenTime);
-        applyScreenTimeAppearance(options, preferences);
         MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
         applyScreenTimeData(context, data, options, screenTime);
         if (options.studyAppsScreenTime || options.deviceAppsScreenTime) {
@@ -631,7 +638,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean enabled = preferences.getBoolean("enabled", true);
         ScreenTimeConfig screenTime = readScreenTimeConfig(preferences, appWidgetId);
         MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected, screenTime);
-        applyScreenTimeAppearance(options, preferences);
         MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
         applyScreenTimeData(context, data, options, screenTime);
         if (options.studyAppsScreenTime || options.deviceAppsScreenTime) {
