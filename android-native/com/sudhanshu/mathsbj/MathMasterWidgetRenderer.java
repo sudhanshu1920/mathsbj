@@ -87,7 +87,7 @@ final class MathMasterWidgetRenderer {
         String composition = "hero_wide";
         String style = "neon";     // neon (reference look) | blur | transparent; anything else = neon
         int themeAccent = 0;       // 0 = use the composition's own reference palette
-        boolean lightMode = false; // Screen Time follows the active app mode
+        boolean lightMode = false; // Retained for stored-option compatibility; widgets ignore app mode
         boolean enabled = true;
         boolean identity = true;
         boolean progress = true;
@@ -367,11 +367,11 @@ final class MathMasterWidgetRenderer {
         void drawCard() {
             if (clear) return;   // "Full Transparent": the wallpaper is the only background
             if (translucent) {   // "Transparent Blur": frosted slate card with a hairline edge
-                fill.setColor(o.lightMode ? Color.argb(164, 246, 249, 255) : Color.argb(102, 57, 67, 77));
+                fill.setColor(Color.argb(102, 57, 67, 77));
                 c.drawRoundRect(card, cardRadius, cardRadius, fill);
                 RectF hairline = new RectF(card);
                 hairline.inset(0.5f * density, 0.5f * density);
-                line.setColor(o.lightMode ? Color.argb(150, 255, 255, 255) : Color.argb(40, 255, 255, 255));
+                line.setColor(Color.argb(40, 255, 255, 255));
                 line.setStrokeWidth(Math.max(1f, density));
                 c.drawRoundRect(hairline, cardRadius, cardRadius, line);
                 resetPaints();
@@ -825,22 +825,22 @@ final class MathMasterWidgetRenderer {
             c.drawRoundRect(r, h * 0.5f, h * 0.5f, line);
             resetPaints();
             text(d.updateLabel, r.centerX(), r.centerY() + size * 0.36f, size, f.bold,
-                o.lightMode ? hex("#172033") : Color.WHITE, Paint.Align.CENTER, r.width() - h * 0.4f);
+                Color.WHITE, Paint.Align.CENTER, r.width() - h * 0.4f);
         }
 
         // ---- glass surfaces
         void glass(RectF r, float radius) {
-            fill.setColor(withAlpha(Color.BLACK, o.lightMode ? 0.035f : 0.12f));
+            fill.setColor(withAlpha(Color.BLACK, 0.12f));
             c.drawRoundRect(r, radius, radius, fill);
             fill.setShader(new LinearGradient(r.left, r.top, r.left, r.bottom,
-                withAlpha(Color.WHITE, o.lightMode ? 0.82f : 0.12f),
-                withAlpha(Color.WHITE, o.lightMode ? 0.42f : 0.035f), Shader.TileMode.CLAMP));
+                withAlpha(Color.WHITE, 0.12f),
+                withAlpha(Color.WHITE, 0.035f), Shader.TileMode.CLAMP));
             c.drawRoundRect(r, radius, radius, fill);
             fill.setShader(null);
             RectF in = new RectF(r);
             float sw = Math.max(1f, 1.05f * density);
             in.inset(sw * 0.5f, sw * 0.5f);
-            int edge = o.lightMode ? withAlpha(pal.master, 0.42f) : Color.WHITE;
+            int edge = Color.WHITE;
             line.setShader(new LinearGradient(r.left, r.top, r.right, r.bottom,
                 new int[] { withAlpha(edge, 0.80f), withAlpha(edge, 0.25f), withAlpha(edge, 0.48f) },
                 new float[] { 0f, 0.55f, 1f }, Shader.TileMode.CLAMP));
