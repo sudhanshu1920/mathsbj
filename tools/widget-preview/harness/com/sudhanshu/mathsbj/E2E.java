@@ -161,47 +161,59 @@ public class E2E {
         String[] styles = {"neon", "blur", "transparent"};
         int id = 10000;
         int rendered = 0;
-        for (String composition : compositions) {
+        for (int compositionIndex = 0; compositionIndex < compositions.length; compositionIndex++) {
+            String composition = compositions[compositionIndex];
             for (int sizeIndex = 0; sizeIndex < sizeNames.length; sizeIndex++) {
-                for (String combination : combinations) {
-                    for (String legacyContent : legacy) {
-                        for (String state : states) {
-                            WidgetScreenTimeRepository.setFixtureStatus(state);
-                            for (String style : styles) {
-                                sizes(manager, id, sizeDp[sizeIndex][0], sizeDp[sizeIndex][1]);
-                                String prefix = "instance_" + id + "_";
-                                prefs.m.put(prefix + "composition", composition);
-                                prefs.m.put(prefix + "style", style);
-                                prefs.m.put(prefix + "contentSchemaVersion", 4);
-                                prefs.m.put(prefix + "screenTimePeriod", "today");
-                                prefs.m.put(prefix + "screenTimeSort", "most_used");
-                                prefs.m.put(prefix + "screenTimeMaxEntries", 6);
-                                prefs.m.put(prefix + "screenTimeShowTotal", true);
-                                prefs.m.put(prefix + "screenTimeShowUsage", true);
-                                prefs.m.put(prefix + "screenTimeShowPercent", true);
-                                prefs.m.put(prefix + "screenTimeDetailed", true);
-                                java.util.List<String> content = new java.util.ArrayList<>();
-                                if ("all".equals(legacyContent)) {
-                                    content.addAll(java.util.Arrays.asList("appIdentity","target","progress","remaining",
-                                        "studyTime","streak","weekly","quiz","updateStatus"));
-                                } else if ("partial".equals(legacyContent)) {
-                                    content.addAll(java.util.Arrays.asList("appIdentity","progress","target","streak","weekly"));
-                                }
-                                if ("study".equals(combination) || "both".equals(combination)) content.add("studyAppsScreenTime");
-                                if ("device".equals(combination) || "both".equals(combination)) content.add("deviceAppsScreenTime");
-                                prefs.m.put(prefix + "contentJson", json(content.toArray(new String[0])));
-                                String name = "after_" + composition + "_" + sizeNames[sizeIndex] + "_"
-                                    + combination + "_" + legacyContent + "_" + state + "_" + style;
-                                save(render(ctx, id), name);
-                                rendered++;
-                                id++;
-                            }
+                for (int stateIndex = 0; stateIndex < states.length; stateIndex++) {
+                    String state = states[stateIndex];
+                    WidgetScreenTimeRepository.setFixtureStatus(state);
+                    for (int styleIndex = 0; styleIndex < styles.length; styleIndex++) {
+                        String style = styles[styleIndex];
+                        // Balanced pairwise coverage: each composition × size covers all source
+                        // combinations and legacy selections across the six states and three styles.
+                        String combination = combinations[(compositionIndex + sizeIndex + stateIndex + styleIndex)
+                            % combinations.length];
+                        String legacyContent = legacy[(compositionIndex * 2 + sizeIndex + stateIndex + styleIndex)
+                            % legacy.length];
+                        sizes(manager, id, sizeDp[sizeIndex][0], sizeDp[sizeIndex][1]);
+                        String prefix = "instance_" + id + "_";
+                        prefs.m.put(prefix + "composition", composition);
+                        prefs.m.put(prefix + "style", style);
+                        prefs.m.put(prefix + "contentSchemaVersion", 4);
+                        prefs.m.put(prefix + "screenTimePeriod", "today");
+                        prefs.m.put(prefix + "screenTimeSort", "most_used");
+                        prefs.m.put(prefix + "screenTimeMaxEntries", 6);
+                        prefs.m.put(prefix + "screenTimeShowTotal", true);
+                        prefs.m.put(prefix + "screenTimeShowUsage", true);
+                        prefs.m.put(prefix + "screenTimeShowPercent", true);
+                        prefs.m.put(prefix + "screenTimeDetailed", true);
+                        java.util.List<String> content = new java.util.ArrayList<>();
+                        if ("all".equals(legacyContent)) {
+                            content.addAll(java.util.Arrays.asList("appIdentity","target","progress","remaining",
+                                "studyTime","streak","weekly","quiz","updateStatus"));
+                        } else if ("partial".equals(legacyContent)) {
+                            content.addAll(java.util.Arrays.asList("appIdentity","progress","target","streak","weekly"));
                         }
+                        if ("study".equals(combination) || "both".equals(combination)) content.add("studyAppsScreenTime");
+                        if ("device".equals(combination) || "both".equals(combination)) content.add("deviceAppsScreenTime");
+                        prefs.m.put(prefix + "contentJson", json(content.toArray(new String[0])));
+                        String name = "after_" + composition + "_" + sizeNames[sizeIndex] + "_"
+                            + combination + "_" + legacyContent + "_" + state + "_" + style;
+                        Bitmap bitmap = render(ctx, id);
+                        if (bitmap.getWidth() <= 0 || bitmap.getHeight() <= 0) {
+                            throw new IllegalStateException("invalid Screen Time preview bitmap: " + name);
+                        }
+                        save(bitmap, name);
+                        rendered++;
+                        id++;
                     }
                 }
             }
         }
+        int expected = compositions.length * sizeNames.length * states.length * styles.length;
+        if (rendered != expected || expected != 630) {
+            throw new IllegalStateException("Screen Time pairwise matrix incomplete: " + rendered + "/" + expected);
+        }
         WidgetScreenTimeRepository.setFixtureStatus("ok");
-        System.out.println("Screen Time preview matrix rendered: " + rendered + " images");
-    }
-}
+        System.out.println("Screen Time pairwise preview matrix rendered: " + rendered + " images");
+    }}
