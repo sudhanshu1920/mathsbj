@@ -452,15 +452,33 @@ final class MathMasterWidgetRenderer {
             float gap = wideStrip ? 12f : 8f;
             capH = Math.max(34f * su, Math.min(110f * su, rh * 0.24f * su));
 
-            if (o.identity) {
-                if (wideStrip) {
-                    header(RU(40f, 20f, 54f, 54f), XU(115f), YU(46f), 25f * su, YU(70f), 12f * su, X(272f));
-                } else if (compactStrip) {
-                    header(RU(29f, 19f, 65f, 58f), XU(111f), YU(44f), 22f * su, YU(0f), 0f, X(332f));
-                } else if (hero) {
-                    header(RU(38f, 25f, 97f, 87f), XU(157f), YU(72f), 42.5f * su, YU(105f), 23f * su, X(836f));
-                } else {
-                    header(RU(28f, 14f, 54f, 50f), XU(94f), YU(46f), 25f * su, YU(69f), 11f * su, X(rw - 16f));
+            // Keep each selected composition's own logo, icon and wordmark. The very
+            // short 2x1 cell is data-first, so its two Screen Time panels never collide
+            // with the normal-height composition header.
+            if (o.identity && !compactStrip) {
+                switch (o.composition) {
+                    case "compact_green":
+                        header(RU(38f, 22f, 83f, 76f), XU(137f), YU(60f), 32f * su, YU(90f), 21f * su, X(478f));
+                        break;
+                    case "square_math_bot":
+                        header(RU(42f, 22f, 71f, 66f), XU(132f), YU(53f), 28.5f * su, YU(80f), 16.5f * su, X(412f));
+                        break;
+                    case "medium_study":
+                        header(RU(36f, 24f, 72f, 68f), XU(124f), YU(56f), 26.5f * su, YU(82f), 14.5f * su, X(354f));
+                        break;
+                    case "square_cosmic":
+                        header(RU(39f, 20f, 75f, 68f), XU(139f), YU(50f), 31f * su, YU(79f), 17f * su, X(530f));
+                        break;
+                    case "extra_wide_weekly":
+                        header(RU(40f, 20f, 54f, 54f), XU(115f), YU(46f), 25f * su, YU(70f), 12f * su, X(272f));
+                        break;
+                    case "minimal_progress":
+                        header(RU(29f, 19f, 65f, 58f), XU(111f), YU(44f), 22f * su, YU(0f), 0f, X(332f));
+                        break;
+                    case "hero_wide":
+                    default:
+                        header(RU(38f, 25f, 97f, 87f), XU(157f), YU(72f), 42.5f * su, YU(105f), 23f * su, X(836f));
+                        break;
                 }
             }
 
@@ -486,14 +504,14 @@ final class MathMasterWidgetRenderer {
             }
 
             if (compactStrip) {
-                float panelTop = o.identity ? (o.composition.equals("minimal_progress") ? 66f : 28f) : 14f;
+                float panelTop = 14f;
                 float panelBottom = rh - 10f;
-                float panelLeft = o.identity && o.composition.equals("extra_wide_weekly") ? 286f : pad;
+                float panelLeft = pad;
                 if (both) {
                     RectF[] panels = rowRects(panelLeft, rw - pad, panelTop, panelBottom, gap,
                         new float[] { 1f, 1f }, new boolean[] { true, true });
-                    studyAppsPanel(panels[0], 0, true);
-                    deviceAppsPanel(panels[1], 0, true);
+                    studyAppsPanel(panels[0], 1, true);
+                    deviceAppsPanel(panels[1], 1, true);
                 } else {
                     RectF panel = RB(panelLeft, panelTop, rw - pad, panelBottom);
                     if (study != null) studyAppsPanel(panel, 1, true);
@@ -724,9 +742,6 @@ final class MathMasterWidgetRenderer {
                     c.drawLine(labelLeft, rowTop + rowHeight, valueRight, rowTop + rowHeight, line);
                     resetPaints();
                 }
-            }
-            if (section.lastUpdatedAt > 0L) {
-                drawScreenTimeUpdated(section, panel.right - pad, panel.bottom - pad * 0.38f, metaSize);
             }
         }
 
