@@ -55,6 +55,8 @@ test('renderer draws every composition and the provider offers the same set', ()
   }
   assert.match(renderer, /void layoutScreenTimeReflow\(float rw, float rh\)/);
   assert.match(renderer, /if \(o\.identity && !compactStrip\)/);
+  assert.match(renderer, /if \(wideStrip\) \{[\s\S]*?header\(RU\(38f, 25f, 97f, 87f\), XU\(157f\), YU\(72f\), 22f \* su, YU\(105f\), 0f, X\(272f\)\)/);
+  assert.match(renderer, /float panelLeft = o\.identity \? 286f : pad/);
   assert.match(renderer, /case "compact_green":[\s\S]*?case "hero_wide"/);
   assert.match(renderer, /float panelTop = 14f;[\s\S]*?studyAppsPanel\(panels\[0\], 1, true\)/);
   assert.doesNotMatch(renderer, /drawScreenTimeUpdated\(section/);
