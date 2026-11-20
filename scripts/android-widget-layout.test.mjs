@@ -154,7 +154,8 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(repository, /installedApplications = pm\.getInstalledApplications\(0\)/);
   assert.doesNotMatch(repository, /AppChoice|getStudyAppChoices|getDeviceAppChoices/);
   assert.match(repository, /pm\.getApplicationInfo\(packageName/);
-  assert.match(repository, /record\.usageMillis > 0L/);
+  assert.match(repository, /record != null && !hidden\.contains\(packageName\)/);
+  assert.match(repository, /record\.eligibleDeviceApp && record\.usageMillis > 0L/);
   assert.match(repository, /The total represents the full eligible source/);
   assert.match(repository, /isEligibleDeviceApp\(pm, info\)/);
   assert.match(repository, /getLaunchIntentForPackage\(info\.packageName\)/);
@@ -181,7 +182,9 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.doesNotMatch(renderer, /screenTimePrimaryText|drawLegacyContentSummary|layoutScreenTimeCombined|void layoutScreenTime\(\)/);
   assert.match(index, /window\.addEventListener\('theme-updated', syncWidgetAppearance\)/);
   assert.match(provider, /refreshScreenTimeInstances\(Context context, String refreshedPeriod\)/);
-  assert.doesNotMatch(provider, /screenTimeHiddenStudyPackages|screenTimeHiddenDevicePackages|parsePackageSet/);
+  assert.match(provider, /screenTimeHiddenStudyPackages/);
+  assert.match(provider, /screenTimeHiddenDevicePackages/);
+  assert.match(provider, /readPackageSet\(/);
   assert.match(renderer, /void studyAppsPanel\(/);
   assert.match(renderer, /void deviceAppsPanel\(/);
   assert.match(renderer, /void drawLegacyMiniBlocks\(/);
