@@ -215,6 +215,17 @@ final class WidgetScreenTimeRepository {
         String sort,
         int maxEntries
     ) {
+        return buildSection(context, snapshot, studyApps, sort, maxEntries, Collections.emptySet());
+    }
+
+    static MathMasterWidgetRenderer.ScreenTimeSection buildSection(
+        Context context,
+        Snapshot snapshot,
+        boolean studyApps,
+        String sort,
+        int maxEntries,
+        Set<String> hiddenPackages
+    ) {
         MathMasterWidgetRenderer.ScreenTimeSection section = new MathMasterWidgetRenderer.ScreenTimeSection();
         section.title = studyApps ? "Study Apps" : "Device Apps";
         section.periodLabel = periodLabel(snapshot == null ? "today" : snapshot.period);
@@ -222,10 +233,6 @@ final class WidgetScreenTimeRepository {
 
         List<String> selectedStudyPackages = studyApps
             ? StudyModeManager.getSelectedStudyAppPackages(context) : Collections.emptyList();
-        if (studyApps && selectedStudyPackages.isEmpty()) {
-            section.status = "no_study_apps";
-            return section;
-        }
         if (snapshot == null || "loading".equals(snapshot.status)) {
             section.status = "loading";
             return section;
@@ -238,16 +245,22 @@ final class WidgetScreenTimeRepository {
             section.status = "error";
             return section;
         }
+        if (studyApps && selectedStudyPackages.isEmpty()) {
+            section.status = "no_study_apps";
+            return section;
+        }
+        Set<String> hidden = hiddenPackages == null ? Collections.emptySet() : hiddenPackages;
 
         List<AppRecord> ranked = new ArrayList<>();
         if (studyApps) {
             for (String packageName : selectedStudyPackages) {
                 AppRecord record = snapshot.apps.get(packageName);
-                if (record != null && record.usageMillis > 0L) ranked.add(record);
+                if (record != null && !hidden.contains(packageName)) ranked.add(record);
             }
         } else {
             for (AppRecord record : snapshot.apps.values()) {
-                if (record.eligibleDeviceApp && record.usageMillis > 0L) ranked.add(record);
+                if (record.eligibleDeviceApp && record.usageMillis > 0L
+                    && !hidden.contains(record.packageName)) ranked.add(record);
             }
         }
         if (ranked.isEmpty()) {
@@ -296,31 +309,44 @@ final class WidgetScreenTimeRepository {
         }
 
         Map<String, Long> usage = new HashMap<>();
-        Set<String> seenRecords = new HashSet<>();
         for (UsageStats stat : stats) {
             if (stat == null || stat.getPackageName() == null) continue;
             long duration = Math.max(0L, stat.getTotalTimeInForeground());
             if (duration <= 0L) continue;
             String packageName = stat.getPackageName();
-            String identity = packageName + "|" + stat.getFirstTimeStamp() + "|"
-                + stat.getLastTimeUsed() + "|" + duration;
-            if (!seenRecords.add(identity)) continue;
             Long previousDuration = usage.get(packageName);
             usage.put(packageName, (previousDuration == null ? 0L : previousDuration) + duration);
         }
 
         PackageManager pm = context.getPackageManager();
-        // Only inspect packages that Android reported as used, plus the canonical Study Apps
-        // allowlist so removed/uninstalled selections and selected apps with zero usage remain
-        // distinguishable. Do not enumerate the whole installed-app inventory.
         Set<String> selectedStudy = new HashSet<>(StudyModeManager.getSelectedStudyAppPackages(context));
+
+        // Device Apps is intentionally based on Android's installed inventory. This whole
+        // inventory read, eligibility filtering, label lookup and icon decoding run only on
+        // the UsageStats worker thread, never during bitmap drawing on the main thread.
+        Map<String, ApplicationInfo> installed = new HashMap<>();
+        List<ApplicationInfo> installedApplications;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            installedApplications = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L));
+        } else {
+            installedApplications = pm.getInstalledApplications(0);
+        }
+        if (installedApplications != null) {
+            for (ApplicationInfo info : installedApplications) {
+                if (info != null && info.packageName != null) installed.put(info.packageName, info);
+            }
+        }
+
+        // Study Mode selections are added separately, so selected apps with 0 min remain
+        // visible even when Android omits them from the usage query.
         Set<String> candidatePackages = new HashSet<>(usage.keySet());
         candidatePackages.addAll(selectedStudy);
         Map<String, AppRecord> appRecords = new HashMap<>();
         float density = Math.max(1f, context.getResources().getDisplayMetrics().density);
         int iconSize = Math.max(40, Math.min(96, Math.round(ICON_SIZE_DP * density)));
         for (String packageName : candidatePackages) {
-            ApplicationInfo info = applicationInfo(pm, packageName);
+            ApplicationInfo info = installed.get(packageName);
+            if (info == null && selectedStudy.contains(packageName)) info = applicationInfo(pm, packageName);
             if (info == null) continue;
             Long usageValue = usage.get(packageName);
             long duration = Math.min(Math.max(0L, usageValue == null ? 0L : usageValue),
