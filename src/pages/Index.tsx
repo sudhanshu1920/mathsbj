@@ -16,7 +16,7 @@ import CommandPalette from '@/components/CommandPalette';
 import ShortcutsHelp from '@/components/ShortcutsHelp';
 import OfflinePrep from '@/components/OfflinePrep';
 import { getSettings } from '@/lib/settings';
-import { getPracticeNavDepth, getPracticeReturnDepth, isPracticeSessionInProgress, isUnsavedPracticePhase, LEARNING_PRACTICE_SELECTOR_DEPTH, type PracticeLaunchContext, type PracticePhase } from '@/lib/practiceNavigation';
+import { getPracticeNavDepth, getPracticeReturnDepth, isPracticeSessionInProgress, isUnsavedPracticePhase, LEARNING_PRACTICE_SELECTOR_DEPTH, type LearningQuestionOrder, type PracticeLaunchContext, type PracticePhase } from '@/lib/practiceNavigation';
 import { getHorizontalSwipeDirection } from '@/lib/swipeDirection';
 import { getPeriodicRangeIndexFromDepth, isValidPeriodicRangeIndex, PERIODIC_RANGE_MENU_DEPTH } from '@/lib/periodicRangeNavigation';
 import { MOTION } from '@/lib/motion';
@@ -154,7 +154,7 @@ const Index = () => {
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
   const [practiceContext, setPracticeContext] = useState<{ from?: number; to?: number; number?: number } | undefined>();
   const [practiceMode, setPracticeMode] = useState<'mcq' | 'input' | 'game' | undefined>();
-  const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode } | undefined>();
+  const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder } | undefined>();
   const [returnToLearn, setReturnToLearn] = useState(false);
   const [learningPracticeSelectorOpen, setLearningPracticeSelectorOpen] = useState(false);
   const [learningPracticeReturn, setLearningPracticeReturn] = useState<PracticeLaunchContext | null>(null);
@@ -818,7 +818,7 @@ const Index = () => {
     if (!open) setLearningPracticeReturn(null);
   }, []);
 
-  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode }) => {
+  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder }) => {
     const launchContext: PracticeLaunchContext = {
       topic,
       context: context ? { ...context } : undefined,

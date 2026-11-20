@@ -23,7 +23,7 @@ import { getXP, levelFromXP } from '@/lib/xp';
 import { TOPIC_ICON_MAP, type LearningTopicId } from '@/lib/topicIcons';
 import StudyTracker from '@/components/StudyTracker';
 import { getTrigAngles, type TrigFunction } from '@/lib/trigData';
-import type { PracticeLaunchContext } from '@/lib/practiceNavigation';
+import { getLearningQuestionOrderPreference, setLearningQuestionOrderPreference, type LearningQuestionOrder, type PracticeLaunchContext } from '@/lib/practiceNavigation';
 import type { PeriodicMassMode, PeriodicQuestionType } from '@/lib/periodicTable';
 
 type Topic = 'tables' | 'squares' | 'square-roots' | 'cubes' | 'cube-roots' | 'powers' | 'percentage' | 'formulas' | 'periodic-table' | 'study-tracker';
@@ -37,7 +37,7 @@ interface LearningPageProps {
   onPeriodicRangeSwipe?: (index: number | null) => void;
   /** Replace the current element-detail history entry while swiping between elements. */
   onPeriodicElementSwipe?: (number: number) => void;
-  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode }) => void;
+  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
   practiceSelectorOpen?: boolean;
@@ -91,6 +91,8 @@ const LearningPage = ({
   );
   const [proMode, setProModeState] = useState<boolean>(() => getTablesProMode());
   const [pendingPeriodicPractice, setPendingPeriodicPractice] = useState<PeriodicPracticeSelection | null>(null);
+  const practicePreferenceTopic = pendingTrigFunctions?.length ? 'trig' : activeTopic ?? '';
+  const matchingPracticeReturn = practiceReturn?.topic === practicePreferenceTopic ? practiceReturn : null;
   const [studyModeTopicOpen, setStudyModeTopicOpen] = useState(false);
   const [openStudyAppsPickerAfterMount, setOpenStudyAppsPickerAfterMount] = useState(false);
 
@@ -177,10 +179,12 @@ const LearningPage = ({
     if (!onStartPractice) return;
 
     if (pendingTrigFunctions?.length) {
+      setLearningQuestionOrderPreference('trig', settings.questionOrder);
       onStartPractice('trig', {}, settings.mode, {
         timerEnabled: settings.timerEnabled,
         timerSeconds: settings.timerSeconds,
         infinite: settings.infinite,
+        questionOrder: settings.questionOrder,
         trigFunctions: [...pendingTrigFunctions],
         trigProMode: pendingTrigProMode,
         count: pendingTrigFunctions.length * getTrigAngles(pendingTrigProMode).length,
@@ -192,6 +196,7 @@ const LearningPage = ({
     }
 
     if (!activeTopic) return;
+    setLearningQuestionOrderPreference(activeTopic, settings.questionOrder);
     const ctx: { from?: number; to?: number; number?: number } = {};
     if (selectedNumber) ctx.number = selectedNumber;
     if (selectedRange) { ctx.from = selectedRange.from; ctx.to = selectedRange.to; }
@@ -216,6 +221,7 @@ const LearningPage = ({
       timerEnabled: settings.timerEnabled,
       timerSeconds: settings.timerSeconds,
       infinite: settings.infinite,
+      questionOrder: settings.questionOrder,
       ...(activeTopic === 'periodic-table' && pendingPeriodicPractice ? {
         periodicQuestionTypes: [...pendingPeriodicPractice.questionTypes],
         periodicMassMode: pendingPeriodicPractice.massMode,
@@ -237,6 +243,7 @@ const LearningPage = ({
         {showPractice && (
           <button
             onClick={openPracticeMode}
+            data-testid="learning-practice-entry"
             className="h-7 inline-flex items-center gap-1 px-2 rounded-full gradient-primary text-primary-foreground text-[10px] font-semibold"
           >
             <Dumbbell size={12} />
@@ -315,11 +322,13 @@ const LearningPage = ({
         <PracticeModeSelector
           onSelect={handlePracticeSelect}
           initialSettings={{
-            mode: practiceReturn?.mode ?? 'mcq',
-            timerEnabled: practiceReturn?.extras?.timerEnabled ?? false,
-            timerSeconds: practiceReturn?.extras?.timerSeconds ?? 10,
-            infinite: practiceReturn?.extras?.infinite ?? false,
+            mode: matchingPracticeReturn?.mode ?? 'mcq',
+            timerEnabled: matchingPracticeReturn?.extras?.timerEnabled ?? false,
+            timerSeconds: matchingPracticeReturn?.extras?.timerSeconds ?? 10,
+            infinite: matchingPracticeReturn?.extras?.infinite ?? false,
+            questionOrder: matchingPracticeReturn?.extras?.questionOrder ?? getLearningQuestionOrderPreference(practicePreferenceTopic),
           }}
+          onQuestionOrderChange={(order) => setLearningQuestionOrderPreference(practicePreferenceTopic, order)}
         />
       </div>
     );
@@ -366,7 +375,7 @@ const LearningPage = ({
               else if (periodicSelectedElement !== null) setSelectedElement(null);
               else if (validRangeIndex !== null) updateState({ periodicSelectedRangeIndex: null });
               else setActiveTopic(null);
-            })}</>
+            }, false)}</>
           )}
           <Suspense fallback={<div className="py-16 text-center text-sm font-semibold text-muted-foreground">Loading Periodic Table…</div>}>
             <PeriodicTableLearning
@@ -425,7 +434,7 @@ const LearningPage = ({
         else setActiveTopic(null);
       }}>
         <div>
-          {renderHeader('Tables', () => setActiveTopic(null))}
+          {renderHeader('Tables', () => setActiveTopic(null), false)}
           <div className={`glass-panel rounded-2xl px-4 py-3 mb-4 flex items-center justify-between ${proMode ? 'shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_0_24px_hsl(var(--primary)/0.35)]' : ''}`}>
             <div className="flex items-center gap-2">
               <Crown size={18} className={proMode ? 'text-primary' : 'text-muted-foreground'} />
@@ -464,7 +473,7 @@ const LearningPage = ({
     return (
       <SwipeBack onBack={() => setActiveTopic(null)}>
         <div>
-          {renderHeader('Powers', () => setActiveTopic(null))}
+          {renderHeader('Powers', () => setActiveTopic(null), false)}
           <p className="text-muted-foreground text-sm mb-4 text-center">Select a number (1–200)</p>
           {renderNumberGrid(200, setSelectedNumber)}
         </div>
@@ -521,7 +530,7 @@ const LearningPage = ({
     return (
       <SwipeBack onBack={() => setActiveTopic(null)}>
         <div>
-          {renderHeader(topicTitle, () => setActiveTopic(null))}
+          {renderHeader(topicTitle, () => setActiveTopic(null), false)}
           <p className="text-muted-foreground text-sm mb-4 text-center">Select a range</p>
           {renderRangeGroups((from, to) => setSelectedRange({ from, to }))}
         </div>
@@ -584,7 +593,7 @@ const LearningPage = ({
     return (
       <SwipeBack onBack={() => setActiveTopic(null)}>
         <div>
-          {renderHeader('Percentage', () => setActiveTopic(null))}
+          {renderHeader('Percentage', () => setActiveTopic(null), false)}
           <p className="text-muted-foreground text-sm mb-4 text-center">Select a range</p>
           <div className="grid grid-cols-2 gap-3">
             {PERCENTAGE_GROUPS.map((g, i) => (
