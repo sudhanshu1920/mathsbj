@@ -479,8 +479,8 @@ final class MathMasterWidgetRenderer {
                     deviceAppsPanel(panels[1], 1, true);
                 } else {
                     RectF panel = RB(panelLeft, panelTop, rw - pad, panelBottom);
-                    if (study != null) studyAppsPanel(panel, 1, true);
-                    else if (device != null) deviceAppsPanel(panel, 1, true);
+                    if (study != null) studyAppsPanel(panel, 0, true);
+                    else if (device != null) deviceAppsPanel(panel, 0, true);
                 }
                 return;
             }
@@ -642,11 +642,11 @@ final class MathMasterWidgetRenderer {
                 return;
             }
 
-            float totalBaseline = titleBaseline + metaSize * 1.85f + (inline ? 2f : pad * 0.45f);
+            float totalBaseline = titleBaseline + metaSize * 1.30f + (inline ? 1.5f : pad * 0.25f);
             float rowStart = totalBaseline + metaSize * 0.75f;
             if (o.screenTimeShowTotal) {
                 String total = formatUsageDuration(section.totalUsageMillis);
-                float valueSize = clamp(h * (inline ? 0.19f : 0.14f), 9f * density, 20f * density);
+                float valueSize = clamp(h * (inline ? 0.18f : 0.13f), 8f * density, 18f * density);
                 text(total, titleLeft, totalBaseline + valueSize * 0.65f, valueSize,
                     f.bold, Color.WHITE, Paint.Align.LEFT, inline ? w * 0.45f : w - pad * 2f);
                 rowStart = totalBaseline + valueSize + pad * 0.60f;
@@ -662,9 +662,9 @@ final class MathMasterWidgetRenderer {
 
             int entryCount = section.entries == null ? 0 : section.entries.size();
             if (entryCount == 0) return;
-            float footer = section.lastUpdatedAt > 0L ? metaSize * 0.8f : pad * 0.3f;
+            float footer = 0f;
             float available = panel.bottom - pad - footer - rowStart;
-            float minRow = (o.screenTimeDetailed ? 14.5f : 12.5f) * density;
+            float minRow = (o.screenTimeDetailed ? 10.0f : 9.0f) * density;
             int fitRows = Math.max(0, (int) Math.floor(available / minRow));
             int rows = Math.min(Math.min(Math.max(0, requestedRows), entryCount), fitRows);
             if (rows == 0 && available >= 10f * density) rows = 1;
