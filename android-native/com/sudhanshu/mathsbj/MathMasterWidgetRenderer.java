@@ -597,7 +597,7 @@ final class MathMasterWidgetRenderer {
             glass(panel, Math.min(panelRadius(panel), Math.max(5f * density, h * 0.14f)));
 
             float iconSize = clamp(h * (inline ? 0.20f : 0.16f), 8f * density, 20f * density);
-            float titleSize = clamp(h * 0.105f, 8f * density, 15f * density);
+            float titleSize = clamp(Math.min(labelRef * su, h * 0.105f), 8f * density, 15f * density);
             float metaSize = clamp(titleSize * 0.64f, 6.5f * density, 9f * density);
             float titleLeft = panel.left + pad;
             float titleBaseline = panel.top + pad + titleSize;
@@ -646,7 +646,7 @@ final class MathMasterWidgetRenderer {
             float rowStart = totalBaseline + metaSize * 0.75f;
             if (o.screenTimeShowTotal) {
                 String total = formatUsageDuration(section.totalUsageMillis);
-                float valueSize = clamp(h * (inline ? 0.18f : 0.13f), 8f * density, 18f * density);
+                float valueSize = clamp(Math.min(valueRef * su, h * (inline ? 0.18f : 0.13f)), 8f * density, 18f * density);
                 text(total, titleLeft, totalBaseline + valueSize * 0.65f, valueSize,
                     f.bold, Color.WHITE, Paint.Align.LEFT, inline ? w * 0.45f : w - pad * 2f);
                 rowStart = totalBaseline + valueSize + pad * 0.60f;
@@ -692,12 +692,12 @@ final class MathMasterWidgetRenderer {
                 float labelMax = Math.max(6f * density, valueRight - valueWidth - pad * 0.35f - labelLeft);
                 float labelBaseline = rowTop + rowHeight * 0.58f;
                 text(entry.label == null ? entry.packageName : entry.label,
-                    labelLeft, labelBaseline, Math.min(metaSize * 1.10f, rowHeight * 0.42f),
+                    labelLeft, labelBaseline, Math.min(labelRef * su * 0.68f, rowHeight * 0.42f),
                     f.medium, Color.WHITE, Paint.Align.LEFT, labelMax);
                 if (o.screenTimeShowUsage) {
                     String duration = formatUsageDuration(entry.usageMillis);
                     if (o.screenTimeShowPercent && o.screenTimeDetailed) duration += " · " + Math.round(entry.percent) + "%";
-                    text(duration, valueRight, labelBaseline, Math.min(metaSize * 1.06f, rowHeight * 0.40f),
+                    text(duration, valueRight, labelBaseline, Math.min(numRef * su * 0.28f, rowHeight * 0.40f),
                         f.bold, Color.WHITE, Paint.Align.RIGHT, valueWidth);
                 }
                 if (o.screenTimeShowPercent) {
