@@ -181,7 +181,8 @@ if (!index.includes('setLearningPracticeReturn(launchContext)') ||
     !index.includes('replaceNextNavigationEntry.current = true') ||
     !index.includes("tab === 'learn' && learningPracticeSelectorOpen") ||
     !learning.includes('practiceSelectorOpen = false') ||
-    !learning.includes('practiceReturn?.extras?.timerEnabled') ||
+    !learning.includes('matchingPracticeReturn?.extras?.timerEnabled') ||
+    !learning.includes('practiceReturn?.topic === practicePreferenceTopic') ||
     !practiceSelector.includes('initialSettings?.timerEnabled ?? false') ||
     !practiceNavigation.includes('LEARNING_PRACTICE_SELECTOR_DEPTH') ||
     !practiceNavigationTests.includes('returns a Learning-origin quiz to the Practice selector') ||
