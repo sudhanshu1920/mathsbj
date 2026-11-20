@@ -216,6 +216,29 @@ test('older saved selections gain the quiz tile exactly once', () => {
   assert.match(provider, /storedVersion < 2 && !jsonArrayContains\(migrated, "weekly"\)/);
 });
 
+test('desktop widget preview compiles provider/config with fatal errors and renders Screen Time matrix', () => {
+  const runner = read('tools/widget-preview/run.sh');
+  const bitmap = read('tools/widget-preview/shim/android/graphics/Bitmap.java');
+  const canvas = read('tools/widget-preview/shim/android/graphics/Canvas.java');
+  const path = read('tools/widget-preview/shim/android/graphics/Path.java');
+  const fixture = read('tools/widget-preview/stubs/com/sudhanshu/mathsbj/WidgetScreenTimeRepository.java');
+  const harness = read('tools/widget-preview/harness/com/sudhanshu/mathsbj/E2E.java');
+  assert.match(runner, /MathMasterHomeWidgetProvider\.java/);
+  assert.match(runner, /MathMasterWidgetConfigActivity\.java/);
+  assert.doesNotMatch(runner, /\|\| true/);
+  assert.match(bitmap, /isRecycled\(\)/);
+  assert.match(bitmap, /getByteCount\(\)/);
+  assert.match(canvas, /drawBitmap\(Bitmap bitmap, Rect src, RectF dst, Paint paint\)/);
+  assert.match(path, /cubicTo\(/);
+  assert.match(fixture, /setFixtureStatus\(/);
+  assert.match(fixture, /Math Notes/);
+  assert.match(harness, /renderScreenTimeMatrix\(ctx, p, mgr, outDir\)/);
+  assert.match(harness, /String\[\] states = \{"ok", "permission_required", "no_study_apps", "no_usage", "loading", "error"\}/);
+  assert.match(harness, /String\[\] styles = \{"neon", "blur", "transparent"\}/);
+  assert.match(harness, /before_baseline_/);
+  assert.match(harness, /Screen Time preview matrix rendered/);
+});
+
 test('configuration screen previews the real renderer output', () => {
   const config = read(CONFIG);
   assert.match(config, /MathMasterHomeWidgetProvider\.renderConfigurationPreview\(/);
