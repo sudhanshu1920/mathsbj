@@ -240,7 +240,11 @@ test('desktop widget preview compiles provider/config with fatal errors and rend
   assert.match(harness, /String\[\] states = \{"ok", "permission_required", "no_study_apps", "no_usage", "loading", "error"\}/);
   assert.match(harness, /String\[\] styles = \{"neon", "blur", "transparent"\}/);
   assert.match(harness, /before_baseline_/);
-  assert.match(harness, /Screen Time preview matrix rendered/);
+  assert.match(harness, /Screen Time pairwise preview matrix rendered/);
+  assert.match(harness, /int expected = compositions\.length \* sizeNames\.length \* states\.length \* styles\.length/);
+  assert.match(harness, /expected != 630/);
+  assert.match(harness, /combinations\[\(compositionIndex \+ sizeIndex \+ stateIndex \+ styleIndex\)/);
+  assert.match(harness, /legacy\[\(compositionIndex \* 2 \+ sizeIndex \+ stateIndex \+ styleIndex\)/);
 });
 
 test('configuration screen previews the real renderer output', () => {
