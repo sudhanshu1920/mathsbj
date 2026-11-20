@@ -596,8 +596,8 @@ final class MathMasterWidgetRenderer {
                     headline = "No Study Apps Selected";
                     detail = "Select apps in Study Mode";
                 } else if ("no_visible_apps".equals(section.status)) {
-                    headline = "No apps selected for display";
-                    detail = "Edit app entries in Widget Studio";
+                    headline = "No apps with recorded usage";
+                    detail = "Use eligible apps to populate this ranking";
                 } else if ("no_usage".equals(section.status)) {
                     headline = "No screen time recorded yet.";
                     detail = "No usage was reported for this period";

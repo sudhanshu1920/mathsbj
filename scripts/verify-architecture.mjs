@@ -31,9 +31,15 @@ const widgetScreenTimeSetup = read('scripts/configure-android-widgets.mjs');
 const widgetScreenTimeBackup = read('src/lib/backupRestore.ts');
 const widgetScreenTimeBridge = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetsPlugin.java');
 const widgetScreenTimeEntry = read('src/pages/Index.tsx');
+const widgetConfigActivity = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java');
 if (!widgetScreenTimeRepository.includes('UsageStatsManager.INTERVAL_DAILY')
     || !widgetScreenTimeRepository.includes('StudyModeManager.getSelectedStudyAppPackages(context)')
-    || !widgetScreenTimeRepository.includes('installedApplications(pm)')
+    || !widgetScreenTimeRepository.includes('new HashSet<>(usage.keySet())')
+    || !widgetScreenTimeRepository.includes('candidatePackages.addAll(selectedStudy)')
+    || !widgetScreenTimeRepository.includes('pm.getApplicationInfo(packageName')
+    || widgetScreenTimeRepository.includes('getInstalledApplications')
+    || widgetConfigActivity.includes('populateAppFilters')
+    || widgetConfigActivity.includes('getInstalledApplications')
     || !widgetScreenTimeRepository.includes('AppUsageAnalyticsPlugin.hasUsageAccess')
     || !widgetScreenTimeRepository.includes('cacheGeneration != requestGeneration')
     || !widgetScreenTimeProvider.includes('studyAppsScreenTime')

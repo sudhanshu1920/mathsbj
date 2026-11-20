@@ -74,8 +74,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean showUsage = true;
         boolean showPercent = false;
         boolean detailed = true;
-        Set<String> hiddenStudyPackages = new HashSet<>();
-        Set<String> hiddenDevicePackages = new HashSet<>();
     }
 
     @Override
@@ -390,8 +388,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         config.showUsage = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowUsage", true);
         config.showPercent = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowPercent", false);
         config.detailed = getInstanceBoolean(preferences, appWidgetId, "screenTimeDetailed", true);
-        config.hiddenStudyPackages = parsePackageSet(getInstanceString(preferences, appWidgetId, "screenTimeHiddenStudyPackages", "[]"));
-        config.hiddenDevicePackages = parsePackageSet(getInstanceString(preferences, appWidgetId, "screenTimeHiddenDevicePackages", "[]"));
         return config;
     }
 
@@ -405,19 +401,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         String key = appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID ? field : "instance_" + appWidgetId + "_" + field;
         if (!preferences.contains(key)) return fallback;
         try { return preferences.getBoolean(key, fallback); } catch (ClassCastException ignored) { return fallback; }
-    }
-
-    private static Set<String> parsePackageSet(String json) {
-        Set<String> result = new HashSet<>();
-        if (json == null || json.length() > 64 * 1024) return result;
-        try {
-            JSONArray values = new JSONArray(json);
-            for (int index = 0; index < Math.min(values.length(), 1000); index++) {
-                String value = values.optString(index, "");
-                if (value.matches("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+")) result.add(value);
-            }
-        } catch (JSONException ignored) {}
-        return result;
     }
 
     private static String normalizeScreenTimePeriod(String value) {
@@ -436,11 +419,11 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
             WidgetScreenTimeRepository.getCachedSnapshot(context, config.period);
         if (options.studyAppsScreenTime) {
             data.studyAppsScreenTime = WidgetScreenTimeRepository.buildSection(
-                context, snapshot, true, config.hiddenStudyPackages, config.sort, config.maxEntries);
+                context, snapshot, true, config.sort, config.maxEntries);
         }
         if (options.deviceAppsScreenTime) {
             data.deviceAppsScreenTime = WidgetScreenTimeRepository.buildSection(
-                context, snapshot, false, config.hiddenDevicePackages, config.sort, config.maxEntries);
+                context, snapshot, false, config.sort, config.maxEntries);
         }
     }
 
