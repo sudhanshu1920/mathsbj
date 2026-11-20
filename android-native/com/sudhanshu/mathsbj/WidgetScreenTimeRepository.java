@@ -55,15 +55,6 @@ final class WidgetScreenTimeRepository {
 
     private WidgetScreenTimeRepository() {}
 
-    static final class AppChoice {
-        final String packageName;
-        final String label;
-        AppChoice(String packageName, String label) {
-            this.packageName = packageName;
-            this.label = label;
-        }
-    }
-
     private static final class AppRecord {
         final String packageName;
         final String label;
@@ -212,36 +203,15 @@ final class WidgetScreenTimeRepository {
         });
     }
 
-    static List<AppChoice> getStudyAppChoices(Context context) {
-        List<AppChoice> choices = new ArrayList<>();
-        if (context == null) return choices;
-        PackageManager pm = context.getPackageManager();
-        for (String packageName : StudyModeManager.getSelectedStudyAppPackages(context)) {
-            AppChoice choice = getChoice(pm, packageName);
-            if (choice != null) choices.add(choice);
-        }
-        sortChoices(choices);
-        return choices;
-    }
-
-    static List<AppChoice> getDeviceAppChoices(Context context) {
-        List<AppChoice> choices = new ArrayList<>();
-        if (context == null) return choices;
-        PackageManager pm = context.getPackageManager();
-        for (ApplicationInfo info : installedApplications(pm)) {
-            if (info == null || !isEligibleDeviceApp(pm, info)) continue;
-            String label = applicationLabel(pm, info);
-            choices.add(new AppChoice(info.packageName, label));
-        }
-        sortChoices(choices);
-        return choices;
-    }
-
+    /**
+     * Build an automatic ranking from the canonical Study Mode allowlist or eligible
+     * installed device apps. Zero-use packages are deliberately omitted so the renderer
+     * never fills unused rows with apps that have no recorded foreground time.
+     */
     static MathMasterWidgetRenderer.ScreenTimeSection buildSection(
         Context context,
         Snapshot snapshot,
         boolean studyApps,
-        Set<String> hiddenPackages,
         String sort,
         int maxEntries
     ) {
@@ -269,64 +239,36 @@ final class WidgetScreenTimeRepository {
             return section;
         }
 
-        Set<String> hidden = hiddenPackages == null ? Collections.emptySet() : hiddenPackages;
-        List<AppRecord> allSelected = new ArrayList<>();
+        List<AppRecord> ranked = new ArrayList<>();
         if (studyApps) {
             for (String packageName : selectedStudyPackages) {
                 AppRecord record = snapshot.apps.get(packageName);
-                if (record != null) allSelected.add(record);
+                if (record != null && record.usageMillis > 0L) ranked.add(record);
             }
         } else {
             for (AppRecord record : snapshot.apps.values()) {
-                if (record.eligibleDeviceApp && record.usageMillis > 0L && !hidden.contains(record.packageName)) {
-                    allSelected.add(record);
-                }
+                if (record.eligibleDeviceApp && record.usageMillis > 0L) ranked.add(record);
             }
         }
-        if (allSelected.isEmpty()) {
-            section.status = studyApps ? "no_visible_apps" : "no_usage";
-            return section;
-        }
-
-        long total = 0L;
-        for (AppRecord record : allSelected) total += Math.max(0L, record.usageMillis);
-        if (total <= 0L) {
+        if (ranked.isEmpty()) {
             section.status = "no_usage";
             return section;
         }
 
-        List<AppRecord> all = new ArrayList<>();
-        for (AppRecord record : allSelected) {
-            if (!studyApps || !hidden.contains(record.packageName)) all.add(record);
-        }
-        if (all.isEmpty()) {
-            section.status = "no_visible_apps";
-            return section;
-        }
-        Comparator<AppRecord> comparator = appComparator(sort);
-        Collections.sort(all, comparator);
-
-        // Study Apps total includes every currently selected app, even hidden rows and rows beyond
-        // the visible limit. Device total is the sum of entries selected for display.
-        if (studyApps) {
-            section.totalUsageMillis = total;
-        } else {
-            int count = Math.max(1, Math.min(12, maxEntries));
-            int included = Math.min(count, all.size());
-            for (int index = 0; index < included; index++) {
-                section.totalUsageMillis += Math.max(0L, all.get(index).usageMillis);
-            }
-            all = new ArrayList<>(all.subList(0, included));
+        Collections.sort(ranked, appComparator(sort));
+        // The total represents the full eligible source, not just the visible top-N rows.
+        for (AppRecord record : ranked) {
+            section.totalUsageMillis += Math.max(0L, record.usageMillis);
         }
 
         int count = Math.max(1, Math.min(12, maxEntries));
-        int visible = Math.min(count, all.size());
+        int visible = Math.min(count, ranked.size());
         for (int index = 0; index < visible; index++) {
-            AppRecord record = all.get(index);
+            AppRecord record = ranked.get(index);
             MathMasterWidgetRenderer.ScreenTimeEntry entry = new MathMasterWidgetRenderer.ScreenTimeEntry();
             entry.packageName = record.packageName;
             entry.label = record.label;
-            entry.usageMillis = Math.max(0L, record.usageMillis);
+            entry.usageMillis = record.usageMillis;
             entry.percent = section.totalUsageMillis > 0L
                 ? (float) (entry.usageMillis * 100.0d / section.totalUsageMillis) : 0f;
             entry.icon = record.icon;
@@ -368,17 +310,18 @@ final class WidgetScreenTimeRepository {
         }
 
         PackageManager pm = context.getPackageManager();
-        Map<String, ApplicationInfo> installed = new HashMap<>();
-        for (ApplicationInfo info : installedApplications(pm)) {
-            if (info != null && info.packageName != null) installed.put(info.packageName, info);
-        }
+        // Only inspect packages that Android reported as used, plus the canonical Study Apps
+        // allowlist so removed/uninstalled selections and selected apps with zero usage remain
+        // distinguishable. Do not enumerate the whole installed-app inventory.
         Set<String> selectedStudy = new HashSet<>(StudyModeManager.getSelectedStudyAppPackages(context));
+        Set<String> candidatePackages = new HashSet<>(usage.keySet());
+        candidatePackages.addAll(selectedStudy);
         Map<String, AppRecord> appRecords = new HashMap<>();
         float density = Math.max(1f, context.getResources().getDisplayMetrics().density);
         int iconSize = Math.max(40, Math.min(96, Math.round(ICON_SIZE_DP * density)));
-        for (Map.Entry<String, ApplicationInfo> item : installed.entrySet()) {
-            String packageName = item.getKey();
-            ApplicationInfo info = item.getValue();
+        for (String packageName : candidatePackages) {
+            ApplicationInfo info = applicationInfo(pm, packageName);
+            if (info == null) continue;
             Long usageValue = usage.get(packageName);
             long duration = Math.min(Math.max(0L, usageValue == null ? 0L : usageValue),
                 Math.max(0L, bounds.end - bounds.start));
@@ -415,16 +358,6 @@ final class WidgetScreenTimeRepository {
         }
     }
 
-    private static AppChoice getChoice(PackageManager pm, String packageName) {
-        try {
-            ApplicationInfo info = applicationInfo(pm, packageName);
-            if (info == null) return null;
-            return new AppChoice(packageName, applicationLabel(pm, info));
-        } catch (RuntimeException ignored) {
-            return null;
-        }
-    }
-
     private static ApplicationInfo applicationInfo(PackageManager pm, String packageName) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -434,13 +367,6 @@ final class WidgetScreenTimeRepository {
         } catch (PackageManager.NameNotFoundException notInstalled) {
             return null;
         }
-    }
-
-    private static List<ApplicationInfo> installedApplications(PackageManager pm) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L));
-        }
-        return pm.getInstalledApplications(0);
     }
 
     private static String applicationLabel(PackageManager pm, ApplicationInfo info) {
@@ -465,14 +391,6 @@ final class WidgetScreenTimeRepository {
         } catch (RuntimeException unavailable) {
             return false;
         }
-    }
-
-    private static void sortChoices(List<AppChoice> choices) {
-        Collections.sort(choices, new Comparator<AppChoice>() {
-            @Override public int compare(AppChoice left, AppChoice right) {
-                return left.label.toLowerCase(Locale.ROOT).compareTo(right.label.toLowerCase(Locale.ROOT));
-            }
-        });
     }
 
     private static Comparator<AppRecord> appComparator(String sort) {

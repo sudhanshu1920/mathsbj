@@ -148,7 +148,12 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(repository, /ICON_SIZE_DP = 24/);
   assert.match(repository, /AppUsageAnalyticsPlugin\.hasUsageAccess\(/);
   assert.match(repository, /StudyModeManager\.getSelectedStudyAppPackages\(context\)/);
-  assert.match(repository, /installedApplications\(pm\)/);
+  assert.match(repository, /new HashSet<>\(usage\.keySet\(\)\)/);
+  assert.match(repository, /candidatePackages\.addAll\(selectedStudy\)/);
+  assert.doesNotMatch(repository, /getInstalledApplications|installedApplications|AppChoice|getStudyAppChoices|getDeviceAppChoices/);
+  assert.match(repository, /pm\.getApplicationInfo\(packageName/);
+  assert.match(repository, /record\.usageMillis > 0L/);
+  assert.match(repository, /The total represents the full eligible source/);
   assert.match(repository, /isEligibleDeviceApp\(pm, info\)/);
   assert.match(repository, /getLaunchIntentForPackage\(info\.packageName\)/);
   assert.match(repository, /"last_7_days"/);
@@ -170,8 +175,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(renderer, /screenTimePrimaryText\(\)/);
   assert.match(index, /window\.addEventListener\('theme-updated', syncWidgetAppearance\)/);
   assert.match(provider, /refreshScreenTimeInstances\(Context context, String refreshedPeriod\)/);
-  assert.match(provider, /screenTimeHiddenStudyPackages/);
-  assert.match(provider, /screenTimeHiddenDevicePackages/);
+  assert.doesNotMatch(provider, /screenTimeHiddenStudyPackages|screenTimeHiddenDevicePackages|parsePackageSet/);
   assert.match(renderer, /void layoutScreenTime\(\)/);
   assert.match(renderer, /void layoutScreenTimeCombined\(\)/);
   assert.match(renderer, /void drawLegacyContentSummary\(/);
@@ -179,7 +183,13 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(renderer, /"no_study_apps"/);
   assert.match(renderer, /"no_usage"/);
   assert.match(config, /"Today", "Yesterday", "Last 7 Days"/);
-  assert.match(config, /"Most Used First", "Least Used First", "App Name A–Z", "App Name Z–A"/);
+  assert.match(config, /"Most Used First", "Least Used First", "Name A–Z", "Name Z–A"/);
+  assert.match(config, /Source: Study Mode/);
+  assert.match(config, /Source: Device App Usage/);
+  assert.match(config, /No Study Apps Selected/);
+  assert.doesNotMatch(config, /studyAppFilterChecks|deviceAppFilterChecks|populateAppFilters|getStudyAppChoices|getDeviceAppChoices|Manage Study Apps|getInstalledApplications/);
+  assert.match(config, /int contentOptionCount = CONTENT_OPTIONS\.length/);
+  assert.match(config, /openStudyAppsButton\.setVisibility\(selectedStudyApps\.isEmpty\(\) \? View\.VISIBLE : View\.GONE\)/);
   assert.match(config, /screenTimeShowTotalCheck/);
   assert.match(config, /screenTimeShowUsageCheck/);
   assert.match(config, /screenTimeShowPercentCheck/);
