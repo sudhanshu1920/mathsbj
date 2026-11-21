@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const NATIVE_DIR = path.resolve(SCRIPT_DIR, '../android-native/com/sudhanshu/mathsbj');
+const FONT_DIR = path.resolve(SCRIPT_DIR, '../android-native/assets/fonts');
 const PACKAGE_PATH = 'com/sudhanshu/mathsbj';
 
 const NATIVE_FILES = [
@@ -19,6 +20,10 @@ const NATIVE_FILES = [
   'StudyModeSessionStore.java',
   'StudyModeWindowRegistry.java',
   'StudyModeUsageAccumulator.java',
+  'StudyModeDayUsage.java',
+  'ScreenTimeIslandSpring.java',
+  'ScreenTimeIslandPainter.java',
+  'ScreenTimeIslandOverlay.java',
 ];
 
 const REQUIRED_PERMISSIONS = [
@@ -310,6 +315,11 @@ export async function configureAndroidStudyMode(androidRoot) {
   await rm(path.join(packageDir, 'StudyModeNotificationListenerService.java'), { force: true });
   for (const file of NATIVE_FILES) {
     await copyFile(path.join(NATIVE_DIR, file), path.join(packageDir, file));
+  }
+  const fontTarget = path.join(root, 'app/src/main/assets/fonts');
+  await mkdir(fontTarget, { recursive: true });
+  for (const font of ['MathMaster-Regular.otf', 'MathMaster-Medium.otf', 'MathMaster-Bold.otf']) {
+    await copyFile(path.join(FONT_DIR, font), path.join(fontTarget, font));
   }
   const xmlTarget = path.join(root, 'app/src/main/res/xml');
   await mkdir(xmlTarget, { recursive: true });
