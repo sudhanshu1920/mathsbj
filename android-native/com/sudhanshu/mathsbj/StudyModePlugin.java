@@ -159,7 +159,10 @@ public final class StudyModePlugin extends Plugin {
             return;
         }
         try {
-            StudyModeFocusService.previewScreenTimeIsland(getContext(), () -> call.resolve());
+            StudyModeFocusService.previewScreenTimeIsland(getContext(), shown -> {
+                if (shown) call.resolve();
+                else call.reject("Screen Time Island preview could not be shown.");
+            });
         } catch (Exception error) {
             call.reject("Screen Time Island preview could not be shown.", error);
         }
