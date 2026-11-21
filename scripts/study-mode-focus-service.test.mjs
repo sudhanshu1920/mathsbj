@@ -734,7 +734,7 @@ test("Screen Time Island is opt-in to the same Study Mode eligibility and never 
 test("Screen Time Island local day usage aggregation and spring math stay Android-free and DST-safe", () => {
   assert.doesNotMatch(islandDayUsage, /^import android\./m);
   assert.match(islandDayUsage, /Calendar\.getInstance\(zone\)/);
-  assert.match(islandDayUsage, /Calendar\.DAY_OF_YEAR/);
+  assert.match(islandDayUsage, /Calendar\.HOUR_OF_DAY/);
   assert.match(islandDayUsage, /ACTIVITY_RESUMED/);
   assert.match(islandDayUsage, /SCREEN_NON_INTERACTIVE/);
   assert.match(islandDayUsage, /hourlyMillis\(String packageName\)/);
