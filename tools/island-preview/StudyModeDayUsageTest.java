@@ -16,6 +16,7 @@ public final class StudyModeDayUsageTest {
         testScreenOffAndShutdown();
         testMidnightClip();
         testDstDayLengths();
+        testClampsAndEmptyRanges();
         testSpringBoundsAndSettling();
         System.out.println("PASS StudyModeDayUsage + ScreenTimeIslandSpring: " + assertions + " assertions");
     }
@@ -111,6 +112,21 @@ public final class StudyModeDayUsageTest {
         StudyModeDayUsage.Result result = StudyModeDayUsage.aggregate(from, to, zone, events);
         eq(expectedLength, result.totalMillis("dst"), "DST full-day activity total");
         assertHourSum(result, "dst");
+    }
+
+    private static void testClampsAndEmptyRanges() {
+        long day = 1_700_000_000_000L;
+        List<StudyModeDayUsage.Event> events = new ArrayList<>();
+        events.add(e(day - 10 * MIN, "clamped", "A", StudyModeDayUsage.ACTIVITY_RESUMED));
+        StudyModeDayUsage.Result result = StudyModeDayUsage.aggregate(
+            day, day - 5 * MIN, TimeZone.getTimeZone("UTC"), events);
+        eq(0L, result.totalMillis("clamped"), "query end before day start clamps to an empty range");
+        eq(24, result.hourlyMillis("clamped").length, "hour buckets always contain 24 wall-clock slots");
+        result = StudyModeDayUsage.aggregate(day, day + 5 * MIN,
+            TimeZone.getTimeZone("UTC"), events);
+        eq(5 * MIN, result.totalMillis("clamped"), "activity start is clamped to local midnight");
+        assertHourSum(result, "clamped");
+        eq(0L, result.totalMillis(null), "null package lookup is safely treated as zero");
     }
 
     private static void testSpringBoundsAndSettling() {
