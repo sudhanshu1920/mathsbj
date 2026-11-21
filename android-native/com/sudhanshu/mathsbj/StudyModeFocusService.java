@@ -1224,7 +1224,7 @@ public final class StudyModeFocusService extends Service {
                     ScreenTimeIslandOverlay candidate = new ScreenTimeIslandOverlay(
                         context, renderSnapshot.packageName, renderSnapshot.label, renderSnapshot.icon,
                         renderSnapshot.totalMillis, renderSnapshot.hourlyMillis, renderSnapshot.accent,
-                        "mathmaster://learn", () -> {
+                        buildStudyModeLearningDeepLink(), () -> {
                             if (previewIslandOverlay == candidateReference[0]) previewIslandOverlay = null;
                         });
                     candidateReference[0] = candidate;
