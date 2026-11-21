@@ -67,6 +67,8 @@ export interface StudyModeStatus {
   studyAppPackages?: string[];
   proEnabled?: boolean;
   reminderIntervalMinutes?: number;
+  screenTimeIslandEnabled?: boolean;
+  screenTimeIslandIntervalMinutes?: number;
 }
 
 interface NativeStudyModePlugin {
@@ -77,6 +79,8 @@ interface NativeStudyModePlugin {
   saveConfig(options: StudyModeConfig & { studyAppPackageNames: string[] }): Promise<StudyModeStatus>;
   setPopupAppearance(options: { theme: string; mode: "dark" | "light" }): Promise<void>;
   setReminderIntervalMinutes(options: { minutes: number }): Promise<StudyModeStatus>;
+  setScreenTimeIsland(options: { enabled: boolean; minutes: number }): Promise<StudyModeStatus>;
+  previewScreenTimeIsland(): Promise<void>;
   consumeOpenStudyAppsPickerRequest(): Promise<{ open: boolean }>;
   setEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
   setProEnabled(options: { enabled: boolean }): Promise<StudyModeStatus>;
@@ -112,6 +116,8 @@ const installedAppsCache = createAsyncCache<StudyModeApp[]>(async () => {
 export interface CachedStudyModeSettings {
   config: StudyModeConfig;
   studyAppPackages: string[];
+  screenTimeIslandEnabled: boolean;
+  screenTimeIslandIntervalMinutes: number;
 }
 
 let cachedStudyModeSettings: CachedStudyModeSettings | null = null;
@@ -124,6 +130,12 @@ function rememberStudyModeSettings(status: StudyModeStatus): StudyModeStatus {
       selectedDays: [...status.config.selectedDays],
     },
     studyAppPackages: [...(status.studyAppPackages ?? [])],
+    screenTimeIslandEnabled: status.screenTimeIslandEnabled !== false,
+    screenTimeIslandIntervalMinutes: Number.isInteger(status.screenTimeIslandIntervalMinutes)
+      && (status.screenTimeIslandIntervalMinutes ?? 0) >= 1
+      && (status.screenTimeIslandIntervalMinutes ?? 0) <= 10
+      ? status.screenTimeIslandIntervalMinutes ?? 5
+      : 5,
   };
   return status;
 }
@@ -138,6 +150,8 @@ export function getCachedStudyModeSettings(): CachedStudyModeSettings | null {
       selectedDays: [...cachedStudyModeSettings.config.selectedDays],
     },
     studyAppPackages: [...cachedStudyModeSettings.studyAppPackages],
+    screenTimeIslandEnabled: cachedStudyModeSettings.screenTimeIslandEnabled,
+    screenTimeIslandIntervalMinutes: cachedStudyModeSettings.screenTimeIslandIntervalMinutes,
   };
 }
 
@@ -195,6 +209,8 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       studyAppPackages: [],
       proEnabled: false,
       reminderIntervalMinutes: 2,
+      screenTimeIslandEnabled: true,
+      screenTimeIslandIntervalMinutes: 5,
     };
   }
   return rememberStudyModeSettings(await NativeStudyMode.getStatus());
@@ -257,6 +273,19 @@ export async function setStudyModeReminderInterval(minutes: number): Promise<Stu
   return rememberStudyModeSettings(await NativeStudyMode.setReminderIntervalMinutes({ minutes }));
 }
 
+export async function setStudyModeScreenTimeIsland(enabled: boolean, minutes: number): Promise<StudyModeStatus> {
+  if (!isStudyModeNative()) throw new Error("Screen Time Island requires the Android app.");
+  if (typeof enabled !== "boolean") throw new Error("Screen Time Island enabled state must be a boolean.");
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10) {
+    throw new Error("Screen Time Island interval must be an integer from 1 to 10 minutes.");
+  }
+  return rememberStudyModeSettings(await NativeStudyMode.setScreenTimeIsland({ enabled, minutes }));
+}
+
+export async function previewStudyModeScreenTimeIsland(): Promise<void> {
+  if (!isStudyModeNative()) throw new Error("Screen Time Island preview requires the Android app.");
+  await NativeStudyMode.previewScreenTimeIsland();
+}
 export async function setStudyModeEnabled(enabled: boolean): Promise<StudyModeStatus> {
   if (!isStudyModeNative()) throw new Error("Study Mode requires the Android app.");
   return rememberStudyModeSettings(await NativeStudyMode.setEnabled({ enabled }));
