@@ -935,6 +935,14 @@ public final class StudyModeFocusService extends Service {
         }
     };
 
+    private static String buildStudyModeLearningDeepLink() {
+        return new android.net.Uri.Builder()
+            .scheme("mathmaster")
+            .authority("learn")
+            .build()
+            .toString();
+    }
+
     private boolean isPhoneCallActive() {
         try {
             AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
@@ -973,7 +981,7 @@ public final class StudyModeFocusService extends Service {
         ScreenTimeIslandOverlay candidate = new ScreenTimeIslandOverlay(
             this, snapshot.packageName, snapshot.label, snapshot.icon,
             snapshot.totalMillis, snapshot.hourlyMillis, snapshot.accent,
-            "mathmaster://learn",
+            buildStudyModeLearningDeepLink(),
             () -> {
                 if (screenTimeIslandOverlay == candidateReference[0]) {
                     screenTimeIslandOverlay = null;
