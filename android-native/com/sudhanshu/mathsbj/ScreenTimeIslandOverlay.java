@@ -28,6 +28,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
     private static final int TOGGLE = 3;
     private static final int DISMISS = 4;
     private static final long EMERGE_MS = 140L;
+    private static final long REDUCED_CROSSFADE_MS = 120L;
     private static final long MORPH_MS = 480L;
     private static final long DISMISS_MS = 380L;
     private static final long CONTENT_EXIT_MS = 110L;
@@ -48,6 +49,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
     private final String deepLink;
     private final Runnable onRemoved;
     private final float density;
+    private final int currentHour;
     private final Choreographer choreographer;
     private int phase = ENTER;
     private long phaseStartedAt;
@@ -79,6 +81,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         accent = accentColor;
         totalTodayMillis = Math.max(0L, totalMillis);
         density = context.getResources().getDisplayMetrics().density;
+        currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         if (windowManager == null) throw new IllegalStateException("WindowManager unavailable");
         int screenWidth = context.getResources().getDisplayMetrics().widthPixels;
@@ -87,7 +90,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         expandedWidth = Math.max(dp(112), Math.min(screenWidth - dp(32), dp(356)));
         expandedHeight = dp(96);
         params = createWindowParams();
-        view = new IslandView(context, appLabel, appIcon, hourlyMillis);
+        view = new IslandView(context, appLabel, appIcon, hourlyMillis, totalTodayMillis);
         choreographer = Choreographer.getInstance();
         phaseStartedAt = SystemClock.uptimeMillis();
         lastFrameAt = phaseStartedAt;
@@ -102,19 +105,15 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         try {
             windowManager.addView(view, params);
             attached = true;
-            view.setLayerType(View.LAYER_TYPE_HARDWARE, null);
             if (reducedMotion) {
                 morphProgress = 1f;
-                phase = HOLD;
-                heldMillis = 0L;
+                phase = ENTER;
                 setWindowBounds(expandedWidth, expandedHeight);
-                updateTouchability(true);
-                view.setLayerType(View.LAYER_TYPE_NONE, null);
-                view.invalidate();
+                updateTouchability(false);
             } else {
                 setWindowBounds(collapsedWidth, collapsedHeight);
-                scheduleFrame();
             }
+            scheduleFrame();
             view.post(this::resolveCutoutAndAnchor);
             return true;
         } catch (WindowManager.BadTokenException | IllegalStateException error) {
@@ -151,14 +150,23 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         long displayedMillis = totalTodayMillis;
 
         if (phase == ENTER) {
-            float progress = clamp((now - phaseStartedAt) / (float) EMERGE_MS, 0f, 1f);
+            long duration = reducedMotion ? REDUCED_CROSSFADE_MS : EMERGE_MS;
+            float progress = clamp((now - phaseStartedAt) / (float) duration, 0f, 1f);
             alpha = progress;
-            iconScale = progress;
+            iconScale = reducedMotion ? 1f : progress;
             if (progress >= 1f) {
-                phase = MORPH;
-                phaseStartedAt = now;
-                view.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-                updateTouchability(false);
+                if (reducedMotion) {
+                    phase = HOLD;
+                    phaseStartedAt = now;
+                    heldMillis = 0L;
+                    updateTouchability(true);
+                    view.setLayerType(View.LAYER_TYPE_NONE, null);
+                } else {
+                    phase = MORPH;
+                    phaseStartedAt = now;
+                    view.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                    updateTouchability(false);
+                }
             }
         } else if (phase == MORPH) {
             long elapsed = now - phaseStartedAt;
@@ -283,9 +291,10 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         private float pulse = 0.5f;
         private long elapsedMillis;
 
-        IslandView(Context context, String label, Drawable icon, long[] hourly) {
+        IslandView(Context context, String label, Drawable icon, long[] hourly, long totalMillis) {
             super(context);
             painter = new ScreenTimeIslandPainter(context, label, icon, hourly);
+            painter.setDurationTarget(totalMillis);
             setWillNotDraw(false);
             setClickable(true);
             setFocusable(false);
