@@ -7,10 +7,13 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.app.KeyguardManager;
 import android.os.PowerManager;
+import android.media.AudioManager;
 import android.os.SystemClock;
 import android.app.usage.UsageEvents;
+import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -38,6 +41,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.TimeZone;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -100,6 +106,13 @@ public final class StudyModeFocusService extends Service {
     private TextView remainingTimeView;
     private TextView sessionEndView;
     private final StudyModeUsageAccumulator periodicReminderUsage = new StudyModeUsageAccumulator();
+    private final StudyModeUsageAccumulator islandUsage = new StudyModeUsageAccumulator();
+    private final AtomicBoolean islandRequestInFlight = new AtomicBoolean(false);
+    private volatile ScreenTimeIslandOverlay screenTimeIslandOverlay;
+    private volatile long islandDueElapsedMs = 0L;
+    private String islandTrackedPackage = "";
+    private long islandTrackedPackageSinceWallMs = 0L;
+    private static volatile ScreenTimeIslandOverlay previewIslandOverlay;
     private final AtomicBoolean periodicReminderVisible = new AtomicBoolean(false);
     private android.view.View periodicReminderView;
     private volatile String periodicReminderPackage = "";
@@ -320,6 +333,30 @@ public final class StudyModeFocusService extends Service {
             if (service.periodicReminderVisible.get()) service.periodicReminderUsage.markReminderVisible();
             service.persistReminderUsage(true);
         }
+    }
+
+    /** Reset the in-memory cadence and dismiss immediately when island settings change. */
+    public static void onScreenTimeIslandSettingsChanged(Context context) {
+        StudyModeFocusService service = activeService;
+        if (service == null || !running) {
+            if (context != null && !StudyModeManager.isScreenTimeIslandEnabled(context)) {
+                ScreenTimeIslandOverlay preview = previewIslandOverlay;
+                previewIslandOverlay = null;
+                if (preview != null) preview.dismissImmediately();
+            }
+            return;
+        }
+        Runnable reset = () -> {
+            if (service != activeService) return;
+            service.islandUsage.clear();
+            service.islandDueElapsedMs = 0L;
+            service.islandRequestInFlight.set(false);
+            service.islandTrackedPackage = "";
+            service.islandTrackedPackageSinceWallMs = 0L;
+            service.mainHandler.post(() -> service.dismissScreenTimeIslandImmediately("settings_changed"));
+        };
+        Handler handler = service.monitorHandler;
+        if (handler == null || !handler.post(reset)) reset.run();
     }
 
     private static void clearUnshownPeriodicReminderState(StudyModeFocusService service) {
@@ -587,6 +624,9 @@ public final class StudyModeFocusService extends Service {
                 if (periodicReminderVisible.get()) mainHandler.post(() -> dismissPeriodicReminder("session_inactive", false));
                 periodicReminderUsage.clear();
                 StudyModeManager.clearReminderUsageMs(StudyModeFocusService.this);
+                islandUsage.clear();
+                islandDueElapsedMs = 0L;
+                islandRequestInFlight.set(false);
                 StudyModeManager.clearPendingPeriodicReminder(StudyModeFocusService.this);
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 activeDiagnosticSessionId = "none";
@@ -595,6 +635,7 @@ public final class StudyModeFocusService extends Service {
                 mainHandler.post(() -> {
                     if (monitorGenerationAtStart != monitorGeneration
                         || !running || invalidation != foregroundDecisionSequence.get()) return;
+                    dismissScreenTimeIslandImmediately("study_mode_inactive");
                     removeShield("session_inactive");
                     stopSelf();
                 });
@@ -602,11 +643,13 @@ public final class StudyModeFocusService extends Service {
             }
             if (StudyModeManager.isPolicyOwner(StudyModeFocusService.this)) {
                 periodicReminderUsage.pause();
+                islandUsage.pause();
                 persistReminderUsage(true);
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 mainHandler.post(() -> {
                     if (monitorGenerationAtStart == monitorGeneration
                         && running && invalidation == foregroundDecisionSequence.get()) {
+                        dismissScreenTimeIslandImmediately("policy_owner");
                         removeShield("device_policy_enforces_packages");
                     }
                 });
@@ -617,6 +660,7 @@ public final class StudyModeFocusService extends Service {
             if (!StudyModeManager.hasForegroundMonitoringPermission(StudyModeFocusService.this)
                 || !StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)) {
                 periodicReminderUsage.pause();
+                islandUsage.pause();
                 persistReminderUsage(true);
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 if (!permissionUnavailableLogged) {
@@ -628,6 +672,7 @@ public final class StudyModeFocusService extends Service {
                 mainHandler.post(() -> {
                     if (monitorGenerationAtStart == monitorGeneration
                         && running && invalidation == foregroundDecisionSequence.get()) {
+                        dismissScreenTimeIslandImmediately("overlay_permission_missing");
                         removeShield("permission_missing");
                     }
                 });
@@ -648,12 +693,16 @@ public final class StudyModeFocusService extends Service {
             if (power == null || !power.isInteractive()
                 || (keyguard != null && keyguard.isKeyguardLocked())) {
                 periodicReminderUsage.pause();
+                islandUsage.pause();
                 persistReminderUsage(true);
+                islandTrackedPackage = "";
+                islandTrackedPackageSinceWallMs = 0L;
                 long invalidation = foregroundDecisionSequence.incrementAndGet();
                 resetForegroundResolution();
                 mainHandler.post(() -> {
                     if (monitorGenerationAtStart == monitorGeneration
                         && running && invalidation == foregroundDecisionSequence.get()) {
+                        dismissScreenTimeIslandImmediately("screen_not_interactive");
                         removeShield("screen_not_interactive");
                     }
                 });
@@ -687,6 +736,10 @@ public final class StudyModeFocusService extends Service {
             // user is outside a blocked app. Preserve an already-visible shield.
             if (foreground == null || foreground.trim().isEmpty()) {
                 periodicReminderUsage.pause();
+                islandUsage.pause();
+                islandTrackedPackage = "";
+                islandTrackedPackageSinceWallMs = 0L;
+                mainHandler.post(() -> dismissScreenTimeIslandImmediately("foreground_unresolved"));
                 persistReminderUsage(true);
                 if (!foregroundUnknownLogged) {
                     foregroundUnknownLogged = true;
@@ -714,6 +767,8 @@ public final class StudyModeFocusService extends Service {
             if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()
                 && !shouldShield) {
                 periodicReminderUsage.pause();
+                islandUsage.pause();
+                mainHandler.post(() -> dismissScreenTimeIslandImmediately("window_snapshot_unavailable"));
                 persistReminderUsage(true);
                 if (!windowSnapshotUnavailableLogged) {
                     windowSnapshotUnavailableLogged = true;
@@ -738,10 +793,85 @@ public final class StudyModeFocusService extends Service {
                 && !selectedStudyApp
                 && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)
                 && !periodicReminderVisible.get();
+            long islandNowElapsedMs = SystemClock.elapsedRealtime();
+            long islandNowWallMs = System.currentTimeMillis();
+            String islandForegroundPackage = activePackage == null ? "" : activePackage;
+            if (!islandForegroundPackage.equals(islandTrackedPackage)) {
+                boolean previouslyTracked = !islandTrackedPackage.isEmpty();
+                islandTrackedPackage = islandForegroundPackage;
+                islandTrackedPackageSinceWallMs = islandForegroundPackage.isEmpty() ? 0L : islandNowWallMs;
+                islandUsage.resetInterval();
+                islandDueElapsedMs = 0L;
+                islandRequestInFlight.set(false);
+                if (previouslyTracked) {
+                    mainHandler.post(() -> {
+                        ScreenTimeIslandOverlay current = screenTimeIslandOverlay;
+                        if (current != null && !islandForegroundPackage.equals(current.getPackageName())) {
+                            dismissScreenTimeIslandImmediately("foreground_package_changed");
+                        }
+                    });
+                }
+            }
+
+            boolean islandEnabled = StudyModeManager.isScreenTimeIslandEnabled(StudyModeFocusService.this);
+            boolean islandEligible = islandEnabled
+                && !StudyModeManager.isProStrictModeActive(StudyModeFocusService.this)
+                && !shouldShield && activePackage != null
+                && !activePackage.equals(getPackageName())
+                && !selectedStudyApp
+                && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)
+                && !periodicReminderVisible.get()
+                && !isPhoneCallActive();
+            boolean islandDue = islandEnabled && islandUsage.sample(
+                activePackage, islandNowElapsedMs, islandEligible,
+                StudyModeManager.getScreenTimeIslandIntervalMinutes(StudyModeFocusService.this));
+            if (!islandEnabled) {
+                islandUsage.clear();
+                islandDueElapsedMs = 0L;
+                islandRequestInFlight.set(false);
+                if (screenTimeIslandOverlay != null) {
+                    mainHandler.post(() -> dismissScreenTimeIslandImmediately("feature_disabled"));
+                }
+            } else if (islandDue && islandDueElapsedMs == 0L) {
+                islandDueElapsedMs = islandNowElapsedMs;
+            }
+
             boolean reminderDue = periodicReminderUsage.sample(
-                activePackage, SystemClock.elapsedRealtime(), reminderEligible,
+                activePackage, islandNowElapsedMs, reminderEligible,
                 StudyModeManager.getReminderIntervalMinutes(StudyModeFocusService.this));
             persistReminderUsage(reminderDue);
+
+            boolean islandPopupConflict = periodicReminderVisible.get() || popupState != PopupState.IDLE;
+            if (shouldShield) {
+                islandUsage.resetInterval();
+                islandDueElapsedMs = 0L;
+                islandRequestInFlight.set(false);
+            } else if (islandDue && islandPopupConflict && islandDueElapsedMs > 0L
+                && islandNowElapsedMs - islandDueElapsedMs > 10_000L) {
+                islandUsage.dismissReminder(true);
+                islandDueElapsedMs = 0L;
+                islandRequestInFlight.set(false);
+                logStage("SCREEN_TIME_ISLAND_DROPPED", "", "", "dropped", "popup_conflict_timeout");
+            }
+
+            boolean requestIslandSnapshot = islandDue && !shouldShield && !reminderDue
+                && !islandPopupConflict && !isPhoneCallActive()
+                && islandRequestInFlight.compareAndSet(false, true);
+            ScreenTimeIslandSnapshot islandSnapshot = null;
+            if (requestIslandSnapshot) {
+                islandSnapshot = queryTodayIslandSnapshot(StudyModeFocusService.this, activePackage,
+                    islandNowWallMs, islandTrackedPackageSinceWallMs);
+                if (islandSnapshot == null) {
+                    islandRequestInFlight.set(false);
+                    islandUsage.dismissReminder(true);
+                    islandDueElapsedMs = 0L;
+                    logStage("SCREEN_TIME_ISLAND_USAGE_UNAVAILABLE", "", "", "skipped",
+                        "events_and_daily_stats_unavailable");
+                    requestIslandSnapshot = false;
+                }
+            }
+            final boolean requestScreenTimeIsland = requestIslandSnapshot;
+            final ScreenTimeIslandSnapshot screenTimeIslandSnapshot = islandSnapshot;
 
             boolean decisionChanged = !foreground.equals(lastDecisionPackage)
                 || shouldShield != lastDecisionShouldShield;
@@ -773,12 +903,14 @@ public final class StudyModeFocusService extends Service {
             mainHandler.post(() -> {
                 if (monitorGenerationAtStart != monitorGeneration || !running) return;
                 if (decisionSequence != foregroundDecisionSequence.get()) {
+                    if (requestScreenTimeIsland) islandRequestInFlight.set(false);
                     if (shouldShield) {
                         logStage("BLOCKING_REEVALUATED", decisionPackage, requestId, "superseded", "newer_foreground_decision");
                     }
                     return;
                 }
                 if (shouldShield) {
+                    dismissScreenTimeIslandImmediately("shield_appeared");
                     if (periodicReminderVisible.get()) suspendPeriodicReminderForBlockedApp();
                     showShield(decisionPackage, requestId, decisionSequence);
                 } else {
@@ -789,12 +921,280 @@ public final class StudyModeFocusService extends Service {
                         && (periodicReminderView == null || !periodicReminderView.isAttachedToWindow())) {
                         restorePeriodicReminderOverlay();
                     }
+                    if (requestScreenTimeIsland && screenTimeIslandSnapshot != null) {
+                        showScreenTimeIsland(screenTimeIslandSnapshot, decisionSequence);
+                    }
                 }
             });
 
             if (monitorHandler != null)  scheduleMonitorCycle(POLL_INTERVAL_MS, monitorGenerationAtStart);
         }
     };
+
+    private boolean isPhoneCallActive() {
+        try {
+            AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (audio == null) return false;
+            int mode = audio.getMode();
+            return mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION;
+        } catch (RuntimeException unavailable) {
+            return false;
+        }
+    }
+
+    private void showScreenTimeIsland(ScreenTimeIslandSnapshot snapshot, long decisionSequence) {
+        if (snapshot == null || !running || decisionSequence != foregroundDecisionSequence.get()
+            || !StudyModeManager.shouldEnforceNow(this)
+            || !StudyModeManager.isScreenTimeIslandEnabled(this)
+            || StudyModeManager.isProStrictModeActive(this)
+            || !StudyModeManager.hasUsageAccess(this) || !StudyModeManager.hasOverlayPermission(this)
+            || shieldView != null || popupState != PopupState.IDLE || periodicReminderVisible.get()
+            || !snapshot.packageName.equals(islandTrackedPackage) || isPhoneCallActive()) {
+            islandRequestInFlight.set(false);
+            if (periodicReminderVisible.get() || popupState != PopupState.IDLE) {
+                if (islandDueElapsedMs > 0L
+                    && SystemClock.elapsedRealtime() - islandDueElapsedMs > 10_000L) {
+                    islandUsage.dismissReminder(true);
+                    islandDueElapsedMs = 0L;
+                    logStage("SCREEN_TIME_ISLAND_DROPPED", "", "", "dropped", "popup_conflict_timeout");
+                }
+            } else {
+                islandUsage.dismissReminder(true);
+                islandDueElapsedMs = 0L;
+            }
+            return;
+        }
+
+        ScreenTimeIslandOverlay candidate = new ScreenTimeIslandOverlay(
+            this, snapshot.packageName, snapshot.label, snapshot.icon,
+            snapshot.totalMillis, snapshot.hourlyMillis, snapshot.accent,
+            "mathmaster://learn",
+            () -> {
+                if (screenTimeIslandOverlay == candidateReference[0]) {
+                    screenTimeIslandOverlay = null;
+                    islandUsage.dismissReminder(true);
+                    islandDueElapsedMs = 0L;
+                    islandRequestInFlight.set(false);
+                }
+            });
+        screenTimeIslandOverlay = candidate;
+        boolean shown = candidate.show();
+        if (!shown) {
+            screenTimeIslandOverlay = null;
+            islandUsage.dismissReminder(true);
+            islandDueElapsedMs = 0L;
+            islandRequestInFlight.set(false);
+            logStage("SCREEN_TIME_ISLAND_LAUNCH_FAILED", "", "", "failed", "window_manager_add_view");
+            return;
+        }
+        islandUsage.markReminderVisible();
+        islandDueElapsedMs = 0L;
+        islandRequestInFlight.set(false);
+        logStage("SCREEN_TIME_ISLAND_VISIBLE", "", "", "visible", "eligible_usage_interval_elapsed");
+    }
+
+    private void dismissScreenTimeIslandImmediately(String reason) {
+        ScreenTimeIslandOverlay current = screenTimeIslandOverlay;
+        screenTimeIslandOverlay = null;
+        if (current != null) current.dismissImmediately();
+        islandUsage.resetInterval();
+        islandDueElapsedMs = 0L;
+        islandRequestInFlight.set(false);
+    }
+
+    private static final class ScreenTimeIslandSnapshot {
+        final String packageName;
+        final String label;
+        final android.graphics.drawable.Drawable icon;
+        final long totalMillis;
+        final long[] hourlyMillis;
+        final int accent;
+
+        ScreenTimeIslandSnapshot(String packageName, String label,
+                                 android.graphics.drawable.Drawable icon, long totalMillis,
+                                 long[] hourlyMillis, int accent) {
+            this.packageName = packageName;
+            this.label = label;
+            this.icon = icon;
+            this.totalMillis = Math.max(0L, totalMillis);
+            this.hourlyMillis = hourlyMillis == null ? new long[24] : hourlyMillis.clone();
+            this.accent = accent;
+        }
+    }
+
+    private static ScreenTimeIslandSnapshot queryTodayIslandSnapshot(
+        Context context, String packageName, long nowWallMs, long liveSessionStartWallMs) {
+        if (context == null || packageName == null || packageName.isEmpty()
+            || !StudyModeManager.hasUsageAccess(context)) return null;
+        Calendar today = Calendar.getInstance();
+        today.setTimeInMillis(nowWallMs);
+        today.set(Calendar.HOUR_OF_DAY, 0);
+        today.set(Calendar.MINUTE, 0);
+        today.set(Calendar.SECOND, 0);
+        today.set(Calendar.MILLISECOND, 0);
+        long dayStartMs = today.getTimeInMillis();
+        Calendar eventsStart = (Calendar) today.clone();
+        eventsStart.add(Calendar.DAY_OF_YEAR, -1);
+        UsageStatsManager usageManager = (UsageStatsManager) context.getSystemService(Context.USAGE_STATS_SERVICE);
+        if (usageManager == null) return null;
+
+        ArrayList<StudyModeDayUsage.Event> events = new ArrayList<>();
+        int mappedEvents = 0;
+        try {
+            UsageEvents stream = usageManager.queryEvents(eventsStart.getTimeInMillis(), nowWallMs);
+            if (stream != null) {
+                UsageEvents.Event event = new UsageEvents.Event();
+                while (stream.hasNextEvent()) {
+                    stream.getNextEvent(event);
+                    int rawType = event.getEventType();
+                    int mappedType = -1;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        if (rawType == UsageEvents.Event.ACTIVITY_RESUMED) mappedType = StudyModeDayUsage.ACTIVITY_RESUMED;
+                        else if (rawType == UsageEvents.Event.ACTIVITY_PAUSED) mappedType = StudyModeDayUsage.ACTIVITY_PAUSED;
+                        else if (rawType == UsageEvents.Event.SCREEN_NON_INTERACTIVE) mappedType = StudyModeDayUsage.SCREEN_NON_INTERACTIVE;
+                        else if (rawType == UsageEvents.Event.KEYGUARD_SHOWN) mappedType = StudyModeDayUsage.KEYGUARD_SHOWN;
+                        else if (rawType == UsageEvents.Event.DEVICE_SHUTDOWN) mappedType = StudyModeDayUsage.DEVICE_SHUTDOWN;
+                    } else {
+                        if (rawType == UsageEvents.Event.MOVE_TO_FOREGROUND) mappedType = StudyModeDayUsage.MOVE_TO_FOREGROUND;
+                        else if (rawType == UsageEvents.Event.MOVE_TO_BACKGROUND) mappedType = StudyModeDayUsage.MOVE_TO_BACKGROUND;
+                    }
+                    if (mappedType >= 0) {
+                        events.add(new StudyModeDayUsage.Event(event.getTimeStamp(),
+                            event.getPackageName(), event.getClassName(), mappedType));
+                        mappedEvents++;
+                    }
+                }
+            }
+        } catch (RuntimeException eventsUnavailable) {
+            events.clear();
+            mappedEvents = 0;
+        }
+
+        long total = 0L;
+        long[] hourly = new long[24];
+        if (mappedEvents > 0) {
+            StudyModeDayUsage.Result result = StudyModeDayUsage.aggregate(
+                dayStartMs, nowWallMs, TimeZone.getDefault(), events);
+            total = result.totalMillis(packageName);
+            hourly = result.hourlyMillis(packageName);
+        } else {
+            try {
+                List<UsageStats> daily = usageManager.queryUsageStats(
+                    UsageStatsManager.INTERVAL_DAILY, dayStartMs, nowWallMs);
+                if (daily == null || daily.isEmpty()) return null;
+                boolean found = false;
+                for (UsageStats usage : daily) {
+                    if (usage == null || !packageName.equals(usage.getPackageName())) continue;
+                    found = true;
+                    total = saturatingAdd(total, Math.max(0L, usage.getTotalTimeInForeground()));
+                }
+                if (!found) return null;
+                long live = liveSessionStartWallMs > 0L
+                    ? Math.max(0L, nowWallMs - Math.max(dayStartMs, liveSessionStartWallMs)) : 0L;
+                total = Math.min(Math.max(0L, nowWallMs - dayStartMs), saturatingAdd(total, live));
+                Calendar localNow = Calendar.getInstance();
+                localNow.setTimeInMillis(nowWallMs);
+                hourly[localNow.get(Calendar.HOUR_OF_DAY)] = total;
+            } catch (RuntimeException statsUnavailable) {
+                return null;
+            }
+        }
+
+        String label = getIslandAppLabel(context, packageName);
+        android.graphics.drawable.Drawable icon = getIslandAppIcon(context, packageName);
+        String theme = context.getSharedPreferences("math_master_study_mode", Context.MODE_PRIVATE)
+            .getString("popupTheme", "arctic-blue");
+        return new ScreenTimeIslandSnapshot(packageName, label, icon, total, hourly,
+            ScreenTimeIslandPainter.accentForTheme(theme));
+    }
+
+    private static long saturatingAdd(long left, long right) {
+        return right > 0L && left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right;
+    }
+
+    private static String getIslandAppLabel(Context context, String packageName) {
+        String cached = STUDY_LABEL_CACHE.get(packageName);
+        if (cached != null) return cached;
+        try {
+            android.content.pm.PackageManager manager = context.getPackageManager();
+            android.content.pm.ApplicationInfo info = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? manager.getApplicationInfo(packageName, android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
+                : manager.getApplicationInfo(packageName, 0);
+            CharSequence label = manager.getApplicationLabel(info);
+            String value = label == null || label.length() == 0 ? packageName : label.toString();
+            STUDY_LABEL_CACHE.put(packageName, value);
+            return value;
+        } catch (Exception ignored) {
+            return packageName;
+        }
+    }
+
+    private static android.graphics.drawable.Drawable getIslandAppIcon(Context context, String packageName) {
+        android.graphics.drawable.Drawable.ConstantState cached = STUDY_ICON_CACHE.get(packageName);
+        if (cached != null) return cached.newDrawable(context.getResources()).mutate();
+        try {
+            android.graphics.drawable.Drawable drawable = context.getPackageManager().getApplicationIcon(packageName);
+            android.graphics.drawable.Drawable.ConstantState state = drawable.getConstantState();
+            if (state != null) STUDY_ICON_CACHE.put(packageName, state);
+            return drawable;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    public interface ScreenTimeIslandPreviewCallback {
+        void onResult(boolean shown);
+    }
+
+    public static void previewScreenTimeIsland(Context context, ScreenTimeIslandPreviewCallback callback) {
+        if (context == null || !StudyModeManager.hasOverlayPermission(context)) {
+            if (callback != null) callback.onResult(false);
+            return;
+        }
+        try {
+            AppUsageAnalyticsPlugin.executeUsageWork(() -> {
+                long now = System.currentTimeMillis();
+                ScreenTimeIslandSnapshot snapshot = queryTodayIslandSnapshot(
+                    context.getApplicationContext(), context.getPackageName(), now, now - 1000L);
+                if (snapshot == null) {
+                    String packageName = context.getPackageName();
+                    snapshot = new ScreenTimeIslandSnapshot(packageName,
+                        getIslandAppLabel(context, packageName), getIslandAppIcon(context, packageName),
+                        0L, new long[24], ScreenTimeIslandPainter.accentForTheme(
+                            context.getSharedPreferences("math_master_study_mode", Context.MODE_PRIVATE)
+                                .getString("popupTheme", "arctic-blue")));
+                }
+                final ScreenTimeIslandSnapshot renderSnapshot = snapshot;
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (!StudyModeManager.hasOverlayPermission(context)) {
+                        if (callback != null) callback.onResult(false);
+                        return;
+                    }
+                    ScreenTimeIslandOverlay existing = previewIslandOverlay;
+                    if (existing != null) existing.dismissImmediately();
+                    StudyModeFocusService service = activeService;
+                    if (service != null && service.screenTimeIslandOverlay != null) {
+                        service.dismissScreenTimeIslandImmediately("preview_requested");
+                    }
+                    ScreenTimeIslandOverlay candidate = new ScreenTimeIslandOverlay(
+                        context, renderSnapshot.packageName, renderSnapshot.label, renderSnapshot.icon,
+                        renderSnapshot.totalMillis, renderSnapshot.hourlyMillis, renderSnapshot.accent,
+                        "mathmaster://learn", () -> {
+                            if (previewIslandOverlay == candidateReference[0]) previewIslandOverlay = null;
+                        });
+                    candidateReference[0] = candidate;
+                    previewIslandOverlay = candidate;
+                    boolean shown = candidate.show();
+                    if (!shown) previewIslandOverlay = null;
+                    if (callback != null) callback.onResult(shown);
+                });
+            });
+        } catch (RuntimeException rejected) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (callback != null) callback.onResult(false);
+            });
+        }
+    }
 
     private void runImmediateEvaluation() {
         immediateEvaluationQueued.set(false);
@@ -973,6 +1373,7 @@ public final class StudyModeFocusService extends Service {
 
     private void showShield(String packageName, String requestId, long decisionSequence) {
         if (packageName == null || packageName.isEmpty()) return;
+        dismissScreenTimeIslandImmediately("shield_appeared");
         if (!running || decisionSequence != foregroundDecisionSequence.get()) {
             logStage("BLOCKING_REEVALUATED", packageName, requestId, "superseded", "decision_changed_before_popup");
             return;
@@ -1867,6 +2268,7 @@ public final class StudyModeFocusService extends Service {
     private void removeShield(String reason) {
         mainHandler.removeCallbacks(countdownRunnable);
         android.view.View existingView = shieldView;
+        if (existingView != null) dismissScreenTimeIslandImmediately("shield_overlay");
         String removedPackage = shieldedPackage;
         String removedRequestId = activeShieldRequestId;
         if (existingView != null) {
@@ -1963,6 +2365,10 @@ public final class StudyModeFocusService extends Service {
         if (monitorHandler != null) monitorHandler.removeCallbacksAndMessages(null);
         if (monitorThread != null) monitorThread.quitSafely();
         mainHandler.removeCallbacksAndMessages(null);
+        dismissScreenTimeIslandImmediately("service_destroyed");
+        ScreenTimeIslandOverlay preview = previewIslandOverlay;
+        previewIslandOverlay = null;
+        if (preview != null) preview.dismissImmediately();
         removeShield("service_destroyed");
         if (!StudyModeManager.shouldEnforceNow(this)) {
             dismissPeriodicReminder("service_destroyed", false);
@@ -1992,6 +2398,15 @@ public final class StudyModeFocusService extends Service {
             if (manager != null) manager.cancel(NOTIFICATION_ID);
         } catch (Exception ignored) {}
         super.onDestroy();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        dismissScreenTimeIslandImmediately("configuration_changed");
+        ScreenTimeIslandOverlay preview = previewIslandOverlay;
+        previewIslandOverlay = null;
+        if (preview != null) preview.dismissImmediately();
+        super.onConfigurationChanged(newConfig);
     }
 
     @Override
