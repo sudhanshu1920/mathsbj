@@ -14,6 +14,11 @@ const registry = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/S
 const accessibility = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java", import.meta.url), "utf8");
 const alarmReceiver = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAlarmReceiver.java", import.meta.url), "utf8");
 const usageAccumulator = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeUsageAccumulator.java", import.meta.url), "utf8");
+const islandDayUsage = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeDayUsage.java", import.meta.url), "utf8");
+const islandSpring = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/ScreenTimeIslandSpring.java", import.meta.url), "utf8");
+const islandPainter = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/ScreenTimeIslandPainter.java", import.meta.url), "utf8");
+const islandOverlay = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/ScreenTimeIslandOverlay.java", import.meta.url), "utf8");
+const studyModeTs = readFileSync(new URL("../src/lib/studyMode.ts", import.meta.url), "utf8");
 
 function between(text, startMarker, endMarker) {
   const start = text.indexOf(startMarker);
@@ -697,3 +702,80 @@ test("Advanced Accessibility recovery uses a deduplicated exact alarm before res
   assert.ok(accessRecovery.includes("StudyModeManager.requestFocusServiceRecovery(this, reason)"));
   assert.ok(!accessRecovery.includes("StudyModeManager.reconcile(this)"));
 });
+
+test("Screen Time Island is opt-in to the same Study Mode eligibility and never replaces the reminder cadence", () => {
+  const monitor = between(source, "private final Runnable monitorRunnable", "private boolean isPhoneCallActive()");
+  assert.ok(manager.includes('KEY_SCREEN_TIME_ISLAND_ENABLED = "screenTimeIslandEnabled"'));
+  assert.ok(manager.includes('KEY_SCREEN_TIME_ISLAND_INTERVAL_MINUTES = "screenTimeIslandIntervalMinutes"'));
+  assert.ok(manager.includes("DEFAULT_SCREEN_TIME_ISLAND_INTERVAL_MINUTES = 5"));
+  assert.ok(manager.includes("isScreenTimeIslandEnabled(Context context)"));
+  assert.ok(manager.includes("getScreenTimeIslandIntervalMinutes(Context context)"));
+  assert.ok(manager.includes("StudyModeFocusService.onScreenTimeIslandSettingsChanged(context)"));
+  assert.ok(manager.includes('result.put("screenTimeIslandEnabled", isScreenTimeIslandEnabled(context))'));
+  assert.ok(manager.includes('result.put("screenTimeIslandIntervalMinutes", getScreenTimeIslandIntervalMinutes(context))'));
+  assert.ok(monitor.includes("StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)"));
+  assert.ok(monitor.includes("StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage)"));
+  assert.ok(monitor.includes("StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)"));
+  assert.ok(monitor.includes("!StudyModeManager.isProStrictModeActive(StudyModeFocusService.this)"));
+  assert.ok(monitor.includes("!shouldShield"));
+  assert.ok(monitor.includes("!activePackage.equals(getPackageName())"));
+  assert.ok(monitor.includes("islandUsage.sample("));
+  assert.ok(monitor.includes("periodicReminderUsage.sample("));
+  assert.ok(source.includes("private final StudyModeUsageAccumulator islandUsage"));
+  assert.ok(source.includes("periodic_popup_priority"));
+  assert.ok(source.includes("popup_conflict_timeout"));
+  assert.ok(source.includes("isPhoneCallActive()"));
+  assert.ok(source.includes("dismissScreenTimeIslandImmediately(\"screen_not_interactive\")"));
+  assert.ok(source.includes("dismissScreenTimeIslandImmediately(\"configuration_changed\")"));
+  assert.ok(source.includes("dismissScreenTimeIslandImmediately(\"overlay_permission_missing\")"));
+});
+
+test("Screen Time Island local day usage aggregation and spring math stay Android-free and DST-safe", () => {
+  assert.doesNotMatch(islandDayUsage, /^import android\./m);
+  assert.match(islandDayUsage, /Calendar\.getInstance\(zone\)/);
+  assert.match(islandDayUsage, /Calendar\.DAY_OF_YEAR/);
+  assert.match(islandDayUsage, /ACTIVITY_RESUMED/);
+  assert.match(islandDayUsage, /SCREEN_NON_INTERACTIVE/);
+  assert.match(islandDayUsage, /hourlyMillis\(String packageName\)/);
+  assert.doesNotMatch(islandSpring, /^import android\./m);
+  assert.match(islandSpring, /Math\.sqrt/);
+  assert.match(islandSpring, /isSettled/);
+  assert.match(islandSpring, /Float\.isNaN/);
+});
+
+test("Screen Time Island overlay remains a tight, no-focus, no-network Canvas surface", () => {
+  assert.match(islandOverlay, /TYPE_APPLICATION_OVERLAY/);
+  assert.match(islandOverlay, /FLAG_NOT_FOCUSABLE/);
+  assert.match(islandOverlay, /FLAG_NOT_TOUCH_MODAL/);
+  assert.match(islandOverlay, /FLAG_NOT_TOUCHABLE/);
+  assert.match(islandOverlay, /Math Master Screen Time Island/);
+  assert.match(islandOverlay, /Choreographer/);
+  assert.match(islandOverlay, /MotionEvent\.ACTION_MOVE/);
+  assert.match(islandOverlay, /LONG_PRESS_MS/);
+  assert.match(islandOverlay, /ACCESSIBILITY_LIVE_REGION_POLITE/);
+  assert.match(islandOverlay, /mathmaster:\/\/learn/);
+  assert.doesNotMatch(islandOverlay, /https?:\/\//);
+  assert.doesNotMatch(islandOverlay, /AccessibilityNodeInfo|AccessibilityService|TYPE_ACCESSIBILITY_OVERLAY/);
+  assert.match(islandPainter, /Canvas/);
+  assert.match(islandPainter, /Paint/);
+  assert.match(islandPainter, /MathMaster-Regular\.otf/);
+  assert.match(islandPainter, /MathMaster-Medium\.otf/);
+  assert.match(islandPainter, /MathMaster-Bold\.otf/);
+  assert.match(islandPainter, /accentForTheme/);
+  assert.doesNotMatch(islandPainter, /RenderEffect|BlurMaskFilter/);
+});
+
+test("Screen Time Island settings and preview are validated and wired through the native bridge", () => {
+  assert.match(studyModeTs, /screenTimeIslandEnabled\?: boolean/);
+  assert.match(studyModeTs, /screenTimeIslandIntervalMinutes\?: number/);
+  assert.match(studyModeTs, /setStudyModeScreenTimeIsland/);
+  assert.match(studyModeTs, /previewStudyModeScreenTimeIsland/);
+  assert.match(studyModeTs, /minutes < 1 \|\| minutes > 10/);
+  assert.match(page, /Screen Time Island/);
+  assert.match(page, /aria-label="Enable Screen Time Island"/);
+  assert.match(page, /Choose reminder interval/);
+  assert.match(page, /previewStudyModeScreenTimeIsland/);
+  assert.match(page, /Overlay and Usage Access are needed/);
+  assert.match(page, /prefers-reduced-motion/);
+});
+
