@@ -274,11 +274,11 @@ export async function setStudyModeReminderInterval(minutes: number): Promise<Stu
 }
 
 export async function setStudyModeScreenTimeIsland(enabled: boolean, minutes: number): Promise<StudyModeStatus> {
-  if (!isStudyModeNative()) throw new Error("Screen Time Island requires the Android app.");
   if (typeof enabled !== "boolean") throw new Error("Screen Time Island enabled state must be a boolean.");
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10) {
     throw new Error("Screen Time Island interval must be an integer from 1 to 10 minutes.");
   }
+  if (!isStudyModeNative()) throw new Error("Screen Time Island requires the Android app.");
   return rememberStudyModeSettings(await NativeStudyMode.setScreenTimeIsland({ enabled, minutes }));
 }
 
