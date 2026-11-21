@@ -57,6 +57,10 @@ public final class StudyModeDayUsageTest {
         StudyModeDayUsage.Result result = StudyModeDayUsage.aggregate(day,
             day + 35 * MIN, TimeZone.getTimeZone("UTC"), events);
         eq(25 * MIN, result.totalMillis("app"), "duplicate resume ignored and unmatched session closes at now");
+        check(result.isPackageActiveAtEnd("app"), "unmatched resume is marked active at the end of the query");
+        events.add(e(day + 35 * MIN, "app", "Main", StudyModeDayUsage.ACTIVITY_PAUSED));
+        result = StudyModeDayUsage.aggregate(day, day + 40 * MIN, TimeZone.getTimeZone("UTC"), events);
+        check(!result.isPackageActiveAtEnd("app"), "matched pause clears the active-at-end marker");
     }
 
     private static void testScreenOffAndShutdown() {
