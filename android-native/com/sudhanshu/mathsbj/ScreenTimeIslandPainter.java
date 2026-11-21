@@ -277,7 +277,8 @@ public final class ScreenTimeIslandPainter {
             long value = Math.max(0L, hourly[i]);
             float target = value == 0L ? dp(2.2f)
                 : Math.max(dp(3f), maxHeight * ((float) value / (float) maximum));
-            float staggeredProgress = clamp((progress - i * 0.01f) / 0.77f, 0f, 1f);
+            float elapsedSinceBarStart = progress * 480f;
+            float staggeredProgress = clamp((elapsedSinceBarStart - i * 10f) / 250f, 0f, 1f);
             float barHeight = target * staggeredProgress;
             if (i == currentHour) {
                 int pulseAlpha = Math.round(alpha * (0.68f + 0.22f * clamp(pulse, 0f, 1f)));
