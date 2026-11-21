@@ -1008,6 +1008,16 @@ public final class StudyModeFocusService extends Service {
         islandRequestInFlight.set(false);
     }
 
+    private void dismissVisibleScreenTimeIslandImmediately(String reason) {
+        ScreenTimeIslandOverlay current = screenTimeIslandOverlay;
+        if (current == null) return;
+        screenTimeIslandOverlay = null;
+        current.dismissImmediately();
+        islandUsage.resetInterval();
+        islandDueElapsedMs = 0L;
+        islandRequestInFlight.set(false);
+    }
+
     private static final class ScreenTimeIslandSnapshot {
         final String packageName;
         final String label;
@@ -1537,7 +1547,7 @@ public final class StudyModeFocusService extends Service {
     }
 
     private void showPeriodicReminder(String packageName, long decisionSequence) {
-        dismissScreenTimeIslandImmediately("periodic_popup_priority");
+        dismissVisibleScreenTimeIslandImmediately("periodic_popup_priority");
         if (packageName == null || packageName.isEmpty()
             || StudyModeManager.isProStrictModeActive(this)
             || !periodicReminderVisible.compareAndSet(false, true)) return;
