@@ -965,7 +965,8 @@ public final class StudyModeFocusService extends Service {
             AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
             if (audio == null) return false;
             int mode = audio.getMode();
-            return mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION;
+            return mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION
+                || mode == AudioManager.MODE_RINGTONE;
         } catch (RuntimeException unavailable) {
             return false;
         }
