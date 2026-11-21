@@ -353,7 +353,14 @@ public final class StudyModeFocusService extends Service {
             service.islandRequestInFlight.set(false);
             service.islandTrackedPackage = "";
             service.islandTrackedPackageSinceWallMs = 0L;
-            service.mainHandler.post(() -> service.dismissScreenTimeIslandImmediately("settings_changed"));
+            service.mainHandler.post(() -> {
+                service.dismissScreenTimeIslandImmediately("settings_changed");
+                if (!StudyModeManager.isScreenTimeIslandEnabled(context)) {
+                    ScreenTimeIslandOverlay preview = previewIslandOverlay;
+                    previewIslandOverlay = null;
+                    if (preview != null) preview.dismissImmediately();
+                }
+            });
         };
         Handler handler = service.monitorHandler;
         if (handler == null || !handler.post(reset)) reset.run();
@@ -459,6 +466,7 @@ public final class StudyModeFocusService extends Service {
         stopping = false;
         boolean devicePolicyMode = StudyModeManager.isPolicyOwner(this);
         if (!StudyModeManager.shouldEnforceNow(this)) {
+            dismissPreviewIslandImmediately("study_mode_inactive");
             StudyModeManager.setServiceState(this,
                 StudyModeManager.isEnabled(this) ? "waiting_for_schedule" : "disabled");
             stopSelf();
@@ -466,6 +474,7 @@ public final class StudyModeFocusService extends Service {
         }
         if (!devicePolicyMode && (!StudyModeManager.hasForegroundMonitoringPermission(this)
             || !StudyModeManager.hasOverlayPermission(this))) {
+            dismissPreviewIslandImmediately("permission_missing");
             StudyModeManager.setServiceState(this, "permission_required");
             logStage("PERMISSION_MISSING", "", "", "unavailable", "usage_access_or_overlay_permission");
             stopSelf();
@@ -475,6 +484,7 @@ public final class StudyModeFocusService extends Service {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         createNotificationChannel();
         if (!startForegroundSafely()) {
+            dismissPreviewIslandImmediately("foreground_start_failed");
             stopSelf();
             return;
         }
@@ -510,6 +520,8 @@ public final class StudyModeFocusService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (!foregroundStarted || !StudyModeManager.shouldEnforceNow(this)) {
+            dismissScreenTimeIslandImmediately("service_not_enforcing");
+            dismissPreviewIslandImmediately("service_not_enforcing");
             stopSelf(startId);
             return START_NOT_STICKY;
         }
@@ -638,6 +650,7 @@ public final class StudyModeFocusService extends Service {
                     if (monitorGenerationAtStart != monitorGeneration
                         || !running || invalidation != foregroundDecisionSequence.get()) return;
                     dismissScreenTimeIslandImmediately("study_mode_inactive");
+                    dismissPreviewIslandImmediately("study_mode_inactive");
                     removeShield("session_inactive");
                     stopSelf();
                 });
@@ -1014,6 +1027,12 @@ public final class StudyModeFocusService extends Service {
         islandUsage.resetInterval();
         islandDueElapsedMs = 0L;
         islandRequestInFlight.set(false);
+    }
+
+    private static void dismissPreviewIslandImmediately(String reason) {
+        ScreenTimeIslandOverlay preview = previewIslandOverlay;
+        previewIslandOverlay = null;
+        if (preview != null) preview.dismissImmediately();
     }
 
     private void dismissVisibleScreenTimeIslandImmediately(String reason) {
