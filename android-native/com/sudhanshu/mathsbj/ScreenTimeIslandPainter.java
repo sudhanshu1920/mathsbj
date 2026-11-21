@@ -27,7 +27,14 @@ public final class ScreenTimeIslandPainter {
     private final long[] hourly;
     private final Drawable icon;
     private final String label;
-    private long lastMinute = Long.MIN_VALUE;
+    private String[] primaryValues = new String[]{"<1"};
+    private String[] primaryUnits = new String[]{"m"};
+    private String[] secondaryValues = new String[]{""};
+    private String[] secondaryUnits = new String[]{""};
+    private float[] primaryWidths = new float[]{0f};
+    private float[] secondaryWidths = new float[]{0f};
+    private int displayedMinute = -1;
+    private int targetMinutes;
     private String timePrimary = "<1";
     private String timePrimaryUnit = "m";
     private String timeSecondary = "";
@@ -56,7 +63,7 @@ public final class ScreenTimeIslandPainter {
         bars.setStyle(Paint.Style.FILL);
         rim.setStyle(Paint.Style.STROKE);
         rim.setStrokeWidth(dp(1f));
-        updateElapsed(0L);
+        setDurationTarget(0L);
     }
 
     public static int accentForTheme(String theme) {
@@ -77,45 +84,68 @@ public final class ScreenTimeIslandPainter {
         }
     }
 
-    /** Called only when the displayed minute changes; draw() itself allocates nothing. */
-    public void updateElapsed(long elapsedMillis) {
-        long minute = Math.max(0L, elapsedMillis) / 60_000L;
-        if (minute == lastMinute) return;
-        lastMinute = minute;
-        if (minute < 1L) {
-            timePrimary = "<1";
-            timePrimaryUnit = "m";
-            timeSecondary = "";
-            timeSecondaryUnit = "";
-        } else if (minute >= 60L) {
-            long hours = minute / 60L;
-            long minutes = minute % 60L;
-            timePrimary = Long.toString(hours);
-            timePrimaryUnit = "h";
-            timeSecondary = Long.toString(minutes);
-            timeSecondaryUnit = "m";
-        } else {
-            timePrimary = Long.toString(minute);
-            timePrimaryUnit = "m";
-            timeSecondary = "";
-            timeSecondaryUnit = "";
-        }
-        text.setTypeface(bold);
-        text.setTextSize(dp(24f));
-        timePrimaryWidth = text.measureText(timePrimary);
-        text.setTextSize(dp(14f));
-        text.setTypeface(medium);
-        timePrimaryWidth += text.measureText(timePrimaryUnit);
-        if (!timeSecondary.isEmpty()) {
-            text.setTextSize(dp(24f));
+    /** Precomputes every displayed minute before animation; the frame loop only indexes arrays. */
+    public void setDurationTarget(long totalMillis) {
+        targetMinutes = (int) Math.min(26L * 60L, Math.max(0L, Math.max(0L, totalMillis) / 60_000L));
+        int length = targetMinutes + 1;
+        primaryValues = new String[length];
+        primaryUnits = new String[length];
+        secondaryValues = new String[length];
+        secondaryUnits = new String[length];
+        primaryWidths = new float[length];
+        secondaryWidths = new float[length];
+        for (int minute = 0; minute <= targetMinutes; minute++) {
+            String primary;
+            String primaryUnit;
+            String secondary = "";
+            String secondaryUnit = "";
+            if (minute < 1) {
+                primary = "<1";
+                primaryUnit = "m";
+            } else if (minute >= 60) {
+                primary = Long.toString(minute / 60L);
+                primaryUnit = "h";
+                secondary = Long.toString(minute % 60L);
+                secondaryUnit = "m";
+            } else {
+                primary = Integer.toString(minute);
+                primaryUnit = "m";
+            }
+            primaryValues[minute] = primary;
+            primaryUnits[minute] = primaryUnit;
+            secondaryValues[minute] = secondary;
+            secondaryUnits[minute] = secondaryUnit;
             text.setTypeface(bold);
-            timeSecondaryWidth = text.measureText(timeSecondary);
-            text.setTextSize(dp(14f));
+            text.setTextSize(dp(24f));
+            float width = text.measureText(primary);
             text.setTypeface(medium);
-            timeSecondaryWidth += text.measureText(timeSecondaryUnit);
-        } else {
-            timeSecondaryWidth = 0f;
+            text.setTextSize(dp(14f));
+            primaryWidths[minute] = width + text.measureText(primaryUnit);
+            if (!secondary.isEmpty()) {
+                text.setTypeface(bold);
+                text.setTextSize(dp(24f));
+                width = text.measureText(secondary);
+                text.setTypeface(medium);
+                text.setTextSize(dp(14f));
+                secondaryWidths[minute] = width + text.measureText(secondaryUnit);
+            }
         }
+        displayedMinute = -1;
+        updateElapsed(0L);
+    }
+
+    /** No strings or objects are created by this per-frame selector. */
+    public void updateElapsed(long elapsedMillis) {
+        int minute = (int) Math.min(targetMinutes,
+            Math.max(0L, Math.max(0L, elapsedMillis) / 60_000L));
+        if (minute == displayedMinute) return;
+        displayedMinute = minute;
+        timePrimary = primaryValues[minute];
+        timePrimaryUnit = primaryUnits[minute];
+        timeSecondary = secondaryValues[minute];
+        timeSecondaryUnit = secondaryUnits[minute];
+        timePrimaryWidth = primaryWidths[minute];
+        timeSecondaryWidth = secondaryWidths[minute];
     }
 
     public void draw(Canvas canvas, int width, int height, float morph, float alpha,
@@ -247,7 +277,8 @@ public final class ScreenTimeIslandPainter {
             long value = Math.max(0L, hourly[i]);
             float target = value == 0L ? dp(2.2f)
                 : Math.max(dp(3f), maxHeight * ((float) value / (float) maximum));
-            float barHeight = target * clamp(progress, 0f, 1f);
+            float staggeredProgress = clamp((progress - i * 0.01f) / 0.77f, 0f, 1f);
+            float barHeight = target * staggeredProgress;
             if (i == currentHour) {
                 int pulseAlpha = Math.round(alpha * (0.68f + 0.22f * clamp(pulse, 0f, 1f)));
                 bars.setColor((pulseAlpha << 24) | (accent & 0x00ffffff));
