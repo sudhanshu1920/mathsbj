@@ -14,6 +14,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowInsets;
+import android.view.WindowMetrics;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -244,7 +245,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         try {
             DisplayCutout cutout = null;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                WindowManager.WindowMetrics metrics = windowManager.getCurrentWindowMetrics();
+                WindowMetrics metrics = windowManager.getCurrentWindowMetrics();
                 WindowInsets insets = metrics.getWindowInsets();
                 cutout = insets == null ? null : insets.getDisplayCutout();
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
