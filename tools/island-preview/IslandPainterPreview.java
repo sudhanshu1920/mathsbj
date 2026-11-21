@@ -9,7 +9,6 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 
 import javax.imageio.ImageIO;
@@ -50,7 +49,6 @@ public final class IslandPainterPreview {
             throw new IllegalStateException("Pass -Disland.assets pointing at android-native/assets/");
         }
         PreviewContext context = new PreviewContext(assetPath);
-        registerFallbackFonts(context);
         int rendered = 0;
         for (int width : WIDTHS) {
             for (String cutout : CUTOUTS) {
@@ -59,15 +57,6 @@ public final class IslandPainterPreview {
             }
         }
         System.out.println("Rendered " + rendered + " Screen Time Island contact sheets into " + output.getAbsolutePath());
-    }
-
-    private static void registerFallbackFonts(PreviewContext context) {
-        Typeface regular = Typeface.createFromAsset(context.getAssets(), "fonts/MathMaster-Regular.otf");
-        Typeface medium = Typeface.createFromAsset(context.getAssets(), "fonts/MathMaster-Medium.otf");
-        Typeface bold = Typeface.createFromAsset(context.getAssets(), "fonts/MathMaster-Bold.otf");
-        Typeface.register("sans-serif", Typeface.NORMAL, regular);
-        Typeface.register("sans-serif", Typeface.BOLD, bold);
-        Typeface.register("sans-serif-medium", Typeface.NORMAL, medium);
     }
 
     private static void renderSheet(PreviewContext baseContext, File output,
