@@ -1122,6 +1122,14 @@ public final class StudyModeFocusService extends Service {
         if (mappedEvents > 0) {
             StudyModeDayUsage.Result result = StudyModeDayUsage.aggregate(
                 dayStartMs, nowWallMs, TimeZone.getDefault(), events);
+            if (!result.isPackageActiveAtEnd(packageName)
+                && liveSessionStartWallMs > 0L && liveSessionStartWallMs <= nowWallMs) {
+                events.add(new StudyModeDayUsage.Event(
+                    Math.max(dayStartMs, liveSessionStartWallMs),
+                    packageName, "__monitor_live_session__", StudyModeDayUsage.ACTIVITY_RESUMED));
+                result = StudyModeDayUsage.aggregate(
+                    dayStartMs, nowWallMs, TimeZone.getDefault(), events);
+            }
             total = result.totalMillis(packageName);
             hourly = result.hourlyMillis(packageName);
         } else {
