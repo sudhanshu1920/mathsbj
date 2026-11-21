@@ -1030,6 +1030,11 @@ const studyModePage = read('src/components/StudyModePage.tsx');
 const studyModeBridge = read('src/lib/studyMode.ts');
 const studyModeManager = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
 const studyModeFocus = read('android-native/com/sudhanshu/mathsbj/StudyModeFocusService.java');
+const screenTimeIslandDayUsage = read('android-native/com/sudhanshu/mathsbj/StudyModeDayUsage.java');
+const screenTimeIslandSpring = read('android-native/com/sudhanshu/mathsbj/ScreenTimeIslandSpring.java');
+const screenTimeIslandPainter = read('android-native/com/sudhanshu/mathsbj/ScreenTimeIslandPainter.java');
+const screenTimeIslandOverlay = read('android-native/com/sudhanshu/mathsbj/ScreenTimeIslandOverlay.java');
+const screenTimeIslandJvmTests = read('tools/island-preview/StudyModeDayUsageTest.java');
 const studyModeUsageAccumulator = read('android-native/com/sudhanshu/mathsbj/StudyModeUsageAccumulator.java');
 const studyModeWindowRegistry = read('android-native/com/sudhanshu/mathsbj/StudyModeWindowRegistry.java');
 const studyModeAccessibilityService = read('android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java');
@@ -1216,6 +1221,82 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeManager.includes('isDefaultDialerPackage') && !studyModeManager.includes('getDefaultDialerPackage')) {
   fail('Managed-device suspension, Advanced Accessibility recovery, Usage Access Focus Shield, truthful permission state, alarm fallback, or critical app protection is missing');
 }
+const islandMonitor = studyModeFocus.slice(
+  studyModeFocus.indexOf('private final Runnable monitorRunnable'),
+  studyModeFocus.indexOf('private boolean isPhoneCallActive()'),
+);
+const islandShow = studyModeFocus.slice(
+  studyModeFocus.indexOf('private void showScreenTimeIsland('),
+  studyModeFocus.indexOf('private void dismissScreenTimeIslandImmediately('),
+);
+const islandNativeFiles = [
+  'StudyModeDayUsage.java',
+  'ScreenTimeIslandSpring.java',
+  'ScreenTimeIslandPainter.java',
+  'ScreenTimeIslandOverlay.java',
+];
+if (!islandNativeFiles.every((file) => studyModeSetup.includes(file)) ||
+    !screenTimeIslandDayUsage.includes('Calendar.getInstance(zone)') ||
+    !screenTimeIslandDayUsage.includes('hourlyMillis(String packageName)') ||
+    /import android\./.test(screenTimeIslandDayUsage) ||
+    /import android\./.test(screenTimeIslandSpring) ||
+    !screenTimeIslandJvmTests.includes('testDstDayLengths()') ||
+    !screenTimeIslandJvmTests.includes('testMidnightClip()') ||
+    !screenTimeIslandJvmTests.includes('testScreenOffAndShutdown()')) {
+  fail('Screen Time Island pure JVM aggregation, DST/midnight coverage, or generated native source registration is missing');
+}
+if (!islandMonitor.includes('StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage)') ||
+    !islandMonitor.includes('StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)') ||
+    !islandMonitor.includes('StudyModeManager.isProStrictModeActive(StudyModeFocusService.this)') ||
+    !islandMonitor.includes('StudyModeManager.shouldEnforceNow(StudyModeFocusService.this)') ||
+    !islandMonitor.includes('islandUsage.sample(') ||
+    !islandShow.includes('StudyModeManager.shouldEnforceNow(this)') ||
+    !islandShow.includes('StudyModeManager.hasOverlayPermission(this)') ||
+    !islandShow.includes('popup_conflict_timeout') ||
+    !islandShow.includes('isPhoneCallActive()') ||
+    !studyModeFocus.includes('dismissScreenTimeIslandImmediately("configuration_changed")') ||
+    !studyModeFocus.includes('dismissScreenTimeIslandImmediately("screen_not_interactive")')) {
+  fail('Screen Time Island must reuse the Focus monitor eligibility, popup priority, permission, and lifecycle guards');
+}
+if (!screenTimeIslandOverlay.includes('TYPE_APPLICATION_OVERLAY') ||
+    !screenTimeIslandOverlay.includes('FLAG_NOT_FOCUSABLE') ||
+    !screenTimeIslandOverlay.includes('FLAG_NOT_TOUCH_MODAL') ||
+    !screenTimeIslandOverlay.includes('FLAG_NOT_TOUCHABLE') ||
+    !screenTimeIslandOverlay.includes('Choreographer') ||
+    !screenTimeIslandOverlay.includes('ACCESSIBILITY_LIVE_REGION_POLITE') ||
+    !screenTimeIslandPainter.includes('Canvas') ||
+    !screenTimeIslandPainter.includes('accentForTheme') ||
+    !studyModeFocus.includes('ScreenTimeIslandPainter.accentForTheme(theme)') ||
+    !studyModeSetup.includes('MathMaster-Regular.otf') ||
+    !studyModeSetup.includes('MathMaster-Medium.otf') ||
+    !studyModeSetup.includes('MathMaster-Bold.otf')) {
+  fail('Screen Time Island overlay geometry, Canvas-only painter, shared theme accent, or Inter asset copy is missing');
+}
+if (/https?:\/\//.test(screenTimeIslandDayUsage + screenTimeIslandSpring + screenTimeIslandPainter + screenTimeIslandOverlay) ||
+    /java\.net\.|WebView|AccessibilityNodeInfo|AccessibilityService|TYPE_ACCESSIBILITY_OVERLAY|getText\(/.test(
+      screenTimeIslandDayUsage + screenTimeIslandSpring + screenTimeIslandPainter + screenTimeIslandOverlay
+    ) ||
+    /READ_PHONE_STATE|PACKAGE_USAGE_STATS|SYSTEM_ALERT_WINDOW/.test(
+      studyModeSetup.slice(studyModeSetup.indexOf('const REQUIRED_PERMISSIONS'), studyModeSetup.indexOf('];', studyModeSetup.indexOf('const REQUIRED_PERMISSIONS')))
+        .replace('android.permission.PACKAGE_USAGE_STATS', '')
+        .replace('android.permission.SYSTEM_ALERT_WINDOW', '')
+    ) ||
+    /class ScreenTimeIsland.*Service|extends Service/.test(screenTimeIslandOverlay)) {
+  fail('Screen Time Island must remain offline, avoid Accessibility text reading, and add no permission or service');
+}
+if (!studyModeManager.includes('setScreenTimeIsland(Context context, boolean enabled, int minutes)') ||
+    !studyModeAppPlugin.includes('public void setScreenTimeIsland(PluginCall call)') ||
+    !studyModeAppPlugin.includes('public void previewScreenTimeIsland(PluginCall call)') ||
+    !studyModeBridge.includes('setStudyModeScreenTimeIsland') ||
+    !studyModeBridge.includes('previewStudyModeScreenTimeIsland') ||
+    !studyModePage.includes('aria-label="Enable Screen Time Island"') ||
+    !studyModePage.includes('Screen Time Island interval') ||
+    !studyModePage.includes('Overlay and Usage Access are needed') ||
+    !css.includes('.study-mode-island-preview__capsule') ||
+    !css.includes('@media (prefers-reduced-motion: reduce)')) {
+  fail('Screen Time Island settings bridge, UI controls, permission setup, or reduced-motion preview is missing');
+}
+
 if (!studyModeAppPlugin.includes('getInstalledApplications') ||
     !studyModeAppPlugin.includes('checkPermission("android.permission.QUERY_ALL_PACKAGES"') ||
     !studyModeAppPlugin.includes('findLaunchablePackages') ||

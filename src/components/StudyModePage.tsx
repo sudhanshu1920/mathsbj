@@ -28,6 +28,8 @@ import {
   refreshStudyMode,
   saveStudyModeConfig,
   setStudyModeReminderInterval,
+  setStudyModeScreenTimeIsland,
+  previewStudyModeScreenTimeIsland,
   setStudyModeEnabled,
   setStudyModeProEnabled,
   startStudyModeSession,
@@ -334,6 +336,10 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const [reminderIntervalMinutes, setReminderIntervalMinutesState] = useState(2);
   const [reminderIntervalOpen, setReminderIntervalOpen] = useState(false);
   const [reminderIntervalSaving, setReminderIntervalSaving] = useState(false);
+  const [screenTimeIslandEnabled, setScreenTimeIslandEnabled] = useState(cachedSettings?.screenTimeIslandEnabled ?? true);
+  const [screenTimeIslandIntervalMinutes, setScreenTimeIslandIntervalMinutes] = useState(cachedSettings?.screenTimeIslandIntervalMinutes ?? 5);
+  const [screenTimeIslandSaving, setScreenTimeIslandSaving] = useState(false);
+  const [screenTimeIslandPreviewing, setScreenTimeIslandPreviewing] = useState(false);
   const [studyPickerOpen, setStudyPickerOpen] = useState(false);
   const [studySearch, setStudySearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -367,6 +373,8 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   const proAllowlistSaveRevisionRef = useRef(0);
   const reminderIntervalSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const reminderIntervalRequestRef = useRef(0);
+  const screenTimeIslandSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const screenTimeIslandRequestRef = useRef(0);
   const savedStudyAppsSnapshot = useRef(JSON.stringify([...initialStudyApps].sort()));
   const recoveryAttemptRef = useRef(false);
   const isDirty = configSnapshot(draft) !== savedSnapshot.current;
@@ -514,6 +522,56 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
     });
   };
 
+  const handleScreenTimeIslandChange = (enabled: boolean, minutes = screenTimeIslandIntervalMinutes) => {
+    if (!isStudyModeNative() || screenTimeIslandSaving) return;
+    const request = ++screenTimeIslandRequestRef.current;
+    setScreenTimeIslandEnabled(enabled);
+    setScreenTimeIslandIntervalMinutes(minutes);
+    setScreenTimeIslandSaving(true);
+    const save = screenTimeIslandSaveQueueRef.current
+      .catch(() => undefined)
+      .then(() => setStudyModeScreenTimeIsland(enabled, minutes));
+    screenTimeIslandSaveQueueRef.current = save.then(() => undefined, () => undefined);
+    void save.then((nextStatus) => {
+      if (!isMountedRef.current || request !== screenTimeIslandRequestRef.current) return;
+      setScreenTimeIslandEnabled(nextStatus.screenTimeIslandEnabled !== false);
+      setScreenTimeIslandIntervalMinutes(nextStatus.screenTimeIslandIntervalMinutes ?? minutes);
+      statusRef.current = nextStatus;
+      setStatus(nextStatus);
+      setScreenTimeIslandSaving(false);
+      setMessage("");
+    }).catch((error) => {
+      if (!isMountedRef.current || request !== screenTimeIslandRequestRef.current) return;
+      setScreenTimeIslandSaving(false);
+      setMessage(error instanceof Error ? error.message : "Could not save Screen Time Island settings.");
+      void getStudyModeStatus().then((current) => {
+        if (!isMountedRef.current || request !== screenTimeIslandRequestRef.current) return;
+        setScreenTimeIslandEnabled(current.screenTimeIslandEnabled !== false);
+        setScreenTimeIslandIntervalMinutes(current.screenTimeIslandIntervalMinutes ?? 5);
+        statusRef.current = current;
+        setStatus(current);
+      }).catch(() => undefined);
+    });
+  };
+
+  const handleScreenTimeIslandPreview = async () => {
+    if (screenTimeIslandPreviewing || !isStudyModeNative()) return;
+    if (!status?.permissions.overlay) {
+      setMessage("Allow Display over other apps before previewing the island.");
+      setPermissionSetupOpen(true);
+      return;
+    }
+    setScreenTimeIslandPreviewing(true);
+    try {
+      await previewStudyModeScreenTimeIsland();
+      setMessage("Preview shown above your current app.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Screen Time Island preview could not be shown.");
+    } finally {
+      if (isMountedRef.current) setScreenTimeIslandPreviewing(false);
+    }
+  };
+
   useEffect(() => {
     if (!openStudyAppsPicker) return;
     setStudyPickerOpen(true);
@@ -559,6 +617,8 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
         statusRef.current = nextStatus;
         setStatus(nextStatus);
         setReminderIntervalMinutesState(nextStatus.reminderIntervalMinutes ?? 2);
+        setScreenTimeIslandEnabled(nextStatus.screenTimeIslandEnabled !== false);
+        setScreenTimeIslandIntervalMinutes(nextStatus.screenTimeIslandIntervalMinutes ?? 5);
         if (!permissionSetupAutoOpenedRef.current) {
           permissionSetupAutoOpenedRef.current = true;
           if (!nextStatus.config.enabled && !nextStatus.activeSession?.active
@@ -1560,6 +1620,84 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               </div>
             )}
             {reminderIntervalSaving && <p className="mt-1.5 text-right text-[9px] text-muted-foreground" role="status">Saving…</p>}
+          </section>
+
+          <section aria-label="Screen Time Island" className="study-mode-card rounded-[1.15rem] border border-accent/15 bg-gradient-to-br from-card via-card to-accent/5 px-3 py-2 shadow-sm">
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                  <Smartphone size={15} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold text-foreground">Screen Time Island</p>
+                  <p className="text-[9px] text-muted-foreground">Today&apos;s usage of non-study apps</p>
+                </div>
+              </div>
+              <Switch
+                checked={screenTimeIslandEnabled}
+                disabled={loading || screenTimeIslandSaving || !isStudyModeNative()}
+                onCheckedChange={(enabled) => handleScreenTimeIslandChange(enabled)}
+                aria-label="Enable Screen Time Island"
+              />
+            </div>
+
+            <div aria-hidden="true" className="study-mode-island-preview mt-2 flex min-h-[44px] items-center justify-center overflow-hidden rounded-xl bg-black px-3 py-1.5">
+              <div className="study-mode-island-preview__capsule flex h-8 min-w-[136px] items-center justify-between rounded-full border border-white/10 bg-black px-2.5 shadow-inner">
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 rounded-[5px] bg-gradient-to-br from-sky-400/90 to-indigo-500/90" />
+                  <span className="h-1.5 w-12 rounded-full bg-white/55" />
+                </span>
+                <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_7px_hsl(var(--accent)/0.65)]" />
+              </div>
+            </div>
+
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-[9px] text-muted-foreground">Show a compact live usage island every</p>
+              <button
+                type="button"
+                onClick={() => { void handleScreenTimeIslandPreview(); }}
+                disabled={loading || screenTimeIslandPreviewing || !isStudyModeNative()}
+                className="motion-press inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-background/75 px-3 text-[10px] font-bold text-accent transition-colors hover:border-accent/45 hover:bg-accent/5 disabled:opacity-45"
+              >
+                {screenTimeIslandPreviewing ? "Showing…" : "Preview"}
+              </button>
+            </div>
+
+            <div className="mt-2 grid grid-cols-[repeat(5,minmax(0,1fr))] gap-1.5 border-t border-border/55 pt-2.5" role="group" aria-label="Screen Time Island interval">
+              {Array.from({ length: 10 }, (_, index) => index + 1).map((minutes) => {
+                const selected = screenTimeIslandIntervalMinutes === minutes;
+                return (
+                  <button key={minutes} type="button" aria-pressed={selected}
+                    disabled={loading || screenTimeIslandSaving || !screenTimeIslandEnabled || !isStudyModeNative()}
+                    onClick={() => handleScreenTimeIslandChange(screenTimeIslandEnabled, minutes)}
+                    className={selected
+                      ? "motion-press flex min-h-10 min-w-0 items-center justify-center rounded-lg border border-accent/45 bg-accent/12 px-1 text-[10px] font-bold tabular-nums text-accent ring-1 ring-accent/15 disabled:opacity-50"
+                      : "motion-press flex min-h-10 min-w-0 items-center justify-center rounded-lg border border-border/65 bg-background/70 px-1 text-[10px] font-semibold tabular-nums text-muted-foreground transition-colors hover:border-accent/30 hover:bg-accent/5 hover:text-foreground disabled:opacity-45"}>
+                    {minutes} min
+                  </button>
+                );
+              })}
+            </div>
+
+            {(!status?.permissions.overlay || !status.permissions.usageAccess) && (
+              <div className="mt-2 flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/5 px-2.5 py-2">
+                <ShieldAlert size={13} className="shrink-0 text-warning" />
+                <p className="min-w-0 flex-1 text-[9px] leading-relaxed text-muted-foreground">
+                  Overlay and Usage Access are needed while Study Mode is enforcing.
+                </p>
+                <button type="button" onClick={() => setPermissionSetupOpen(true)}
+                  className="motion-press min-h-10 shrink-0 rounded-lg border border-warning/30 px-2.5 text-[9px] font-semibold text-warning">
+                  Set up
+                </button>
+              </div>
+            )}
+
+            <div className="mt-1.5 flex min-h-4 items-center justify-between gap-2">
+              <p className="text-[9px] text-muted-foreground" role="status" aria-live="polite">
+                {screenTimeIslandSaving ? "Saving Screen Time Island…" : screenTimeIslandEnabled ? "Enabled · global non-study app cadence" : "Disabled"}
+              </p>
+              {screenTimeIslandEnabled && <p className="text-[9px] font-semibold tabular-nums text-muted-foreground">{screenTimeIslandIntervalMinutes} min</p>}
+            </div>
           </section>
 
           {status && !corePermissionsReady && (

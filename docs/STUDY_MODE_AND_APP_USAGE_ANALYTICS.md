@@ -155,6 +155,77 @@ continuous polling just for charts. Clearing Math Master's local cache does not
 erase Android's own system UsageStats database; a later refresh may read the
 system-provided statistics again.
 
+## Screen Time Island
+
+Screen Time Island is a compact OLED-black overlay owned by the existing
+Study Mode Focus Service. It is enabled by default with a five-minute cadence;
+the setting accepts one through ten minutes. The interval is independent of
+the existing Periodic Reminder interval and is held only in memory. The second
+`StudyModeUsageAccumulator` instance samples the same one-second foreground
+monitor tick and carries its eligible time globally across non-study apps.
+Changing the interval, disabling the island, or ending Study Mode resets this
+in-memory interval.
+
+The island is eligible only while `shouldEnforceNow()` is true, the screen is
+interactive and unlocked, Usage Access and overlay permission are available,
+and the current focused package passes the Periodic Reminder exclusions. In
+particular, selected Study Apps, Math Master itself, exempt system surfaces,
+shielded apps and Pro Strict Mode are excluded. An active call is also excluded
+using the current audio mode. The island never changes Shield enforcement,
+Periodic Reminder timing, Pro Strict Mode, session/schedule state or foreground
+service policy.
+
+A visible island is removed immediately when the foreground package changes,
+the screen turns off/locks, a Shield is requested, Study Mode ends, overlay
+permission is lost, or the display configuration changes. The full-screen
+Periodic Reminder and Shield always have priority. A due island waits behind a
+pending/visible popup for at most ten seconds; after that it is dropped and the
+island accumulator resets. The island window is limited to the capsule bounds,
+does not take focus, and is made non-touchable during its morph/dismiss
+animations. The settled compact/expanded capsule remains touchable to support
+tap-to-toggle, swipe-up dismissal and long-press navigation.
+
+### Today's usage calculation
+
+The displayed total is the foreground usage of the current package from local
+device midnight through the current time. The service queries Android
+`UsageEvents` on the existing monitor HandlerThread, maps activity resume/pause
+events (or the older foreground/background event types on pre-29 Android),
+and closes all open activities on screen-non-interactive, keyguard-shown and
+device-shutdown events. Open sessions are closed at the query time, so the
+currently running session is included. Sessions spanning midnight are clipped
+to the portion after today's local midnight.
+
+The pure-Java `StudyModeDayUsage` aggregator uses `Calendar` and the device
+`TimeZone`, not fixed 24-hour millisecond windows. A local day can therefore
+be 23 or 25 hours when daylight-saving rules change. The 24 visual buckets are
+wall-clock labels from 12 AM through 11 PM; during a repeated fall-back hour,
+both occurrences contribute to the same wall-clock bucket.
+
+If the event stream is empty or unavailable, the service falls back to
+`queryUsageStats(INTERVAL_DAILY)` and adds the currently observed live
+foreground session. In this fallback only, the live-adjusted aggregate is
+placed in the current hour bucket because the daily aggregate does not provide
+hour-level event boundaries. If neither source provides a usable value, the
+island is skipped silently and a stage-only diagnostic is recorded; package
+names and usage totals are not logged.
+
+The daily event result follows the same Android system foreground-time source
+used by App Usage Analytics, but includes the currently running session that
+`INTERVAL_DAILY` typically does not expose until the app leaves foreground.
+Consequently, its total can be higher than the Analytics page while the app is
+still open. All event processing, aggregation and caching remain on-device;
+no usage events or package usage data are sent over the network.
+
+### Settings and preview
+
+The Study Mode card below Reminder Interval controls the enable switch and
+one-to-ten-minute cadence. Its Preview action uses the same overlay renderer
+for Math Master itself, requires the existing overlay permission and does not
+require Study Mode to be active. Usage Access is needed for real app totals;
+without it, a preview uses a zero-value sample. No new Android permission,
+service, worker thread, timer or third-party animation library is added.
+
 ## Chart definitions
 
 - **Column:** foreground time per app for the selected range.

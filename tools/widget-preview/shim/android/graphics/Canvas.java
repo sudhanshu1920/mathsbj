@@ -29,15 +29,19 @@ public class Canvas {
     }
     public int save() { stack.push(new Object[] { g.getTransform(), g.getClip() }); return stack.size(); }
     public void restore() { Object[] s = stack.pop(); g.setTransform((AffineTransform) s[0]); g.setClip((Shape) s[1]); }
+    public void restoreToCount(int saveCount) { while (!stack.isEmpty() && stack.size() >= saveCount) restore(); }
     public void translate(float dx, float dy) { g.translate(dx, dy); }
     public void scale(float sx, float sy) { g.scale(sx, sy); }
+    public void scale(float sx, float sy, float px, float py) { g.translate(px, py); g.scale(sx, sy); g.translate(-px, -py); }
     public void rotate(float deg) { g.rotate(Math.toRadians(deg)); }
     public void rotate(float deg, float px, float py) { g.rotate(Math.toRadians(deg), px, py); }
     public boolean clipPath(Path p) { g.clip(p.shape()); return true; }
     public boolean clipRect(RectF r) { g.clip(new Rectangle2D.Float(r.left, r.top, r.width(), r.height())); return true; }
+    public boolean clipRect(float left, float top, float right, float bottom) { g.clip(new Rectangle2D.Float(left, top, right - left, bottom - top)); return true; }
     public void drawColor(int c) { AffineTransform t = g.getTransform(); g.setTransform(new AffineTransform()); g.setPaint(new java.awt.Color(c, true)); g.fillRect(0, 0, getWidth(), getHeight()); g.setTransform(t); }
     public void drawRect(RectF r, Paint p) { paint(new Rectangle2D.Float(r.left, r.top, r.width(), r.height()), p); }
     public void drawRoundRect(RectF r, float rx, float ry, Paint p) { paint(new RoundRectangle2D.Float(r.left, r.top, r.width(), r.height(), rx * 2, ry * 2), p); }
+    public void drawRoundRect(float left, float top, float right, float bottom, float rx, float ry, Paint p) { paint(new RoundRectangle2D.Float(left, top, right - left, bottom - top, rx * 2, ry * 2), p); }
     public void drawCircle(float cx, float cy, float r, Paint p) { paint(new Ellipse2D.Float(cx - r, cy - r, r * 2, r * 2), p); }
     public void drawOval(RectF r, Paint p) { paint(new Ellipse2D.Float(r.left, r.top, r.width(), r.height()), p); }
     public void drawLine(float x0, float y0, float x1, float y1, Paint p) { paint(new Line2D.Float(x0, y0, x1, y1), p); }

@@ -56,7 +56,7 @@ test('configures complete installed-app visibility, native services and Capacito
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 12);
+  assert.equal(result.javaFiles, 16);
   assert.equal(result.foregroundMonitoring, 'usage-access-plus-optional-accessibility');
   assert.deepEqual(result.variants, ['universal']);
   assert.equal(result.accessibility, 'optional-user-consent');
@@ -96,6 +96,20 @@ test('configures complete installed-app visibility, native services and Capacito
   const universalAccumulator = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeUsageAccumulator.java'), 'utf8');
   assert.ok(universalAccumulator.includes('MAX_SAMPLE_GAP_MS = 4_000L'));
   assert.ok(universalAccumulator.includes('void resetInterval()'));
+  const islandPainter = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/ScreenTimeIslandPainter.java'), 'utf8');
+  const islandOverlay = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/ScreenTimeIslandOverlay.java'), 'utf8');
+  const dayUsage = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeDayUsage.java'), 'utf8');
+  const spring = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/ScreenTimeIslandSpring.java'), 'utf8');
+  assert.match(dayUsage, /Calendar\.getInstance\(zone\)/);
+  assert.match(spring, /valueAt\(/);
+  assert.match(islandPainter, /MathMaster-Medium\.otf/);
+  assert.match(islandPainter, /accentForTheme/);
+  assert.match(islandOverlay, /Math Master Screen Time Island/);
+  for (const font of ['MathMaster-Regular.otf', 'MathMaster-Medium.otf', 'MathMaster-Bold.otf']) {
+    const copied = await readFile(path.join(root, 'app/src/main/assets/fonts', font));
+    const source = await readFile(new URL('../android-native/assets/fonts/' + font, import.meta.url));
+    assert.deepEqual(copied, source, font + ' must be copied unchanged');
+  }
   const universalService = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8');
   assert.ok(universalService.includes('getWindowsOnAllDisplays()'));
   const universalMetadata = await readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8');

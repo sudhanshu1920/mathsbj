@@ -4,7 +4,7 @@ import java.awt.font.*;
 import java.util.HashMap;
 import java.util.Map;
 public class Paint {
-    public static final int ANTI_ALIAS_FLAG = 1, FILTER_BITMAP_FLAG = 2, DITHER_FLAG = 4;
+    public static final int ANTI_ALIAS_FLAG = 1, FILTER_BITMAP_FLAG = 2, DITHER_FLAG = 4, SUBPIXEL_TEXT_FLAG = 8;
     public enum Style { FILL, STROKE, FILL_AND_STROKE }
     public enum Cap { BUTT, ROUND, SQUARE }
     public enum Join { MITER, ROUND, BEVEL }
@@ -30,6 +30,7 @@ public class Paint {
     public Shader setShader(Shader s) { shader = s; return s; }
     public MaskFilter setMaskFilter(MaskFilter m) { mask = m; return m; }
     public void setTextSize(float s) { textSize = s; }
+    public void setFontFeatureSettings(String settings) { /* Java2D has no OpenType feature toggle; the real Android renderer uses tnum. */ }
     public float getTextSize() { return textSize; }
     public Typeface setTypeface(Typeface t) { typeface = t; return t; }
     public void setTextAlign(Align a) { align = a; }

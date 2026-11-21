@@ -1,3 +1,11 @@
+## 2026-11-21 — Screen Time Island in Study Mode
+
+- Add a Dynamic Island-style OLED overlay with a collapsed app icon, expanded today's foreground duration, 24 local-hour usage bars, accent rim and reduced-motion support.
+- Track eligible non-study foreground time with a separate in-memory accumulator, reusing the existing Focus Service monitor, overlay permission, Usage Access and theme accent mapping.
+- Prioritize Shield and Periodic Reminder surfaces, dismiss on app/screen/configuration/lifecycle changes, and add tap, swipe-up and long-press interactions.
+- Add local DST-safe day usage aggregation, live-session inclusion, daily-stat fallback, native settings/preview APIs and the compact Study Mode settings card.
+- Add a desktop JVM harness for overlapping activity intervals, split-screen apps, missing pauses, midnight clipping, screen-off/shutdown, DST-short/long days and spring settling.
+
 # Changelog
 
 ## 2026-11-20 — Screen Time widgets preserve neon-glass compositions
