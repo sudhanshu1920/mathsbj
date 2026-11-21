@@ -351,8 +351,6 @@ public final class StudyModeFocusService extends Service {
             service.islandUsage.clear();
             service.islandDueElapsedMs = 0L;
             service.islandRequestInFlight.set(false);
-            service.islandTrackedPackage = "";
-            service.islandTrackedPackageSinceWallMs = 0L;
             service.mainHandler.post(() -> {
                 service.dismissScreenTimeIslandImmediately("settings_changed");
                 if (!StudyModeManager.isScreenTimeIslandEnabled(context)) {
