@@ -59,6 +59,7 @@ public final class ScreenTimeIslandPainter {
             new int[]{Color.argb(56, 255, 255, 255), Color.argb(10, 255, 255, 255)},
             null, Shader.TileMode.CLAMP));
         text.setTypeface(medium);
+        text.setFontFeatureSettings("tnum");
         text.setColor(Color.WHITE);
         bars.setStyle(Paint.Style.FILL);
         rim.setStyle(Paint.Style.STROKE);
