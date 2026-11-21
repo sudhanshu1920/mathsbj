@@ -1,6 +1,5 @@
 package com.sudhanshu.mathsbj;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
@@ -20,7 +19,6 @@ import android.view.accessibility.AccessibilityEvent;
 
 import java.util.Calendar;
 import java.util.List;
-import java.util.Locale;
 
 /** Bounded, touchable-only-when-settled WindowManager overlay for Screen Time Island. */
 public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallback {
@@ -40,8 +38,8 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
     private final WindowManager windowManager;
     private final IslandView view;
     private final WindowManager.LayoutParams params;
-    private final int collapsedWidth;
-    private final int collapsedHeight;
+    private int collapsedWidth;
+    private int collapsedHeight;
     private final int expandedWidth;
     private final int expandedHeight;
     private final int accent;
