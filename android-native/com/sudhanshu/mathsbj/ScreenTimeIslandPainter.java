@@ -160,7 +160,8 @@ public final class ScreenTimeIslandPainter {
         if (overallAlpha <= 0 || width <= 0 || height <= 0) return;
 
         int save = canvas.save();
-        float scale = 0.94f + (0.06f * clamp(iconScale, 0f, 1f));
+        float emergence = clamp(Math.max(iconScale, safeMorph), 0f, 1f);
+        float scale = 0.86f + (0.14f * emergence);
         canvas.scale(scale, scale, w * 0.5f, h * 0.5f);
         fill.setAlpha(overallAlpha);
         canvas.drawRoundRect(0.5f, 0.5f, w - 0.5f, h - 0.5f,
@@ -200,9 +201,10 @@ public final class ScreenTimeIslandPainter {
                               int accent, int currentHour) {
         int visibleAlpha = Math.round(alpha * contentAlpha);
         if (visibleAlpha <= 0) return;
-        float iconSize = dp(36f);
-        float iconLeft = dp(14f);
-        float iconTop = dp(12f);
+        float iconSize = dp(36f) * (0.5f + 0.5f * clamp(contentAlpha, 0f, 1f));
+        float iconLeft = dp(14f) + (dp(36f) - iconSize) * 0.5f;
+        float iconTop = dp(12f) + (dp(36f) - iconSize) * 0.5f;
+        float textOffsetY = dp(6f) * (1f - clamp(contentAlpha, 0f, 1f));
         drawIcon(canvas, iconLeft, iconTop, iconSize, visibleAlpha);
 
         float textLeft = dp(60f);
@@ -217,7 +219,7 @@ public final class ScreenTimeIslandPainter {
             // Clip instead of creating a shortened String on every frame.
             canvas.save();
             canvas.clipRect(textLeft, 0f, textLeft + available, dp(31f));
-            canvas.drawText(displayLabel, textLeft, dp(27f), text);
+            canvas.drawText(displayLabel, textLeft, dp(27f) + textOffsetY, text);
             canvas.restore();
         } else {
             canvas.drawText(displayLabel, textLeft, dp(27f), text);
@@ -227,10 +229,10 @@ public final class ScreenTimeIslandPainter {
         text.setTextSize(dp(10.5f));
         text.setColor(Color.WHITE);
         text.setAlpha(Math.round(visibleAlpha * 0.52f));
-        canvas.drawText("Today · since 12 AM", textLeft, dp(42f), text);
+        canvas.drawText("Today · since 12 AM", textLeft, dp(42f) + textOffsetY, text);
 
         float timeRight = width - dp(16f);
-        float timeY = dp(33f);
+        float timeY = dp(33f) + textOffsetY;
         float totalWidth = timePrimaryWidth + timeSecondaryWidth + (timeSecondaryWidth > 0f ? dp(4f) : 0f);
         float timeX = timeRight - totalWidth;
         text.setTextAlign(Paint.Align.LEFT);
