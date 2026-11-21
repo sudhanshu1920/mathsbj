@@ -32,6 +32,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
     private static final long MORPH_MS = 480L;
     private static final long DISMISS_MS = 380L;
     private static final long CONTENT_EXIT_MS = 110L;
+    private static final long BAR_STAGGER_COMPLETION_MS = 480L;
     private static final long HOLD_MS = 4200L;
     private static final long LONG_PRESS_MS = 520L;
 
@@ -176,7 +177,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             setInterpolatedBounds(widthProgress, heightProgress);
             float contentProgress = clamp((morphProgress - 0.55f) / 0.45f, 0f, 1f);
             iconScale = contentProgress;
-            barProgress = clamp((elapsed - 170L) / 250f, 0f, 1f);
+            barProgress = clamp((elapsed - 170L) / (float) BAR_STAGGER_COMPLETION_MS, 0f, 1f);
             displayedMillis = Math.round(totalTodayMillis * easeOutCubic(elapsed / 520f));
             if (elapsed >= MORPH_MS) {
                 morphProgress = 1f;
@@ -190,6 +191,8 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             }
         } else if (phase == HOLD) {
             morphProgress = targetExpanded ? 1f : 0f;
+            barProgress = clamp((MORPH_MS - 170L + Math.max(0L, now - phaseStartedAt))
+                / (float) BAR_STAGGER_COMPLETION_MS, 0f, 1f);
             if (!touchDown) heldMillis += delta;
             if (heldMillis >= HOLD_MS) startDismiss();
         } else if (phase == TOGGLE) {
