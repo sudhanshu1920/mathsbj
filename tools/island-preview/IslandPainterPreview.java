@@ -181,7 +181,7 @@ public final class IslandPainterPreview {
                 float content = clamp((value.morph - 0.55f) / 0.45f, 0f, 1f);
                 value.alpha = 1f;
                 value.iconScale = content;
-                value.barProgress = clamp((morphElapsed - 170L) / 250f, 0f, 1f);
+                value.barProgress = clamp((morphElapsed - 170L) / 480f, 0f, 1f);
                 value.elapsedMillis = Math.round(totalMillis * easeOutCubic(morphElapsed / 520f));
             }
         } else if (index == 7) {
