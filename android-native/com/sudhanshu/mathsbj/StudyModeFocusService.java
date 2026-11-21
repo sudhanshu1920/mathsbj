@@ -1104,21 +1104,22 @@ public final class StudyModeFocusService extends Service {
         } else {
             try {
                 List<UsageStats> daily = usageManager.queryUsageStats(
-                    UsageStatsManager.INTERVAL_DAILY, dayStartMs, nowWallMs);
-                if (daily == null || daily.isEmpty()) return null;
-                boolean found = false;
+                UsageStatsManager.INTERVAL_DAILY, dayStartMs, nowWallMs);
+            long live = liveSessionStartWallMs > 0L
+                ? Math.max(0L, nowWallMs - Math.max(dayStartMs, liveSessionStartWallMs)) : 0L;
+            boolean found = false;
+            if (daily != null) {
                 for (UsageStats usage : daily) {
                     if (usage == null || !packageName.equals(usage.getPackageName())) continue;
                     found = true;
                     total = saturatingAdd(total, Math.max(0L, usage.getTotalTimeInForeground()));
                 }
-                if (!found) return null;
-                long live = liveSessionStartWallMs > 0L
-                    ? Math.max(0L, nowWallMs - Math.max(dayStartMs, liveSessionStartWallMs)) : 0L;
-                total = Math.min(Math.max(0L, nowWallMs - dayStartMs), saturatingAdd(total, live));
-                Calendar localNow = Calendar.getInstance();
-                localNow.setTimeInMillis(nowWallMs);
-                hourly[localNow.get(Calendar.HOUR_OF_DAY)] = total;
+            }
+            if (!found && live <= 0L) return null;
+            total = Math.min(Math.max(0L, nowWallMs - dayStartMs), saturatingAdd(total, live));
+            Calendar localNow = Calendar.getInstance();
+            localNow.setTimeInMillis(nowWallMs);
+            hourly[localNow.get(Calendar.HOUR_OF_DAY)] = total;
             } catch (RuntimeException statsUnavailable) {
                 return null;
             }
