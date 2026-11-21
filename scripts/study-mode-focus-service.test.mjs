@@ -738,6 +738,8 @@ test("Screen Time Island local day usage aggregation and spring math stay Androi
   assert.match(islandDayUsage, /ACTIVITY_RESUMED/);
   assert.match(islandDayUsage, /SCREEN_NON_INTERACTIVE/);
   assert.match(islandDayUsage, /hourlyMillis\(String packageName\)/);
+  assert.match(islandDayUsage, /isPackageActiveAtEnd\(String packageName\)/);
+  assert.match(source, /__monitor_live_session__/);
   assert.doesNotMatch(islandSpring, /^import android\./m);
   assert.match(islandSpring, /Math\.sqrt/);
   assert.match(islandSpring, /isSettled/);
