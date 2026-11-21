@@ -55,6 +55,17 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
     });
     private final AppUsageAnalyticsStore store = new AppUsageAnalyticsStore();
 
+    /** Reuse the existing local UsageStats worker for one-off island previews. */
+    public static void executeUsageWork(Runnable work) {
+        if (work == null) return;
+        try {
+            WORKER.execute(work);
+        } catch (RuntimeException rejected) {
+            // A shutting-down worker is reported by the preview caller.
+            throw rejected;
+        }
+    }
+
     @PluginMethod
     public void getUsage(PluginCall call) {
         Long requestedStart = call.getLong("startTimeMs");
