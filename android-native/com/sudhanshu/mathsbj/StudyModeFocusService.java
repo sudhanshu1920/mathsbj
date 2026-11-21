@@ -381,9 +381,11 @@ public final class StudyModeFocusService extends Service {
         if (service == null || !running) return;
         service.mainHandler.post(() -> {
             if (!running || service != activeService) return;
-            if (StudyModeManager.isProStrictModeActive(service)
-                && service.periodicReminderVisible.get()) {
-                service.dismissPeriodicReminder("pro_strict_mode_activated", false);
+            if (StudyModeManager.isProStrictModeActive(service)) {
+                if (service.periodicReminderVisible.get()) {
+                    service.dismissPeriodicReminder("pro_strict_mode_activated", false);
+                }
+                service.dismissScreenTimeIslandImmediately("pro_strict_mode_activated");
             }
             service.enqueueImmediateEvaluation();
         });
@@ -800,9 +802,6 @@ public final class StudyModeFocusService extends Service {
                 boolean previouslyTracked = !islandTrackedPackage.isEmpty();
                 islandTrackedPackage = islandForegroundPackage;
                 islandTrackedPackageSinceWallMs = islandForegroundPackage.isEmpty() ? 0L : islandNowWallMs;
-                islandUsage.resetInterval();
-                islandDueElapsedMs = 0L;
-                islandRequestInFlight.set(false);
                 if (previouslyTracked) {
                     mainHandler.post(() -> {
                         ScreenTimeIslandOverlay current = screenTimeIslandOverlay;
@@ -814,14 +813,16 @@ public final class StudyModeFocusService extends Service {
             }
 
             boolean islandEnabled = StudyModeManager.isScreenTimeIslandEnabled(StudyModeFocusService.this);
-            boolean islandEligible = islandEnabled
+            boolean phoneCallActive = isPhoneCallActive();
+            boolean islandEligible = islandEnabled && usageAccessAvailable
+                && StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)
                 && !StudyModeManager.isProStrictModeActive(StudyModeFocusService.this)
                 && !shouldShield && activePackage != null
                 && !activePackage.equals(getPackageName())
                 && !selectedStudyApp
                 && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)
                 && !periodicReminderVisible.get()
-                && !isPhoneCallActive();
+                && !phoneCallActive;
             boolean reminderDue = periodicReminderUsage.sample(
                 activePackage, islandNowElapsedMs, reminderEligible,
                 StudyModeManager.getReminderIntervalMinutes(StudyModeFocusService.this));
@@ -854,8 +855,11 @@ public final class StudyModeFocusService extends Service {
                 logStage("SCREEN_TIME_ISLAND_DROPPED", "", "", "dropped", "popup_conflict_timeout");
             }
 
-            boolean requestIslandSnapshot = islandDue && !shouldShield && !reminderDue
-                && !islandPopupConflict && !isPhoneCallActive()
+            if (phoneCallActive && screenTimeIslandOverlay != null) {
+                mainHandler.post(() -> dismissScreenTimeIslandImmediately("phone_call_active"));
+            }
+            boolean requestIslandSnapshot = islandDue && islandEligible && !shouldShield && !reminderDue
+                && !islandPopupConflict && !phoneCallActive
                 && islandRequestInFlight.compareAndSet(false, true);
             ScreenTimeIslandSnapshot islandSnapshot = null;
             if (requestIslandSnapshot) {
@@ -1533,6 +1537,7 @@ public final class StudyModeFocusService extends Service {
     }
 
     private void showPeriodicReminder(String packageName, long decisionSequence) {
+        dismissScreenTimeIslandImmediately("periodic_popup_priority");
         if (packageName == null || packageName.isEmpty()
             || StudyModeManager.isProStrictModeActive(this)
             || !periodicReminderVisible.compareAndSet(false, true)) return;
@@ -2123,7 +2128,7 @@ public final class StudyModeFocusService extends Service {
         String theme = preferences.getString("popupTheme", "arctic-blue");
         PopupPalette palette = new PopupPalette();
         palette.light = "light".equals(mode);
-        palette.accent = accentForTheme(theme);
+        palette.accent = ScreenTimeIslandPainter.accentForTheme(theme);
         palette.accentDark = blendColor(palette.accent, Color.BLACK, 0.25f);
         palette.accentBorder = blendColor(palette.accent, Color.WHITE, 0.18f);
         if (palette.light) {
@@ -2154,23 +2159,6 @@ public final class StudyModeFocusService extends Service {
             palette.border = Color.rgb(48, 65, 91);
         }
         return palette;
-    }
-
-    private int accentForTheme(String theme) {
-        switch (theme) {
-            case "deep-space": case "indigo": return Color.rgb(99, 102, 241);
-            case "titanium-silver": case "graphite": return Color.rgb(148, 163, 184);
-            case "midnight-violet": return Color.rgb(139, 92, 246);
-            case "sapphire": return Color.rgb(37, 99, 235);
-            case "ocean-cyan": return Color.rgb(8, 145, 178);
-            case "emerald-glass": case "forest": return Color.rgb(16, 185, 129);
-            case "aurora": return Color.rgb(34, 211, 238);
-            case "soft-rose": return Color.rgb(244, 114, 182);
-            case "sunset-gold": return Color.rgb(245, 158, 11);
-            case "pearl-white": return Color.rgb(37, 99, 235);
-            case "mint": return Color.rgb(13, 148, 136);
-            default: return Color.rgb(59, 130, 246);
-        }
     }
 
     private int blendColor(int foreground, int background, float backgroundAmount) {
