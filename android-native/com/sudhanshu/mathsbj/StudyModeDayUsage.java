@@ -38,17 +38,19 @@ public final class StudyModeDayUsage {
     public static final class Result {
         private final Map<String, Long> totals;
         private final Map<String, long[]> hourly;
+        private final Map<String, Boolean> activeAtEnd;
         public final long dayStartMs;
         public final long throughMs;
 
         private Result(Map<String, Long> totals, Map<String, long[]> hourly,
-                       long dayStartMs, long throughMs) {
+                       Map<String, Boolean> activeAtEnd, long dayStartMs, long throughMs) {
             this.totals = Collections.unmodifiableMap(new HashMap<>(totals));
             Map<String, long[]> copy = new HashMap<>();
             for (Map.Entry<String, long[]> entry : hourly.entrySet()) {
                 copy.put(entry.getKey(), entry.getValue().clone());
             }
             this.hourly = Collections.unmodifiableMap(copy);
+            this.activeAtEnd = Collections.unmodifiableMap(new HashMap<>(activeAtEnd));
             this.dayStartMs = dayStartMs;
             this.throughMs = throughMs;
         }
@@ -65,6 +67,9 @@ public final class StudyModeDayUsage {
         }
 
         public Map<String, Long> totals() { return totals; }
+        public boolean isPackageActiveAtEnd(String packageName) {
+            return Boolean.TRUE.equals(activeAtEnd.get(packageName));
+        }
     }
 
     /**
@@ -126,9 +131,11 @@ public final class StudyModeDayUsage {
                 }
             }
         }
+        Map<String, Boolean> activeAtEnd = new HashMap<>();
+        for (String packageName : activePackages.keySet()) activeAtEnd.put(packageName, true);
         closeAll(activeActivities, activePackages, totals, buckets,
             dayStartMs, endMs, endMs, safeZone);
-        return new Result(totals, buckets, dayStartMs, endMs);
+        return new Result(totals, buckets, activeAtEnd, dayStartMs, endMs);
     }
 
     private static void closeAll(Map<String, Activity> activities,
