@@ -170,7 +170,6 @@ public final class ScreenTimeIslandPainter {
             h * (0.5f - 0.18f * safeMorph), h * (0.5f - 0.18f * safeMorph), hairline);
         int rimAlpha = Math.round(overallAlpha * 0.35f * safeMorph);
         rim.setColor((rimAlpha << 24) | (accent & 0x00ffffff));
-        float radius = Math.min(dp(8f), h * 0.18f);
         canvas.drawLine(dp(18f), h - dp(1.6f), w - dp(18f), h - dp(1.6f), rim);
         rim.setStrokeWidth(dp(0.55f));
         rim.setAlpha(Math.round(rimAlpha * 0.45f));
