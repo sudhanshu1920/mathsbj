@@ -76,7 +76,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
                                    int accentColor, String openDeepLink, Runnable removedCallback) {
         context = source.getApplicationContext();
         packageName = appPackage == null ? "" : appPackage;
-        deepLink = openDeepLink == null ? "mathmaster://learn" : openDeepLink;
+        deepLink = openDeepLink == null ? new Uri.Builder().scheme("mathmaster").authority("learn").build().toString() : openDeepLink;
         onRemoved = removedCallback;
         accent = accentColor;
         totalTodayMillis = Math.max(0L, totalMillis);
