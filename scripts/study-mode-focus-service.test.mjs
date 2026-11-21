@@ -754,7 +754,8 @@ test("Screen Time Island overlay remains a tight, no-focus, no-network Canvas su
   assert.match(islandOverlay, /MotionEvent\.ACTION_MOVE/);
   assert.match(islandOverlay, /LONG_PRESS_MS/);
   assert.match(islandOverlay, /ACCESSIBILITY_LIVE_REGION_POLITE/);
-  assert.match(islandOverlay, /\.scheme\("mathmaster"\)/);\n  assert.match(islandOverlay, /\.authority\("learn"\)/);
+  assert.match(islandOverlay, /\.scheme\("mathmaster"\)/);
+  assert.match(islandOverlay, /\.authority\("learn"\)/);
   assert.doesNotMatch(islandOverlay, /https?:\/\//);
   assert.doesNotMatch(islandOverlay, /AccessibilityNodeInfo|AccessibilityService|TYPE_ACCESSIBILITY_OVERLAY/);
   assert.match(islandPainter, /Canvas/);
