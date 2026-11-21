@@ -19,6 +19,7 @@ const islandSpring = readFileSync(new URL("../android-native/com/sudhanshu/maths
 const islandPainter = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/ScreenTimeIslandPainter.java", import.meta.url), "utf8");
 const islandOverlay = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/ScreenTimeIslandOverlay.java", import.meta.url), "utf8");
 const studyModeTs = readFileSync(new URL("../src/lib/studyMode.ts", import.meta.url), "utf8");
+const studyModeCss = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
 
 function between(text, startMarker, endMarker) {
   const start = text.indexOf(startMarker);
@@ -776,6 +777,7 @@ test("Screen Time Island settings and preview are validated and wired through th
   assert.match(page, /Choose reminder interval/);
   assert.match(page, /previewStudyModeScreenTimeIsland/);
   assert.match(page, /Overlay and Usage Access are needed/);
-  assert.match(page, /prefers-reduced-motion/);
+  assert.match(studyModeCss, /prefers-reduced-motion:\s*reduce/);
+  assert.match(studyModeCss, /cubic-bezier\(0\.34, 1\.56, 0\.64, 1\)/);
 });
 
