@@ -1656,7 +1656,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               <button
                 type="button"
                 onClick={() => { void handleScreenTimeIslandPreview(); }}
-                disabled={loading || screenTimeIslandPreviewing || !isStudyModeNative() || !status?.permissions.overlay}
+                disabled={loading || screenTimeIslandPreviewing || !isStudyModeNative()}
                 className="motion-press inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-background/75 px-3 text-[10px] font-bold text-accent transition-colors hover:border-accent/45 hover:bg-accent/5 disabled:opacity-45"
               >
                 {screenTimeIslandPreviewing ? "Showing…" : "Preview"}
