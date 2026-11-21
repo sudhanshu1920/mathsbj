@@ -129,6 +129,43 @@ public final class StudyModePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setScreenTimeIsland(PluginCall call) {
+        Object rawEnabled = call.getData().opt("enabled");
+        Object rawMinutes = call.getData().opt("minutes");
+        if (!(rawEnabled instanceof Boolean) || !(rawMinutes instanceof Number)) {
+            call.reject("Screen Time Island needs an enabled boolean and a whole-minute interval from 1 to 10.");
+            return;
+        }
+        double minutes = ((Number) rawMinutes).doubleValue();
+        if (Double.isNaN(minutes) || Double.isInfinite(minutes) || minutes != Math.rint(minutes)
+            || minutes < 1d || minutes > 10d) {
+            call.reject("Screen Time Island interval must be an integer from 1 to 10 minutes.");
+            return;
+        }
+        try {
+            StudyModeManager.setScreenTimeIsland(getContext(), (Boolean) rawEnabled, (int) minutes);
+            call.resolve(StudyModeManager.getStatus(getContext()));
+        } catch (IllegalArgumentException error) {
+            call.reject(error.getMessage(), error);
+        } catch (Exception error) {
+            call.reject("Could not save Screen Time Island settings.", error);
+        }
+    }
+
+    @PluginMethod
+    public void previewScreenTimeIsland(PluginCall call) {
+        if (!StudyModeManager.hasOverlayPermission(getContext())) {
+            call.reject("Allow Display over other apps before previewing Screen Time Island.");
+            return;
+        }
+        try {
+            StudyModeFocusService.previewScreenTimeIsland(getContext(), () -> call.resolve());
+        } catch (Exception error) {
+            call.reject("Screen Time Island preview could not be shown.", error);
+        }
+    }
+
+    @PluginMethod
     public void consumeOpenStudyAppsPickerRequest(PluginCall call) {
         JSObject result = new JSObject();
         result.put("open", StudyModeManager.consumeOpenStudyAppsPickerRequest(getContext()));
