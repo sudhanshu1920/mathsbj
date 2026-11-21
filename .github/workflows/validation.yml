@@ -67,6 +67,16 @@ jobs:
           path: tools/widget-preview/out/*.png
           if-no-files-found: error
           retention-days: 7
+      - name: Test and render Screen Time Island
+        run: npm run island:preview
+
+      - name: Upload Screen Time Island contact sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: math-master-screen-time-island-preview
+          path: tools/island-preview/out/*.png
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
