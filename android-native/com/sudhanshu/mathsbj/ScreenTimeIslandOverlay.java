@@ -350,7 +350,13 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
                     if (!touchDown) return true;
                     touchDown = false;
                     long held = SystemClock.uptimeMillis() - touchStartedAt;
-                    if (!longPressFired && !moved && held < LONG_PRESS_MS) performClick();
+                    if (!longPressFired && !moved && held >= LONG_PRESS_MS) {
+                        longPressFired = true;
+                        openMathMaster();
+                        startDismiss();
+                    } else if (!longPressFired && !moved) {
+                        performClick();
+                    }
                     invalidate();
                     return true;
                 case MotionEvent.ACTION_CANCEL:
