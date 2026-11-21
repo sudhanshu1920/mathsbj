@@ -348,7 +348,7 @@ public final class StudyModeFocusService extends Service {
         }
         Runnable reset = () -> {
             if (service != activeService) return;
-            service.islandUsage.clear();
+            service.islandUsage.resetInterval();
             service.islandDueElapsedMs = 0L;
             service.islandRequestInFlight.set(false);
             service.mainHandler.post(() -> {
@@ -843,7 +843,7 @@ public final class StudyModeFocusService extends Service {
                 activePackage, islandNowElapsedMs, islandEligible,
                 StudyModeManager.getScreenTimeIslandIntervalMinutes(StudyModeFocusService.this));
             if (!islandEnabled) {
-                islandUsage.clear();
+                islandUsage.resetInterval();
                 islandDueElapsedMs = 0L;
                 islandRequestInFlight.set(false);
                 if (screenTimeIslandOverlay != null) {
@@ -914,9 +914,15 @@ public final class StudyModeFocusService extends Service {
             final String reminderTargetPackage = activePackage;
             final boolean requestPeriodicReminder = reminderDue;
             final String requestId = shouldShield ? UUID.randomUUID().toString() : "";
-            if (monitorGenerationAtStart != monitorGeneration) return;
+            if (monitorGenerationAtStart != monitorGeneration) {
+                if (requestScreenTimeIsland) islandRequestInFlight.set(false);
+                return;
+            }
             mainHandler.post(() -> {
-                if (monitorGenerationAtStart != monitorGeneration || !running) return;
+                if (monitorGenerationAtStart != monitorGeneration || !running) {
+                    if (requestScreenTimeIsland) islandRequestInFlight.set(false);
+                    return;
+                }
                 if (decisionSequence != foregroundDecisionSequence.get()) {
                     if (requestScreenTimeIsland) islandRequestInFlight.set(false);
                     if (shouldShield) {
