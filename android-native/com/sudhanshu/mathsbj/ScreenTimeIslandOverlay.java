@@ -146,7 +146,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         float alpha = 1f;
         float iconScale = 1f;
         float barProgress = 1f;
-        float pulse = (float) (0.5d + 0.5d * Math.sin(now / 600d));
+        float pulse = (float) (0.5d + 0.5d * Math.sin(now * Math.PI / 600d));
         long displayedMillis = totalTodayMillis;
 
         if (phase == ENTER) {
