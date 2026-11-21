@@ -1098,12 +1098,14 @@ public final class StudyModeFocusService extends Service {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         if (rawType == UsageEvents.Event.ACTIVITY_RESUMED) mappedType = StudyModeDayUsage.ACTIVITY_RESUMED;
                         else if (rawType == UsageEvents.Event.ACTIVITY_PAUSED) mappedType = StudyModeDayUsage.ACTIVITY_PAUSED;
-                        else if (rawType == UsageEvents.Event.SCREEN_NON_INTERACTIVE) mappedType = StudyModeDayUsage.SCREEN_NON_INTERACTIVE;
-                        else if (rawType == UsageEvents.Event.KEYGUARD_SHOWN) mappedType = StudyModeDayUsage.KEYGUARD_SHOWN;
-                        else if (rawType == UsageEvents.Event.DEVICE_SHUTDOWN) mappedType = StudyModeDayUsage.DEVICE_SHUTDOWN;
                     } else {
                         if (rawType == UsageEvents.Event.MOVE_TO_FOREGROUND) mappedType = StudyModeDayUsage.MOVE_TO_FOREGROUND;
                         else if (rawType == UsageEvents.Event.MOVE_TO_BACKGROUND) mappedType = StudyModeDayUsage.MOVE_TO_BACKGROUND;
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        if (rawType == UsageEvents.Event.SCREEN_NON_INTERACTIVE) mappedType = StudyModeDayUsage.SCREEN_NON_INTERACTIVE;
+                        else if (rawType == UsageEvents.Event.KEYGUARD_SHOWN) mappedType = StudyModeDayUsage.KEYGUARD_SHOWN;
+                        else if (rawType == UsageEvents.Event.DEVICE_SHUTDOWN) mappedType = StudyModeDayUsage.DEVICE_SHUTDOWN;
                     }
                     if (mappedType >= 0) {
                         events.add(new StudyModeDayUsage.Event(event.getTimeStamp(),
