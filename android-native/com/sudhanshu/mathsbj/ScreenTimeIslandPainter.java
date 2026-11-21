@@ -160,7 +160,7 @@ public final class ScreenTimeIslandPainter {
         if (overallAlpha <= 0 || width <= 0 || height <= 0) return;
 
         int save = canvas.save();
-        float emergence = clamp(Math.max(iconScale, safeMorph), 0f, 1f);
+        float emergence = clamp(Math.max(alpha, safeMorph), 0f, 1f);
         float scale = 0.86f + (0.14f * emergence);
         canvas.scale(scale, scale, w * 0.5f, h * 0.5f);
         fill.setAlpha(overallAlpha);
