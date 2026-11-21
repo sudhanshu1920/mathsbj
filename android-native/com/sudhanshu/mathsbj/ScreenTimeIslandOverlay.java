@@ -285,7 +285,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
     private final class IslandView extends View {
         private final ScreenTimeIslandPainter painter;
         private float morph;
-        private float alpha = 1f;
+        private float alpha = 0f;
         private float iconScale = 1f;
         private float barProgress = 1f;
         private float pulse = 0.5f;
@@ -301,7 +301,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             setFocusableInTouchMode(false);
             setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
             setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-            setLayerType(View.LAYER_TYPE_HARDWARE, null);
+            setLayerType(View.LAYER_TYPE_NONE, null);
         }
 
         void render(float nextMorph, float nextAlpha, float nextIconScale,
