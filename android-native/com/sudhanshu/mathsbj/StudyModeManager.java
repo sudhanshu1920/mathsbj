@@ -44,11 +44,14 @@ public final class StudyModeManager {
     private static final String KEY_PACKAGES = "selectedPackages";
     private static final String KEY_STUDY_PACKAGES = "studyAppPackages";
     private static final String KEY_REMINDER_INTERVAL_MINUTES = "reminderIntervalMinutes";
+    private static final String KEY_SCREEN_TIME_ISLAND_ENABLED = "screenTimeIslandEnabled";
+    private static final String KEY_SCREEN_TIME_ISLAND_INTERVAL_MINUTES = "screenTimeIslandIntervalMinutes";
     private static final String KEY_REMINDER_USAGE_MS = "reminderUsageMs";
     private static final String KEY_PENDING_REMINDER_ID = "pendingReminderId";
     private static final String KEY_PENDING_REMINDER_PACKAGE = "pendingReminderPackage";
     private static final String KEY_OPEN_STUDY_APPS_PICKER = "openStudyAppsPicker";
     private static final int DEFAULT_REMINDER_INTERVAL_MINUTES = 2;
+    private static final int DEFAULT_SCREEN_TIME_ISLAND_INTERVAL_MINUTES = 5;
     private static volatile Set<String> periodicReminderSystemPackagesCache = Collections.emptySet();
     private static volatile long periodicReminderSystemPackagesCacheAtElapsedMs = 0L;
     private static final String KEY_QUOTE_DECK = "motivationalQuoteDeck";
@@ -148,6 +151,31 @@ public final class StudyModeManager {
             throw new IllegalStateException("Reminder interval could not be saved.");
         }
         StudyModeFocusService.onReminderIntervalChanged(context, value);
+    }
+
+    public static boolean isScreenTimeIslandEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_SCREEN_TIME_ISLAND_ENABLED, true);
+    }
+
+    public static int getScreenTimeIslandIntervalMinutes(Context context) {
+        int value = prefs(context).getInt(
+            KEY_SCREEN_TIME_ISLAND_INTERVAL_MINUTES, DEFAULT_SCREEN_TIME_ISLAND_INTERVAL_MINUTES);
+        return StudyModeUsageAccumulator.isValidInterval(value)
+            ? value : DEFAULT_SCREEN_TIME_ISLAND_INTERVAL_MINUTES;
+    }
+
+    public static synchronized void setScreenTimeIsland(Context context, boolean enabled, int minutes) {
+        if (context == null) throw new IllegalArgumentException("Study Mode context is unavailable.");
+        if (!StudyModeUsageAccumulator.isValidInterval(minutes)) {
+            throw new IllegalArgumentException("Screen Time Island interval must be an integer from 1 to 10 minutes.");
+        }
+        if (!prefs(context).edit()
+            .putBoolean(KEY_SCREEN_TIME_ISLAND_ENABLED, enabled)
+            .putInt(KEY_SCREEN_TIME_ISLAND_INTERVAL_MINUTES, minutes)
+            .commit()) {
+            throw new IllegalStateException("Screen Time Island settings could not be saved.");
+        }
+        StudyModeFocusService.onScreenTimeIslandSettingsChanged(context);
     }
 
     public static long getReminderUsageMs(Context context) {
@@ -1759,6 +1787,8 @@ public final class StudyModeManager {
         result.put("studyAppPackages", studyAppsArray);
         result.put("proEnabled", proEnabled);
         result.put("reminderIntervalMinutes", getReminderIntervalMinutes(context));
+        result.put("screenTimeIslandEnabled", isScreenTimeIslandEnabled(context));
+        result.put("screenTimeIslandIntervalMinutes", getScreenTimeIslandIntervalMinutes(context));
         result.put("config", config);
         result.put("permissions", permissions);
         result.put("scheduleActive", isScheduleActive(context));
