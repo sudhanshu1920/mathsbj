@@ -1663,7 +1663,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               </button>
             </div>
 
-            <div className="mt-2 grid grid-cols-5 gap-1.5 border-t border-border/55 pt-2.5" role="group" aria-label="Screen Time Island interval">
+            <div className="mt-2 grid grid-cols-[repeat(5,minmax(0,1fr))] gap-1.5 border-t border-border/55 pt-2.5" role="group" aria-label="Screen Time Island interval">
               {Array.from({ length: 10 }, (_, index) => index + 1).map((minutes) => {
                 const selected = screenTimeIslandIntervalMinutes === minutes;
                 return (
