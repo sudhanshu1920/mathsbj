@@ -116,7 +116,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             scheduleFrame();
             view.post(this::resolveCutoutAndAnchor);
             return true;
-        } catch (WindowManager.BadTokenException | IllegalStateException error) {
+        } catch (WindowManager.BadTokenException | IllegalStateException | SecurityException error) {
             removeImmediately();
             return false;
         }
@@ -317,9 +317,8 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
 
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            int hour = Calendar.getInstance().get(Calendar.getInstance().getTimeZone()).get(Calendar.HOUR_OF_DAY);
             painter.draw(canvas, getWidth(), getHeight(), morph, alpha,
-                iconScale, barProgress, pulse, accent, hour, elapsedMillis);
+                iconScale, barProgress, pulse, accent, currentHour, elapsedMillis);
         }
 
         @Override public boolean onTouchEvent(MotionEvent event) {
