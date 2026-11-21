@@ -822,6 +822,11 @@ public final class StudyModeFocusService extends Service {
                 && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)
                 && !periodicReminderVisible.get()
                 && !isPhoneCallActive();
+            boolean reminderDue = periodicReminderUsage.sample(
+                activePackage, islandNowElapsedMs, reminderEligible,
+                StudyModeManager.getReminderIntervalMinutes(StudyModeFocusService.this));
+            persistReminderUsage(reminderDue);
+
             boolean islandDue = islandEnabled && islandUsage.sample(
                 activePackage, islandNowElapsedMs, islandEligible,
                 StudyModeManager.getScreenTimeIslandIntervalMinutes(StudyModeFocusService.this));
@@ -835,11 +840,6 @@ public final class StudyModeFocusService extends Service {
             } else if (islandDue && islandDueElapsedMs == 0L) {
                 islandDueElapsedMs = islandNowElapsedMs;
             }
-
-            boolean reminderDue = periodicReminderUsage.sample(
-                activePackage, islandNowElapsedMs, reminderEligible,
-                StudyModeManager.getReminderIntervalMinutes(StudyModeFocusService.this));
-            persistReminderUsage(reminderDue);
 
             boolean islandPopupConflict = periodicReminderVisible.get() || popupState != PopupState.IDLE;
             if (shouldShield) {
@@ -965,6 +965,7 @@ public final class StudyModeFocusService extends Service {
             return;
         }
 
+        final ScreenTimeIslandOverlay[] candidateReference = new ScreenTimeIslandOverlay[1];
         ScreenTimeIslandOverlay candidate = new ScreenTimeIslandOverlay(
             this, snapshot.packageName, snapshot.label, snapshot.icon,
             snapshot.totalMillis, snapshot.hourlyMillis, snapshot.accent,
@@ -977,6 +978,7 @@ public final class StudyModeFocusService extends Service {
                     islandRequestInFlight.set(false);
                 }
             });
+        candidateReference[0] = candidate;
         screenTimeIslandOverlay = candidate;
         boolean shown = candidate.show();
         if (!shown) {
@@ -1176,6 +1178,7 @@ public final class StudyModeFocusService extends Service {
                     if (service != null && service.screenTimeIslandOverlay != null) {
                         service.dismissScreenTimeIslandImmediately("preview_requested");
                     }
+                    final ScreenTimeIslandOverlay[] candidateReference = new ScreenTimeIslandOverlay[1];
                     ScreenTimeIslandOverlay candidate = new ScreenTimeIslandOverlay(
                         context, renderSnapshot.packageName, renderSnapshot.label, renderSnapshot.icon,
                         renderSnapshot.totalMillis, renderSnapshot.hourlyMillis, renderSnapshot.accent,
