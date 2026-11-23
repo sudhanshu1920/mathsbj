@@ -714,16 +714,12 @@ public final class StudyModeFocusService extends Service {
                 return;
             }
 
-            // UsageStatsManager is the standard foreground source. Advanced Accessibility
-            // can add positive package evidence even when Android withholds a complete
-            // interactive-window snapshot.
+            // UsageStatsManager provides foreground app identity for personal devices.
             boolean usageAccessAvailable = StudyModeManager.hasUsageAccess(StudyModeFocusService.this);
             String foreground = usageAccessAvailable ? getMostRecentlyResumedPackage() : null;
             String foregroundSource = "usage_events";
 
-            // UsageStats is the only personal-device foreground source. Without
-            // Accessibility window scanning, secondary split-screen panes are not
-            // independently inspected.
+            // Secondary split-screen panes and some pop-up windows are not independently inspected.
 
             // An unresolved foreground package is not evidence that the
             // user is outside a blocked app. Preserve an already-visible shield.
