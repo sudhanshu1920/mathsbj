@@ -1,3 +1,10 @@
+## 2026-11-23 — Compact iPhone-style Screen Time Island polish
+
+- Refine the Screen Time Island into a compact OLED-black pill with a subtle surface gradient, fine highlight rim and balanced accent detail.
+- Reduce collapsed and expanded dimensions, tighten icon/header/time typography and make the hourly usage chart more compact.
+- Tune spring entry, expand/collapse and dismiss transitions for a more responsive feel; preserve existing interactions and usage tracking.
+- Add regression coverage for compact spring overshoot/settling and keep the visual preview harness aligned with production animation timing.
+
 ## 2026-11-21 — Screen Time Island in Study Mode
 
 - Add a Dynamic Island-style OLED overlay with a collapsed app icon, expanded today's foreground duration, 24 local-hour usage bars, accent rim and reduced-motion support.
