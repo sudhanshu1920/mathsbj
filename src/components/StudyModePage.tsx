@@ -3,7 +3,7 @@ import { App } from "@capacitor/app";
 import {
   ArrowLeft, BatteryCharging, Bell, BookOpen, CalendarDays, Check,
   ChevronDown, ChevronRight, Clock3, LockKeyhole, Search,
-  ShieldCheck, Smartphone,
+  ShieldAlert, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
