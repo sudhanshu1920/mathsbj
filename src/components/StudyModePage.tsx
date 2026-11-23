@@ -2056,7 +2056,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
         </>
       )}
 
-remove accessibility disclosure dialog
+
     </div>
   );
 };
