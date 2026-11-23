@@ -48,16 +48,22 @@ const StudyModePermissionSetup = ({
 }: StudyModePermissionSetupProps) => {
   const permissions = status.permissions;
   const readiness = getStudyModePermissionReadiness(status);
+  const advancedReady = readiness.advancedMonitoringRequested
+    && permissions.accessibilitySnapshotReady === true;
   const managed = permissions.deviceOwner || permissions.profileOwner;
   const cards: PermissionCardItem[] = [
     {
       key: "usage",
       title: "Usage Access",
-      description: managed ? "Managed device access." : "Detect the app in use.",
+      description: managed
+        ? "Managed device access."
+        : advancedReady && !permissions.usageAccess
+          ? "Advanced window detection is active."
+          : "Detect the app in use.",
       granted: permissions.usageAccess === true || managed,
-      required: !readiness.monitoringReady,
+      required: !readiness.monitoringReady && !readiness.advancedMonitoringRequested,
       icon: Smartphone,
-      statusText: managed ? "Not required" : undefined,
+      statusText: managed ? "Not required" : advancedReady && !permissions.usageAccess ? "Fallback" : undefined,
     },
     {
       key: "overlay",
