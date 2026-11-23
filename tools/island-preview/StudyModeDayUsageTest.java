@@ -137,8 +137,20 @@ public final class StudyModeDayUsageTest {
             check(!Float.isNaN(value) && !Float.isInfinite(value), "spring remains finite");
             maximum = Math.max(maximum, value);
         }
-        check(maximum <= 1.08f, "spring overshoot stays below 8 percent");
-        check(ScreenTimeIslandSpring.isSettled(0.7f, 0.42f, 0.78f, 0.01f), "spring settles by 700 ms");
+        check(maximum <= 1.08f, "legacy spring overshoot stays below 8 percent");
+        check(ScreenTimeIslandSpring.isSettled(0.7f, 0.42f, 0.78f, 0.01f), "legacy spring settles by 700 ms");
+
+        float compactMaximum = 0f;
+        for (int i = 0; i <= 1000; i++) {
+            float t = i / 1000f;
+            float value = ScreenTimeIslandSpring.valueAt(t, 0.38f, 0.86f);
+            check(!Float.isNaN(value) && !Float.isInfinite(value), "compact spring remains finite");
+            compactMaximum = Math.max(compactMaximum, value);
+        }
+        check(compactMaximum <= 1.04f, "compact island spring keeps overshoot subtle");
+        check(ScreenTimeIslandSpring.isSettled(0.55f, 0.38f, 0.86f, 0.01f), "compact morph spring settles smoothly");
+        check(ScreenTimeIslandSpring.isSettled(0.45f, 0.30f, 0.90f, 0.01f), "compact toggle spring settles promptly");
+        check(ScreenTimeIslandSpring.isSettled(0.48f, 0.36f, 0.92f, 0.01f), "compact dismiss spring settles promptly");
         eq(0f, ScreenTimeIslandSpring.valueAt(Float.NaN, 0.42f, 0.78f), 0f, "NaN input fails safe");
         eq(1f, ScreenTimeIslandSpring.valueAt(Float.POSITIVE_INFINITY, 0.42f, 0.78f), 0f, "infinite time is settled");
     }

@@ -131,10 +131,10 @@ public final class IslandPainterPreview {
             canvas.drawCircle(cameraLeft + 25f, 5f, 2.2f, camera);
         }
 
-        int collapsedWidth = "center".equals(cutout) ? 112 : 120;
-        int collapsedHeight = "center".equals(cutout) ? 34 : 36;
-        int expandedWidth = Math.min(screenWidth - 32, 356);
-        int expandedHeight = 96;
+        int collapsedWidth = 112;
+        int collapsedHeight = 34;
+        int expandedWidth = Math.min(screenWidth - 32, 344);
+        int expandedHeight = 88;
         int anchorTop = "center".equals(cutout) ? 0 : 6;
         int windowWidth = Math.round(lerp(collapsedWidth, expandedWidth, frame.widthProgress));
         int windowHeight = Math.round(lerp(collapsedHeight, expandedHeight, frame.heightProgress));
@@ -164,14 +164,14 @@ public final class IslandPainterPreview {
                 value.elapsedMillis = 0L;
             } else {
                 long morphElapsed = time - 140L;
-                value.widthProgress = clamp(ScreenTimeIslandSpring.valueAt(morphElapsed / 1000f, 0.42f, 0.78f), 0f, 1.06f);
-                value.heightProgress = clamp(ScreenTimeIslandSpring.valueAt(Math.max(0L, morphElapsed - 60L) / 1000f, 0.42f, 0.78f), 0f, 1.06f);
+                value.widthProgress = clamp(ScreenTimeIslandSpring.valueAt(morphElapsed / 1000f, 0.38f, 0.86f), 0f, 1.06f);
+                value.heightProgress = clamp(ScreenTimeIslandSpring.valueAt(Math.max(0L, morphElapsed - 48L) / 1000f, 0.38f, 0.86f), 0f, 1.06f);
                 value.morph = clamp(Math.min(value.widthProgress, value.heightProgress), 0f, 1f);
-                float content = clamp((value.morph - 0.55f) / 0.45f, 0f, 1f);
+                float content = clamp((value.morph - 0.50f) / 0.50f, 0f, 1f);
                 value.alpha = 1f;
                 value.iconScale = content;
-                value.barProgress = clamp((morphElapsed - 170L) / 480f, 0f, 1f);
-                value.elapsedMillis = Math.round(totalMillis * easeOutCubic(morphElapsed / 520f));
+                value.barProgress = clamp((morphElapsed - 140L) / 410f, 0f, 1f);
+                value.elapsedMillis = Math.round(totalMillis * easeOutCubic(morphElapsed / 480f));
             }
         } else if (index == 7) {
             value.widthProgress = 1f;
@@ -183,11 +183,11 @@ public final class IslandPainterPreview {
             value.elapsedMillis = totalMillis;
         } else {
             long dismissElapsed = index == 8 ? 110L : 380L;
-            float reverse = clamp(ScreenTimeIslandSpring.valueAt(dismissElapsed / 1000f, 0.42f, 0.90f), 0f, 1f);
+            float reverse = clamp(ScreenTimeIslandSpring.valueAt(dismissElapsed / 1000f, 0.36f, 0.92f), 0f, 1f);
             value.morph = 1f - reverse;
             value.widthProgress = value.morph;
             value.heightProgress = value.morph;
-            value.alpha = dismissElapsed <= 240L ? 1f : clamp(1f - (dismissElapsed - 240L) / 140f, 0f, 1f);
+            value.alpha = dismissElapsed <= 210L ? 1f : clamp(1f - (dismissElapsed - 210L) / 130f, 0f, 1f);
             value.iconScale = value.alpha;
             value.barProgress = dismissElapsed < 110L ? 1f - dismissElapsed / 110f : 0f;
             value.elapsedMillis = totalMillis;

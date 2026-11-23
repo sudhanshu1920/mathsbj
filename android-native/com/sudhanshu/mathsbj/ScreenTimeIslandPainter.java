@@ -53,11 +53,14 @@ public final class ScreenTimeIslandPainter {
         bold = loadTypeface(context, "fonts/MathMaster-Bold.otf", Typeface.create("sans-serif", Typeface.BOLD));
         fill.setColor(Color.BLACK);
         fill.setStyle(Paint.Style.FILL);
+        fill.setShader(new LinearGradient(0f, 0f, 0f, dp(100f),
+            new int[]{0xff12151c, 0xff080a0e, 0xff020304},
+            new float[]{0f, 0.42f, 1f}, Shader.TileMode.CLAMP));
         hairline.setStyle(Paint.Style.STROKE);
         hairline.setStrokeWidth(dp(0.75f));
         hairline.setShader(new LinearGradient(0f, 0f, 0f, dp(100f),
-            new int[]{Color.argb(56, 255, 255, 255), Color.argb(10, 255, 255, 255)},
-            null, Shader.TileMode.CLAMP));
+            new int[]{Color.argb(72, 255, 255, 255), Color.argb(20, 255, 255, 255), Color.argb(4, 255, 255, 255)},
+            new float[]{0f, 0.35f, 1f}, Shader.TileMode.CLAMP));
         text.setTypeface(medium);
         text.setFontFeatureSettings("tnum");
         text.setColor(Color.WHITE);
@@ -117,17 +120,17 @@ public final class ScreenTimeIslandPainter {
             secondaryValues[minute] = secondary;
             secondaryUnits[minute] = secondaryUnit;
             text.setTypeface(bold);
-            text.setTextSize(dp(24f));
+            text.setTextSize(dp(22f));
             float width = text.measureText(primary);
             text.setTypeface(medium);
-            text.setTextSize(dp(14f));
+            text.setTextSize(dp(12.5f));
             primaryWidths[minute] = width + text.measureText(primaryUnit);
             if (!secondary.isEmpty()) {
                 text.setTypeface(bold);
-                text.setTextSize(dp(24f));
+                text.setTextSize(dp(22f));
                 width = text.measureText(secondary);
                 text.setTypeface(medium);
-                text.setTextSize(dp(14f));
+                text.setTextSize(dp(12.5f));
                 secondaryWidths[minute] = width + text.measureText(secondaryUnit);
             }
         }
@@ -165,16 +168,17 @@ public final class ScreenTimeIslandPainter {
         canvas.scale(scale, scale, w * 0.5f, h * 0.5f);
         fill.setAlpha(overallAlpha);
         canvas.drawRoundRect(0.5f, 0.5f, w - 0.5f, h - 0.5f,
-            h * (0.5f - 0.18f * safeMorph), h * (0.5f - 0.18f * safeMorph), fill);
+            h * (0.5f - 0.17f * safeMorph), h * (0.5f - 0.17f * safeMorph), fill);
         hairline.setAlpha(overallAlpha);
         canvas.drawRoundRect(dp(0.5f), dp(0.5f), w - dp(0.5f), h - dp(0.5f),
-            h * (0.5f - 0.18f * safeMorph), h * (0.5f - 0.18f * safeMorph), hairline);
-        int rimAlpha = Math.round(overallAlpha * 0.35f * safeMorph);
+            h * (0.5f - 0.17f * safeMorph), h * (0.5f - 0.17f * safeMorph), hairline);
+        int rimAlpha = Math.round(overallAlpha * 0.42f * safeMorph);
         rim.setColor((rimAlpha << 24) | (accent & 0x00ffffff));
-        canvas.drawLine(dp(18f), h - dp(1.6f), w - dp(18f), h - dp(1.6f), rim);
+        rim.setStrokeWidth(dp(1.2f));
+        canvas.drawLine(w * 0.28f, h - dp(1.4f), w * 0.72f, h - dp(1.4f), rim);
         rim.setStrokeWidth(dp(0.55f));
-        rim.setAlpha(Math.round(rimAlpha * 0.45f));
-        canvas.drawLine(dp(28f), h - dp(2.8f), w - dp(28f), h - dp(2.8f), rim);
+        rim.setAlpha(Math.round(rimAlpha * 0.48f));
+        canvas.drawLine(w * 0.40f, h - dp(2.6f), w * 0.60f, h - dp(2.6f), rim);
         rim.setStrokeWidth(dp(1f));
 
         if (safeMorph < 0.55f) {
@@ -189,11 +193,11 @@ public final class ScreenTimeIslandPainter {
     }
 
     private void drawCollapsed(Canvas canvas, float width, float height, int alpha, int accent) {
-        float size = dp(18f);
+        float size = dp(17f);
         float top = (height - size) * 0.5f;
-        drawIcon(canvas, dp(12f), top, size, alpha);
-        bars.setColor((Math.round(alpha * 0.96f) << 24) | (accent & 0x00ffffff));
-        canvas.drawCircle(width - dp(13f), height * 0.5f, dp(3.1f), bars);
+        drawIcon(canvas, dp(11f), top, size, alpha);
+        bars.setColor((Math.round(alpha * 0.92f) << 24) | (accent & 0x00ffffff));
+        canvas.drawCircle(width - dp(11f), height * 0.5f, dp(2.8f), bars);
     }
 
     private void drawExpanded(Canvas canvas, float width, float height, int alpha,
@@ -201,59 +205,59 @@ public final class ScreenTimeIslandPainter {
                               int accent, int currentHour) {
         int visibleAlpha = Math.round(alpha * contentAlpha);
         if (visibleAlpha <= 0) return;
-        float iconSize = dp(36f) * (0.5f + 0.5f * clamp(contentAlpha, 0f, 1f));
-        float iconLeft = dp(14f) + (dp(36f) - iconSize) * 0.5f;
-        float iconTop = dp(12f) + (dp(36f) - iconSize) * 0.5f;
-        float textOffsetY = dp(6f) * (1f - clamp(contentAlpha, 0f, 1f));
+        float iconSize = dp(30f) * (0.55f + 0.45f * clamp(contentAlpha, 0f, 1f));
+        float iconLeft = dp(12f) + (dp(30f) - iconSize) * 0.5f;
+        float iconTop = dp(9f) + (dp(30f) - iconSize) * 0.5f;
+        float textOffsetY = dp(4f) * (1f - clamp(contentAlpha, 0f, 1f));
         drawIcon(canvas, iconLeft, iconTop, iconSize, visibleAlpha);
 
-        float textLeft = dp(60f);
+        float textLeft = dp(52f);
         text.setTypeface(medium);
         text.setTextSize(dp(13f));
         text.setColor(Color.WHITE);
         text.setAlpha(Math.round(visibleAlpha * 0.92f));
         text.setTextAlign(Paint.Align.LEFT);
         String displayLabel = label;
-        float available = Math.max(dp(72f), width - dp(164f) - textLeft);
+        float timeRight = width - dp(14f);
+        float totalWidth = timePrimaryWidth + timeSecondaryWidth + (timeSecondaryWidth > 0f ? dp(5f) : 0f);
+        float timeX = timeRight - totalWidth;
+        float available = Math.max(dp(42f), timeX - textLeft - dp(11f));
         if (text.measureText(displayLabel) > available) {
             // Clip instead of creating a shortened String on every frame.
             canvas.save();
-            canvas.clipRect(textLeft, 0f, textLeft + available, dp(31f));
-            canvas.drawText(displayLabel, textLeft, dp(27f) + textOffsetY, text);
+            canvas.clipRect(textLeft, 0f, textLeft + available, dp(27f));
+            canvas.drawText(displayLabel, textLeft, dp(23f) + textOffsetY, text);
             canvas.restore();
         } else {
-            canvas.drawText(displayLabel, textLeft, dp(27f), text);
+            canvas.drawText(displayLabel, textLeft, dp(23f) + textOffsetY, text);
         }
 
         text.setTypeface(regular);
-        text.setTextSize(dp(10.5f));
+        text.setTextSize(dp(8.5f));
         text.setColor(Color.WHITE);
-        text.setAlpha(Math.round(visibleAlpha * 0.52f));
-        canvas.drawText("Today · since 12 AM", textLeft, dp(42f) + textOffsetY, text);
+        text.setAlpha(Math.round(visibleAlpha * 0.48f));
+        canvas.drawText("SCREEN TIME  ·  TODAY", textLeft, dp(38f) + textOffsetY, text);
 
-        float timeRight = width - dp(16f);
-        float timeY = dp(33f) + textOffsetY;
-        float totalWidth = timePrimaryWidth + timeSecondaryWidth + (timeSecondaryWidth > 0f ? dp(4f) : 0f);
-        float timeX = timeRight - totalWidth;
+        float timeY = dp(30f) + textOffsetY;
         text.setTextAlign(Paint.Align.LEFT);
         text.setTypeface(bold);
-        text.setTextSize(dp(24f));
+        text.setTextSize(dp(22f));
         text.setColor(Color.WHITE);
         text.setAlpha(Math.round(visibleAlpha * 0.98f));
         canvas.drawText(timePrimary, timeX, timeY, text);
         float unitX = timeX + text.measureText(timePrimary);
         text.setTypeface(medium);
-        text.setTextSize(dp(14f));
+        text.setTextSize(dp(12.5f));
         text.setAlpha(Math.round(visibleAlpha * 0.62f));
         canvas.drawText(timePrimaryUnit, unitX, timeY, text);
         if (!timeSecondary.isEmpty()) {
             float secondX = timeRight - timeSecondaryWidth;
             text.setTypeface(bold);
-            text.setTextSize(dp(24f));
+            text.setTextSize(dp(22f));
             text.setAlpha(Math.round(visibleAlpha * 0.98f));
             canvas.drawText(timeSecondary, secondX, timeY, text);
             text.setTypeface(medium);
-            text.setTextSize(dp(14f));
+            text.setTextSize(dp(12.5f));
             text.setAlpha(Math.round(visibleAlpha * 0.62f));
             canvas.drawText(timeSecondaryUnit, secondX + text.measureText(timeSecondary), timeY, text);
         }
@@ -263,15 +267,15 @@ public final class ScreenTimeIslandPainter {
 
     private void drawHourlyBars(Canvas canvas, float width, int alpha, float progress,
                                 float pulse, int accent, int currentHour) {
-        float left = dp(15f);
-        float right = width - dp(15f);
+        float left = dp(13f);
+        float right = width - dp(13f);
         float gap = dp(2f);
-        float barWidth = Math.max(dp(2.2f), Math.min(dp(3f),
+        float barWidth = Math.max(dp(2f), Math.min(dp(2.8f),
             (right - left - (23f * gap)) / 24f));
         float totalWidth = (barWidth * 24f) + (gap * 23f);
         left = (width - totalWidth) * 0.5f;
-        float baseline = dp(77f);
-        float maxHeight = dp(14f);
+        float baseline = dp(66f);
+        float maxHeight = dp(11f);
         long maximum = 1L;
         for (long value : hourly) if (value > maximum) maximum = value;
         for (int i = 0; i < 24; i++) {
@@ -295,14 +299,14 @@ public final class ScreenTimeIslandPainter {
         }
 
         text.setTypeface(regular);
-        text.setTextSize(dp(8f));
+        text.setTextSize(dp(7.5f));
         text.setColor(Color.WHITE);
         text.setAlpha(Math.round(alpha * 0.36f));
         text.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("12A", dp(15f), dp(91f), text);
-        canvas.drawText("6A", width * 0.25f - dp(5f), dp(91f), text);
-        canvas.drawText("12P", width * 0.5f - dp(8f), dp(91f), text);
-        canvas.drawText("6P", width * 0.75f - dp(5f), dp(91f), text);
+        canvas.drawText("12A", dp(13f), dp(80f), text);
+        canvas.drawText("6A", width * 0.25f - dp(5f), dp(80f), text);
+        canvas.drawText("12P", width * 0.5f - dp(8f), dp(80f), text);
+        canvas.drawText("6P", width * 0.75f - dp(5f), dp(80f), text);
     }
 
     private void drawIcon(Canvas canvas, float left, float top, float size, int alpha) {
