@@ -1232,7 +1232,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
     }
   };
 
-remove accessibility disclosure handler  const requestNotifications = async (): Promise<boolean> => {
+  const requestNotifications = async (): Promise<boolean> => {
     await openPermission("notifications");
     const latestStatus = await getStudyModeStatus();
     if (isMountedRef.current) setStatus(latestStatus);
