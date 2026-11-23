@@ -1214,7 +1214,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
   ];
 
   const openPermission = async (permission: StudyModePermissionKey | "dnd") => {
-remove accessibility settings action    if (permission === "notifications") {
+    if (permission === "notifications") {
       try {
         const enabled = await requestStudyModeNotificationPermission();
         if (!enabled) await openStudyModePermission("notifications");
