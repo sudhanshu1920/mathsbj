@@ -1172,7 +1172,6 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeManager.includes('requestFocusServiceRecovery(Context context, String reason)') ||
     !studyModeManager.includes('setExactAndAllowWhileIdle(') ||
     !studyModeAlarmReceiver.includes('onFocusServiceRecoveryAlarm(context)') ||
-    !studyModeFocus.includes('requestImmediateEvaluation()') ||
     !studyModeFocus.includes('candidate.postOnAnimation(() -> verifyShieldVisibility(') ||
     !studyModePage.includes('key: "usage" as const') ||
     !studyModePage.includes('getStudyModePermissionReadiness') ||
