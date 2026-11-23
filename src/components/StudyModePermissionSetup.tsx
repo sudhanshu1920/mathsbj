@@ -17,7 +17,6 @@ export type StudyModePermissionKey =
   | "overlay"
   | "battery"
   | "exactAlarm"
-  | "accessibility"
   | "notifications"
   | "oemBackground"
   | "dnd";
@@ -59,7 +58,7 @@ const StudyModePermissionSetup = ({
       description: managed
         ? "Managed device access."
         : advancedReady && !permissions.usageAccess
-          ? "Advanced detection is active."
+          ? "Advanced window detection is active."
           : "Detect the app in use.",
       granted: permissions.usageAccess === true || managed,
       required: !readiness.monitoringReady && !readiness.advancedMonitoringRequested,
@@ -93,17 +92,6 @@ const StudyModePermissionSetup = ({
       required: false,
       icon: BatteryCharging,
       statusText: "Check manually",
-    }] : []),
-    ...(permissions.accessibilityAvailable ? [{
-      key: "accessibility" as const,
-      title: "Accessibility Service",
-      description: advancedReady
-        ? "Advanced window detection is ready."
-        : "Detect app windows in supported views.",
-      granted: advancedReady,
-      required: readiness.advancedMonitoringRequested && !advancedReady,
-      icon: ShieldCheck,
-      statusText: readiness.advancedMonitoringRequested && !advancedReady ? "First scan" : undefined,
     }] : []),
     ...(status.exactAlarmFallback ? [{
       key: "exactAlarm" as const,
