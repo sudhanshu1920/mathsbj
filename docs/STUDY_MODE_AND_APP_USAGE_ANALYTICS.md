@@ -24,35 +24,21 @@ The UI identifies this as managed-profile suspension.
 ### Normal personal phone
 
 A regular installed app does not automatically have Device Owner authority.
-When Math Master is not Device Owner/Profile Owner, the Standard build uses
-Usage Access + an explicitly approved overlay (Focus Shield). The separate
-Advanced build can additionally enable a user-approved Accessibility Service
-for multi-window package detection. Its configured window-state, windows-changed,
-and view-focused events provide short-lived positive package evidence and wake
-the foreground monitor promptly. A separately throttled event scan never cancels
-the periodic all-window scan. The scanner reads package names only and does not
-traverse nodes or read screen text. Both are best-effort Focus Shield modes,
-not system-level package suspension. The interface labels them as **Shield
-only**, never **Frozen**.
+When Math Master is not Device Owner/Profile Owner, Focus Shield uses
+**Usage Access + an explicitly approved overlay**. UsageStats foreground events
+identify the currently resumed app, and the monitor checks that package against
+the Blocked Apps list. This is a foreground-only best-effort shield, not Android
+system-level package suspension. It does not independently inspect secondary
+split-screen panes or floating-window packages. The interface labels this mode
+as **Shield only**, never **Frozen**.
 
-Before Android Settings is opened, the app displays a prominent disclosure
-and requires an explicit affirmative choice. The accepted choice is committed
-to native private preferences before the Accessibility service is allowed to
-scan. The Advanced service reads only the package name and focus state exposed
-by accessible interactive application windows. It does not read node text,
-messages, passwords, screenshots, or gestures. Android/OEM window availability
-varies, so unsupported floating-window implementations cannot be guaranteed.
-If Android cannot expose an application window's package name, or any exposed
-application window cannot be read, the Advanced snapshot is marked incomplete.
-The monitor preserves an existing shield and reports monitoring unavailable
-instead of interpreting a partial list as proof that no blocked pane is visible.
-Usage Access remains available as a fallback. Standard and Advanced share the
-same application ID and signing identity and therefore cannot be installed
-side-by-side. Advanced uses a reserved version-code offset so the Standard
-auto-update cannot downgrade it and remove the Accessibility service. Advanced
-builds are distributed as separate CI artifacts and require the matching
-Advanced artifact for updates; the Standard public update feed does not upgrade
-Advanced installs.
+Math Master does not declare or enable an Accessibility Service for Study Mode.
+The Android build generator also removes stale Accessibility service declarations
+and generated resources from previously configured Android projects. Users with
+an older APK may still see the previous service in Android Accessibility Settings;
+they should switch off the old Math Master service after installing the updated
+build. Usage Access remains the required foreground monitoring source on
+unmanaged personal devices.
 
 The current DPC receiver is the policy component used after an authorized
 Android/enterprise provisioning flow has already made Math Master the owner.
