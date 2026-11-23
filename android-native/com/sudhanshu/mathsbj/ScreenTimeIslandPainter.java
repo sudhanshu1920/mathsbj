@@ -120,17 +120,17 @@ public final class ScreenTimeIslandPainter {
             secondaryValues[minute] = secondary;
             secondaryUnits[minute] = secondaryUnit;
             text.setTypeface(bold);
-            text.setTextSize(dp(24f));
+            text.setTextSize(dp(22f));
             float width = text.measureText(primary);
             text.setTypeface(medium);
-            text.setTextSize(dp(14f));
+            text.setTextSize(dp(12.5f));
             primaryWidths[minute] = width + text.measureText(primaryUnit);
             if (!secondary.isEmpty()) {
                 text.setTypeface(bold);
-                text.setTextSize(dp(24f));
+                text.setTextSize(dp(22f));
                 width = text.measureText(secondary);
                 text.setTypeface(medium);
-                text.setTextSize(dp(14f));
+                text.setTextSize(dp(12.5f));
                 secondaryWidths[minute] = width + text.measureText(secondaryUnit);
             }
         }
@@ -168,10 +168,10 @@ public final class ScreenTimeIslandPainter {
         canvas.scale(scale, scale, w * 0.5f, h * 0.5f);
         fill.setAlpha(overallAlpha);
         canvas.drawRoundRect(0.5f, 0.5f, w - 0.5f, h - 0.5f,
-            h * (0.5f - 0.18f * safeMorph), h * (0.5f - 0.18f * safeMorph), fill);
+            h * (0.5f - 0.17f * safeMorph), h * (0.5f - 0.17f * safeMorph), fill);
         hairline.setAlpha(overallAlpha);
         canvas.drawRoundRect(dp(0.5f), dp(0.5f), w - dp(0.5f), h - dp(0.5f),
-            h * (0.5f - 0.18f * safeMorph), h * (0.5f - 0.18f * safeMorph), hairline);
+            h * (0.5f - 0.17f * safeMorph), h * (0.5f - 0.17f * safeMorph), hairline);
         int rimAlpha = Math.round(overallAlpha * 0.42f * safeMorph);
         rim.setColor((rimAlpha << 24) | (accent & 0x00ffffff));
         rim.setStrokeWidth(dp(1.2f));
@@ -241,23 +241,23 @@ public final class ScreenTimeIslandPainter {
         float timeY = dp(30f) + textOffsetY;
         text.setTextAlign(Paint.Align.LEFT);
         text.setTypeface(bold);
-        text.setTextSize(dp(24f));
+        text.setTextSize(dp(22f));
         text.setColor(Color.WHITE);
         text.setAlpha(Math.round(visibleAlpha * 0.98f));
         canvas.drawText(timePrimary, timeX, timeY, text);
         float unitX = timeX + text.measureText(timePrimary);
         text.setTypeface(medium);
-        text.setTextSize(dp(14f));
+        text.setTextSize(dp(12.5f));
         text.setAlpha(Math.round(visibleAlpha * 0.62f));
         canvas.drawText(timePrimaryUnit, unitX, timeY, text);
         if (!timeSecondary.isEmpty()) {
             float secondX = timeRight - timeSecondaryWidth;
             text.setTypeface(bold);
-            text.setTextSize(dp(24f));
+            text.setTextSize(dp(22f));
             text.setAlpha(Math.round(visibleAlpha * 0.98f));
             canvas.drawText(timeSecondary, secondX, timeY, text);
             text.setTypeface(medium);
-            text.setTextSize(dp(14f));
+            text.setTextSize(dp(12.5f));
             text.setAlpha(Math.round(visibleAlpha * 0.62f));
             canvas.drawText(timeSecondaryUnit, secondX + text.measureText(timeSecondary), timeY, text);
         }
