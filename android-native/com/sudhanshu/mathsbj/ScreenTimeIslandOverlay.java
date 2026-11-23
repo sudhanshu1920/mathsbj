@@ -192,7 +192,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             }
         } else if (phase == HOLD) {
             morphProgress = targetExpanded ? 1f : 0f;
-            barProgress = clamp((MORPH_MS - 170L + Math.max(0L, now - phaseStartedAt))
+            barProgress = clamp((MORPH_MS - 140L + Math.max(0L, now - phaseStartedAt))
                 / (float) BAR_STAGGER_COMPLETION_MS, 0f, 1f);
             if (!touchDown) heldMillis += delta;
             if (heldMillis >= HOLD_MS) startDismiss();
