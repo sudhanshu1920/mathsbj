@@ -1197,7 +1197,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
         ? "Required for this managed-device schedule."
         : "Optional on personal devices. Android uses an inexact fallback when this access is unavailable.",
     }] : []),
-remove Advanced multi-window permission item    {
+    {
       key: "notifications" as const,
       title: "Notifications",
       granted: status?.permissions.notificationsEnabled === true,
