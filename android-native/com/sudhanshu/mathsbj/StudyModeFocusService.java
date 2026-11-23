@@ -304,10 +304,7 @@ public final class StudyModeFocusService extends Service {
         }
     }
 
-    /**
-     * AccessibilityService calls this after a real app-window event. Rechecks
-     * run on the monitor HandlerThread and are bounded/coalesced.
-     */
+    /** Coalesce rapid foreground re-evaluation requests on the monitor HandlerThread. */
     public static void onReminderIntervalChanged(Context context, int intervalMinutes) {
         if (context == null || !StudyModeUsageAccumulator.isValidInterval(intervalMinutes)) return;
         StudyModeFocusService service = activeService;
@@ -393,11 +390,6 @@ public final class StudyModeFocusService extends Service {
             }
             service.enqueueImmediateEvaluation();
         });
-    }
-
-    public static void requestImmediateEvaluation() {
-        StudyModeFocusService service = activeService;
-        if (service != null) service.enqueueImmediateEvaluation();
     }
 
     private void enqueueImmediateEvaluation() {
