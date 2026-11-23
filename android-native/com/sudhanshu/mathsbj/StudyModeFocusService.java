@@ -141,7 +141,6 @@ public final class StudyModeFocusService extends Service {
     private String lastLoggedBlockedPackage = null;
     private boolean foregroundUnknownLogged = false;
     private boolean foregroundLookupFailureLogged = false;
-    private boolean windowSnapshotUnavailableLogged = false;
     private boolean permissionUnavailableLogged = false;
     private String failedPopupPackage = "";
     private int failedPopupAttempts = 0;
@@ -728,24 +727,13 @@ public final class StudyModeFocusService extends Service {
             // interactive-window snapshot.
             boolean usageAccessAvailable = StudyModeManager.hasUsageAccess(StudyModeFocusService.this);
             String foreground = usageAccessAvailable ? getMostRecentlyResumedPackage() : null;
-            String foregroundSource = usageAccessAvailable ? "usage_events" : "accessibility_window_or_event";
+            String foregroundSource = "usage_events";
 
-            String blockedWindowPackage = StudyModeWindowRegistry.findBlockedPackage(
-                StudyModeFocusService.this, foreground);
-            if (blockedWindowPackage != null) {
-                foreground = blockedWindowPackage;
-                boolean eventMatched = StudyModeWindowRegistry.wasRecentlyObservedAccessibilityEvent(blockedWindowPackage);
-                foregroundSource = eventMatched ? "accessibility_event" : "accessible_interactive_window";
-                logStage("BLOCKED_WINDOW_MATCHED", blockedWindowPackage, "", "matched", foregroundSource);
-            } else if (StudyModeWindowRegistry.hasFreshSnapshot()
-                && (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)
-                    || hasForegroundLookupFailure())) {
-                // A complete accessible-window snapshot with no selected blocked
-                // package supersedes a stale UsageEvents package (or missing Usage Access).
-                foreground = getPackageName();
-            }
+            // UsageStats is the only personal-device foreground source. Without
+            // Accessibility window scanning, secondary split-screen panes are not
+            // independently inspected.
 
-            // An unresolved foreground/window snapshot is not evidence that the
+            // An unresolved foreground package is not evidence that the
             // user is outside a blocked app. Preserve an already-visible shield.
             if (foreground == null || foreground.trim().isEmpty()) {
                 periodicReminderUsage.pause();
@@ -775,29 +763,7 @@ public final class StudyModeFocusService extends Service {
             // If the user enabled Advanced detection, an incomplete window list
             // cannot prove that no blocked split-screen pane exists. Keep any
             // current shield visible and report monitoring as unavailable.
-            boolean accessibilityWindowCoverageRequired =
-                StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);
-            if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()
-                && !shouldShield) {
-                periodicReminderUsage.pause();
-                islandUsage.pause();
-                mainHandler.post(() -> dismissScreenTimeIslandImmediately("window_snapshot_unavailable"));
-                persistReminderUsage(true);
-                if (!windowSnapshotUnavailableLogged) {
-                    windowSnapshotUnavailableLogged = true;
-                    logStage("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE", "", "", "deferred",
-                        "stale_or_incomplete_interactive_window_snapshot");
-                }
-                if (monitorHandler != null)  scheduleMonitorCycle(POLL_INTERVAL_MS, monitorGenerationAtStart);
-                return;
-            }
-            windowSnapshotUnavailableLogged = false;
-
-            String activePackage = StudyModeWindowRegistry.findFocusedPackage(StudyModeFocusService.this, foreground);
-            // StudyModeWindowRegistry deliberately returns null when Accessibility
-            // is connected but its focused-window snapshot is incomplete. Do not
-            // resurrect a cached UsageEvents package here: timer accounting must
-            // pause until the current focused package is positively identified.
+            String activePackage = foreground;
             boolean selectedStudyApp = activePackage != null
                 && StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage);
             boolean reminderEligible = !StudyModeManager.isProStrictModeActive(StudyModeFocusService.this)
@@ -1277,7 +1243,6 @@ public final class StudyModeFocusService extends Service {
         lastLoggedBlockedPackage = null;
         foregroundUnknownLogged = false;
         foregroundLookupFailureLogged = false;
-        windowSnapshotUnavailableLogged = false;
         resetPopupRetryState();
     }
 
