@@ -61,7 +61,6 @@ public final class StudyModeManager {
     private static final String KEY_DAYS = "selectedDays";
     private static final String KEY_APPLIED = "appliedPackages";
     private static final String KEY_LAST_STATE = "lastAppliedState";
-    private static final String KEY_ACCESSIBILITY_DISCLOSURE_CONSENT = "accessibilityDisclosureConsent";
     private static final String ACTION_BOUNDARY = "com.sudhanshu.mathsbj.STUDY_MODE_BOUNDARY";
     private static final String ACTION_SESSION_BOUNDARY = "com.sudhanshu.mathsbj.STUDY_MODE_SESSION_BOUNDARY";
     private static final String ACTION_FOCUS_SERVICE_RECOVERY = "com.sudhanshu.mathsbj.STUDY_MODE_FOCUS_SERVICE_RECOVERY";
@@ -92,17 +91,6 @@ public final class StudyModeManager {
 
     private static SharedPreferences prefs(Context context) {
         return context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-    }
-
-    public static boolean hasAccessibilityDisclosureConsent(Context context) {
-        return prefs(context).getBoolean(KEY_ACCESSIBILITY_DISCLOSURE_CONSENT, false);
-    }
-
-    public static void recordAccessibilityDisclosureConsent(Context context) {
-        boolean saved = prefs(context).edit()
-            .putBoolean(KEY_ACCESSIBILITY_DISCLOSURE_CONSENT, true)
-            .commit();
-        if (!saved) throw new IllegalStateException("Unable to save Accessibility disclosure consent.");
     }
 
     public static boolean isEnabled(Context context) {
@@ -655,16 +643,11 @@ public final class StudyModeManager {
     }
 
     public static boolean hasForegroundMonitoringPermission(Context context) {
-        return hasUsageAccess(context) || isAccessibilityWindowMonitoringRequired(context);
+        return hasUsageAccess(context);
     }
 
     public static boolean hasForegroundMonitoringSource(Context context) {
         return hasForegroundMonitoringPermission(context);
-    }
-
-    public static boolean isAccessibilityWindowMonitoringRequired(Context context) {
-        return hasAccessibilityDisclosureConsent(context)
-            && StudyModeWindowRegistry.isAccessibilityServiceEnabled(context);
     }
 
     public static boolean hasOverlayPermission(Context context) {
@@ -1684,11 +1667,6 @@ public final class StudyModeManager {
         config.put("selectedDays", days);
 
         JSObject permissions = new JSObject();
-        boolean accessibilityAvailable = StudyModeWindowRegistry.isAccessibilityServiceAvailable(context);
-        boolean accessibilityEnabled = accessibilityAvailable
-            && StudyModeWindowRegistry.isAccessibilityServiceEnabled(context);
-        boolean accessibilityConsent = hasAccessibilityDisclosureConsent(context);
-        boolean accessibilitySnapshotReady = StudyModeWindowRegistry.hasFreshSnapshot();
         permissions.put("usageAccess", hasUsageAccess(context));
         permissions.put("overlay", hasOverlayPermission(context));
         permissions.put("exactAlarm", hasExactAlarmPermission(context));
@@ -1700,10 +1678,6 @@ public final class StudyModeManager {
         permissions.put("deviceOwner", isDeviceOwner(context));
         permissions.put("profileOwner", isProfileOwner(context));
         permissions.put("dndAccess", hasNotificationPolicyAccess(context));
-        permissions.put("accessibilityAvailable", accessibilityAvailable);
-        permissions.put("accessibilityEnabled", accessibilityEnabled);
-        permissions.put("accessibilityConsent", accessibilityConsent);
-        permissions.put("accessibilitySnapshotReady", accessibilitySnapshotReady);
 
         List<String> applied = readAppliedPackages(context);
         JSArray appliedArray = new JSArray();
@@ -1739,8 +1713,6 @@ public final class StudyModeManager {
         boolean policyOwner = isPolicyOwner(context);
         boolean usageGranted = hasUsageAccess(context);
         boolean overlayGranted = hasOverlayPermission(context);
-        boolean accessibilityMonitoringReady = accessibilityEnabled && accessibilityConsent
-            && accessibilitySnapshotReady;
         boolean usageLookupFailed = StudyModeFocusService.hasForegroundLookupFailure();
         if (!enabled && !sessionActive) {
             if (!"policy_failed".equals(state) && !"policy_unavailable".equals(state)) state = "disabled";
@@ -1753,14 +1725,9 @@ public final class StudyModeManager {
             else if ((policyPackages.isEmpty() && proActive) || (!policyPackages.isEmpty() && suspended.containsAll(policyPackages))) state = "system_suspension";
             else if (!suspended.isEmpty()) state = "partial_suspension";
             else if (!"policy_unavailable".equals(state)) state = "policy_failed";
-        } else if ((!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted) {
+        } else if (!usageGranted || !overlayGranted) {
             state = "permission_required";
-        } else if (accessibilityEnabled && accessibilityConsent && !accessibilityMonitoringReady) {
-            // Advanced multi-window mode is an explicit request for cross-window
-            // coverage. UsageStats alone cannot prove that every visible pane was inspected.
-            state = "monitoring_unavailable";
-        } else if ((!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady) {
-            // Without Usage Access, a fresh complete Accessibility snapshot is the fallback.
+        } else if (usageLookupFailed) {
             state = "monitoring_unavailable";
         } else if (!policyOwner) {
             // Never infer healthy monitoring from the foreground Service flag alone.
