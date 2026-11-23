@@ -131,10 +131,10 @@ public final class IslandPainterPreview {
             canvas.drawCircle(cameraLeft + 25f, 5f, 2.2f, camera);
         }
 
-        int collapsedWidth = "center".equals(cutout) ? 112 : 120;
-        int collapsedHeight = "center".equals(cutout) ? 34 : 36;
-        int expandedWidth = Math.min(screenWidth - 32, 356);
-        int expandedHeight = 96;
+        int collapsedWidth = 112;
+        int collapsedHeight = 34;
+        int expandedWidth = Math.min(screenWidth - 32, 344);
+        int expandedHeight = 88;
         int anchorTop = "center".equals(cutout) ? 0 : 6;
         int windowWidth = Math.round(lerp(collapsedWidth, expandedWidth, frame.widthProgress));
         int windowHeight = Math.round(lerp(collapsedHeight, expandedHeight, frame.heightProgress));
