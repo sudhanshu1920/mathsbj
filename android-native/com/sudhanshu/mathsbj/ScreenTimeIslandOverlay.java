@@ -28,13 +28,13 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
     private static final int HOLD = 2;
     private static final int TOGGLE = 3;
     private static final int DISMISS = 4;
-    private static final long EMERGE_MS = 140L;
+    private static final long EMERGE_MS = 128L;
     private static final long REDUCED_CROSSFADE_MS = 120L;
-    private static final long MORPH_MS = 480L;
-    private static final long DISMISS_MS = 380L;
+    private static final long MORPH_MS = 440L;
+    private static final long DISMISS_MS = 340L;
     private static final long CONTENT_EXIT_MS = 110L;
-    private static final long BAR_STAGGER_COMPLETION_MS = 480L;
-    private static final long HOLD_MS = 4200L;
+    private static final long BAR_STAGGER_COMPLETION_MS = 410L;
+    private static final long HOLD_MS = 4000L;
     private static final long LONG_PRESS_MS = 520L;
 
     private final Context context;
@@ -87,10 +87,10 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         if (windowManager == null) throw new IllegalStateException("WindowManager unavailable");
         int screenWidth = context.getResources().getDisplayMetrics().widthPixels;
-        collapsedWidth = dp(120);
-        collapsedHeight = dp(36);
-        expandedWidth = Math.max(dp(112), Math.min(screenWidth - dp(32), dp(356)));
-        expandedHeight = dp(96);
+        collapsedWidth = dp(112);
+        collapsedHeight = dp(34);
+        expandedWidth = Math.max(dp(112), Math.min(screenWidth - dp(32), dp(344)));
+        expandedHeight = dp(88);
         params = createWindowParams();
         view = new IslandView(context, appLabel, appIcon, hourlyMillis, totalTodayMillis);
         choreographer = Choreographer.getInstance();
@@ -172,14 +172,14 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             }
         } else if (phase == MORPH) {
             long elapsed = now - phaseStartedAt;
-            float widthProgress = ScreenTimeIslandSpring.valueAt(elapsed / 1000f, 0.42f, 0.78f);
-            float heightProgress = ScreenTimeIslandSpring.valueAt(Math.max(0L, elapsed - 60L) / 1000f, 0.42f, 0.78f);
+            float widthProgress = ScreenTimeIslandSpring.valueAt(elapsed / 1000f, 0.38f, 0.86f);
+            float heightProgress = ScreenTimeIslandSpring.valueAt(Math.max(0L, elapsed - 48L) / 1000f, 0.38f, 0.86f);
             morphProgress = clamp(Math.min(widthProgress, heightProgress), 0f, 1.06f);
             setInterpolatedBounds(widthProgress, heightProgress);
-            float contentProgress = clamp((morphProgress - 0.55f) / 0.45f, 0f, 1f);
+            float contentProgress = clamp((morphProgress - 0.50f) / 0.50f, 0f, 1f);
             iconScale = contentProgress;
-            barProgress = clamp((elapsed - 170L) / (float) BAR_STAGGER_COMPLETION_MS, 0f, 1f);
-            displayedMillis = Math.round(totalTodayMillis * easeOutCubic(elapsed / 520f));
+            barProgress = clamp((elapsed - 140L) / (float) BAR_STAGGER_COMPLETION_MS, 0f, 1f);
+            displayedMillis = Math.round(totalTodayMillis * easeOutCubic(elapsed / 480f));
             if (elapsed >= MORPH_MS) {
                 morphProgress = 1f;
                 setWindowBounds(expandedWidth, expandedHeight);
@@ -198,11 +198,11 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             if (heldMillis >= HOLD_MS) startDismiss();
         } else if (phase == TOGGLE) {
             long elapsed = now - phaseStartedAt;
-            float spring = ScreenTimeIslandSpring.valueAt(elapsed / 1000f, 0.34f, 0.86f);
+            float spring = ScreenTimeIslandSpring.valueAt(elapsed / 1000f, 0.30f, 0.90f);
             morphProgress = toggleFrom + (toggleTo - toggleFrom) * clamp(spring, 0f, 1.05f);
             setWindowBounds(Math.round(lerp(collapsedWidth, expandedWidth, morphProgress)),
                 Math.round(lerp(collapsedHeight, expandedHeight, morphProgress)));
-            if (elapsed >= 420L) {
+            if (elapsed >= 380L) {
                 morphProgress = toggleTo;
                 targetExpanded = toggleTo >= 0.5f;
                 setWindowBounds(targetExpanded ? expandedWidth : collapsedWidth,
@@ -215,14 +215,14 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             }
         } else if (phase == DISMISS) {
             long elapsed = now - phaseStartedAt;
-            float spring = ScreenTimeIslandSpring.valueAt(elapsed / 1000f, 0.42f, 0.90f);
+            float spring = ScreenTimeIslandSpring.valueAt(elapsed / 1000f, 0.36f, 0.92f);
             float collapse = clamp(spring, 0f, 1f);
             morphProgress = toggleFrom * (1f - collapse);
             float widthProgress = morphProgress;
             float heightProgress = Math.max(0f, morphProgress);
             setWindowBounds(Math.round(lerp(collapsedWidth, expandedWidth, widthProgress)),
                 Math.round(lerp(collapsedHeight, expandedHeight, heightProgress)));
-            alpha = elapsed <= 240L ? 1f : clamp(1f - (elapsed - 240L) / 140f, 0f, 1f);
+            alpha = elapsed <= 210L ? 1f : clamp(1f - (elapsed - 210L) / 130f, 0f, 1f);
             iconScale = alpha;
             barProgress = elapsed < CONTENT_EXIT_MS ? 1f - elapsed / (float) CONTENT_EXIT_MS : 0f;
             if (elapsed >= DISMISS_MS) {
@@ -269,8 +269,8 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         if (centred != null) {
             cameraWidth = centred.width();
             cameraHeight = centred.height();
-            collapsedWidth =BoundWidth(cameraWidth + dp(20));
-            collapsedHeight = BoundHeight(cameraHeight + dp(8));
+            collapsedWidth = BoundWidth(cameraWidth + dp(18));
+            collapsedHeight = BoundHeight(cameraHeight + dp(6));
             top = Math.max(0, (centred.top + centred.bottom - collapsedHeight) / 2);
         }
         anchorTop = top;
