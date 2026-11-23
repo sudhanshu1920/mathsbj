@@ -87,7 +87,7 @@ const StudyModePermissionSetup = ({
       icon: BatteryCharging,
       statusText: "Check manually",
     }] : []),
-remove Accessibility permission card    ...(status.exactAlarmFallback ? [{
+    ...(status.exactAlarmFallback ? [{
       key: "exactAlarm" as const,
       title: "Exact Alarms",
       description: readiness.exactAlarmRequired
