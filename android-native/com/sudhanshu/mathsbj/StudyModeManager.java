@@ -989,7 +989,7 @@ public final class StudyModeManager {
         return packageName != null && getEnforcedPackages(context).contains(packageName);
     }
 
-    /** Single policy predicate shared by foreground and Accessibility window detection. */
+    /** Single package restriction predicate shared by foreground monitoring and policy suspension. */
     public static boolean isPackageRestricted(Context context, String packageName) {
         if (context == null || !isVisibleApplication(context, packageName)
             || !shouldEnforceNow(context)) return false;
@@ -1203,7 +1203,7 @@ public final class StudyModeManager {
         Context app = context.getApplicationContext();
         String recoveryReason = reason == null || reason.trim().isEmpty() ? "unspecified" : reason;
 
-        if (!hasAccessibilityDisclosureConsent(app) || !shouldEnforceNow(app)
+        if (!hasUsageAccess(app) || !shouldEnforceNow(app)
             || getEnforcedPackages(app).isEmpty()) {
             cancelFocusServiceRecoveryAlarm(app);
             return false;
@@ -1743,7 +1743,7 @@ public final class StudyModeManager {
                 state = monitorState;
             } else if ("focus_shield_running".equals(state) || "focus_shield_starting".equals(state)
                 || "accessibility_disconnected".equals(state)) {
-                // Normalize states persisted by versions that did not track monitor health.
+                // Normalize states persisted by older releases.
                 state = "service_stopped";
             }
         }
