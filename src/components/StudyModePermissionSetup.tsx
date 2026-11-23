@@ -17,7 +17,6 @@ export type StudyModePermissionKey =
   | "overlay"
   | "battery"
   | "exactAlarm"
-  | "accessibility"
   | "notifications"
   | "oemBackground"
   | "dnd";
@@ -49,22 +48,16 @@ const StudyModePermissionSetup = ({
 }: StudyModePermissionSetupProps) => {
   const permissions = status.permissions;
   const readiness = getStudyModePermissionReadiness(status);
-  const advancedReady = readiness.advancedMonitoringRequested
-    && permissions.accessibilitySnapshotReady === true;
   const managed = permissions.deviceOwner || permissions.profileOwner;
   const cards: PermissionCardItem[] = [
     {
       key: "usage",
       title: "Usage Access",
-      description: managed
-        ? "Managed device access."
-        : advancedReady && !permissions.usageAccess
-          ? "Advanced detection is active."
-          : "Detect the app in use.",
+      description: managed ? "Managed device access." : "Detect the app in use.",
       granted: permissions.usageAccess === true || managed,
-      required: !readiness.monitoringReady && !readiness.advancedMonitoringRequested,
+      required: !readiness.monitoringReady,
       icon: Smartphone,
-      statusText: managed ? "Not required" : advancedReady && !permissions.usageAccess ? "Fallback" : undefined,
+      statusText: managed ? "Not required" : undefined,
     },
     {
       key: "overlay",
@@ -93,17 +86,6 @@ const StudyModePermissionSetup = ({
       required: false,
       icon: BatteryCharging,
       statusText: "Check manually",
-    }] : []),
-    ...(permissions.accessibilityAvailable ? [{
-      key: "accessibility" as const,
-      title: "Accessibility Service",
-      description: advancedReady
-        ? "Advanced window detection is ready."
-        : "Detect app windows in supported views.",
-      granted: advancedReady,
-      required: readiness.advancedMonitoringRequested && !advancedReady,
-      icon: ShieldCheck,
-      statusText: readiness.advancedMonitoringRequested && !advancedReady ? "First scan" : undefined,
     }] : []),
     ...(status.exactAlarmFallback ? [{
       key: "exactAlarm" as const,
