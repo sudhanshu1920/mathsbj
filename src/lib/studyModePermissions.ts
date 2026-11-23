@@ -1,7 +1,6 @@
 import type { StudyModeStatus } from "@/lib/studyMode";
 
 export interface StudyModePermissionReadiness {
-  advancedMonitoringRequested: boolean;
   monitoringReady: boolean;
   overlayReady: boolean;
   exactAlarmRequired: boolean;
@@ -12,35 +11,27 @@ export interface StudyModePermissionReadiness {
 /**
  * Keep the onboarding gate aligned with StudyModeManager.getStatus().
  * Managed-device policy suspension does not rely on Usage Access or overlays.
- * On personal devices, opting into Advanced window detection requires its
- * first complete snapshot; a stale/incomplete scan is never treated as ready.
+ * Personal-device Focus Shield uses Usage Access as its foreground source.
  */
 export function getStudyModePermissionReadiness(
   status: StudyModeStatus,
 ): StudyModePermissionReadiness {
   const permissions = status.permissions;
   const managedEnforcement = permissions.deviceOwner || permissions.profileOwner;
-  const advancedMonitoringRequested = permissions.accessibilityEnabled === true
-    && permissions.accessibilityConsent === true;
-  const monitoringReady = managedEnforcement || (advancedMonitoringRequested
-    ? permissions.accessibilitySnapshotReady === true
-    : permissions.usageAccess === true);
+  const monitoringReady = managedEnforcement || permissions.usageAccess === true;
   const overlayReady = managedEnforcement || permissions.overlay === true;
   const exactAlarmRequired = status.enforcementState === "exact_alarm_required"
     || (managedEnforcement && status.exactAlarmFallback && permissions.exactAlarm !== true)
-    || (advancedMonitoringRequested && status.exactAlarmFallback && permissions.exactAlarm !== true);
+;
   const missing: string[] = [];
 
   if (!monitoringReady) {
-    missing.push(advancedMonitoringRequested
-      ? "Wait for Advanced window detection to complete its first scan"
-      : "Enable Usage Access");
+    missing.push("Enable Usage Access");
   }
   if (!overlayReady) missing.push("Allow Display over other apps");
   if (exactAlarmRequired) missing.push("Allow Exact Alarms for background recovery and managed scheduling");
 
   return {
-    advancedMonitoringRequested,
     monitoringReady,
     overlayReady,
     exactAlarmRequired,
