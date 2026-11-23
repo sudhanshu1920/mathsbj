@@ -10,8 +10,6 @@ const source = readFileSync(focusPath, "utf8");
 const manager = readFileSync(managerPath, "utf8");
 const page = readFileSync(pagePath, "utf8");
 const permissionSetup = readFileSync(permissionSetupPath, "utf8");
-const registry = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeWindowRegistry.java", import.meta.url), "utf8");
-const accessibility = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java", import.meta.url), "utf8");
 const alarmReceiver = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeAlarmReceiver.java", import.meta.url), "utf8");
 const usageAccumulator = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeUsageAccumulator.java", import.meta.url), "utf8");
 const islandDayUsage = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeDayUsage.java", import.meta.url), "utf8");
@@ -52,19 +50,10 @@ test("usage accounting is monotonic, shared globally and pauses on uncertain foc
     "enum State { STOPPED, RUNNING, PAUSED, REMINDER_PENDING, REMINDER_VISIBLE }",
   ]) assert.ok(usageAccumulator.includes(invariant), `Missing usage invariant: ${invariant}`);
   assert.ok(source.includes("SystemClock.elapsedRealtime()"));
-  assert.ok(source.includes("StudyModeWindowRegistry.findFocusedPackage"));
-  assert.ok(!source.includes("activePackage = foreground;"), "connected but incomplete Accessibility focus must not reuse cached UsageEvents package");
-  const focusedPackageLookup = between(
-    registry,
-    "public static String findFocusedPackage(",
-    "private static final class AccessibilityEventRecord",
-  );
-  assert.ok(focusedPackageLookup.includes("if (connected)"));
-  assert.ok(focusedPackageLookup.includes("if (!fresh || !complete) return null;"));
-  assert.ok(focusedPackageLookup.indexOf("if (connected)") < focusedPackageLookup.indexOf("if (usageForegroundPackage == null"));
+  assert.ok(source.includes("String activePackage = foreground;"));
+  assert.ok(source.includes("StudyModeManager.hasUsageAccess(StudyModeFocusService.this)"));
+  assert.ok(source.includes("getMostRecentlyResumedPackage()"));
   assert.ok(source.includes("StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage)"));
-  assert.ok(registry.includes("snapshotComplete"));
-  assert.ok(registry.includes("window.focused"));
   assert.ok(source.includes("periodicReminderUsage.pause()"));
   assert.ok(source.includes("periodicReminderVisible.get()"));
   assert.ok(source.includes("!activePackage.equals(getPackageName())"));
@@ -269,53 +258,6 @@ test("rapid interval edits are serialized and last choice wins", () => {
   assert.ok(page.includes("request !== reminderIntervalRequestRef.current"));
 });
 
-test("advanced accessibility monitoring enumerates interactive app windows without reading screen content", () => {
-  assert.ok(accessibility.includes("FLAG_RETRIEVE_INTERACTIVE_WINDOWS"));
-  assert.ok(accessibility.includes("getWindowsOnAllDisplays()"));
-  assert.ok(accessibility.includes("getWindows()"));
-  assert.ok(accessibility.includes("AccessibilityWindowInfo.TYPE_APPLICATION"));
-  assert.ok(accessibility.includes("root.getPackageName()"));
-  assert.ok(accessibility.includes("window.isFocused()"));
-  assert.ok(registry.includes("MAX_SNAPSHOT_AGE_MS"));
-  assert.ok(registry.includes("snapshotComplete"));
-  assert.ok(registry.includes("findBlockedPackage"));
-  const blockedWindowLookup = between(
-    registry,
-    "public static String findBlockedPackage(",
-    "static final class WindowRecord",
-  );
-  assert.ok(!blockedWindowLookup.includes("!snapshotComplete"));
-  assert.ok(blockedWindowLookup.includes("snapshotAtElapsedMs"));
-  assert.ok(blockedWindowLookup.includes("StudyModeManager.isPackageRestricted(context, window.packageName)"));
-  assert.ok(accessibility.includes("snapshot.complete"));
-  assert.ok(accessibility.includes("hasApplicationWindow"));
-  assert.ok(accessibility.includes("IDLE_RESCAN_INTERVAL_MS"));
-  assert.ok(accessibility.includes("nextDelayMs = IDLE_RESCAN_INTERVAL_MS"));
-  assert.ok(source.includes("isAccessibilityWindowMonitoringRequired"));
-  assert.ok(source.includes("hasForegroundLookupFailure()"));
-  assert.ok(source.includes("boolean accessibilityWindowCoverageRequired ="));
-  assert.ok(source.includes("StudyModeManager.isAccessibilityWindowMonitoringRequired(StudyModeFocusService.this);"));
-  assert.ok(source.includes("if (accessibilityWindowCoverageRequired && !StudyModeWindowRegistry.hasFreshSnapshot()"));
-  assert.ok(source.includes("an incomplete window list"));
-  assert.ok(source.includes("cannot prove that no blocked split-screen pane exists"));
-  assert.ok(source.includes("ACCESSIBILITY_WINDOW_SNAPSHOT_UNAVAILABLE"));
-  assert.ok(manager.includes("accessibilityMonitoringReady"));
-  assert.ok(manager.includes("(!usageGranted && (!accessibilityEnabled || !accessibilityConsent)) || !overlayGranted"));
-  assert.ok(manager.includes("accessibilityEnabled && accessibilityConsent && !accessibilityMonitoringReady"));
-  assert.ok(manager.includes("(!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady"));
-  assert.ok(manager.includes("accessibilityConsent"));
-  assert.ok(registry.includes("StudyModeManager.isPackageRestricted(context, window.packageName)"));
-  assert.ok(accessibility.includes("hasAccessibilityDisclosureConsent(this)"));
-  const interrupt = accessibility.slice(accessibility.indexOf("public void onInterrupt()"), accessibility.indexOf("@Override", accessibility.indexOf("public void onInterrupt()") + 1));
-  assert.ok(interrupt.includes("invalidateSnapshot()"));
-  assert.ok(interrupt.includes("scheduleScan(RESCAN_INTERVAL_MS)"));
-  assert.ok(!interrupt.includes("StudyModeWindowRegistry.clear()"));
-  assert.ok(manager.includes("recordAccessibilityDisclosureConsent"));
-  for (const forbidden of ["getText(", "getChild(", "performAction(", "takeScreenshot("]) {
-    assert.ok(!accessibility.includes(forbidden), "Accessibility scanner must not collect text, traverse nodes, act, or take screenshots");
-  }
-});
-
 test("foreground lookup retains a moving event cursor and bounds wide retries", () => {
   const resolver = between(source, "private String getMostRecentlyResumedPackage()", "private void showShield(");
   assert.ok(resolver.includes("EVENT_QUERY_OVERLAP_MS"));
@@ -431,7 +373,6 @@ test("foreground lookup failures surface as unavailable while service is alive",
   assert.ok(status.indexOf("hasForegroundLookupFailure()") < status.indexOf("getMonitoringState()"));
   assert.ok(status.includes('"monitoring_unavailable".equals(monitorState)'));
   assert.ok(page.includes('status.enforcementState === "monitoring_unavailable"'));
-  assert.ok(page.includes("grant Usage Access or enable Advanced window detection"));
 });
 
 test("service teardown preserves an overlay cleanup failure instead of overwriting it as stopped", () => {
@@ -462,111 +403,6 @@ test("decision generation changes only when the foreground restriction decision 
   assert.ok(verify.includes("decision_changed_before_visibility_check"));
 });
 
-
-test("Accessibility events are retained as bounded positive package evidence", () => {
-  assert.ok(registry.includes("ACCESSIBILITY_EVENT_TTL_MS = 2200L"));
-  assert.ok(registry.includes("MAX_RECENT_ACCESSIBILITY_EVENTS = 8"));
-  assert.ok(registry.includes("recordAccessibilityEvent("));
-  assert.ok(registry.includes("recentAccessibilityEvents"));
-  assert.ok(registry.includes("pruneRecentAccessibilityEventsLocked"));
-  assert.ok(registry.includes("StudyModeManager.isPackageRestricted(context, packageName)"));
-  assert.ok(registry.includes("wasRecentlyObservedAccessibilityEvent"));
-  const lookup = between(
-    registry,
-    "public static String findBlockedPackage(",
-    "private static final class AccessibilityEventRecord",
-  );
-  assert.ok(lookup.includes("eventSnapshot"));
-  assert.ok(lookup.indexOf("eventSnapshot.size() - 1") < lookup.indexOf("for (WindowRecord window"));
-  assert.ok(lookup.includes("snapshotFresh"));
-});
-
-test("Accessibility events wake the monitor without cancelling the periodic window scan", () => {
-  const eventHandler = between(
-    accessibility,
-    "public void onAccessibilityEvent(AccessibilityEvent event)",
-    "public void onInterrupt()",
-  );
-  assert.ok(eventHandler.includes("event.getPackageName()"));
-  assert.ok(eventHandler.includes("event.getEventType()"));
-  assert.ok(eventHandler.includes("event.getWindowId()"));
-  assert.ok(eventHandler.includes("StudyModeWindowRegistry.recordAccessibilityEvent"));
-  assert.ok(eventHandler.includes("StudyModeFocusService.requestImmediateEvaluation()"));
-  assert.ok(eventHandler.includes("scheduleEventScan()"));
-  assert.ok(!eventHandler.includes("scheduleScan("));
-
-  const eventScheduler = between(
-    accessibility,
-    "private void scheduleEventScan()",
-    "private void scanAccessibleWindows()",
-  );
-  assert.ok(eventScheduler.includes("if (eventScanQueued) return;"));
-  assert.ok(eventScheduler.includes("EVENT_SCAN_MIN_INTERVAL_MS"));
-  assert.ok(!eventScheduler.includes("removeCallbacks(scanRunnable)"));
-  assert.ok(accessibility.includes("handler.postDelayed(this, nextDelayMs)"));
-  assert.ok(accessibility.includes("handler.removeCallbacks(eventScanRunnable)"));
-  for (const forbidden of ["TYPE_WINDOW_CONTENT_CHANGED", "getText(", "getChild(", "getSource(", "performAction(", "takeScreenshot("]) {
-    assert.ok(!accessibility.includes(forbidden), "Accessibility monitoring must not read or traverse screen content");
-  }
-});
-
-test("Accessibility package events trigger bounded immediate foreground reevaluation", () => {
-  assert.ok(source.includes("activeService = this"));
-  assert.ok(source.includes("public static void requestImmediateEvaluation()"));
-  assert.ok(source.includes("AtomicBoolean immediateEvaluationQueued"));
-  assert.ok(source.includes("MIN_IMMEDIATE_RECHECK_INTERVAL_MS = 250L"));
-  assert.ok(source.includes("currentHandler.removeCallbacks(monitorRunnable)"));
-  assert.ok(source.includes("currentHandler.postDelayed(immediateEvaluationRunnable, delay)"));
-  const monitor = between(source, "private final Runnable monitorRunnable", "private void resetForegroundResolution()");
-  assert.ok(monitor.includes('foregroundSource = eventMatched ? "accessibility_event" : "accessible_interactive_window"'));
-  assert.ok(monitor.includes("foregroundSource);"));
-});
-
-test("Advanced Accessibility reconnect and window events recover unhealthy monitoring with bounded backoff", () => {
-  const recovery = between(
-    accessibility,
-    "private void recoverFocusServiceIfNeeded(String reason)",
-    "private void scheduleScan(",
-  );
-  for (const invariant of [
-    "FOCUS_SERVICE_RECOVERY_BACKOFF_MS",
-    "StudyModeManager.hasAccessibilityDisclosureConsent(this)",
-    "StudyModeManager.shouldEnforceNow(this)",
-    "StudyModeFocusService.isMonitoringHealthy()",
-    "StudyModeFocusService.isRunning()",
-    "StudyModeFocusService.isStopping()",
-    "StudyModeFocusService.isStarting()",
-    "StudyModeFocusService.requestMonitorRecovery(reason)",
-    "StudyModeManager.requestFocusServiceRecovery(this, reason)",
-    "PROCESS_RECOVERY_STARTED",
-    "PROCESS_RECOVERY_FAILED",
-  ]) {
-    assert.ok(recovery.includes(invariant), `Missing recovery invariant: ${invariant}`);
-  }
-  assert.ok(!recovery.includes("StudyModeManager.reconcile(this)"));
-  assert.ok(accessibility.includes("1500L, 3000L, 6000L, 15_000L, 30_000L"));
-  assert.ok(accessibility.includes('recoverFocusServiceIfNeeded("periodic_health_check")'));
-
-  const connected = between(
-    accessibility,
-    "protected void onServiceConnected()",
-    "public void onAccessibilityEvent(AccessibilityEvent event)",
-  );
-  assert.ok(connected.indexOf("StudyModeWindowRegistry.markConnected()")
-    < connected.indexOf('recoverFocusServiceIfNeeded("service_connected")'));
-  assert.ok(connected.includes('ACCESSIBILITY_CONNECTED'));
-
-  const eventHandler = between(
-    accessibility,
-    "public void onAccessibilityEvent(AccessibilityEvent event)",
-    "public void onInterrupt()",
-  );
-  assert.ok(eventHandler.indexOf("StudyModeWindowRegistry.recordAccessibilityEvent(")
-    < eventHandler.indexOf('recoverFocusServiceIfNeeded("accessibility_event")'));
-  assert.ok(eventHandler.indexOf('recoverFocusServiceIfNeeded("accessibility_event")')
-    < eventHandler.indexOf("StudyModeFocusService.requestImmediateEvaluation()"));
-  assert.ok(accessibility.includes('ACCESSIBILITY_DISCONNECTED'));
-});
 
 test("popup first-frame verification waits for WindowManager traversal", () => {
   const show = between(source, "private void showShield(", "private boolean isShieldViewVisible");
@@ -667,7 +503,6 @@ test("background foreground-service restrictions are reported rather than faked 
   assert.ok(manager.includes('"ForegroundServiceStartNotAllowedException"'));
   assert.ok(manager.includes('"monitoring_unavailable"'));
   assert.ok(manager.includes("public static void logStudyModeDiagnostic"));
-  assert.ok(accessibility.includes('"PROCESS_RECOVERY_FAILED"'));
 });
 
 test("HyperOS background switches are shown as manual, unverified OEM settings", () => {
@@ -676,32 +511,6 @@ test("HyperOS background switches are shown as manual, unverified OEM settings",
   assert.ok(permissionSetup.includes('key: "oemBackground"'));
   assert.ok(permissionSetup.includes("Check manually"));
   assert.ok(permissionSetup.includes("Android cannot reliably verify these OEM-only switches."));
-});
-
-test("Advanced Accessibility recovery uses a deduplicated exact alarm before restarting a stopped foreground service", () => {
-  const recovery = between(
-    manager,
-    "public static synchronized boolean requestFocusServiceRecovery(Context context, String reason)",
-    "/** Called only by StudyModeAlarmReceiver for the scheduled exact-alarm action. */",
-  );
-  assert.ok(recovery.includes("hasAccessibilityDisclosureConsent(app)"));
-  assert.ok(recovery.includes("shouldEnforceNow(app)"));
-  assert.ok(recovery.includes("hasExactAlarmPermission(app)"));
-  assert.ok(recovery.includes("FOCUS_RECOVERY_PENDING_WINDOW_MS"));
-  assert.ok(recovery.includes("setExactAndAllowWhileIdle("));
-  assert.ok(recovery.includes("focusServiceRecoveryPendingIntent(app)"));
-  assert.ok(manager.includes("ACTION_FOCUS_SERVICE_RECOVERY"));
-  assert.ok(!recovery.includes("startForegroundService("));
-  assert.ok(manager.includes("onFocusServiceRecoveryAlarm(Context context)"));
-  assert.ok(alarmReceiver.includes("StudyModeManager.onFocusServiceRecoveryAlarm(context)"));
-
-  const accessRecovery = between(
-    accessibility,
-    "private void recoverFocusServiceIfNeeded(String reason)",
-    "private void scheduleScan(",
-  );
-  assert.ok(accessRecovery.includes("StudyModeManager.requestFocusServiceRecovery(this, reason)"));
-  assert.ok(!accessRecovery.includes("StudyModeManager.reconcile(this)"));
 });
 
 test("Screen Time Island is opt-in to the same Study Mode eligibility and never replaces the reminder cadence", () => {
