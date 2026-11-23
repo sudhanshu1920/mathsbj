@@ -1165,8 +1165,6 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeManager.includes('hasUsageAccess(context)') ||
     !studyModeManager.includes('hasForegroundMonitoringPermission') ||
     !studyModeFocus.includes('String activePackage = foreground;') ||
-    !studyModeFocus.includes('StudyModeWindowRegistry.findBlockedPackage') ||
-    !studyModeFocus.includes('&& (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)') ||
     !studyModeFocus.includes('MONITOR_HEALTH_TIMEOUT_MS = 10_000L') ||
     !studyModeFocus.includes('isMonitoringHealthy()') ||
     !studyModeFocus.includes('blocking_active') ||
@@ -1188,7 +1186,7 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeManager.includes('AlarmManager') ||
     !studyModeManager.includes('canScheduleExactAlarms') ||
     !studyModeManager.includes('isDefaultDialerPackage') && !studyModeManager.includes('getDefaultDialerPackage')) {
-  fail('Managed-device suspension, Advanced Accessibility recovery, Usage Access Focus Shield, truthful permission state, alarm fallback, or critical app protection is missing');
+  fail('Managed-device suspension, Usage Access Focus Shield, truthful permission state, alarm fallback, or critical app protection is missing');
 }
 const islandMonitor = studyModeFocus.slice(
   studyModeFocus.indexOf('private final Runnable monitorRunnable'),
@@ -1483,9 +1481,11 @@ if (studyModeManager.includes('isAccessibilityWindowMonitoringRequired') ||
 }
 
 if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
-    !studyModeNativeFiles.includes('StudyModeWindowRegistry.java') ||
+    studyModeNativeFiles.includes('StudyModeWindowRegistry.java') ||
+    studyModeNativeFiles.includes('StudyModeAccessibilityService.java') ||
     !studyModeSetup.includes('app/src/main/java') ||
     !studyModeSetup.includes('MATHMASTER_UNIVERSAL_STUDY_MODE') ||
+    !studyModeSetup.includes("foregroundMonitoring: 'usage-access-only'") ||
     !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
     !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
@@ -1531,7 +1531,6 @@ if (!studyModeUsageAccumulator.includes('MAX_SAMPLE_GAP_MS = 4_000L') ||
     !studyModeManager.includes('KEY_REMINDER_INTERVAL_MINUTES') ||
     !studyModeManager.includes('periodicReminderSystemPackagesCacheAtElapsedMs') ||
     !studyModeManager.includes('5L * 60L * 1000L') ||
-    !studyModeFocus.includes('findFocusedPackage(StudyModeFocusService.this, foreground)') ||
     !studyModeFocus.includes('periodicReminderUsage.sample(') ||
     !studyModeFocus.includes('dismissPeriodicReminder("continue_anyway", true)') ||
     !studyModePage.includes('Reminder Interval') ||
