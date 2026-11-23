@@ -18,7 +18,6 @@ const NATIVE_FILES = [
   'AppUsageAnalyticsStore.java',
   'AppUsageAnalyticsPlugin.java',
   'StudyModeSessionStore.java',
-  'StudyModeWindowRegistry.java',
   'StudyModeUsageAccumulator.java',
   'StudyModeDayUsage.java',
   'ScreenTimeIslandSpring.java',
@@ -98,25 +97,11 @@ function removeNotificationListenerService(manifest) {
   return manifest.replace(listenerService, '');
 }
 
-function ensureAccessibilityService(manifest) {
-  const marker = 'android:name=".StudyModeAccessibilityService"';
-  if (manifest.includes(marker)) return manifest;
-  const applicationClose = manifest.lastIndexOf('</application>');
-  if (applicationClose < 0) throw new Error('AndroidManifest.xml has no closing </application> tag.');
-  const service = `        <service
-            android:name=".StudyModeAccessibilityService"
-            android:enabled="true"
-            android:exported="true"
-            android:label="@string/study_mode_accessibility_service_label"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/study_mode_accessibility" />
-        </service>`;
-  return manifest.slice(0, applicationClose) + '\n' + service + '\n' + manifest.slice(applicationClose);
+function removeAccessibilityService(manifest) {
+  // Remove service declarations left by older generated projects.
+  const service = /\s*<service\b(?=[^>]*\bandroid:name=["']\.StudyModeAccessibilityService["'])[^>]*(?:\/>|>[\s\S]*?<\/service>)/g;
+  const permission = /\s*<uses-permission\b(?=[^>]*\bandroid:name=["']android\.permission\.BIND_ACCESSIBILITY_SERVICE["'])[^>]*\/>/g;
+  return manifest.replace(service, '').replace(permission, '');
 }
 
 function ensurePackageChangeReceiverActions(manifest) {
@@ -325,23 +310,10 @@ export async function configureAndroidStudyMode(androidRoot) {
   await mkdir(xmlTarget, { recursive: true });
   const valuesTarget = path.join(root, 'app/src/main/res/values');
   await mkdir(valuesTarget, { recursive: true });
-  await copyFile(path.join(NATIVE_DIR, 'StudyModeAccessibilityService.java'),
-    path.join(packageDir, 'StudyModeAccessibilityService.java'));
-  await writeFile(path.join(xmlTarget, 'study_mode_accessibility.xml'), `<?xml version="1.0" encoding="utf-8"?>
-<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowsChanged|typeWindowStateChanged|typeViewFocused"
-    android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagRetrieveInteractiveWindows"
-    android:canRetrieveWindowContent="true"
-    android:description="@string/study_mode_accessibility_service_description"
-    android:notificationTimeout="100" />
-`);
-  await writeFile(path.join(valuesTarget, 'study_mode_accessibility_strings.xml'), `<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="study_mode_accessibility_service_label">Math Master Multi-window App Blocking</string>
-    <string name="study_mode_accessibility_service_description">When Study Mode is active, identifies package names of accessible interactive app windows, including supported split-screen and pop-up windows. It does not read on-screen text, messages, passwords, screenshots, or record gestures.</string>
-</resources>
-`);
+  await rm(path.join(packageDir, 'StudyModeAccessibilityService.java'), { force: true });
+  await rm(path.join(packageDir, 'StudyModeWindowRegistry.java'), { force: true });
+  await rm(path.join(xmlTarget, 'study_mode_accessibility.xml'), { force: true });
+  await rm(path.join(valuesTarget, 'study_mode_accessibility_strings.xml'), { force: true });
   await rm(path.join(root, 'app/src/advanced/AndroidManifest.xml'), { force: true });
   await rm(path.join(root, 'app/src/advanced/java', PACKAGE_PATH, 'StudyModeAccessibilityService.java'), { force: true });
   await rm(path.join(root, 'app/src/advanced/res/xml/study_mode_accessibility.xml'), { force: true });
@@ -368,7 +340,7 @@ export async function configureAndroidStudyMode(androidRoot) {
 
   let manifest = await readFile(manifestPath, 'utf8');
   manifest = removeNotificationListenerService(manifest);
-  manifest = ensureAccessibilityService(manifest);
+  manifest = removeAccessibilityService(manifest);
   manifest = ensureManifestQueries(manifest);
   manifest = ensurePermissions(manifest);
   manifest = ensureStudyModeComponents(manifest);
@@ -380,9 +352,9 @@ export async function configureAndroidStudyMode(androidRoot) {
     javaFiles: NATIVE_FILES.length,
     packageVisibility: 'all-installed-packages',
     localUsageAnalytics: true,
-    foregroundMonitoring: 'usage-access-plus-optional-accessibility',
+    foregroundMonitoring: 'usage-access-only',
     variants: ['universal'],
-    accessibility: 'optional-user-consent',
+    accessibility: 'removed',
   };
 }
 
