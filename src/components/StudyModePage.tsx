@@ -1177,9 +1177,7 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
         : true,
       helper: managedDevice
         ? "Not required for managed-device system suspension."
-        : advancedMonitoringReady && !status?.permissions.usageAccess
-          ? "Advanced window detection is active; Usage Access remains an optional fallback."
-          : "Detects the foreground app. Advanced window detection is available in Advanced Settings.",
+        : "Detects the foreground app for Study Mode protection.",
     },
     {
       key: "overlay" as const,
