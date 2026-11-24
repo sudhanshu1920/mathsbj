@@ -57,9 +57,8 @@ test('configures complete installed-app visibility, native services and Capacito
 
   const result = await configureAndroidStudyMode(root);
   assert.equal(result.javaFiles, 16);
-  assert.equal(result.foregroundMonitoring, 'usage-access-plus-optional-accessibility');
+  assert.equal(result.foregroundMonitoring, 'usage-access-only');
   assert.deepEqual(result.variants, ['universal']);
-  assert.equal(result.accessibility, 'optional-user-consent');
   assert.equal(result.packageVisibility, 'all-installed-packages');
   assert.equal(result.localUsageAnalytics, true);
 
@@ -80,14 +79,10 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.doesNotMatch(manifest, /android.provider.Telephony.SMS_DELIVER/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*foregroundServiceType="specialUse"/);
   assert.match(manifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
-  const accessibilityServiceMarker = manifest.indexOf('android:name=".StudyModeAccessibilityService"');
-  const accessibilityServiceStart = manifest.lastIndexOf('<service', accessibilityServiceMarker);
-  const accessibilityServiceEnd = manifest.indexOf('</service>', accessibilityServiceMarker);
-  assert.ok(accessibilityServiceStart >= 0 && accessibilityServiceEnd > accessibilityServiceStart);
-  assert.ok(manifest.slice(accessibilityServiceStart, accessibilityServiceEnd).includes('android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"'));
-  assert.match(manifest, /android.accessibilityservice/);
-  assert.match(manifest, /android:resource="@xml\/study_mode_accessibility"/);
-  assert.ok(manifest.includes("\n        <service\n            android:name=\".StudyModeAccessibilityService\""));
+  assert.doesNotMatch(manifest, /StudyModeAccessibilityService|BIND_ACCESSIBILITY_SERVICE|android.accessibilityservice/);
+  await assert.rejects(readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8'), { code: 'ENOENT' });
+  await assert.rejects(readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8'), { code: 'ENOENT' });
+  await assert.rejects(readFile(path.join(root, 'app/src/main/res/values/study_mode_accessibility_strings.xml'), 'utf8'), { code: 'ENOENT' });
   const buildGradle = await readFile(path.join(root, 'app/build.gradle'), 'utf8');
   assert.doesNotMatch(buildGradle, /flavorDimensions|productFlavors|MATHMASTER_STUDY_MODE_FLAVORS/);
   assert.match(buildGradle, /MATHMASTER_UNIVERSAL_STUDY_MODE/);
@@ -110,13 +105,6 @@ test('configures complete installed-app visibility, native services and Capacito
     const source = await readFile(new URL('../android-native/assets/fonts/' + font, import.meta.url));
     assert.deepEqual(copied, source, font + ' must be copied unchanged');
   }
-  const universalService = await readFile(path.join(root, 'app/src/main/java/com/sudhanshu/mathsbj/StudyModeAccessibilityService.java'), 'utf8');
-  assert.ok(universalService.includes('getWindowsOnAllDisplays()'));
-  const universalMetadata = await readFile(path.join(root, 'app/src/main/res/xml/study_mode_accessibility.xml'), 'utf8');
-  assert.match(universalMetadata, /flagRetrieveInteractiveWindows/);
-  assert.match(universalMetadata, /canRetrieveWindowContent="true"/);
-  const accessibilityStrings = await readFile(path.join(root, 'app/src/main/res/values/study_mode_accessibility_strings.xml'), 'utf8');
-  assert.match(accessibilityStrings, /does not read on-screen text/);
   await assert.rejects(readFile(path.join(root, 'app/src/advanced/AndroidManifest.xml'), 'utf8'), { code: 'ENOENT' });
   assert.match(manifest, /StudyModeDeviceAdminReceiver[\s\S]*BIND_DEVICE_ADMIN[\s\S]*device_admin/);
   assert.doesNotMatch(manifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE|READ_SMS|RECEIVE_SMS/);
