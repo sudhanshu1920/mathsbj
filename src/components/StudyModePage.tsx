@@ -298,7 +298,7 @@ const statusText = (status: StudyModeStatus | null) => {
   }
   if (status?.activeSession?.active) {
     if (status.enforcementState === "permission_required") return "Focus session active · app blocking permission required";
-    if (status.enforcementState === "monitoring_unavailable") return "Focus session active · grant Usage Access or enable Advanced window detection";
+    if (status.enforcementState === "monitoring_unavailable") return "Focus session active · grant Usage Access";
     if (status.enforcementState === "overlay_failed") return "Focus session active · blocking overlay unavailable";
     if (status.enforcementState === "service_start_blocked") return "Focus session saved · Android blocked the monitoring service";
     if (status.enforcementState === "service_stopped") return "Focus session active · monitoring service is stopped";
@@ -307,8 +307,8 @@ const statusText = (status: StudyModeStatus | null) => {
     return label + " focus session active · continues in background";
   }
   if (!status?.config.enabled) return "Study Mode is off";
-  if (status.enforcementState === "permission_required") return "Allow Usage Access or Advanced window detection, and enable the blocking overlay";
-  if (status.enforcementState === "monitoring_unavailable") return "App monitoring unavailable · grant Usage Access or enable Advanced window detection";
+  if (status.enforcementState === "permission_required") return "Allow Usage Access and enable the blocking overlay";
+  if (status.enforcementState === "monitoring_unavailable") return "App monitoring unavailable · grant Usage Access";
   if (status.enforcementState === "exact_alarm_required") return "Exact alarm access is required for safe system-level scheduling";
   if (status.enforcementState === "focus_shield_starting") return "Starting Focus Shield…";
   if (status.enforcementState === "service_start_blocked") return "Android did not allow Focus Shield to start";
