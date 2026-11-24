@@ -55,9 +55,7 @@ const StudyModePermissionSetup = ({
       title: "Usage Access",
       description: managed
         ? "Managed device access."
-        : advancedReady && !permissions.usageAccess
-          ? "Advanced window detection is active."
-          : "Detect the app in use.",
+        : "Detect the app in use.",
       granted: permissions.usageAccess === true || managed,
       required: !readiness.monitoringReady,
       icon: Smartphone,
