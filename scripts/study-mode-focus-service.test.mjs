@@ -431,7 +431,7 @@ test("foreground lookup failures surface as unavailable while service is alive",
   assert.ok(status.indexOf("hasForegroundLookupFailure()") < status.indexOf("getMonitoringState()"));
   assert.ok(status.includes('"monitoring_unavailable".equals(monitorState)'));
   assert.ok(page.includes('status.enforcementState === "monitoring_unavailable"'));
-  assert.ok(page.includes("grant Usage Access or enable Advanced window detection"));
+  assert.ok(page.includes("grant Usage Access"));
 });
 
 test("service teardown preserves an overlay cleanup failure instead of overwriting it as stopped", () => {

@@ -19,10 +19,6 @@ const makeStatus = (overrides: Partial<StudyModeStatus> = {}): StudyModeStatus =
     deviceOwner: false,
     profileOwner: false,
     dndAccess: false,
-    accessibilityAvailable: false,
-    accessibilityEnabled: false,
-    accessibilityConsent: false,
-    accessibilitySnapshotReady: false,
   },
   scheduleActive: false,
   sessionActive: false,
@@ -45,33 +41,6 @@ describe("getStudyModePermissionReadiness", () => {
       "Enable Usage Access",
       "Allow Display over other apps",
     ]);
-  });
-
-  it("allows optional Advanced detection only after a fresh complete snapshot", () => {
-    const status = makeStatus({
-      permissions: {
-        usageAccess: true,
-        overlay: true,
-        exactAlarm: true,
-        deviceOwner: false,
-        profileOwner: false,
-        dndAccess: false,
-        accessibilityAvailable: true,
-        accessibilityEnabled: true,
-        accessibilityConsent: true,
-        accessibilitySnapshotReady: false,
-      },
-    });
-    const pending = getStudyModePermissionReadiness(status);
-    expect(pending.coreReady).toBe(false);
-    expect(pending.missing[0]).toContain("first scan");
-
-    const ready = getStudyModePermissionReadiness({
-      ...status,
-      permissions: { ...status.permissions, accessibilitySnapshotReady: true },
-    });
-    expect(ready.coreReady).toBe(true);
-    expect(ready.advancedMonitoringRequested).toBe(true);
   });
 
   it("accepts Usage Access and overlay as the standard personal-device path", () => {
@@ -113,25 +82,5 @@ describe("getStudyModePermissionReadiness", () => {
     expect(getStudyModePermissionReadiness(personal).exactAlarmRequired).toBe(false);
   });
 
-  it("requires Exact Alarms for Advanced background recovery on Android 12+", () => {
-    const advancedWithoutExactAlarm = makeStatus({
-      permissions: {
-        ...makeStatus().permissions,
-        overlay: true,
-        exactAlarm: false,
-        accessibilityAvailable: true,
-        accessibilityEnabled: true,
-        accessibilityConsent: true,
-        accessibilitySnapshotReady: true,
-      },
-      enforcementMode: "focus_shield",
-      exactAlarmFallback: true,
-    });
-    const readiness = getStudyModePermissionReadiness(advancedWithoutExactAlarm);
-    expect(readiness.coreReady).toBe(false);
-    expect(readiness.exactAlarmRequired).toBe(true);
-    expect(readiness.missing).toContain(
-      "Allow Exact Alarms for background recovery and managed scheduling",
-    );
-  });
+
 });

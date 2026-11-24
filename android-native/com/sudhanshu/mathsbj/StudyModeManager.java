@@ -655,7 +655,7 @@ public final class StudyModeManager {
     }
 
     public static boolean hasForegroundMonitoringPermission(Context context) {
-        return hasUsageAccess(context) || isAccessibilityWindowMonitoringRequired(context);
+        return hasUsageAccess(context);
     }
 
     public static boolean hasForegroundMonitoringSource(Context context) {
@@ -663,8 +663,7 @@ public final class StudyModeManager {
     }
 
     public static boolean isAccessibilityWindowMonitoringRequired(Context context) {
-        return hasAccessibilityDisclosureConsent(context)
-            && StudyModeWindowRegistry.isAccessibilityServiceEnabled(context);
+        return false;
     }
 
     public static boolean hasOverlayPermission(Context context) {
