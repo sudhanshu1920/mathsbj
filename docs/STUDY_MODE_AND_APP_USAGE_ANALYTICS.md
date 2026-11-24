@@ -24,35 +24,15 @@ The UI identifies this as managed-profile suspension.
 ### Normal personal phone
 
 A regular installed app does not automatically have Device Owner authority.
-When Math Master is not Device Owner/Profile Owner, the Standard build uses
-Usage Access + an explicitly approved overlay (Focus Shield). The separate
-Advanced build can additionally enable a user-approved Accessibility Service
-for multi-window package detection. Its configured window-state, windows-changed,
-and view-focused events provide short-lived positive package evidence and wake
-the foreground monitor promptly. A separately throttled event scan never cancels
-the periodic all-window scan. The scanner reads package names only and does not
-traverse nodes or read screen text. Both are best-effort Focus Shield modes,
-not system-level package suspension. The interface labels them as **Shield
-only**, never **Frozen**.
+On personal devices, Math Master uses Usage Access + the explicitly approved
+overlay (Focus Shield). The app does not register or request an Accessibility
+Service and does not offer Accessibility-based multi-window detection. Focus
+Shield identifies the foreground app using Android UsageStatsManager; split-screen
+or floating-window coverage beyond the foreground app is not guaranteed. This
+is best-effort overlay protection, not system-level package suspension. The
+interface labels it as **Shield only**, never **Frozen**. Standard and Advanced
+installations use the same Usage Access monitoring path.
 
-Before Android Settings is opened, the app displays a prominent disclosure
-and requires an explicit affirmative choice. The accepted choice is committed
-to native private preferences before the Accessibility service is allowed to
-scan. The Advanced service reads only the package name and focus state exposed
-by accessible interactive application windows. It does not read node text,
-messages, passwords, screenshots, or gestures. Android/OEM window availability
-varies, so unsupported floating-window implementations cannot be guaranteed.
-If Android cannot expose an application window's package name, or any exposed
-application window cannot be read, the Advanced snapshot is marked incomplete.
-The monitor preserves an existing shield and reports monitoring unavailable
-instead of interpreting a partial list as proof that no blocked pane is visible.
-Usage Access remains available as a fallback. Standard and Advanced share the
-same application ID and signing identity and therefore cannot be installed
-side-by-side. Advanced uses a reserved version-code offset so the Standard
-auto-update cannot downgrade it and remove the Accessibility service. Advanced
-builds are distributed as separate CI artifacts and require the matching
-Advanced artifact for updates; the Standard public update feed does not upgrade
-Advanced installs.
 
 The current DPC receiver is the policy component used after an authorized
 Android/enterprise provisioning flow has already made Math Master the owner.
@@ -94,16 +74,11 @@ affect this fallback calculation.
 
 The foreground service uses Android's `specialUse` foreground-service type,
 an ongoing notification, and `START_STICKY` restoration from the saved session.
-Accessibility package events are held only as a bounded, short-lived in-memory
-signal to reduce detection latency; they are not written to session history or
-uploaded. The popup checks visibility after the initial WindowManager traversal.
-On a normal personal phone, Focus Shield requires an enabled foreground
-monitoring source and the existing user-approved overlay. Standard uses
-Android's UsageStatsManager after Usage Access is granted, polling foreground
-events every 1.6 seconds while the screen is active. Advanced can additionally
-use its optional Accessibility Service to identify package names and focus
-state from accessible interactive app windows; it never traverses view trees
-or reads text. The Focus Shield remains best-effort, not guaranteed package
+The popup checks visibility after the initial WindowManager traversal.
+On a normal personal phone, Focus Shield requires Usage Access and the existing
+user-approved overlay. It polls foreground events from Android's UsageStatsManager
+every 1.6 seconds while the screen is active. Accessibility-based window scanning
+is not included. Focus Shield remains best-effort, not guaranteed package
 suspension; the selected app can appear briefly before the overlay is shown.
 The managed-device Device Owner/Profile Owner path remains separate and uses
 verified `DevicePolicyManager` suspension.
