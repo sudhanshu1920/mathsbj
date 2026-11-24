@@ -141,7 +141,8 @@ test('configures complete installed-app visibility, native services and Capacito
   assert.equal((secondManifest.match(/android:name="\.StudyModeFocusService"/g) || []).length, 1);
   assert.match(secondManifest, /StudyModeFocusService[\s\S]*android:stopWithTask="false"/);
   assert.doesNotMatch(secondManifest, /StudyModeNotificationListenerService|BIND_NOTIFICATION_LISTENER_SERVICE/);
-  assert.equal((secondManifest.match(/android:name=".StudyModeAccessibilityService"/g) || []).length, 1);
+  assert.equal((secondManifest.match(/android:name=".StudyModeAccessibilityService"/g) || []).length, 0);
+  assert.doesNotMatch(secondManifest, /BIND_ACCESSIBILITY_SERVICE|android.accessibilityservice/);
   assert.doesNotMatch(await readFile(path.join(root, 'app/build.gradle'), 'utf8'), /productFlavors|flavorDimensions/);
   assert.equal((secondManifest.match(/android.intent.category.LAUNCHER/g) || []).length, 1);
   assert.equal((secondActivity.match(/registerPlugin\(StudyModePlugin\.class\)/g) || []).length, 1);
