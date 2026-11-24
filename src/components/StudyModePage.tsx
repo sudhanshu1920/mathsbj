@@ -8,14 +8,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   chooseStudyModeTime,
   getInstalledStudyModeApps,
   getCachedInstalledStudyModeApps,
@@ -24,7 +16,6 @@ import {
   isStudyModeNative,
   openStudyModePermission,
   requestStudyModeNotificationPermission,
-  acceptStudyModeAccessibilityDisclosure,
   refreshStudyMode,
   saveStudyModeConfig,
   setStudyModeReminderInterval,
