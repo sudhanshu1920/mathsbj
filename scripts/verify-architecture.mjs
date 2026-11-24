@@ -1169,8 +1169,8 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     studyModeSetup.includes('ensureAccessibilityService') ||
     studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
     studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
-    studyModeSetup.includes('StudyModeAccessibilityService.java') ||
-    studyModeSetup.includes('study_mode_accessibility.xml') ||
+    studyModeSetup.includes("copyFile(path.join(NATIVE_DIR, 'StudyModeAccessibilityService.java')") ||
+    studyModeSetup.includes("writeFile(path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
     studyModePage.includes('openStudyModePermission("accessibility")') ||
     studyModePage.includes('Multi-window detection') ||
     studyModeAppPlugin.includes('ACTION_ACCESSIBILITY_SETTINGS') ||
