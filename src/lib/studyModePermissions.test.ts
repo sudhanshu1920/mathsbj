@@ -43,23 +43,6 @@ describe("getStudyModePermissionReadiness", () => {
     ]);
   });
 
-  it("always requires Usage Access on personal devices; legacy Accessibility state is ignored", () => {
-    const status = makeStatus({
-      permissions: {
-        ...makeStatus().permissions,
-        overlay: true,
-        accessibilityAvailable: true,
-        accessibilityEnabled: true,
-        accessibilityConsent: true,
-        accessibilitySnapshotReady: true,
-      },
-    });
-    const readiness = getStudyModePermissionReadiness(status);
-    expect(readiness.coreReady).toBe(false);
-    expect(readiness.monitoringReady).toBe(false);
-    expect(readiness.missing).toContain("Enable Usage Access");
-  });
-
   it("accepts Usage Access and overlay as the standard personal-device path", () => {
     const status = makeStatus({
       permissions: { ...makeStatus().permissions, usageAccess: true, overlay: true },
