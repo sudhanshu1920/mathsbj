@@ -1166,29 +1166,18 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeFocus.includes('POLL_INTERVAL_MS') ||
     !studyModeManager.includes('hasUsageAccess(context)') ||
     !studyModeManager.includes('hasForegroundMonitoringPermission') ||
-    !studyModeSetup.includes('ensureAccessibilityService') ||
-    !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
-    !studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
-    !studyModeSetup.includes('StudyModeAccessibilityService.java') ||
+    studyModeSetup.includes('ensureAccessibilityService') ||
+    studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
+    studyModeSetup.includes('android.accessibilityservice.AccessibilityService') ||
+    studyModeSetup.includes('StudyModeAccessibilityService.java') ||
+    studyModeSetup.includes('study_mode_accessibility.xml') ||
+    studyModePage.includes('openStudyModePermission("accessibility")') ||
+    studyModePage.includes('Multi-window detection') ||
+    studyModeAppPlugin.includes('ACTION_ACCESSIBILITY_SETTINGS') ||
     !studyModeFocus.includes('StudyModeWindowRegistry.findBlockedPackage') ||
     !studyModeWindowRegistry.includes('MAX_SNAPSHOT_AGE_MS') ||
     !studyModeWindowRegistry.includes('snapshotComplete') ||
-    !studyModeManager.includes('hasAccessibilityDisclosureConsent') ||
-    !studyModeManager.includes('isAccessibilityWindowMonitoringRequired') ||
-    !studyModeManager.includes('accessibilitySnapshotReady') ||
-    !studyModeManager.includes('(!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady') ||
-    !studyModeFocus.includes('&& (!StudyModeManager.hasUsageAccess(StudyModeFocusService.this)') ||
-    !studyModeAppPlugin.includes('recordAccessibilityDisclosureConsent') ||
-    !studyModeAccessibilityService.includes('hasAccessibilityDisclosureConsent(this)') ||
-    !studyModePage.includes('Agree & Open Android Settings') ||
-    !studyModePage.includes('acceptStudyModeAccessibilityDisclosure') ||
-    !studyModeAccessibilityService.includes('getWindowsOnAllDisplays()') ||
-    !studyModeAccessibilityService.includes('FLAG_RETRIEVE_INTERACTIVE_WINDOWS') ||
-    !studyModeAccessibilityService.includes('root.getPackageName()') ||
-    !studyModeAccessibilityService.includes('recordAccessibilityEvent') ||
-    !studyModeAccessibilityService.includes('scheduleEventScan') ||
-    !studyModeAccessibilityService.includes('FOCUS_SERVICE_RECOVERY_BACKOFF_MS') ||
-    !studyModeAccessibilityService.includes('PROCESS_RECOVERY_STARTED') ||
+    !studyModeFocus.includes('MONITOR_HEALTH_TIMEOUT_MS = 10_000L') ||
     !studyModeFocus.includes('MONITOR_HEALTH_TIMEOUT_MS = 10_000L') ||
     !studyModeFocus.includes('isMonitoringHealthy()') ||
     !studyModeFocus.includes('blocking_active') ||
@@ -1465,10 +1454,9 @@ if (!studyModeFocus.includes('boolean decisionChanged = !foreground.equals(lastD
 }
 if (!studyModeFocus.includes('public static boolean hasForegroundLookupFailure()') ||
     !studyModeManager.includes('state = "monitoring_unavailable"') ||
-    !studyModeManager.includes('(!usageGranted || usageLookupFailed) && !accessibilityMonitoringReady') ||
     !studyModePage.includes('status.enforcementState === "monitoring_unavailable"') ||
-    !studyModePage.includes('grant Usage Access or enable Advanced window detection')) {
-  fail('Study Mode must report monitoring unavailable when neither UsageStats nor a fresh, consented Accessibility window snapshot can identify app windows');
+    !studyModePage.includes('grant Usage Access')) {
+  fail('Study Mode must report monitoring unavailable when UsageStats cannot identify the foreground app');
 }
 if (!studyModeFocus.includes('private synchronized void resetPopupRetryState()') ||
     !studyModeFocus.includes('private synchronized void recordPopupLaunchFailure(String packageName)') ||
@@ -1501,13 +1489,12 @@ if (studyModeNativeFiles.includes('StudyModeNotificationListenerService') ||
 }
 if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
     !studyModeNativeFiles.includes('StudyModeWindowRegistry.java') ||
-    !studyModeSetup.includes('ensureAccessibilityService') ||
     !studyModeSetup.includes('app/src/main/java') ||
-    !studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
-    !studyModeSetup.includes('flagRetrieveInteractiveWindows') ||
+    studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
+    studyModeSetup.includes('flagRetrieveInteractiveWindows') ||
+    studyModeSetup.includes('StudyModeAccessibilityService.java') ||
+    studyModeSetup.includes('study_mode_accessibility.xml') ||
     !studyModeSetup.includes('MATHMASTER_UNIVERSAL_STUDY_MODE') ||
-    !studyModeSetup.includes("path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
-    !studyModeSetup.includes("path.join(valuesTarget, 'study_mode_accessibility_strings.xml')") ||
     !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
     !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
     studyModeSetup.includes('android.provider.Telephony.SMS_DELIVER') ||
