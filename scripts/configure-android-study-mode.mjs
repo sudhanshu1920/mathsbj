@@ -309,8 +309,6 @@ export async function configureAndroidStudyMode(androidRoot) {
   await mkdir(xmlTarget, { recursive: true });
   const valuesTarget = path.join(root, 'app/src/main/res/values');
   await mkdir(valuesTarget, { recursive: true });
-  await copyFile(path.join(NATIVE_DIR, 'StudyModeAccessibilityService.java'),
-    path.join(packageDir, 'StudyModeAccessibilityService.java'));
   await rm(path.join(packageDir, 'StudyModeAccessibilityService.java'), { force: true });
   await rm(path.join(xmlTarget, 'study_mode_accessibility.xml'), { force: true });
   await rm(path.join(valuesTarget, 'study_mode_accessibility_strings.xml'), { force: true });
