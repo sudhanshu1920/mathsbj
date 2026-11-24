@@ -49,10 +49,6 @@ export interface StudyModeStatus {
     batteryOptimizationIgnored?: boolean;
     notificationsEnabled?: boolean;
     xiaomiDevice?: boolean;
-    accessibilityAvailable?: boolean;
-    accessibilityEnabled?: boolean;
-    accessibilityConsent?: boolean;
-    accessibilitySnapshotReady?: boolean;
   };
   scheduleActive: boolean;
   sessionActive: boolean;
@@ -87,10 +83,9 @@ interface NativeStudyModePlugin {
   startSession(options: StudyModeSessionOptions): Promise<StudyModeStatus>;
   endSession(options: { sessionId?: string }): Promise<StudyModeStatus>;
   getSessionHistory(): Promise<{ sessions: StudyModeSession[] }>;
-  acceptAccessibilityDisclosure(): Promise<void>;
   requestNotificationPermission(): Promise<{ enabled: boolean }>;
   openPermissionSettings(options: {
-    permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "accessibility" | "battery" | "notifications" | "oemBackground";
+    permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "battery" | "notifications" | "oemBackground";
   }): Promise<void>;
   showTimePicker(options: {
     title: string;
@@ -194,7 +189,6 @@ export async function getStudyModeStatus(): Promise<StudyModeStatus> {
       permissions: {
         usageAccess: false, overlay: false,
         exactAlarm: false, deviceOwner: false, profileOwner: false, dndAccess: false,
-        accessibilityAvailable: false, accessibilityEnabled: false,
       },
       scheduleActive: false,
       sessionActive: false,
@@ -312,11 +306,6 @@ export async function getStudyModeSessionHistory(): Promise<StudyModeSession[]> 
   return Array.isArray(result.sessions) ? result.sessions : [];
 }
 
-export async function acceptStudyModeAccessibilityDisclosure(): Promise<void> {
-  if (!isStudyModeNative()) throw new Error("Advanced multi-window detection requires the Android app.");
-  await NativeStudyMode.acceptAccessibilityDisclosure();
-}
-
 export async function requestStudyModeNotificationPermission(): Promise<boolean> {
   if (!isStudyModeNative()) return false;
   const result = await NativeStudyMode.requestNotificationPermission();
@@ -324,7 +313,7 @@ export async function requestStudyModeNotificationPermission(): Promise<boolean>
 }
 
 export async function openStudyModePermission(
-  permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "accessibility" | "battery" | "notifications" | "oemBackground",
+  permission: "usage" | "overlay" | "exactAlarm" | "dnd" | "battery" | "notifications" | "oemBackground",
 ): Promise<void> {
   if (!isStudyModeNative()) return;
   await NativeStudyMode.openPermissionSettings({ permission });
