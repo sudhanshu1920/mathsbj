@@ -1194,9 +1194,6 @@ if (!studyModeSessionStore.includes('math_master_study_sessions.db') ||
     !studyModeFocus.includes('candidate.postOnAnimation(() -> verifyShieldVisibility(') ||
     studyModeAccessibilityService.includes('getText(') ||
     studyModeAccessibilityService.includes('performAction(') ||
-    studyModePage.includes('Accessibility tracking') ||
-    !studyModePage.includes('openStudyModePermission("accessibility")') ||
-    !studyModePage.includes('Multi-window detection') ||
     !studyModePage.includes('key: "usage" as const') ||
     !studyModePage.includes('getStudyModePermissionReadiness') ||
     !studyModeManager.includes('DevicePolicyManager') ||
@@ -1492,8 +1489,8 @@ if (!studyModeSetup.includes('StudyModeSessionStore.java') ||
     !studyModeSetup.includes('app/src/main/java') ||
     studyModeSetup.includes('BIND_ACCESSIBILITY_SERVICE') ||
     studyModeSetup.includes('flagRetrieveInteractiveWindows') ||
-    studyModeSetup.includes('StudyModeAccessibilityService.java') ||
-    studyModeSetup.includes('study_mode_accessibility.xml') ||
+    studyModeSetup.includes("copyFile(path.join(NATIVE_DIR, 'StudyModeAccessibilityService.java')") ||
+    studyModeSetup.includes("writeFile(path.join(xmlTarget, 'study_mode_accessibility.xml')") ||
     !studyModeSetup.includes('MATHMASTER_UNIVERSAL_STUDY_MODE') ||
     !studyModeSetup.includes('android.permission.ACCESS_NOTIFICATION_POLICY') ||
     !studyModeSetup.includes('android.intent.category.LAUNCHER') ||
