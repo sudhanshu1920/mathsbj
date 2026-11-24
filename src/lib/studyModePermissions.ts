@@ -20,7 +20,7 @@ export function getStudyModePermissionReadiness(
   const monitoringReady = managedEnforcement || permissions.usageAccess === true;
   const overlayReady = managedEnforcement || permissions.overlay === true;
   const exactAlarmRequired = status.enforcementState === "exact_alarm_required"
-    || (managedEnforcement && status.exactAlarmFallback && permissions.exactAlarm !== true)
+    || (managedEnforcement && status.exactAlarmFallback && permissions.exactAlarm !== true);
 
   const missing: string[] = [];
 
