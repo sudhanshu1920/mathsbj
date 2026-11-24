@@ -311,21 +311,6 @@ export async function configureAndroidStudyMode(androidRoot) {
   await mkdir(valuesTarget, { recursive: true });
   await copyFile(path.join(NATIVE_DIR, 'StudyModeAccessibilityService.java'),
     path.join(packageDir, 'StudyModeAccessibilityService.java'));
-  await writeFile(path.join(xmlTarget, 'study_mode_accessibility.xml'), `<?xml version="1.0" encoding="utf-8"?>
-<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowsChanged|typeWindowStateChanged|typeViewFocused"
-    android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagRetrieveInteractiveWindows"
-    android:canRetrieveWindowContent="true"
-    android:description="@string/study_mode_accessibility_service_description"
-    android:notificationTimeout="100" />
-`);
-  await writeFile(path.join(valuesTarget, 'study_mode_accessibility_strings.xml'), `<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="study_mode_accessibility_service_label">Math Master Multi-window App Blocking</string>
-    <string name="study_mode_accessibility_service_description">When Study Mode is active, identifies package names of accessible interactive app windows, including supported split-screen and pop-up windows. It does not read on-screen text, messages, passwords, screenshots, or record gestures.</string>
-</resources>
-`);
   await rm(path.join(packageDir, 'StudyModeAccessibilityService.java'), { force: true });
   await rm(path.join(xmlTarget, 'study_mode_accessibility.xml'), { force: true });
   await rm(path.join(valuesTarget, 'study_mode_accessibility_strings.xml'), { force: true });
