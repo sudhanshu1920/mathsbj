@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.LruCache;
