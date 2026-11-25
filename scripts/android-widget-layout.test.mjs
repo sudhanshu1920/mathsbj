@@ -225,6 +225,19 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.ok(setup.includes("'WidgetScreenTimeRepository.java'"));
 });
 
+test('screen-time dashboards use Emerald glass and derive ring and app bars from live usage', () => {
+  const renderer = read(RENDERER);
+  const provider = read(PROVIDER);
+
+  assert.match(renderer, /applyScreenTimePalette\(this\.pal, o\.themeAccent, o\.themeMatched, o\.lightMode\)/);
+  assert.match(renderer, /drawScreenTimeDashboard\(section, study != null/);
+  assert.match(renderer, /section\.totalUsageMillis \/ 86_400_000d/);
+  assert.match(renderer, /float ratio = clamp\(entry\.percent \/ 100f, 0f, 1f\)/);
+  assert.match(renderer, /p\.bar0 = hex\("#39EEA0"\)/);
+  assert.match(provider, /boolean showPercent = true/);
+  assert.match(provider, /"screenTimeShowPercent", true/);
+});
+
 test('older saved selections gain the quiz tile exactly once', () => {
   const provider = read(PROVIDER);
   assert.match(provider, /storedVersion < CONTENT_SCHEMA_VERSION/);
