@@ -8,7 +8,6 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.LruCache;
@@ -322,32 +321,15 @@ final class WidgetScreenTimeRepository {
         PackageManager pm = context.getPackageManager();
         Set<String> selectedStudy = new HashSet<>(StudyModeManager.getSelectedStudyAppPackages(context));
 
-        // Device Apps is intentionally based on Android's installed inventory. This whole
-        // inventory read, eligibility filtering, label lookup and icon decoding run only on
-        // the UsageStats worker thread, never during bitmap drawing on the main thread.
-        Map<String, ApplicationInfo> installed = new HashMap<>();
-        List<ApplicationInfo> installedApplications;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            installedApplications = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L));
-        } else {
-            installedApplications = pm.getInstalledApplications(0);
-        }
-        if (installedApplications != null) {
-            for (ApplicationInfo info : installedApplications) {
-                if (info != null && info.packageName != null) installed.put(info.packageName, info);
-            }
-        }
-
-        // Study Mode selections are added separately, so selected apps with 0 min remain
-        // visible even when Android omits them from the usage query.
+        // Resolve package metadata only for apps UsageStats actually returned and the canonical
+        // Study Mode selection; never enumerate the device's complete installed-app inventory.
         Set<String> candidatePackages = new HashSet<>(usage.keySet());
         candidatePackages.addAll(selectedStudy);
         Map<String, AppRecord> appRecords = new HashMap<>();
         float density = Math.max(1f, context.getResources().getDisplayMetrics().density);
         int iconSize = Math.max(40, Math.min(96, Math.round(ICON_SIZE_DP * density)));
         for (String packageName : candidatePackages) {
-            ApplicationInfo info = installed.get(packageName);
-            if (info == null && selectedStudy.contains(packageName)) info = applicationInfo(pm, packageName);
+            ApplicationInfo info = applicationInfo(pm, packageName);
             if (info == null) continue;
             Long usageValue = usage.get(packageName);
             // Match AppUsageAnalyticsPlugin exactly: preserve Android's complete

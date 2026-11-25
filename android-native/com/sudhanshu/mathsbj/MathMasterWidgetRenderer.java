@@ -86,8 +86,9 @@ final class MathMasterWidgetRenderer {
     static final class Options {
         String composition = "hero_wide";
         String style = "neon";     // neon (reference look) | blur | transparent; anything else = neon
-        int themeAccent = 0;       // 0 = use the composition's own reference palette
-        boolean lightMode = false; // Retained for stored-option compatibility; widgets ignore app mode
+        int themeAccent = 0;
+        boolean lightMode = false;
+        boolean themeMatched = false;
         boolean enabled = true;
         boolean identity = true;
         boolean progress = true;
@@ -139,7 +140,7 @@ final class MathMasterWidgetRenderer {
 
     private static int hex(String s) { return Color.parseColor(s); }
 
-    private static Palette paletteFor(String composition, int themeAccent, boolean lightMode) {
+    private static Palette paletteFor(String composition, int themeAccent, boolean lightMode, boolean themeMatched) {
         Palette p = new Palette();
         // Shared arc / bar colours: bright green start, cyan middle, bright blue-cyan end.
         p.ring0 = hex("#4FF27C");
@@ -200,7 +201,7 @@ final class MathMasterWidgetRenderer {
                 p.borderA = hex("#1A9CF0"); p.borderB = hex("#C58EFB");
                 break;
         }
-        // Home-screen widgets keep their seven reference palettes; app theme is ignored.
+        if (themeMatched) applyAccent(p, themeAccent, lightMode);
         return p;
     }
 
@@ -291,7 +292,7 @@ final class MathMasterWidgetRenderer {
 
         Scene(Canvas c, int w, int h, Fonts f, Data d, Options o, float density) {
             this.c = c; this.W = w; this.H = h; this.f = f; this.d = d; this.o = o; this.density = density;
-            this.pal = paletteFor(o.composition, 0, false);
+            this.pal = paletteFor(o.composition, o.themeAccent, o.lightMode, o.themeMatched);
             this.minimalStyle = false;
             this.compactStyle = false;
             this.translucent = "blur".equals(o.style);
@@ -313,12 +314,20 @@ final class MathMasterWidgetRenderer {
         float text(String s, float x, float baseline, float size, Typeface tf, int color, Paint.Align align, float maxWidth) {
             if (s == null || s.length() == 0) return 0f;
             txt.setShader(null); txt.setMaskFilter(null); txt.clearShadowLayer(); txt.setStyle(Paint.Style.FILL);
-            txt.setColor(color); txt.setTypeface(tf); txt.setTextAlign(align); txt.setLetterSpacing(tracking);
+            txt.setColor(ensureTextContrast(color)); txt.setTypeface(tf); txt.setTextAlign(align); txt.setLetterSpacing(tracking);
             txt.setTextSize(size);
             float w = txt.measureText(s);
             if (maxWidth > 0f && w > maxWidth) { txt.setTextSize(size * maxWidth / w); w = maxWidth; }
             c.drawText(s, x, baseline, txt);
             return w;
+        }
+
+        int ensureTextContrast(int color) {
+            if (!o.themeMatched || !o.lightMode) return color;
+            float luminance = (Color.red(color) * 0.299f + Color.green(color) * 0.587f + Color.blue(color) * 0.114f) / 255f;
+            return luminance >= 0.82f
+                ? Color.argb(Color.alpha(color), 20, 27, 44)
+                : color;
         }
 
         float measure(String s, float size, Typeface tf) {
@@ -367,11 +376,15 @@ final class MathMasterWidgetRenderer {
         void drawCard() {
             if (clear) return;   // "Full Transparent": the wallpaper is the only background
             if (translucent) {   // "Transparent Blur": frosted slate card with a hairline edge
-                fill.setColor(Color.argb(102, 57, 67, 77));
+                fill.setColor(o.themeMatched && o.lightMode
+                    ? Color.argb(174, 246, 249, 255)
+                    : Color.argb(102, 57, 67, 77));
                 c.drawRoundRect(card, cardRadius, cardRadius, fill);
                 RectF hairline = new RectF(card);
                 hairline.inset(0.5f * density, 0.5f * density);
-                line.setColor(Color.argb(40, 255, 255, 255));
+                line.setColor(o.themeMatched && o.lightMode
+                    ? Color.argb(95, 29, 42, 64)
+                    : Color.argb(40, 255, 255, 255));
                 line.setStrokeWidth(Math.max(1f, density));
                 c.drawRoundRect(hairline, cardRadius, cardRadius, line);
                 resetPaints();
@@ -526,8 +539,8 @@ final class MathMasterWidgetRenderer {
                     deviceAppsPanel(panels[1], 1, true);
                 } else {
                     RectF panel = RB(panelLeft, panelTop, rw - pad, panelBottom);
-                    if (study != null) studyAppsPanel(panel, 0, true);
-                    else if (device != null) deviceAppsPanel(panel, 0, true);
+                    if (study != null)                         studyAppsPanel(panel, 1, true);
+                    else if (device != null) deviceAppsPanel(panel, 1, true);
                 }
                 return;
             }
@@ -560,12 +573,12 @@ final class MathMasterWidgetRenderer {
                 if (both) {
                     RectF[] panels = rowRects(panelLeft, rw - pad, panelTop, panelBottom, gap,
                         new float[] { 1f, 1f }, new boolean[] { true, true });
-                    studyAppsPanel(panels[0], 3, false);
-                    deviceAppsPanel(panels[1], 3, false);
+                    studyAppsPanel(panels[0], Math.min(5, o.screenTimeMaxEntries), false);
+                    deviceAppsPanel(panels[1], Math.min(5, o.screenTimeMaxEntries), false);
                 } else {
                     RectF panel = RB(panelLeft, panelTop, rw - pad, panelBottom);
-                    if (study != null) studyAppsPanel(panel, Math.min(3, o.screenTimeMaxEntries), false);
-                    else if (device != null) deviceAppsPanel(panel, Math.min(3, o.screenTimeMaxEntries), false);
+                    if (study != null) studyAppsPanel(panel, Math.min(5, o.screenTimeMaxEntries), false);
+                    else if (device != null) deviceAppsPanel(panel, Math.min(5, o.screenTimeMaxEntries), false);
                 }
                 if (o.target || o.streak || o.weekly || o.quiz) {
                     drawLegacyMiniBlocks(24f, rh - 72f, rw - 18f, rh - 16f, false);
@@ -671,11 +684,11 @@ final class MathMasterWidgetRenderer {
             if (!"ok".equals(section.status)) {
                 String headline, detail;
                 if ("permission_required".equals(section.status)) {
-                    headline = "Usage Access Required"; detail = "Tap widget to open Usage Access";
+                    headline = "Usage Access Required"; detail = "Tap to open Usage Access settings";
                 } else if ("no_study_apps".equals(section.status)) {
-                    headline = "No Study Apps Selected"; detail = "Select apps in Study Mode";
+                    headline = "No Study Apps Selected"; detail = "Select study apps to view their usage";
                 } else if ("no_usage".equals(section.status) || "no_visible_apps".equals(section.status)) {
-                    headline = "No usage recorded"; detail = "No app time for this period";
+                    headline = "No usage recorded yet."; detail = "No app time for this period";
                 } else if ("error".equals(section.status)) {
                     headline = "Error"; detail = "Open Math Master to retry";
                 } else {
@@ -861,17 +874,18 @@ final class MathMasterWidgetRenderer {
 
         // ---- glass surfaces
         void glass(RectF r, float radius) {
-            fill.setColor(withAlpha(Color.BLACK, 0.12f));
+            fill.setColor(withAlpha(o.themeMatched && o.lightMode ? Color.WHITE : Color.BLACK,
+                o.themeMatched && o.lightMode ? 0.42f : 0.12f));
             c.drawRoundRect(r, radius, radius, fill);
             fill.setShader(new LinearGradient(r.left, r.top, r.left, r.bottom,
-                withAlpha(Color.WHITE, 0.12f),
-                withAlpha(Color.WHITE, 0.035f), Shader.TileMode.CLAMP));
+                withAlpha(Color.WHITE, o.themeMatched && o.lightMode ? 0.58f : 0.12f),
+                withAlpha(Color.WHITE, o.themeMatched && o.lightMode ? 0.32f : 0.035f), Shader.TileMode.CLAMP));
             c.drawRoundRect(r, radius, radius, fill);
             fill.setShader(null);
             RectF in = new RectF(r);
             float sw = Math.max(1f, 1.05f * density);
             in.inset(sw * 0.5f, sw * 0.5f);
-            int edge = Color.WHITE;
+            int edge = o.themeMatched && o.lightMode ? pal.borderA : Color.WHITE;
             line.setShader(new LinearGradient(r.left, r.top, r.right, r.bottom,
                 new int[] { withAlpha(edge, 0.80f), withAlpha(edge, 0.25f), withAlpha(edge, 0.48f) },
                 new float[] { 0f, 0.55f, 1f }, Shader.TileMode.CLAMP));

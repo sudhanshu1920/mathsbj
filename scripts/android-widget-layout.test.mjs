@@ -159,8 +159,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(repository, /StudyModeManager\.getSelectedStudyAppPackages\(context\)/);
   assert.match(repository, /new HashSet<>\(usage\.keySet\(\)\)/);
   assert.match(repository, /candidatePackages\.addAll\(selectedStudy\)/);
-  assert.match(repository, /getInstalledApplications\(PackageManager\.ApplicationInfoFlags\.of\(0L\)\)/);
-  assert.match(repository, /installedApplications = pm\.getInstalledApplications\(0\)/);
+  assert.doesNotMatch(repository, /getInstalledApplications/);
   assert.doesNotMatch(repository, /AppChoice|getStudyAppChoices|getDeviceAppChoices/);
   assert.match(repository, /pm\.getApplicationInfo\(packageName/);
   assert.match(repository, /record != null && !hidden\.contains\(packageName\)/);
@@ -181,16 +180,21 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(provider, /else if \(options\.studyAppsScreenTime\s*&& data\.studyAppsScreenTime != null && "no_study_apps"\.equals\(data\.studyAppsScreenTime\.status\)\)/);
   assert.match(config, /Settings\.ACTION_USAGE_ACCESS_SETTINGS/);
   assert.match(config, /StudyModeManager\.openStudyAppsSelection\(this\)/);
-  assert.doesNotMatch(provider, /applyScreenTimeAppearance/);
+  assert.match(provider, /options\.themeMatched = options\.studyAppsScreenTime \|\| options\.deviceAppsScreenTime/);
+  assert.match(provider, /options\.themeAccent = Color\.parseColor\(accent\)/);
   assert.match(provider, /updateScreenTimeAppearance\(Context context\)/);
   assert.match(provider, /screenTimeHiddenStudyPackages/);
   assert.match(provider, /screenTimeHiddenDevicePackages/);
   assert.match(plugin, /public void syncAppearance\(PluginCall call\)/);
-  assert.match(renderer, /this\.pal = paletteFor\(o\.composition, 0, false\)/);
+  assert.match(renderer, /this\.pal = paletteFor\(o\.composition, o\.themeAccent, o\.lightMode, o\.themeMatched\)/);
+  assert.match(renderer, /if \(themeMatched\) applyAccent\(p, themeAccent, lightMode\)/);
+  assert.match(renderer, /ensureTextContrast/);
   assert.match(renderer, /void layoutScreenTimeReflow\(float rw, float rh\)/);
   assert.match(renderer, /void drawAppsPanel\(/);
   assert.doesNotMatch(renderer, /screenTimePrimaryText|drawLegacyContentSummary|layoutScreenTimeCombined|void layoutScreenTime\(\)/);
   assert.match(index, /window\.addEventListener\('theme-updated', syncWidgetAppearance\)/);
+  assert.match(index, /widget-appearance-updated/);
+  assert.match(read('src/pages/WidgetStudioPage.tsx'), /window\.addEventListener\("widget-appearance-updated", renderPreview\)/);
   assert.match(provider, /refreshScreenTimeInstances\(Context context, String refreshedPeriod\)/);
   assert.match(provider, /screenTimeHiddenStudyPackages/);
   assert.match(provider, /screenTimeHiddenDevicePackages/);
@@ -214,6 +218,8 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(config, /screenTimeShowUsageCheck/);
   assert.match(config, /screenTimeShowPercentCheck/);
   assert.match(config, /screenTimeDetailedCheck/);
+  assert.match(config, /SCREEN TIME SETTINGS/);
+  assert.match(config, /settings saved to this instance/);
   assert.match(studyMode, /MathMasterHomeWidgetProvider\.refreshScreenTimeWidgets\(context\)/);
   assert.match(packageReceiver, /MathMasterHomeWidgetProvider\.refreshScreenTimeWidgets\(context\)/);
   assert.ok(setup.includes("'WidgetScreenTimeRepository.java'"));
@@ -243,6 +249,9 @@ test('desktop widget preview compiles provider/config with fatal errors and rend
   assert.match(fixture, /setFixtureStatus\(/);
   assert.match(fixture, /Math Notes/);
   assert.match(harness, /renderScreenTimeMatrix\(ctx, p, mgr, outDir\)/);
+  assert.match(harness, /verifyScreenTimeAppearanceAndPreview\(ctx, mgr, p, outDir\)/);
+  assert.match(harness, /Widget Studio preview differs from the themed home-screen widget/);
+  assert.match(harness, /App appearance changed a widget without Screen Time content/);
   assert.match(harness, /String\[\] states = \{"ok", "permission_required", "no_study_apps", "no_usage", "loading", "error"\}/);
   assert.match(harness, /String\[\] styles = \{"neon", "blur", "transparent"\}/);
   assert.match(harness, /before_baseline_/);
@@ -297,7 +306,7 @@ test('configure script ships the renderer, fonts and resources into a generated 
   await mkdir(javaDir, { recursive: true });
   await writeFile(
     path.join(root, 'app/src/main/AndroidManifest.xml'),
-    '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.sudhanshu.mathsbj">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <application android:label="Math Master">\n    </application>\n</manifest>\n',
+    '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.sudhanshu.mathsbj">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <application android:label="Math Master">\n        <activity android:name=".MainActivity">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n                <category android:name="android.intent.category.LAUNCHER" />\n            </intent-filter>\n        </activity>\n    </application>\n</manifest>\n',
   );
   await writeFile(
     path.join(root, 'app/build.gradle'),
@@ -324,10 +333,14 @@ test('configure script ships the renderer, fonts and resources into a generated 
   const manifest = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
   assert.match(manifest, /MathMasterHomeWidgetProvider/);
   assert.match(manifest, /@xml\/math_master_home_widget_info/);
+  assert.match(manifest, /<queries>\s*<intent>\s*<action android:name="android\.intent\.action\.MAIN" \/>[\s\S]*?<category android:name="android\.intent\.category\.LAUNCHER" \/>[\s\S]*?<\/intent>\s*<\/queries>/);
   // Running it twice must not duplicate anything.
   await configureAndroidWidgets(root);
   const again = await readFile(path.join(root, 'app/src/main/AndroidManifest.xml'), 'utf8');
   assert.equal(again.match(/MathMasterHomeWidgetProvider/g).length, manifest.match(/MathMasterHomeWidgetProvider/g).length);
+  const queries = again.match(/<queries>[\s\S]*?<\/queries>/)?.[0] ?? '';
+  assert.equal(queries.match(/android\.intent\.category\.LAUNCHER/g)?.length, 1);
+  assert.equal(again.match(/android\.intent\.category\.LAUNCHER/g)?.length, 2);
 });
 
 test('background effects: neon is the default, blur and transparent stay available, legacy values mean neon', () => {
@@ -343,8 +356,8 @@ test('background effects: neon is the default, blur and transparent stay availab
   // Schema migration must preserve an existing widget's chosen appearance; only explicit Reset selects Neon.
   assert.doesNotMatch(provider, /\.putString\(prefix \+ "style", "neon"\)/);
   assert.match(widgetsPlugin, /\.putString\(prefix \+ "style", "neon"\)/);
-  assert.doesNotMatch(provider, /applyScreenTimeAppearance/);
-  assert.match(renderer, /this\.pal = paletteFor\(o\.composition, 0, false\)/);
+  assert.match(provider, /private static void applyScreenTimeTheme\(/);
+  assert.match(renderer, /this\.pal = paletteFor\(o\.composition, o\.themeAccent, o\.lightMode, o\.themeMatched\)/);
   assert.match(renderer, /Color\.argb\(102, 57, 67, 77\)/);
   assert.match(renderer, /if \(clear\) return;/);
   assert.match(renderer, /Color\.argb\(102, 57, 67, 77\)/);
@@ -452,7 +465,7 @@ test('native widget editor uses compact responsive grids, real thumbnails and a 
   assert.match(config, /private void addStyleGrid\(/);
   assert.match(config, /private void addCompositionGrid\(/);
   assert.match(config, /renderConfigurationPreview\(/);
-  assert.match(config, /setMaxHeight\(dp\(148\)\)/);
+  assert.match(config, /setMaxHeight\(dp\(124\)\)/);
   assert.match(config, /root\.addView\(scroll, new LinearLayout\.LayoutParams\([\s\S]*?0, 1f\)/);
   assert.match(config, /root\.addView\(actions, actionParams\)/);
   assert.match(config, /\.commit\(\)/);

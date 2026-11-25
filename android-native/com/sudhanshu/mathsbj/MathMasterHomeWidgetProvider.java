@@ -363,6 +363,18 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         return options;
     }
 
+    private static void applyScreenTimeTheme(
+        SharedPreferences preferences, MathMasterWidgetRenderer.Options options
+    ) {
+        options.themeMatched = options.studyAppsScreenTime || options.deviceAppsScreenTime;
+        if (!options.themeMatched) return;
+
+        options.lightMode = "light".equals(preferences.getString("mode", "dark"));
+        String accent = preferences.getString("appAccentColor", "#22d3ee");
+        if (accent == null || !accent.matches("^#[0-9a-fA-F]{6}$")) accent = "#22d3ee";
+        options.themeAccent = Color.parseColor(accent);
+    }
+
 
     private static Set<String> defaultContent() {
         return new HashSet<>(Arrays.asList(
@@ -539,6 +551,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         if ("auto".equals(resolved)) resolved = MathMasterWidgetRenderer.autoComposition(widthDp, heightDp);
         MathMasterWidgetRenderer.Options options = buildOptions(
             resolved, style, preferences.getBoolean("enabled", true), selected, screenTime);
+        applyScreenTimeTheme(preferences, options);
         MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
         applyScreenTimeData(context, data, options, screenTime == null ? new ScreenTimeConfig() : screenTime);
         return renderWidgetBitmap(context, options, data, widthDp, heightDp, 1);
@@ -562,6 +575,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean enabled = preferences.getBoolean("enabled", true);
         ScreenTimeConfig screenTime = readScreenTimeConfig(preferences, appWidgetId);
         MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected, screenTime);
+        applyScreenTimeTheme(preferences, options);
         MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
         applyScreenTimeData(context, data, options, screenTime);
         if (options.studyAppsScreenTime || options.deviceAppsScreenTime) {
@@ -638,6 +652,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         boolean enabled = preferences.getBoolean("enabled", true);
         ScreenTimeConfig screenTime = readScreenTimeConfig(preferences, appWidgetId);
         MathMasterWidgetRenderer.Options options = buildOptions(composition, style, enabled, selected, screenTime);
+        applyScreenTimeTheme(preferences, options);
         MathMasterWidgetRenderer.Data data = readWidgetData(preferences);
         applyScreenTimeData(context, data, options, screenTime);
         if (options.studyAppsScreenTime || options.deviceAppsScreenTime) {

@@ -153,6 +153,16 @@ describe("WidgetStudioPage", () => {
     await waitFor(() => expect(mocks.configureWidget).toHaveBeenCalledWith({ appWidgetId: 42 }));
   });
 
+  it("refreshes the native widget preview after its synchronized appearance changes", async () => {
+    mocks.getWidgets.mockResolvedValue({ widgets: [widget] });
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    await screen.findByRole("img", { name: "Live preview of the selected Math Master widget" });
+    await waitFor(() => expect(mocks.renderPreview).toHaveBeenCalledTimes(1));
+    window.dispatchEvent(new Event("widget-appearance-updated"));
+    await waitFor(() => expect(mocks.renderPreview).toHaveBeenCalledTimes(2));
+  });
+
   it("separates discovery failure from a confirmed empty state while keeping the supported design registry", async () => {
     mocks.getWidgets.mockRejectedValueOnce(new Error("Native plugin is not implemented"));
     render(<WidgetStudioPage onBack={vi.fn()} />);
