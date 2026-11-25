@@ -71,6 +71,30 @@ function ensurePermissions(manifest) {
   return manifest.slice(0, newEnd + 1) + '\n' + missing.join('\n') + manifest.slice(newEnd + 1);
 }
 
+function ensureLauncherAppVisibilityQueries(manifest) {
+  const launcherIntent = `        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>`;
+  const queriesStart = manifest.indexOf('<queries');
+  const queriesClose = manifest.indexOf('</queries>');
+  if (queriesStart >= 0 && queriesClose < 0) {
+    throw new Error('AndroidManifest.xml has an unclosed <queries> section.');
+  }
+  if (queriesStart >= 0) {
+    const queries = manifest.slice(queriesStart, queriesClose);
+    if (/android:name="android\.intent\.category\.LAUNCHER"/.test(queries)) return manifest;
+  }
+  if (queriesClose >= 0) {
+    return manifest.slice(0, queriesClose) + launcherIntent + '\n    ' + manifest.slice(queriesClose);
+  }
+  const applicationStart = manifest.indexOf('<application');
+  if (applicationStart < 0) throw new Error('AndroidManifest.xml has no opening <application> tag.');
+  return manifest.slice(0, applicationStart)
+    + `    <queries>\n${launcherIntent}\n    </queries>\n`
+    + manifest.slice(applicationStart);
+}
+
 function ensureApplicationComponents(manifest) {
   const components = [
     {
@@ -164,6 +188,7 @@ export async function configureAndroidWidgets(androidRoot) {
   const manifestPath = path.join(root, 'app/src/main/AndroidManifest.xml');
   let manifest = await readFile(manifestPath, 'utf8');
   manifest = ensurePermissions(manifest);
+  manifest = ensureLauncherAppVisibilityQueries(manifest);
   manifest = ensureApplicationComponents(manifest);
   await writeFile(manifestPath, manifest);
 

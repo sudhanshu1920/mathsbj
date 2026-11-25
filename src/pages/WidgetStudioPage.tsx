@@ -264,14 +264,19 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   useEffect(() => {
     let cancelled = false;
     setPreviewUrl("");
-    if (!native || selectedId === null) return;
-    void NativeWidgets.renderPreview({ appWidgetId: selectedId }).then((result) => {
-      if (!cancelled) setPreviewUrl(result.dataUrl || "");
-    }).catch(() => {
-      if (!cancelled) setPreviewUrl("");
-    });
+    const renderPreview = () => {
+      if (!native || selectedId === null) return;
+      void NativeWidgets.renderPreview({ appWidgetId: selectedId }).then((result) => {
+        if (!cancelled) setPreviewUrl(result.dataUrl || "");
+      }).catch(() => {
+        if (!cancelled) setPreviewUrl("");
+      });
+    };
+    renderPreview();
+    window.addEventListener("widget-appearance-updated", renderPreview);
     return () => {
       cancelled = true;
+      window.removeEventListener("widget-appearance-updated", renderPreview);
     };
   }, [native, selectedId, widgets]);
 

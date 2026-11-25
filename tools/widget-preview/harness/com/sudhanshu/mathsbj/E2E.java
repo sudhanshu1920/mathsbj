@@ -78,6 +78,62 @@ public class E2E {
         return first.lastBitmap;
     }
 
+    static boolean samePixels(Bitmap left, Bitmap right) {
+        if (left.getWidth() != right.getWidth() || left.getHeight() != right.getHeight()) return false;
+        for (int y = 0; y < left.getHeight(); y++) {
+            for (int x = 0; x < left.getWidth(); x++) {
+                if (left.image.getRGB(x, y) != right.image.getRGB(x, y)) return false;
+            }
+        }
+        return true;
+    }
+
+    static void verifyScreenTimeAppearanceAndPreview(
+        FakeContext ctx, AppWidgetManager manager, MemPrefs prefs, String output
+    ) throws Exception {
+        WidgetScreenTimeRepository.setFixtureStatus("ok");
+        sizes(manager, 400, 312, 140);
+        String prefix = "instance_400_";
+        prefs.m.put(prefix + "composition", "hero_wide");
+        prefs.m.put(prefix + "style", "neon");
+        prefs.m.put(prefix + "contentSchemaVersion", 4);
+        prefs.m.put(prefix + "contentJson", json("appIdentity", "progress", "studyAppsScreenTime"));
+
+        prefs.m.put("mode", "dark");
+        prefs.m.put("appAccentColor", "#22d3ee");
+        Bitmap darkWidget = render(ctx, 400);
+        save(darkWidget, "e2e_screen_time_dark");
+
+        prefs.m.put("mode", "light");
+        prefs.m.put("appAccentColor", "#f43f8e");
+        Bitmap lightWidget = render(ctx, 400);
+        save(lightWidget, "e2e_screen_time_light");
+        if (samePixels(darkWidget, lightWidget)) {
+            throw new IllegalStateException("Screen Time widget ignored its synchronized theme.");
+        }
+        Set<String> selected = new HashSet<>(Arrays.asList("appIdentity", "progress", "studyAppsScreenTime"));
+        Bitmap preview = MathMasterHomeWidgetProvider.renderConfigurationPreview(
+            ctx, "hero_wide", "neon", selected, 312, 140);
+        if (!samePixels(lightWidget, preview)) {
+            throw new IllegalStateException("Widget Studio preview differs from the themed home-screen widget.");
+        }
+
+        sizes(manager, 401, 312, 140);
+        String ordinaryPrefix = "instance_401_";
+        prefs.m.put(ordinaryPrefix + "composition", "hero_wide");
+        prefs.m.put(ordinaryPrefix + "contentSchemaVersion", 4);
+        prefs.m.put(ordinaryPrefix + "contentJson", json("appIdentity", "progress", "streak"));
+        Bitmap ordinaryLight = render(ctx, 401);
+        prefs.m.put("mode", "dark");
+        prefs.m.put("appAccentColor", "#22d3ee");
+        Bitmap ordinaryDark = render(ctx, 401);
+        if (!samePixels(ordinaryLight, ordinaryDark)) {
+            throw new IllegalStateException("App appearance changed a widget without Screen Time content.");
+        }
+        save(ordinaryDark, "e2e_non_screen_time_theme_unchanged");
+        System.out.println("Screen Time app-theme routing and live renderer preview parity verified");
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length > 0) outDir = args[0];
         new File(outDir).mkdirs();
@@ -145,6 +201,7 @@ public class E2E {
         Set<String> all = new HashSet<>(Arrays.asList(MathMasterHomeWidgetProvider.CONTENT_OPTIONS));
         Bitmap prev = MathMasterHomeWidgetProvider.renderConfigurationPreview(ctx, "auto", "neon", all, 312, 140);
         save(prev, "e2e_config_preview");
+        verifyScreenTimeAppearanceAndPreview(ctx, mgr, p, outDir);
         renderScreenTimeMatrix(ctx, p, mgr, outDir);
         System.out.println("E2E OK");
     }

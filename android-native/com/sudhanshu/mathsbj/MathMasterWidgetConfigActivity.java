@@ -6,7 +6,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -54,6 +53,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
     private CheckBox screenTimeShowPercentCheck;
     private CheckBox screenTimeDetailedCheck;
     private LinearLayout screenTimeControlRoot;
+    private TextView screenTimeTitle;
     private TextView studySourceInfo;
     private TextView deviceSourceInfo;
     private Button openStudyAppsButton;
@@ -194,10 +194,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(false);
         scroll.setClipToPadding(false);
-        scroll.setPadding(0, 0, 0, dp(8));
+        scroll.setPadding(0, 0, 0, dp(4));
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(14), dp(9), dp(14), dp(6));
+        content.setPadding(dp(12), dp(6), dp(12), dp(4));
         scroll.addView(content, new ScrollView.LayoutParams(
             ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, new LinearLayout.LayoutParams(
@@ -232,15 +232,15 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
         addSectionLabel(content, "LIVE PREVIEW", "Updates as you change any option");
         LinearLayout previewCard = cardContainer();
-        previewCard.setPadding(dp(8), dp(8), dp(8), dp(8));
+        previewCard.setPadding(dp(6), dp(6), dp(6), dp(6));
         FrameLayout previewFrame = new FrameLayout(this);
         previewFrame.setBackground(rounded(Color.rgb(35, 43, 58), dp(14), borderColor));
         previewFrame.setClipToOutline(true);
         previewArtwork = new ImageView(this);
         previewArtwork.setScaleType(ImageView.ScaleType.FIT_CENTER);
         previewArtwork.setAdjustViewBounds(true);
-        previewArtwork.setMaxHeight(dp(148));
-        previewArtwork.setPadding(dp(6), dp(4), dp(6), dp(4));
+        previewArtwork.setMaxHeight(dp(124));
+        previewArtwork.setPadding(dp(4), dp(3), dp(4), dp(3));
         previewArtwork.setContentDescription("Live preview of the selected widget design");
         previewFrame.addView(previewArtwork, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
@@ -282,15 +282,20 @@ public class MathMasterWidgetConfigActivity extends Activity {
     }
 
     private void resolvePalette() {
-        boolean dark = (getResources().getConfiguration().uiMode
-            & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        SharedPreferences preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        boolean dark = !"light".equals(preferences.getString("mode", "dark"));
         surfaceColor = dark ? Color.rgb(17, 20, 29) : Color.rgb(245, 247, 252);
         cardColor = dark ? Color.rgb(28, 33, 46) : Color.WHITE;
         textColor = dark ? Color.rgb(239, 242, 250) : Color.rgb(28, 36, 54);
         mutedColor = dark ? Color.rgb(164, 173, 192) : Color.rgb(101, 112, 133);
         borderColor = dark ? Color.rgb(57, 65, 83) : Color.rgb(224, 229, 239);
+        String appAccent = preferences.getString("appAccentColor", null);
+        if (appAccent != null && appAccent.matches("^#[0-9a-fA-F]{6}$")) {
+            accentColor = Color.parseColor(appAccent);
+        }
         TypedValue accent = new TypedValue();
-        if (getTheme().resolveAttribute(android.R.attr.colorAccent, accent, true)) {
+        if ((appAccent == null || !appAccent.matches("^#[0-9a-fA-F]{6}$"))
+            && getTheme().resolveAttribute(android.R.attr.colorAccent, accent, true)) {
             accentColor = accent.data;
         }
     }
@@ -306,10 +311,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
         TextView title = new TextView(this);
         title.setText("Customize Your Widget");
         title.setTextColor(textColor);
-        title.setTextSize(19);
+        title.setTextSize(18);
         title.setTypeface(null, 1);
         TextView subtitle = new TextView(this);
-        subtitle.setText("Personalize widget #" + widgetId);
+        subtitle.setText("Widget #" + widgetId + " · settings saved to this instance");
         subtitle.setTextColor(mutedColor);
         subtitle.setTextSize(11);
         header.addView(eyebrow, matchWrap());
@@ -338,7 +343,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             check.setText(option[1]);
             check.setTextColor(textColor);
             check.setTextSize(10);
-            check.setMinHeight(dp(38));
+            check.setMinHeight(dp(34));
             check.setButtonTintList(android.content.res.ColorStateList.valueOf(accentColor));
             check.setPadding(dp(5), dp(1), dp(5), dp(1));
             check.setBackground(rounded(selected.contains(optionId) ? selectedSurface() : cardColor,
@@ -353,29 +358,37 @@ public class MathMasterWidgetConfigActivity extends Activity {
                     requestScreenTimePreviewRefresh();
                 }
             });
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(42), 1f);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(36), 1f);
             params.setMargins(dp(2), dp(2), dp(2), dp(2));
             row.addView(check, params);
         }
         int remainder = contentOptionCount % columns;
         if (remainder != 0 && row != null) {
             for (int i = remainder; i < columns; i++) row.addView(new View(this),
-                new LinearLayout.LayoutParams(0, dp(42), 1f));
+                new LinearLayout.LayoutParams(0, dp(36), 1f));
         }
     }
 
     private void addScreenTimeControls(LinearLayout parent, SharedPreferences preferences) {
         screenTimeControlRoot = cardContainer();
-        screenTimeControlRoot.setPadding(dp(9), dp(7), dp(9), dp(7));
+        screenTimeControlRoot.setPadding(dp(8), dp(5), dp(8), dp(5));
         screenTimeControlRoot.setVisibility(View.GONE);
+
+        screenTimeTitle = new TextView(this);
+        screenTimeTitle.setText("SCREEN TIME SETTINGS");
+        screenTimeTitle.setTextColor(accentColor);
+        screenTimeTitle.setTextSize(10);
+        screenTimeTitle.setTypeface(null, 1);
+        screenTimeTitle.setLetterSpacing(0.05f);
+        screenTimeControlRoot.addView(screenTimeTitle, matchWrap());
 
         studySourceInfo = sourceInfoText();
         deviceSourceInfo = sourceInfoText();
         screenTimeControlRoot.addView(studySourceInfo, matchWrap());
         screenTimeControlRoot.addView(deviceSourceInfo, matchWrap());
 
-        openStudyAppsButton = actionButton("Open Study Mode → Study Apps", false);
-        openStudyAppsButton.setMinHeight(dp(34));
+        openStudyAppsButton = actionButton("Select Study Apps", false);
+        openStudyAppsButton.setMinHeight(dp(30));
         openStudyAppsButton.setTextSize(10);
         openStudyAppsButton.setOnClickListener(view -> {
             if (!StudyModeManager.openStudyAppsSelection(this)) {
@@ -383,7 +396,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             }
         });
         LinearLayout.LayoutParams studyAppsActionParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(34));
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(30));
         studyAppsActionParams.topMargin = dp(3);
         screenTimeControlRoot.addView(openStudyAppsButton, studyAppsActionParams);
 
@@ -406,22 +419,22 @@ public class MathMasterWidgetConfigActivity extends Activity {
         flagsFirstRow.setOrientation(LinearLayout.HORIZONTAL);
         screenTimeShowTotalCheck = compactCheck("Show total", saved.showTotal);
         screenTimeShowUsageCheck = compactCheck("Show app time", saved.showUsage);
-        flagsFirstRow.addView(screenTimeShowTotalCheck, new LinearLayout.LayoutParams(0, dp(34), 1f));
-        flagsFirstRow.addView(screenTimeShowUsageCheck, new LinearLayout.LayoutParams(0, dp(34), 1f));
+        flagsFirstRow.addView(screenTimeShowTotalCheck, new LinearLayout.LayoutParams(0, dp(30), 1f));
+        flagsFirstRow.addView(screenTimeShowUsageCheck, new LinearLayout.LayoutParams(0, dp(30), 1f));
         screenTimeControlRoot.addView(flagsFirstRow, matchWrap());
 
         LinearLayout flagsSecondRow = new LinearLayout(this);
         flagsSecondRow.setOrientation(LinearLayout.HORIZONTAL);
         screenTimeShowPercentCheck = compactCheck("Usage bars", saved.showPercent);
         screenTimeDetailedCheck = compactCheck("Detailed rows", saved.detailed);
-        flagsSecondRow.addView(screenTimeShowPercentCheck, new LinearLayout.LayoutParams(0, dp(34), 1f));
-        flagsSecondRow.addView(screenTimeDetailedCheck, new LinearLayout.LayoutParams(0, dp(34), 1f));
+        flagsSecondRow.addView(screenTimeShowPercentCheck, new LinearLayout.LayoutParams(0, dp(30), 1f));
+        flagsSecondRow.addView(screenTimeDetailedCheck, new LinearLayout.LayoutParams(0, dp(30), 1f));
         screenTimeControlRoot.addView(flagsSecondRow, matchWrap());
 
         usageAccessStatus = sourceInfoText();
         screenTimeControlRoot.addView(usageAccessStatus, matchWrap());
         usageAccessButton = actionButton("Open Usage Access Settings", false);
-        usageAccessButton.setMinHeight(dp(34));
+        usageAccessButton.setMinHeight(dp(30));
         usageAccessButton.setTextSize(10);
         usageAccessButton.setOnClickListener(view -> {
             try {
@@ -431,7 +444,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
             }
         });
         screenTimeControlRoot.addView(usageAccessButton, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(34)));
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(30)));
 
         parent.addView(screenTimeControlRoot, sectionParams());
         updateScreenTimeSourceInfo();
@@ -478,7 +491,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
         title.setText(label);
         title.setTextColor(mutedColor);
         title.setTextSize(10);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, dp(36), 0.82f);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, dp(32), 0.82f);
         row.addView(title, titleParams);
         Spinner spinner = new Spinner(this);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, options);
@@ -486,10 +499,10 @@ public class MathMasterWidgetConfigActivity extends Activity {
         spinner.setAdapter(adapter);
         spinner.setSelection(Math.max(0, Math.min(options.length - 1, selected)));
         spinner.setPadding(dp(4), 0, dp(4), 0);
-        row.addView(spinner, new LinearLayout.LayoutParams(0, dp(36), 1.18f));
+        row.addView(spinner, new LinearLayout.LayoutParams(0, dp(32), 1.18f));
         LinearLayout.LayoutParams rowParams = parent.getOrientation() == LinearLayout.HORIZONTAL
-            ? new LinearLayout.LayoutParams(0, dp(38), 1f)
-            : new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(38));
+            ? new LinearLayout.LayoutParams(0, dp(34), 1f)
+            : new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(34));
         if (parent.getOrientation() == LinearLayout.HORIZONTAL) {
             rowParams.setMargins(dp(2), dp(2), dp(2), dp(2));
         }
@@ -589,12 +602,12 @@ public class MathMasterWidgetConfigActivity extends Activity {
                 : ("blur".equals(option[0]) ? Color.rgb(102, 119, 142) : Color.TRANSPARENT);
             swatch.setBackground(rounded(swatchColor, dp(8), accentColor));
             tile.addView(swatch, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(25)));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(20)));
             RadioButton choice = compactRadio(option[1], option[0], selectedStyle);
             styleChoices.add(choice);
             tile.addView(choice, matchWrap());
             tile.setOnClickListener(view -> selectChoice(styleChoices, choice));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(68), 1f);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(60), 1f);
             params.setMargins(dp(2), dp(2), dp(2), dp(2));
             row.addView(tile, params);
         }
@@ -616,24 +629,24 @@ public class MathMasterWidgetConfigActivity extends Activity {
             ImageView thumbnail = new ImageView(this);
             thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
             thumbnail.setAdjustViewBounds(true);
-            thumbnail.setMaxHeight(dp(44));
+            thumbnail.setMaxHeight(dp(32));
             thumbnail.setContentDescription(option[1] + " actual widget preview");
             Bitmap bitmap = renderDesignThumbnail(option[0]);
             if (bitmap != null) thumbnail.setImageBitmap(bitmap);
             tile.addView(thumbnail, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(44)));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(32)));
             RadioButton choice = compactRadio(option[1], option[0], selectedComposition);
             compositionChoices.add(choice);
             tile.addView(choice, matchWrap());
             tile.setOnClickListener(view -> selectChoice(compositionChoices, choice));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(88), 1f);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(78), 1f);
             params.setMargins(dp(2), dp(2), dp(2), dp(2));
             row.addView(tile, params);
         }
         int remainder = WIDGET_COMPOSITIONS.length % columns;
         if (remainder != 0 && row != null) {
             for (int i = remainder; i < columns; i++) row.addView(new View(this),
-                new LinearLayout.LayoutParams(0, dp(88), 1f));
+                new LinearLayout.LayoutParams(0, dp(78), 1f));
         }
         syncChoiceCards(compositionChoices);
     }
@@ -724,8 +737,9 @@ public class MathMasterWidgetConfigActivity extends Activity {
     }
 
     private int selectedSurface() {
-        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-            == Configuration.UI_MODE_NIGHT_YES ? Color.rgb(49, 43, 83) : Color.rgb(239, 237, 255);
+        boolean dark = !"light".equals(
+            getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("mode", "dark"));
+        return dark ? Color.rgb(49, 43, 83) : Color.rgb(239, 237, 255);
     }
 
     private int gridColumns() {
@@ -744,7 +758,7 @@ public class MathMasterWidgetConfigActivity extends Activity {
 
     private LinearLayout.LayoutParams sectionParams() {
         LinearLayout.LayoutParams params = matchWrap();
-        params.topMargin = dp(6);
+        params.topMargin = dp(4);
         return params;
     }
 

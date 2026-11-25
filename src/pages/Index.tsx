@@ -207,6 +207,8 @@ const Index = () => {
       void NativeWidgetRefresh.syncAppearance({
         mode: getMode(),
         accentColor,
+      }).then(({ updated }) => {
+        if (updated) window.dispatchEvent(new CustomEvent("widget-appearance-updated"));
       }).catch(() => null);
     };
     syncWidgetAppearance();
