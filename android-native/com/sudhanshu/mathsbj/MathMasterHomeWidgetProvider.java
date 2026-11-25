@@ -72,7 +72,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         int maxEntries = 5;
         boolean showTotal = true;
         boolean showUsage = true;
-        boolean showPercent = false;
+        boolean showPercent = true;
         boolean detailed = true;
         Set<String> hiddenStudyPackages = new HashSet<>();
         Set<String> hiddenDevicePackages = new HashSet<>();
@@ -389,7 +389,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         config.maxEntries = Math.max(1, Math.min(12, getInstanceInt(preferences, appWidgetId, "screenTimeMaxEntries", 5)));
         config.showTotal = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowTotal", true);
         config.showUsage = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowUsage", true);
-        config.showPercent = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowPercent", false);
+        config.showPercent = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowPercent", true);
         config.detailed = getInstanceBoolean(preferences, appWidgetId, "screenTimeDetailed", true);
         config.hiddenStudyPackages = readPackageSet(getInstanceString(
             preferences, appWidgetId, "screenTimeHiddenStudyPackages", "[]"));

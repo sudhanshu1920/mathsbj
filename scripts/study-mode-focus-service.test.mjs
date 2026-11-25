@@ -766,6 +766,9 @@ test("Screen Time Island overlay remains a tight, no-focus, no-network Canvas su
   assert.match(islandPainter, /MathMaster-Medium\.otf/);
   assert.match(islandPainter, /MathMaster-Bold\.otf/);
   assert.match(islandPainter, /accentForTheme/);
+  assert.match(islandPainter, /canvas\.drawText\(timePrimary, textX, baseline, text\)/);
+  assert.match(islandPainter, /drawCompactVisualizer\(canvas, width, height, alpha, accent, currentHour, pulse\)/);
+  assert.match(islandPainter, /0xff75ffd3/);
   assert.doesNotMatch(islandPainter, /RenderEffect|BlurMaskFilter/);
 });
 

@@ -19,6 +19,7 @@ public final class ScreenTimeIslandPainter {
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint bars = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint rim = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint reflection = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path iconClip = new Path();
     private final RectF iconRect = new RectF();
     private final Typeface regular;
@@ -54,12 +55,12 @@ public final class ScreenTimeIslandPainter {
         fill.setColor(Color.BLACK);
         fill.setStyle(Paint.Style.FILL);
         fill.setShader(new LinearGradient(0f, 0f, 0f, dp(100f),
-            new int[]{0xff12151c, 0xff080a0e, 0xff020304},
+            new int[]{0xf50b3027, 0xf4081715, 0xf3020909},
             new float[]{0f, 0.42f, 1f}, Shader.TileMode.CLAMP));
         hairline.setStyle(Paint.Style.STROKE);
         hairline.setStrokeWidth(dp(0.75f));
         hairline.setShader(new LinearGradient(0f, 0f, 0f, dp(100f),
-            new int[]{Color.argb(72, 255, 255, 255), Color.argb(20, 255, 255, 255), Color.argb(4, 255, 255, 255)},
+            new int[]{Color.argb(100, 145, 255, 220), Color.argb(36, 82, 244, 208), Color.argb(12, 45, 196, 181)},
             new float[]{0f, 0.35f, 1f}, Shader.TileMode.CLAMP));
         text.setTypeface(medium);
         text.setFontFeatureSettings("tnum");
@@ -67,6 +68,13 @@ public final class ScreenTimeIslandPainter {
         bars.setStyle(Paint.Style.FILL);
         rim.setStyle(Paint.Style.STROKE);
         rim.setStrokeWidth(dp(1f));
+        reflection.setStyle(Paint.Style.FILL);
+        reflection.setShader(new LinearGradient(0f, 0f, dp(360f), dp(88f),
+            new int[]{Color.argb(38, 170, 255, 227), Color.argb(10, 58, 255, 216), Color.TRANSPARENT},
+            new float[]{0f, 0.42f, 1f}, Shader.TileMode.CLAMP));
+        rim.setShader(new LinearGradient(0f, 0f, dp(360f), dp(88f),
+            new int[]{0xff75ffd3, 0xff28f3b4, 0xff2bd8e7, 0xff9affdf},
+            new float[]{0f, 0.38f, 0.76f, 1f}, Shader.TileMode.CLAMP));
         setDurationTarget(0L);
     }
 
@@ -166,12 +174,41 @@ public final class ScreenTimeIslandPainter {
         float emergence = clamp(Math.max(alpha, safeMorph), 0f, 1f);
         float scale = 0.86f + (0.14f * emergence);
         canvas.scale(scale, scale, w * 0.5f, h * 0.5f);
+        float radius = h * (0.5f - 0.17f * safeMorph);
+        RectF pill = new RectF(dp(1.5f), dp(1.5f), w - dp(1.5f), h - dp(1.5f));
+        rim.setShader(null);
+        rim.setColor(Color.argb(Math.round(overallAlpha * 0.13f), 44, 255, 186));
+        rim.setStrokeWidth(dp(7f));
+        canvas.drawRoundRect(pill, radius, radius, rim);
+        rim.setColor(Color.argb(Math.round(overallAlpha * 0.22f), 54, 255, 202));
+        rim.setStrokeWidth(dp(3.2f));
+        canvas.drawRoundRect(pill, radius, radius, rim);
+        rim.setShader(new LinearGradient(0f, 0f, dp(360f), dp(88f),
+            new int[]{0xff75ffd3, 0xff28f3b4, 0xff2bd8e7, 0xff9affdf},
+            new float[]{0f, 0.38f, 0.76f, 1f}, Shader.TileMode.CLAMP));
+        rim.setColor(Color.WHITE);
+        rim.setStrokeWidth(dp(1.15f));
+        canvas.drawRoundRect(pill, radius, radius, rim);
+        rim.setShader(null);
         fill.setAlpha(overallAlpha);
-        canvas.drawRoundRect(0.5f, 0.5f, w - 0.5f, h - 0.5f,
-            h * (0.5f - 0.17f * safeMorph), h * (0.5f - 0.17f * safeMorph), fill);
+        canvas.drawRoundRect(pill, radius, radius, fill);
+        int reflectionSave = canvas.save();
+        Path clip = new Path();
+        clip.addRoundRect(pill, radius, radius, Path.Direction.CW);
+        canvas.clipPath(clip);
+        reflection.setAlpha(overallAlpha);
+        Path sheen = new Path();
+        sheen.moveTo(pill.left, pill.top + h * 0.30f);
+        sheen.cubicTo(w * 0.18f, h * 0.02f, w * 0.40f, h * 0.08f, w * 0.61f, pill.top);
+        sheen.lineTo(pill.right, pill.top);
+        sheen.cubicTo(w * 0.72f, h * 0.17f, w * 0.49f, h * 0.20f, pill.left, h * 0.56f);
+        sheen.close();
+        canvas.drawPath(sheen, reflection);
+        reflection.setAlpha(Math.round(overallAlpha * 0.50f));
+        canvas.drawCircle(w - dp(14f), pill.top + dp(5f), dp(8f), reflection);
+        canvas.restoreToCount(reflectionSave);
         hairline.setAlpha(overallAlpha);
-        canvas.drawRoundRect(dp(0.5f), dp(0.5f), w - dp(0.5f), h - dp(0.5f),
-            h * (0.5f - 0.17f * safeMorph), h * (0.5f - 0.17f * safeMorph), hairline);
+        canvas.drawRoundRect(pill, radius, radius, hairline);
         int rimAlpha = Math.round(overallAlpha * 0.42f * safeMorph);
         rim.setColor((rimAlpha << 24) | (accent & 0x00ffffff));
         rim.setStrokeWidth(dp(1.2f));
@@ -182,7 +219,7 @@ public final class ScreenTimeIslandPainter {
         rim.setStrokeWidth(dp(1f));
 
         if (safeMorph < 0.55f) {
-            drawCollapsed(canvas, w, h, overallAlpha, accent);
+            drawCollapsed(canvas, w, h, overallAlpha, accent, currentHour, currentHourPulse);
         }
         if (safeMorph > 0.02f) {
             float contentAlpha = clamp((safeMorph - 0.48f) / 0.52f, 0f, 1f);
@@ -192,12 +229,49 @@ public final class ScreenTimeIslandPainter {
         canvas.restoreToCount(save);
     }
 
-    private void drawCollapsed(Canvas canvas, float width, float height, int alpha, int accent) {
+    private void drawCollapsed(Canvas canvas, float width, float height, int alpha, int accent,
+                               int currentHour, float pulse) {
         float size = dp(17f);
         float top = (height - size) * 0.5f;
-        drawIcon(canvas, dp(11f), top, size, alpha);
-        bars.setColor((Math.round(alpha * 0.92f) << 24) | (accent & 0x00ffffff));
-        canvas.drawCircle(width - dp(11f), height * 0.5f, dp(2.8f), bars);
+        drawIcon(canvas, dp(9f), top, size, alpha);
+        float textX = dp(34f);
+        float baseline = height * 0.5f + dp(5.5f);
+        text.setTextAlign(Paint.Align.LEFT);
+        text.setTypeface(bold);
+        text.setTextSize(dp(16f));
+        text.setColor(Color.WHITE);
+        text.setAlpha(Math.round(alpha * 0.98f));
+        canvas.drawText(timePrimary, textX, baseline, text);
+        float unitX = textX + text.measureText(timePrimary);
+        text.setTypeface(medium);
+        text.setTextSize(dp(9.5f));
+        text.setAlpha(Math.round(alpha * 0.76f));
+        canvas.drawText(timePrimaryUnit, unitX, baseline, text);
+        drawCompactVisualizer(canvas, width, height, alpha, accent, currentHour, pulse);
+    }
+
+    private void drawCompactVisualizer(Canvas canvas, float width, float height, int alpha,
+                                       int accent, int currentHour, float pulse) {
+        float barWidth = dp(2.3f);
+        float gap = dp(2.1f);
+        float right = width - dp(9f);
+        float baseline = height * 0.72f;
+        float maxHeight = height * 0.48f;
+        long maximum = 1L;
+        for (int i = 0; i < 3; i++) {
+            long value = Math.max(0L, hourly[Math.floorMod(currentHour - 2 + i, 24)]);
+            if (value > maximum) maximum = value;
+        }
+        for (int i = 0; i < 3; i++) {
+            long value = Math.max(0L, hourly[Math.floorMod(currentHour - 2 + i, 24)]);
+            float ratio = value == 0L ? 0.18f : Math.max(0.28f, (float) value / maximum);
+            float barHeight = maxHeight * ratio;
+            int a = Math.round(alpha * (i == 2 ? 0.86f + 0.10f * clamp(pulse, 0f, 1f) : 0.55f));
+            bars.setColor((a << 24) | (accent & 0x00ffffff));
+            float left = right - (2 - i) * (barWidth + gap);
+            canvas.drawRoundRect(left, baseline - barHeight, left + barWidth, baseline,
+                barWidth * 0.5f, barWidth * 0.5f, bars);
+        }
     }
 
     private void drawExpanded(Canvas canvas, float width, float height, int alpha,
@@ -222,6 +296,13 @@ public final class ScreenTimeIslandPainter {
         float totalWidth = timePrimaryWidth + timeSecondaryWidth + (timeSecondaryWidth > 0f ? dp(5f) : 0f);
         float timeX = timeRight - totalWidth;
         float available = Math.max(dp(42f), timeX - textLeft - dp(11f));
+        if (timeX - dp(10f) > textLeft + dp(42f)) {
+            rim.setShader(null);
+            rim.setColor(Color.argb(Math.round(visibleAlpha * 0.38f), 123, 245, 212));
+            rim.setStrokeWidth(dp(0.7f));
+            canvas.drawLine(timeX - dp(8f), dp(13f), timeX - dp(8f), dp(43f), rim);
+            rim.setStrokeWidth(dp(1f));
+        }
         if (text.measureText(displayLabel) > available) {
             // Clip instead of creating a shortened String on every frame.
             canvas.save();
