@@ -69,6 +69,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
     static final class ScreenTimeConfig {
         String period = "today";
         String sort = "most_used";
+        String appearance = "dark";
         int maxEntries = 5;
         float textScale = 1f;
         boolean showTotal = true;
@@ -356,6 +357,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         options.deviceAppsScreenTime = selected.contains("deviceAppsScreenTime");
         ScreenTimeConfig config = screenTime == null ? new ScreenTimeConfig() : screenTime;
         options.screenTimePeriod = config.period;
+        options.lightMode = "light".equals(config.appearance);
         options.screenTimeMaxEntries = config.maxEntries;
         options.screenTimeShowTotal = config.showTotal;
         options.screenTimeShowUsage = config.showUsage;
@@ -371,7 +373,6 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         options.themeMatched = options.studyAppsScreenTime || options.deviceAppsScreenTime;
         if (!options.themeMatched) return;
 
-        options.lightMode = "light".equals(preferences.getString("mode", "dark"));
         String accent = preferences.getString("appAccentColor", "#22d3ee");
         if (accent == null || !accent.matches("^#[0-9a-fA-F]{6}$")) accent = "#22d3ee";
         options.themeAccent = Color.parseColor(accent);
@@ -388,6 +389,8 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         ScreenTimeConfig config = new ScreenTimeConfig();
         config.period = normalizeScreenTimePeriod(getInstanceString(preferences, appWidgetId, "screenTimePeriod", "today"));
         config.sort = normalizeScreenTimeSort(getInstanceString(preferences, appWidgetId, "screenTimeSort", "most_used"));
+        config.appearance = normalizeWidgetAppearance(getInstanceString(
+            preferences, appWidgetId, "appearance", "dark"));
         config.maxEntries = Math.max(1, Math.min(12, getInstanceInt(preferences, appWidgetId, "screenTimeMaxEntries", 5)));
         config.textScale = normalizeWidgetTextScale(getInstanceFloat(preferences, appWidgetId, "textScale", 1f));
         config.showTotal = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowTotal", true);
@@ -399,6 +402,10 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         config.hiddenDevicePackages = readPackageSet(getInstanceString(
             preferences, appWidgetId, "screenTimeHiddenDevicePackages", "[]"));
         return config;
+    }
+
+    static String normalizeWidgetAppearance(String value) {
+        return "light".equals(value) ? "light" : "dark";
     }
 
     private static int getInstanceInt(SharedPreferences preferences, int appWidgetId, String field, int fallback) {

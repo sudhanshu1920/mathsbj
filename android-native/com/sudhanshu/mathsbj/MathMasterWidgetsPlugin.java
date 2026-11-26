@@ -115,6 +115,8 @@ public class MathMasterWidgetsPlugin extends Plugin {
                     prefix + "style", preferences.getString("style", "neon"))));
                 item.put("textScale", MathMasterHomeWidgetProvider.normalizeWidgetTextScale(
                     preferences.getFloat(prefix + "textScale", 1f)));
+                item.put("appearance", MathMasterHomeWidgetProvider.normalizeWidgetAppearance(
+                    preferences.getString(prefix + "appearance", "dark")));
                 item.put("widthDp", Math.max(0, width));
                 item.put("heightDp", Math.max(0, height));
                 item.put("content", readContent(preferences.getString(
@@ -271,12 +273,17 @@ public class MathMasterWidgetsPlugin extends Plugin {
         }
         String style = call.getString("style");
         Double requestedScale = call.getDouble("textScale");
-        if (style == null && requestedScale == null) {
-            call.reject("Choose a background effect or text size to update.");
+        String appearance = call.getString("appearance");
+        if (style == null && requestedScale == null && appearance == null) {
+            call.reject("Choose a background effect, widget appearance or text size to update.");
             return;
         }
         if (style != null && !("neon".equals(style) || "blur".equals(style) || "transparent".equals(style))) {
             call.reject("INVALID_WIDGET_STYLE: Choose a supported background effect.");
+            return;
+        }
+        if (appearance != null && !("dark".equals(appearance) || "light".equals(appearance))) {
+            call.reject("INVALID_WIDGET_APPEARANCE: Choose dark or light mode.");
             return;
         }
         if (requestedScale != null) {
@@ -292,13 +299,17 @@ public class MathMasterWidgetsPlugin extends Plugin {
         SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String styleKey = prefix + "style";
         String scaleKey = prefix + "textScale";
+        String appearanceKey = prefix + "appearance";
         boolean hadStyle = preferences.contains(styleKey);
         boolean hadScale = preferences.contains(scaleKey);
+        boolean hadAppearance = preferences.contains(appearanceKey);
         String previousStyle = preferences.getString(styleKey, preferences.getString("style", "neon"));
         float previousScale = preferences.getFloat(scaleKey, 1f);
+        String previousAppearance = preferences.getString(appearanceKey, "dark");
         SharedPreferences.Editor editor = preferences.edit();
         if (style != null) editor.putString(styleKey, style);
         if (requestedScale != null) editor.putFloat(scaleKey, requestedScale.floatValue());
+        if (appearance != null) editor.putString(appearanceKey, appearance);
         if (!editor.commit()) {
             call.reject("Unable to save widget customization. Previous settings were kept.");
             return;
@@ -311,6 +322,8 @@ public class MathMasterWidgetsPlugin extends Plugin {
                 preferences.getString(styleKey, preferences.getString("style", "neon"))));
             result.put("textScale", MathMasterHomeWidgetProvider.normalizeWidgetTextScale(
                 preferences.getFloat(scaleKey, 1f)));
+            result.put("appearance", MathMasterHomeWidgetProvider.normalizeWidgetAppearance(
+                preferences.getString(appearanceKey, "dark")));
             call.resolve(result);
         } catch (RuntimeException updateError) {
             SharedPreferences.Editor rollback = preferences.edit();
@@ -318,6 +331,8 @@ public class MathMasterWidgetsPlugin extends Plugin {
             else rollback.remove(styleKey);
             if (hadScale) rollback.putFloat(scaleKey, previousScale);
             else rollback.remove(scaleKey);
+            if (hadAppearance) rollback.putString(appearanceKey, previousAppearance);
+            else rollback.remove(appearanceKey);
             if (!rollback.commit()) {
                 call.reject("Widget update failed and its previous settings could not be restored.", updateError);
                 return;
@@ -342,6 +357,7 @@ public class MathMasterWidgetsPlugin extends Plugin {
         boolean saved = preferences.edit()
             .putString(prefix + "composition", "auto")
             .putString(prefix + "style", "neon")
+            .putString(prefix + "appearance", "dark")
             .putString(prefix + "contentJson", defaults.toString())
             .putInt(prefix + "contentSchemaVersion", 4)
             .remove(prefix + "screenTimePeriod")

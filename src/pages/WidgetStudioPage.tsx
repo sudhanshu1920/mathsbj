@@ -11,17 +11,20 @@ import {
   Info,
   Maximize2,
   MonitorSmartphone,
+  Moon,
   Move,
   Plus,
   RefreshCw,
   Settings2,
   Sparkles,
+  Sun,
 } from "lucide-react";
 
 type NativeWidget = {
   appWidgetId: number;
   composition: string;
   style: "neon" | "blur" | "transparent";
+  appearance: "dark" | "light";
   textScale: number;
   content: string[];
   widthDp: number;
@@ -38,8 +41,9 @@ type NativeWidgetsPlugin = {
   updateCustomization(options: {
     appWidgetId: number;
     style?: NativeWidget["style"];
+    appearance?: NativeWidget["appearance"];
     textScale?: number;
-  }): Promise<{ style: NativeWidget["style"]; textScale: number }>;
+  }): Promise<{ style: NativeWidget["style"]; appearance: NativeWidget["appearance"]; textScale: number }>;
 };
 
 const NativeWidgets = registerPlugin<NativeWidgetsPlugin>("MathMasterWidgets");
@@ -361,6 +365,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
 
   const handleCustomizationChange = async (change: {
     style?: NativeWidget["style"];
+    appearance?: NativeWidget["appearance"];
     textScale?: number;
   }) => {
     if (selectedId === null || savingCustomization) return;
@@ -373,7 +378,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
         ...change,
       });
       setWidgets((current) => current.map((widget) => widget.appWidgetId === selectedId
-        ? { ...widget, style: saved.style, textScale: saved.textScale }
+        ? { ...widget, style: saved.style, appearance: saved.appearance, textScale: saved.textScale }
         : widget));
       setPreviewRevision((revision) => revision + 1);
       setNotice("Widget appearance saved and applied to the Android widget.");
@@ -572,7 +577,9 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                     </button>
                   </div>
                 </div>
-                <div className={"mt-2.5 flex items-center justify-center overflow-hidden rounded-xl border border-emerald-300/20 bg-slate-950/85 p-2 shadow-inner shadow-emerald-400/10 " + (previewExpanded ? "min-h-[210px]" : "min-h-[112px]")}>
+                <div className={"mt-2.5 flex items-center justify-center overflow-hidden rounded-xl border border-emerald-300/20 p-2 shadow-inner shadow-emerald-400/10 " +
+                  (selectedWidget.appearance === "light" ? "bg-slate-100" : "bg-slate-950/85") +
+                  (previewExpanded ? " min-h-[210px]" : " min-h-[112px]")}>
                   {previewUrl ? (
                     <img
                       src={previewUrl}
@@ -642,6 +649,37 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                         >
                           <span className={`mb-1.5 block h-6 rounded-lg border border-white/15 bg-gradient-to-br ${swatch}`} />
                           <span className="block truncate text-[9px] font-semibold leading-3">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-4 border-t border-border/60 pt-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-xs font-semibold">Widget appearance</h3>
+                        <p className="text-[10px] text-muted-foreground">Saved separately for this widget</p>
+                      </div>
+                      {savingCustomization && <RefreshCw size={13} className="animate-spin text-primary" />}
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5" role="group" aria-label="Widget appearance">
+                      {([
+                        ["dark", "Dark Mode", Moon],
+                        ["light", "Light Mode", Sun],
+                      ] as const).map(([appearance, label, Icon]) => (
+                        <button
+                          key={appearance}
+                          type="button"
+                          aria-pressed={selectedWidget.appearance === appearance}
+                          disabled={savingCustomization}
+                          onClick={() => void handleCustomizationChange({ appearance })}
+                          className={`flex min-h-10 items-center justify-center gap-2 rounded-xl border px-2 text-[11px] font-semibold transition-colors disabled:opacity-60 ${
+                            selectedWidget.appearance === appearance
+                              ? "border-primary/55 bg-primary/[0.09] text-foreground ring-1 ring-primary/15"
+                              : "border-border/65 bg-background/35 text-muted-foreground hover:border-primary/35"
+                          }`}
+                        >
+                          <Icon size={14} />
+                          {label}
                         </button>
                       ))}
                     </div>

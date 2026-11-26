@@ -232,6 +232,14 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(config, /screenTimeShowPercentCheck/);
   assert.match(config, /screenTimeDetailedCheck/);
   assert.match(config, /SCREEN TIME SETTINGS/);
+  assert.match(config, /WIDGET APPEARANCE/);
+  assert.match(config, /addAppearanceChoices\(content, savedAppearance\.appearance\)/);
+  assert.match(config, /putString\(prefix \+ "appearance", screenTime\.appearance\)/);
+  assert.match(provider, /config\.appearance = normalizeWidgetAppearance/);
+  assert.match(plugin, /item\.put\("appearance"/);
+  assert.match(plugin, /putString\(appearanceKey, appearance\)/);
+  assert.match(renderer, /drawAppIcon\(entry\.icon/);
+  assert.match(renderer, /appIcon\.setAlpha\(255\)/);
   assert.match(config, /settings saved to this instance/);
   assert.match(studyMode, /MathMasterHomeWidgetProvider\.refreshScreenTimeWidgets\(context\)/);
   assert.match(packageReceiver, /MathMasterHomeWidgetProvider\.refreshScreenTimeWidgets\(context\)/);
@@ -512,5 +520,5 @@ test('native widget editor uses compact responsive grids, real thumbnails and a 
   assert.match(config, /Previous settings are unchanged/);
   assert.match(config, /Previous settings were restored/);
   assert.match(config, /isActiveWidget\(widgetId\)/);
-  assert.match(config, /radio\.setOnClickListener\(view -> \{\s+List<RadioButton> choices = styleChoices\.contains\(radio\) \? styleChoices : compositionChoices;\s+selectChoice\(choices, radio\);/);
+  assert.match(config, /radio\.setOnClickListener\(view -> \{\s+List<RadioButton> choices = styleChoices\.contains\(radio\) \? styleChoices\s+: \(appearanceChoices\.contains\(radio\) \? appearanceChoices : compositionChoices\);\s+selectChoice\(choices, radio\);/);
 });
