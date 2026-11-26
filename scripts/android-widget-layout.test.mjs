@@ -268,6 +268,7 @@ test('older saved selections gain the quiz tile exactly once', () => {
 
 test('desktop widget preview compiles provider/config with fatal errors and renders Screen Time matrix', () => {
   const runner = read('tools/widget-preview/run.sh');
+  const islandRunner = read('tools/island-preview/render-previews.sh');
   const bitmap = read('tools/widget-preview/shim/android/graphics/Bitmap.java');
   const canvas = read('tools/widget-preview/shim/android/graphics/Canvas.java');
   const path = read('tools/widget-preview/shim/android/graphics/Path.java');
@@ -275,6 +276,7 @@ test('desktop widget preview compiles provider/config with fatal errors and rend
   const harness = read('tools/widget-preview/harness/com/sudhanshu/mathsbj/E2E.java');
   assert.match(runner, /MathMasterHomeWidgetProvider\.java/);
   assert.match(runner, /MathMasterWidgetConfigActivity\.java/);
+  assert.match(islandRunner, /UsageMetrics\.java/);
   assert.doesNotMatch(runner, /\|\| true/);
   assert.match(bitmap, /isRecycled\(\)/);
   assert.match(bitmap, /getByteCount\(\)/);
