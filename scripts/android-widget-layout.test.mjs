@@ -138,6 +138,8 @@ test('content options and schema version agree in the provider, configuration sc
 test('screen-time content is backed by local UsageStats and keeps Study Apps separate from device inventory', () => {
   const usage = read('android-native/com/sudhanshu/mathsbj/AppUsageAnalyticsPlugin.java');
   const repository = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeRepository.java');
+  const usageSource = read('android-native/com/sudhanshu/mathsbj/UsageDataSource.java');
+  const eventTimeline = read('android-native/com/sudhanshu/mathsbj/UsageEventTimeline.java');
   const provider = read(PROVIDER);
   const renderer = read(RENDERER);
   const config = read(CONFIG);
@@ -145,12 +147,20 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   const index = read('src/pages/Index.tsx');
   const studyMode = read('android-native/com/sudhanshu/mathsbj/StudyModeManager.java');
   const packageReceiver = read('android-native/com/sudhanshu/mathsbj/StudyModePackageChangeReceiver.java');
+  const bootReceiver = read(BOOT_RECEIVER);
   const setup = read('scripts/configure-android-widgets.mjs');
 
   assert.match(usage, /public static boolean hasUsageAccess\(Context context\)/);
-  assert.match(repository, /UsageStatsManager\.INTERVAL_DAILY/);
-  assert.match(repository, /queryUsageStats\(/);
-  assert.match(repository, /getTotalTimeInForeground\(\)/);
+  assert.match(repository, /import android\.app\.usage\.UsageStatsManager;/);
+  assert.match(usageSource, /UsageStatsManager\.INTERVAL_DAILY/);
+  assert.match(usageSource, /queryUsageStats\(/);
+  assert.match(usageSource, /getTotalTimeInForeground\(\)/);
+  assert.match(usageSource, /queryEvents\(/);
+  assert.match(usageSource, /dailyAppUsageByPackage/);
+  assert.match(usageSource, /deviceMillisAvailable/);
+  assert.match(eventTimeline, /SCREEN_NON_INTERACTIVE/);
+  assert.match(eventTimeline, /KEYGUARD_SHOWN/);
+  assert.match(eventTimeline, /ACTIVITY_RESUMED/);
   assert.match(repository, /Executors\.newSingleThreadExecutor/);
   assert.match(repository, /CACHE_TTL_MS = 2L \* 60L \* 1000L/);
   assert.match(repository, /MAX_SNAPSHOTS = 9/);
@@ -162,9 +172,9 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.doesNotMatch(repository, /getInstalledApplications/);
   assert.doesNotMatch(repository, /AppChoice|getStudyAppChoices|getDeviceAppChoices/);
   assert.match(repository, /pm\.getApplicationInfo\(packageName/);
-  assert.match(repository, /record != null && !hidden\.contains\(packageName\)/);
+  assert.match(repository, /if \(!hidden\.contains\(record\.packageName\)\) ranked\.add\(record\)/);
   assert.match(repository, /record\.eligibleDeviceApp && record\.usageMillis > 0L/);
-  assert.match(repository, /The total represents the full eligible source/);
+  assert.match(repository, /percentageTotalUsageMillis/);
   assert.match(repository, /isEligibleDeviceApp\(pm, info\)/);
   assert.match(repository, /getLaunchIntentForPackage\(info\.packageName\)/);
   assert.match(repository, /"last_7_days"/);
@@ -186,6 +196,9 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(provider, /screenTimeHiddenStudyPackages/);
   assert.match(provider, /screenTimeHiddenDevicePackages/);
   assert.match(plugin, /public void syncAppearance\(PluginCall call\)/);
+  assert.match(plugin, /public void configureWidget\(PluginCall call\) \{[\s\S]*?\n    \}\n\n    @PluginMethod\n    public void updateCustomization\(PluginCall call\)/);
+  assert.match(plugin, /INVALID_WIDGET_TEXT_SCALE/);
+  assert.match(plugin, /if \(hadScale\) rollback\.putFloat\(scaleKey, previousScale\)/);
   assert.match(renderer, /this\.pal = paletteFor\(o\.composition, o\.themeAccent, o\.lightMode, o\.themeMatched\)/);
   assert.match(renderer, /if \(themeMatched\) applyAccent\(p, themeAccent, lightMode\)/);
   assert.match(renderer, /ensureTextContrast/);
@@ -222,20 +235,29 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(config, /settings saved to this instance/);
   assert.match(studyMode, /MathMasterHomeWidgetProvider\.refreshScreenTimeWidgets\(context\)/);
   assert.match(packageReceiver, /MathMasterHomeWidgetProvider\.refreshScreenTimeWidgets\(context\)/);
+  assert.match(bootReceiver, /MathMasterHomeWidgetProvider\.refreshScreenTimeWidgets\(context\)/);
+  assert.match(bootReceiver, /Intent\.ACTION_TIMEZONE_CHANGED/);
   assert.ok(setup.includes("'WidgetScreenTimeRepository.java'"));
+  assert.ok(setup.includes("'UsageDataSource.java'"));
+  assert.ok(setup.includes("'UsageEventTimeline.java'"));
+  assert.ok(setup.includes("'UsageMetrics.java'"));
 });
 
 test('screen-time dashboards use Emerald glass and derive ring and app bars from live usage', () => {
   const renderer = read(RENDERER);
   const provider = read(PROVIDER);
+  const usageMetrics = read('android-native/com/sudhanshu/mathsbj/UsageMetrics.java');
 
   assert.match(renderer, /applyScreenTimePalette\(this\.pal, o\.themeAccent, o\.themeMatched, o\.lightMode\)/);
   assert.match(renderer, /drawScreenTimeDashboard\(section, study != null/);
-  assert.match(renderer, /section\.totalUsageMillis \/ 86_400_000d/);
-  assert.match(renderer, /float ratio = clamp\(entry\.percent \/ 100f, 0f, 1f\)/);
+  assert.match(renderer, /UsageMetrics\.deviceDayProgress\(section\.totalUsageMillis\)/);
+  assert.match(renderer, /void drawUsageProgress\(RectF track, float barHeight, float percent\)/);
+  assert.match(usageMetrics, /usageMillis \* 100d \/ totalUsageMillis/);
+  assert.match(renderer, /o\.textScale/);
   assert.match(renderer, /p\.bar0 = hex\("#39EEA0"\)/);
   assert.match(provider, /boolean showPercent = true/);
   assert.match(provider, /"screenTimeShowPercent", true/);
+  assert.match(provider, /normalizeWidgetTextScale/);
 });
 
 test('older saved selections gain the quiz tile exactly once', () => {
@@ -247,6 +269,7 @@ test('older saved selections gain the quiz tile exactly once', () => {
 
 test('desktop widget preview compiles provider/config with fatal errors and renders Screen Time matrix', () => {
   const runner = read('tools/widget-preview/run.sh');
+  const islandRunner = read('tools/island-preview/render-previews.sh');
   const bitmap = read('tools/widget-preview/shim/android/graphics/Bitmap.java');
   const canvas = read('tools/widget-preview/shim/android/graphics/Canvas.java');
   const path = read('tools/widget-preview/shim/android/graphics/Path.java');
@@ -254,6 +277,7 @@ test('desktop widget preview compiles provider/config with fatal errors and rend
   const harness = read('tools/widget-preview/harness/com/sudhanshu/mathsbj/E2E.java');
   assert.match(runner, /MathMasterHomeWidgetProvider\.java/);
   assert.match(runner, /MathMasterWidgetConfigActivity\.java/);
+  assert.match(islandRunner, /UsageMetrics\.java/);
   assert.doesNotMatch(runner, /\|\| true/);
   assert.match(bitmap, /isRecycled\(\)/);
   assert.match(bitmap, /getByteCount\(\)/);
@@ -264,6 +288,8 @@ test('desktop widget preview compiles provider/config with fatal errors and rend
   assert.match(harness, /renderScreenTimeMatrix\(ctx, p, mgr, outDir\)/);
   assert.match(harness, /verifyScreenTimeAppearanceAndPreview\(ctx, mgr, p, outDir\)/);
   assert.match(harness, /Widget Studio preview differs from the themed home-screen widget/);
+  assert.match(harness, /float\[\] textScales = \{0\.8f, 1f, 1\.3f\}/);
+  assert.match(harness, /prefs\.m\.put\(prefix \+ \"textScale\", textScale\)/);
   assert.match(harness, /App appearance changed a widget without Screen Time content/);
   assert.match(harness, /String\[\] states = \{"ok", "permission_required", "no_study_apps", "no_usage", "loading", "error"\}/);
   assert.match(harness, /String\[\] styles = \{"neon", "blur", "transparent"\}/);
@@ -334,6 +360,7 @@ test('configure script ships the renderer, fonts and resources into a generated 
   assert.equal(result.assetDirectories, 1);
   for (const file of [
     'MathMasterHomeWidgetProvider.java', 'MathMasterWidgetRenderer.java', 'WidgetScreenTimeRepository.java',
+    'UsageDataSource.java', 'UsageEventTimeline.java', 'UsageMetrics.java',
     'MathMasterWidgetConfigActivity.java', 'DailyTargetReminderPlugin.java', 'DailyTargetReminderReceiver.java',
     'DailyTargetReminderBootReceiver.java',
   ]) {

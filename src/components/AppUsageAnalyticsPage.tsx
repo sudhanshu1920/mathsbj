@@ -250,11 +250,19 @@ const AppUsageAnalyticsPage = ({ onBack }: AppUsageAnalyticsPageProps) => {
         </button>
       </header>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className="min-w-0 rounded-xl border border-border/70 bg-card/35 px-2.5 py-2">
-          <p className="text-[9px] text-muted-foreground">Total usage</p>
+          <p className="text-[9px] text-muted-foreground">App foreground sum</p>
           <p className="truncate text-sm font-bold tabular-nums text-foreground">
             {formatUsageDuration(snapshot?.totalUsageMillis ?? 0)}
+          </p>
+        </div>
+        <div className="min-w-0 rounded-xl border border-border/70 bg-card/35 px-2.5 py-2">
+          <p className="text-[9px] text-muted-foreground">Device active time</p>
+          <p className="truncate text-sm font-bold tabular-nums text-foreground">
+            {snapshot?.deviceScreenTimeAvailable
+              ? formatUsageDuration(snapshot.deviceScreenTimeMillis)
+              : "Unavailable"}
           </p>
         </div>
         <div className="min-w-0 rounded-xl border border-border/70 bg-card/35 px-2.5 py-2">

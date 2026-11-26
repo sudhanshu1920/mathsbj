@@ -1,6 +1,5 @@
 package com.sudhanshu.mathsbj;
 
-import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
@@ -76,15 +75,23 @@ final class WidgetScreenTimeRepository {
         final long startMillis;
         final long endMillis;
         final long updatedAt;
+        final long deviceUsageMillis;
+        final boolean deviceUsageAvailable;
         final Map<String, AppRecord> apps;
         Snapshot(String status, String period, long startMillis, long endMillis, long updatedAt,
                  Map<String, AppRecord> apps) {
+            this(status, period, startMillis, endMillis, updatedAt, apps, 0L, false);
+        }
+        Snapshot(String status, String period, long startMillis, long endMillis, long updatedAt,
+                 Map<String, AppRecord> apps, long deviceUsageMillis, boolean deviceUsageAvailable) {
             this.status = status;
             this.period = period;
             this.startMillis = startMillis;
             this.endMillis = endMillis;
             this.updatedAt = updatedAt;
             this.apps = apps;
+            this.deviceUsageMillis = deviceUsageMillis;
+            this.deviceUsageAvailable = deviceUsageAvailable;
         }
     }
 
@@ -251,28 +258,33 @@ final class WidgetScreenTimeRepository {
         }
         Set<String> hidden = hiddenPackages == null ? Collections.emptySet() : hiddenPackages;
 
-        List<AppRecord> ranked = new ArrayList<>();
+        List<AppRecord> allEligible = new ArrayList<>();
         if (studyApps) {
             for (String packageName : selectedStudyPackages) {
                 AppRecord record = snapshot.apps.get(packageName);
-                if (record != null && !hidden.contains(packageName)) ranked.add(record);
+                if (record != null) allEligible.add(record);
             }
         } else {
             for (AppRecord record : snapshot.apps.values()) {
-                if (record.eligibleDeviceApp && record.usageMillis > 0L
-                    && !hidden.contains(record.packageName)) ranked.add(record);
+                if (record.eligibleDeviceApp && record.usageMillis > 0L) allEligible.add(record);
             }
         }
+        Collections.sort(allEligible, appComparator(sort));
+        for (AppRecord record : allEligible) {
+            section.percentageTotalUsageMillis += Math.max(0L, record.usageMillis);
+        }
+        List<AppRecord> ranked = new ArrayList<>();
+        for (AppRecord record : allEligible) {
+            if (!hidden.contains(record.packageName)) ranked.add(record);
+        }
         if (ranked.isEmpty()) {
-            section.status = "no_usage";
+            section.status = allEligible.isEmpty() ? "no_usage" : "no_visible_apps";
             return section;
         }
 
-        Collections.sort(ranked, appComparator(sort));
-        // The total represents the full eligible source, not just the visible top-N rows.
-        for (AppRecord record : ranked) {
-            section.totalUsageMillis += Math.max(0L, record.usageMillis);
-        }
+        section.deviceTotalAvailable = studyApps || snapshot.deviceUsageAvailable;
+        section.totalUsageMillis = studyApps
+            ? section.percentageTotalUsageMillis : snapshot.deviceUsageMillis;
 
         int count = Math.max(1, Math.min(12, maxEntries));
         int visible = Math.min(count, ranked.size());
@@ -282,8 +294,7 @@ final class WidgetScreenTimeRepository {
             entry.packageName = record.packageName;
             entry.label = record.label;
             entry.usageMillis = record.usageMillis;
-            entry.percent = section.totalUsageMillis > 0L
-                ? (float) (entry.usageMillis * 100.0d / section.totalUsageMillis) : 0f;
+            entry.percent = UsageMetrics.percentage(entry.usageMillis, section.percentageTotalUsageMillis);
             entry.icon = record.icon;
             section.entries.add(entry);
         }
@@ -301,23 +312,13 @@ final class WidgetScreenTimeRepository {
             return new Snapshot("error", period, bounds.start, bounds.end,
                 System.currentTimeMillis(), Collections.emptyMap());
         }
-        List<UsageStats> stats = manager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY, bounds.start, bounds.end);
-        if (stats == null) {
+        UsageDataSource.Result source = UsageDataSource.query(context, manager, bounds.start, bounds.end);
+        if (source == null) {
             return new Snapshot("error", period, bounds.start, bounds.end,
                 System.currentTimeMillis(), Collections.emptyMap());
         }
 
-        Map<String, Long> usage = new HashMap<>();
-        for (UsageStats stat : stats) {
-            if (stat == null || stat.getPackageName() == null) continue;
-            long duration = Math.max(0L, stat.getTotalTimeInForeground());
-            if (duration <= 0L) continue;
-            String packageName = stat.getPackageName();
-            if (packageName.equals(context.getPackageName())) continue;
-            Long previousDuration = usage.get(packageName);
-            usage.put(packageName, (previousDuration == null ? 0L : previousDuration) + duration);
-        }
+        Map<String, Long> usage = source.appMillisByPackage;
 
         PackageManager pm = context.getPackageManager();
         Set<String> selectedStudy = new HashSet<>(StudyModeManager.getSelectedStudyAppPackages(context));
@@ -345,7 +346,12 @@ final class WidgetScreenTimeRepository {
             Bitmap icon = loadIcon(pm, packageName, info, iconSize);
             appRecords.put(packageName, new AppRecord(packageName, label, deviceEligible, duration, icon));
         }
-        return new Snapshot("ok", period, bounds.start, bounds.end, System.currentTimeMillis(), appRecords);
+        long deviceUsageMillis = 0L;
+        for (Long dailyUsage : source.deviceMillisByDay.values()) {
+            if (dailyUsage != null) deviceUsageMillis += Math.max(0L, dailyUsage);
+        }
+        return new Snapshot("ok", period, bounds.start, bounds.end, System.currentTimeMillis(),
+            appRecords, deviceUsageMillis, source.deviceMillisAvailable);
     }
 
     private static Bitmap loadIcon(PackageManager pm, String packageName, ApplicationInfo info, int size) {

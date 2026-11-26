@@ -21,6 +21,7 @@ public class DailyTargetReminderBootReceiver extends BroadcastReceiver {
             || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)
             || Intent.ACTION_TIME_CHANGED.equals(action)
             || Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
+            MathMasterHomeWidgetProvider.refreshScreenTimeWidgets(context);
             DailyTargetReminderReceiver.scheduleNext(context);
             StudyModeManager.reconcile(context);
         }

@@ -7,6 +7,8 @@ export type UsageAppFilter = "all" | "top" | string;
 export interface UsageDailyPoint {
   date: string;
   usageMillis: number;
+  deviceScreenTimeMillis: number;
+  deviceScreenTimeAvailable: boolean;
 }
 
 export interface UsageApp {
@@ -23,6 +25,8 @@ export interface UsageAnalyticsSnapshot {
   fromDate: string;
   toDate: string;
   totalUsageMillis: number;
+  deviceScreenTimeMillis: number;
+  deviceScreenTimeAvailable: boolean;
   mostUsedPackage: string;
   mostUsedMillis: number;
   apps: UsageApp[];
@@ -108,6 +112,8 @@ const emptySnapshot = (): UsageAnalyticsSnapshot => ({
   fromDate: "",
   toDate: "",
   totalUsageMillis: 0,
+  deviceScreenTimeMillis: 0,
+  deviceScreenTimeAvailable: false,
   mostUsedPackage: "",
   mostUsedMillis: 0,
   apps: [],

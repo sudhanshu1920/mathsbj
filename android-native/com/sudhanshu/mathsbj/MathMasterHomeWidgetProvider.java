@@ -70,6 +70,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         String period = "today";
         String sort = "most_used";
         int maxEntries = 5;
+        float textScale = 1f;
         boolean showTotal = true;
         boolean showUsage = true;
         boolean showPercent = true;
@@ -360,6 +361,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         options.screenTimeShowUsage = config.showUsage;
         options.screenTimeShowPercent = config.showPercent;
         options.screenTimeDetailed = config.detailed;
+        options.textScale = config.textScale;
         return options;
     }
 
@@ -387,6 +389,7 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         config.period = normalizeScreenTimePeriod(getInstanceString(preferences, appWidgetId, "screenTimePeriod", "today"));
         config.sort = normalizeScreenTimeSort(getInstanceString(preferences, appWidgetId, "screenTimeSort", "most_used"));
         config.maxEntries = Math.max(1, Math.min(12, getInstanceInt(preferences, appWidgetId, "screenTimeMaxEntries", 5)));
+        config.textScale = normalizeWidgetTextScale(getInstanceFloat(preferences, appWidgetId, "textScale", 1f));
         config.showTotal = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowTotal", true);
         config.showUsage = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowUsage", true);
         config.showPercent = getInstanceBoolean(preferences, appWidgetId, "screenTimeShowPercent", true);
@@ -402,6 +405,17 @@ public class MathMasterHomeWidgetProvider extends AppWidgetProvider {
         String key = appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID ? field : "instance_" + appWidgetId + "_" + field;
         if (!preferences.contains(key)) return fallback;
         try { return preferences.getInt(key, fallback); } catch (ClassCastException ignored) { return fallback; }
+    }
+
+    static float normalizeWidgetTextScale(float value) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) return 1f;
+        return Math.max(0.8f, Math.min(1.3f, Math.round(value * 10f) / 10f));
+    }
+
+    private static float getInstanceFloat(SharedPreferences preferences, int appWidgetId, String field, float fallback) {
+        String key = appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID ? field : "instance_" + appWidgetId + "_" + field;
+        if (!preferences.contains(key)) return fallback;
+        try { return preferences.getFloat(key, fallback); } catch (ClassCastException ignored) { return fallback; }
     }
 
     private static boolean getInstanceBoolean(SharedPreferences preferences, int appWidgetId, String field, boolean fallback) {

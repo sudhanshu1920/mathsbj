@@ -113,6 +113,8 @@ public class MathMasterWidgetsPlugin extends Plugin {
                     prefix + "composition", preferences.getString("composition", "auto"))));
                 item.put("style", MathMasterHomeWidgetProvider.normalizeWidgetStyle(preferences.getString(
                     prefix + "style", preferences.getString("style", "neon"))));
+                item.put("textScale", MathMasterHomeWidgetProvider.normalizeWidgetTextScale(
+                    preferences.getFloat(prefix + "textScale", 1f)));
                 item.put("widthDp", Math.max(0, width));
                 item.put("heightDp", Math.max(0, height));
                 item.put("content", readContent(preferences.getString(
@@ -261,6 +263,70 @@ public class MathMasterWidgetsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void updateCustomization(PluginCall call) {
+        int id = call.getInt("appWidgetId", AppWidgetManager.INVALID_APPWIDGET_ID);
+        if (!isActiveWidgetId(id)) {
+            call.reject("That Math Master widget is no longer on the home screen. Refresh the list and try again.");
+            return;
+        }
+        String style = call.getString("style");
+        Double requestedScale = call.getDouble("textScale");
+        if (style == null && requestedScale == null) {
+            call.reject("Choose a background effect or text size to update.");
+            return;
+        }
+        if (style != null && !("neon".equals(style) || "blur".equals(style) || "transparent".equals(style))) {
+            call.reject("INVALID_WIDGET_STYLE: Choose a supported background effect.");
+            return;
+        }
+        if (requestedScale != null) {
+            double rounded = Math.round(requestedScale * 10d) / 10d;
+            if (Double.isNaN(requestedScale) || Double.isInfinite(requestedScale)
+                || Math.abs(rounded - requestedScale) > 0.001d || rounded < 0.8d || rounded > 1.3d) {
+                call.reject("INVALID_WIDGET_TEXT_SCALE: Choose a text size from 0.8 to 1.3 in 0.1 steps.");
+                return;
+            }
+        }
+
+        String prefix = "instance_" + id + "_";
+        SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String styleKey = prefix + "style";
+        String scaleKey = prefix + "textScale";
+        boolean hadStyle = preferences.contains(styleKey);
+        boolean hadScale = preferences.contains(scaleKey);
+        String previousStyle = preferences.getString(styleKey, preferences.getString("style", "neon"));
+        float previousScale = preferences.getFloat(scaleKey, 1f);
+        SharedPreferences.Editor editor = preferences.edit();
+        if (style != null) editor.putString(styleKey, style);
+        if (requestedScale != null) editor.putFloat(scaleKey, requestedScale.floatValue());
+        if (!editor.commit()) {
+            call.reject("Unable to save widget customization. Previous settings were kept.");
+            return;
+        }
+        try {
+            AppWidgetManager.getInstance(getContext()).updateAppWidget(
+                id, MathMasterHomeWidgetProvider.createViews(getContext(), id));
+            JSObject result = new JSObject();
+            result.put("style", MathMasterHomeWidgetProvider.normalizeWidgetStyle(
+                preferences.getString(styleKey, preferences.getString("style", "neon"))));
+            result.put("textScale", MathMasterHomeWidgetProvider.normalizeWidgetTextScale(
+                preferences.getFloat(scaleKey, 1f)));
+            call.resolve(result);
+        } catch (RuntimeException updateError) {
+            SharedPreferences.Editor rollback = preferences.edit();
+            if (hadStyle) rollback.putString(styleKey, previousStyle);
+            else rollback.remove(styleKey);
+            if (hadScale) rollback.putFloat(scaleKey, previousScale);
+            else rollback.remove(scaleKey);
+            if (!rollback.commit()) {
+                call.reject("Widget update failed and its previous settings could not be restored.", updateError);
+                return;
+            }
+            call.reject("Widget update failed. Previous settings were restored.", updateError);
+        }
+    }
+
+    @PluginMethod
     public void resetWidget(PluginCall call) {
         int id = call.getInt("appWidgetId", AppWidgetManager.INVALID_APPWIDGET_ID);
         if (!isActiveWidgetId(id)) {
@@ -285,6 +351,7 @@ public class MathMasterWidgetsPlugin extends Plugin {
             .remove(prefix + "screenTimeShowUsage")
             .remove(prefix + "screenTimeShowPercent")
             .remove(prefix + "screenTimeDetailed")
+            .remove(prefix + "textScale")
             .remove(prefix + "screenTimeHiddenStudyPackages")
             .remove(prefix + "screenTimeHiddenDevicePackages")
             .commit();

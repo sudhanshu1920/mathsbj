@@ -11,6 +11,7 @@ $JAVAC -nowarn -Xlint:none -d "$BUILD" \
   $(find "$WIDGET/shim" "$WIDGET/stubs" "$HERE/shim" -name '*.java') \
   "$ROOT/android-native/com/sudhanshu/mathsbj/ScreenTimeIslandSpring.java" \
   "$ROOT/android-native/com/sudhanshu/mathsbj/ScreenTimeIslandPainter.java" \
+  "$ROOT/android-native/com/sudhanshu/mathsbj/UsageMetrics.java" \
   "$ROOT/android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java" \
   "$ROOT/android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java" \
   "$ROOT/android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java" \

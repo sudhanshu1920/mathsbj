@@ -22,6 +22,7 @@ type NativeWidget = {
   appWidgetId: number;
   composition: string;
   style: "neon" | "blur" | "transparent";
+  textScale: number;
   content: string[];
   widthDp: number;
   heightDp: number;
@@ -34,6 +35,11 @@ type NativeWidgetsPlugin = {
   configureWidget(options: { appWidgetId: number; composition?: string }): Promise<{ opened: boolean }>;
   renderPreview(options: { appWidgetId: number }): Promise<{ dataUrl: string }>;
   resetWidget(options: { appWidgetId: number }): Promise<{ reset: boolean }>;
+  updateCustomization(options: {
+    appWidgetId: number;
+    style?: NativeWidget["style"];
+    textScale?: number;
+  }): Promise<{ style: NativeWidget["style"]; textScale: number }>;
 };
 
 const NativeWidgets = registerPlugin<NativeWidgetsPlugin>("MathMasterWidgets");
@@ -84,6 +90,8 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
   const [openingEditor, setOpeningEditor] = useState(false);
   const [addingWidget, setAddingWidget] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [savingCustomization, setSavingCustomization] = useState(false);
+  const [previewRevision, setPreviewRevision] = useState(0);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -278,7 +286,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
       cancelled = true;
       window.removeEventListener("widget-appearance-updated", renderPreview);
     };
-  }, [native, selectedId, widgets]);
+  }, [native, selectedId, widgets, previewRevision]);
 
   const handleAdd = async (composition = pendingDesignId ?? undefined) => {
     // The ref prevents two rapid taps before React commits the disabled button state.
@@ -351,6 +359,35 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
     }
   };
 
+  const handleCustomizationChange = async (change: {
+    style?: NativeWidget["style"];
+    textScale?: number;
+  }) => {
+    if (selectedId === null || savingCustomization) return;
+    setSavingCustomization(true);
+    setError("");
+    setNotice("");
+    try {
+      const saved = await NativeWidgets.updateCustomization({
+        appWidgetId: selectedId,
+        ...change,
+      });
+      setWidgets((current) => current.map((widget) => widget.appWidgetId === selectedId
+        ? { ...widget, style: saved.style, textScale: saved.textScale }
+        : widget));
+      setPreviewRevision((revision) => revision + 1);
+      setNotice("Widget appearance saved and applied to the Android widget.");
+    } catch (reason) {
+      console.warn("[WidgetStudio] updateCustomization failed", {
+        operation: "updateCustomization",
+        code: getWidgetErrorCode(reason, "WIDGET_CUSTOMIZATION_FAILED"),
+      });
+      setError("Android could not save this widget appearance. Your previous settings remain active.");
+    } finally {
+      setSavingCustomization(false);
+    }
+  };
+
   return (
     <main className={`mx-auto min-w-0 w-full ${desktopMode ? "max-w-6xl" : "max-w-3xl"} space-y-3.5 pb-5 text-foreground`}>
       <header className="flex items-center gap-3">
@@ -403,7 +440,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
             </div>
           )}
 
-          <section className="rounded-2xl border border-border/70 bg-card/45 p-3 shadow-sm">
+          <section className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.07] via-card/55 to-cyan-400/[0.035] p-3 shadow-[0_12px_42px_-30px_hsl(var(--primary)/0.42)] backdrop-blur-xl">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -512,7 +549,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
 
           {selectedWidget && (
             <div className={`grid min-w-0 gap-3 ${desktopMode ? "md:grid-cols-[minmax(0,1.1fr)_minmax(250px,0.9fr)]" : "grid-cols-1"}`}>
-              <section className="min-w-0 rounded-2xl border border-border/70 bg-card/45 p-3 shadow-sm">
+              <section className="min-w-0 rounded-2xl border border-primary/20 bg-gradient-to-br from-emerald-400/[0.07] via-card/55 to-cyan-400/[0.06] p-3 shadow-[0_18px_50px_-34px_hsl(var(--primary)/0.55)] backdrop-blur-xl">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <h2 className="text-sm font-semibold">Live Preview</h2>
@@ -535,7 +572,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                     </button>
                   </div>
                 </div>
-                <div className={"mt-2.5 flex items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-background/75 p-2 " + (previewExpanded ? "min-h-[210px]" : "min-h-[112px]")}>
+                <div className={"mt-2.5 flex items-center justify-center overflow-hidden rounded-xl border border-emerald-300/20 bg-slate-950/85 p-2 shadow-inner shadow-emerald-400/10 " + (previewExpanded ? "min-h-[210px]" : "min-h-[112px]")}>
                   {previewUrl ? (
                     <img
                       src={previewUrl}
@@ -561,7 +598,7 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
               </section>
 
               <section className="min-w-0 space-y-3">
-                <div className="rounded-2xl border border-border/70 bg-card/45 p-3">
+                <div className="rounded-2xl border border-border/70 bg-card/45 p-3 backdrop-blur-lg">
                   <div className="flex items-center gap-2">
                     <Sparkles size={15} className="text-primary" />
                     <h2 className="text-sm font-semibold">Personalization</h2>
@@ -572,17 +609,84 @@ const WidgetStudioPage = ({ onBack }: { onBack: () => void }) => {
                       <span className="font-medium">{widgetLabel(selectedWidget, designs)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground">Appearance</span>
-                      <span className="font-medium">{STYLE_NAMES[selectedWidget.style]}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">Visible content</span>
                       <span className="font-medium">{selectedWidget.content.length} fields</span>
                     </div>
                   </div>
-                  <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
-                    The Android editor provides the supported design, background and content controls. Changes are saved for this widget instance only.
-                  </p>
+                  <div className="mt-4 border-t border-border/60 pt-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-xs font-semibold">Background effect</h3>
+                        <p className="text-[10px] text-muted-foreground">Foreground content stays crisp</p>
+                      </div>
+                      {savingCustomization && <RefreshCw size={13} className="animate-spin text-primary" />}
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-1.5" role="group" aria-label="Widget background effect">
+                      {([
+                        ["neon", "Neon Glass", "from-emerald-300/35 via-emerald-950 to-cyan-400/20"],
+                        ["blur", "Transparent Blur", "from-slate-300/35 via-slate-700/70 to-cyan-200/20"],
+                        ["transparent", "Full Transparent", "from-transparent via-slate-950/10 to-transparent"],
+                      ] as const).map(([style, label, swatch]) => (
+                        <button
+                          key={style}
+                          type="button"
+                          aria-pressed={selectedWidget.style === style}
+                          aria-label={label}
+                          disabled={savingCustomization}
+                          onClick={() => void handleCustomizationChange({ style })}
+                          className={`min-h-[64px] rounded-xl border p-1.5 text-left transition-colors disabled:opacity-60 ${
+                            selectedWidget.style === style
+                              ? "border-emerald-300/60 bg-primary/[0.08] ring-1 ring-emerald-300/20"
+                              : "border-border/65 bg-background/35 hover:border-primary/35"
+                          }`}
+                        >
+                          <span className={`mb-1.5 block h-6 rounded-lg border border-white/15 bg-gradient-to-br ${swatch}`} />
+                          <span className="block truncate text-[9px] font-semibold leading-3">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-border/60 pt-3">
+                    <div className="min-w-0">
+                      <h3 className="text-xs font-semibold">Widget text size</h3>
+                      <p className="text-[10px] text-muted-foreground">Applies consistently across the widget</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        aria-label="Decrease widget text size"
+                        disabled={savingCustomization || selectedWidget.textScale <= 0.8}
+                        onClick={() => void handleCustomizationChange({
+                          textScale: Math.max(0.8, Math.round((selectedWidget.textScale - 0.1) * 10) / 10),
+                        })}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-400/[0.06] text-xs font-bold text-foreground shadow-sm transition hover:border-emerald-300/55 hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        A−
+                      </button>
+                      <span className="w-9 text-center text-[10px] font-semibold tabular-nums text-muted-foreground">
+                        {Math.round(selectedWidget.textScale * 100)}%
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Increase widget text size"
+                        disabled={savingCustomization || selectedWidget.textScale >= 1.3}
+                        onClick={() => void handleCustomizationChange({
+                          textScale: Math.min(1.3, Math.round((selectedWidget.textScale + 0.1) * 10) / 10),
+                        })}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/25 bg-cyan-400/[0.06] text-xs font-bold text-foreground shadow-sm transition hover:border-cyan-300/55 hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        A+
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={savingCustomization || Math.abs(selectedWidget.textScale - 1) < 0.001}
+                    onClick={() => void handleCustomizationChange({ textScale: 1 })}
+                    className="mt-2 min-h-8 rounded-lg px-2 text-[10px] font-medium text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Reset text size
+                  </button>
                   <button
                     type="button"
                     onClick={() => void handleReset()}

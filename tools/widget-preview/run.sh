@@ -12,7 +12,8 @@ trap 'rm -rf "$BUILD"' EXIT
 if command -v javac >/dev/null 2>&1; then JAVAC="javac"; else JAVAC="java -m jdk.compiler/com.sun.tools.javac.Main"; fi
 NATIVE="$ROOT/android-native/com/sudhanshu/mathsbj"
 $JAVAC -nowarn -Xlint:none -d "$BUILD" $(find "$HERE/shim" "$HERE/stubs" "$HERE/harness" -name '*.java') \
-  "$NATIVE/MathMasterWidgetRenderer.java" "$NATIVE/MathMasterHomeWidgetProvider.java" "$NATIVE/MathMasterWidgetConfigActivity.java"
+  "$NATIVE/UsageMetrics.java" "$NATIVE/MathMasterWidgetRenderer.java" \
+  "$NATIVE/MathMasterHomeWidgetProvider.java" "$NATIVE/MathMasterWidgetConfigActivity.java"
 mkdir -p "$OUT"
 RUN="java -Djava.awt.headless=true -Dwidget.assets=$ROOT/android-native/assets/ -cp $BUILD"
 $RUN com.sudhanshu.mathsbj.Preview "$OUT"
