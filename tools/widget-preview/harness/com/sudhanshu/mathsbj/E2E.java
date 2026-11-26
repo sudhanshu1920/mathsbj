@@ -88,6 +88,20 @@ public class E2E {
         return true;
     }
 
+    static boolean containsBrightFixtureIcon(Bitmap bitmap) {
+        for (int y = 0; y < bitmap.getHeight(); y++) {
+            for (int x = 0; x < bitmap.getWidth(); x++) {
+                int color = bitmap.image.getRGB(x, y);
+                int red = (color >>> 16) & 255;
+                int green = (color >>> 8) & 255;
+                int blue = color & 255;
+                if ((color >>> 24) == 255 && red >= 60 && red <= 100
+                    && green >= 160 && blue >= 205) return true;
+            }
+        }
+        return false;
+    }
+
     static void verifyScreenTimeAppearanceAndPreview(
         FakeContext ctx, AppWidgetManager manager, MemPrefs prefs, String output
     ) throws Exception {
@@ -96,24 +110,34 @@ public class E2E {
         String prefix = "instance_400_";
         prefs.m.put(prefix + "composition", "hero_wide");
         prefs.m.put(prefix + "style", "neon");
+        prefs.m.put(prefix + "appearance", "dark");
         prefs.m.put(prefix + "contentSchemaVersion", 4);
         prefs.m.put(prefix + "contentJson", json("appIdentity", "progress", "studyAppsScreenTime"));
 
+        // An explicitly selected widget mode must not follow the app/device appearance.
         prefs.m.put("mode", "dark");
         prefs.m.put("appAccentColor", "#22d3ee");
         Bitmap darkWidget = render(ctx, 400);
         save(darkWidget, "e2e_screen_time_dark");
 
         prefs.m.put("mode", "light");
-        prefs.m.put("appAccentColor", "#f43f8e");
+        prefs.m.put("appAccentColor", "#22d3ee");
+        Bitmap sameDarkWidget = render(ctx, 400);
+        if (!samePixels(darkWidget, sameDarkWidget)) {
+            throw new IllegalStateException("Dark widget appearance followed the app theme instead of its instance setting.");
+        }
+        prefs.m.put(prefix + "appearance", "light");
         Bitmap lightWidget = render(ctx, 400);
         save(lightWidget, "e2e_screen_time_light");
         if (samePixels(darkWidget, lightWidget)) {
-            throw new IllegalStateException("Screen Time widget ignored its synchronized theme.");
+            throw new IllegalStateException("Light and dark widget appearances rendered identically.");
         }
         Set<String> selected = new HashSet<>(Arrays.asList("appIdentity", "progress", "studyAppsScreenTime"));
+        MathMasterHomeWidgetProvider.ScreenTimeConfig previewConfig =
+            MathMasterHomeWidgetProvider.readScreenTimeConfig(prefs, AppWidgetManager.INVALID_APPWIDGET_ID);
+        previewConfig.appearance = "light";
         Bitmap preview = MathMasterHomeWidgetProvider.renderConfigurationPreview(
-            ctx, "hero_wide", "neon", selected, 312, 140);
+            ctx, "hero_wide", "neon", selected, 312, 140, previewConfig);
         if (!samePixels(lightWidget, preview)) {
             throw new IllegalStateException("Widget Studio preview differs from the themed home-screen widget.");
         }
@@ -131,7 +155,60 @@ public class E2E {
             throw new IllegalStateException("App appearance changed a widget without Screen Time content.");
         }
         save(ordinaryDark, "e2e_non_screen_time_theme_unchanged");
-        System.out.println("Screen Time app-theme routing and live renderer preview parity verified");
+        System.out.println("Per-widget appearance isolation and live renderer preview parity verified");
+    }
+
+    static void verifyAppearanceMatrix(
+        FakeContext ctx, AppWidgetManager manager, MemPrefs prefs, String output
+    ) throws Exception {
+        WidgetScreenTimeRepository.setFixtureStatus("ok");
+        String[] concreteCompositions = MathMasterWidgetRenderer.COMPOSITIONS;
+        String[] compositions = new String[concreteCompositions.length + 1];
+        compositions[0] = "auto";
+        System.arraycopy(concreteCompositions, 0, compositions, 1, concreteCompositions.length);
+        String[] styles = {"neon", "blur", "transparent"};
+        String[] appearances = {"dark", "light"};
+        int id = 20000;
+        for (String composition : compositions) {
+            Bitmap[] paired = new Bitmap[styles.length];
+            for (String style : styles) {
+                for (String appearance : appearances) {
+                    sizes(manager, id, 312, 140);
+                    String prefix = "instance_" + id + "_";
+                    prefs.m.put(prefix + "composition", composition);
+                    prefs.m.put(prefix + "style", style);
+                    prefs.m.put(prefix + "appearance", appearance);
+                    prefs.m.put(prefix + "contentSchemaVersion", 4);
+                    prefs.m.put(prefix + "contentJson", json(
+                        "appIdentity", "studyAppsScreenTime", "deviceAppsScreenTime"));
+                    prefs.m.put(prefix + "textScale", 1f);
+                    prefs.m.put(prefix + "screenTimeMaxEntries", 5);
+                    prefs.m.put("mode", "dark".equals(appearance) ? "light" : "dark");
+                    prefs.m.put("appAccentColor", "#22d3ee");
+                    Bitmap widget = render(ctx, id);
+                    Bitmap livePreview = MathMasterHomeWidgetProvider.renderWidgetInstancePreview(ctx, id);
+                    if (!samePixels(widget, livePreview)) {
+                        throw new IllegalStateException("Native widget preview mismatch for " + composition
+                            + "/" + style + "/" + appearance);
+                    }
+                    if ("hero_wide".equals(composition) && "neon".equals(style) && "dark".equals(appearance)
+                        && !containsBrightFixtureIcon(widget)) {
+                        throw new IllegalStateException("Package icon was alpha-composited with the widget surface.");
+                    }
+                    if ("hero_wide".equals(composition) && "transparent".equals(style)) {
+                        save(widget, "e2e_appearance_" + appearance + "_transparent");
+                    }
+                    if (paired[Arrays.asList(styles).indexOf(style)] != null
+                        && samePixels(paired[Arrays.asList(styles).indexOf(style)], widget)) {
+                        throw new IllegalStateException("Dark and light appearances match for " + composition + "/" + style);
+                    }
+                    if ("dark".equals(appearance)) paired[Arrays.asList(styles).indexOf(style)] = widget;
+                    id++;
+                }
+            }
+        }
+        System.out.println("Screen Time appearance matrix rendered: "
+            + (compositions.length * styles.length * appearances.length) + " variants");
     }
 
     public static void main(String[] args) throws Exception {
@@ -202,6 +279,7 @@ public class E2E {
         Bitmap prev = MathMasterHomeWidgetProvider.renderConfigurationPreview(ctx, "auto", "neon", all, 312, 140);
         save(prev, "e2e_config_preview");
         verifyScreenTimeAppearanceAndPreview(ctx, mgr, p, outDir);
+        verifyAppearanceMatrix(ctx, mgr, p, outDir);
         renderScreenTimeMatrix(ctx, p, mgr, outDir);
         System.out.println("E2E OK");
     }

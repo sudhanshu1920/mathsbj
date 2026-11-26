@@ -36,6 +36,7 @@ const widget = {
   appWidgetId: 42,
   composition: "hero_wide",
   style: "neon" as const,
+  appearance: "dark" as const,
   textScale: 1,
   content: ["target", "progress", "streak"],
   widthDp: 320,
@@ -57,9 +58,11 @@ describe("WidgetStudioPage", () => {
     mocks.resetWidget.mockResolvedValue({ reset: true });
     mocks.updateCustomization.mockImplementation(async (options: {
       style?: "neon" | "blur" | "transparent";
+      appearance?: "dark" | "light";
       textScale?: number;
     }) => ({
       style: options.style ?? "neon",
+      appearance: options.appearance ?? "dark",
       textScale: options.textScale ?? 1,
     }));
     mocks.appStateListener = null;
@@ -194,6 +197,22 @@ describe("WidgetStudioPage", () => {
     }));
     expect(await screen.findByText("110%")).toBeInTheDocument();
     await waitFor(() => expect(mocks.renderPreview).toHaveBeenCalledTimes(3));
+  });
+
+  it("saves dark and light appearance independently for the selected widget", async () => {
+    mocks.getWidgets.mockResolvedValue({ widgets: [widget] });
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    await screen.findByRole("img", { name: "Live preview of the selected Math Master widget" });
+    fireEvent.click(screen.getByRole("button", { name: "Light Mode" }));
+    await waitFor(() => expect(mocks.updateCustomization).toHaveBeenCalledWith({
+      appWidgetId: 42,
+      appearance: "light",
+    }));
+    expect(await screen.findByRole("button", { name: "Light Mode" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Dark Mode" })).toHaveAttribute("aria-pressed", "false");
+    expect(await screen.findByRole("img", { name: "Live preview of the selected Math Master widget" }))
+      .toHaveAttribute("src", "data:image/png;base64,d2lkZ2V0");
   });
 
   it("disables typography controls at their supported minimum and maximum", async () => {

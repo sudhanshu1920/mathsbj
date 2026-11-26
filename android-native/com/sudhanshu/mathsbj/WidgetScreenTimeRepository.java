@@ -364,6 +364,7 @@ final class WidgetScreenTimeRepository {
             Drawable drawable = pm.getApplicationIcon(info);
             Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bitmap);
+            drawable.setAlpha(255);
             drawable.setBounds(0, 0, size, size);
             drawable.draw(canvas);
             synchronized (ICONS) {

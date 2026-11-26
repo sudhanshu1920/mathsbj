@@ -311,6 +311,7 @@ final class MathMasterWidgetRenderer {
         final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
         final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
         final Paint txt = new Paint(Paint.ANTI_ALIAS_FLAG);
+        final Paint appIcon = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
         RectF card;
         float cardRadius;
         float tracking = 0f;
@@ -351,31 +352,41 @@ final class MathMasterWidgetRenderer {
             txt.setTextSize(scaledSize);
             float w = txt.measureText(s);
             if (maxWidth > 0f && w > maxWidth) { txt.setTextSize(scaledSize * maxWidth / w); w = maxWidth; }
-            if (clear) {
-                txt.setStyle(Paint.Style.STROKE);
-                txt.setStrokeJoin(Paint.Join.ROUND);
-                txt.setStrokeWidth(Math.max(1.2f * density, txt.getTextSize() * 0.085f));
-                txt.setColor(Color.argb(235, 2, 10, 14));
-                c.drawText(s, x, baseline, txt);
-                txt.setStyle(Paint.Style.FILL);
-                txt.setStrokeWidth(0f);
-                int contrastColor = ensureTextContrast(color);
-                txt.setColor(Color.rgb(Color.red(contrastColor), Color.green(contrastColor), Color.blue(contrastColor)));
-            } else {
-                txt.setShadowLayer(Math.max(1f, txt.getTextSize() * 0.08f), 0f,
-                    Math.max(0.5f, txt.getTextSize() * 0.025f), withAlpha(Color.BLACK, 0.76f));
-            }
+            txt.setStyle(Paint.Style.STROKE);
+            txt.setStrokeJoin(Paint.Join.ROUND);
+            txt.setStrokeWidth(Math.max(1f * density, Math.min(3f * density, txt.getTextSize() * 0.075f)));
+            float foregroundLuminance = (Color.red(foreground) * 0.299f
+                + Color.green(foreground) * 0.587f + Color.blue(foreground) * 0.114f) / 255f;
+            txt.setColor(foregroundLuminance > 0.5f
+                ? Color.argb(224, 2, 10, 14)
+                : Color.argb(238, 255, 255, 255));
+            c.drawText(s, x, baseline, txt);
+            txt.setStyle(Paint.Style.FILL);
+            txt.setStrokeWidth(0f);
+            txt.setColor(Color.rgb(Color.red(foreground), Color.green(foreground), Color.blue(foreground)));
             c.drawText(s, x, baseline, txt);
             txt.clearShadowLayer();
             return w;
         }
 
+        void drawAppIcon(Bitmap bitmap, RectF bounds, float radius) {
+            if (bitmap == null || bitmap.isRecycled()) return;
+            appIcon.setAlpha(255);
+            appIcon.setColor(Color.WHITE);
+            appIcon.setShader(null);
+            appIcon.setMaskFilter(null);
+            appIcon.clearShadowLayer();
+            c.save();
+            c.clipPath(roundPath(bounds, radius));
+            c.drawBitmap(bitmap, null, bounds, appIcon);
+            c.restore();
+        }
+
         int ensureTextContrast(int color) {
-            if (!o.themeMatched || !o.lightMode) return color;
+            if (!hasScreenTime() || !o.lightMode) return color;
             float luminance = (Color.red(color) * 0.299f + Color.green(color) * 0.587f + Color.blue(color) * 0.114f) / 255f;
-            return luminance >= 0.82f
-                ? Color.argb(Color.alpha(color), 20, 27, 44)
-                : color;
+            if (luminance < 0.52f) return color;
+            return mix(color, hex("#142033"), 0.68f);
         }
 
         float measure(String s, float size, Typeface tf) {
@@ -761,7 +772,7 @@ final class MathMasterWidgetRenderer {
         void drawScreenTimeRingCenter(ScreenTimeSection section, float cx, float cy, float radius) {
             float iconSize = radius * 0.34f;
             float centerOffset = radius * 0.05f;
-            line.setColor(withAlpha(Color.WHITE, 0.96f));
+            line.setColor(withAlpha(o.lightMode ? hex("#243348") : Color.WHITE, 0.96f));
             line.setStrokeWidth(Math.max(2f * density, iconSize * 0.095f));
             c.drawCircle(cx, cy - radius * 0.31f, iconSize * 0.34f, line);
             c.drawLine(cx, cy - radius * 0.31f, cx, cy - radius * 0.31f - iconSize * 0.19f, line);
@@ -788,12 +799,7 @@ final class MathMasterWidgetRenderer {
                 row.left + pad + iconSize, row.centerY() + iconSize * 0.5f);
             fill.setColor(withAlpha(pal.master, 0.20f));
             c.drawRoundRect(icon, iconSize * 0.22f, iconSize * 0.22f, fill);
-            if (entry.icon != null && !entry.icon.isRecycled()) {
-                c.save();
-                c.clipPath(roundPath(icon, iconSize * 0.22f));
-                c.drawBitmap(entry.icon, null, icon, fill);
-                c.restore();
-            }
+            drawAppIcon(entry.icon, icon, iconSize * 0.22f);
             float labelLeft = icon.right + pad * 0.55f;
             float valueRight = row.right - pad;
             float durationSize = Math.min(19f * su, row.height() * 0.26f);
@@ -817,7 +823,7 @@ final class MathMasterWidgetRenderer {
                 ? Math.min(64f * density, row.width() * 0.15f) : 0f;
             RectF track = new RectF(labelLeft, barTop,
                 valueRight - percentSpace, barTop + barHeight);
-            fill.setColor(withAlpha(pal.track, 0.90f));
+            fill.setColor(usageTrackColor());
             c.drawRoundRect(track, barHeight, barHeight, fill);
             drawUsageProgress(track, barHeight, entry.percent);
             resetPaints();
@@ -833,6 +839,10 @@ final class MathMasterWidgetRenderer {
             if (width < barHeight * 1.5f) c.drawRect(progress, fill);
             else c.drawRoundRect(progress, barHeight, barHeight, fill);
             fill.setShader(null);
+        }
+
+        int usageTrackColor() {
+            return withAlpha(o.lightMode ? hex("#64748B") : hex("#8CA3B5"), 0.30f);
         }
 
         void drawTrophy(float cx, float cy, float size) {
@@ -1005,12 +1015,7 @@ final class MathMasterWidgetRenderer {
                 RectF iconTile = new RectF(iconLeft, iconTop, iconLeft + icon, iconTop + icon);
                 fill.setColor(withAlpha(pal.master, 0.16f));
                 c.drawRoundRect(iconTile, icon * 0.24f, icon * 0.24f, fill);
-                if (entry.icon != null && !entry.icon.isRecycled()) {
-                    c.save();
-                    c.clipPath(roundPath(iconTile, icon * 0.24f));
-                    c.drawBitmap(entry.icon, null, iconTile, fill);
-                    c.restore();
-                }
+                drawAppIcon(entry.icon, iconTile, icon * 0.24f);
                 float labelLeft = iconTile.right + pad * 0.58f;
                 float valueRight = panel.right - pad;
                 float valueWidth = o.screenTimeShowUsage
@@ -1031,7 +1036,7 @@ final class MathMasterWidgetRenderer {
                     float barHeight = Math.max(1.3f * density, rowHeight * 0.055f);
                     float barLeft = labelLeft;
                     RectF track = new RectF(barLeft, barTop, valueRight, barTop + barHeight);
-                    fill.setColor(withAlpha(pal.track, 0.88f));
+                    fill.setColor(usageTrackColor());
                     c.drawRoundRect(track, barHeight, barHeight, fill);
                     drawUsageProgress(track, barHeight, entry.percent);
                     resetPaints();
@@ -1076,7 +1081,7 @@ final class MathMasterWidgetRenderer {
             book.close();
             fill.setColor(withAlpha(tint, 0.20f)); c.drawPath(book, fill);
             line.setColor(withAlpha(tint, 0.98f)); line.setStrokeWidth(sw); c.drawPath(book, line);
-            line.setColor(withAlpha(Color.WHITE, 0.90f)); line.setStrokeWidth(sw * 0.62f);
+            line.setColor(withAlpha(o.lightMode ? hex("#243348") : Color.WHITE, 0.90f)); line.setStrokeWidth(sw * 0.62f);
             c.drawLine(cx, cy - h * 0.37f, cx, cy + h * 0.40f, line);
             c.drawLine(cx - w * 0.35f, cy - h * 0.08f, cx - w * 0.10f, cy - h * 0.04f, line);
             c.drawLine(cx + w * 0.10f, cy - h * 0.04f, cx + w * 0.35f, cy - h * 0.08f, line);
@@ -1092,7 +1097,7 @@ final class MathMasterWidgetRenderer {
             line.setColor(withAlpha(tint, 0.96f)); line.setStrokeWidth(sw);
             RectF outline = new RectF(phone); outline.inset(sw * 0.5f, sw * 0.5f);
             c.drawRoundRect(outline, size * 0.12f, size * 0.12f, line);
-            line.setColor(withAlpha(Color.WHITE, 0.92f)); line.setStrokeWidth(sw * 0.65f);
+            line.setColor(withAlpha(o.lightMode ? hex("#243348") : Color.WHITE, 0.92f)); line.setStrokeWidth(sw * 0.65f);
             c.drawLine(cx - w * 0.24f, cy - h * 0.30f, cx + w * 0.24f, cy - h * 0.30f, line);
             c.drawCircle(cx, cy + h * 0.34f, sw * 0.58f, fill);
             resetPaints();
@@ -1132,12 +1137,13 @@ final class MathMasterWidgetRenderer {
 
         // ---- glass surfaces
         void glass(RectF r, float radius) {
-            fill.setColor(withAlpha(o.themeMatched && o.lightMode ? Color.WHITE : Color.BLACK,
-                o.themeMatched && o.lightMode ? 0.42f : 0.12f));
+            float surfaceAlpha = clear ? (o.lightMode ? 0.82f : 0.68f) : (o.lightMode ? 0.91f : 0.78f);
+            int surface = o.lightMode ? Color.WHITE : hex("#07111C");
+            fill.setColor(withAlpha(surface, surfaceAlpha));
             c.drawRoundRect(r, radius, radius, fill);
             fill.setShader(new LinearGradient(r.left, r.top, r.left, r.bottom,
-                withAlpha(Color.WHITE, o.themeMatched && o.lightMode ? 0.58f : 0.12f),
-                withAlpha(Color.WHITE, o.themeMatched && o.lightMode ? 0.32f : 0.035f), Shader.TileMode.CLAMP));
+                withAlpha(Color.WHITE, o.lightMode ? 0.60f : 0.12f),
+                withAlpha(Color.WHITE, o.lightMode ? 0.40f : 0.035f), Shader.TileMode.CLAMP));
             c.drawRoundRect(r, radius, radius, fill);
             fill.setShader(null);
             RectF in = new RectF(r);
