@@ -151,6 +151,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   const setup = read('scripts/configure-android-widgets.mjs');
 
   assert.match(usage, /public static boolean hasUsageAccess\(Context context\)/);
+  assert.match(repository, /import android\.app\.usage\.UsageStatsManager;/);
   assert.match(usageSource, /UsageStatsManager\.INTERVAL_DAILY/);
   assert.match(usageSource, /queryUsageStats\(/);
   assert.match(usageSource, /getTotalTimeInForeground\(\)/);
