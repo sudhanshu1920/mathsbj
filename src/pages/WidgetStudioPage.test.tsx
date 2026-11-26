@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   configureWidget: vi.fn(),
   renderPreview: vi.fn(),
   resetWidget: vi.fn(),
+  updateCustomization: vi.fn(),
   addListener: vi.fn(),
   appStateListener: null as null | ((state: { isActive: boolean }) => void),
 }));
@@ -23,6 +24,7 @@ vi.mock("@capacitor/core", () => ({
     configureWidget: mocks.configureWidget,
     renderPreview: mocks.renderPreview,
     resetWidget: mocks.resetWidget,
+    updateCustomization: mocks.updateCustomization,
   }),
 }));
 
@@ -34,6 +36,7 @@ const widget = {
   appWidgetId: 42,
   composition: "hero_wide",
   style: "neon" as const,
+  textScale: 1,
   content: ["target", "progress", "streak"],
   widthDp: 320,
   heightDp: 146,
@@ -52,6 +55,13 @@ describe("WidgetStudioPage", () => {
     mocks.configureWidget.mockResolvedValue({ opened: true });
     mocks.renderPreview.mockResolvedValue({ dataUrl: "data:image/png;base64,d2lkZ2V0" });
     mocks.resetWidget.mockResolvedValue({ reset: true });
+    mocks.updateCustomization.mockImplementation(async (options: {
+      style?: "neon" | "blur" | "transparent";
+      textScale?: number;
+    }) => ({
+      style: options.style ?? "neon",
+      textScale: options.textScale ?? 1,
+    }));
     mocks.appStateListener = null;
     mocks.addListener.mockImplementation(async (
       _event: string,
@@ -161,6 +171,53 @@ describe("WidgetStudioPage", () => {
     await waitFor(() => expect(mocks.renderPreview).toHaveBeenCalledTimes(1));
     window.dispatchEvent(new Event("widget-appearance-updated"));
     await waitFor(() => expect(mocks.renderPreview).toHaveBeenCalledTimes(2));
+  });
+
+  it("saves background and shared typography controls and refreshes the real renderer preview", async () => {
+    mocks.getWidgets.mockResolvedValue({ widgets: [widget] });
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    await screen.findByRole("img", { name: "Live preview of the selected Math Master widget" });
+    await waitFor(() => expect(mocks.renderPreview).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Transparent Blur" }));
+    await waitFor(() => expect(mocks.updateCustomization).toHaveBeenCalledWith({
+      appWidgetId: 42,
+      style: "blur",
+    }));
+    expect(await screen.findByText("Widget appearance saved and applied to the Android widget."))
+      .toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Increase widget text size" }));
+    await waitFor(() => expect(mocks.updateCustomization).toHaveBeenLastCalledWith({
+      appWidgetId: 42,
+      textScale: 1.1,
+    }));
+    expect(await screen.findByText("110%")).toBeInTheDocument();
+    await waitFor(() => expect(mocks.renderPreview).toHaveBeenCalledTimes(3));
+  });
+
+  it("disables typography controls at their supported minimum and maximum", async () => {
+    mocks.getWidgets.mockResolvedValue({
+      widgets: [{ ...widget, textScale: 1.3 }],
+    });
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    const decrease = await screen.findByRole("button", { name: "Decrease widget text size" });
+    const increase = screen.getByRole("button", { name: "Increase widget text size" });
+    expect(decrease).toBeEnabled();
+    expect(increase).toBeDisabled();
+    expect(screen.getByText("130%")).toBeInTheDocument();
+  });
+
+  it("prevents decreasing typography below the supported minimum", async () => {
+    mocks.getWidgets.mockResolvedValue({
+      widgets: [{ ...widget, textScale: 0.8 }],
+    });
+    render(<WidgetStudioPage onBack={vi.fn()} />);
+
+    expect(await screen.findByRole("button", { name: "Decrease widget text size" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Increase widget text size" })).toBeEnabled();
+    expect(screen.getByText("80%")).toBeInTheDocument();
   });
 
   it("separates discovery failure from a confirmed empty state while keeping the supported design registry", async () => {

@@ -1,7 +1,6 @@
 package com.sudhanshu.mathsbj;
 
 import android.app.AppOpsManager;
-import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
@@ -98,13 +97,10 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
                 if (permissionGranted) {
                     UsageStatsManager usageManager = (UsageStatsManager) context.getSystemService(Context.USAGE_STATS_SERVICE);
                     if (usageManager != null) {
-                        List<UsageStats> stats = usageManager.queryUsageStats(
-                            UsageStatsManager.INTERVAL_DAILY,
-                            requestedStart,
-                            requestedEnd
-                        );
-                        if (stats != null) {
-                            JSONObject replacements = collectDailyStats(context, stats, requestedStart, requestedEnd);
+                        UsageDataSource.Result source = UsageDataSource.query(
+                            context, usageManager, requestedStart, requestedEnd);
+                        if (source != null) {
+                            JSONObject replacements = collectDailyStats(context, source, requestedStart, requestedEnd);
                             store.upsertDays(context, replacements);
                             dataAvailable = true;
                         }
@@ -193,7 +189,7 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
     }
 
     private JSONObject collectDailyStats(
-        Context context, List<UsageStats> stats, long requestedStart, long requestedEnd
+        Context context, UsageDataSource.Result source, long requestedStart, long requestedEnd
     ) throws JSONException {
         JSONObject replacements = new JSONObject();
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
@@ -209,46 +205,37 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
             JSONObject day = new JSONObject();
             day.put("queriedAt", System.currentTimeMillis());
             day.put("apps", new JSONObject());
+            String date = formatter.format(cursor.getTime());
+            Map<String, UsageDataSource.AppUsage> dayUsage =
+                source.dailyAppUsageByPackage.getOrDefault(date, Collections.emptyMap());
+            day.put("deviceScreenTimeMillis", source.deviceMillisByDay.getOrDefault(date, 0L));
+            day.put("deviceScreenTimeAvailable", source.deviceMillisAvailable);
             replacements.put(formatter.format(cursor.getTime()), day);
-            cursor.add(Calendar.DAY_OF_YEAR, 1);
-        }
-
-        PackageManager packageManager = context.getPackageManager();
-        Map<String, ApplicationInfo> installedCache = new HashMap<>();
-        Set<String> missingPackages = new HashSet<>();
-        for (UsageStats usage : stats) {
-            if (usage == null) continue;
-            long duration = Math.max(0L, usage.getTotalTimeInForeground());
-            String packageName = usage.getPackageName();
-            if (duration <= 0L || packageName == null || packageName.equals(context.getPackageName())) continue;
-
-            String date = formatter.format(new Date(usage.getFirstTimeStamp()));
-            JSONObject day = replacements.optJSONObject(date);
-            if (day == null) continue;
-
-            ApplicationInfo appInfo = installedCache.get(packageName);
-            if (appInfo == null && !missingPackages.contains(packageName)) {
-                try {
-                    appInfo = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                        ? packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0L))
-                        : packageManager.getApplicationInfo(packageName, 0);
-                    installedCache.put(packageName, appInfo);
-                } catch (PackageManager.NameNotFoundException notInstalled) {
-                    missingPackages.add(packageName);
-                } catch (Exception ignored) {
-                    missingPackages.add(packageName);
-                }
-            }
-            if (appInfo == null) continue;
-
+            PackageManager packageManager = context.getPackageManager();
+            Map<String, ApplicationInfo> installedCache = new HashMap<>();
+            Set<String> missingPackages = new HashSet<>();
             JSONObject apps = day.optJSONObject("apps");
-            if (apps == null) {
-                apps = new JSONObject();
-                day.put("apps", apps);
-            }
-            JSONObject entry = apps.optJSONObject(packageName);
-            if (entry == null) {
-                entry = new JSONObject();
+            for (Map.Entry<String, UsageDataSource.AppUsage> usage : dayUsage.entrySet()) {
+                String packageName = usage.getKey();
+                UsageDataSource.AppUsage usageRecord = usage.getValue();
+                if (usageRecord == null || usageRecord.usageMillis <= 0L) continue;
+
+                ApplicationInfo appInfo = installedCache.get(packageName);
+                if (appInfo == null && !missingPackages.contains(packageName)) {
+                    try {
+                        appInfo = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                            ? packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0L))
+                            : packageManager.getApplicationInfo(packageName, 0);
+                        installedCache.put(packageName, appInfo);
+                    } catch (PackageManager.NameNotFoundException notInstalled) {
+                        missingPackages.add(packageName);
+                    } catch (Exception ignored) {
+                        missingPackages.add(packageName);
+                    }
+                }
+                if (appInfo == null) continue;
+
+                JSONObject entry = new JSONObject();
                 CharSequence label;
                 try {
                     label = packageManager.getApplicationLabel(appInfo);
@@ -256,12 +243,11 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
                     label = packageName;
                 }
                 entry.put("label", label == null || label.length() == 0 ? packageName : label.toString());
-                entry.put("usageMillis", 0L);
-                entry.put("lastUsedTimestamp", 0L);
+                entry.put("usageMillis", usageRecord.usageMillis);
+                entry.put("lastUsedTimestamp", usageRecord.lastUsedTimestamp);
+                apps.put(packageName, entry);
             }
-            entry.put("usageMillis", entry.optLong("usageMillis", 0L) + duration);
-            entry.put("lastUsedTimestamp", Math.max(entry.optLong("lastUsedTimestamp", 0L), usage.getLastTimeUsed()));
-            apps.put(packageName, entry);
+            cursor.add(Calendar.DAY_OF_YEAR, 1);
         }
         return replacements;
     }
@@ -282,6 +268,8 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
         Map<String, AppAggregate> aggregates = new HashMap<>();
         JSArray daily = new JSArray();
         long total = 0L;
+        long deviceScreenTime = 0L;
+        boolean deviceScreenTimeAvailable = true;
         String fromDate = formatter.format(cursor.getTime());
         String toDate = formatter.format(new Date(Math.max(start, end - 1L)));
         while (cursor.getTimeInMillis() < end) {
@@ -289,6 +277,11 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
             JSONObject day = savedDays.optJSONObject(date);
             JSONObject dayApps = day == null ? null : day.optJSONObject("apps");
             long dayTotal = 0L;
+            boolean dayDeviceAvailable = day != null && day.optBoolean("deviceScreenTimeAvailable", false);
+            long dayDeviceTime = dayDeviceAvailable
+                ? Math.max(0L, day.optLong("deviceScreenTimeMillis", 0L)) : 0L;
+            if (dayDeviceAvailable) deviceScreenTime += dayDeviceTime;
+            else deviceScreenTimeAvailable = false;
 
             if (dayApps != null) {
                 Iterator<String> packages = dayApps.keys();
@@ -314,6 +307,8 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
             JSObject dayResult = new JSObject();
             dayResult.put("date", date);
             dayResult.put("usageMillis", dayTotal);
+            dayResult.put("deviceScreenTimeMillis", dayDeviceTime);
+            dayResult.put("deviceScreenTimeAvailable", dayDeviceAvailable);
             daily.put(dayResult);
             total += dayTotal;
             cursor.add(Calendar.DAY_OF_YEAR, 1);
@@ -366,6 +361,8 @@ public final class AppUsageAnalyticsPlugin extends Plugin {
         response.put("fromDate", fromDate);
         response.put("toDate", toDate);
         response.put("totalUsageMillis", total);
+        response.put("deviceScreenTimeMillis", deviceScreenTime);
+        response.put("deviceScreenTimeAvailable", deviceScreenTimeAvailable);
         response.put("mostUsedPackage", mostUsedPackage);
         response.put("mostUsedMillis", mostUsed);
         response.put("apps", apps);

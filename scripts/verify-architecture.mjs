@@ -25,6 +25,9 @@ const streak = read('src/lib/streak.ts');
 const personalApkWorkflow = read('.github/workflows/android-apk.yml');
 const publicReleaseWorkflow = read('.github/workflows/android-release.yml');
 const widgetScreenTimeRepository = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeRepository.java');
+const widgetScreenTimeUsageSource = read('android-native/com/sudhanshu/mathsbj/UsageDataSource.java');
+const widgetScreenTimeTimeline = read('android-native/com/sudhanshu/mathsbj/UsageEventTimeline.java');
+const widgetScreenTimeMetrics = read('android-native/com/sudhanshu/mathsbj/UsageMetrics.java');
 const widgetScreenTimeProvider = read('android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java');
 const widgetScreenTimeRenderer = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java');
 const widgetScreenTimeSetup = read('scripts/configure-android-widgets.mjs');
@@ -32,7 +35,12 @@ const widgetScreenTimeBackup = read('src/lib/backupRestore.ts');
 const widgetScreenTimeBridge = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetsPlugin.java');
 const widgetScreenTimeEntry = read('src/pages/Index.tsx');
 const widgetConfigActivity = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java');
-if (!widgetScreenTimeRepository.includes('UsageStatsManager.INTERVAL_DAILY')
+if (!widgetScreenTimeUsageSource.includes('UsageStatsManager.INTERVAL_DAILY')
+    || !widgetScreenTimeUsageSource.includes('queryUsageStats(')
+    || !widgetScreenTimeUsageSource.includes('queryEvents(')
+    || !widgetScreenTimeUsageSource.includes('UsageEventTimeline.measure(')
+    || !widgetScreenTimeTimeline.includes('KEYGUARD_SHOWN')
+    || !widgetScreenTimeTimeline.includes('SCREEN_NON_INTERACTIVE')
     || !widgetScreenTimeRepository.includes('StudyModeManager.getSelectedStudyAppPackages(context)')
     || !widgetScreenTimeRepository.includes('new HashSet<>(usage.keySet())')
     || !widgetScreenTimeRepository.includes('candidatePackages.addAll(selectedStudy)')
@@ -44,7 +52,11 @@ if (!widgetScreenTimeRepository.includes('UsageStatsManager.INTERVAL_DAILY')
     || !widgetScreenTimeRepository.includes('cacheGeneration != requestGeneration')
     || !widgetScreenTimeProvider.includes('studyAppsScreenTime')
     || !widgetScreenTimeProvider.includes('deviceAppsScreenTime')
-    || !widgetScreenTimeRepository.includes('record != null && !hidden.contains(packageName)')
+    || !widgetScreenTimeRepository.includes('if (!hidden.contains(record.packageName)) ranked.add(record)')
+    || !widgetScreenTimeRepository.includes('percentageTotalUsageMillis')
+    || !widgetScreenTimeMetrics.includes('usageMillis * 100d / totalUsageMillis')
+    || !widgetScreenTimeRenderer.includes('o.textScale')
+    || !widgetScreenTimeBridge.includes('textScale')
     || !widgetScreenTimeRenderer.includes('void layoutScreenTimeReflow(float rw, float rh)')
     || !widgetScreenTimeRenderer.includes('void studyAppsPanel(')
     || !widgetScreenTimeRenderer.includes('void deviceAppsPanel(')
@@ -63,7 +75,10 @@ if (!widgetScreenTimeRepository.includes('UsageStatsManager.INTERVAL_DAILY')
     || !widgetScreenTimeEntry.includes("window.addEventListener('theme-updated', syncWidgetAppearance)")
     || !widgetScreenTimeEntry.includes('widget-appearance-updated')
     || !widgetScreenTimeSetup.includes('android.intent.category.LAUNCHER')
-    || !widgetScreenTimeSetup.includes("'WidgetScreenTimeRepository.java'")) {
+    || !widgetScreenTimeSetup.includes("'WidgetScreenTimeRepository.java'")
+    || !widgetScreenTimeSetup.includes("'UsageDataSource.java'")
+    || !widgetScreenTimeSetup.includes("'UsageEventTimeline.java'")
+    || !widgetScreenTimeSetup.includes("'UsageMetrics.java'")) {
   fail('Screen Time widgets must use local UsageStats, keep Study Apps and Device Apps independent, and refresh through the existing native widget setup');
 }
 

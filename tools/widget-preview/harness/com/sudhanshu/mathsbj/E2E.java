@@ -216,6 +216,7 @@ public class E2E {
         String[] legacy = {"all", "partial", "none"};
         String[] states = {"ok", "permission_required", "no_study_apps", "no_usage", "loading", "error"};
         String[] styles = {"neon", "blur", "transparent"};
+        float[] textScales = {0.8f, 1f, 1.3f};
         int id = 10000;
         int rendered = 0;
         for (int compositionIndex = 0; compositionIndex < compositions.length; compositionIndex++) {
@@ -244,6 +245,9 @@ public class E2E {
                         prefs.m.put(prefix + "screenTimeShowUsage", true);
                         prefs.m.put(prefix + "screenTimeShowPercent", true);
                         prefs.m.put(prefix + "screenTimeDetailed", true);
+                        float textScale = textScales[
+                            (compositionIndex + sizeIndex + stateIndex + styleIndex) % textScales.length];
+                        prefs.m.put(prefix + "textScale", textScale);
                         java.util.List<String> content = new java.util.ArrayList<>();
                         if ("all".equals(legacyContent)) {
                             content.addAll(java.util.Arrays.asList("appIdentity","target","progress","remaining",
@@ -255,7 +259,8 @@ public class E2E {
                         if ("device".equals(combination) || "both".equals(combination)) content.add("deviceAppsScreenTime");
                         prefs.m.put(prefix + "contentJson", json(content.toArray(new String[0])));
                         String name = "after_" + composition + "_" + sizeNames[sizeIndex] + "_"
-                            + combination + "_" + legacyContent + "_" + state + "_" + style;
+                            + combination + "_" + legacyContent + "_" + state + "_" + style
+                            + "_scale" + Math.round(textScale * 100f);
                         Bitmap bitmap = render(ctx, id);
                         if (bitmap.getWidth() <= 0 || bitmap.getHeight() <= 0) {
                             throw new IllegalStateException("invalid Screen Time preview bitmap: " + name);

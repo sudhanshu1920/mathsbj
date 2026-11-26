@@ -78,7 +78,9 @@ final class MathMasterWidgetRenderer {
         String status = "loading";
         String periodLabel = "Today";
         long totalUsageMillis;
+        long percentageTotalUsageMillis;
         long lastUpdatedAt;
+        boolean deviceTotalAvailable = true;
         java.util.List<ScreenTimeEntry> entries = new java.util.ArrayList<>();
     }
 
@@ -107,6 +109,7 @@ final class MathMasterWidgetRenderer {
         boolean screenTimeShowUsage = true;
         boolean screenTimeShowPercent = true;
         boolean screenTimeDetailed = true;
+        float textScale = 1f;
     }
 
     // ---------------------------------------------------------------- palettes
@@ -341,11 +344,29 @@ final class MathMasterWidgetRenderer {
         float text(String s, float x, float baseline, float size, Typeface tf, int color, Paint.Align align, float maxWidth) {
             if (s == null || s.length() == 0) return 0f;
             txt.setShader(null); txt.setMaskFilter(null); txt.clearShadowLayer(); txt.setStyle(Paint.Style.FILL);
-            txt.setColor(ensureTextContrast(color)); txt.setTypeface(tf); txt.setTextAlign(align); txt.setLetterSpacing(tracking);
-            txt.setTextSize(size);
+            float scaledSize = size * clamp(o.textScale, 0.8f, 1.3f);
+            int foreground = ensureTextContrast(color);
+            txt.setColor(Color.rgb(Color.red(foreground), Color.green(foreground), Color.blue(foreground)));
+            txt.setTypeface(tf); txt.setTextAlign(align); txt.setLetterSpacing(tracking);
+            txt.setTextSize(scaledSize);
             float w = txt.measureText(s);
-            if (maxWidth > 0f && w > maxWidth) { txt.setTextSize(size * maxWidth / w); w = maxWidth; }
+            if (maxWidth > 0f && w > maxWidth) { txt.setTextSize(scaledSize * maxWidth / w); w = maxWidth; }
+            if (clear) {
+                txt.setStyle(Paint.Style.STROKE);
+                txt.setStrokeJoin(Paint.Join.ROUND);
+                txt.setStrokeWidth(Math.max(1.2f * density, txt.getTextSize() * 0.085f));
+                txt.setColor(Color.argb(235, 2, 10, 14));
+                c.drawText(s, x, baseline, txt);
+                txt.setStyle(Paint.Style.FILL);
+                txt.setStrokeWidth(0f);
+                int contrastColor = ensureTextContrast(color);
+                txt.setColor(Color.rgb(Color.red(contrastColor), Color.green(contrastColor), Color.blue(contrastColor)));
+            } else {
+                txt.setShadowLayer(Math.max(1f, txt.getTextSize() * 0.08f), 0f,
+                    Math.max(0.5f, txt.getTextSize() * 0.025f), withAlpha(Color.BLACK, 0.76f));
+            }
             c.drawText(s, x, baseline, txt);
+            txt.clearShadowLayer();
             return w;
         }
 
@@ -358,7 +379,7 @@ final class MathMasterWidgetRenderer {
         }
 
         float measure(String s, float size, Typeface tf) {
-            txt.setTypeface(tf); txt.setTextSize(size); txt.setLetterSpacing(tracking);
+            txt.setTypeface(tf); txt.setTextSize(size * clamp(o.textScale, 0.8f, 1.3f)); txt.setLetterSpacing(tracking);
             return txt.measureText(s);
         }
 
@@ -672,8 +693,8 @@ final class MathMasterWidgetRenderer {
             float stroke = Math.max(4f * density, ringRadius * 0.085f);
 
             if ("ok".equals(section.status)) {
-                int dayProgress = (int) Math.round(Math.min(1d,
-                    Math.max(0d, section.totalUsageMillis / 86_400_000d)) * 100d);
+                int dayProgress = (int) Math.round(section.deviceTotalAvailable
+                    ? UsageMetrics.deviceDayProgress(section.totalUsageMillis) * 100d : 0d);
                 ring(ringX, ringY, ringRadius, stroke, dayProgress, false);
                 drawScreenTimeRingCenter(section, ringX, ringY, ringRadius);
             } else {
@@ -747,10 +768,13 @@ final class MathMasterWidgetRenderer {
             c.drawLine(cx, cy - radius * 0.31f, cx + iconSize * 0.16f,
                 cy - radius * 0.31f + iconSize * 0.11f, line);
             resetPaints();
-            text(o.screenTimeShowTotal ? formatUsageDuration(section.totalUsageMillis) : "Screen Time",
+            String total = !section.deviceTotalAvailable ? "Unavailable"
+                : (o.screenTimeShowTotal ? formatUsageDuration(section.totalUsageMillis) : "Screen Time");
+            text(total,
                 cx, cy + centerOffset, clamp(radius * (o.screenTimeShowTotal ? 0.31f : 0.24f),
                     16f * density, 34f * density), f.bold, Color.WHITE, Paint.Align.CENTER, radius * 1.55f);
-            text("Total Screen Time", cx, cy + radius * 0.28f, radius * 0.16f,
+            text(section.deviceTotalAvailable ? "Total Screen Time" : "Device total unavailable",
+                cx, cy + radius * 0.28f, radius * 0.16f,
                 f.regular, withAlpha(Color.WHITE, 0.82f), Paint.Align.CENTER, radius * 1.55f);
             barsIcon(cx, cy + radius * 0.57f, radius * 0.30f);
         }
@@ -795,15 +819,20 @@ final class MathMasterWidgetRenderer {
                 valueRight - percentSpace, barTop + barHeight);
             fill.setColor(withAlpha(pal.track, 0.90f));
             c.drawRoundRect(track, barHeight, barHeight, fill);
-            float ratio = clamp(entry.percent / 100f, 0f, 1f);
-            if (ratio > 0f) {
-                RectF progress = new RectF(track.left, track.top,
-                    track.left + track.width() * ratio, track.bottom);
-                fill.setShader(new LinearGradient(progress.left, progress.top, progress.right,
-                    progress.top, pal.bar0, pal.bar1, Shader.TileMode.CLAMP));
-                c.drawRoundRect(progress, barHeight, barHeight, fill);
-            }
+            drawUsageProgress(track, barHeight, entry.percent);
             resetPaints();
+        }
+
+        void drawUsageProgress(RectF track, float barHeight, float percent) {
+            float ratio = clamp(percent / 100f, 0f, 1f);
+            float width = track.width() * ratio;
+            if (width <= 0f) return;
+            RectF progress = new RectF(track.left, track.top, track.left + width, track.bottom);
+            fill.setShader(new LinearGradient(progress.left, progress.top, progress.right,
+                progress.top, pal.bar0, pal.bar1, Shader.TileMode.CLAMP));
+            if (width < barHeight * 1.5f) c.drawRect(progress, fill);
+            else c.drawRoundRect(progress, barHeight, barHeight, fill);
+            fill.setShader(null);
         }
 
         void drawTrophy(float cx, float cy, float size) {
@@ -941,7 +970,8 @@ final class MathMasterWidgetRenderer {
             float totalBaseline = titleBaseline + metaSize * 1.30f + (inline ? 1.5f : pad * 0.25f);
             float rowStart = totalBaseline + metaSize * 0.75f;
             if (o.screenTimeShowTotal) {
-                String total = formatUsageDuration(section.totalUsageMillis);
+                String total = section.deviceTotalAvailable
+                    ? formatUsageDuration(section.totalUsageMillis) : "Unavailable";
                 float valueSize = clamp(Math.min(valueRef * su, h * (inline ? 0.18f : 0.13f)), 8f * density, 18f * density);
                 text(total, titleLeft, totalBaseline + valueSize * 0.65f, valueSize,
                     f.bold, Color.WHITE, Paint.Align.LEFT, inline ? w * 0.45f : w - pad * 2f);
@@ -1003,15 +1033,7 @@ final class MathMasterWidgetRenderer {
                     RectF track = new RectF(barLeft, barTop, valueRight, barTop + barHeight);
                     fill.setColor(withAlpha(pal.track, 0.88f));
                     c.drawRoundRect(track, barHeight, barHeight, fill);
-                    float ratio = Math.max(0f, Math.min(1f, entry.percent / 100f));
-                    if (ratio > 0f) {
-                        RectF progress = new RectF(track.left, track.top,
-                            track.left + track.width() * ratio, track.bottom);
-                        fill.setShader(new LinearGradient(progress.left, progress.top, progress.right, progress.top,
-                            pal.bar0, pal.bar1, Shader.TileMode.CLAMP));
-                        c.drawRoundRect(progress, barHeight, barHeight, fill);
-                        fill.setShader(null);
-                    }
+                    drawUsageProgress(track, barHeight, entry.percent);
                     resetPaints();
                 }
                 if (index < rows - 1) {
@@ -1183,25 +1205,24 @@ final class MathMasterWidgetRenderer {
             float capH = numSize * 0.70f;
             float labelSize = diameter * 0.10f;
             float gap = diameter * 0.09f;
-            float blockH = capH + gap + labelSize * 0.70f;
+            float textScale = clamp(o.textScale, 0.8f, 1.3f);
+            float blockH = capH * textScale + gap + labelSize * textScale * 0.70f;
             float top = cy - blockH * 0.5f;
-            float baseline = top + capH;
+            float baseline = top + capH * textScale;
             String num = String.valueOf(progress);
             float wn = measure(num, numSize, f.bold);
             float wp = measure("%", pctSize, f.bold);
-            float gapX = numSize * 0.03f;
+            float gapX = numSize * textScale * 0.03f;
             float maxW = (r - sw * 0.5f) * 1.7f;
-            float scale = Math.min(1f, maxW / (wn + wp + gapX));
-            numSize *= scale; pctSize *= scale; wn *= scale; wp *= scale;
+            float fitScale = Math.min(1f, maxW / (wn + wp + gapX));
+            numSize *= fitScale; pctSize *= fitScale; wn *= fitScale; wp *= fitScale;
             float x0 = cx - (wn + wp + gapX) * 0.5f;
-            txt.setShader(null); txt.setTypeface(f.bold); txt.setTextAlign(Paint.Align.LEFT); txt.setStyle(Paint.Style.FILL); txt.setLetterSpacing(0f);
-            txt.setTextSize(numSize); txt.setColor(Color.WHITE); txt.setShadowLayer(numSize * 0.05f, 0f, numSize * 0.025f, withAlpha(Color.BLACK, 0.45f));
-            c.drawText(num, x0, baseline, txt);
-            txt.setTextSize(pctSize); txt.setColor(pal.soft);
-            c.drawText("%", x0 + wn + gapX, baseline, txt);
-            txt.clearShadowLayer();
+            text(num, x0, baseline, numSize, f.bold, Color.WHITE, Paint.Align.LEFT, maxW);
+            text("%", x0 + wn + gapX, baseline, pctSize, f.bold, pal.soft, Paint.Align.LEFT, maxW);
             if (outerR > 24f * density) {
-                text("Completed", cx, baseline + gap + labelSize * 0.70f, labelSize, f.regular, withAlpha(Color.WHITE, 0.96f), Paint.Align.CENTER, (r - sw * 0.5f) * 1.7f);
+                text("Completed", cx, baseline + gap + labelSize * textScale * 0.70f, labelSize,
+                    f.regular, withAlpha(Color.WHITE, 0.96f), Paint.Align.CENTER,
+                    (r - sw * 0.5f) * 1.7f);
             }
         }
 
