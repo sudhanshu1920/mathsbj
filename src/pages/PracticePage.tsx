@@ -8,7 +8,7 @@ import { saveResult } from '@/lib/progress';
 import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
 import { getSettings, isActive, markInteraction, getTablesProMode, setTablesProMode } from '@/lib/settings';
-import { getTableMultiplierCount } from '@/lib/mathData';
+import { getTable, getTableMultiplierCount } from '@/lib/mathData';
 import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
 import { playClick, playRightAnswer, playWrong, playLevelUp, playSubmit } from '@/lib/sound';
 import { MOTION } from '@/lib/motion';
@@ -400,10 +400,13 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
 
   if (topicId === 'tables') {
     const proMax = getTableMultiplierCount(tablesProMode);
-    const multipliers = from <= to ? rangeArray(1, proMax) : rangeArray(proMax, 1);
     for (const n of nums) {
-      for (const m of multipliers) {
-        questions.push({ text: `${n} × ${m} = ?`, answer: n * m, topicLabel: label });
+      // Use the same canonical table rows as Learning Mode; Practice only
+      // adds the question mark and applies the session's Sequence/Mix order.
+      const rows = getTable(n, proMax);
+      const orderedRows = from <= to ? rows : [...rows].reverse();
+      for (const row of orderedRows) {
+        questions.push({ text: `${row.expression} = ?`, answer: row.answer, topicLabel: label });
       }
     }
   } else if (topicId === 'squares') {
