@@ -635,6 +635,19 @@ describe('PracticePage question generation', () => {
   it('Mix keeps the complete Pro multiplier set without duplicates, and Sequence remains ordered', () => {
     const random = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
+      const sequence = generateQuestions({
+        ...baseConfig,
+        count: 20,
+        sequential: true,
+        tablesProMode: true,
+        topics: [{ id: 'tables', label: 'Tables', range: { from: 3, to: 3 } }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+      expect(sequence.map((question) => question.text)).toEqual(
+        Array.from({ length: 20 }, (_, index) => `3 × ${index + 1} = ?`),
+      );
+
       const mixed = generateQuestions({
         ...baseConfig,
         count: 20,
@@ -644,7 +657,7 @@ describe('PracticePage question generation', () => {
         repetitionEnabled: false,
         repetitionByTopic: {},
       });
-      const mixedMultipliers = mixed.map((question) => Number(question.text.match(/× (\\d+)/)?.[1]));
+      const mixedMultipliers = mixed.map((question) => Number(question.text.match(/× (\d+)/)?.[1]));
       expect(mixed).toHaveLength(20);
       expect(new Set(mixedMultipliers)).toEqual(new Set(Array.from({ length: 20 }, (_, index) => index + 1)));
       expect(mixedMultipliers).not.toEqual(Array.from({ length: 20 }, (_, index) => index + 1));
