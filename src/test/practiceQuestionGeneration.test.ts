@@ -591,6 +591,68 @@ describe('PracticePage question generation', () => {
     }
   });
 
+
+  it('keeps Learning and Practice aligned for Pro tables 2, 3, 5, and 12 and preserves Standard mode', () => {
+    const cases = [2, 3, 5, 12];
+    for (const tableNumber of cases) {
+      const pro = generateQuestions({
+        ...baseConfig,
+        count: 20,
+        sequential: true,
+        tablesProMode: true,
+        topics: [{ id: 'tables', label: 'Tables', range: { from: tableNumber, to: tableNumber } }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+
+      expect(pro).toHaveLength(20);
+      expect(pro.map((question) => question.text)).toEqual(
+        Array.from({ length: 20 }, (_, index) => `${tableNumber} × ${index + 1} = ?`),
+      );
+      expect(pro.map((question) => question.answer)).toEqual(
+        Array.from({ length: 20 }, (_, index) => tableNumber * (index + 1)),
+      );
+      expect(pro[18]?.answer).toBe(tableNumber * 19);
+      expect(pro[19]?.answer).toBe(tableNumber * 20);
+    }
+
+    const standard = generateQuestions({
+      ...baseConfig,
+      count: 10,
+      sequential: true,
+      // Explicit false must win even if the persisted global setting is Pro.
+      tablesProMode: false,
+      topics: [{ id: 'tables', label: 'Tables', range: { from: 12, to: 12 } }],
+      repetitionEnabled: false,
+      repetitionByTopic: {},
+    });
+    expect(standard).toHaveLength(10);
+    expect(standard.map((question) => question.text)).toEqual(
+      Array.from({ length: 10 }, (_, index) => `12 × ${index + 1} = ?`),
+    );
+  });
+
+  it('Mix keeps the complete Pro multiplier set without duplicates, and Sequence remains ordered', () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const mixed = generateQuestions({
+        ...baseConfig,
+        count: 20,
+        sequential: false,
+        tablesProMode: true,
+        topics: [{ id: 'tables', label: 'Tables', range: { from: 3, to: 3 } }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+      const mixedMultipliers = mixed.map((question) => Number(question.text.match(/× (\\d+)/)?.[1]));
+      expect(mixed).toHaveLength(20);
+      expect(new Set(mixedMultipliers)).toEqual(new Set(Array.from({ length: 20 }, (_, index) => index + 1)));
+      expect(mixedMultipliers).not.toEqual(Array.from({ length: 20 }, (_, index) => index + 1));
+    } finally {
+      random.mockRestore();
+    }
+  });
+
   it('generates square-root questions from every integer in the selected range', () => {
     const questions = generateQuestions({
       ...baseConfig,
