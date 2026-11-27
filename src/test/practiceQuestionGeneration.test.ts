@@ -598,6 +598,7 @@ describe('PracticePage question generation', () => {
       const pro = generateQuestions({
         ...baseConfig,
         count: 20,
+        mode: 'input',
         sequential: true,
         tablesProMode: true,
         topics: [{ id: 'tables', label: 'Tables', range: { from: tableNumber, to: tableNumber } }],
@@ -622,6 +623,7 @@ describe('PracticePage question generation', () => {
       const standard = generateQuestions({
         ...baseConfig,
         count: 10,
+        mode: 'input',
         sequential: true,
         // Explicit false must win even while the persisted global setting is Pro.
         tablesProMode: false,
@@ -657,6 +659,7 @@ describe('PracticePage question generation', () => {
       const mixed = generateQuestions({
         ...baseConfig,
         count: 20,
+        mode: 'input',
         sequential: false,
         tablesProMode: true,
         topics: [{ id: 'tables', label: 'Tables', range: { from: 3, to: 3 } }],
