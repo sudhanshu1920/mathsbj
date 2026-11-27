@@ -689,7 +689,7 @@ const tableQuestionTests = read('src/test/practiceQuestionGeneration.test.ts');
 const tableRangeUiTests = read('src/pages/PracticePage.trigRange.test.tsx');
 if (!practice.includes('getTablesProMode, setTablesProMode') ||
     !practice.includes('aria-label="Tables Pro Mode"') ||
-    !practice.includes("const proMax = getTablesProMode() ? 20 : 10") ||
+    !practice.includes('const proMax = getTableMultiplierCount(tablesProMode)') ||
     !practice.includes("window.addEventListener('tables-pro-updated', syncTablesProMode)")) {
   fail('Quiz Tables Pro Mode must reuse the shared persisted setting and keep its compact range toggle synchronized');
 }
