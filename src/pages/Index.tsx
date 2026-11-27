@@ -154,7 +154,7 @@ const Index = () => {
   const [practiceTopic, setPracticeTopic] = useState<string | undefined>();
   const [practiceContext, setPracticeContext] = useState<{ from?: number; to?: number; number?: number } | undefined>();
   const [practiceMode, setPracticeMode] = useState<'mcq' | 'input' | 'game' | undefined>();
-  const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder } | undefined>();
+  const [practiceExtras, setPracticeExtras] = useState<{ timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder; tablesProMode?: boolean } | undefined>();
   const [returnToLearn, setReturnToLearn] = useState(false);
   const [learningPracticeSelectorOpen, setLearningPracticeSelectorOpen] = useState(false);
   const [learningPracticeReturn, setLearningPracticeReturn] = useState<PracticeLaunchContext | null>(null);
@@ -820,7 +820,7 @@ const Index = () => {
     if (!open) setLearningPracticeReturn(null);
   }, []);
 
-  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder }) => {
+  const handleStartPractice = useCallback((topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder; tablesProMode?: boolean }) => {
     const launchContext: PracticeLaunchContext = {
       topic,
       context: context ? { ...context } : undefined,

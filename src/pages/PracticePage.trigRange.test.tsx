@@ -97,6 +97,30 @@ describe('Quiz Arena trigonometry angle-range control', () => {
 });
 
 
+describe('Learning-origin Tables Practice Pro Mode handoff', () => {
+  it('starts Table 2 with all 20 questions from an explicit Pro Mode snapshot', () => {
+    const previousProMode = getTablesProMode();
+    setTablesProMode(false);
+    const { unmount } = render(
+      <PracticePage
+        initialTopic="tables"
+        initialContext={{ number: 2 }}
+        initialMode="input"
+        initialExtras={{ count: 20, tablesProMode: true, questionOrder: 'sequence' }}
+      />,
+    );
+
+    try {
+      // The persisted value is Standard; the Learning launch snapshot must win.
+      expect(screen.getByText('2 × 1 = ?')).toBeInTheDocument();
+      expect(screen.getByText('1/20')).toBeInTheDocument();
+    } finally {
+      unmount();
+      setTablesProMode(previousProMode);
+    }
+  });
+});
+
 describe('Quiz Arena Tables Pro Mode', () => {
   it('uses the shared Learning/Quiz Pro Mode setting from the Tables range panel', () => {
     const previousProMode = getTablesProMode();

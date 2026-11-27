@@ -689,7 +689,7 @@ const tableQuestionTests = read('src/test/practiceQuestionGeneration.test.ts');
 const tableRangeUiTests = read('src/pages/PracticePage.trigRange.test.tsx');
 if (!practice.includes('getTablesProMode, setTablesProMode') ||
     !practice.includes('aria-label="Tables Pro Mode"') ||
-    !practice.includes("const proMax = getTablesProMode() ? 20 : 10") ||
+    !practice.includes('const proMax = getTableMultiplierCount(tablesProMode)') ||
     !practice.includes("window.addEventListener('tables-pro-updated', syncTablesProMode)")) {
   fail('Quiz Tables Pro Mode must reuse the shared persisted setting and keep its compact range toggle synchronized');
 }
@@ -1626,4 +1626,26 @@ for (const [section, expandLabel, collapseLabel, contentId] of expandableStudySe
   }
 }
 
+// Learning Tables Pro Mode must transfer both the full question count and the
+// immutable mode snapshot into Practice, while the generator remains range-dynamic.
+const learningTables = read('src/pages/LearningPage.tsx');
+const mathData = read('src/lib/mathData.ts');
+if (!learningTables.includes('count: getTableMultiplierCount(proMode)') ||
+    !learningTables.includes('tablesProMode: proMode') ||
+    !learningTables.includes('getTableMultiplierCount(proMode)') ||
+    !mathData.includes('export const getTableMultiplierCount')) {
+  fail('Learning Tables must launch a complete table set from the same Standard/Pro multiplier-count source used for display');
+}
+const tableLearningUiTests = read('src/pages/PracticePage.trigRange.test.tsx');
+if (!practice.includes('tablesProMode: cfg.tablesProMode ?? getTablesProMode()') ||
+    !practice.includes('config.tablesProMode ?? getTablesProMode()') ||
+    !practice.includes('const proMax = getTableMultiplierCount(tablesProMode)') ||
+    !practice.includes('const rows = getTable(n, proMax)') ||
+    !index.includes('tablesProMode?: boolean') ||
+    !tableLearningUiTests.includes('starts Table 2 with all 20 questions from an explicit Pro Mode snapshot')) {
+  fail('Practice must use the session-scoped Pro Mode snapshot, shared Learning table rows, and full 20-question Learning launch');
+}
+
 console.log('Architecture regression checks passed.');
+
+

@@ -2,6 +2,8 @@
 
 import { getSquareRootAnswer, getCubeRootAnswer } from '@/lib/rootMath';
 
+export const getTableMultiplierCount = (proMode = false): number => proMode ? 20 : 10;
+
 export const getTable = (num: number, max = 10): { expression: string; answer: number }[] => {
   return Array.from({ length: max }, (_, i) => ({
     expression: `${num} × ${i + 1}`,
