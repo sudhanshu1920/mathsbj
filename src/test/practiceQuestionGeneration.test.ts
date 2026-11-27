@@ -616,20 +616,26 @@ describe('PracticePage question generation', () => {
       expect(pro[19]?.answer).toBe(tableNumber * 20);
     }
 
-    const standard = generateQuestions({
-      ...baseConfig,
-      count: 10,
-      sequential: true,
-      // Explicit false must win even if the persisted global setting is Pro.
-      tablesProMode: false,
-      topics: [{ id: 'tables', label: 'Tables', range: { from: 12, to: 12 } }],
-      repetitionEnabled: false,
-      repetitionByTopic: {},
-    });
-    expect(standard).toHaveLength(10);
-    expect(standard.map((question) => question.text)).toEqual(
-      Array.from({ length: 10 }, (_, index) => `12 × ${index + 1} = ?`),
-    );
+    const previousProMode = getTablesProMode();
+    setTablesProMode(true);
+    try {
+      const standard = generateQuestions({
+        ...baseConfig,
+        count: 10,
+        sequential: true,
+        // Explicit false must win even while the persisted global setting is Pro.
+        tablesProMode: false,
+        topics: [{ id: 'tables', label: 'Tables', range: { from: 12, to: 12 } }],
+        repetitionEnabled: false,
+        repetitionByTopic: {},
+      });
+      expect(standard).toHaveLength(10);
+      expect(standard.map((question) => question.text)).toEqual(
+        Array.from({ length: 10 }, (_, index) => `12 × ${index + 1} = ?`),
+      );
+    } finally {
+      setTablesProMode(previousProMode);
+    }
   });
 
   it('Mix keeps the complete Pro multiplier set without duplicates, and Sequence remains ordered', () => {
