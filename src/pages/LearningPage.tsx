@@ -13,7 +13,7 @@ import PercentageLearning, { PercentageExpanded, PERCENTAGE_GROUPS } from '@/com
 import PracticeModeSelector, { type PracticeSettings } from '@/components/PracticeModeSelector';
 const FormulasLearning = lazy(() => import('@/components/FormulasLearning'));
 const StudyModePage = lazy(() => import('@/components/StudyModePage'));
-import { getTable, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, RANGE_GROUPS } from '@/lib/mathData';
+import { getTable, getTableMultiplierCount, getSquares, getSquareRoots, getCubes, getCubeRoots, getPowers, RANGE_GROUPS } from '@/lib/mathData';
 import type { LearningState } from '@/pages/Index';
 const PeriodicTableLearning = lazy(() => import('@/components/PeriodicTableLearning'));
 import { PERIODIC_GROUPS, isValidPeriodicRangeIndex } from '@/lib/periodicRangeNavigation';
@@ -37,7 +37,7 @@ interface LearningPageProps {
   onPeriodicRangeSwipe?: (index: number | null) => void;
   /** Replace the current element-detail history entry while swiping between elements. */
   onPeriodicElementSwipe?: (number: number) => void;
-  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder }) => void;
+  onStartPractice?: (topic: string, context?: { from?: number; to?: number; number?: number }, mode?: 'mcq' | 'input', extras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder; tablesProMode?: boolean }) => void;
   learningState?: LearningState;
   onLearningStateChange?: (state: LearningState) => void;
   practiceSelectorOpen?: boolean;
@@ -225,6 +225,11 @@ const LearningPage = ({
       ...(activeTopic === 'periodic-table' && pendingPeriodicPractice ? {
         periodicQuestionTypes: [...pendingPeriodicPractice.questionTypes],
         periodicMassMode: pendingPeriodicPractice.massMode,
+      } : {}),
+      ...(activeTopic === 'tables' ? {
+        // A Learning table is a complete study set: never let the generic 10-question default truncate Pro Mode.
+        count: getTableMultiplierCount(proMode),
+        tablesProMode: proMode,
       } : {}),
     });
     setPendingTrigFunctions(null);
@@ -420,7 +425,7 @@ const LearningPage = ({
             itemCount={200}
             currentIndex={selectedNumber - 1}
             onIndexChange={(i) => setSelectedNumber(i + 1)}
-            renderItem={(index) => renderDataCards(getTable(index + 1, proMode ? 20 : 10))}
+            renderItem={(index) => renderDataCards(getTable(index + 1, getTableMultiplierCount(proMode)))}
           />
         </div>
       </SwipeBack>
