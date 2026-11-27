@@ -646,6 +646,7 @@ describe('PracticePage question generation', () => {
       const sequence = generateQuestions({
         ...baseConfig,
         count: 20,
+        mode: 'input',
         sequential: true,
         tablesProMode: true,
         topics: [{ id: 'tables', label: 'Tables', range: { from: 3, to: 3 } }],
