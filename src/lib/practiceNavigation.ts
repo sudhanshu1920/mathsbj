@@ -58,6 +58,7 @@ export interface PracticeLaunchContext {
     infinite?: boolean;
     trigFunctions?: TrigFunction[];
     trigProMode?: boolean;
+    tablesProMode?: boolean;
     count?: number;
     periodicQuestionTypes?: PeriodicQuestionType[];
     periodicMassMode?: PeriodicMassMode;
