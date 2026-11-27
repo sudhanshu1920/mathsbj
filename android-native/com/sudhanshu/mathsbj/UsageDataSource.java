@@ -9,6 +9,7 @@ import android.os.Build;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -42,46 +43,57 @@ final class UsageDataSource {
     static Result query(Context context, UsageStatsManager manager, long startMillis, long endMillis) {
         if (context == null || manager == null || startMillis >= endMillis) return null;
         Result result = new Result();
-        Calendar day = Calendar.getInstance();
-        day.setTimeInMillis(startMillis);
-        day.set(Calendar.HOUR_OF_DAY, 0);
-        day.set(Calendar.MINUTE, 0);
-        day.set(Calendar.SECOND, 0);
-        day.set(Calendar.MILLISECOND, 0);
+        TimeZone queryTimeZone = (TimeZone) TimeZone.getDefault().clone();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        dateFormat.setTimeZone(TimeZone.getDefault());
+        dateFormat.setTimeZone(queryTimeZone);
 
-        while (day.getTimeInMillis() < endMillis) {
-            long dayStart = day.getTimeInMillis();
-            Calendar nextDay = (Calendar) day.clone();
-            nextDay.add(Calendar.DAY_OF_YEAR, 1);
-            long dayEnd = Math.min(endMillis, nextDay.getTimeInMillis());
-            List<UsageStats> stats = manager.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY, Math.max(startMillis, dayStart), dayEnd);
-            if (stats == null) return null;
+        // Query the requested range once, then assign each UsageStats row to the
+        // local calendar day represented by its own first timestamp. Android may
+        // expand queryUsageStats() to whole daily buckets; iterating one query per
+        // day and trusting every returned row can attribute yesterday's bucket to
+        // today's request (or count the same bucket in multiple days).
+        List<UsageStats> stats = manager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY, startMillis, endMillis);
+        if (stats == null) return null;
 
-            Map<String, AppUsage> dayUsage = new HashMap<>();
-            for (UsageStats stat : stats) {
-                if (stat == null || stat.getPackageName() == null) continue;
-                long duration = Math.max(0L, stat.getTotalTimeInForeground());
-                if (duration <= 0L) continue;
-                String packageName = stat.getPackageName();
-                if (packageName.equals(context.getPackageName())) continue;
-                AppUsage previous = dayUsage.get(packageName);
-                // Daily UsageStats are already aggregated per package. Taking the maximum
-                // makes duplicate interval rows idempotent rather than inflating the day.
-                dayUsage.put(packageName, new AppUsage(
-                    previous == null ? duration : Math.max(previous.usageMillis, duration),
-                    Math.max(previous == null ? 0L : previous.lastUsedTimestamp, stat.getLastTimeUsed())));
+        Map<String, Map<String, AppUsage>> usageByLocalDay = new HashMap<>();
+        for (UsageStats stat : stats) {
+            if (stat == null || stat.getPackageName() == null) continue;
+            long bucketStart = stat.getFirstTimeStamp();
+            if (!UsageStatsDayBucket.belongsToRequestedRange(
+                bucketStart, startMillis, endMillis, queryTimeZone)) {
+                continue;
             }
-            String date = dateFormat.format(day.getTime());
-            result.dailyAppUsageByPackage.put(date, dayUsage);
-            for (Map.Entry<String, AppUsage> entry : dayUsage.entrySet()) {
-                Long previous = result.appMillisByPackage.get(entry.getKey());
-                result.appMillisByPackage.put(entry.getKey(),
-                    (previous == null ? 0L : previous) + entry.getValue().usageMillis);
+            long duration = Math.max(0L, stat.getTotalTimeInForeground());
+            if (duration <= 0L) continue;
+            String packageName = stat.getPackageName();
+            if (packageName.equals(context.getPackageName())) continue;
+
+            long localDayStart = UsageStatsDayBucket.localDayStart(bucketStart, queryTimeZone);
+            Calendar bucketDay = Calendar.getInstance(queryTimeZone);
+            bucketDay.setTimeInMillis(localDayStart);
+            String date = dateFormat.format(bucketDay.getTime());
+            Map<String, AppUsage> dayUsage = usageByLocalDay.get(date);
+            if (dayUsage == null) {
+                dayUsage = new HashMap<>();
+                usageByLocalDay.put(date, dayUsage);
             }
-            day = nextDay;
+
+            AppUsage previous = dayUsage.get(packageName);
+            // Identical package/day buckets can be returned more than once on some
+            // platform builds. Keep a single daily aggregate instead of double-counting.
+            dayUsage.put(packageName, new AppUsage(
+                previous == null ? duration : Math.max(previous.usageMillis, duration),
+                Math.max(previous == null ? 0L : previous.lastUsedTimestamp, stat.getLastTimeUsed())));
+        }
+
+        for (Map.Entry<String, Map<String, AppUsage>> dayEntry : usageByLocalDay.entrySet()) {
+            result.dailyAppUsageByPackage.put(dayEntry.getKey(), dayEntry.getValue());
+            for (Map.Entry<String, AppUsage> appEntry : dayEntry.getValue().entrySet()) {
+                Long previous = result.appMillisByPackage.get(appEntry.getKey());
+                result.appMillisByPackage.put(appEntry.getKey(),
+                    (previous == null ? 0L : previous) + appEntry.getValue().usageMillis);
+            }
         }
 
         long now = System.currentTimeMillis();
@@ -99,8 +111,9 @@ final class UsageDataSource {
                 events.add(new UsageEventTimeline.Event(
                     event.getTimeStamp(), event.getPackageName(), event.getClassName(), type));
             }
+
             long dayStart = startMillis;
-            Calendar cursor = Calendar.getInstance();
+            Calendar cursor = Calendar.getInstance(queryTimeZone);
             cursor.setTimeInMillis(startMillis);
             cursor.set(Calendar.HOUR_OF_DAY, 0);
             cursor.set(Calendar.MINUTE, 0);

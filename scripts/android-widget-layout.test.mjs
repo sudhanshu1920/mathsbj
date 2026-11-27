@@ -139,6 +139,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   const usage = read('android-native/com/sudhanshu/mathsbj/AppUsageAnalyticsPlugin.java');
   const repository = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeRepository.java');
   const usageSource = read('android-native/com/sudhanshu/mathsbj/UsageDataSource.java');
+  const dayBucket = read('android-native/com/sudhanshu/mathsbj/UsageStatsDayBucket.java');
   const eventTimeline = read('android-native/com/sudhanshu/mathsbj/UsageEventTimeline.java');
   const provider = read(PROVIDER);
   const renderer = read(RENDERER);
@@ -153,6 +154,9 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(usage, /public static boolean hasUsageAccess\(Context context\)/);
   assert.match(repository, /import android\.app\.usage\.UsageStatsManager;/);
   assert.match(usageSource, /UsageStatsManager\.INTERVAL_DAILY/);
+  assert.match(usageSource, /manager\.queryUsageStats\(\s*UsageStatsManager\.INTERVAL_DAILY, startMillis, endMillis\)/);
+  assert.match(usageSource, /UsageStatsDayBucket\.belongsToRequestedRange\(\s*bucketStart, startMillis, endMillis, queryTimeZone\s*\)/);
+  assert.match(dayBucket, /bucketDayStart >= firstRequestedDay && bucketDayStart < requestedEndMillis/);
   assert.match(usageSource, /queryUsageStats\(/);
   assert.match(usageSource, /getTotalTimeInForeground\(\)/);
   assert.match(usageSource, /queryEvents\(/);
@@ -247,6 +251,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(bootReceiver, /Intent\.ACTION_TIMEZONE_CHANGED/);
   assert.ok(setup.includes("'WidgetScreenTimeRepository.java'"));
   assert.ok(setup.includes("'UsageDataSource.java'"));
+  assert.ok(setup.includes("'UsageStatsDayBucket.java'"));
   assert.ok(setup.includes("'UsageEventTimeline.java'"));
   assert.ok(setup.includes("'UsageMetrics.java'"));
 });

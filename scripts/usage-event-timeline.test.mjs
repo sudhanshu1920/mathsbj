@@ -7,4 +7,5 @@ test("native usage aggregation handles lifecycle boundaries and percentages", ()
     encoding: "utf8",
   });
   assert.match(output, /Usage aggregation: 9 scenarios passed/);
+  assert.match(output, /UsageStats day buckets: 4 scenarios passed/);
 });

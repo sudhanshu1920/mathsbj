@@ -14,6 +14,7 @@ const NATIVE_JAVA_FILES = [
   'MathMasterWidgetRenderer.java',
   'WidgetScreenTimeRepository.java',
   'UsageDataSource.java',
+  'UsageStatsDayBucket.java',
   'UsageEventTimeline.java',
   'UsageMetrics.java',
   'MathMasterWidgetConfigActivity.java',
