@@ -1627,3 +1627,21 @@ for (const [section, expandLabel, collapseLabel, contentId] of expandableStudySe
 }
 
 console.log('Architecture regression checks passed.');
+
+
+// Learning Tables Pro Mode must transfer both the full question count and the
+// immutable mode snapshot into Practice, while the generator remains range-dynamic.
+const learningTables = read('src/pages/LearningPage.tsx');
+const mathData = read('src/lib/mathData.ts');
+if (!learningTables.includes('count: getTableMultiplierCount(proMode)') ||
+    !learningTables.includes('tablesProMode: proMode') ||
+    !learningTables.includes('getTableMultiplierCount(proMode)') ||
+    !mathData.includes('export const getTableMultiplierCount')) {
+  fail('Learning Tables must launch a complete table set from the same Standard/Pro multiplier-count source used for display');
+}
+if (!practice.includes('tablesProMode: cfg.tablesProMode ?? getTablesProMode()') ||
+    !practice.includes('config.tablesProMode ?? getTablesProMode()') ||
+    !practice.includes('const proMax = getTableMultiplierCount(tablesProMode)') ||
+    !index.includes('tablesProMode?: boolean')) {
+  fail('Practice must use a session-scoped Tables Pro Mode snapshot and pass it to the shared dynamic generator');
+}
