@@ -8,6 +8,7 @@ import { saveResult } from '@/lib/progress';
 import { addSeconds as addStreakSeconds } from '@/lib/streak';
 import { recordAnswer } from '@/lib/analytics';
 import { getSettings, isActive, markInteraction, getTablesProMode, setTablesProMode } from '@/lib/settings';
+import { getTableMultiplierCount } from '@/lib/mathData';
 import { awardCorrectXP, acknowledgeLevel } from '@/lib/xp';
 import { playClick, playRightAnswer, playWrong, playLevelUp, playSubmit } from '@/lib/sound';
 import { MOTION } from '@/lib/motion';
@@ -87,6 +88,8 @@ interface PracticeConfig {
   sequential: boolean;
   repetitionEnabled: boolean;
   repetitionByTopic: Record<string, number>;
+  /** Immutable Tables Pro Mode snapshot for this question pool. */
+  tablesProMode?: boolean;
 }
 
 type AnswerType = 'decimal-pct' | 'mixed-pct' | 'fraction' | 'trig' | 'text';
@@ -379,7 +382,7 @@ function generateDigitArithmeticQuestions(
   }
   return questions;
 }
-function generateQuestionsForTopic(topicId: string, range: TopicRange, label: string): Question[] {
+function generateQuestionsForTopic(topicId: string, range: TopicRange, label: string, tablesProMode: boolean): Question[] {
   const questions: Question[] = [];
   const { from, to } = range;
   const safeFrom = clampQuizValue(from, 1, MAX_QUIZ_RANGE_VALUE, 1);
@@ -396,7 +399,7 @@ function generateQuestionsForTopic(topicId: string, range: TopicRange, label: st
   }
 
   if (topicId === 'tables') {
-    const proMax = getTablesProMode() ? 20 : 10;
+    const proMax = getTableMultiplierCount(tablesProMode);
     const multipliers = from <= to ? rangeArray(1, proMax) : rangeArray(proMax, 1);
     for (const n of nums) {
       for (const m of multipliers) {
@@ -677,7 +680,7 @@ export function generateQuestions(config: PracticeConfig): Question[] {
   const baseQuestions: Question[] = [];
 
   for (const topic of config.topics) {
-    const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label)
+    const qs = generateQuestionsForTopic(topic.id, topic.range, topic.label, config.tablesProMode ?? getTablesProMode())
       .map((question) => ({ ...question, topicId: topic.id }));
     baseQuestions.push(...qs);
   }
@@ -872,7 +875,7 @@ interface PracticePageProps {
   initialTopic?: string;
   initialContext?: { from?: number; to?: number; number?: number };
   initialMode?: 'mcq' | 'input' | 'game';
-  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder };
+  initialExtras?: { timerEnabled?: boolean; timerSeconds?: number; infinite?: boolean; trigFunctions?: TrigFunction[]; trigProMode?: boolean; count?: number; periodicQuestionTypes?: PeriodicQuestionType[]; periodicMassMode?: PeriodicMassMode; questionOrder?: LearningQuestionOrder; tablesProMode?: boolean };
   onExit?: () => void;
   onExitCancelled?: () => void;
   externalBackRequest?: number;
@@ -1190,6 +1193,8 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
           sanitizeRepetition(cfg.repetitionByTopic[topic.id]),
         ]),
       ),
+      // Capture current mode at session creation; later toggles only affect new sessions.
+      tablesProMode: cfg.tablesProMode ?? getTablesProMode(),
     };
     const generatedQuestions = generateQuestions(normalizedConfig);
     if (generatedQuestions.length === 0) {
@@ -1291,6 +1296,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
         sequential: initialExtras?.questionOrder === 'sequence',
         repetitionEnabled: false,
         repetitionByTopic: {},
+        tablesProMode: initialExtras?.tablesProMode ?? getTablesProMode(),
       };
       startPractice(cfg);
     }
@@ -1309,6 +1315,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     initialExtras?.periodicQuestionTypes,
     initialExtras?.periodicMassMode,
     initialExtras?.questionOrder,
+    initialExtras?.tablesProMode,
     startPractice,
   ]);
 
@@ -1971,6 +1978,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
             sanitizeRepetition(topicRepetitions[tid]),
           ]))
         : {},
+      tablesProMode,
     };
     return startPractice(cfg);
   }, [
@@ -1985,6 +1993,7 @@ const PracticePage = ({ initialTopic, initialContext, initialMode, initialExtras
     sequential,
     repetitionEnabled,
     topicRepetitions,
+    tablesProMode,
     startPractice,
   ]);
 
