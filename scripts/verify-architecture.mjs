@@ -1636,11 +1636,14 @@ if (!learningTables.includes('count: getTableMultiplierCount(proMode)') ||
     !mathData.includes('export const getTableMultiplierCount')) {
   fail('Learning Tables must launch a complete table set from the same Standard/Pro multiplier-count source used for display');
 }
+const tableLearningUiTests = read('src/pages/PracticePage.trigRange.test.tsx');
 if (!practice.includes('tablesProMode: cfg.tablesProMode ?? getTablesProMode()') ||
     !practice.includes('config.tablesProMode ?? getTablesProMode()') ||
     !practice.includes('const proMax = getTableMultiplierCount(tablesProMode)') ||
-    !index.includes('tablesProMode?: boolean')) {
-  fail('Practice must use a session-scoped Tables Pro Mode snapshot and pass it to the shared dynamic generator');
+    !practice.includes('const rows = getTable(n, proMax)') ||
+    !index.includes('tablesProMode?: boolean') ||
+    !tableLearningUiTests.includes('starts Table 2 with all 20 questions from an explicit Pro Mode snapshot')) {
+  fail('Practice must use the session-scoped Pro Mode snapshot, shared Learning table rows, and full 20-question Learning launch');
 }
 
 console.log('Architecture regression checks passed.');
