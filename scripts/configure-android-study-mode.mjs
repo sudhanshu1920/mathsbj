@@ -18,6 +18,7 @@ const NATIVE_FILES = [
   'AppUsageAnalyticsStore.java',
   'AppUsageAnalyticsPlugin.java',
   'UsageDataSource.java',
+  'UsageStatsDayBucket.java',
   'UsageEventTimeline.java',
   'UsageMetrics.java',
   'StudyModeSessionStore.java',
