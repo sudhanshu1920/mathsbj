@@ -1626,9 +1626,6 @@ for (const [section, expandLabel, collapseLabel, contentId] of expandableStudySe
   }
 }
 
-console.log('Architecture regression checks passed.');
-
-
 // Learning Tables Pro Mode must transfer both the full question count and the
 // immutable mode snapshot into Practice, while the generator remains range-dynamic.
 const learningTables = read('src/pages/LearningPage.tsx');
@@ -1645,3 +1642,7 @@ if (!practice.includes('tablesProMode: cfg.tablesProMode ?? getTablesProMode()')
     !index.includes('tablesProMode?: boolean')) {
   fail('Practice must use a session-scoped Tables Pro Mode snapshot and pass it to the shared dynamic generator');
 }
+
+console.log('Architecture regression checks passed.');
+
+
