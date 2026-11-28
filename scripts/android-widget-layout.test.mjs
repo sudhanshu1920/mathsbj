@@ -252,6 +252,14 @@ test('screen-time dashboards use Emerald glass and derive ring and app bars from
 
   assert.match(renderer, /applyScreenTimePalette\(this\.pal, o\.themeAccent, o\.themeMatched, o\.lightMode\)/);
   assert.match(renderer, /drawScreenTimeDashboard\(section, study != null/);
+  const ringCenter = renderer.match(/void drawScreenTimeRingCenter\([\s\S]*?\n        }/);
+  assert.ok(ringCenter, 'progress-ring center renderer must exist');
+  assert.match(ringCenter[0], /float numSize = diameter \* 0\.305f;/);
+  assert.match(ringCenter[0], /measure\(num, numSize, f\.bold\)/);
+  assert.match(ringCenter[0], /txt\.setTextSize\(numSize \* textScale\)/);
+  assert.match(ringCenter[0], /txt\.setTextSize\(pctSize \* textScale\)/);
+  assert.doesNotMatch(ringCenter[0], /float numSize = diameter \* 0\.305f \* textScale/);
+
   assert.match(renderer, /section\.totalUsageMillis \/ budget/);
   assert.match(renderer, /9d \* 3_600_000d/);
   for (const name of ['drawHeaderTile(', 'drawPeriodPill(', 'drawScreenTimeRing(', 'drawRichDuration(', 'drawGlassBubble(', 'drawGlassSwoosh(', 'rankBar(']) {
