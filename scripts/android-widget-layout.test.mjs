@@ -18,6 +18,24 @@ const BACKUP_PLUGIN = 'android-native/com/sudhanshu/mathsbj/BackupRestorePlugin.
 const BOOT_RECEIVER = 'android-native/com/sudhanshu/mathsbj/DailyTargetReminderBootReceiver.java';
 const REMINDER_PLUGIN = 'android-native/com/sudhanshu/mathsbj/DailyTargetReminderPlugin.java';
 
+test('Screen Time Island keeps the expanded visual window non-touchable and isolates input to capsule bounds', () => {
+  const overlay = read('android-native/com/sudhanshu/mathsbj/ScreenTimeIslandOverlay.java');
+  assert.match(overlay, /FLAG_NOT_TOUCHABLE/);
+  assert.match(overlay, /private final IslandTouchView touchView/);
+  assert.match(overlay, /private final WindowManager\.LayoutParams touchParams/);
+  assert.match(overlay, /private void updateTouchability\(boolean interactive\)/);
+  assert.match(overlay, /if \(interactive\) attachTouchWindow\(\);\s+else removeTouchWindow\(\);/);
+  assert.match(overlay, /private void updateTouchWindowGeometry\(\)/);
+  assert.match(overlay, /touchParams\.width = width;[\s\S]*?touchParams\.height = height;/);
+  assert.match(overlay, /touchParams\.x = screenWidth \/ 2 \+ cameraOffsetX - width \/ 2;/);
+  assert.match(overlay, /touchParams\.y = anchorTop \+ Math\.round\(frame\.offsetY/);
+  assert.match(overlay, /private void removeTouchWindow\(\)/);
+  assert.match(overlay, /private boolean handleTouch\(MotionEvent event\)/);
+  assert.match(overlay, /@Override public boolean onTouchEvent\(MotionEvent event\) \{\s+return false;\s+\}/);
+  assert.doesNotMatch(overlay, /updateViewLayout\(view, params\)[\s\S]*?FLAG_NOT_TOUCHABLE\s*;/);
+});
+
+
 const COMPOSITIONS = [
   'hero_wide', 'compact_green', 'square_math_bot', 'medium_study',
   'square_cosmic', 'extra_wide_weekly', 'minimal_progress',
