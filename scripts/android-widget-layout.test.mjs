@@ -32,6 +32,8 @@ test('Screen Time Island keeps the expanded visual window non-touchable and isol
   assert.match(overlay, /private void removeTouchWindow\(\)/);
   assert.match(overlay, /private boolean handleTouch\(MotionEvent event\)/);
   assert.match(overlay, /@Override public boolean onTouchEvent\(MotionEvent event\) \{\s+return false;\s+\}/);
+  assert.match(overlay, /class IslandView extends View[\s\S]*?@Override public boolean performClick\(\)/,
+    'the non-touchable visual view must retain its accessibility click action');
   assert.doesNotMatch(overlay, /params\.flags\s*=/, 'the visual window flags must never be toggled to touchable');
 });
 
