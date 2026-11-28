@@ -442,5 +442,11 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         @Override public boolean onTouchEvent(MotionEvent event) {
             return false;
         }
+
+        @Override public boolean performClick() {
+            super.performClick();
+            motion.toggle(nowMs());
+            return true;
+        }
     }
 }
