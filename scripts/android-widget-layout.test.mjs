@@ -167,7 +167,7 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(repository, /if \(record != null\) allEligible\.add\(record\);/);
   assert.match(repository, /if \(!hidden\.contains\(record\.packageName\)\) ranked\.add\(record\);/);
   assert.match(repository, /record\.eligibleDeviceApp && record\.usageMillis > 0L/);
-  assert.match(repository, /section\.percentageTotalUsageMillis \+= Math\.max\(0L, record\.usageMillis\);/);
+  assert.match(repository, /percentageTotalUsageMillis \+= Math\.max\(0L, record\.usageMillis\);/);
   assert.match(repository, /isEligibleDeviceApp\(pm, info\)/);
   assert.match(repository, /getLaunchIntentForPackage\(info\.packageName\)/);
   assert.match(repository, /"last_7_days"/);
