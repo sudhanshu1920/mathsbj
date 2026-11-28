@@ -173,6 +173,14 @@ public final class ScreenTimeIslandMotion {
         float current = widthProgress(nowMs);
         morphFrom = clampRange(current, 0f, 1f);
         morphTo = morphTo >= 0.5f ? 0f : 1f;
+        if (reducedMotion) {
+            morphFrom = morphTo;
+            morphStartMs = nowMs;
+            settleAtMs = nowMs;
+            firstExpansion = false;
+            holdAccumMs = 0L;
+            return true;
+        }
         morphStartMs = nowMs;
         morphResponse = TOGGLE_RESPONSE;
         morphDamping = TOGGLE_DAMPING;
