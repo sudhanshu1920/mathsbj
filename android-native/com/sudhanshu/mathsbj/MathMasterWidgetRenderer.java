@@ -1419,9 +1419,9 @@ final class MathMasterWidgetRenderer {
             if (!label) return;
             float diameter = outerR * 2f;
             float textScale = clamp(o.textScale, 0.8f, 1.3f);
-            float numSize = diameter * 0.305f * textScale;
+            float numSize = diameter * 0.305f;
             float pctSize = numSize * 0.62f;
-            float capH = numSize * 0.70f;
+            float capH = numSize * textScale * 0.70f;
             float labelSize = diameter * 0.10f;
             float gap = diameter * 0.09f;
             float blockH = capH + gap + labelSize * 0.70f;
@@ -1430,15 +1430,15 @@ final class MathMasterWidgetRenderer {
             String num = String.valueOf(progress);
             float wn = measure(num, numSize, f.bold);
             float wp = measure("%", pctSize, f.bold);
-            float gapX = numSize * 0.03f;
+            float gapX = numSize * textScale * 0.03f;
             float maxW = (r - sw * 0.5f) * 1.7f;
             float scale = Math.min(1f, maxW / (wn + wp + gapX));
             numSize *= scale; pctSize *= scale; wn *= scale; wp *= scale;
             float x0 = cx - (wn + wp + gapX) * 0.5f;
             txt.setShader(null); txt.setTypeface(f.bold); txt.setTextAlign(Paint.Align.LEFT); txt.setStyle(Paint.Style.FILL); txt.setLetterSpacing(0f);
-            txt.setTextSize(numSize); txt.setColor(Color.WHITE); txt.setShadowLayer(numSize * 0.05f, 0f, numSize * 0.025f, withAlpha(Color.BLACK, 0.45f));
+            txt.setTextSize(numSize * textScale); txt.setColor(Color.WHITE); txt.setShadowLayer(numSize * textScale * 0.05f, 0f, numSize * textScale * 0.025f, withAlpha(Color.BLACK, 0.45f));
             c.drawText(num, x0, baseline, txt);
-            txt.setTextSize(pctSize); txt.setColor(pal.soft);
+            txt.setTextSize(pctSize * textScale); txt.setColor(pal.soft);
             c.drawText("%", x0 + wn + gapX, baseline, txt);
             txt.clearShadowLayer();
             if (outerR > 24f * density) {
