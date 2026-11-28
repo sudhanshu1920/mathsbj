@@ -78,6 +78,7 @@ final class MathMasterWidgetRenderer {
         String status = "loading";
         String periodLabel = "Today";
         long totalUsageMillis;
+        boolean totalUsageAvailable = true;
         long lastUpdatedAt;
         java.util.List<ScreenTimeEntry> entries = new java.util.ArrayList<>();
     }
@@ -734,6 +735,7 @@ final class MathMasterWidgetRenderer {
         /** The ring is a visual gauge against a 9-hour reference day (63 hours for Last 7 Days). */
         float screenTimeRingProgress(ScreenTimeSection section) {
             double budget = 9d * 3_600_000d * ("last_7_days".equals(o.screenTimePeriod) ? 7d : 1d);
+            if (section == null || !section.totalUsageAvailable) return 0f;
             return (float) Math.min(1d, Math.max(0d, section.totalUsageMillis / budget));
         }
 
@@ -781,9 +783,12 @@ final class MathMasterWidgetRenderer {
             c.drawLine(cx, clockY, cx, clockY - clockR * 0.58f, line);
             c.drawLine(cx, clockY, cx + clockR * 0.46f, clockY + clockR * 0.30f, line);
             resetPaints();
-            if (o.screenTimeShowTotal) {
+            if (o.screenTimeShowTotal && section.totalUsageAvailable) {
                 drawRichDuration(section.totalUsageMillis, cx, cy + radius * 0.17f,
                     clamp(radius * 0.29f, 14f * density, 34f * density), radius * 1.62f);
+            } else if (o.screenTimeShowTotal) {
+                text("Unavailable", cx, cy + radius * 0.17f, clamp(radius * 0.20f, 11f * density, 23f * density),
+                    f.medium, Color.WHITE, Paint.Align.CENTER, radius * 1.55f);
             } else {
                 text("Screen Time", cx, cy + radius * 0.17f, clamp(radius * 0.22f, 12f * density, 26f * density),
                     f.bold, Color.WHITE, Paint.Align.CENTER, radius * 1.55f);
@@ -1172,10 +1177,12 @@ final class MathMasterWidgetRenderer {
             float totalBaseline = titleBaseline + metaSize * 1.30f + (inline ? 1.5f : pad * 0.25f);
             float rowStart = totalBaseline + metaSize * 0.75f;
             if (o.screenTimeShowTotal) {
-                String total = formatUsageDuration(section.totalUsageMillis);
                 float valueSize = clamp(Math.min(valueRef * su, h * (inline ? 0.18f : 0.13f)), 8f * density, 18f * density);
+                String total = section.totalUsageAvailable
+                    ? formatUsageDuration(section.totalUsageMillis) : "Total unavailable";
                 text(total, titleLeft, totalBaseline + valueSize * 0.65f, valueSize,
-                    f.bold, Color.WHITE, Paint.Align.LEFT, inline ? w * 0.45f : w - pad * 2f);
+                    section.totalUsageAvailable ? f.bold : f.medium, Color.WHITE, Paint.Align.LEFT,
+                    inline ? w * 0.45f : w - pad * 2f);
                 rowStart = totalBaseline + valueSize + pad * 0.60f;
             }
 
@@ -1411,7 +1418,8 @@ final class MathMasterWidgetRenderer {
 
             if (!label) return;
             float diameter = outerR * 2f;
-            float numSize = diameter * 0.305f;
+            float textScale = clamp(o.textScale, 0.8f, 1.3f);
+            float numSize = diameter * 0.305f * textScale;
             float pctSize = numSize * 0.62f;
             float capH = numSize * 0.70f;
             float labelSize = diameter * 0.10f;
