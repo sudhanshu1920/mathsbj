@@ -270,8 +270,9 @@ final class WidgetScreenTimeRepository {
             }
         }
         Collections.sort(allEligible, appComparator(sort));
+        long percentageTotalUsageMillis = 0L;
         for (AppRecord record : allEligible) {
-            section.percentageTotalUsageMillis += Math.max(0L, record.usageMillis);
+            percentageTotalUsageMillis += Math.max(0L, record.usageMillis);
         }
         List<AppRecord> ranked = new ArrayList<>();
         for (AppRecord record : allEligible) {
@@ -282,9 +283,8 @@ final class WidgetScreenTimeRepository {
             return section;
         }
 
-        section.deviceTotalAvailable = studyApps || snapshot.deviceUsageAvailable;
         section.totalUsageMillis = studyApps
-            ? section.percentageTotalUsageMillis : snapshot.deviceUsageMillis;
+            ? percentageTotalUsageMillis : snapshot.deviceUsageMillis;
 
         int count = Math.max(1, Math.min(12, maxEntries));
         int visible = Math.min(count, ranked.size());
@@ -294,7 +294,7 @@ final class WidgetScreenTimeRepository {
             entry.packageName = record.packageName;
             entry.label = record.label;
             entry.usageMillis = record.usageMillis;
-            entry.percent = UsageMetrics.percentage(entry.usageMillis, section.percentageTotalUsageMillis);
+            entry.percent = UsageMetrics.percentage(entry.usageMillis, percentageTotalUsageMillis);
             entry.icon = record.icon;
             section.entries.add(entry);
         }
