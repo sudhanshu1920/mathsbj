@@ -808,7 +808,17 @@ public final class StudyModeFocusService extends Service {
                 && !periodicReminderVisible.get();
             long islandNowElapsedMs = SystemClock.elapsedRealtime();
             long islandNowWallMs = System.currentTimeMillis();
-            String islandForegroundPackage = activePackage == null ? "" : activePackage;
+            // Screen Time Island is informational only: when an optional Accessibility
+            // window snapshot is temporarily incomplete, keep its usage cadence alive
+            // from the freshly resolved UsageEvents foreground package. Shield decisions
+            // and Periodic Reminder eligibility continue to require activePackage.
+            String islandPackage = activePackage;
+            if (islandPackage == null && !accessibilityWindowCoverageRequired) {
+                islandPackage = foreground;
+            }
+            boolean islandSelectedStudyApp = islandPackage != null
+                && StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, islandPackage);
+            String islandForegroundPackage = islandPackage == null ? "" : islandPackage;
             if (!islandForegroundPackage.equals(islandTrackedPackage)) {
                 boolean previouslyTracked = !islandTrackedPackage.isEmpty();
                 islandTrackedPackage = islandForegroundPackage;
@@ -828,10 +838,10 @@ public final class StudyModeFocusService extends Service {
             boolean islandEligible = islandEnabled && usageAccessAvailable
                 && StudyModeManager.hasOverlayPermission(StudyModeFocusService.this)
                 && !StudyModeManager.isProStrictModeActive(StudyModeFocusService.this)
-                && !shouldShield && activePackage != null
-                && !activePackage.equals(getPackageName())
-                && !selectedStudyApp
-                && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)
+                && !shouldShield && islandPackage != null
+                && !islandPackage.equals(getPackageName())
+                && !islandSelectedStudyApp
+                && !StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, islandPackage)
                 && !periodicReminderVisible.get()
                 && !phoneCallActive;
             boolean reminderDue = periodicReminderUsage.sample(
@@ -874,7 +884,7 @@ public final class StudyModeFocusService extends Service {
                 && islandRequestInFlight.compareAndSet(false, true);
             ScreenTimeIslandSnapshot islandSnapshot = null;
             if (requestIslandSnapshot) {
-                islandSnapshot = queryTodayIslandSnapshot(StudyModeFocusService.this, activePackage,
+                islandSnapshot = queryTodayIslandSnapshot(StudyModeFocusService.this, islandPackage,
                     islandNowWallMs, islandTrackedPackageSinceWallMs);
                 if (islandSnapshot == null) {
                     islandRequestInFlight.set(false);
