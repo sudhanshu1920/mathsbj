@@ -173,6 +173,9 @@ test('screen-time content is backed by local UsageStats and keeps Study Apps sep
   assert.match(dataSource, /UsageStatsManager\.INTERVAL_DAILY/);
   assert.match(dataSource, /manager\.queryUsageStats\(/);
   assert.match(dataSource, /stat\.getTotalTimeInForeground\(\)/);
+  assert.match(dataSource, /long lastUsed = stat\.getLastTimeUsed\(\)/);
+  assert.match(dataSource, /lastUsed < dayStart \|\| lastUsed >= dayEnd/,
+    'daily UsageStats rows must be rejected when their last activity belongs to a neighbouring day');
   assert.match(repository, /Executors\.newSingleThreadExecutor/);
   assert.match(repository, /CACHE_TTL_MS = 2L \* 60L \* 1000L/);
   assert.match(repository, /MAX_SNAPSHOTS = 9/);

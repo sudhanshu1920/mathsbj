@@ -63,6 +63,11 @@ final class UsageDataSource {
             Map<String, AppUsage> dayUsage = new HashMap<>();
             for (UsageStats stat : stats) {
                 if (stat == null || stat.getPackageName() == null) continue;
+                // Android can return a neighbouring daily bucket for a narrow query window.
+                // Accept a row only when its last activity belongs to this local calendar day;
+                // otherwise yesterday's aggregate can leak into the Today widget after midnight.
+                long lastUsed = stat.getLastTimeUsed();
+                if (lastUsed < dayStart || lastUsed >= dayEnd) continue;
                 long duration = Math.max(0L, stat.getTotalTimeInForeground());
                 if (duration <= 0L) continue;
                 String packageName = stat.getPackageName();
