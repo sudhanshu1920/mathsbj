@@ -842,6 +842,7 @@ final class MathMasterWidgetRenderer {
             if (entry.icon != null && !entry.icon.isRecycled()) {
                 c.save();
                 c.clipPath(roundPath(icon, iconSize * 0.24f));
+                fill.setAlpha(255);
                 c.drawBitmap(entry.icon, null, icon, fill);
                 c.restore();
             }
@@ -1208,6 +1209,7 @@ final class MathMasterWidgetRenderer {
                 if (entry.icon != null && !entry.icon.isRecycled()) {
                     c.save();
                     c.clipPath(roundPath(iconTile, icon * 0.24f));
+                    fill.setAlpha(255);
                     c.drawBitmap(entry.icon, null, iconTile, fill);
                     c.restore();
                 }
