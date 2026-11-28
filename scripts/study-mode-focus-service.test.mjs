@@ -719,6 +719,11 @@ test("Screen Time Island is opt-in to the same Study Mode eligibility and never 
   assert.ok(monitor.includes("StudyModeManager.isSelectedStudyAppPackage(StudyModeFocusService.this, activePackage)"));
   assert.ok(monitor.includes("StudyModeManager.isPeriodicReminderExemptPackage(StudyModeFocusService.this, activePackage)"));
   assert.ok(monitor.includes("!StudyModeManager.isProStrictModeActive(StudyModeFocusService.this)"));
+  assert.ok(monitor.includes("String islandPackage = activePackage"));
+  assert.ok(monitor.includes("if (islandPackage == null && !accessibilityWindowCoverageRequired)"));
+  assert.ok(monitor.includes("islandPackage = foreground"));
+  assert.ok(monitor.includes("islandSelectedStudyApp"));
+  assert.ok(monitor.includes("queryTodayIslandSnapshot(StudyModeFocusService.this, islandPackage"));
   assert.ok(monitor.includes("!shouldShield"));
   assert.ok(monitor.includes("!activePackage.equals(getPackageName())"));
   assert.ok(monitor.includes("islandUsage.sample("));
