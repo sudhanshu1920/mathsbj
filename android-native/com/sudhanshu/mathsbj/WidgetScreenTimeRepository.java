@@ -283,6 +283,7 @@ final class WidgetScreenTimeRepository {
             return section;
         }
 
+        section.totalUsageAvailable = studyApps || snapshot.deviceUsageAvailable;
         section.totalUsageMillis = studyApps
             ? percentageTotalUsageMillis : snapshot.deviceUsageMillis;
 
