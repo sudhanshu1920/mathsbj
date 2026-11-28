@@ -21,22 +21,22 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Locale;
 
-/** Renders contact sheets by invoking the production ScreenTimeIslandPainter directly. */
+/**
+ * Renders contact sheets by driving the production ScreenTimeIslandMotion timeline into the
+ * production ScreenTimeIslandPainter, so what is reviewed here is what the overlay draws.
+ */
 public final class IslandPainterPreview {
-    private static final int FRAME_HEIGHT = 112;
-    private static final int LABEL_HEIGHT = 18;
+    private static final int LABEL_HEIGHT = 20;
     private static final long MINUTE = 60_000L;
-    private static final int CURRENT_HOUR = 13;
-    private static final String[] THEMES = {
-        "arctic-blue", "aurora", "sunset-gold", "soft-rose", "mint", "graphite"
-    };
     private static final int[] WIDTHS = { 360, 412, 480 };
-    private static final String[] USAGE_LABELS = { "0m", "7m", "1h24m", "11h59m" };
     private static final String[] CUTOUTS = { "center", "left", "none" };
-    private static final String[] FRAME_LABELS = {
-        "0ms", "80ms", "140ms", "240ms", "340ms",
-        "480ms", "700ms", "hold", "dismiss 110ms", "dismiss 380ms"
-    };
+    private static final String[] NAMES = { "ChatGPT", "Instagram", "Social & Messaging Companion Ultra", "YouTube" };
+    private static final long[] USAGE_MINUTES = { 0L, 20L, 84L, 719L };
+    private static final String[] USAGE_LABELS = { "<1 min", "20 min", "1 hr 24 min", "11 hr 59 min" };
+    private static final long[] SHOW_MS = { 60L, 120L, 190L, 280L, 420L, 900L };
+    private static final long DISMISS_AT_MS = 1500L;
+    private static final long[] DISMISS_OFFSETS = { 90L, 210L };
+    private static final int COLUMNS = 4;
 
     private IslandPainterPreview() {}
 
@@ -48,198 +48,139 @@ public final class IslandPainterPreview {
         if (assetPath == null || assetPath.isEmpty()) {
             throw new IllegalStateException("Pass -Disland.assets pointing at android-native/assets/");
         }
-        PreviewContext context = new PreviewContext(assetPath);
+        float density = Float.parseFloat(System.getProperty("island.density", "2"));
+        PreviewContext context = new PreviewContext(assetPath, density);
         int rendered = 0;
         for (int width : WIDTHS) {
             for (String cutout : CUTOUTS) {
-                renderSheet(context, output, width, cutout);
+                renderSheet(context, output, width, cutout, density);
                 rendered++;
             }
         }
         System.out.println("Rendered " + rendered + " Screen Time Island contact sheets into " + output.getAbsolutePath());
     }
 
-    private static void renderSheet(PreviewContext baseContext, File output,
-                                    int width, String cutout) throws IOException {
-        int scenarioCount = THEMES.length * USAGE_LABELS.length;
-        int scenarioHeight = LABEL_HEIGHT + (FRAME_HEIGHT * 2);
-        BufferedImage sheet = new BufferedImage(width * 5, scenarioCount * scenarioHeight,
-            BufferedImage.TYPE_INT_ARGB);
-        Graphics2D labels = sheet.createGraphics();
-        labels.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        labels.setFont(new Font("Inter", Font.BOLD, 10));
-        labels.setColor(new Color(0xffe5e7eb, true));
+    private static void renderSheet(PreviewContext context, File output, int widthDp, String cutout,
+                                    float density) throws IOException {
+        int frames = SHOW_MS.length + DISMISS_OFFSETS.length;
+        int rows = (frames + COLUMNS - 1) / COLUMNS;
+        float screenW = widthDp * density;
+        float ew = ScreenTimeIslandPainter.expandedWidthPx(screenW, density);
+        float eh = ScreenTimeIslandPainter.expandedHeightPx(ew, density);
+        int padSide = ScreenTimeIslandPainter.padSide(density);
+        int padTop = ScreenTimeIslandPainter.padTop(density);
+        int padBottom = ScreenTimeIslandPainter.padBottom(density);
+        int windowW = Math.round(ew + 2f * padSide);
+        int windowH = Math.round(eh + padTop + padBottom);
+        int cellW = Math.round(Math.max(screenW * 0.9f, windowW + 24f * density));
+        int cellH = windowH + Math.round(26f * density);
+        int scenarioHeight = LABEL_HEIGHT + rows * cellH;
+        BufferedImage sheet = new BufferedImage(COLUMNS * cellW, NAMES.length * scenarioHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = sheet.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setColor(new Color(8, 10, 14));
+        g.fillRect(0, 0, sheet.getWidth(), sheet.getHeight());
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
 
-        int scenario = 0;
-        for (String theme : THEMES) {
-            for (int usage = 0; usage < USAGE_LABELS.length; usage++) {
-                long total = totalForScenario(usage);
-                String appLabel = usage == 3
-                    ? "A Very Long Social & Messaging Application Name"
-                    : (usage == 2 ? "Instagram" : "YouTube");
-                int top = scenario * scenarioHeight;
-                labels.drawString(theme + "  ·  " + USAGE_LABELS[usage]
-                    + "  ·  " + appLabel + "  ·  " + cutout + " cutout",
-                    8, top + 13);
+        float collapsedW = 112f * density;
+        float collapsedH = 34f * density;
+        float cameraTop = 7f * density;
+        float cameraSize = 10f * density;
+        boolean centered = "center".equals(cutout);
+        float anchorTop = centered
+            ? Math.max(2f * density, cameraTop + cameraSize * 0.5f - collapsedH * 0.5f)
+            : 6f * density;
 
-                long[] hourly = hourlyUsage(usage);
-                PreviewContext context = new PreviewContext(baseContext.assetPath);
-                context.getResources().getDisplayMetrics().density = 1f;
-                context.getResources().getDisplayMetrics().widthPixels = width;
-                ScreenTimeIslandPainter painter = new ScreenTimeIslandPainter(
-                    context, appLabel, new PreviewIcon(ScreenTimeIslandPainter.accentForTheme(theme)), hourly);
-                painter.setDurationTarget(total);
-                int accent = ScreenTimeIslandPainter.accentForTheme(theme);
+        for (int scenario = 0; scenario < NAMES.length; scenario++) {
+            boolean light = scenario % 2 == 1;
+            int top = scenario * scenarioHeight;
+            g.setColor(new Color(236, 244, 240));
+            g.drawString(String.format(Locale.US, "%s - %s - %ddp - %s cutout - %s background",
+                NAMES[scenario], USAGE_LABELS[scenario], widthDp, cutout, light ? "light" : "dark"), 8, top + 14);
 
-                for (int frameIndex = 0; frameIndex < FRAME_LABELS.length; frameIndex++) {
-                    PreviewFrame frame = frame(frameIndex, total);
-                    BufferedImage image = renderFrame(width, cutout, painter, frame, accent);
-                    int frameRow = frameIndex / 5;
-                    int frameColumn = frameIndex % 5;
-                    int x = frameColumn * width;
-                    int y = top + LABEL_HEIGHT + frameRow * FRAME_HEIGHT;
-                    labels.drawImage(image, x, y, null);
-                    labels.setColor(new Color(0xfff3f4f6, true));
-                    labels.setFont(new Font("Inter", Font.PLAIN, 9));
-                    labels.drawString(FRAME_LABELS[frameIndex], x + 5, y + 11);
-                    labels.setFont(new Font("Inter", Font.BOLD, 10));
-                    labels.setColor(new Color(0xffe5e7eb, true));
-                }
-                scenario++;
+            PreviewIcon icon = new PreviewIcon(scenario);
+            ScreenTimeIslandPainter painter = new ScreenTimeIslandPainter(context, NAMES[scenario], icon,
+                0xff2ee59d, ew, eh);
+            painter.setDurationTarget(USAGE_MINUTES[scenario] * MINUTE);
+            ScreenTimeIslandMotion motion = new ScreenTimeIslandMotion(collapsedW, collapsedH, ew, eh, false, 4200L);
+            ScreenTimeIslandMotion.Frame frame = new ScreenTimeIslandMotion.Frame();
+            motion.start(0L);
+
+            long clock = 0L;
+            int index = 0;
+            for (int i = 0; i < SHOW_MS.length; i++) {
+                clock = advance(motion, frame, clock, SHOW_MS[i]);
+                drawCell(g, painter, frame, index++, top, cellW, cellH, windowW, windowH, density, light,
+                    centered, !"none".equals(cutout), cameraTop, cameraSize, anchorTop, padTop, cutout, screenW);
+            }
+            clock = advance(motion, frame, clock, DISMISS_AT_MS);
+            motion.dismiss(clock);
+            long dismissStart = clock;
+            for (long offset : DISMISS_OFFSETS) {
+                clock = advance(motion, frame, clock, dismissStart + offset);
+                drawCell(g, painter, frame, index++, top, cellW, cellH, windowW, windowH, density, light,
+                    centered, !"none".equals(cutout), cameraTop, cameraSize, anchorTop, padTop, cutout, screenW);
             }
         }
-        labels.dispose();
-        String fileName = String.format(Locale.ROOT, "screen-time-island_%d_cutout-%s.png", width, cutout);
-        ImageIO.write(sheet, "png", new File(output, fileName));
-        System.out.println(fileName + " " + sheet.getWidth() + "x" + sheet.getHeight());
+        g.dispose();
+        ImageIO.write(sheet, "png", new File(output, String.format(Locale.US,
+            "screen-time-island_%d_cutout-%s.png", widthDp, cutout)));
     }
 
-    private static BufferedImage renderFrame(int screenWidth, String cutout,
-                                             ScreenTimeIslandPainter painter,
-                                             PreviewFrame frame, int accent) {
-        Bitmap bitmap = Bitmap.createBitmap(screenWidth, FRAME_HEIGHT, Bitmap.Config.ARGB_8888);
+    private static long advance(ScreenTimeIslandMotion motion, ScreenTimeIslandMotion.Frame frame, long from, long to) {
+        long t = from;
+        while (t < to) {
+            t = Math.min(to, t + 8L);
+            motion.evaluate(t, frame);
+        }
+        if (from == to) motion.evaluate(to, frame);
+        return to;
+    }
+
+    private static void drawCell(Graphics2D g, ScreenTimeIslandPainter painter, ScreenTimeIslandMotion.Frame frame,
+                                 int index, int top, int cellW, int cellH, int windowW, int windowH, float density,
+                                 boolean light, boolean centered, boolean hasCamera, float cameraTop, float cameraSize,
+                                 float anchorTop, int padTop, String cutout, float screenW) {
+        int column = index % COLUMNS;
+        int row = index / COLUMNS;
+        int x0 = column * cellW;
+        int y0 = top + LABEL_HEIGHT + row * cellH;
+        Bitmap bitmap = Bitmap.createBitmap(cellW, cellH, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
-        canvas.drawColor(0xff121318);
-
-        if (!"none".equals(cutout)) {
-            Paint camera = new Paint(Paint.ANTI_ALIAS_FLAG);
-            camera.setColor(0xff050507);
-            camera.setStyle(Paint.Style.FILL);
-            float cameraLeft = "center".equals(cutout) ? (screenWidth - 36f) * 0.5f : 18f;
-            canvas.drawRoundRect(cameraLeft, 0f, cameraLeft + 36f, 10f, 5f, 5f, camera);
-            camera.setColor(0xff30323a);
-            canvas.drawCircle(cameraLeft + 25f, 5f, 2.2f, camera);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(light ? 0xffe9edf1 : 0xff10141a);
+        RectF area = new RectF(0f, 0f, cellW, cellH);
+        canvas.drawRect(area, paint);
+        paint.setColor(light ? 0xffd5dbe2 : 0xff181d25);
+        area.set(0f, cellH * 0.55f, cellW, cellH);
+        canvas.drawRect(area, paint);
+        if (hasCamera) {
+            float cx = centered ? cellW * 0.5f : cellW * 0.5f - screenW * 0.30f;
+            paint.setColor(0xff000000);
+            canvas.drawCircle(cx, cameraTop + cameraSize * 0.5f, cameraSize * 0.5f, paint);
         }
-
-        int collapsedWidth = 112;
-        int collapsedHeight = 34;
-        int expandedWidth = Math.min(screenWidth - 32, 344);
-        int expandedHeight = 88;
-        int anchorTop = "center".equals(cutout) ? 0 : 6;
-        int windowWidth = Math.round(lerp(collapsedWidth, expandedWidth, frame.widthProgress));
-        int windowHeight = Math.round(lerp(collapsedHeight, expandedHeight, frame.heightProgress));
-        int left = (screenWidth - windowWidth) / 2;
-
         int save = canvas.save();
-        canvas.translate(left, anchorTop);
-        painter.draw(canvas, windowWidth, windowHeight, frame.morph,
-            frame.alpha, frame.iconScale, frame.barProgress, frame.pulse,
-            accent, CURRENT_HOUR, frame.elapsedMillis);
+        canvas.translate((cellW - windowW) * 0.5f, anchorTop - padTop);
+        painter.draw(canvas, windowW, windowH, frame);
         canvas.restoreToCount(save);
-        return bitmap.image;
+        g2draw(g, bitmap, x0, y0);
+        g.setColor(new Color(150, 170, 165));
+        g.drawRect(x0, y0, cellW - 1, cellH - 1);
     }
 
-    private static PreviewFrame frame(int index, long totalMillis) {
-        PreviewFrame value = new PreviewFrame();
-        value.pulse = 0.5f;
-        if (index <= 6) {
-            long time = new long[]{0, 80, 140, 240, 340, 480, 700}[index];
-            if (time < 140L) {
-                value.alpha = time / 140f;
-                value.iconScale = value.alpha;
-                value.widthProgress = 0f;
-                value.heightProgress = 0f;
-                value.morph = 0f;
-                value.barProgress = 0f;
-                value.elapsedMillis = 0L;
-            } else {
-                long morphElapsed = time - 140L;
-                value.widthProgress = clamp(ScreenTimeIslandSpring.valueAt(morphElapsed / 1000f, 0.38f, 0.86f), 0f, 1.06f);
-                value.heightProgress = clamp(ScreenTimeIslandSpring.valueAt(Math.max(0L, morphElapsed - 48L) / 1000f, 0.38f, 0.86f), 0f, 1.06f);
-                value.morph = clamp(Math.min(value.widthProgress, value.heightProgress), 0f, 1f);
-                float content = clamp((value.morph - 0.50f) / 0.50f, 0f, 1f);
-                value.alpha = 1f;
-                value.iconScale = content;
-                value.barProgress = clamp((morphElapsed - 140L) / 410f, 0f, 1f);
-                value.elapsedMillis = Math.round(totalMillis * easeOutCubic(morphElapsed / 480f));
-            }
-        } else if (index == 7) {
-            value.widthProgress = 1f;
-            value.heightProgress = 1f;
-            value.morph = 1f;
-            value.alpha = 1f;
-            value.iconScale = 1f;
-            value.barProgress = 1f;
-            value.elapsedMillis = totalMillis;
-        } else {
-            long dismissElapsed = index == 8 ? 110L : 380L;
-            float reverse = clamp(ScreenTimeIslandSpring.valueAt(dismissElapsed / 1000f, 0.36f, 0.92f), 0f, 1f);
-            value.morph = 1f - reverse;
-            value.widthProgress = value.morph;
-            value.heightProgress = value.morph;
-            value.alpha = dismissElapsed <= 210L ? 1f : clamp(1f - (dismissElapsed - 210L) / 130f, 0f, 1f);
-            value.iconScale = value.alpha;
-            value.barProgress = dismissElapsed < 110L ? 1f - dismissElapsed / 110f : 0f;
-            value.elapsedMillis = totalMillis;
-        }
-        return value;
-    }
-
-    private static long totalForScenario(int usage) {
-        if (usage == 1) return 7L * MINUTE;
-        if (usage == 2) return 84L * MINUTE;
-        if (usage == 3) return 719L * MINUTE;
-        return 0L;
-    }
-
-    private static long[] hourlyUsage(int usage) {
-        long[] result = new long[24];
-        if (usage == 1) {
-            result[CURRENT_HOUR] = 7L * MINUTE;
-        } else if (usage == 2) {
-            result[CURRENT_HOUR - 2] = 25L * MINUTE;
-            result[CURRENT_HOUR - 1] = 35L * MINUTE;
-            result[CURRENT_HOUR] = 24L * MINUTE;
-        } else if (usage == 3) {
-            for (int hour = 2; hour < 13; hour++) result[hour] = 60L * MINUTE;
-            result[CURRENT_HOUR] = 59L * MINUTE;
-        }
-        return result;
-    }
-
-    private static float easeOutCubic(float value) {
-        float x = clamp(value, 0f, 1f);
-        float inverse = 1f - x;
-        return 1f - inverse * inverse * inverse;
-    }
-    private static float clamp(float value, float min, float max) {
-        return Math.max(min, Math.min(max, value));
-    }
-    private static float lerp(float a, float b, float p) { return a + (b - a) * p; }
-
-    private static final class PreviewFrame {
-        float widthProgress, heightProgress, morph, alpha, iconScale, barProgress, pulse;
-        long elapsedMillis;
+    private static void g2draw(Graphics2D g, Bitmap bitmap, int x, int y) {
+        g.drawImage(bitmap.image, x, y, null);
     }
 
     private static final class PreviewContext extends Context {
         final String assetPath;
         final Resources resources = new Resources();
         final AssetManager assets = new AssetManager();
-        PreviewContext(String assetPath) {
+        PreviewContext(String assetPath, float density) {
             this.assetPath = assetPath.endsWith("/") ? assetPath : assetPath + "/";
             assets.baseDir = this.assetPath;
-            resources.getDisplayMetrics().density = 1f;
+            resources.getDisplayMetrics().density = density;
         }
         @Override public SharedPreferences getSharedPreferences(String name, int mode) { return null; }
         @Override public String getPackageName() { return "com.sudhanshu.mathsbj.preview"; }
@@ -249,19 +190,22 @@ public final class IslandPainterPreview {
         @Override public PackageManager getPackageManager() { return null; }
     }
 
+    /** Stand-in launcher icons: a white tile for ChatGPT-like apps and coloured tiles otherwise. */
     private static final class PreviewIcon extends Drawable {
-        private final int accent;
-        PreviewIcon(int accent) { this.accent = accent; }
+        private final int variant;
+        PreviewIcon(int variant) { this.variant = variant; }
         @Override public void draw(Canvas canvas) {
             Paint body = new Paint(Paint.ANTI_ALIAS_FLAG);
-            body.setColor(accent);
             body.setStyle(Paint.Style.FILL);
+            body.setColor(variant == 0 ? 0xfff4f6f6 : variant == 1 ? 0xffc13584 : variant == 2 ? 0xff3b82f6 : 0xffe53935);
             float width = right - left;
             float height = bottom - top;
-            canvas.drawRoundRect(left, top, right, bottom, width * 0.26f, height * 0.26f, body);
-            Paint glint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            glint.setColor(0x99ffffff);
-            canvas.drawCircle(left + width * 0.68f, top + height * 0.30f, width * 0.09f, glint);
+            canvas.drawRoundRect(left, top, right, bottom, width * 0.24f, height * 0.24f, body);
+            Paint glyph = new Paint(Paint.ANTI_ALIAS_FLAG);
+            glyph.setStyle(Paint.Style.STROKE);
+            glyph.setStrokeWidth(Math.max(1f, width * 0.07f));
+            glyph.setColor(variant == 0 ? 0xff111111 : 0xe6ffffff);
+            canvas.drawCircle(left + width * 0.5f, top + height * 0.5f, width * 0.24f, glyph);
         }
     }
 }

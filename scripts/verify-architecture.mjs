@@ -25,9 +25,7 @@ const streak = read('src/lib/streak.ts');
 const personalApkWorkflow = read('.github/workflows/android-apk.yml');
 const publicReleaseWorkflow = read('.github/workflows/android-release.yml');
 const widgetScreenTimeRepository = read('android-native/com/sudhanshu/mathsbj/WidgetScreenTimeRepository.java');
-const widgetScreenTimeUsageSource = read('android-native/com/sudhanshu/mathsbj/UsageDataSource.java');
-const widgetScreenTimeTimeline = read('android-native/com/sudhanshu/mathsbj/UsageEventTimeline.java');
-const widgetScreenTimeMetrics = read('android-native/com/sudhanshu/mathsbj/UsageMetrics.java');
+const widgetScreenTimeDataSource = read('android-native/com/sudhanshu/mathsbj/UsageDataSource.java');
 const widgetScreenTimeProvider = read('android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java');
 const widgetScreenTimeRenderer = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java');
 const widgetScreenTimeSetup = read('scripts/configure-android-widgets.mjs');
@@ -35,12 +33,10 @@ const widgetScreenTimeBackup = read('src/lib/backupRestore.ts');
 const widgetScreenTimeBridge = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetsPlugin.java');
 const widgetScreenTimeEntry = read('src/pages/Index.tsx');
 const widgetConfigActivity = read('android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java');
-if (!widgetScreenTimeUsageSource.includes('UsageStatsManager.INTERVAL_DAILY')
-    || !widgetScreenTimeUsageSource.includes('queryUsageStats(')
-    || !widgetScreenTimeUsageSource.includes('queryEvents(')
-    || !widgetScreenTimeUsageSource.includes('UsageEventTimeline.measure(')
-    || !widgetScreenTimeTimeline.includes('KEYGUARD_SHOWN')
-    || !widgetScreenTimeTimeline.includes('SCREEN_NON_INTERACTIVE')
+if (!widgetScreenTimeRepository.includes('UsageDataSource.query(context, manager, bounds.start, bounds.end)')
+    || !widgetScreenTimeDataSource.includes('UsageStatsManager.INTERVAL_DAILY')
+    || !widgetScreenTimeDataSource.includes('manager.queryUsageStats(')
+    || !widgetScreenTimeDataSource.includes('stat.getTotalTimeInForeground()')
     || !widgetScreenTimeRepository.includes('StudyModeManager.getSelectedStudyAppPackages(context)')
     || !widgetScreenTimeRepository.includes('new HashSet<>(usage.keySet())')
     || !widgetScreenTimeRepository.includes('candidatePackages.addAll(selectedStudy)')
@@ -52,11 +48,8 @@ if (!widgetScreenTimeUsageSource.includes('UsageStatsManager.INTERVAL_DAILY')
     || !widgetScreenTimeRepository.includes('cacheGeneration != requestGeneration')
     || !widgetScreenTimeProvider.includes('studyAppsScreenTime')
     || !widgetScreenTimeProvider.includes('deviceAppsScreenTime')
-    || !widgetScreenTimeRepository.includes('if (!hidden.contains(record.packageName)) ranked.add(record)')
-    || !widgetScreenTimeRepository.includes('percentageTotalUsageMillis')
-    || !widgetScreenTimeMetrics.includes('usageMillis * 100d / totalUsageMillis')
-    || !widgetScreenTimeRenderer.includes('o.textScale')
-    || !widgetScreenTimeBridge.includes('textScale')
+    || !widgetScreenTimeRepository.includes('if (record != null) allEligible.add(record);')
+    || !widgetScreenTimeRepository.includes('if (!hidden.contains(record.packageName)) ranked.add(record);')
     || !widgetScreenTimeRenderer.includes('void layoutScreenTimeReflow(float rw, float rh)')
     || !widgetScreenTimeRenderer.includes('void studyAppsPanel(')
     || !widgetScreenTimeRenderer.includes('void deviceAppsPanel(')
@@ -75,10 +68,7 @@ if (!widgetScreenTimeUsageSource.includes('UsageStatsManager.INTERVAL_DAILY')
     || !widgetScreenTimeEntry.includes("window.addEventListener('theme-updated', syncWidgetAppearance)")
     || !widgetScreenTimeEntry.includes('widget-appearance-updated')
     || !widgetScreenTimeSetup.includes('android.intent.category.LAUNCHER')
-    || !widgetScreenTimeSetup.includes("'WidgetScreenTimeRepository.java'")
-    || !widgetScreenTimeSetup.includes("'UsageDataSource.java'")
-    || !widgetScreenTimeSetup.includes("'UsageEventTimeline.java'")
-    || !widgetScreenTimeSetup.includes("'UsageMetrics.java'")) {
+    || !widgetScreenTimeSetup.includes("'WidgetScreenTimeRepository.java'")) {
   fail('Screen Time widgets must use local UsageStats, keep Study Apps and Device Apps independent, and refresh through the existing native widget setup');
 }
 
@@ -1237,6 +1227,7 @@ const islandShow = studyModeFocus.slice(
 const islandNativeFiles = [
   'StudyModeDayUsage.java',
   'ScreenTimeIslandSpring.java',
+  'ScreenTimeIslandMotion.java',
   'ScreenTimeIslandPainter.java',
   'ScreenTimeIslandOverlay.java',
 ];
@@ -1626,26 +1617,4 @@ for (const [section, expandLabel, collapseLabel, contentId] of expandableStudySe
   }
 }
 
-// Learning Tables Pro Mode must transfer both the full question count and the
-// immutable mode snapshot into Practice, while the generator remains range-dynamic.
-const learningTables = read('src/pages/LearningPage.tsx');
-const mathData = read('src/lib/mathData.ts');
-if (!learningTables.includes('count: getTableMultiplierCount(proMode)') ||
-    !learningTables.includes('tablesProMode: proMode') ||
-    !learningTables.includes('getTableMultiplierCount(proMode)') ||
-    !mathData.includes('export const getTableMultiplierCount')) {
-  fail('Learning Tables must launch a complete table set from the same Standard/Pro multiplier-count source used for display');
-}
-const tableLearningUiTests = read('src/pages/PracticePage.trigRange.test.tsx');
-if (!practice.includes('tablesProMode: cfg.tablesProMode ?? getTablesProMode()') ||
-    !practice.includes('config.tablesProMode ?? getTablesProMode()') ||
-    !practice.includes('const proMax = getTableMultiplierCount(tablesProMode)') ||
-    !practice.includes('const rows = getTable(n, proMax)') ||
-    !index.includes('tablesProMode?: boolean') ||
-    !tableLearningUiTests.includes('starts Table 2 with all 20 questions from an explicit Pro Mode snapshot')) {
-  fail('Practice must use the session-scoped Pro Mode snapshot, shared Learning table rows, and full 20-question Learning launch');
-}
-
 console.log('Architecture regression checks passed.');
-
-

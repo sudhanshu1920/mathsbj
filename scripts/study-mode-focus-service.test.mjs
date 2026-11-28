@@ -16,6 +16,7 @@ const alarmReceiver = readFileSync(new URL("../android-native/com/sudhanshu/math
 const usageAccumulator = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeUsageAccumulator.java", import.meta.url), "utf8");
 const islandDayUsage = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/StudyModeDayUsage.java", import.meta.url), "utf8");
 const islandSpring = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/ScreenTimeIslandSpring.java", import.meta.url), "utf8");
+const islandMotion = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/ScreenTimeIslandMotion.java", import.meta.url), "utf8");
 const islandPainter = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/ScreenTimeIslandPainter.java", import.meta.url), "utf8");
 const islandOverlay = readFileSync(new URL("../android-native/com/sudhanshu/mathsbj/ScreenTimeIslandOverlay.java", import.meta.url), "utf8");
 const studyModeTs = readFileSync(new URL("../src/lib/studyMode.ts", import.meta.url), "utf8");
@@ -766,10 +767,35 @@ test("Screen Time Island overlay remains a tight, no-focus, no-network Canvas su
   assert.match(islandPainter, /MathMaster-Medium\.otf/);
   assert.match(islandPainter, /MathMaster-Bold\.otf/);
   assert.match(islandPainter, /accentForTheme/);
-  assert.match(islandPainter, /canvas\.drawText\(timePrimary, textX, baseline, text\)/);
-  assert.match(islandPainter, /drawCompactVisualizer\(canvas, width, height, alpha, accent, currentHour, pulse\)/);
-  assert.match(islandPainter, /0xff75ffd3/);
+  assert.match(islandPainter, /drawTimePart\(canvas, stepNumber\[step\]/);
+  assert.match(islandPainter, /Screen Time \\u00b7 Today/);
+  assert.match(islandPainter, /drawGlyph\(canvas, alpha, ms\)/);
+  assert.match(islandPainter, /drawBubble\(canvas, w, /);
+  assert.match(islandPainter, /drawHalo\(canvas, w, h, r, /);
+  assert.match(islandPainter, /Color\.rgb\(46, 229, 157\)/);
+  assert.match(islandPainter, /FOLLOW_THEME_ACCENT = false/);
   assert.doesNotMatch(islandPainter, /RenderEffect|BlurMaskFilter/);
+});
+
+test("Screen Time Island animates on the Canvas inside one fixed window, driven by the Android-free motion timeline", () => {
+  assert.doesNotMatch(islandMotion, /^import android\./m);
+  assert.match(islandMotion, /public boolean evaluate\(long nowMs, Frame out\)/);
+  assert.match(islandMotion, /ScreenTimeIslandSpring\.valueAt/);
+  assert.match(islandMotion, /REDUCED_FADE_MS/);
+  assert.match(islandMotion, /holdAccumMs/);
+  assert.doesNotMatch(islandMotion, /https?:\/\//);
+  assert.match(islandOverlay, /ScreenTimeIslandMotion/);
+  assert.match(islandOverlay, /public void doFrame\(long frameTimeNanos\)/);
+  assert.match(islandOverlay, /frameTimeNanos \/ 1_000_000L/);
+  assert.doesNotMatch(islandOverlay, /setInterpolatedBounds|setWindowBounds|LAYER_TYPE_HARDWARE/);
+  const doFrame = islandOverlay.slice(
+    islandOverlay.indexOf("public void doFrame(long frameTimeNanos)"),
+    islandOverlay.indexOf("private void scheduleFrame()"),
+  );
+  assert.ok(doFrame.length > 200);
+  assert.doesNotMatch(doFrame, /updateViewLayout|setWindowBounds/);
+  assert.match(islandPainter, /padSide\(float density\)/);
+  assert.match(islandPainter, /expandedWidthPx\(float screenWidthPx, float density\)/);
 });
 
 test("Screen Time Island settings and preview are validated and wired through the native bridge", () => {

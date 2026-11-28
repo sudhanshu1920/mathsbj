@@ -10,8 +10,8 @@ if command -v javac >/dev/null 2>&1; then JAVAC="javac"; else JAVAC="java -m jdk
 $JAVAC -nowarn -Xlint:none -d "$BUILD" \
   $(find "$WIDGET/shim" "$WIDGET/stubs" "$HERE/shim" -name '*.java') \
   "$ROOT/android-native/com/sudhanshu/mathsbj/ScreenTimeIslandSpring.java" \
+  "$ROOT/android-native/com/sudhanshu/mathsbj/ScreenTimeIslandMotion.java" \
   "$ROOT/android-native/com/sudhanshu/mathsbj/ScreenTimeIslandPainter.java" \
-  "$ROOT/android-native/com/sudhanshu/mathsbj/UsageMetrics.java" \
   "$ROOT/android-native/com/sudhanshu/mathsbj/MathMasterWidgetRenderer.java" \
   "$ROOT/android-native/com/sudhanshu/mathsbj/MathMasterHomeWidgetProvider.java" \
   "$ROOT/android-native/com/sudhanshu/mathsbj/MathMasterWidgetConfigActivity.java" \
