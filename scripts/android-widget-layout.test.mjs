@@ -254,13 +254,13 @@ test('screen-time dashboards use Emerald glass and derive ring and app bars from
 
   assert.match(renderer, /applyScreenTimePalette\(this\.pal, o\.themeAccent, o\.themeMatched, o\.lightMode\)/);
   assert.match(renderer, /drawScreenTimeDashboard\(section, study != null/);
-  const ringCenter = renderer.match(/void drawScreenTimeRingCenter\([\s\S]*?\n        }/);
-  assert.ok(ringCenter, 'progress-ring center renderer must exist');
-  assert.match(ringCenter[0], /float numSize = diameter \* 0\.305f;/);
-  assert.match(ringCenter[0], /measure\(num, numSize, f\.bold\)/);
-  assert.match(ringCenter[0], /txt\.setTextSize\(numSize \* textScale\)/);
-  assert.match(ringCenter[0], /txt\.setTextSize\(pctSize \* textScale\)/);
-  assert.doesNotMatch(ringCenter[0], /float numSize = diameter \* 0\.305f \* textScale/);
+  const progressRing = renderer.match(/void ring\(float cx, float cy, float outerR, float sw, int progress, boolean label\) \{[\s\S]*?\n        }/);
+  assert.ok(progressRing, 'progress-ring renderer must exist');
+  assert.match(progressRing[0], /float numSize = diameter \* 0\.305f;/);
+  assert.match(progressRing[0], /measure\(num, numSize, f\.bold\)/);
+  assert.match(progressRing[0], /txt\.setTextSize\(numSize \* textScale\)/);
+  assert.match(progressRing[0], /txt\.setTextSize\(pctSize \* textScale\)/);
+  assert.doesNotMatch(progressRing[0], /float numSize = diameter \* 0\.305f \* textScale/);
 
   assert.match(renderer, /section\.totalUsageMillis \/ budget/);
   assert.match(renderer, /9d \* 3_600_000d/);
