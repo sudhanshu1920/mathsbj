@@ -434,16 +434,6 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             setLayerType(View.LAYER_TYPE_NONE, null);
         }
 
-        private boolean isInsideCapsule(float x, float y) {
-            float scale = frame.scale * (1f - 0.026f * Math.max(0f, Math.min(1f, frame.press)));
-            float halfWidth = frame.width * scale * 0.5f;
-            float halfHeight = frame.height * scale * 0.5f;
-            float centerX = getWidth() * 0.5f;
-            float centerY = padTop + frame.offsetY + frame.height * 0.5f;
-            return x >= centerX - halfWidth && x <= centerX + halfWidth
-                && y >= centerY - halfHeight && y <= centerY + halfHeight;
-        }
-
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             painter.draw(canvas, getWidth(), getHeight(), frame);
