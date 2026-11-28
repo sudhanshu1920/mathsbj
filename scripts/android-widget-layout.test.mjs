@@ -32,7 +32,7 @@ test('Screen Time Island keeps the expanded visual window non-touchable and isol
   assert.match(overlay, /private void removeTouchWindow\(\)/);
   assert.match(overlay, /private boolean handleTouch\(MotionEvent event\)/);
   assert.match(overlay, /@Override public boolean onTouchEvent\(MotionEvent event\) \{\s+return false;\s+\}/);
-  assert.doesNotMatch(overlay, /updateViewLayout\(view, params\)[\s\S]*?FLAG_NOT_TOUCHABLE\s*;/);
+  assert.doesNotMatch(overlay, /params\.flags\s*=/, 'the visual window flags must never be toggled to touchable');
 });
 
 
