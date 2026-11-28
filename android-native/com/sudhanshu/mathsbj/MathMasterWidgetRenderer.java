@@ -342,10 +342,11 @@ final class MathMasterWidgetRenderer {
         float text(String s, float x, float baseline, float size, Typeface tf, int color, Paint.Align align, float maxWidth) {
             if (s == null || s.length() == 0) return 0f;
             txt.setShader(null); txt.setMaskFilter(null); txt.clearShadowLayer(); txt.setStyle(Paint.Style.FILL);
+            float scaledSize = size * clamp(o.textScale, 0.8f, 1.3f);
             txt.setColor(ensureTextContrast(color)); txt.setTypeface(tf); txt.setTextAlign(align); txt.setLetterSpacing(tracking);
-            txt.setTextSize(size);
+            txt.setTextSize(scaledSize);
             float w = txt.measureText(s);
-            if (maxWidth > 0f && w > maxWidth) { txt.setTextSize(size * maxWidth / w); w = maxWidth; }
+            if (maxWidth > 0f && w > maxWidth) { txt.setTextSize(scaledSize * maxWidth / w); w = maxWidth; }
             c.drawText(s, x, baseline, txt);
             return w;
         }
@@ -359,7 +360,7 @@ final class MathMasterWidgetRenderer {
         }
 
         float measure(String s, float size, Typeface tf) {
-            txt.setTypeface(tf); txt.setTextSize(size); txt.setLetterSpacing(tracking);
+            txt.setTypeface(tf); txt.setTextSize(size * clamp(o.textScale, 0.8f, 1.3f)); txt.setLetterSpacing(tracking);
             return txt.measureText(s);
         }
 
