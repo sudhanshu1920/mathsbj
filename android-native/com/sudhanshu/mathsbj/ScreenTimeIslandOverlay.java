@@ -12,7 +12,6 @@ import android.view.DisplayCutout;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewTreeObserver;
 import android.view.WindowInsets;
 import android.view.WindowMetrics;
 import android.view.WindowManager;
@@ -312,21 +311,6 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
             setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
             setLayerType(View.LAYER_TYPE_NONE, null);
-            getViewTreeObserver().addOnComputeInternalInsetsListener(info -> {
-                if (!attached || !frame.interactive) {
-                    info.setTouchableInsets(ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_FRAME);
-                    return;
-                }
-                float scale = frame.scale * (1f - 0.026f * Math.max(0f, Math.min(1f, frame.press)));
-                float centerX = getWidth() * 0.5f;
-                float centerY = padTop + frame.offsetY + frame.height * 0.5f;
-                int left = (int) Math.floor(centerX - frame.width * scale * 0.5f);
-                int top = (int) Math.floor(centerY - frame.height * scale * 0.5f);
-                int right = (int) Math.ceil(centerX + frame.width * scale * 0.5f);
-                int bottom = (int) Math.ceil(centerY + frame.height * scale * 0.5f);
-                info.setTouchableInsets(ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_REGION);
-                info.touchableRegion.set(left, top, right, bottom);
-            });
         }
 
         private boolean isInsideCapsule(float x, float y) {
