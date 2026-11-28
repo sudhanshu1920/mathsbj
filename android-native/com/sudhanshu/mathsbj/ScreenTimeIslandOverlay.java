@@ -19,12 +19,12 @@ import android.view.WindowManager;
 import java.util.List;
 
 /**
- * Fixed-size, Choreographer-driven WindowManager overlay for the Screen Time Island.
+ * Fixed-size visual WindowManager overlay plus a capsule-sized touch target for the Screen Time Island.
  *
  * The window is created once at the expanded size plus a small halo margin and is never resized
  * while animating. {@link ScreenTimeIslandMotion} produces every frame (capsule size, entrance,
  * count-up, press, drag, exit) and {@link ScreenTimeIslandPainter} draws it, so the animation runs
- * on vsync without relayouts. The window ignores touches until the island has settled.
+ * on vsync without relayouts. The visual window never receives touches; a separate capsule-sized touch window is attached only after the island settles.
  */
 public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallback {
     private static final long HOLD_MS = 4200L;
@@ -34,6 +34,8 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
     private final WindowManager windowManager;
     private final IslandView view;
     private final WindowManager.LayoutParams params;
+    private final IslandTouchView touchView;
+    private final WindowManager.LayoutParams touchParams;
     private final ScreenTimeIslandMotion motion;
     private final ScreenTimeIslandMotion.Frame frame = new ScreenTimeIslandMotion.Frame();
     private final String packageName;
@@ -55,6 +57,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
     private boolean startRequested;
     private boolean boundsResolved;
     private boolean touchable;
+    private boolean touchWindowAttached;
     private boolean touchDown;
     private boolean moved;
     private boolean longPressFired;
@@ -90,7 +93,9 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         motion = new ScreenTimeIslandMotion(collapsedWidth, collapsedHeight,
             expandedWidth, expandedHeight, reducedMotion, HOLD_MS);
         params = createWindowParams();
+        touchParams = createTouchWindowParams();
         view = new IslandView(context, appLabel, appIcon, Math.max(0L, totalMillis), accentColor);
+        touchView = new IslandTouchView(context);
         choreographer = Choreographer.getInstance();
         updateDescription(appLabel, Math.max(0L, totalMillis));
     }
@@ -182,18 +187,112 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         }
     }
 
+    /**
+     * The visual window is permanently non-touchable and can remain expanded-sized.
+     * A second, transparent window exists only while the island is interactive and is
+     * exactly the current capsule bounds. Android therefore never hit-tests transparent
+     * padding in the visual window as an input target.
+     */
     private void updateTouchability(boolean interactive) {
         if (!attached || interactive == touchable) return;
         touchable = interactive;
-        int flags = params.flags;
-        if (interactive) flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-        else flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-        if (flags == params.flags) return;
-        params.flags = flags;
+        if (interactive) attachTouchWindow();
+        else removeTouchWindow();
+    }
+
+    private WindowManager.LayoutParams createTouchWindowParams() {
+        int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            : WindowManager.LayoutParams.TYPE_PHONE;
+        WindowManager.LayoutParams value = new WindowManager.LayoutParams(
+            1, 1, type,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT);
+        value.gravity = Gravity.TOP | Gravity.LEFT;
+        value.setTitle("Math Master Screen Time Island Touch Target");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            value.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            value.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
+        return value;
+    }
+
+    private void attachTouchWindow() {
+        if (!attached || touchWindowAttached) return;
+        updateTouchWindowGeometry();
         try {
-            windowManager.updateViewLayout(view, params);
+            windowManager.addView(touchView, touchParams);
+            touchWindowAttached = true;
         } catch (RuntimeException error) {
             removeImmediately();
+        }
+    }
+
+    private void updateTouchWindowGeometry() {
+        float scale = frame.scale * (1f - 0.026f * Math.max(0f, Math.min(1f, frame.press)));
+        int width = Math.max(1, (int) Math.ceil(frame.width * scale));
+        int height = Math.max(1, (int) Math.ceil(frame.height * scale));
+        int screenWidth = context.getResources().getDisplayMetrics().widthPixels;
+        touchParams.width = width;
+        touchParams.height = height;
+        touchParams.x = screenWidth / 2 + cameraOffsetX - width / 2;
+        touchParams.y = anchorTop + Math.round(frame.offsetY + (frame.height - height) * 0.5f);
+    }
+
+    private void removeTouchWindow() {
+        if (!touchWindowAttached) return;
+        touchWindowAttached = false;
+        try {
+            windowManager.removeViewImmediate(touchView);
+        } catch (RuntimeException ignored) {
+            // The visual window and touch target can be torn down in either order.
+        }
+    }
+
+    private boolean handleTouch(MotionEvent event) {
+        if (!attached || !touchWindowAttached || !frame.interactive) return false;
+        long now = nowMs();
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                touchDown = true;
+                moved = false;
+                longPressFired = false;
+                touchStartedAt = now;
+                touchDownX = event.getX();
+                touchDownY = event.getY();
+                motion.setTouching(true);
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                if (touchDown) {
+                    float dy = event.getY() - touchDownY;
+                    float dx = event.getX() - touchDownX;
+                    if (Math.abs(dx) > dp(10) || Math.abs(dy) > dp(10)) moved = true;
+                    if (moved) motion.setDrag(dy < 0f ? dy : dy * 0.18f);
+                    if (dy < -dp(26)) {
+                        touchDown = false;
+                        motion.setTouching(false);
+                        motion.releaseDrag(now);
+                        motion.dismiss(now);
+                    }
+                }
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (!touchDown) return true;
+                touchDown = false;
+                motion.setTouching(false);
+                motion.releaseDrag(now);
+                if (!longPressFired && !moved) touchView.performClick();
+                return true;
+            case MotionEvent.ACTION_CANCEL:
+                touchDown = false;
+                motion.setTouching(false);
+                motion.releaseDrag(now);
+                return true;
+            default:
+                return true;
         }
     }
 
@@ -286,6 +385,8 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
             callbackPosted = false;
         }
         touchDown = false;
+        touchable = false;
+        removeTouchWindow();
         try {
             windowManager.removeViewImmediate(view);
         } catch (WindowManager.BadTokenException | IllegalArgumentException | IllegalStateException ignored) {
@@ -296,6 +397,26 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
     }
 
     private int dp(int value) { return Math.round(value * density); }
+
+    private final class IslandTouchView extends View {
+        IslandTouchView(Context context) {
+            super(context);
+            setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            setClickable(true);
+            setFocusable(false);
+            setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        }
+
+        @Override public boolean onTouchEvent(MotionEvent event) {
+            return handleTouch(event);
+        }
+
+        @Override public boolean performClick() {
+            super.performClick();
+            motion.toggle(nowMs());
+            return true;
+        }
+    }
 
     private final class IslandView extends View {
         private final ScreenTimeIslandPainter painter;
@@ -329,54 +450,7 @@ public final class ScreenTimeIslandOverlay implements Choreographer.FrameCallbac
         }
 
         @Override public boolean onTouchEvent(MotionEvent event) {
-            if (!attached || !frame.interactive) return false;
-            long now = nowMs();
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    if (!isInsideCapsule(event.getX(), event.getY())) return false;
-                    touchDown = true;
-                    moved = false;
-                    longPressFired = false;
-                    touchStartedAt = now;
-                    touchDownX = event.getX();
-                    touchDownY = event.getY();
-                    motion.setTouching(true);
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    if (touchDown) {
-                        float dy = event.getY() - touchDownY;
-                        float dx = event.getX() - touchDownX;
-                        if (Math.abs(dx) > dp(10) || Math.abs(dy) > dp(10)) moved = true;
-                        if (moved) motion.setDrag(dy < 0f ? dy : dy * 0.18f);
-                        if (dy < -dp(26)) {
-                            touchDown = false;
-                            motion.setTouching(false);
-                            motion.releaseDrag(now);
-                            motion.dismiss(now);
-                        }
-                    }
-                    return true;
-                case MotionEvent.ACTION_UP:
-                    if (!touchDown) return true;
-                    touchDown = false;
-                    motion.setTouching(false);
-                    motion.releaseDrag(now);
-                    if (!longPressFired && !moved) performClick();
-                    return true;
-                case MotionEvent.ACTION_CANCEL:
-                    touchDown = false;
-                    motion.setTouching(false);
-                    motion.releaseDrag(now);
-                    return true;
-                default:
-                    return true;
-            }
-        }
-
-        @Override public boolean performClick() {
-            super.performClick();
-            motion.toggle(nowMs());
-            return true;
+            return false;
         }
     }
 }
