@@ -56,7 +56,7 @@ test('configures complete installed-app visibility, native services and Capacito
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const result = await configureAndroidStudyMode(root);
-  assert.equal(result.javaFiles, 19);
+  assert.equal(result.javaFiles, 17);
   assert.equal(result.foregroundMonitoring, 'usage-access-only');
   assert.deepEqual(result.variants, ['universal']);
   assert.equal(result.packageVisibility, 'all-installed-packages');

@@ -132,8 +132,9 @@ system-provided statistics again.
 
 ## Screen Time Island
 
-Screen Time Island is a compact OLED-black overlay owned by the existing
-Study Mode Focus Service. It is enabled by default with a five-minute cadence;
+Screen Time Island is an emerald neon-glass, Dynamic Island-style overlay
+owned by the existing Study Mode Focus Service. It is enabled by default with a
+five-minute cadence;
 the setting accepts one through ten minutes. The interval is independent of
 the existing Periodic Reminder interval and is held only in memory. The second
 `StudyModeUsageAccumulator` instance samples the same one-second foreground
@@ -155,10 +156,32 @@ the screen turns off/locks, a Shield is requested, Study Mode ends, overlay
 permission is lost, or the display configuration changes. The full-screen
 Periodic Reminder and Shield always have priority. A due island waits behind a
 pending/visible popup for at most ten seconds; after that it is dropped and the
-island accumulator resets. The island window is limited to the capsule bounds,
-does not take focus, and is made non-touchable during its morph/dismiss
-animations. The settled compact/expanded capsule remains touchable to support
-tap-to-toggle, swipe-up dismissal and long-press navigation.
+island accumulator resets. The island window never takes focus and is created
+once at the expanded pill size plus a small halo margin; it is never resized
+while animating. It ignores touches until the island has settled, then supports
+tap-to-toggle, drag/swipe-up dismissal and long-press navigation.
+
+### Look and motion
+
+The expanded island follows the approved reference: a fully rounded glass pill
+(about 5.3:1) with an emerald neon rim and soft halo, the app icon in a rounded
+tile, the app name over "Screen Time · Today", a hairline divider, the day's
+usage as big numbers with smaller units ("20 min", "1 hr 24 min"), a four-bar
+equalizer glyph and a glass bubble on the top-right rim. The collapsed state is a
+black camera pill that merges with the front camera and lights up as it grows.
+The palette is fixed to the reference emerald; set
+`ScreenTimeIslandPainter.FOLLOW_THEME_ACCENT` to `true` to tint it with the
+popup theme accent instead. No blur filter or render effect is used: the halo is
+a stack of faint strokes and all drawing is Canvas-only.
+
+`ScreenTimeIslandMotion` is an Android-free timeline that returns one frame per
+vsync: capsule width/height (springs with a small overshoot), entrance, content
+stagger, count-up, press feedback, drag-to-dismiss and the hold timer, which is
+paused while touched. `ScreenTimeIslandOverlay` feeds it the Choreographer frame
+time and `ScreenTimeIslandPainter` draws the frame, so the animation causes no
+window relayouts. With the system animation scale at zero the island uses a
+120 ms cross-fade only. The JVM harness (`npm run island:preview`) tests the
+timeline and renders the production frames as contact sheets.
 
 ### Today's usage calculation
 

@@ -1588,13 +1588,22 @@ const StudyModePage = ({ onBack, backLabel = "Back to Settings", openStudyAppsPi
               />
             </div>
 
-            <div aria-hidden="true" className="study-mode-island-preview mt-2 flex min-h-[44px] items-center justify-center overflow-hidden rounded-xl bg-black px-3 py-1.5">
-              <div className="study-mode-island-preview__capsule flex h-8 min-w-[136px] items-center justify-between rounded-full border border-white/10 bg-black px-2.5 shadow-inner">
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 rounded-[5px] bg-gradient-to-br from-sky-400/90 to-indigo-500/90" />
-                  <span className="h-1.5 w-12 rounded-full bg-white/55" />
+            <div aria-hidden="true" className="study-mode-island-preview mt-2 flex min-h-[58px] items-center justify-center overflow-hidden rounded-xl px-3 py-2">
+              <div className="study-mode-island-preview__capsule">
+                <span className="study-mode-island-preview__body" />
+                <span className="study-mode-island-preview__collapsed">
+                  <span className="study-mode-island-preview__mini-icon" />
+                  <span className="study-mode-island-preview__dot" />
                 </span>
-                <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_7px_hsl(var(--accent)/0.65)]" />
+                <span className="study-mode-island-preview__content">
+                  <span className="study-mode-island-preview__icon" />
+                  <span className="study-mode-island-preview__name">App name</span>
+                  <span className="study-mode-island-preview__caption">Screen Time · Today</span>
+                  <span className="study-mode-island-preview__divider" />
+                  <span className="study-mode-island-preview__time"><b>20</b>min</span>
+                  <span className="study-mode-island-preview__bars"><i /><i /><i /><i /></span>
+                  <span className="study-mode-island-preview__bubble" />
+                </span>
               </div>
             </div>
 

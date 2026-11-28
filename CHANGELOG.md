@@ -15,6 +15,13 @@
 
 # Changelog
 
+## 2026-11-27 — Emerald glass Screen Time Island and Study/Device Apps widgets
+
+- Redraw the Screen Time Island as the approved emerald neon-glass pill: icon tile, app name over "Screen Time · Today", divider, big usage time with smaller units, equalizer glyph, glass bubble and rim halo; the collapsed state is a camera-black pill that lights up as it expands.
+- Move all island animation into the Android-free `ScreenTimeIslandMotion` timeline and a single fixed overlay window (no per-frame window resize), with spring morph, staggered content, count-up, press feedback, drag-to-dismiss, reduced-motion cross-fade and JVM tests.
+- Restyle the Study Apps and Device Apps widgets to the approved reference: gradient header tile, glass period pill with chevron, thick gradient usage ring, rich total, three glass rows with mint/cyan/lavender bars, percent and chevron, footer message, glass bubble and reflection curves.
+- Refresh the in-app Screen Time Island preview card to the same look; keep the Study Mode settings, permissions and the single provider/bitmap renderer unchanged.
+
 ## 2026-11-20 — Screen Time widgets preserve neon-glass compositions
 
 - Reflow Study Apps and Device Apps Screen Time inside the selected one of seven reference compositions instead of replacing legacy widget artwork with a text band.
